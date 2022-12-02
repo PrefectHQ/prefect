@@ -19,68 +19,21 @@
 
 <script lang="ts" setup>
   import {
-    blockCatalogViewRouteKey,
-    blockCatalogCreateRouteKey,
-    blockCatalogRouteKey,
-    blockEditRouteKey,
-    blockRouteKey,
-    blocksRouteKey,
     canKey,
-    deploymentRouteKey,
-    deploymentsRouteKey,
-    editDeploymentRouteKey,
-    editNotificationRouteKey,
-    editQueueRouteKey,
-    flowRouteKey,
-    flowRunCreateRouteKey,
-    flowRunRouteKey,
-    flowRunsRouteKey,
-    flowsRouteKey,
-    notificationCreateRouteKey,
-    notificationsRouteKey,
-    taskRunRouteKey,
-    settingsRouteKey,
-    workQueueCreateRouteKey,
-    workQueueRouteKey,
-    workQueuesRouteKey,
-    radarRouteKey
+    createWorkspaceRoutes,
+    workspaceRoutesKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import AppRouterView from '@/pages/AppRouterView.vue'
-  import { routes } from '@/router/routes'
   import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
-  provide(canKey, can)
+  const routes = createWorkspaceRoutes()
 
-  provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
-  provide(blockCatalogRouteKey, routes.blocksCatalog)
-  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
-  provide(blockEditRouteKey, routes.blockEdit)
-  provide(blockRouteKey, routes.block)
-  provide(blocksRouteKey, routes.blocks)
-  provide(deploymentRouteKey, routes.deployment)
-  provide(deploymentsRouteKey, routes.deployments)
-  provide(editDeploymentRouteKey, routes.deploymentEdit)
-  provide(editNotificationRouteKey, routes.notificationEdit)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(flowRouteKey, routes.flow)
-  provide(flowRunCreateRouteKey, routes.flowRunCreate)
-  provide(flowRunRouteKey, routes.flowRun)
-  provide(flowRunsRouteKey, routes.flowRuns)
-  provide(flowsRouteKey, routes.flows)
-  provide(notificationCreateRouteKey, routes.notificationCreate)
-  provide(notificationsRouteKey, routes.notifications)
-  provide(radarRouteKey, routes.radar)
-  provide(settingsRouteKey, routes.settings)
-  provide(taskRunRouteKey, routes.taskRun)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(workQueueRouteKey, routes.workQueue)
-  provide(workQueuesRouteKey, routes.workQueues)
+  provide(workspaceRoutesKey, routes)
+  provide(canKey, can)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
