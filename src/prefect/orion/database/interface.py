@@ -60,7 +60,10 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def run_migrations_upgrade(self):
         """Run all upgrade migrations"""
-        await run_sync_in_worker_thread(alembic_upgrade)
+        try:
+            await run_sync_in_worker_thread(alembic_upgrade)
+        except KeyError:
+            alembic_upgrade()
 
     async def run_migrations_downgrade(self):
         """Run all downgrade migrations"""
