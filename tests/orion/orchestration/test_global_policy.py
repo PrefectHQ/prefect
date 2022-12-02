@@ -5,7 +5,8 @@ import pytest
 
 from prefect.orion import models
 from prefect.orion.orchestration.global_policy import (
-    IncrementRunCount,
+    IncrementFlowRunCount,
+    IncrementTaskRunCount,
     IncrementRunTime,
     SetEndTime,
     SetExpectedStartTime,
@@ -230,10 +231,15 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
+        if run_type == "task":
+            run_incrementer = IncrementTaskRunCount
+        else:
+            run_incrementer = IncrementFlowRunCount
+
         run = ctx.run
         assert run.run_count == 0
 
-        async with IncrementRunCount(ctx, *intended_transition) as ctx:
+        async with run_incrementer(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 1
@@ -253,10 +259,15 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
+        if run_type == "task":
+            run_incrementer = IncrementTaskRunCount
+        else:
+            run_incrementer = IncrementFlowRunCount
+
         run = ctx.run
         run.run_count = 41
 
-        async with IncrementRunCount(ctx, *intended_transition) as ctx:
+        async with run_incrementer(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 42
