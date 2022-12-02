@@ -64,6 +64,12 @@ jobs:
           - pytest-options: "--only-services"
             build-docker-images: true
 
+          # Run Windows tests on 3.10
+          - os: "windows-latest"
+            python-version: "3.10"
+            # Do not run service tests on windows
+            pytest-options: "--exclude-services"
+
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -171,7 +177,8 @@ jobs:
           - "--exclude-services"
 
       fail-fast: false
-
+    # The windows test runner cannot run a postgres service so we can only
+    # test on ubuntu
     runs-on: ubuntu-latest
 
     # TODO: Consider moving this from a service into a normal docker command
