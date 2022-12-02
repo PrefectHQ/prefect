@@ -260,7 +260,7 @@ class KubernetesJob(Infrastructure):
     async def run(
         self,
         task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> Optional[bool]:
+    ) -> KubernetesJobResult:
         if not self.command:
             raise ValueError("Kubernetes job cannot be run with empty command.")
 
@@ -273,8 +273,11 @@ class KubernetesJob(Infrastructure):
         if task_status is not None:
             task_status.started(pid)
 
-        # Monitor the job
-        return await run_sync_in_worker_thread(self._watch_job, job)
+        # Monitor the job until completion
+        status_code = await run_sync_in_worker_thread(
+            self._watch_job, job.metadata.name
+        )
+        return KubernetesJobResult(identifier=pid, status_code=status_code)
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         self._configure_kubernetes_library_client()
@@ -535,15 +538,19 @@ class KubernetesJob(Infrastructure):
 
         self.logger.error(f"Job {job_name!r}: Pod never started.")
 
-    def _watch_job(self, job: "V1Job") -> KubernetesJobResult:
-        job_name = job.metadata.name
+    def _watch_job(self, job_name: str) -> int:
+        """
+        Watch a job.
+
+        Return the final status code of the first container.
+        """
         job = self._get_job(job_name)
         if not job:
-            return KubernetesJobResult(status_code=-1, identifier=job_name)
+            return -1
 
         pod = self._get_job_pod(job_name)
         if not pod:
-            return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+            return -1
 
         if self.stream_output:
             with self.get_client() as client:
@@ -571,7 +578,7 @@ class KubernetesJob(Infrastructure):
                     break
             else:
                 self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+                return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
@@ -579,10 +586,7 @@ class KubernetesJob(Infrastructure):
             )
             first_container_status = pod_status.status.container_statuses[0]
 
-        return KubernetesJobResult(
-            status_code=first_container_status.state.terminated.exit_code,
-            identifier=job.metadata.name,
-        )
+        return first_container_status.state.terminated.exit_code
 
     def _create_job(self, job_manifest: KubernetesManifest) -> "V1Job":
         """
