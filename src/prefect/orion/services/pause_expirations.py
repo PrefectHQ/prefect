@@ -14,9 +14,7 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
-from prefect.settings import (
-    PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS,
-)
+from prefect.settings import PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
 
 
 class FailExpiredPauses(LoopService):
@@ -32,7 +30,7 @@ class FailExpiredPauses(LoopService):
         )
 
         # query for this many runs to mark failed at once
-        self.batch_size = 400
+        self.batch_size = 200
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):

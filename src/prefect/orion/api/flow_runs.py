@@ -196,7 +196,14 @@ async def resume_flow_run(
         state = flow_run.state
 
         if not state.type == "PAUSED":
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+            result = OrchestrationResult(
+                state=None,
+                status=schemas.responses.SetStateStatus.ABORT,
+                details=schemas.responses.StateAbortDetails(
+                    reason="Cannot resume flow run."
+                ),
+            )
+            return result
 
         orchestration_parameters.update({"api-version": api_version})
 

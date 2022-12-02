@@ -5,20 +5,28 @@ Revises: 5e4f924ff96c
 Create Date: 2022-12-01 15:49:53.681226
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
+
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = 'e3d21d0948c3'
-down_revision = '5e4f924ff96c'
+revision = "e3d21d0948c3"
+down_revision = "5e4f924ff96c"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.add_column('flow_run', sa.Column('pause_expiration_time', prefect.orion.utilities.database.Timestamp(timezone=True), nullable=True))
+    op.add_column(
+        "flow_run",
+        sa.Column(
+            "pause_expiration_time",
+            prefect.orion.utilities.database.Timestamp(timezone=True),
+            nullable=True,
+        ),
+    )
 
 
 def downgrade():
-    op.drop_column('flow_run', 'pause_expiration_time')
+    op.drop_column("flow_run", "pause_expiration_time")

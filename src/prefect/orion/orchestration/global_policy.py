@@ -256,7 +256,9 @@ class UpdatePauseMetadata(BaseUniversalTransform):
             ] = context.proposed_state.state_details.pause_counter
             context.run.empirical_policy = updated_policy
 
-            context.run.pause_expiration_time = context.proposed_state.state_details.pause_timeout
+            context.run.pause_expiration_time = (
+                context.proposed_state.state_details.pause_timeout
+            )
 
 
 class UpdateSubflowParentTask(BaseUniversalTransform):
