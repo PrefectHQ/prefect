@@ -229,7 +229,7 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
 
     infrastructure_pid = f"{socket.gethostname()}:12345"
-    grace_seconds = 3
+    grace_seconds = 15
 
     process = Process(command=["noop"])
     await process.kill(
@@ -242,11 +242,18 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
             call(12345, 0),
             call(12345, 0),
             call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
+            call(12345, 0),
             call(12345, signal.SIGKILL),
         ]
     )
 
-    assert anyio_sleep.call_count == 3
+    anyio_sleep.assert_has_calls([call(1.5)] * 10)
 
 
 @pytest.mark.skipif(
@@ -274,7 +281,7 @@ async def test_process_kill_early_return(monkeypatch):
         ]
     )
 
-    assert anyio_sleep.call_count == 1
+    anyio_sleep.assert_called_once_with(3)
 
 
 @pytest.mark.skipif(
