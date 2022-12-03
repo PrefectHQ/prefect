@@ -36,7 +36,7 @@ jobs:
 
       - name: Install python packages
         run: |
-          pip install -U pip setuptools wheel
+          python -m pip install -U pip setuptools wheel
           pip install -U -e .[dev]
 
       - name: Build orion-ui
@@ -98,7 +98,7 @@ jobs:
         id: metadata
         uses: docker/metadata-action@v4
         with:
-          images: ${{ github.repository }}
+          images: prefecthq/prefect
           # list CURRENT_BRANCH first, to use as CACHE_IMAGE below
           tags: |
             type=raw,value=${{ env.CURRENT_BRANCH }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
