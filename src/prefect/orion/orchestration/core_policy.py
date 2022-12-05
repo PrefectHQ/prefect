@@ -55,6 +55,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             HandleTaskTerminalStateTransitions,
             PreventRedundantTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
+            CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedTasks,
             RenameReruns,
@@ -371,9 +372,32 @@ class RenameReruns(BaseOrchestrationRule):
                 await self.rename_state("Rerunning")
 
 
+class CopyScheduledTime(BaseOrchestrationRule):
+    """
+    Ensures scheduled time is copied from scheduled states to pending states.
+
+    If a new scheduled time has been proposed on the pending state, the scheduled time
+    on the scheduled state will be ignored.
+    """
+
+    FROM_STATES = [states.StateType.SCHEDULED]
+    TO_STATES = [states.StateType.PENDING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        if not proposed_state.state_details.scheduled_time:
+            proposed_state.state_details.scheduled_time = (
+                initial_state.state_details.scheduled_time
+            )
+
+
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
-    Prevents transitions from scheduled states that happen too early.
+    Prevents transitions to running states from happening to early.
 
     This rule enforces that all scheduled states will only start with the machine clock
     used by the Orion instance. This rule will identify transitions from scheduled
@@ -382,8 +406,8 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     before attempting the transition again.
     """
 
-    FROM_STATES = [states.StateType.SCHEDULED]
-    TO_STATES = ALL_ORCHESTRATION_STATES
+    FROM_STATES = [states.StateType.SCHEDULED, states.StateType.PENDING]
+    TO_STATES = [states.StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -393,7 +417,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     ) -> None:
         scheduled_time = initial_state.state_details.scheduled_time
         if not scheduled_time:
-            raise ValueError("Received state without a scheduled time")
+            return
 
         # At this moment, we take the floor of the actual delay as the API schema
         # specifies an integer return value.
