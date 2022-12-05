@@ -171,6 +171,55 @@ async def failed_flow_run_with_deployment_with_no_more_retries(
 
 
 @pytest.fixture
+async def nonblockingpaused_flow_run_without_deployment(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def blocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=False, timeout=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def nonblocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
 async def flow_run_state(session, flow_run, db):
     flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
     await session.commit()

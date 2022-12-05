@@ -1459,7 +1459,7 @@ class OrionClient:
             an OrchestrationResult model representation of state orchestration output
         """
         try:
-            response = await self._client.get(f"/flow_runs/{flow_run_id}/resume")
+            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
         except httpx.HTTPStatusError as e:
             raise
 

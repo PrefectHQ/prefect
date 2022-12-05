@@ -175,7 +175,7 @@ async def read_flow_run_graph(
         )
 
 
-@router.get("/{id}/resume")
+@router.post("/{id}/resume")
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
@@ -195,12 +195,12 @@ async def resume_flow_run(
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
         state = flow_run.state
 
-        if not state.type == "PAUSED":
+        if state is None or state.type != "PAUSED":
             result = OrchestrationResult(
                 state=None,
                 status=schemas.responses.SetStateStatus.ABORT,
                 details=schemas.responses.StateAbortDetails(
-                    reason="Cannot resume flow run."
+                    reason="Cannot resume a flow run that is not paused."
                 ),
             )
             return result
@@ -208,6 +208,16 @@ async def resume_flow_run(
         orchestration_parameters.update({"api-version": api_version})
 
         if state.state_details.pause_reschedule:
+            if not flow_run.deployment_id:
+                result = OrchestrationResult(
+                    state=None,
+                    status=schemas.responses.SetStateStatus.ABORT,
+                    details=schemas.responses.StateAbortDetails(
+                        reason="Cannot reschedule a paused flow run without a deployment."
+                    ),
+                )
+                return result
+
             orchestration_result = await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run_id,
