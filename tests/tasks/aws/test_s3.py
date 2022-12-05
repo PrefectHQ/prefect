@@ -121,6 +121,15 @@ class TestS3Upload:
             "session.Session()" in mocked_boto_client.return_value._extract_mock_name()
         )
 
+    def test_upload_options_forwarded(self, mocked_boto_client):
+        custom_upload_options = {"a_custom": "option"}
+        task = S3Upload(bucket="test", upload_options=custom_upload_options)
+        task.run(data="")
+        assert (
+            mocked_boto_client.upload_fileobj.call_args[1]["ExtraArgs"]
+            == custom_upload_options
+        )
+
 
 class TestS3List:
     def test_initialization(self):
