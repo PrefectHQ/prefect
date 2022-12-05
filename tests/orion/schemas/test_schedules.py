@@ -651,7 +651,7 @@ class TestRRuleSchedule:
     async def test_rrule_max_rrule_len(self):
         start = datetime(2000, 1, 1)
         s = "RDATE:" + ",".join(
-            [start.add(days=i).format("YMMDD") + "T000000Z" for i in range(1000)]
+            [start.add(days=i).format("YMMDD") + "T000000Z" for i in range(3000)]
         )
         assert len(s) > MAX_RRULE_LENGTH
         with pytest.raises(ValidationError, match="Max length"):

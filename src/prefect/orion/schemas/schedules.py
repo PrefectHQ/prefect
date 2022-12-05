@@ -15,8 +15,8 @@ from pydantic import Field, validator
 from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
 MAX_ITERATIONS = 1000
-# approx. a years worth of RDATEs + buffer
-MAX_RRULE_LENGTH = 6500
+# approx. 5 years worth of RDATEs + buffer
+MAX_RRULE_LENGTH = 32000
 
 
 def _prepare_scheduling_start_and_end(
