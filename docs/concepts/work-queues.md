@@ -49,6 +49,7 @@ Configuration parameters you can specify when starting an agent include:
 | --run-once        | Only run agent polling once. By default, the agent runs forever. |
 | --prefetch-seconds | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
 | --hide-welcome   | Do not display the startup ASCII art for the agent process.                          |
+| --match | Start all queues that match the given match string
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
 
@@ -62,13 +63,12 @@ You must start an agent within an environment that can access or create the infr
 
 ### Starting an agent
 
-Use the `prefect agent start` CLI command to start an agent. You must pass at least one work queue name that the agent will poll for work. If the work queue does not exist, it will be created.
+Use the `prefect agent start` CLI command to start an agent. You must pass at least one work queue name or match string that the agent will poll for work. If the work queue does not exist, it will be created.
 
-<div class="terminal">
+
 ```bash
 $ prefect agent start -q [work queue name]
 ```
-</div>
 
 For example:
 
@@ -93,6 +93,17 @@ Agent started! Looking for work from queue(s): my-queue...
 In this case, Prefect automatically created a new `my-queue` work queue.
 
 By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
+
+In addition, Agents can match multiple work queues by providing a --match string instead of specifying all of the work queues. The agent will poll every work queue with a name that starts with the given string.
+
+For example:
+<div class="terminal">
+
+```bash
+$ prefect agent start --match "foo-"
+```
+</div>
+This example will poll every work queue that starts with "foo-"
 
 ### Configuring prefetch
 
