@@ -17,7 +17,7 @@
   import { routes } from '@/router'
 
   const router = useRouter()
-  const flowRunId = useRouteParam('id')
+  const flowRunId = useRouteParam('flowRunId')
 
   const options = { interval:  5000 }
 
