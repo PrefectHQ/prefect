@@ -65,10 +65,13 @@ You must start an agent within an environment that can access or create the infr
 
 Use the `prefect agent start` CLI command to start an agent. You must pass at least one work queue name or match string that the agent will poll for work. If the work queue does not exist, it will be created.
 
+<div class="terminal">
 
 ```bash
 $ prefect agent start -q [work queue name]
 ```
+
+</div>
 
 For example:
 
