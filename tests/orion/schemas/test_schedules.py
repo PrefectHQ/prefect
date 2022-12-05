@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from prefect.orion.schemas.schedules import (
     MAX_ITERATIONS,
+    MAX_RRULE_LENGTH,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -634,13 +635,6 @@ class TestRRuleSchedule:
         dates = await s.get_dates(5, start=pendulum.now("UTC"))
         assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
 
-    async def test_rrule_returns_nothing_before_dtstart(self):
-        s = RRuleSchedule.from_rrule(
-            rrule.rrule(freq=rrule.DAILY, dtstart=pendulum.datetime(2030, 1, 1))
-        )
-        dates = await s.get_dates(5, start=pendulum.now("UTC"))
-        assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
-
     async def test_rrule_validates_rrule_str(self):
         # generic validation error
         with pytest.raises(ValidationError, match="(Invalid RRule string)"):
@@ -653,6 +647,15 @@ class TestRRuleSchedule:
         # informative error when possible
         with pytest.raises(ValidationError, match="(invalid 'FREQ': DAILYBAD)"):
             RRuleSchedule(rrule="FREQ=DAILYBAD")
+
+    async def test_rrule_max_rrule_len(self):
+        start = datetime(2000, 1, 1)
+        s = "RDATE:" + ",".join(
+            [start.add(days=i).format("YMMDD") + "T000000Z" for i in range(1000)]
+        )
+        assert len(s) > MAX_RRULE_LENGTH
+        with pytest.raises(ValidationError, match="Max length"):
+            RRuleSchedule(rrule=s)
 
     async def test_rrule_schedule_handles_complex_rrulesets(self):
         s = RRuleSchedule(
