@@ -201,7 +201,7 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
     process = Process(command=["noop"])
 
     with pytest.raises(InfrastructureNotAvailable):
-        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+        await process.kill(infrastructure_pid=infrastructure_pid)
 
     os_kill.assert_not_called()
 
@@ -215,7 +215,7 @@ async def test_process_kill_no_matching_pid(monkeypatch):
     process = Process(command=["noop"])
 
     with pytest.raises(InfrastructureNotFound):
-        await process.kill(infrastructure_pid=infrastructure_pid, grace_seconds=15)
+        await process.kill(infrastructure_pid=infrastructure_pid)
 
 
 @pytest.mark.skipif(
@@ -224,12 +224,10 @@ async def test_process_kill_no_matching_pid(monkeypatch):
 )
 async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
     os_kill = MagicMock()
-    anyio_sleep = AsyncMock()
     monkeypatch.setattr("os.kill", os_kill)
-    monkeypatch.setattr("prefect.infrastructure.process.anyio.sleep", anyio_sleep)
 
     infrastructure_pid = f"{socket.gethostname()}:12345"
-    grace_seconds = 15
+    grace_seconds = 2
 
     process = Process(command=["noop"])
     await process.kill(
@@ -240,20 +238,9 @@ async def test_process_kill_sends_sigterm_then_sigkill(monkeypatch):
         [
             call(12345, signal.SIGTERM),
             call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
-            call(12345, 0),
             call(12345, signal.SIGKILL),
         ]
     )
-
-    anyio_sleep.assert_has_calls([call(1.5)] * 10)
 
 
 @pytest.mark.skipif(

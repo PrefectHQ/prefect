@@ -171,18 +171,17 @@ class Process(Infrastructure):
             # Throttle how often we check if the process is still alive to keep
             # from making too many system calls in a short period of time.
             check_interval = max(grace_seconds / 10, 1)
-            waited_seconds = 0
 
-            while waited_seconds < grace_seconds:
-                await anyio.sleep(check_interval)
-                waited_seconds += check_interval
+            with anyio.move_on_after(grace_seconds):
+                while True:
+                    await anyio.sleep(check_interval)
 
-                # Detect if the process is still alive. If not do an early
-                # return as the process respected the SIGTERM from above.
-                try:
-                    os.kill(pid, 0)
-                except ProcessLookupError:
-                    return
+                    # Detect if the process is still alive. If not do an early
+                    # return as the process respected the SIGTERM from above.
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        return
 
             try:
                 os.kill(pid, signal.SIGKILL)
