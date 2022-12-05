@@ -73,7 +73,7 @@ async def run_deployment(
             Defaults to None
         poll_interval: The number of seconds between polls
         tags: An optional list of tags to associate with this flow run; note that tags are used only for organizational purposes.
-        idempotency_key: q unique value to be used by the server to recognize subsequent retries of the same run.
+        idempotency_key: a unique value to be used by the server to recognize subsequent retries of the same run.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
