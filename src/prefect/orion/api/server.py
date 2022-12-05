@@ -160,7 +160,7 @@ def create_orion_api(
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
-    @api_app.get(health_check_path)
+    @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
         return True
 
