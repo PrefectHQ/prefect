@@ -18,7 +18,7 @@
   import { routes } from '@/router'
 
   const api = useWorkspaceApi()
-  const deploymentId = useRouteParam('id')
+  const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
 
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
