@@ -519,12 +519,11 @@ class TestInfrastructureIntegration:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.infrastructure_pid == "id-1234"
 
-    async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
+    async def test_agent_submit_run_does_not_wait_for_scheduled_time_before_submitting(
         self,
         orion_client,
         deployment,
         mock_infrastructure_run,
-        monkeypatch,
         mock_anyio_sleep,
     ):
         flow_run = await orion_client.create_flow_run_from_deployment(
@@ -536,16 +535,13 @@ class TestInfrastructureIntegration:
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
-            with mock_anyio_sleep.assert_sleeps_for(10):
+            with mock_anyio_sleep.assert_sleeps_for(0):
                 await agent.submit_run(flow_run)
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
-        # Note that we include a 1 second buffer to account for rounding in the WAIT
-        # instruction
         assert (
-            state.timestamp.add(seconds=1)
-            >= flow_run.state.state_details.scheduled_time
-        ), "Pending state time should be after the scheduled time"
+            state.timestamp.add(seconds=1) < flow_run.state.state_details.scheduled_time
+        ), "Pending state time should be before the scheduled time"
         assert state.is_pending()
         mock_infrastructure_run.assert_called_once()
 
