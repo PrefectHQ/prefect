@@ -477,6 +477,22 @@ def _multiprocessing_pool_initializer() -> None:
     signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit())
 
 
+from dask.callbacks import Callback
+
+
+class PrefectCallback(Callback):
+    def __init__(self):  # type: ignore
+        self.cache = {}
+
+    def _start(self, dsk):  # type: ignore
+        overlap = set(dsk) & set(self.cache)
+        for key in overlap:
+            dsk[key] = self.cache[key]
+
+    def _posttask(self, key, value, dsk, state, id):  # type: ignore
+        self.cache[key] = value
+
+
 class LocalDaskExecutor(Executor):
     """
     An executor that runs all functions locally using `dask` and a configurable
@@ -491,6 +507,7 @@ class LocalDaskExecutor(Executor):
         self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
         self._pool = None  # type: Optional[concurrent.futures.Executor]
+        self.callback = PrefectCallback()
         super().__init__()
 
     @staticmethod
@@ -559,22 +576,9 @@ class LocalDaskExecutor(Executor):
         """Context manager for initializing execution."""
         # import dask here to reduce prefect import times
         import dask.config
-        from dask.callbacks import Callback
         from dask.system import CPU_COUNT
 
-        class PrefectCallback(Callback):
-            def __init__(self):  # type: ignore
-                self.cache = {}
-
-            def _start(self, dsk):  # type: ignore
-                overlap = set(dsk) & set(self.cache)
-                for key in overlap:
-                    dsk[key] = self.cache[key]
-
-            def _posttask(self, key, value, dsk, state, id):  # type: ignore
-                self.cache[key] = value
-
-        with PrefectCallback(), dask.config.set(**self.dask_config):
+        with dask.config.set(**self.dask_config):
             if self.scheduler == "synchronous":
                 self._pool = None
             else:
@@ -683,5 +687,9 @@ class LocalDaskExecutor(Executor):
 
         with patch(), dask.config.set(config):
             return dask.compute(
-                futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
+                futures,
+                scheduler=self.scheduler,
+                pool=self._pool,
+                optimize_graph=False,
+                callbacks=(self.callback._callback,),
             )[0]
