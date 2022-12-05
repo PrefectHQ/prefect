@@ -1,7 +1,7 @@
 name: "Close stale issues and PRs"
 on:
   schedule:
-    - cron: "30 1 * * *"
+    - cron: "30 * * * *"
 
 jobs:
   stale:
@@ -17,4 +17,4 @@ jobs:
           days-before-close: 14
           exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted"
           ascending: true # https://github.com/actions/stale#ascending
-          operations-per-run: 60
+          operations-per-run: 30
