@@ -274,7 +274,28 @@ class TestKill:
             propagation_policy="Foreground",
         )
 
-    async def test_kill_raises_infra_not_available_on_mismatched_cluster_name(
+    async def test_kill_raises_infra_not_available_on_mismatched_cluster_namespace(
+        self, mock_k8s_batch_client, mock_k8s_client, mock_watch, monkeypatch
+    ):
+        MOCK_CLUSTER_UID = "1234"
+        mock_func = MagicMock()
+        mock_func.return_value = MOCK_CLUSTER_UID
+
+        monkeypatch.setattr(
+            "prefect.infrastructure.kubernetes.KubernetesJob._get_cluster_uid",
+            mock_func,
+        )
+        BAD_NAMESPACE = "dog"
+        with pytest.raises(
+            InfrastructureNotAvailable,
+            match=f"The job is running in namespace {BAD_NAMESPACE!r} but this block is configured to use 'default'",
+        ):
+            await KubernetesJob(command=["echo", "hello"], name="test").kill(
+                infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
+                grace_seconds=0,
+            )
+
+    async def test_kill_raises_infra_not_available_on_mismatched_cluster_uid(
         self, mock_k8s_batch_client, mock_k8s_client, mock_watch, monkeypatch
     ):
         MOCK_CLUSTER_UID = "1234"
@@ -288,6 +309,8 @@ class TestKill:
         BAD_CLUSTER = "4321"
         with pytest.raises(
             InfrastructureNotAvailable,
+            match=f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+            "cluster.",
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
                 infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
