@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 <Badge text="beta" type="success" />
+
+Released on December 5, 2022.
+
+
+
 ## 1.4.0 <Badge text="beta" type="success" />
 
 Released on September 19, 2022.
