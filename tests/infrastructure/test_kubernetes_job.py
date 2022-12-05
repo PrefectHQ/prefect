@@ -215,9 +215,6 @@ class TestKill:
             name="mock-k8s-v1-job",
             namespace="default",
             grace_period_seconds=0,
-            # Foreground propagation deletes dependent objects before deleting owner objects.
-            # This ensures that the pods are cleaned up before the job is marked as deleted.
-            # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion
             propagation_policy="Foreground",
         )
 
