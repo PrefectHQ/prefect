@@ -19,7 +19,9 @@ ignore =
     W503,
     W504,
     # Redefinition of unused import
-    F811
+    F811,
+    # Unused imports
+    F401
 
 # black is set to 88, but isn't a strict limit so we add some wiggle room for
 # flake8 testing.
