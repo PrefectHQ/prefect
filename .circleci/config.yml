@@ -560,7 +560,7 @@ orbs:
 workflows:
   version: 2
 
-  'Run tests':
+  "Run tests":
     jobs:
       - test_37
       - test_38
@@ -570,25 +570,25 @@ workflows:
       - test_vanilla_prefect
       - test_task_library
 
-  'Check code style and docs':
+  "Check code style and docs":
     jobs:
       - check_static_analysis
       - check_documentation
 
-  'Build and publish development artifacts':
+  "Build and publish development artifacts":
     jobs:
       - build_dev_docker_image:
-          python_version: '3.7'
-          extras: 'all_orchestration_extras'
+          python_version: "3.7"
+          extras: "all_orchestration_extras"
           filters:
             branches:
-              only: '1.x'
+              only: "1.x"
 
-  'Build and publish release artifacts':
+  "Build and publish release artifacts":
     jobs:
       - build_docker_image:
-          python_version: '3.7'
-          extras: 'all_orchestration_extras'
+          python_version: "3.7"
+          extras: "all_orchestration_extras"
           tag_latest: true
           filters:
             branches:
@@ -596,24 +596,24 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: '3.8'
-          extras: 'all_orchestration_extras'
+          python_version: "3.8"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: '3.9'
-          extras: 'all_orchestration_extras'
+          python_version: "3.9"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
-          python_version: '3.10'
-          extras: 'all_orchestration_extras'
+          python_version: "3.10"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
@@ -626,7 +626,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
-          python_version: '3.9'
+          python_version: "3.9"
           tag_latest: true
           filters:
             branches:
@@ -634,7 +634,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
-          python_version: '3.10'
+          python_version: "3.10"
           tag_latest: true
           filters:
             branches:
@@ -651,32 +651,32 @@ workflows:
       # RC -----
 
       - build_docker_image:
-          python_version: '3.7'
-          extras: 'all_orchestration_extras'
+          python_version: "3.7"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
       - build_docker_image:
-          python_version: '3.8'
-          extras: 'all_orchestration_extras'
+          python_version: "3.8"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
       - build_docker_image:
-          python_version: '3.9'
-          extras: 'all_orchestration_extras'
+          python_version: "3.9"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
       - build_docker_image:
-          python_version: '3.10'
-          extras: 'all_orchestration_extras'
+          python_version: "3.10"
+          extras: "all_orchestration_extras"
           filters:
             branches:
               ignore: /.*/
@@ -689,14 +689,14 @@ workflows:
             tags:
               only: /^1.0rc[0-9]$/
       - build_core_docker_image:
-          python_version: '3.9'
+          python_version: "3.9"
           filters:
             branches:
               ignore: /.*/
             tags:
               only: /^1.0rc[0-9]$/
       - build_core_docker_image:
-          python_version: '3.10'
+          python_version: "3.10"
           filters:
             branches:
               ignore: /.*/
