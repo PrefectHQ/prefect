@@ -475,7 +475,14 @@ async def run(
         run_url = "<no dashboard available>"
 
     if start_in:
-        scheduled_display = pendulum.format_diff(scheduled_start_time.diff(now))
+        scheduled_display = (
+            scheduled_start_time.in_tz(
+                pendulum.tz.local_timezone()
+            ).to_datetime_string()
+            + " ("
+            + pendulum.format_diff(scheduled_start_time.diff(now))
+            + ")"
+        )
     elif start_at:
         scheduled_display = scheduled_start_time.in_tz(
             pendulum.tz.local_timezone()
