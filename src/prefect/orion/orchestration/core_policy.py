@@ -316,7 +316,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         if api_version and api_version >= Version("0.8.4"):
             updated_policy = context.run.empirical_policy.dict()
             updated_policy["resuming"] = False
-            updated_policy["pause_keys"] = dict()
+            updated_policy["pause_keys"] = set()
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
         # Generate a new state for the flow
@@ -643,7 +643,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             if api_version and api_version >= Version("0.8.4"):
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
-                updated_policy["pause_keys"] = dict()
+                updated_policy["pause_keys"] = set()
                 context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
             if not context.run.deployment_id:
