@@ -1,7 +1,6 @@
 import datetime
 from contextlib import asynccontextmanager
 
-import anyio
 import sqlalchemy as sa
 
 from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
@@ -50,7 +49,6 @@ class OrionDBInterface(metaclass=DBSingleton):
         self.database_config = database_config
         self.queries = query_components
         self.orm = orm
-        self.migration_lock = anyio.Lock()
 
     async def create_db(self):
         """Create the database"""
