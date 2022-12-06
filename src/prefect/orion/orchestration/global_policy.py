@@ -196,11 +196,13 @@ class RemoveResumingIndicator(BaseUniversalTransform):
 
         proposed_state = context.proposed_state
 
-        if proposed_state.is_running() or proposed_state.is_final():
-            if context.run.empirical_policy.resuming:
-                updated_policy = context.run.empirical_policy.dict()
-                updated_policy["resuming"] = False
-                context.run.empirical_policy = FlowRunPolicy(**updated_policy)
+        api_version = context.parameters.get("api-version", None)
+        if api_version and api_version >= Version("0.8.4"):
+            if proposed_state.is_running() or proposed_state.is_final():
+                if context.run.empirical_policy.resuming:
+                    updated_policy = context.run.empirical_policy.dict()
+                    updated_policy["resuming"] = False
+                    context.run.empirical_policy = FlowRunPolicy(**updated_policy)
 
 
 class IncrementTaskRunCount(BaseUniversalTransform):
