@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <FlowsTable />
+        <FlowsTable @delete="flowsCountSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
