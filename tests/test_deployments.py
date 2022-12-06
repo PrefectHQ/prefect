@@ -92,7 +92,7 @@ class TestDeploymentBasicInterface:
         d = Deployment(name="foo", path="/full/path/to/flow/")
         assert d.location == "/full/path/to/flow/"
 
-    async def test_location_prefect_aws_basepath_none(self):
+    async def test_location_prefect_aws_basepath(self):
         # for prefect-aws
         class MockS3Bucket(WritableFileSystem, WritableDeploymentStorage):
             _block_type_name = "S3Bucket"
@@ -120,6 +120,10 @@ class TestDeploymentBasicInterface:
         assert d.location == "basepath/"
 
         storage = MockS3Bucket(bucket_path="test-bucket", basepath="basepath/")
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "basepath/"
+
+        storage = MockS3Bucket(bucket_path="test-bucket", basepath="basepath")
         d = Deployment(name="foo", storage=storage)
         assert d.location == "basepath/"
 
