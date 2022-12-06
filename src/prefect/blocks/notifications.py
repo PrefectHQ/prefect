@@ -361,7 +361,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
 
     tags: Optional[List] = Field(
         default=None,
-        description="A comma separated list of tags you can associate with your Opsgenie message.",
+        description="A comma-separated list of tags you can associate with your Opsgenie message.",
         example='["tag1", "tag2"]',
     )
 
