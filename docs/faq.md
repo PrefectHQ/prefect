@@ -75,26 +75,9 @@ def my_flow():
 
 Note that when tasks are called on constant values, they cannot detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Prefect will have convenience functions for detecting these associations, and Prefect's `.map()` operator will automatically track them.
 
-### How do I enforce ordering between tasks that don't share data?
+### Can I enforce ordering between tasks that don't share data?
 
-To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
-
-```python
-@task
-def task_1():
-    pass
-
-@task
-def task_2():
-    pass
-
-@flow
-def my_flow():
-    x = task_1()
-
-    # task 2 will wait for task_1 to complete
-    y = task_2(wait_for=[x])
-```
+Yes! For more information, see the [`Tasks` section][/concepts/tasks/#wait-for].
 
 ### Does Prefect support proxies?
 
