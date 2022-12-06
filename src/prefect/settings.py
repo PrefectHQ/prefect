@@ -318,6 +318,18 @@ PREFECT_HOME = Setting(
 directory may be created automatically when required.
 """
 
+PREFECT_EXTRA_ENTRYPOINTS = Setting(
+    str,
+    default="",
+)
+"""
+Modules for Prefect to import when Prefect is imported.
+
+Values should be separated by commas, e.g. `my_module,my_other_module`.
+Objects within modules may be specified by a ':' partition, e.g. `my_module:my_object`.
+If a callable object is provided, it will be called with no arguments on import.
+"""
+
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
