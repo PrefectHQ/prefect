@@ -46,6 +46,7 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
             UpdateSubflowStateDetails,
             UpdatePauseMetadata,
             IncrementFlowRunCount,
+            RemoveResumingIndicator,
         ]
 
 
@@ -176,12 +177,32 @@ class IncrementFlowRunCount(BaseUniversalTransform):
         if context.proposed_state.is_running():
             if context.run.empirical_policy.resuming:
                 # do not increment the run count if resuming a paused flow
+                return
+
+            # increment the run count
+            context.run.run_count += 1
+
+
+class RemoveResumingIndicator(BaseUniversalTransform):
+    """
+    Removes the indicator on a flow run that marks it as resuming.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        proposed_state = context.proposed_state
+
+        if (
+            proposed_state.is_running()
+            or proposed_state.is_failed()
+            or proposed_state.is_cancelled()
+        ):
+            if context.run.empirical_policy.resuming:
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
                 context.run.empirical_policy = FlowRunPolicy(**updated_policy)
-            else:
-                # increment the run count
-                context.run.run_count += 1
 
 
 class IncrementTaskRunCount(BaseUniversalTransform):
