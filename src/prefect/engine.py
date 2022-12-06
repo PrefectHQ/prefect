@@ -41,8 +41,10 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
+    NotPausedError,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -53,6 +55,7 @@ from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
     get_run_logger,
+    patch_print,
     task_run_logger,
 )
 from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
@@ -61,8 +64,9 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE
+from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import (
+    Paused,
     Pending,
     Running,
     State,
@@ -84,6 +88,7 @@ from prefect.utilities.asyncutils import (
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
+    sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
@@ -328,7 +333,8 @@ async def begin_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    flow_run_context = PartialModel(FlowRunContext)
+    log_prints = should_log_prints(flow)
+    flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
 
     async with AsyncExitStack() as stack:
 
@@ -358,6 +364,9 @@ async def begin_flow_run(
             flow, client=client
         )
 
+        if log_prints:
+            stack.enter_context(patch_print())
+
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
@@ -375,7 +384,6 @@ async def begin_flow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
@@ -406,6 +414,7 @@ async def create_and_begin_subflow_run(
     """
     parent_flow_run_context = FlowRunContext.get()
     parent_logger = get_run_logger(parent_flow_run_context)
+    log_prints = should_log_prints(flow)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
@@ -485,6 +494,10 @@ async def create_and_begin_subflow_run(
                 report_flow_run_crashes(flow_run=flow_run, client=client)
             )
             task_runner = await stack.enter_async_context(flow.task_runner.start())
+
+            if log_prints:
+                stack.enter_context(patch_print())
+
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
@@ -500,6 +513,7 @@ async def create_and_begin_subflow_run(
                     task_runner=task_runner,
                     background_tasks=parent_flow_run_context.background_tasks,
                     result_factory=result_factory,
+                    log_prints=log_prints,
                 ),
             )
 
@@ -508,7 +522,6 @@ async def create_and_begin_subflow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -585,6 +598,7 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
+
                     args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
                         f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -685,6 +699,83 @@ async def orchestrate_flow_run(
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     return state
+
+
+@sync_compatible
+async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
+    """
+    Pauses a flow run by stopping execution until resumed.
+
+    When called within a flow run, execution will block and no downstream tasks will
+    run until the flow is resumed. Task runs that have already started will continue
+    running. A timeout parameter can be passed that will fail the flow run if it has not
+    been resumed within the specified time.
+
+    Args:
+        timeout: the number of seconds to wait for the flow to be resumed before
+            failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
+            any configured flow-level timeout, the flow might fail even after resuming.
+        poll_interval: The number of seconds between checking whether the flow has been
+            resumed. Defaults to 10 seconds.
+    """
+
+    if TaskRunContext.get():
+        raise RuntimeError("Cannot pause task runs.")
+
+    frc = FlowRunContext.get()
+    logger = get_run_logger(context=frc)
+
+    logger.info("Pausing flow, execution will continue when this flow run is resumed.")
+    client = get_client()
+    response = await client.set_flow_run_state(
+        frc.flow_run.id,
+        Paused(),
+    )
+
+    with anyio.move_on_after(timeout):
+
+        # attempt to check if a flow has resumed at least once
+        initial_sleep = min(timeout / 2, poll_interval)
+        await anyio.sleep(initial_sleep)
+        flow_run = await client.read_flow_run(frc.flow_run.id)
+        if flow_run.state.is_running():
+            logger.info("Resuming flow run execution!")
+            return
+
+        while True:
+            await anyio.sleep(poll_interval)
+            flow_run = await client.read_flow_run(frc.flow_run.id)
+            if flow_run.state.is_running():
+                logger.info("Resuming flow run execution!")
+                return
+
+    # check one last time before failing the flow
+    flow_run = await client.read_flow_run(frc.flow_run.id)
+    if flow_run.state.is_running():
+        logger.info("Resuming flow run execution!")
+        return
+
+    raise FlowPauseTimeout("Flow run was paused and never resumed.")
+
+
+@sync_compatible
+async def resume_flow_run(flow_run_id):
+    """
+    Resumes a paused flow.
+
+    Args:
+        flow_run_id: the flow_run_id to resume
+    """
+    client = get_client()
+    flow_run = await client.read_flow_run(flow_run_id)
+
+    if not flow_run.state.is_paused():
+        raise NotPausedError("Cannot resume a run that isn't paused!")
+
+    await client.set_flow_run_state(
+        flow_run_id,
+        Running(name="Resuming"),
+    )
 
 
 def enter_task_run_engine(
@@ -1022,6 +1113,7 @@ async def submit_task_run(
             result_factory=await ResultFactory.from_task(
                 task, client=flow_run_context.client
             ),
+            log_prints=should_log_prints(task),
             settings=prefect.context.SettingsContext.get().copy(),
         ),
     )
@@ -1038,6 +1130,7 @@ async def begin_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
+    log_prints: bool,
     settings: prefect.context.SettingsContext,
 ):
     """
@@ -1097,6 +1190,9 @@ async def begin_task_run(
 
         # TODO: Use the background tasks group to manage logging for this task
 
+        if log_prints:
+            stack.enter_context(patch_print())
+
         connect_error = await client.api_healthcheck()
         if connect_error:
             raise RuntimeError(
@@ -1105,22 +1201,31 @@ async def begin_task_run(
             ) from connect_error
 
         try:
-            return await orchestrate_task_run(
+            state = await orchestrate_task_run(
                 task=task,
                 task_run=task_run,
                 parameters=parameters,
                 wait_for=wait_for,
                 result_factory=result_factory,
+                log_prints=log_prints,
                 interruptible=interruptible,
                 client=client,
             )
+
+            if not maybe_flow_run_context:
+                # When a a task run finishes on a remote worker flush logs to prevent
+                # loss if the process exits
+                OrionHandler.flush(block=True)
+
         except Abort:
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
             task_run_logger(task_run).info(
                 f"Task run '{task_run.id}' already finished."
             )
-            return task_run.state
+            state = task_run.state
+
+        return state
 
 
 async def orchestrate_task_run(
@@ -1129,6 +1234,7 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     result_factory: ResultFactory,
+    log_prints: bool,
     interruptible: bool,
     client: OrionClient,
 ) -> State:
@@ -1158,11 +1264,14 @@ async def orchestrate_task_run(
         The final state of the run
     """
     logger = task_run_logger(task_run, task=task)
-    task_run_context = TaskRunContext(
+
+    partial_task_run_context = PartialModel(
+        TaskRunContext,
         task_run=task_run,
         task=task,
         client=client,
         result_factory=result_factory,
+        log_prints=log_prints,
     )
 
     try:
@@ -1182,8 +1291,9 @@ async def orchestrate_task_run(
         )
 
     # Generate the cache key to attach to proposed states
+    # The cache key uses a TaskRunContext that does not include a `timeout_context``
     cache_key = (
-        task.cache_key_fn(task_run_context, resolved_parameters)
+        task.cache_key_fn(partial_task_run_context.finalize(), resolved_parameters)
         if task.cache_key_fn
         else None
     )
@@ -1197,34 +1307,64 @@ async def orchestrate_task_run(
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
+        # Need to create timeout_context from inside of loop so that a
+        # new context is created on retries
+        timeout_context = (
+            anyio.fail_after(task.timeout_seconds)
+            if task.timeout_seconds
+            else nullcontext()
+        )
+
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
         try:
-            args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+            with timeout_context as timeout_scope:
+                task_run_context = partial_task_run_context.finalize(
+                    timeout_scope=timeout_scope
+                )
+                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-            if PREFECT_DEBUG_MODE.value():
-                logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-            else:
-                logger.debug(f"Beginning execution...", extra={"state_message": True})
-
-            with task_run_context.copy(
-                update={"task_run": task_run, "start_time": pendulum.now("UTC")}
-            ):
-                if task.isasync:
-                    result = await task.fn(*args, **kwargs)
+                if PREFECT_DEBUG_MODE.value():
+                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
                 else:
-                    run_sync = (
-                        run_sync_in_interruptible_worker_thread
-                        if interruptible
-                        else run_sync_in_worker_thread
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
                     )
-                    result = await run_sync(task.fn, *args, **kwargs)
 
-        except Exception:
-            logger.exception("Encountered exception during execution:")
+                with task_run_context.copy(
+                    update={"task_run": task_run, "start_time": pendulum.now("UTC")}
+                ):
+                    if task.isasync:
+                        result = await task.fn(*args, **kwargs)
+                    else:
+                        run_sync = (
+                            run_sync_in_interruptible_worker_thread
+                            if interruptible or timeout_scope
+                            else run_sync_in_worker_thread
+                        )
+                        result = await run_sync(task.fn, *args, **kwargs)
+
+        except Exception as exc:
+            name = message = None
+            if (
+                # Task run timeouts
+                isinstance(exc, TimeoutError)
+                and timeout_scope
+                # Only update the message if the timeout was actually encountered since
+                # this could be a timeout in the user's code
+                and timeout_scope.cancel_called
+            ):
+                name = "TimedOut"
+                message = f"Task run exceeded timeout of {task.timeout_seconds} seconds"
+                logger.exception(message)
+            else:
+                message = "Task run encountered an exception:"
+                logger.exception("Encountered exception during execution:")
+
             terminal_state = await exception_to_failed_state(
-                message="Task run encountered an exception:",
+                name=name,
+                message=message,
                 result_factory=task_run_context.result_factory,
             )
         else:
@@ -1264,7 +1404,6 @@ async def orchestrate_task_run(
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"send_to_orion": False},
     )
 
     return state
@@ -1614,6 +1753,18 @@ def link_state_to_result(state: State, result: Any) -> None:
 
     if flow_run_context:
         visit_collection(expr=result, visit_fn=link_if_trackable, max_depth=1)
+
+
+def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
+    flow_run_context = FlowRunContext.get()
+
+    if flow_or_task.log_prints is None:
+        if flow_run_context:
+            return flow_run_context.log_prints
+        else:
+            return PREFECT_LOGGING_LOG_PRINTS.value()
+
+    return flow_or_task.log_prints
 
 
 if __name__ == "__main__":

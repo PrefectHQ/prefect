@@ -118,8 +118,8 @@ class Flow(Generic[P, R]):
     def __init__(
         self,
         fn: Callable[P, R],
-        name: str = None,
-        version: str = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
@@ -130,6 +130,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
+        log_prints: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -143,6 +144,8 @@ class Flow(Generic[P, R]):
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
+
+        self.log_prints = log_prints
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -221,6 +224,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
+        log_prints: Optional[bool] = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -301,6 +305,7 @@ class Flow(Generic[P, R]):
                 if cache_result_in_memory is not None
                 else self.cache_result_in_memory
             ),
+            log_prints=log_prints if log_prints is not NotSet else self.log_prints,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -402,7 +407,7 @@ class Flow(Generic[P, R]):
         Args:
             *args: Arguments to run the flow with.
             return_state: Return a Prefect State containing the result of the
-            flow run.
+                flow run.
             wait_for: Upstream task futures to wait for before starting the flow if called as a subflow
             **kwargs: Keyword arguments to run the flow with.
 
@@ -500,8 +505,8 @@ def flow(__fn: Callable[P, R]) -> Flow[P, R]:
 @overload
 def flow(
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -512,6 +517,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -519,8 +525,8 @@ def flow(
 def flow(
     __fn=None,
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -531,6 +537,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -574,6 +581,10 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        log_prints: If set, `print` statements in the flow will be redirected to the
+            Prefect logger for the flow run. Defaults to `None`, which indicates that
+            the value from the parent flow should be used. If this is a parent flow,
+            the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -630,6 +641,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
     else:
@@ -649,6 +661,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
 
@@ -724,7 +737,10 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         The flow object from the script
 
     Raises:
-        See `load_flows_from_script` and `select_flow`
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     return select_flow(
         load_flows_from_script(path),

@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
 import anyio.abc
+import docker
 import packaging.version
 from pydantic import Field, validator
 from typing_extensions import Literal
@@ -14,6 +15,7 @@ from typing_extensions import Literal
 import prefect
 from prefect.blocks.core import Block, SecretStr
 from prefect.docker import get_prefect_image_name, parse_image_tag
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -264,10 +266,11 @@ class DockerContainer(Infrastructure):
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container = await run_sync_in_worker_thread(self._create_and_start_container)
+        container_pid = self._get_infrastructure_pid(container_id=container.id)
 
-        # Mark as started and return the container id
+        # Mark as started and return the infrastructure id
         if task_status:
-            task_status.started(container.id)
+            task_status.started(container_pid)
 
         # Monitor the container
         container = await run_sync_in_worker_thread(
@@ -277,8 +280,34 @@ class DockerContainer(Infrastructure):
         exit_code = container.attrs["State"].get("ExitCode")
         return DockerContainerResult(
             status_code=exit_code if exit_code is not None else -1,
-            identifier=container.id,
+            identifier=container_pid,
         )
+
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        docker_client = self._get_client()
+        base_url, container_id = self._parse_infrastructure_pid(infrastructure_pid)
+
+        if docker_client.api.base_url != base_url:
+            raise InfrastructureNotAvailable(
+                "".join(
+                    [
+                        f"Unable to stop container {container_id!r}: the current Docker API ",
+                        f"URL {docker_client.api.base_url!r} does not match the expected ",
+                        f"API base URL {base_url}.",
+                    ]
+                )
+            )
+        try:
+            container = docker_client.containers.get(container_id=container_id)
+        except docker.errors.NotFound:
+            raise InfrastructureNotFound(
+                f"Unable to stop container {container_id!r}: The container was not found."
+            )
+
+        try:
+            container.stop(timeout=grace_seconds)
+        except Exception:
+            raise
 
     def preview(self):
         # TODO: build and document a more sophisticated preview
@@ -287,6 +316,22 @@ class DockerContainer(Infrastructure):
             return json.dumps(self._build_container_settings(docker_client))
         finally:
             docker_client.close()
+
+    def _get_infrastructure_pid(self, container_id: str) -> str:
+        """Generates a Docker infrastructure_pid string in the form of
+        `<docker_host_base_url>:<container_id>`.
+        """
+        docker_client = self._get_client()
+        base_url = docker_client.api.base_url
+        docker_client.close()
+        return f"{base_url}:{container_id}"
+
+    def _parse_infrastructure_pid(self, infrastructure_pid: str) -> Tuple[str, str]:
+        """Splits a Docker infrastructure_pid into its component parts"""
+
+        # base_url can contain `:` so we only want the last item of the split
+        base_url, container_id = infrastructure_pid.rsplit(":", 1)
+        return base_url, str(container_id)
 
     def _build_container_settings(
         self,
@@ -314,7 +359,6 @@ class DockerContainer(Infrastructure):
             docker_client = self.image_registry.get_docker_client()
         else:
             docker_client = self._get_client()
-
         container_settings = self._build_container_settings(docker_client)
 
         if self._should_pull_image(docker_client):

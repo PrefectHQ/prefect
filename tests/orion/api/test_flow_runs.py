@@ -395,9 +395,24 @@ class TestReadFlowRuns:
                     type="SCHEDULED",
                     timestamp=now.add(minutes=1),
                 ),
+                start_time=now.subtract(minutes=2),
             ),
         )
         await session.commit()
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_ASC.value),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_DESC.value),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_1.id)
 
         response = await client.post(
             "/flow_runs/filter",
@@ -577,6 +592,7 @@ class TestSetFlowRunState:
         assert response.status_code == 201
 
         api_response = OrchestrationResult.parse_obj(response.json())
+
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         flow_run_id = flow_run.id
@@ -684,6 +700,46 @@ class TestSetFlowRunState:
             session=session, flow_run_id=flow_run_id
         )
         assert run.state.data == data
+
+    async def test_flow_run_receives_wait_until_scheduled_start_time(
+        self, flow_run, client, session
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ).dict(json_compatible=True)
+            ),
+        )
+        assert response.status_code == 201
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=schemas.states.Pending().dict(json_compatible=True)),
+        )
+        assert response.status_code == 201
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=schemas.states.Running().dict(json_compatible=True)),
+        )
+        assert response.status_code == 200
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.WAIT
+        assert (
+            0
+            < (
+                # Fuzzy comparison
+                pendulum.duration(days=1).total_seconds()
+                - api_response.details.delay_seconds
+            )
+            <= 10
+        )
 
 
 class TestManuallyRetryingFlowRuns:

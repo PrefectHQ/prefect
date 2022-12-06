@@ -20,6 +20,7 @@ __ui_static_path__ = __module_path__ / "orion" / "ui"
 
 del _version, pathlib
 
+
 # Import user-facing API
 from prefect.states import State
 from prefect.logging import get_run_logger
@@ -29,6 +30,7 @@ from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
+from prefect.engine import pause_flow_run, resume_flow_run
 from prefect.client.orion import get_client, OrionClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 
@@ -61,6 +63,12 @@ prefect.client.schemas.State.update_forward_refs(
 import prefect.plugins
 
 prefect.plugins.load_prefect_collections()
+prefect.plugins.load_extra_entrypoints()
+
+# Configure logging
+import prefect.logging.configuration
+
+prefect.logging.configuration.setup_logging()
 
 
 # Ensure moved names are accessible at old locations
@@ -105,6 +113,7 @@ if not hasattr(sys, "frozen"):
 
 # Declare API for type-checkers
 __all__ = [
+    "allow_failure",
     "flow",
     "Flow",
     "get_client",

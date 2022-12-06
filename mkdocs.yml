@@ -50,8 +50,24 @@ theme:
         repo: fontawesome/brands/github
     logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
-        primary: blue
+      - media: "(prefers-color-scheme)"
+        toggle:
+            icon: material/brightness-auto
+            name: Switch to light mode
+      - media: "(prefers-color-scheme: light)"
         accent: blue
+        primary: blue
+        scheme: default
+        toggle:
+            icon: material/weather-sunny
+            name: Switch to dark mode
+      - media: "(prefers-color-scheme: dark)"
+        accent: blue
+        primary: blue
+        scheme: slate
+        toggle:
+            icon: material/weather-night
+            name: Switch to light mode
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -64,14 +80,17 @@ plugins:
                     show_category_heading: False
                     show_bases: False
                     heading_level: 1
-        watch:
-            - src/prefect/
+
     render_swagger: {}
     search: {}
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
+watch:
+    - mkdocs.yml
+    - mkdocs.insiders.yml
+    - src/prefect/
 nav:
     # - Prefect 2: index.md
     - Getting Started:
@@ -126,6 +145,8 @@ nav:
             - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
             - Single Sign-on (SSO): ui/sso.md
+            - Audit Log: ui/audit-log.md
+            - Troubleshooting: ui/troubleshooting.md
     - Integrations:
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
@@ -205,7 +226,6 @@ nav:
             - 'Schemas':
                 - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
-                - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
                 - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
                 - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md

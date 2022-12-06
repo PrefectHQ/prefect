@@ -44,7 +44,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, inject, flowRunsApiKey, StateType, useFlowRunFilter } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, inject, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
@@ -52,9 +52,9 @@
   import { useToast } from '@/compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { workQueuesApi } from '@/services/workQueuesApi'
 
   const router = useRouter()
+  const api = useWorkspaceApi()
   const showToast = useToast()
 
   const tabs = computed(() => {
@@ -67,7 +67,7 @@
     return values
   })
 
-  const workQueueId = useRouteParam('id')
+  const workQueueId = useRouteParam('workQueueId')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
   const states = ref<StateType[]>([])
@@ -81,7 +81,7 @@
     interval: 300000,
   }
 
-  const workQueueSubscription = useSubscription(workQueuesApi.getWorkQueue, [workQueueId.value], subscriptionOptions)
+  const workQueueSubscription = useSubscription(api.workQueues.getWorkQueue, [workQueueId.value], subscriptionOptions)
   const workQueue = computed(() => workQueueSubscription.response)
   const workQueueConcurrency = computed(() => workQueue.value?.concurrencyLimit)
   const workQueuePaused = computed(() => workQueue.value?.isPaused)
@@ -104,9 +104,8 @@
   })
   usePageTitle(title)
 
-  const flowRunsApi = inject(flowRunsApiKey)
   const activeFlowRunsFilter = useFlowRunFilter({ states: ['Running', 'Pending'], workQueues: workQueueName })
-  const flowRunsCountSubscription = useSubscription(flowRunsApi.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
+  const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
   const activeFlowRunsCount = computed(()=> flowRunsCountSubscription.response ?? [])
 
   watch(() => workQueue.value?.deprecated, value => {

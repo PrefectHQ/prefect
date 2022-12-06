@@ -341,7 +341,9 @@ Parameters are validated before a flow is run. If a flow call receives invalid p
 The final state of the flow is determined by its return value.  The following rules apply:
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
-- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. In particular, if _any_ task run or subflow run failed, then the final flow run state is marked as failed.
+- If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it.
+  - If _any_ task run or subflow run failed, then the final flow run state is marked as `FAILED`.
+  - If _any_ task run was cancelled, then the final flow run state is marked as `CANCELLED`.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
 - If the flow run returns _any other object_, then it is marked as completed.
 
@@ -607,5 +609,55 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 </div>
 
 
+## Flow run cancellation
 
+Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
 
+When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
+
+!!! warning "An agent is required"
+    Flow run cancellation requires the flow run to be submitted by an agent and for an agent to be running to enforce the cancellation. Flow runs without deployments cannot be cancelled yet.
+
+Support for cancellation is included for all core library infrastructure types:
+
+- Docker Containers
+- Kubernetes Jobs
+- Processes
+
+Cancellation is robust to restarts of the agent. To enable this, we attach metadata about the created infrastructure to the flow run. Internally, this is referred to as the `infrastructure_pid` or infrastructure identifier. Generally, this is composed of two parts: 
+
+1. Scope: identifying where the infrastructure is running.
+2. ID: a unique identifier for the infrastructure within the scope.
+
+The scope is used to ensure that Prefect does not kill the wrong infrastructure. For example, agents running on multiple machines may have overlapping process IDs but should not have a matching scope. 
+
+The identifiers for the primary infrastructure types are as follows:
+
+- Processes: The machine hostname and the PID.
+- Docker Containers: The Docker API URL and container ID.
+- Kubernetes Jobs: The Kubernetes cluster name and the job name.
+
+While the cancellation process is robust, there are a few issues than can occur:
+
+- If the infrastructure block for the flow run has been removed or altered, cancellation may not work.
+- If the infrastructure block for the flow run does not have support for cancellation, cancellation will not work.
+- If the identifier scope does not match when attempting to cancel a flow run the agent will be unable to cancel the flow run. Another agent may attempt cancellation.
+- If the infrastructure associated with the run cannot be found or has already been killed, the agent will mark the flow run as cancelled.
+- If the `infrastructre_pid` is missing from the flow run will be marked as cancelled but cancellation cannot be enforced.
+- If the agent runs into an unexpected error during cancellation the flow run may or may not be cancelled depending on where the error occured. The agent will try again to cancel the flow run. Another agent may attempt cancellation.
+
+### Cancel via the CLI
+
+From the command line in your execution environment, you can cancel a flow run by using the `prefect flow-run cancel` CLI command, passing the ID of the flow run. 
+
+<div class="terminal">
+```bash
+$ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
+```
+</div>
+
+### Cancel via the UI
+
+From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
+
+![Prefect UI](/img/ui/flow-run-cancellation-ui.png)

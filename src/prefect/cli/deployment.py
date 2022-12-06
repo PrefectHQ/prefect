@@ -20,7 +20,6 @@ from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.client.orion import OrionClient
@@ -40,6 +39,8 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.settings import PREFECT_UI_URL
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
@@ -428,11 +429,8 @@ async def run(
             deployment.id, parameters=parameters
         )
 
-    connection_status = await check_orion_connection()
-    ui_url = ui_base_url(connection_status)
-
-    if ui_url:
-        run_url = f"{ui_url}/flow-runs/flow-run/{flow_run.id}"
+    if PREFECT_UI_URL:
+        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
 
@@ -537,12 +535,9 @@ async def apply(
             style="green",
         )
 
-        connection_status = await check_orion_connection()
-        ui = ui_base_url(connection_status)
-
-        if ui:
+        if PREFECT_UI_URL:
             app.console.print(
-                f"View Deployment in UI: {ui}/deployments/deployment/{deployment_id}"
+                f"View Deployment in UI: {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
             )
 
         if deployment.work_queue_name is not None:
@@ -663,7 +658,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb', 'gitlab-repository'",
     ),
     skip_upload: bool = typer.Option(
         False,
@@ -757,7 +752,9 @@ async def build(
         else:
             raise exc
     try:
-        flow = prefect.utilities.importtools.import_object(entrypoint)
+        flow = await run_sync_in_worker_thread(
+            prefect.utilities.importtools.import_object, entrypoint
+        )
         if isinstance(flow, Flow):
             app.console.print(f"Found flow {flow.name!r}", style="green")
         else:
@@ -883,7 +880,7 @@ async def build(
         flow=flow,
         name=name,
         output=deployment_loc,
-        skip_upload=False,
+        skip_upload=skip_upload,
         apply=False,
         **init_kwargs,
     )
