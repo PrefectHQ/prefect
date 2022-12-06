@@ -750,7 +750,6 @@ async def pause_flow_run(
     logger = get_run_logger(context=frc)
     client = get_client()
 
-    flow_run = await client.read_flow_run(frc.flow_run.id)
     pause_counter = _observed_flow_pauses(frc)
     pause_key = key or str(pause_counter)
 
