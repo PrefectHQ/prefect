@@ -40,16 +40,32 @@ def safe_load_entrypoints(entrypoints: EntryPoints) -> Dict[str, Union[Exception
 
 def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
     # Note: Return values are only exposed for testing.
-    if not prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value():
-        return {}
-
-    values = prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value().split(",")
-    entrypoints = EntryPoints(
-        EntryPoint(name=None, value=value, group="prefect-extra") for value in values
-    )
-
     results = {}
-    for value, result in zip(values, safe_load_entrypoints(entrypoints).values()):
+
+    if not prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value():
+        return results
+
+    values = {
+        value.strip()
+        for value in prefect.settings.PREFECT_EXTRA_ENTRYPOINTS.value().split(",")
+    }
+
+    entrypoints = []
+    for value in values:
+        try:
+            entrypoint = EntryPoint(name=None, value=value, group="prefect-extra")
+        except Exception as exc:
+            print(
+                f"Warning! Failed to parse extra entrypoint {value!r}: {type(result).__name__}: {result}",
+                file=sys.stderr,
+            )
+            results[value] = exc
+        else:
+            entrypoints.append(entrypoint)
+
+    for value, result in zip(
+        values, safe_load_entrypoints(EntryPoints(entrypoints)).values()
+    ):
         results[value] = result
 
         if isinstance(result, Exception):

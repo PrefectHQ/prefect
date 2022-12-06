@@ -21,6 +21,12 @@ def module_fixture(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
             def returns_test():
                 return "test"
 
+            def returns_foo():
+                return "foo"
+
+            def returns_bar():
+                return "bar"
+
             def raises_value_error():
                 raise ValueError("test")
 
@@ -66,6 +72,32 @@ def test_load_extra_entrypoints_imports_module():
 
 
 @pytest.mark.usefixtures("module_fixture")
+def test_load_extra_entrypoints_strips_spaces():
+    with temporary_settings({PREFECT_EXTRA_ENTRYPOINTS: "   test_module_name "}):
+        result = load_extra_entrypoints()
+
+    assert set(result.keys()) == {"test_module_name"}
+    assert result["test_module_name"] == importlib.import_module("test_module_name")
+
+
+@pytest.mark.usefixtures("module_fixture")
+def test_load_extra_entrypoints_unparsable_entrypoint(capsys):
+    with temporary_settings({PREFECT_EXTRA_ENTRYPOINTS: "foo$bar"}):
+        result = load_extra_entrypoints()
+
+    assert set(result.keys()) == {"foo$bar"}
+    assert exceptions_equal(
+        result["foo$bar"], AttributeError("'NoneType' object has no attribute 'group'")
+    )
+
+    _, stderr = capsys.readouterr()
+    assert (
+        "Warning! Failed to load extra entrypoint 'foo$bar': "
+        "AttributeError: 'NoneType' object has no attribute 'group'"
+    ) in stderr
+
+
+@pytest.mark.usefixtures("module_fixture")
 def test_load_extra_entrypoints_callable():
     with temporary_settings(
         {PREFECT_EXTRA_ENTRYPOINTS: "test_module_name:returns_test"}
@@ -74,6 +106,21 @@ def test_load_extra_entrypoints_callable():
 
     assert set(result.keys()) == {"test_module_name:returns_test"}
     assert result["test_module_name:returns_test"] == "test"
+
+
+@pytest.mark.usefixtures("module_fixture")
+def test_load_extra_entrypoints_multiple_entrypoints():
+    with temporary_settings(
+        {
+            PREFECT_EXTRA_ENTRYPOINTS: "test_module_name:returns_foo,test_module_name:returns_bar"
+        }
+    ):
+        result = load_extra_entrypoints()
+
+    assert result == {
+        "test_module_name:returns_foo": "foo",
+        "test_module_name:returns_bar": "bar",
+    }
 
 
 @pytest.mark.usefixtures("module_fixture")
