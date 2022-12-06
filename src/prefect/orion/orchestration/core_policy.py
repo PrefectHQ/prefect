@@ -6,6 +6,7 @@ enforces on a state transition.
 """
 
 from typing import Optional
+from uuid import uuid4
 
 import pendulum
 import sqlalchemy as sa
@@ -313,7 +314,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
         # Reset pause metadata on retry
         updated_policy = context.run.empirical_policy.dict()
         updated_policy["resuming"] = False
-        updated_policy["pause_counter"] = 0
+        updated_policy["pause_keys"] = dict()
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
         # Generate a new state for the flow
@@ -456,6 +457,16 @@ class HandlePausingFlows(BaseOrchestrationRule):
                 "Cannot pause flows that are not currently running."
             )
 
+        self.key = proposed_state.state_details.pause_key
+        if self.key is None:
+            # if no pause key is provided, default to a UUID
+            self.key = str(uuid4())
+
+        if self.key in context.run.empirical_policy.pause_keys:
+            await self.abort_transition(
+                "This pause has already fired."
+            )
+
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
                 await self.abort_transition(
@@ -466,6 +477,16 @@ class HandlePausingFlows(BaseOrchestrationRule):
                 await self.abort_transition(
                     "Cannot pause flows without a deployment with the reschedule option."
                 )
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        updated_policy = context.run.empirical_policy.dict()
+        updated_policy["pause_keys"].add(self.key)
+        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
 
 class HandleResumingPausedFlows(BaseOrchestrationRule):
@@ -501,6 +522,12 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
                 reason="The flow run pause has timed out and can no longer resume.",
             )
 
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
         updated_policy = context.run.empirical_policy.dict()
         updated_policy["resuming"] = True
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
@@ -613,7 +640,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             # Reset pause metadata on manual retry
             updated_policy = context.run.empirical_policy.dict()
             updated_policy["resuming"] = False
-            updated_policy["pause_counter"] = 0
+            updated_policy["pause_keys"] = dict()
             context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
             if not context.run.deployment_id:

@@ -1627,6 +1627,83 @@ class TestPausingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
+    async def test_updates_pause_key_tracker(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert "hello" in ctx.run.empirical_policy.pause_keys
+
+    async def test_defaults_pause_key_to_random_uuid(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        assert len(ctx.run.empirical_policy.pause_keys) == 0
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert len(ctx.run.empirical_policy.pause_keys) == 1
+
+    async def test_does_not_permit_repeat_pauses(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            run_override=ctx.run,
+        )
+        ctx2.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx2, *intended_transition) as ctx2:
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ABORT
+
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_can_only_pause_running_flows(
         self,

@@ -48,7 +48,7 @@ class StateDetails(PrefectBaseModel):
     untrackable_result: bool = False
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
-    pause_counter: int = 0
+    pause_key: str = None
 
 
 class State(IDBaseModel, Generic[R]):
@@ -290,7 +290,7 @@ def Paused(
     timeout_seconds: int = None,
     pause_timeout: datetime.datetime = None,
     reschedule: bool = False,
-    pause_counter: int = 0,
+    pause_key: str = None,
     **kwargs,
 ) -> State:
     """Convenience function for creating `Paused` states.
@@ -310,7 +310,7 @@ def Paused(
         pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
     )
     state_details.pause_reschedule = reschedule
-    state_details.pause_counter = pause_counter
+    state_details.pause_key = pause_key
 
     return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 

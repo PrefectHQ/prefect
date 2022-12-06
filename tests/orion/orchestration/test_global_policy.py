@@ -521,12 +521,11 @@ class TestPausingRules:
             "flow",
             *intended_transition,
         )
-        ctx.proposed_state = states.Paused(pause_counter=42, timeout_seconds=1000)
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
 
         async with UpdatePauseMetadata(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.run.empirical_policy.pause_counter == 42
         assert ctx.run.pause_expiration_time > pendulum.now("UTC")
 
     @pytest.mark.parametrize(

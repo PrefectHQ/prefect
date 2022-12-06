@@ -269,9 +269,6 @@ class UpdatePauseMetadata(BaseUniversalTransform):
 
         if context.proposed_state.is_paused():
             updated_policy = context.run.empirical_policy.dict()
-            updated_policy[
-                "pause_counter"
-            ] = context.proposed_state.state_details.pause_counter
             context.run.empirical_policy = FlowRunPolicy(**updated_policy)
 
             context.run.pause_expiration_time = (

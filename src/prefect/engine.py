@@ -734,7 +734,6 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
     """
-
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
