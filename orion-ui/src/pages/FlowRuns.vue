@@ -17,12 +17,20 @@
 
         <div class="flow-runs__list">
           <div class="flow-runs__list-controls">
-            <ResultsCount :count="flowRunCount" class="mr-auto" />
+            <div class="flow-runs__list-controls--right">
+              <ResultsCount v-if="selectedFlowRuns.length == 0" :count="flowRunCount" label="Flow run" />
+              <SelectedCount v-else :count="selectedFlowRuns.length" />
+
+              <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
+            </div>
+
+
+            <!-- <ResultsCount :count="flowRunCount" class="mr-auto" /> -->
             <template v-if="media.md">
               <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="sort" />
-            <DeleteFlowRunsButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
+            <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
@@ -43,7 +51,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, DeleteFlowRunsButton, FlowRunsFilterGroup, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -92,9 +100,22 @@
 .flow-runs__list { @apply
   grid
   gap-2
+  sticky
+  top-0
+  bg-white
+  bg-opacity-90
+  py-2
+  z-10
 }
 
 .flow-runs__list-controls { @apply
+  flex
+  gap-2
+  items-center
+}
+
+.flow-runs__list-controls--right { @apply
+  mr-auto
   flex
   gap-2
   items-center
