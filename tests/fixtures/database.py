@@ -534,7 +534,9 @@ def initialize_orchestration(flow):
         if flow_retries:
             empirical_policy.update({"retries": flow_retries})
 
-        flow_create_kwargs.update({"empirical_policy": schemas.core.FlowRunPolicy(**empirical_policy)})
+        flow_create_kwargs.update(
+            {"empirical_policy": schemas.core.FlowRunPolicy(**empirical_policy)}
+        )
 
         if flow_run_count:
             flow_create_kwargs.update({"run_count": flow_run_count})

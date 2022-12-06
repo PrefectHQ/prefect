@@ -10,7 +10,6 @@ state database, they should be the most deeply nested contexts in orchestration 
 """
 
 import prefect.orion.models as models
-from prefect.orion.schemas.core import FlowRunPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
@@ -18,6 +17,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.schemas.core import FlowRunPolicy
 
 COMMON_GLOBAL_TRANSFORMS = lambda: [
     SetRunStateType,

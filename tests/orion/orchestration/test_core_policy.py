@@ -1651,9 +1651,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
-        ctx.initial_state.state_details = states.StateDetails(
-            pause_timeout=the_future
-        )
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
@@ -1676,9 +1674,7 @@ class TestResumingFlows:
             *intended_transition,
         )
         the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
-        ctx.initial_state.state_details = states.StateDetails(
-            pause_timeout=the_future
-        )
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
