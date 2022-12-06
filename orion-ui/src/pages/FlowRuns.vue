@@ -24,8 +24,6 @@
               <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
             </div>
 
-
-            <!-- <ResultsCount :count="flowRunCount" class="mr-auto" /> -->
             <template v-if="media.md">
               <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
             </template>
