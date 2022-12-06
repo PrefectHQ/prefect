@@ -123,6 +123,7 @@ def inject_db(fn: Callable) -> Callable:
 
     if inspect.iscoroutinefunction(fn):
         return async_wrapper
+
     return sync_wrapper
 
 
