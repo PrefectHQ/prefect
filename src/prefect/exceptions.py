@@ -351,5 +351,5 @@ class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
 
 
-class FlowPauseExit(PrefectException):
-    """Raised when exiting a flow early for nonblocking pauses"""
+class FlowPauseExit(BaseException):
+    """Signal raised when exiting a flow early for nonblocking pauses"""

@@ -638,7 +638,10 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-
+        except FlowPauseExit:
+            paused_flow_run = await client.read_flow_run(flow_run.id)
+            paused_flow_run_state = paused_flow_run.state
+            return paused_flow_run_state
         except Exception as exc:
             name = message = None
             if (
@@ -652,10 +655,6 @@ async def orchestrate_flow_run(
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
                 message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
-            elif isinstance(exc, FlowPauseExit):
-                paused_flow_run = await client.read_flow_run(flow_run.id)
-                paused_flow_run_state = paused_flow_run.state
-                return paused_flow_run_state
             else:
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
@@ -742,22 +741,19 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
     client = get_client()
 
     flow_run = await client.read_flow_run(frc.flow_run.id)
-    previous_pause_counter = flow_run.empirical_policy.pause_counter
     pause_counter = _observed_flow_pauses(frc)
-
-    if pause_counter <= previous_pause_counter:
-        # do not pause if previously seen
-        return
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     response = await client.set_flow_run_state(
         frc.flow_run.id,
         Paused(
-            timeout_seconds=timeout, reschedule=reschedule, pause_counter=pause_counter
+            timeout_seconds=timeout, reschedule=reschedule, pause_key=str(pause_counter)
         ),
     )
 
     if response.status == SetStateStatus.ABORT:
+        if response.details.reason == "This pause has already fired.":
+            return
         raise RuntimeError(response.details.reason)
 
     if reschedule:
