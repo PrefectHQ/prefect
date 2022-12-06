@@ -351,7 +351,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     )
 
     region_name: Literal["us", "eu"] = Field(
-        default="us", description="The 2 character region code."
+        default="us", description="The 2-character region code."
     )
 
     batch: bool = Field(
