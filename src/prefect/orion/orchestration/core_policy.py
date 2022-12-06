@@ -41,6 +41,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
+            CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
