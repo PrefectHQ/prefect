@@ -173,6 +173,11 @@ class IncrementFlowRunCount(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
+        api_version = context.parameters.get("api-version", None)
+        if api_version and api_version < Version("0.8.4"):
+            # always increment the run count prior to pauses
+            context.run.run_count += 1
+
         # if entering a running state...
         if context.proposed_state.is_running():
             if context.run.empirical_policy.resuming:
