@@ -76,7 +76,6 @@ class TestAlembicCommands:
         jobs = [run_sync_in_worker_thread(alembic_upgrade) for _ in range(0, 10)]
         await asyncio.gather(*jobs)
 
-    @pytest.mark.flaky(max_runs=3)
     async def test_concurrent_downgrade_upgrade(self):
         jobs = []
         for _ in range(0, 2):
