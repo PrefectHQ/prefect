@@ -269,13 +269,15 @@ class UpdatePauseMetadata(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
-        if context.proposed_state.is_paused():
-            updated_policy = context.run.empirical_policy.dict()
-            context.run.empirical_policy = FlowRunPolicy(**updated_policy)
+        api_version = context.parameters.get("api-version", None)
+        if api_version and api_version >= Version("0.8.4"):
+            if context.proposed_state.is_paused():
+                updated_policy = context.run.empirical_policy.dict()
+                context.run.empirical_policy = FlowRunPolicy(**updated_policy)
 
-            context.run.pause_expiration_time = (
-                context.proposed_state.state_details.pause_timeout
-            )
+                context.run.pause_expiration_time = (
+                    context.proposed_state.state_details.pause_timeout
+                )
 
 
 class UpdateSubflowParentTask(BaseUniversalTransform):
