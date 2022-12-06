@@ -28,7 +28,6 @@
               <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="sort" />
-            <FlowRunsDeleteButton :selected="selectedFlowRuns" @delete="deleteFlowRuns" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
@@ -98,18 +97,18 @@
 .flow-runs__list { @apply
   grid
   gap-2
-  sticky
-  top-0
-  bg-white
-  bg-opacity-90
-  py-2
-  z-10
 }
 
 .flow-runs__list-controls { @apply
   flex
   gap-2
   items-center
+  sticky
+  top-0
+  bg-white
+  bg-opacity-90
+  py-2
+  z-10
 }
 
 .flow-runs__list-controls--right { @apply
