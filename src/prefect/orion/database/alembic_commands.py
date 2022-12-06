@@ -7,7 +7,17 @@ import prefect
 ALEMBIC_LOCK = Lock()
 
 
-def alembic_command(fn):
+def with_alembic_lock(fn):
+    """
+    Decorator that prevents alembic commands from running concurrently.
+    This is necessary because alembic uses a global configuration object
+    that is not thread-safe.
+
+    This issue occurred in https://github.com/PrefectHQ/prefect-dask/pull/50, where
+    dask threads were simultaneously performing alembic upgrades, and causing
+    cryptic `KeyError: 'config'` when `del globals_[attr_name]`.
+    """
+
     @wraps(fn)
     def wrapper(*args, **kwargs):
         with ALEMBIC_LOCK:
@@ -28,7 +38,7 @@ def alembic_config():
     return alembic_cfg
 
 
-@alembic_command
+@with_alembic_lock
 def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     """
     Run alembic upgrades on Orion database
@@ -43,7 +53,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     alembic.command.upgrade(alembic_config(), revision, sql=dry_run)
 
 
-@alembic_command
+@with_alembic_lock
 def alembic_downgrade(revision: str = "base", dry_run: bool = False):
     """
     Run alembic downgrades on Orion database
@@ -58,7 +68,7 @@ def alembic_downgrade(revision: str = "base", dry_run: bool = False):
     alembic.command.downgrade(alembic_config(), revision, sql=dry_run)
 
 
-@alembic_command
+@with_alembic_lock
 def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
     """
     Create a new revision file for Orion
@@ -75,7 +85,7 @@ def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
     )
 
 
-@alembic_command
+@with_alembic_lock
 def alembic_stamp(revision):
     """
     Stamp the revision table with the given revision; don't run any migrations
