@@ -42,6 +42,7 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    CancelledRun,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -71,6 +72,7 @@ from prefect.settings import (
     PREFECT_LOGGING_LOG_PRINTS,
 )
 from prefect.states import (
+    Cancelled,
     Paused,
     Pending,
     Running,
@@ -521,6 +523,7 @@ async def create_and_begin_subflow_run(
                     result_factory=result_factory,
                     log_prints=log_prints,
                 ),
+                parent_flow_run_context=parent_flow_run_context,
             )
 
     # Display the full state (including the result) if debugging
@@ -549,6 +552,7 @@ async def orchestrate_flow_run(
     interruptible: bool,
     client: OrionClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
+    parent_flow_run_context: Optional[FlowRunContext] = None,
 ) -> State:
     """
     Executes a flow run.
@@ -642,7 +646,7 @@ async def orchestrate_flow_run(
                 flow_run_context.task_run_futures, client=client
             )
 
-        except Exception as exc:
+        except BaseException as exc:
             name = message = None
             if (
                 # Flow run timeouts
@@ -655,20 +659,49 @@ async def orchestrate_flow_run(
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
                 message = f"Flow run exceeded timeout of {flow.timeout_seconds} seconds"
-            else:
+                state_type = StateType.FAILED
+
+            elif (
+                # Check for interrupt by cancellation of the parent flow run
+                isinstance(exc, anyio.get_cancelled_exc_class())
+                and parent_flow_run_context
+                and parent_flow_run_context.cancel_scope.cancel_called
+            ):
+                message = "Parent flow run was cancelled."
+                logger.error(
+                    "Detected cancellation of parent flow run, marking this run as cancelled."
+                )
+                state_type = StateType.CANCELLED
+            elif isinstance(exc, CancelledRun):
+                logger.exception(
+                    "Detected cancellation of a child run, marking this run as cancelled."
+                )
+                message = "Child run was cancelled."
+                state_type = StateType.CANCELLED
+            elif isinstance(exc, Exception):
                 # Generic exception in user code
                 message = "Flow run encountered an exception."
                 logger.exception("Encountered exception during execution:")
+                state_type = StateType.FAILED
+            else:
+                # Base exception, crash
+                raise
+
             terminal_state = await exception_to_failed_state(
                 name=name,
                 message=message,
                 result_factory=flow_run_context.result_factory,
+                state_type=state_type,
             )
         else:
+
+            # Check for cancellation of this flow run
             if cancel_scope.cancel_called:
-                terminal_state = (await client.read_flow_run(flow_run.id)).state
-                # EXIT EARLY: We do not want to propose this state
-                return terminal_state
+                state = (await client.read_flow_run(flow_run.id)).state
+                if state.is_final():
+                    return state
+                else:
+                    terminal_state = Cancelled("Flow run cancelled.")
 
             if result is None:
                 # All tasks and subflows are reference tasks if there is no return value
@@ -1852,7 +1885,7 @@ async def watch_for_flow_run_cancellation(
                     )
                     flow_run_context.cancel_scope.cancel()
 
-    # The worker returns a scope that can be used to kill the worker when the ctx
+    # The worker returns a scope that can be used to kill the worker when the context
     # is exiting. This prevents us from waiting a full sleep duration on exit.
     worker_cancel_scope: anyio.CancelScope = (
         await flow_run_context.background_tasks.start(_worker)

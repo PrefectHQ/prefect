@@ -157,10 +157,11 @@ async def exception_to_crashed_state(
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
     result_factory: Optional[ResultFactory] = None,
+    state_type: StateType = StateType.FAILED,
     **kwargs,
 ) -> State:
     """
-    Convenience function for creating `Failed` states from exceptions
+    Convenience function for creating states from exceptions.
     """
     if not exc:
         _, exc, exc_tb = sys.exc_info()
@@ -186,7 +187,7 @@ async def exception_to_failed_state(
     #       excluded from messages for now
     message = existing_message + format_exception(exc)
 
-    return Failed(data=data, message=message, **kwargs)
+    return State(type=state_type, data=data, message=message, **kwargs)
 
 
 async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
