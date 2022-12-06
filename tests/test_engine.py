@@ -33,6 +33,7 @@ from prefect.exceptions import (
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
+from prefect.orion.schemas.actions import FlowRunCreate
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
@@ -280,8 +281,11 @@ class TestBlockingPause:
 
 class TestNonblockingPause:
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
-        self, orion_client
+        self, orion_client, deployment, monkeypatch
     ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
         @task
         def foo():
             return 42
@@ -304,8 +308,11 @@ class TestNonblockingPause:
         assert len(task_runs) == 2, "only two tasks should have completed"
 
     async def test_paused_flows_gracefully_exit_with_reschedule_flag(
-        self, orion_client
+        self, orion_client, deployment, monkeypatch
     ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
         @task
         def foo():
             return 42
@@ -322,7 +329,12 @@ class TestNonblockingPause:
         graceful_exit_result = pausing_flow_without_blocking()
         assert graceful_exit_result == NoResult
 
-    async def test_paused_flows_can_be_resumed_then_rescheduled(self, orion_client):
+    async def test_paused_flows_can_be_resumed_then_rescheduled(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
         @task
         def foo():
             return 42
@@ -344,7 +356,10 @@ class TestNonblockingPause:
         flow_run = await orion_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_scheduled()
 
-    async def test_subflows_cannot_be_paused_with_reschedule_flag(self, orion_client):
+    async def test_subflows_cannot_be_paused_with_reschedule_flag(self, orion_client, deployment, monkeypatch):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
         @task
         def foo():
             return 42
@@ -364,6 +379,23 @@ class TestNonblockingPause:
 
         with pytest.raises(RuntimeError, match="Cannot pause subflows"):
             flow_run_state = wrapper_flow()
+
+    async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(self, orion_client):
+        @task
+        def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        def pausing_flow_without_blocking():
+            x = foo.submit()
+            y = foo.submit()
+            pause_flow_run(timeout=20, reschedule=True)
+            z = foo(wait_for=[x])
+            alpha = foo(wait_for=[y])
+            omega = foo(wait_for=[x, y])
+
+        with pytest.raises(RuntimeError, match="Cannot pause flows without a deployment"):
+            flow_run_state = pausing_flow_without_blocking()
 
 
 class TestOrchestrateTaskRun:
