@@ -302,7 +302,7 @@ To create an ad-hoc flow run with different parameter values, go the the details
 
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
-## Create a deployment with the CLI
+### Create a deployment
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
@@ -478,8 +478,10 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ## Create a flow run from a deployment
 
+### Create a flow run with a schedule
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
+### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
@@ -493,6 +495,23 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `ls`      | View all deployments or deployments for specific flows. |
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
+
+### Create a flow run in a Python script 
+
+You can create a flow run from a deployment in a Python script with the `run_deployment` method.
+
+```python
+from prefect.deployments import run_deployment
+
+
+def main():
+    response = run_deployment(name="flow-name/deployment-name")
+    print(response)
+
+
+if __name__ == "__main__":
+   main()
+``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
