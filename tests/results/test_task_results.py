@@ -114,6 +114,38 @@ async def test_task_with_uncached_but_persisted_result(orion_client):
     assert await api_state.result() == 1
 
 
+async def test_task_with_uncached_but_persisted_result_not_cached_during_flow(
+    orion_client,
+):
+    @flow
+    def foo():
+        state = bar(return_state=True)
+        assert not state.data.has_cached_object()
+        assert state.result() == 1
+        assert not state.data.has_cached_object()
+        assert state.result() == 1
+        return state
+
+    @task(persist_result=True, cache_result_in_memory=False)
+    def bar():
+        return 1
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    assert not task_state.data.has_cached_object()
+    assert await task_state.result() == 1
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    assert not api_state.data.has_cached_object()
+    assert await api_state.result() == 1
+    # After retrieval from the API, the "cache_result_in_memory" settig is dropped
+    # and caching is enabled by default
+    assert api_state.data.has_cached_object()
+    assert await api_state.result() == 1
+
+
 async def test_task_with_uncached_but_literal_result(orion_client):
     @flow
     def foo():

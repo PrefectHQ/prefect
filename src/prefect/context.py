@@ -90,6 +90,19 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
+        """
+        Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+        Attributes:
+            include: Fields to include in new model.
+            exclude: Fields to exclude from new model, as with values this takes precedence over include.
+            update: Values to change/add in the new model. Note: the data is not validated before creating
+                the new model - you should trust this data.
+            deep: Set to `True` to make a deep copy of the model.
+
+        Returns:
+            A new model instance.
+        """
         # Remove the token on copy to avoid re-entrance errors
         new = super().copy(**kwargs)
         new._token = None
@@ -208,6 +221,7 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory
@@ -240,10 +254,13 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
+        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory

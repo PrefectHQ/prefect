@@ -10,7 +10,7 @@ from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.services.loop_service import LoopService
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import PREFECT_UI_URL
 
 
 class FlowRunNotifications(LoopService):
@@ -27,8 +27,8 @@ class FlowRunNotifications(LoopService):
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
-        async with db.session_context(begin_transaction=True) as session:
-            while True:
+        while True:
+            async with db.session_context(begin_transaction=True) as session:
                 # Drain the queue one entry at a time, because if a transient
                 # database error happens while sending a notification, the whole
                 # transaction will be rolled back, which effectively re-queues any
@@ -141,8 +141,7 @@ class FlowRunNotifications(LoopService):
         Args:
             flow_run_id: the flow run id.
         """
-        api_url = PREFECT_API_URL.value() or "http://ephemeral-orion/api"
-        ui_url = api_url.strip("/api")
+        ui_url = PREFECT_UI_URL.value() or "http://ephemeral-orion/api"
         return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
 
 

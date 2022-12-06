@@ -66,6 +66,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
 from prefect.exceptions import MissingProfileError
+from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
 T = TypeVar("T")
@@ -84,12 +85,14 @@ class Setting(Generic[T]):
         type: Type[T],
         *,
         value_callback: Callable[["Settings", T], T] = None,
+        is_secret: bool = False,
         **kwargs,
     ) -> None:
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
+        self.is_secret = is_secret
 
         self.__doc__ = self.field.description
 
@@ -221,10 +224,14 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
+    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
     if (
-        values["PREFECT_ORION_DATABASE_PASSWORD"]
-        and "PREFECT_ORION_DATABASE_PASSWORD"
-        not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        value
+        and not value.startswith(OBFUSCATED_PREFIX)
+        and (
+            "PREFECT_ORION_DATABASE_PASSWORD"
+            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+        )
     ):
         warnings.warn(
             "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
@@ -367,6 +374,7 @@ When using Prefect Cloud, this will include an account and workspace.
 PREFECT_API_KEY = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
@@ -503,6 +511,15 @@ will be added to these loggers. Additionally, if the level is not set, it will
 be set to the same level as the 'prefect' logger.
 """
 
+PREFECT_LOGGING_LOG_PRINTS = Setting(
+    bool,
+    default=False,
+)
+"""
+If set, `print` statements in flows and tasks will be redirected to the Prefect logger
+for the given run. This setting can be overriden by individual tasks and flows.
+"""
+
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     bool,
     default=True,
@@ -530,16 +547,16 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
-    description="""Whether to style console logs.""",
 )
+"""Whether to style console logs with color."""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
-    default=5,
+    default=10,
 )
 """
-The agent loop interval, in seconds. Agents will check
-for new runs this often. Defaults to `5`.
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
@@ -580,6 +597,7 @@ registered.
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
     str,
     default=None,
+    is_secret=True,
 )
 """
 Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
@@ -593,6 +611,7 @@ PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     value_callback=template_with_settings(
         PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
     ),
+    is_secret=True,
 )
 """
 A database connection URL in a SQLAlchemy-compatible
@@ -631,10 +650,11 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=5.0,
+    default=10.0,
 )
-"""A statement timeout, in seconds, applied to all database
-interactions made by the API. Defaults to `1`.
+"""
+A statement timeout, in seconds, applied to all database interactions made by the API.
+Defaults to 10 seconds.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
@@ -864,6 +884,8 @@ class Settings(SettingsFieldsMixin):
 
     @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
         logging._checkLevel(value)
         return value
 
@@ -910,6 +932,22 @@ class Settings(SettingsFieldsMixin):
                 **{setting.name: value for setting, value in updates.items()},
             }
         )
+
+    def with_obfuscated_secrets(self):
+        """
+        Returns a copy of this settings object with secret setting values obfuscated.
+        """
+        settings = self.copy(
+            update={
+                setting.name: obfuscate(self.value_of(setting))
+                for setting in SETTING_VARIABLES.values()
+                if setting.is_secret
+            }
+        )
+        # Ensure that settings that have not been marked as "set" before are still so
+        # after we have updated their value above
+        settings.__fields_set__.intersection_update(self.__fields_set__)
+        return settings
 
     def to_environment_variables(
         self, include: Iterable[Setting] = None, exclude_unset: bool = False
@@ -1240,6 +1278,9 @@ class ProfilesCollection:
     def __iter__(self):
         return self.profiles_by_name.__iter__()
 
+    def items(self):
+        return self.profiles_by_name.items()
+
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
             return False
@@ -1308,6 +1349,24 @@ def load_profiles() -> ProfilesCollection:
             profiles.set_active(user_profiles.active_name, check=False)
 
     return profiles
+
+
+def load_current_profile():
+    """
+    Load the current profile from the default and current profile paths.
+
+    This will _not_ include settings from the current settings context. Only settings
+    that have been persisted to the profiles file will be saved.
+    """
+    from prefect.context import SettingsContext
+
+    profiles = load_profiles()
+    context = SettingsContext.get()
+
+    if context:
+        profiles.set_active(context.profile.name)
+
+    return profiles.active_profile
 
 
 def save_profiles(profiles: ProfilesCollection) -> None:

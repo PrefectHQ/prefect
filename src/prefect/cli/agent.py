@@ -1,9 +1,11 @@
 """
 Command line interface for working with agent services
 """
+from functools import partial
 from typing import List
 from uuid import UUID
 
+import anyio
 import typer
 
 import prefect
@@ -13,7 +15,11 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.settings import PREFECT_AGENT_QUERY_INTERVAL, PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_AGENT_PREFETCH_SECONDS,
+    PREFECT_AGENT_QUERY_INTERVAL,
+    PREFECT_API_URL,
+)
 from prefect.utilities.services import critical_service_loop
 
 agent_app = PrefectTyper(
@@ -56,12 +62,22 @@ async def start(
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
+    run_once: bool = typer.Option(
+        False, help="Run the agent loop once, instead of forever."
+    ),
+    prefetch_seconds: int = SettingsOption(PREFECT_AGENT_PREFETCH_SECONDS),
     # deprecated tags
     tags: List[str] = typer.Option(
         None,
         "-t",
         "--tag",
         help="DEPRECATED: One or more optional tags that will be used to create a work queue",
+    ),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
     ),
 ):
     """
@@ -126,7 +142,10 @@ async def start(
             )
 
     async with OrionAgent(
-        work_queues=work_queues, work_queue_prefix=work_queue_prefix
+        work_queues=work_queues,
+        work_queue_prefix=work_queue_prefix,
+        prefetch_seconds=prefetch_seconds,
+        limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
@@ -141,10 +160,27 @@ async def start(
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 
-        await critical_service_loop(
-            agent.get_and_submit_flow_runs,
-            PREFECT_AGENT_QUERY_INTERVAL.value(),
-            printer=app.console.print,
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.get_and_submit_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
+
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.check_for_cancelled_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
 
     app.console.print("Agent stopped!")

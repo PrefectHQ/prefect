@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import as_declarative, declarative_mixin, declared_attr
+from sqlalchemy.sql.functions import coalesce
 
 import prefect
 import prefect.orion.schemas as schemas
@@ -24,7 +25,7 @@ from prefect.orion.utilities.database import (
     now,
 )
 from prefect.orion.utilities.encryption import decrypt_fernet, encrypt_fernet
-from prefect.orion.utilities.names import generate_slug
+from prefect.utilities.names import generate_slug
 
 
 class ORMBase:
@@ -367,6 +368,8 @@ class ORMFlowRun(ORMRun):
         nullable=True,
     )
 
+    infrastructure_pid = sa.Column(sa.String)
+
     @declared_attr
     def infrastructure_document_id(cls):
         return sa.Column(
@@ -474,6 +477,14 @@ class ORMFlowRun(ORMRun):
                 "flow_id",
                 "idempotency_key",
                 unique=True,
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_desc",
+                sa.desc(coalesce("start_time", "expected_start_time")),
+            ),
+            sa.Index(
+                "ix_flow_run__coalesce_start_time_expected_start_time_asc",
+                sa.asc(coalesce("start_time", "expected_start_time")),
             ),
             sa.Index(
                 "ix_flow_run__expected_start_time_desc",

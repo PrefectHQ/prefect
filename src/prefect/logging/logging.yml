@@ -14,15 +14,10 @@ formatters:
         datefmt: "%H:%M:%S"
 
     standard:
+        (): prefect.logging.formatters.PrefectFormatter
         format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
-        datefmt: "%H:%M:%S"
-
-    flow_runs:
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
-        datefmt: "%H:%M:%S"
-
-    task_runs:
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
+        flow_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
+        task_run_fmt: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
         datefmt: "%H:%M:%S"
 
     json:
@@ -61,42 +56,6 @@ handlers:
             log.flow_run_name: magenta
             log.flow_name: bold magenta
 
-    console_flow_runs:
-        level: 0
-        class: prefect.logging.handlers.PrefectConsoleHandler
-        formatter: flow_runs
-        styles:
-            log.web_url: bright_blue
-            log.local_url: bright_blue
-
-            log.info_level: cyan
-            log.warning_level: yellow3
-            log.error_level: red3
-            log.critical_level: bright_red
-
-            log.completed_state: green
-            log.cancelled_state: yellow3
-            log.failed_state: red3
-            log.crashed_state: bright_red
-
-    console_task_runs:
-        level: 0
-        class: prefect.logging.handlers.PrefectConsoleHandler
-        formatter: task_runs
-        styles:
-            log.web_url: bright_blue
-            log.local_url: bright_blue
-
-            log.info_level: cyan
-            log.warning_level: yellow3
-            log.error_level: red3
-            log.critical_level: bright_red
-
-            log.completed_state: green
-            log.cancelled_state: yellow3
-            log.failed_state: red3
-            log.state_crashed: bright_red
-
     orion:
         level: 0
         class: prefect.logging.handlers.OrionHandler
@@ -104,23 +63,18 @@ handlers:
 loggers:
     prefect:
         level: "${PREFECT_LOGGING_LEVEL}"
-        handlers: [console]
-        propagate: no
 
     prefect.extra:
         level: "${PREFECT_LOGGING_LEVEL}"
-        handlers: [orion, console]
-        propagate: no
+        handlers: [orion]
 
     prefect.flow_runs:
         level: NOTSET
-        handlers: [orion, console_flow_runs]
-        propagate: no
+        handlers: [orion]
 
     prefect.task_runs:
         level: NOTSET
-        handlers: [orion, console_task_runs]
-        propagate: no
+        handlers: [orion]
 
     prefect.orion:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
@@ -133,13 +87,9 @@ loggers:
 
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
-        handlers: [console]
-        propagate: no
 
     fastapi:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
-        handlers: [console]
-        propagate: no
 
 # The root logger: any logger without propagation disabled sends to here as well
 root:
