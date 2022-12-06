@@ -717,7 +717,9 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule=False):
+async def pause_flow_run(
+    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+):
     """
     Pauses a flow run by stopping execution until resumed.
 
@@ -732,6 +734,14 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
             any configured flow-level timeout, the flow might fail even after resuming.
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
+        reschedule: Flag that will reschedule the flow run if resumed. Instead of
+            blocking execution, the flow will gracefully exit (with no result returned)
+            instead. To use this flag, a flow needs to have an associated deployment and
+            results need to be configured.
+        key: An optional key to prevent calling pauses more than once. This defaults to
+            the number of pauses observed by the flow so far, and prevents pauses that
+            use the "reschedule" option from running the same pause twice. A custom key
+            can be supplied for custom pausing behavior.
     """
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -742,13 +752,12 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
 
     flow_run = await client.read_flow_run(frc.flow_run.id)
     pause_counter = _observed_flow_pauses(frc)
+    pause_key = key or str(pause_counter)
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     response = await client.set_flow_run_state(
         frc.flow_run.id,
-        Paused(
-            timeout_seconds=timeout, reschedule=reschedule, pause_key=str(pause_counter)
-        ),
+        Paused(timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key),
     )
 
     if response.status == SetStateStatus.ABORT:
