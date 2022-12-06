@@ -63,6 +63,7 @@ class FlowCreate(ActionBaseModel):
     """Data used by the Orion API to create a flow."""
 
     name: str = FieldFrom(schemas.core.Flow)
+    description: Optional[str] = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
@@ -70,6 +71,7 @@ class FlowCreate(ActionBaseModel):
 class FlowUpdate(ActionBaseModel):
     """Data used by the Orion API to update a flow."""
 
+    description: Optional[str] = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
