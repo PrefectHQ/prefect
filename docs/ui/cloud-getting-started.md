@@ -16,11 +16,11 @@ tags:
 The following sections will get you set up and using Prefect Cloud, using these steps:
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
-2. [Create workspaces](#create-a-workspace) for your account.
-3. [Create an API key](#create-an-api-key) to authorize a local execution environment.
-4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
-5. [Configure storage](#configure-storage).
-6. [Run a flow](#run-a-flow-with-cloud) and view flow results in Prefect Cloud.
+1. [Create workspaces](#create-a-workspace) for your account.
+1. [Create an API key](#create-an-api-key) to authorize a local execution environment.
+1. [Configure a local execution environment](#configure-a-local-execution-environment) to use Prefect Cloud.
+1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
+1. [Run a flow from a deployment](#run-a-flow-from-a-deployment), enabling remote execution of flow runs.
 
 ## Sign in or register
 
@@ -29,7 +29,7 @@ To sign in with an existing account or register an account, go to [https://app.p
 You can create an account with:
 
 - Google account
-- GitHub account
+- Microsoft (GitHub) account
 - Email and password
 
 ## Create a workspace
@@ -52,14 +52,6 @@ If you change your mind, you can select **Workspace Settings** to modify the wor
 
 ![Editing workspace settings in the Prefect Cloud UI](/img/ui/cloud-workspace-settings.png)
 
-**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with the workspace.
-
-<div class="terminal">
-```bash
-$ prefect cloud workspace set --workspace "prefect/workinonit"
-```
-</div>
-
 !!! warning "Deleting a workspace"
     Deleting a workspace removes any flows, deployments, and storage created on that workspace.
 
@@ -79,13 +71,13 @@ Select the **+** button to create a new API key. You're prompted to provide a na
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
-## Configure execution environment
+## Configure a local execution environment
 
-Now configure a local execution environment to use Prefect Cloud as the API server for flow runs.
+Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 
 First, [Install Prefect](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
-Next, use the Prefect CLI `prefect cloud login` command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
+Next, use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
 
 <div class="terminal">
 ```bash
@@ -115,6 +107,23 @@ Now you're ready to run flows locally and have the results displayed in the Pref
 
 You can log out of Prefect Cloud by switching to a different profile.
 
+!!! tip "Interactive login"
+    The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you may log in with either an API key or through a browser.
+
+    <div class="terminal">
+    ```bash
+    $ prefect cloud login
+    ? How would you like to authenticate? [Use arrows to move; enter to select]
+      Log in with a web browser
+    > Paste an authentication key
+    Paste your authentication key:
+    ? Which workspace would you like to use? [Use arrows to move; enter to select]
+    > prefect/workinonit
+      g-gadflow/g-workspace
+    Authenticated with Prefect Cloud! Using workspace 'prefect/workinonit'.
+    ```
+    </div>
+
 ### Changing workspaces
 
 If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
@@ -126,6 +135,16 @@ $ prefect cloud workspace set --workspace "prefect/workinonit"
 </div>
 
 If no workspace is provided, you will be prompted to select one.
+
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with a given workspace.
+
+You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
+
+<div class="terminal">
+```bash
+$ prefect cloud login --workspace "prefect/workinonit"
+```
+</div>
 
 ### Manually configuring Cloud settings
 

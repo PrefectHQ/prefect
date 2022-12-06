@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <DeploymentsTable />
+        <DeploymentsTable @delete="deploymentsSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>

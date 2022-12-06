@@ -21,11 +21,14 @@ from prefect.engine import (
     link_state_to_result,
     orchestrate_flow_run,
     orchestrate_task_run,
+    pause_flow_run,
+    resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
 from prefect.exceptions import (
     Abort,
     CrashedRun,
+    FlowPauseTimeout,
     ParameterTypeError,
     SignatureMismatchError,
 )
@@ -97,6 +100,183 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
     return _get_flow_run_context
 
 
+class TestPausingFlows:
+    async def test_tasks_cannot_be_paused(self):
+        @task
+        def the_little_task_that_pauses():
+            pause_flow_run()
+            return True
+
+        @flow
+        def the_mountain():
+            return the_little_task_that_pauses()
+
+        with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
+            the_mountain()
+
+    async def test_paused_flows_fail_if_not_resumed(self):
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause_flow_run(timeout=0.1)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(FlowPauseTimeout):
+            pausing_flow()
+
+    async def test_first_polling_interval_doesnt_grow_arbitrarily_large(
+        self, monkeypatch
+    ):
+        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
+
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause_flow_run(timeout=20, poll_interval=2)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(StopAsyncIteration):
+            # the sleeper mock will exhaust its side effects after 6 calls
+            pausing_flow()
+
+        sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
+        assert min(sleep_intervals) <= 2  # Okay if this is zero
+        assert max(sleep_intervals) == 2
+
+    async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
+        sleeper = AsyncMock(side_effect=[None, None, None, None, None])
+        monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
+
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            pause_flow_run(timeout=4, poll_interval=5)
+            y = doesnt_pause.submit()
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        with pytest.raises(StopAsyncIteration):
+            # the sleeper mock will exhaust its side effects after 6 calls
+            pausing_flow()
+
+        sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
+        assert sleep_intervals[0] == 2
+        assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
+
+    async def test_paused_flows_block_execution_in_sync_flows(self, orion_client):
+        @task
+        def doesnt_pause():
+            return 42
+
+        @flow()
+        def pausing_flow():
+            x = doesnt_pause.submit()
+            y = doesnt_pause.submit()
+            pause_flow_run(timeout=0.1)
+            z = doesnt_pause(wait_for=[x])
+            alpha = doesnt_pause(wait_for=[y])
+            omega = doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_block_execution_in_async_flows(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause_flow_run(timeout=0.1)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_block_execution_in_async_flows(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause_flow_run(timeout=0.1)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow(return_state=True)
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_can_be_resumed(self, orion_client):
+        @task
+        async def doesnt_pause():
+            return 42
+
+        @flow()
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            y = await doesnt_pause.submit()
+            await pause_flow_run(timeout=10, poll_interval=2)
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
+
+        async def flow_resumer():
+            await anyio.sleep(3)
+            flow_runs = await orion_client.read_flow_runs(limit=1)
+            active_flow_run = flow_runs[0]
+            await resume_flow_run(active_flow_run.id)
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 5, "all tasks should finish running"
+
+
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
         self,
@@ -132,6 +312,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         assert state.is_completed()
@@ -164,6 +345,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         mock_anyio_sleep.assert_not_called()
@@ -203,6 +385,7 @@ class TestOrchestrateTaskRun:
                 result_factory=result_factory,
                 interruptible=False,
                 client=orion_client,
+                log_prints=False,
             )
 
         # Check for a proper final result
@@ -276,6 +459,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task did not run
@@ -317,6 +501,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the unqoted data
@@ -360,6 +545,7 @@ class TestOrchestrateTaskRun:
             result_factory=result_factory,
             interruptible=False,
             client=orion_client,
+            log_prints=False,
         )
 
         # The task ran with the state as its input

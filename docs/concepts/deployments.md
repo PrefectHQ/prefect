@@ -22,7 +22,7 @@ Each deployment references a single "entrypoint" flow (though that flow may, in 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
 !!! warning "Deployments have changed since beta"
-    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
+    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment-on-the-cli) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
 
 ## Deployments overview
 
@@ -115,7 +115,7 @@ This enables you to run a single flow with different parameters, on multiple sch
 
 A _deployment definition_ captures the settings for creating a [deployment object](#deployment-api-representation) on the Prefect API. You can create the deployment definition by:
 
-- Run the [`prefect deployment build` CLI command](#create-a-deployment) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
+- Run the [`prefect deployment build` CLI command](#create-a-deployment-on-the-cli) with deployment options to create a [`deployment.yaml`](#deploymentyaml) deployment definition file, then run `prefect deployment apply` to create a deployment on the API using the settings in `deployment.yaml`.
 - Define a [`Deployment`](/api-ref/prefect/deployments/) Python object, specifying the deployment options as properties of the object, then building and applying the object using methods of `Deployment`.
 
 The minimum required information to create a deployment includes:
@@ -218,6 +218,7 @@ When specifying an infrastructure block with the `-ib` or `--infra-block` flag, 
 | Remote File System | `RemoteFileSystem` | `remote-file-system` |
 | S3 | `S3` | `s3` |
 | SMB | `SMB` | `smb` |
+| GitLab Repository | `GitLabRepository` | `gitlab-repository` |
 
 Note that the appropriate library supporting the storage filesystem must be installed prior to building a deployment with a storage block. For example, the AWS S3 Storage block requires the [`s3fs`](https://s3fs.readthedocs.io/en/latest/) library. See [Storage](/concepts/storage/) for more information.
 
@@ -301,7 +302,7 @@ To create an ad-hoc flow run with different parameter values, go the the details
 
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
-## Create a deployment with the CLI
+### Create a deployment
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
@@ -477,8 +478,10 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ## Create a flow run from a deployment
 
+### Create a flow run with a schedule
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
+### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
@@ -492,6 +495,23 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | `ls`      | View all deployments or deployments for specific flows. |
 | `preview` | Prints a preview of a deployment. |
 | `run`     | Create a flow run for the given flow and deployment. |
+
+### Create a flow run in a Python script 
+
+You can create a flow run from a deployment in a Python script with the `run_deployment` method.
+
+```python
+from prefect.deployments import run_deployment
+
+
+def main():
+    response = run_deployment(name="flow-name/deployment-name")
+    print(response)
+
+
+if __name__ == "__main__":
+   main()
+``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
