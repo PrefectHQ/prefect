@@ -14,6 +14,8 @@ from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     HandleFlowTerminalStateTransitions,
+    HandlePausingFlows,
+    HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
     ReleaseTaskConcurrencySlots,
@@ -1477,3 +1479,105 @@ class TestTaskConcurrencyLimits:
         # the concurrency slot is released as expected
         assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "shrinking limit")) == 0
+
+
+class TestPausingFlows:
+    async def test_can_not_nonblocking_pause_subflows(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.parent_task_run_id == uuid4()
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_not_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+        deployment,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_can_only_pause_running_flows(
+        self,
+        session,
+        initial_state_type,
+        initialize_orchestration,
+        deployment,
+    ):
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        if ctx.initial_state and ctx.initial_state.is_running():
+            assert ctx.response_status == SetStateStatus.ACCEPT
+        else:
+            assert ctx.response_status == SetStateStatus.ABORT
+
+
+class TestResumingFlows:
+    ...

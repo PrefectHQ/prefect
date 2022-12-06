@@ -626,9 +626,7 @@ class TestResumeFlowrun:
         )
         assert resumed_run.state.type == "PAUSED"
 
-    async def test_cannot_resume_flow_runs_without_a_state(
-        self, flow_run, client
-    ):
+    async def test_cannot_resume_flow_runs_without_a_state(self, flow_run, client):
         flow_run_id = flow_run.id
         response = await client.post(
             f"/flow_runs/{flow_run_id}/resume",

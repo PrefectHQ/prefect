@@ -426,13 +426,18 @@ class HandlePausingFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
+        if initial_state is None or not initial_state.is_running():
+            await self.abort_transition(
+                "Cannot pause flows that are not currently running."
+            )
+
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
                 await self.abort_transition(
                     "Cannot pause subflows with the 'reschedule' option."
                 )
 
-            if context.run.deployment_id is not None:
+            if context.run.deployment_id is None:
                 await self.abort_transition(
                     "Cannot pause flows without a deployment with the 'reschedule option."
                 )
@@ -456,6 +461,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             proposed_state.is_running()
             or proposed_state.is_scheduled()
             or proposed_state.is_failed()
+            or proposed_state.is_cancelled()
         ):
             await self.abort_transition(
                 reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
