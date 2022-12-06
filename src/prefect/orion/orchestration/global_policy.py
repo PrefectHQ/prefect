@@ -10,6 +10,7 @@ state database, they should be the most deeply nested contexts in orchestration 
 """
 
 import prefect.orion.models as models
+from prefect.orion.schemas.core import FlowRunPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     BaseUniversalTransform,
@@ -177,7 +178,7 @@ class IncrementFlowRunCount(BaseUniversalTransform):
                 # do not increment the run count if resuming a paused flow
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
-                context.run.empirical_policy = updated_policy
+                context.run.empirical_policy = FlowRunPolicy(**updated_policy)
             else:
                 # increment the run count
                 context.run.run_count += 1
@@ -254,7 +255,7 @@ class UpdatePauseMetadata(BaseUniversalTransform):
             updated_policy[
                 "pause_counter"
             ] = context.proposed_state.state_details.pause_counter
-            context.run.empirical_policy = updated_policy
+            context.run.empirical_policy = FlowRunPolicy(**updated_policy)
 
             context.run.pause_expiration_time = (
                 context.proposed_state.state_details.pause_timeout
