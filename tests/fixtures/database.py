@@ -173,7 +173,7 @@ async def failed_flow_run_with_deployment_with_no_more_retries(
 @pytest.fixture
 async def nonblockingpaused_flow_run_without_deployment(session, flow, deployment):
     flow_run_model = schemas.core.FlowRun(
-        state=schemas.states.Paused(reschedule=True, timeout=300),
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
         flow_id=flow.id,
         flow_version="0.1",
         run_count=1,
@@ -189,7 +189,7 @@ async def nonblockingpaused_flow_run_without_deployment(session, flow, deploymen
 @pytest.fixture
 async def blocking_paused_flow_run(session, flow, deployment):
     flow_run_model = schemas.core.FlowRun(
-        state=schemas.states.Paused(reschedule=False, timeout=300),
+        state=schemas.states.Paused(reschedule=False, timeout_seconds=300),
         flow_id=flow.id,
         flow_version="0.1",
         deployment_id=deployment.id,
@@ -205,7 +205,7 @@ async def blocking_paused_flow_run(session, flow, deployment):
 @pytest.fixture
 async def nonblocking_paused_flow_run(session, flow, deployment):
     flow_run_model = schemas.core.FlowRun(
-        state=schemas.states.Paused(reschedule=True, timeout=300),
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
         flow_id=flow.id,
         flow_version="0.1",
         deployment_id=deployment.id,

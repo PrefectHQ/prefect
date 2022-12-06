@@ -495,13 +495,34 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return schemas.states.Pending(cls=cls, **kwargs)
 
 
-def Paused(cls: Type[State] = State, **kwargs) -> State:
+def Paused(
+    cls: Type[State] = State,
+    timeout_seconds: int = None,
+    pause_timeout: datetime.datetime = None,
+    reschedule: bool = False,
+    pause_counter: int = 0,
+    **kwargs,
+) -> State:
     """Convenience function for creating `Paused` states.
 
     Returns:
         State: a Paused state
     """
-    return schemas.states.Paused(cls=cls, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+
+    if state_details.pause_timeout:
+        raise ValueError("An extra timeout was provided in state_details")
+
+    if pause_timeout is not None and timeout_seconds is not None:
+        raise ValueError("Cannot supply both a pause_timeout and timeout_seconds")
+
+    state_details.pause_timeout = pause_timeout or (
+        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+    )
+    state_details.pause_reschedule = reschedule
+    state_details.pause_counter = pause_counter
+
+    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(

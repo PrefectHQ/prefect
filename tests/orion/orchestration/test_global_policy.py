@@ -521,7 +521,7 @@ class TestPausingRules:
             "flow",
             *intended_transition,
         )
-        ctx.proposed_state = states.Paused(pause_counter=42, timeout=1000)
+        ctx.proposed_state = states.Paused(pause_counter=42, timeout_seconds=1000)
 
         async with UpdatePauseMetadata(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()

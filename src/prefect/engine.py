@@ -754,7 +754,7 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10, reschedule
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
     response = await client.set_flow_run_state(
         frc.flow_run.id,
-        Paused(timeout=timeout, reschedule=reschedule, pause_counter=pause_counter),
+        Paused(timeout_seconds=timeout, reschedule=reschedule, pause_counter=pause_counter),
     )
 
     if response.status == SetStateStatus.ABORT:

@@ -287,7 +287,8 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
 
 def Paused(
     cls: Type[State] = State,
-    timeout: int = None,
+    timeout_seconds: int = None,
+    pause_timeout: datetime.datetime = None,
     reschedule: bool = False,
     pause_counter: int = 0,
     **kwargs,
@@ -302,8 +303,11 @@ def Paused(
     if state_details.pause_timeout:
         raise ValueError("An extra timeout was provided in state_details")
 
-    state_details.pause_timeout = pendulum.now("UTC") + pendulum.Duration(
-        seconds=timeout
+    if pause_timeout is not None and timeout_seconds is not None:
+        raise ValueError("Cannot supply both a pause_timeout and timeout_seconds")
+
+    state_details.pause_timeout = pause_timeout or (
+        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
     )
     state_details.pause_reschedule = reschedule
     state_details.pause_counter = pause_counter
