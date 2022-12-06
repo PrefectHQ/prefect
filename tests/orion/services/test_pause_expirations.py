@@ -15,9 +15,7 @@ async def expired_pause(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(
-                    pause_timeout=THE_PAST
-                ),
+                state=schemas.states.Paused(pause_timeout=THE_PAST),
             ),
         )
 
@@ -29,9 +27,7 @@ async def expired_pause_2(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(
-                    pause_timeout=THE_PAST
-                ),
+                state=schemas.states.Paused(pause_timeout=THE_PAST),
             ),
         )
 
@@ -43,9 +39,7 @@ async def active_pause(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(
-                    pause_timeout=THE_FUTURE
-                ),
+                state=schemas.states.Paused(pause_timeout=THE_FUTURE),
             ),
         )
 
@@ -64,9 +58,7 @@ async def test_does_not_fail_active_pause(session, active_pause):
     assert active_pause.state.type == "PAUSED"
 
 
-async def test_fails_multiple_expired_pauses(
-    session, expired_pause, expired_pause_2
-):
+async def test_fails_multiple_expired_pauses(session, expired_pause, expired_pause_2):
     assert expired_pause.state.type == "PAUSED"
     assert expired_pause_2.state.type == "PAUSED"
 

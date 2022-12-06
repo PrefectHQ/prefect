@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
 import httpx
+import pendulum
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
@@ -17,7 +18,7 @@ from prefect.deprecated.data_documents import (
 )
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, MissingResult
 from prefect.orion import schemas
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
