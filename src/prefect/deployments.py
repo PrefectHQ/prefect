@@ -299,11 +299,9 @@ class Deployment(BaseModel):
         """
         location = ""
         if self.storage:
-            location = (
-                self.storage.basepath + "/"
-                if not self.storage.basepath.endswith("/")
-                else ""
-            )
+            # if None, make empty string, then convert to str if Path
+            basepath = str(self.storage.basepath or "")
+            location = f"{basepath}/" if not basepath.endswith("/") else ""
         if self.path:
             location += self.path
         return location

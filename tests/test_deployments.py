@@ -1,4 +1,6 @@
 import re
+from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 import pendulum
@@ -13,7 +15,13 @@ from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
-from prefect.filesystems import S3, GitHub, LocalFileSystem
+from prefect.filesystems import (
+    S3,
+    GitHub,
+    LocalFileSystem,
+    WritableDeploymentStorage,
+    WritableFileSystem,
+)
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.orion.schemas import states
 from prefect.orion.schemas.core import TaskRunResult
@@ -83,6 +91,37 @@ class TestDeploymentBasicInterface:
 
         d = Deployment(name="foo", path="/full/path/to/flow/")
         assert d.location == "/full/path/to/flow/"
+
+    async def test_location_prefect_aws_basepath_none(self):
+        # for prefect-aws
+        class MockS3Bucket(WritableFileSystem, WritableDeploymentStorage):
+            _block_type_name = "S3Bucket"
+            bucket_path: str
+            basepath: Optional[Path] = None
+
+            def get_directory(self):
+                ...
+
+            def put_directory(self):
+                ...
+
+            def read_path(self):
+                ...
+
+            def write_path(self):
+                ...
+
+        storage = MockS3Bucket(bucket_path="test-bucket", basepath=None)
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "/"
+
+        storage = MockS3Bucket(bucket_path="test-bucket", basepath=Path("basepath"))
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "basepath/"
+
+        storage = MockS3Bucket(bucket_path="test-bucket", basepath="basepath/")
+        d = Deployment(name="foo", storage=storage)
+        assert d.location == "basepath/"
 
 
 class TestDeploymentLoad:
