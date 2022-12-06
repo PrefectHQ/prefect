@@ -21,7 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -45,8 +44,8 @@ jobs:
       - name: Set up node
         uses: actions/setup-node@v3
         with:
-          node-version-file: '.nvmrc'
-          cache-dependency-path: '**/package-lock.json'
+          node-version-file: ".nvmrc"
+          cache-dependency-path: "**/package-lock.json"
 
       - name: Retrieve Playwright version
         id: playwright-cache-key
@@ -91,6 +90,7 @@ jobs:
           - "2.4"
           - "2.5"
           - "2.6"
+          - "2.7"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
