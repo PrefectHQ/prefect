@@ -221,7 +221,7 @@ A real-world example might include the flow run ID from the context in the cache
 
 ```python
 def cache_within_flow_run(context, parameters):
-    return f"{context.flow_run_id}-{task_input_hash(context, parameters)}"
+    return f"{context.task_run.flow_run_id}-{task_input_hash(context, parameters)}"
 
 @task(cache_key_fn=cache_within_flow_run)
 def cached_task():
