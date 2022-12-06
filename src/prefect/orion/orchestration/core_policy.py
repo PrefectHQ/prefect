@@ -312,10 +312,12 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 run.run_count = 0
 
         # Reset pause metadata on retry
-        updated_policy = context.run.empirical_policy.dict()
-        updated_policy["resuming"] = False
-        updated_policy["pause_keys"] = dict()
-        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+        api_version = context.parameters.get("api-version", None)
+        if api_version and api_version >= Version("0.8.4"):
+            updated_policy = context.run.empirical_policy.dict()
+            updated_policy["resuming"] = False
+            updated_policy["pause_keys"] = dict()
+            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
@@ -635,11 +637,14 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
+
             # Reset pause metadata on manual retry
-            updated_policy = context.run.empirical_policy.dict()
-            updated_policy["resuming"] = False
-            updated_policy["pause_keys"] = dict()
-            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+            api_version = context.parameters.get("api-version", None)
+            if api_version and api_version >= Version("0.8.4"):
+                updated_policy = context.run.empirical_policy.dict()
+                updated_policy["resuming"] = False
+                updated_policy["pause_keys"] = dict()
+                context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
             if not context.run.deployment_id:
                 await self.abort_transition(
