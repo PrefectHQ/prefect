@@ -1,6 +1,7 @@
 import datetime
 from contextlib import asynccontextmanager
 
+import anyio
 import sqlalchemy as sa
 
 from prefect.orion.database.alembic_commands import alembic_downgrade, alembic_upgrade
@@ -49,6 +50,7 @@ class OrionDBInterface(metaclass=DBSingleton):
         self.database_config = database_config
         self.queries = query_components
         self.orm = orm
+        self.migration_lock = anyio.Lock()
 
     async def create_db(self):
         """Create the database"""
@@ -60,11 +62,13 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def run_migrations_upgrade(self):
         """Run all upgrade migrations"""
-        await run_sync_in_worker_thread(alembic_upgrade)
+        async with self.migration_lock:
+            await run_sync_in_worker_thread(alembic_upgrade)
 
     async def run_migrations_downgrade(self):
         """Run all downgrade migrations"""
-        await run_sync_in_worker_thread(alembic_downgrade)
+        async with self.migration_lock:
+            await run_sync_in_worker_thread(alembic_downgrade)
 
     async def engine(self):
         """
