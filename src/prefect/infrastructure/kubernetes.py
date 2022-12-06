@@ -117,11 +117,11 @@ class KubernetesJob(Infrastructure):
 
     # controls the behavior of execution
     job_watch_timeout_seconds: int = Field(
-        default=5,
+        default=None,
         description="Number of seconds to watch for job creation before timing out.",
     )
     pod_watch_timeout_seconds: int = Field(
-        default=60,
+        default=None,
         description="Number of seconds to watch for pod creation before timing out.",
     )
     stream_output: bool = Field(
@@ -485,6 +485,7 @@ class KubernetesJob(Infrastructure):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
+        # if `pod_watch_timeout_seconds` is None, no timeout will be enforced
         watch = kubernetes.watch.Watch()
         self.logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
@@ -528,6 +529,7 @@ class KubernetesJob(Infrastructure):
                     print(log.decode().rstrip())
 
         # Wait for job to complete
+        # if `job_watch_timeout_seconds` is None, no timeout will be enforced
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
         watch = kubernetes.watch.Watch()
         with self.get_batch_client() as batch_client:
