@@ -260,45 +260,60 @@ class KubernetesJob(Infrastructure):
     async def run(
         self,
         task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> Optional[bool]:
+    ) -> KubernetesJobResult:
         if not self.command:
             raise ValueError("Kubernetes job cannot be run with empty command.")
 
         self._configure_kubernetes_library_client()
         manifest = self.build_job()
-        job_name = await run_sync_in_worker_thread(self._create_job, manifest)
+        job = await run_sync_in_worker_thread(self._create_job, manifest)
 
-        job_pid = self._get_infrastructure_pid(job_name)
+        pid = await run_sync_in_worker_thread(self._get_infrastructure_pid, job)
         # Indicate that the job has started
         if task_status is not None:
-            task_status.started(job_pid)
+            task_status.started(pid)
 
-        # Monitor the job
-        return await run_sync_in_worker_thread(self._watch_job, job_name)
+        # Monitor the job until completion
+        status_code = await run_sync_in_worker_thread(
+            self._watch_job, job.metadata.name
+        )
+        return KubernetesJobResult(identifier=pid, status_code=status_code)
 
     async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
         self._configure_kubernetes_library_client()
-        job_cluster, job_name = self._parse_infrastructure_pid(infrastructure_pid)
-        current_cluster = self._get_active_cluster_name()
-        if job_cluster != current_cluster:
+        job_cluster_uid, job_namespace, job_name = self._parse_infrastructure_pid(
+            infrastructure_pid
+        )
+
+        if not job_namespace == self.namespace:
             raise InfrastructureNotAvailable(
-                f"Unable to stop job {job_name!r}: the job is running on cluster ",
-                f"{job_cluster!r}, but your current context is attached to cluster ",
-                f"{current_cluster!r}.",
+                f"Unable to kill job {job_name!r}: The job is running in namespace "
+                f"{job_namespace!r} but this block is configured to use "
+                f"{self.namespace!r}."
+            )
+
+        current_cluster_uid = self._get_cluster_uid()
+        if job_cluster_uid != current_cluster_uid:
+            raise InfrastructureNotAvailable(
+                f"Unable to kill job {job_name!r}: The job is running on another "
+                "cluster."
             )
 
         with self.get_batch_client() as batch_client:
             try:
                 batch_client.delete_namespaced_job(
                     name=job_name,
-                    namespace=self.namespace,
+                    namespace=job_namespace,
                     grace_period_seconds=grace_seconds,
+                    # Foreground propagation deletes dependent objects before deleting owner objects.
+                    # This ensures that the pods are cleaned up before the job is marked as deleted.
+                    # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion
                     propagation_policy="Foreground",
                 )
             except kubernetes.client.exceptions.ApiException as exc:
                 if exc.status == 404:
                     raise InfrastructureNotFound(
-                        f"Unable to stop job {job_name!r}: The job was not found."
+                        f"Unable to kill job {job_name!r}: The job was not found."
                     ) from exc
                 else:
                     raise
@@ -329,32 +344,51 @@ class KubernetesJob(Infrastructure):
             finally:
                 client.rest_client.pool_manager.clear()
 
-    def _get_infrastructure_pid(self, job_name: str) -> str:
-        """Generates a kubernetes pid string in the form of `<cluster_name>:<job_name>`."""
-        try:
-            cluster_name = self._get_active_cluster_name()
-        except kubernetes.config.config_exception.ConfigException:
-            cluster_name = "in-cluster-config"
-        job_pid = f"{cluster_name}:{job_name}"
-        return job_pid
+    def _get_infrastructure_pid(self, job: "V1Job") -> str:
+        """
+        Generates a Kubernetes infrastructure PID.
 
-    def _parse_infrastructure_pid(self, infrastructure_pid: str) -> Tuple[str, str]:
-        """Splits a kubernetes infrastructure pid into its component parts."""
-        cluster_name, job_name = infrastructure_pid.rsplit(":", 1)
-        return cluster_name, job_name
+        The PID is in the format: "<cluster uid>:<namespace>:<job name>".
+        """
+        cluster_uid = self._get_cluster_uid()
+        pid = f"{cluster_uid}:{self.namespace}:{job.metadata.name}"
+        return pid
 
-    def _get_active_cluster_name(self) -> str:
-        _, active_context = kubernetes.config.list_kube_config_contexts()
-        cluster_name = active_context["context"]["cluster"]
-        return cluster_name
+    def _parse_infrastructure_pid(
+        self, infrastructure_pid: str
+    ) -> Tuple[str, str, str]:
+        """
+        Parse a Kubernetes infrastructure PID into its component parts.
+
+        Returns a cluster UID, namespace, and job name.
+        """
+        cluster_uid, namespace, job_name = infrastructure_pid.split(":", 2)
+        return cluster_uid, namespace, job_name
+
+    def _get_cluster_uid(self) -> str:
+        """
+        Gets a unique id for the current cluster being used.
+
+        There is no real unique identifier for a cluster. However, the `kube-system`
+        namespace is immutable and has a persistence UID that we use instead.
+
+        See https://github.com/kubernetes/kubernetes/issues/44954
+        """
+        with self.get_client() as client:
+            namespace = client.read_namespace("kube-system")
+        cluster_uid = namespace.metadata.uid
+        return cluster_uid
 
     def _configure_kubernetes_library_client(self) -> None:
-        """Set the correct kubernetes client configuration.
-
-        Important: this is NOT threadsafe.
-
-        TODO: investigate returning a client
         """
+        Set the correct kubernetes client configuration.
+
+        WARNING: This action is not threadsafe and may override the configuration
+                  specified by another `KubernetesJob` instance.
+        """
+        # TODO: Investigate returning a configured client so calls on other threads
+        #       will not invalidate the config needed here
+
         # if a k8s cluster block is provided to the flow runner, use that
         if self.cluster_config:
             self.cluster_config.configure_client()
@@ -507,14 +541,19 @@ class KubernetesJob(Infrastructure):
 
         self.logger.error(f"Job {job_name!r}: Pod never started.")
 
-    def _watch_job(self, job_name: str) -> bool:
+    def _watch_job(self, job_name: str) -> int:
+        """
+        Watch a job.
+
+        Return the final status code of the first container.
+        """
         job = self._get_job(job_name)
         if not job:
-            return KubernetesJobResult(status_code=-1, identifier=job_name)
+            return -1
 
         pod = self._get_job_pod(job_name)
         if not pod:
-            return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+            return -1
 
         if self.stream_output:
             with self.get_client() as client:
@@ -542,7 +581,7 @@ class KubernetesJob(Infrastructure):
                     break
             else:
                 self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+                return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
@@ -550,19 +589,16 @@ class KubernetesJob(Infrastructure):
             )
             first_container_status = pod_status.status.container_statuses[0]
 
-        return KubernetesJobResult(
-            status_code=first_container_status.state.terminated.exit_code,
-            identifier=job.metadata.name,
-        )
+        return first_container_status.state.terminated.exit_code
 
-    def _create_job(self, job_manifest: KubernetesManifest) -> str:
+    def _create_job(self, job_manifest: KubernetesManifest) -> "V1Job":
         """
         Given a Kubernetes Job Manifest, create the Job on the configured Kubernetes
         cluster and return its name.
         """
         with self.get_batch_client() as batch_client:
             job = batch_client.create_namespaced_job(self.namespace, job_manifest)
-        return job.metadata.name
+        return job
 
     def _slugify_name(self, name: str) -> str:
         """
