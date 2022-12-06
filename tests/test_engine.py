@@ -40,7 +40,7 @@ from prefect.results import ResultFactory
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
-from prefect.utilities.annotations import NoResult, quote
+from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
 
 
@@ -327,7 +327,7 @@ class TestNonblockingPause:
             omega = foo(wait_for=[x, y])
 
         graceful_exit_result = pausing_flow_without_blocking()
-        assert graceful_exit_result == NoResult
+        assert graceful_exit_result is None
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
         self, orion_client, deployment, monkeypatch

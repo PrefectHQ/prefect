@@ -77,9 +77,3 @@ class NotSet:
     """
     Singleton to distinguish `None` from a value that is not provided by the user.
     """
-
-
-class NoResult:
-    """
-    Singleton indicating that a state has no result and is distinct from `None`
-    """

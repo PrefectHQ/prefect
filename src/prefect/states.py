@@ -72,6 +72,10 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
+    if state.is_paused():
+        # Paused states not truly terminal and do not have results associated with them
+        return
+
     if raise_on_failure and (
         state.is_crashed() or state.is_failed() or state.is_cancelled()
     ):

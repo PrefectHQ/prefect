@@ -82,7 +82,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import NoResult, Quote, allow_failure, unmapped
+from prefect.utilities.annotations import Quote, allow_failure, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -655,7 +655,6 @@ async def orchestrate_flow_run(
             elif isinstance(exc, FlowPauseExit):
                 paused_flow_run = await client.read_flow_run(flow_run.id)
                 paused_flow_run_state = paused_flow_run.state
-                paused_flow_run_state.data = NoResult
                 return paused_flow_run_state
             else:
                 # Generic exception in user code
