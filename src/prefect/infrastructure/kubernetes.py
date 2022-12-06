@@ -122,7 +122,7 @@ class KubernetesJob(Infrastructure):
         description="Number of seconds to watch job execution before timing out.",
     )
     pod_watch_timeout_seconds: int = Field(
-        default=5,
+        default=60,
         description="Number of seconds to watch for pod creation before timing out.",
     )
     stream_output: bool = Field(
