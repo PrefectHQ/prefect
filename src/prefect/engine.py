@@ -349,9 +349,9 @@ async def begin_flow_run(
         )
 
         # Create a task group for background tasks
-        background_tasks = (
-            flow_run_context.background_tasks
-        ) = await stack.enter_async_context(anyio.create_task_group())
+        flow_run_context.background_tasks = await stack.enter_async_context(
+            anyio.create_task_group()
+        )
 
         # If the flow is async, we need to provide a portal so sync tasks can run
         flow_run_context.sync_portal = (
