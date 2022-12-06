@@ -238,6 +238,8 @@ class TestDeleteWorkQueue:
 
 
 class TestGetRunsInWorkQueue:
+    running_flow_count = 4
+
     @pytest.fixture
     async def work_queue_2(self, session):
         work_queue = await models.work_queues.create_work_queue(
@@ -270,8 +272,15 @@ class TestGetRunsInWorkQueue:
 
     @pytest.fixture
     async def running_flow_runs(self, session, deployment, work_queue, work_queue_2):
-        for i in range(3):
+        for i in range(self.running_flow_count):
             for wq in [work_queue, work_queue_2]:
+                if i == 0:
+                    state_type = "PENDING"
+                elif i == 1:
+                    state_type = "CANCELLING"
+                else:
+                    state_type = "RUNNING"
+
                 await models.flow_runs.create_flow_run(
                     session=session,
                     flow_run=schemas.core.FlowRun(
@@ -279,7 +288,7 @@ class TestGetRunsInWorkQueue:
                         deployment_id=deployment.id,
                         work_queue_name=wq.name,
                         state=schemas.states.State(
-                            type="RUNNING" if i == 0 else "PENDING",
+                            type=state_type,
                             timestamp=pendulum.now("UTC").subtract(seconds=10),
                         ),
                     ),
@@ -368,7 +377,9 @@ class TestGetRunsInWorkQueue:
             session=session, work_queue_id=work_queue.id
         )
 
-        assert len(runs_wq1) == max(0, min(3, concurrency_limit - 3))
+        assert len(runs_wq1) == max(
+            0, min(3, concurrency_limit - self.running_flow_count)
+        )
 
     @pytest.mark.parametrize("limit", [10, 1])
     async def test_get_runs_in_queue_concurrency_limit_and_limit(
@@ -379,14 +390,18 @@ class TestGetRunsInWorkQueue:
         running_flow_runs,
         limit,
     ):
+        concurrency_limit = 5
+
         await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue.id,
-            work_queue=schemas.actions.WorkQueueUpdate(concurrency_limit=5),
+            work_queue=schemas.actions.WorkQueueUpdate(
+                concurrency_limit=concurrency_limit
+            ),
         )
 
         runs_wq1 = await models.work_queues.get_runs_in_work_queue(
             session=session, work_queue_id=work_queue.id, limit=limit
         )
 
-        assert len(runs_wq1) == min(limit, 2)
+        assert len(runs_wq1) == min(limit, concurrency_limit - self.running_flow_count)

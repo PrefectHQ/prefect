@@ -166,7 +166,7 @@ class BaseQueryComponents(ABC):
                 db.FlowRun,
                 sa.and_(
                     self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
-                    db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
+                    db.FlowRun.state_type.in_(["RUNNING", "PENDING", "CANCELLING"]),
                 ),
                 isouter=True,
             )
