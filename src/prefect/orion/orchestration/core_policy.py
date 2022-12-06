@@ -162,7 +162,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
 
 class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
     """
-    Releases any concurrency slots held by a run upon exiting a Running state.
+    Releases any concurrency slots held by a run upon exiting a Running or
+    Cancelling state.
     """
 
     async def after_transition(
@@ -172,7 +173,10 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
-        if not context.validated_state.is_running():
+        if context.validated_state.type not in [
+            states.StateType.RUNNING,
+            states.StateType.CANCELLING,
+        ]:
             filtered_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
                     context.session, tags=context.run.tags

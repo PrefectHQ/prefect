@@ -1147,6 +1147,113 @@ class TestTaskConcurrencyLimits:
         assert task2_run_retry_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "some tag")) == 1
 
+    async def test_concurrency_limit_cancelling_transition(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "some tag", 1)
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        cancelling_transition = (states.StateType.RUNNING, states.StateType.CANCELLING)
+        cancelled_transition = (states.StateType.CANCELLING, states.StateType.CANCELLED)
+
+        # before any runs, no active concurrency slots are in use
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        # a first task run against a concurrency limited tag will be accepted
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        task2_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        # the first task hasn't completed, so the concurrently running second task is
+        # told to wait
+        assert task2_running_ctx.response_status == SetStateStatus.WAIT
+
+        # the number of slots occupied by active runs is equal to the concurrency limit
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+        task1_cancelling_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *cancelling_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_cancelling_ctx = await stack.enter_async_context(
+                    rule(task1_cancelling_ctx, *cancelling_transition)
+                )
+            await task1_cancelling_ctx.validate_proposed_state()
+
+        # the first task run will transition into a cancelling state, but
+        # maintain a hold on the concurrency slot
+        assert task1_cancelling_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+        task1_cancelled_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *cancelled_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_cancelled_ctx = await stack.enter_async_context(
+                    rule(task1_cancelled_ctx, *cancelled_transition)
+                )
+            await task1_cancelled_ctx.validate_proposed_state()
+
+        # the first task run will transition into a cancelled state, yielding a
+        # concurrency slot
+        assert task1_cancelled_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        # the second task tries to run again, this time the transition will be accepted
+        # now that a concurrency slot has been freed
+        task2_run_retry_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=task2_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_run_retry_ctx = await stack.enter_async_context(
+                    rule(task2_run_retry_ctx, *running_transition)
+                )
+            await task2_run_retry_ctx.validate_proposed_state()
+
+        assert task2_run_retry_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
     async def test_concurrency_limiting_aborts_transitions_with_zero_limit(
         self,
         session,
