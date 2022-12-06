@@ -146,19 +146,19 @@ class TestBlockingPause:
         @flow(task_runner=SequentialTaskRunner())
         def pausing_flow():
             x = foo.submit()
-            pause_flow_run(timeout=20, poll_interval=10)
+            pause_flow_run(timeout=20, poll_interval=100)
             y = foo.submit()
             z = foo(wait_for=[x])
             alpha = foo(wait_for=[y])
             omega = foo(wait_for=[x, y])
 
-        with pytest.raises(FailedRun):
+        with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
             pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
-        assert min(sleep_intervals) <= 2  # Okay if this is zero
-        assert max(sleep_intervals) == 2
+        assert min(sleep_intervals) <= 20  # Okay if this is zero
+        assert max(sleep_intervals) == 100
 
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
