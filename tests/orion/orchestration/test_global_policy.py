@@ -552,7 +552,6 @@ class TestPausingRules:
             await ctx.validate_proposed_state()
         assert not ctx.run.empirical_policy.resuming
 
-
     @pytest.mark.parametrize(
         "initial_state_type", [states.StateType.PAUSED, states.StateType.PENDING]
     )
