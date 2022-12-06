@@ -194,11 +194,7 @@ class RemoveResumingIndicator(BaseUniversalTransform):
 
         proposed_state = context.proposed_state
 
-        if (
-            proposed_state.is_running()
-            or proposed_state.is_failed()
-            or proposed_state.is_cancelled()
-        ):
+        if proposed_state.is_running() or proposed_state.is_final():
             if context.run.empirical_policy.resuming:
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False

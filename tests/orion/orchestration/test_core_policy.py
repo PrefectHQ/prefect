@@ -1678,6 +1678,7 @@ class TestResumingFlows:
 
         permitted_resuming_states = [
             states.StateType.RUNNING,
+            states.StateType.COMPLETED,
             states.StateType.SCHEDULED,
             states.StateType.FAILED,
             states.StateType.CANCELLED,

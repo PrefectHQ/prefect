@@ -356,7 +356,9 @@ class TestNonblockingPause:
         flow_run = await orion_client.read_flow_run(flow_run_id)
         assert flow_run.state.is_scheduled()
 
-    async def test_subflows_cannot_be_paused_with_reschedule_flag(self, orion_client, deployment, monkeypatch):
+    async def test_subflows_cannot_be_paused_with_reschedule_flag(
+        self, orion_client, deployment, monkeypatch
+    ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
 
@@ -380,7 +382,9 @@ class TestNonblockingPause:
         with pytest.raises(RuntimeError, match="Cannot pause subflows"):
             flow_run_state = wrapper_flow()
 
-    async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(self, orion_client):
+    async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
+        self, orion_client
+    ):
         @task
         def foo():
             return 42
@@ -394,7 +398,9 @@ class TestNonblockingPause:
             alpha = foo(wait_for=[y])
             omega = foo(wait_for=[x, y])
 
-        with pytest.raises(RuntimeError, match="Cannot pause flows without a deployment"):
+        with pytest.raises(
+            RuntimeError, match="Cannot pause flows without a deployment"
+        ):
             flow_run_state = pausing_flow_without_blocking()
 
 
