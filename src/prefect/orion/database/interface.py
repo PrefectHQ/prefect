@@ -62,13 +62,11 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def run_migrations_upgrade(self):
         """Run all upgrade migrations"""
-        async with self.migration_lock:
-            await run_sync_in_worker_thread(alembic_upgrade)
+        await run_sync_in_worker_thread(alembic_upgrade)
 
     async def run_migrations_downgrade(self):
         """Run all downgrade migrations"""
-        async with self.migration_lock:
-            await run_sync_in_worker_thread(alembic_downgrade)
+        await run_sync_in_worker_thread(alembic_downgrade)
 
     async def engine(self):
         """

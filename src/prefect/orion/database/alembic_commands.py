@@ -1,6 +1,19 @@
+from functools import wraps
 from pathlib import Path
+from threading import Lock
 
 import prefect
+
+ALEMBIC_LOCK = Lock()
+
+
+def alembic_command(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        with ALEMBIC_LOCK:
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def alembic_config():
@@ -15,6 +28,7 @@ def alembic_config():
     return alembic_cfg
 
 
+@alembic_command
 def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     """
     Run alembic upgrades on Orion database
@@ -29,6 +43,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     alembic.command.upgrade(alembic_config(), revision, sql=dry_run)
 
 
+@alembic_command
 def alembic_downgrade(revision: str = "base", dry_run: bool = False):
     """
     Run alembic downgrades on Orion database
@@ -43,6 +58,7 @@ def alembic_downgrade(revision: str = "base", dry_run: bool = False):
     alembic.command.downgrade(alembic_config(), revision, sql=dry_run)
 
 
+@alembic_command
 def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
     """
     Create a new revision file for Orion
@@ -59,6 +75,7 @@ def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
     )
 
 
+@alembic_command
 def alembic_stamp(revision):
     """
     Stamp the revision table with the given revision; don't run any migrations
