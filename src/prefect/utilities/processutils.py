@@ -1,8 +1,10 @@
+import asyncio
 import os
 import signal
 import subprocess
 import sys
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from io import TextIOBase
 from typing import Any, Callable, List, Optional, TextIO, Tuple, Union
 
@@ -11,6 +13,126 @@ import anyio.abc
 from anyio.streams.text import TextReceiveStream, TextSendStream
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
+
+
+# anyio process wrapper classes
+@dataclass(eq=False)
+class StreamReaderWrapper(anyio.abc.ByteReceiveStream):
+    _stream: asyncio.StreamReader
+
+    async def receive(self, max_bytes: int = 65536) -> bytes:
+        data = await self._stream.read(max_bytes)
+        if data:
+            return data
+        else:
+            raise anyio.EndOfStream
+
+    async def aclose(self) -> None:
+        self._stream.feed_eof()
+
+
+@dataclass(eq=False)
+class StreamWriterWrapper(anyio.abc.ByteSendStream):
+    _stream: asyncio.StreamWriter
+
+    async def send(self, item: bytes) -> None:
+        self._stream.write(item)
+        await self._stream.drain()
+
+    async def aclose(self) -> None:
+        self._stream.close()
+
+
+@dataclass(eq=False)
+class Process(anyio.abc.Process):
+    _process: asyncio.subprocess.Process
+    _stdin: Union[StreamWriterWrapper, None]
+    _stdout: Union[StreamReaderWrapper, None]
+    _stderr: Union[StreamReaderWrapper, None]
+
+    async def aclose(self) -> None:
+        if self._stdin:
+            await self._stdin.aclose()
+        if self._stdout:
+            await self._stdout.aclose()
+        if self._stderr:
+            await self._stderr.aclose()
+
+        await self.wait()
+
+    async def wait(self) -> int:
+        return await self._process.wait()
+
+    def terminate(self) -> None:
+        self._process.terminate()
+
+    def kill(self) -> None:
+        self._process.kill()
+
+    def send_signal(self, signal: int) -> None:
+        self._process.send_signal(signal)
+
+    @property
+    def pid(self) -> int:
+        return self._process.pid
+
+    @property
+    def returncode(self) -> Union[int, None]:
+        return self._process.returncode
+
+    @property
+    def stdin(self) -> Union[anyio.abc.ByteSendStream, None]:
+        return self._stdin
+
+    @property
+    def stdout(self) -> Union[anyio.abc.ByteReceiveStream, None]:
+        return self._stdout
+
+    @property
+    def stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]:
+        return self._stderr
+
+
+async def _open_anyio_process(command: List[str], **kwargs):
+    """
+    Open a subprocess and return a `Process` object.
+
+    Args:
+        command: The command to run
+        kwargs: Additional arguments to pass to `asyncio.create_subprocess_exec`
+
+    Returns:
+        A `Process` object
+    """
+    # call either asyncio.create_subprocess_exec or asyncio.create_subprocess_shell
+    # depending on whether the command is a list or a string
+    if isinstance(command, list):
+        process = await asyncio.create_subprocess_exec(*command, **kwargs)
+    else:
+        process = await asyncio.create_subprocess_shell(command, **kwargs)
+
+    return Process(
+        process,
+        StreamWriterWrapper(process.stdin) if process.stdin else None,
+        StreamReaderWrapper(process.stdout) if process.stdout else None,
+        StreamReaderWrapper(process.stderr) if process.stderr else None,
+    )
+
+
+def _ctrl_c_handler(process: anyio.abc.Process):
+    """
+    A Windows CTRL-C handler that accepts any anyio subprocess
+    and terminates it before passing control to the next handler
+    """
+
+    def handler(*args):
+        # send signal using os.kill to avoid anyio's signal handling
+        os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+
+        # return False to allow the next handler to be called
+        return False
+
+    return handler
 
 
 @asynccontextmanager
@@ -29,10 +151,24 @@ async def open_process(command: List[str], **kwargs):
             "The command passed to open process must be a list. You passed the command"
             f"'{command}', which is type '{type(command)}'."
         )
+
     if sys.platform == "win32":
+        import win32api
+
         command = " ".join(command)
 
-    process = await anyio.open_process(command, **kwargs)
+    # process = await anyio.open_process(command, **kwargs)
+    process = await _open_anyio_process(command, **kwargs)
+
+    # if there's a creationflags kwarg and it contains CREATE_NEW_PROCESS_GROUP,
+    # use SetConsoleCtrlHandler to handle CTRL-C
+    handler = None
+    if (
+        sys.platform == "win32"
+        and "creationflags" in kwargs
+        and kwargs["creationflags"] & subprocess.CREATE_NEW_PROCESS_GROUP
+    ):
+        handler = win32api.SetConsoleCtrlHandler(_ctrl_c_handler(process), True)
 
     try:
         async with process:
@@ -40,6 +176,9 @@ async def open_process(command: List[str], **kwargs):
     finally:
         try:
             process.terminate()
+            if handler:
+                win32api.SetConsoleCtrlHandler(handler, False)
+
         except ProcessLookupError:
             # Occurs if the process is already terminated
             pass

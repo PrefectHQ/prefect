@@ -3,6 +3,7 @@ import contextlib
 import os
 import signal
 import socket
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -76,6 +77,25 @@ class Process(Infrastructure):
         " Otherwise, a temporary directory will be created.",
     )  # Underlying accepted types are str, bytes, PathLike[str], None
 
+    def ctrl_c_handler(self, process: anyio.abc.Process):
+        """
+        A Windows CTRL-C handler that accepts any anyio subprocess
+        and terminates it before passing control to the next handler
+        """
+
+        def handler(*args):
+            try:
+                # send signal using os.kill to avoid anyio's signal handling
+                os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+            except OSError:
+                # process already terminated
+                pass
+
+            # return False to allow the next handler to be called
+            return False
+
+        return handler
+
     @sync_compatible
     async def run(
         self,
@@ -99,6 +119,10 @@ class Process(Infrastructure):
                 f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
             )
 
+            creationflags = None
+            if sys.platform == "win32":
+                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+
             process = await run_process(
                 self.command,
                 stream_output=self.stream_output,
@@ -106,6 +130,7 @@ class Process(Infrastructure):
                 task_status_handler=_infrastructure_pid_from_process,
                 env=self._get_environment_variables(),
                 cwd=working_dir,
+                creationflags=creationflags,
             )
 
         # Use the pid for display if no name was given
@@ -158,6 +183,9 @@ class Process(Infrastructure):
             try:
                 os.kill(pid, signal.CTRL_BREAK_EVENT)
             except ProcessLookupError:
+                # The process exited before we were able to kill it.
+                return
+            except OSError:
                 # The process exited before we were able to kill it.
                 return
         else:
