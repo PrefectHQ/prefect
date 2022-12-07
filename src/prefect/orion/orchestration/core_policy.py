@@ -164,6 +164,9 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
         self,
         context: OrchestrationContext,
     ):
+        if self.nullified_transition():
+            return
+
         if not context.validated_state.is_running():
             filtered_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
