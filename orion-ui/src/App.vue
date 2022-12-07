@@ -12,7 +12,7 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <AppRouterView />
+      <AppRouterView class="app__router-view" />
     </suspense>
   </div>
 </template>
@@ -58,10 +58,13 @@
 
 .app { @apply
   text-slate-900
+  flex
+  flex-col
 }
 
 .app {
   --prefect-scroll-margin: theme('spacing.20');
+  min-height: 100vh;
 }
 
 .app__prefect-icon { @apply
@@ -79,9 +82,14 @@
 @screen lg {
   .app {
     --prefect-scroll-margin: theme('spacing.2');
-
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }
+}
+
+.app__router-view {
+  /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
+  flex: 1 0 1px;
+  height: 100%;
 }
 </style>
