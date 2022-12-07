@@ -40,6 +40,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
+            CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
         ]
