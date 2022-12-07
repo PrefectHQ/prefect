@@ -6,7 +6,18 @@ import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from io import TextIOBase
-from typing import Any, Callable, List, Optional, TextIO, Tuple, Union
+from typing import (
+    IO,
+    Any,
+    Callable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    TextIO,
+    Tuple,
+    Union,
+)
 
 import anyio
 import anyio.abc
@@ -93,7 +104,17 @@ class Process(anyio.abc.Process):
         return self._stderr
 
 
-async def _open_anyio_process(command: List[str], **kwargs):
+async def _open_anyio_process(
+    command: Union[str, bytes, Sequence[Union[str, bytes]]],
+    *,
+    stdin: Union[int, IO[Any], None] = None,
+    stdout: Union[int, IO[Any], None] = None,
+    stderr: Union[int, IO[Any], None] = None,
+    cwd: Union[str, bytes, os.PathLike, None] = None,
+    env: Union[Mapping[str, str], None] = None,
+    start_new_session: bool = False,
+    creationflags: int = 0,
+):
     """
     Open a subprocess and return a `Process` object.
 
@@ -107,9 +128,27 @@ async def _open_anyio_process(command: List[str], **kwargs):
     # call either asyncio.create_subprocess_exec or asyncio.create_subprocess_shell
     # depending on whether the command is a list or a string
     if isinstance(command, list):
-        process = await asyncio.create_subprocess_exec(*command, **kwargs)
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            cwd=cwd,
+            env=env,
+            start_new_session=start_new_session,
+            creationflags=creationflags,
+        )
     else:
-        process = await asyncio.create_subprocess_shell(command, **kwargs)
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
+            cwd=cwd,
+            env=env,
+            start_new_session=start_new_session,
+            creationflags=creationflags,
+        )
 
     return Process(
         process,
