@@ -1448,7 +1448,7 @@ class OrionClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
-    async def resume_flow_run(self, flow_run_id: UUID) -> FlowRun:
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
         """
         Resumes a paused flow run.
 
