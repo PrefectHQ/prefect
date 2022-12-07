@@ -179,7 +179,7 @@ class IncrementFlowRunCount(BaseUniversalTransform):
         if context.proposed_state.is_running():
             # do not increment the run count if resuming a paused flow
             api_version = context.parameters.get("api-version", None)
-            if api_version and api_version >= Version("0.8.4"):
+            if api_version is None or api_version >= Version("0.8.4"):
                 if context.run.empirical_policy.resuming:
                     return
 
@@ -199,7 +199,7 @@ class RemoveResumingIndicator(BaseUniversalTransform):
         proposed_state = context.proposed_state
 
         api_version = context.parameters.get("api-version", None)
-        if api_version and api_version >= Version("0.8.4"):
+        if api_version is None or api_version >= Version("0.8.4"):
             if proposed_state.is_running() or proposed_state.is_final():
                 if context.run.empirical_policy.resuming:
                     updated_policy = context.run.empirical_policy.dict()
@@ -274,7 +274,7 @@ class UpdatePauseMetadata(BaseUniversalTransform):
             return
 
         api_version = context.parameters.get("api-version", None)
-        if api_version and api_version >= Version("0.8.4"):
+        if api_version is None or api_version >= Version("0.8.4"):
             if context.proposed_state.is_paused():
                 updated_policy = context.run.empirical_policy.dict()
                 context.run.empirical_policy = FlowRunPolicy(**updated_policy)

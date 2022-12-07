@@ -313,7 +313,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
 
         # Reset pause metadata on retry
         api_version = context.parameters.get("api-version", None)
-        if api_version and api_version >= Version("0.8.4"):
+        if api_version is None or api_version >= Version("0.8.4"):
             updated_policy = context.run.empirical_policy.dict()
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
@@ -640,7 +640,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
             # Reset pause metadata on manual retry
             api_version = context.parameters.get("api-version", None)
-            if api_version and api_version >= Version("0.8.4"):
+            if api_version is None or api_version >= Version("0.8.4"):
                 updated_policy = context.run.empirical_policy.dict()
                 updated_policy["resuming"] = False
                 updated_policy["pause_keys"] = set()
