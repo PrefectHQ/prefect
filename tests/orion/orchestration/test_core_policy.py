@@ -1634,7 +1634,7 @@ class TestTaskConcurrencyLimits:
             await task1_pending_ctx.validate_proposed_state()
 
         assert task1_pending_ctx.response_status == SetStateStatus.REJECT
-        assert task1_pending_ctx.validated_state == states.StateType.PENDING
+        assert task1_pending_ctx.validated_state.type != states.StateType.RUNNING
         assert (await self.count_concurrency_slots(session, "small")) == 0
 
     async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_fizzle_with_release_last(
@@ -1718,7 +1718,7 @@ class TestTaskConcurrencyLimits:
             await task1_pending_ctx.validate_proposed_state()
 
         assert task1_pending_ctx.response_status == SetStateStatus.REJECT
-        assert task1_pending_ctx.validated_state == states.StateType.PENDING
+        assert task1_pending_ctx.validated_state.type != states.StateType.RUNNING
         assert (await self.count_concurrency_slots(session, "small")) == 0
 
     async def test_releasing_concurrency_slots_does_not_happen_if_nullified_with_release_first(
