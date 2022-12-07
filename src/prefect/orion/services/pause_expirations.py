@@ -3,7 +3,6 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 """
 
 import asyncio
-import datetime
 
 import pendulum
 import sqlalchemy as sa
