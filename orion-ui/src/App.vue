@@ -65,7 +65,6 @@
 .app {
   --prefect-scroll-margin: theme('spacing.20');
   min-height: 100vh;
-  min-width: 100vw;
 }
 
 .app__prefect-icon { @apply
