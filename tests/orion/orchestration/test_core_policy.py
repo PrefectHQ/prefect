@@ -13,6 +13,7 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    CopyScheduledTime,
     HandleFlowTerminalStateTransitions,
     HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
@@ -66,13 +67,16 @@ def fizzling_rule():
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
-    async def test_late_scheduled_states_just_run(
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.SCHEDULED, states.StateType.PENDING]
+    )
+    async def test_running_after_scheduled_start_time_is_not_delayed(
         self,
         session,
         run_type,
         initialize_orchestration,
+        initial_state_type,
     ):
-        initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
@@ -87,13 +91,16 @@ class TestWaitForScheduledTimeRule:
 
         assert ctx.validated_state_type == proposed_state_type
 
-    async def test_early_scheduled_states_are_delayed(
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.SCHEDULED, states.StateType.PENDING]
+    )
+    async def test_running_before_scheduled_start_time_is_delayed(
         self,
         session,
         run_type,
         initialize_orchestration,
+        initial_state_type,
     ):
-        initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
@@ -110,24 +117,93 @@ class TestWaitForScheduledTimeRule:
         assert ctx.proposed_state is None
         assert abs(ctx.response_details.delay_seconds - 300) < 2
 
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+        ],
+    )
     async def test_scheduling_rule_does_not_fire_against_other_state_types(
         self,
         session,
         run_type,
         initialize_orchestration,
+        proposed_state_type,
     ):
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
+        initial_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
             run_type,
             *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
         )
 
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
         async with scheduling_rule as ctx:
             pass
+        assert await scheduling_rule.invalid()
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestCopyScheduledTime:
+    async def test_scheduled_time_copied_from_scheduled_to_pending(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.PENDING
+        intended_transition = (initial_state_type, proposed_state_type)
+        scheduled_time = pendulum.now().subtract(minutes=5)
+
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": scheduled_time},
+        )
+
+        async with CopyScheduledTime(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == proposed_state_type
+        assert ctx.validated_state.state_details.scheduled_time == scheduled_time
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+            states.StateType.RUNNING,
+        ],
+    )
+    async def test_scheduled_time_not_copied_for_other_transitions(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
+        )
+
+        scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            await ctx.validate_proposed_state()
+
         assert await scheduling_rule.invalid()
 
 
