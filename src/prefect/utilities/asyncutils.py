@@ -1,6 +1,7 @@
 """
 Utilities for interoperability with async functions and workers from various contexts.
 """
+import asyncio
 import ctypes
 import inspect
 import threading
@@ -98,6 +99,8 @@ async def run_sync_in_interruptible_worker_thread(
 
     thread: Thread = None
     result = NotSet
+    event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
     def capture_worker_thread_and_result():
         # Captures the worker thread that AnyIO is using to execute the function so
@@ -109,13 +112,14 @@ async def run_sync_in_interruptible_worker_thread(
         except BaseException as exc:
             result = exc
             raise
+        finally:
+            loop.call_soon_threadsafe(event.set)
 
     async def send_interrupt_to_thread():
         # This task waits until the result is returned from the thread, if cancellation
         # occurs during that time, we will raise the exception in the thread as well
         try:
-            while result is NotSet:
-                await anyio.sleep(0)
+            await event.wait()
         except anyio.get_cancelled_exc_class():
             # NOTE: We could send a SIGINT here which allow us to interrupt system
             # calls but the interrupt bubbles from the child thread into the main thread

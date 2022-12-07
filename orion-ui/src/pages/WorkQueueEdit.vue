@@ -16,7 +16,7 @@
   import router from '@/router'
 
   const api = useWorkspaceApi()
-  const workQueueId = useRouteParam('id')
+  const workQueueId = useRouteParam('workQueueId')
 
   const workQueueDetails = await api.workQueues.getWorkQueue(workQueueId.value)
 

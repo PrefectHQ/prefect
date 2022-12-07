@@ -27,8 +27,8 @@ class FlowRunNotifications(LoopService):
 
     @inject_db
     async def run_once(self, db: OrionDBInterface):
-        async with db.session_context(begin_transaction=True) as session:
-            while True:
+        while True:
+            async with db.session_context(begin_transaction=True) as session:
                 # Drain the queue one entry at a time, because if a transient
                 # database error happens while sending a notification, the whole
                 # transaction will be rolled back, which effectively re-queues any
@@ -141,7 +141,9 @@ class FlowRunNotifications(LoopService):
         Args:
             flow_run_id: the flow run id.
         """
-        return f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run_id}"
+        ui_url = PREFECT_UI_URL.value() or "http://ephemeral-orion/api"
+        return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
+
 
 
 if __name__ == "__main__":
