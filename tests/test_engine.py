@@ -104,34 +104,34 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
 class TestBlockingPause:
     async def test_tasks_cannot_be_paused(self):
         @task
-        def the_little_task_that_pauses():
-            pause_flow_run()
+        async def the_little_task_that_pauses():
+            await pause_flow_run()
             return True
 
         @flow(task_runner=SequentialTaskRunner())
-        def the_mountain():
-            return the_little_task_that_pauses()
+        async def the_mountain():
+            return await the_little_task_that_pauses()
 
         with pytest.raises(RuntimeError, match="Cannot pause task runs.*"):
-            the_mountain()
+            await the_mountain()
 
     async def test_paused_flows_fail_if_not_resumed(self):
         @task
-        def doesnt_pause():
+        async def doesnt_pause():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow():
-            x = doesnt_pause.submit()
-            pause_flow_run(timeout=0.1)
-            y = doesnt_pause.submit()
-            z = doesnt_pause(wait_for=[x])
-            alpha = doesnt_pause(wait_for=[y])
-            omega = doesnt_pause(wait_for=[x, y])
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            await pause_flow_run(timeout=0.1)
+            y = await doesnt_pause.submit()
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(FailedRun):
             # the sleeper mock will exhaust its side effects after 6 calls
-            pausing_flow()
+            await pausing_flow()
 
     async def test_first_polling_interval_doesnt_grow_arbitrarily_large(
         self, monkeypatch
@@ -140,21 +140,21 @@ class TestBlockingPause:
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
 
         @task
-        def foo():
+        async def doesnt_pause():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow():
-            x = foo.submit()
-            pause_flow_run(timeout=20, poll_interval=100)
-            y = foo.submit()
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            await pause_flow_run(timeout=20, poll_interval=100)
+            y = await doesnt_pause.submit()
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
-            pausing_flow()
+            await pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
         assert min(sleep_intervals) <= 20  # Okay if this is zero
@@ -165,26 +165,27 @@ class TestBlockingPause:
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
 
         @task
-        def foo():
+        async def doesnt_pause():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow():
-            x = foo.submit()
-            pause_flow_run(timeout=4, poll_interval=5)
-            y = foo.submit()
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow():
+            x = await doesnt_pause.submit()
+            await pause_flow_run(timeout=4, poll_interval=5)
+            y = await doesnt_pause.submit()
+            z = await doesnt_pause(wait_for=[x])
+            alpha = await doesnt_pause(wait_for=[y])
+            omega = await doesnt_pause(wait_for=[x, y])
 
         with pytest.raises(StopAsyncIteration):
             # the sleeper mock will exhaust its side effects after 6 calls
-            pausing_flow()
+            await pausing_flow()
 
         sleep_intervals = [c.args[0] for c in sleeper.await_args_list]
         assert sleep_intervals[0] == 2
         assert sleep_intervals[1:] == [5, 5, 5, 5, 5]
 
+    @pytest.mark.flaky(max_runs=4)
     async def test_paused_flows_block_execution_in_sync_flows(self, orion_client):
         @task
         def foo():
@@ -297,19 +298,19 @@ class TestNonblockingPause:
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
 
         @task
-        def foo():
+        async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow_without_blocking():
-            x = foo.submit()
-            y = foo.submit()
-            pause_flow_run(timeout=20, reschedule=True)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
 
-        flow_run_state = pausing_flow_without_blocking(return_state=True)
+        flow_run_state = await pausing_flow_without_blocking(return_state=True)
         assert flow_run_state.is_paused()
         flow_run_id = flow_run_state.state_details.flow_run_id
         task_runs = await orion_client.read_task_runs(
@@ -324,19 +325,19 @@ class TestNonblockingPause:
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
 
         @task
-        def foo():
+        async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow_without_blocking():
-            x = foo.submit()
-            y = foo.submit()
-            pause_flow_run(timeout=20, reschedule=True)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
 
-        graceful_exit_result = pausing_flow_without_blocking()
+        graceful_exit_result = await pausing_flow_without_blocking()
         assert graceful_exit_result is None
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
@@ -346,19 +347,19 @@ class TestNonblockingPause:
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
 
         @task
-        def foo():
+        async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow_without_blocking():
-            x = foo.submit()
-            y = foo.submit()
-            pause_flow_run(timeout=20, reschedule=True)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
 
-        flow_run_state = pausing_flow_without_blocking(return_state=True)
+        flow_run_state = await pausing_flow_without_blocking(return_state=True)
         assert flow_run_state.is_paused()
         flow_run_id = flow_run_state.state_details.flow_run_id
 
@@ -373,45 +374,45 @@ class TestNonblockingPause:
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
 
         @task
-        def foo():
+        async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow_without_blocking():
-            x = foo.submit()
-            y = foo.submit()
-            pause_flow_run(timeout=20, reschedule=True)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
 
         @flow(task_runner=SequentialTaskRunner())
-        def wrapper_flow():
-            return pausing_flow_without_blocking()
+        async def wrapper_flow():
+            return await pausing_flow_without_blocking()
 
         with pytest.raises(RuntimeError, match="Cannot pause subflows"):
-            flow_run_state = wrapper_flow()
+            flow_run_state = await wrapper_flow()
 
     async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
         self, orion_client
     ):
         @task
-        def foo():
+        async def foo():
             return 42
 
         @flow(task_runner=SequentialTaskRunner())
-        def pausing_flow_without_blocking():
-            x = foo.submit()
-            y = foo.submit()
-            pause_flow_run(timeout=20, reschedule=True)
-            z = foo(wait_for=[x])
-            alpha = foo(wait_for=[y])
-            omega = foo(wait_for=[x, y])
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
 
         with pytest.raises(
             RuntimeError, match="Cannot pause flows without a deployment"
         ):
-            flow_run_state = pausing_flow_without_blocking()
+            flow_run_state = await pausing_flow_without_blocking()
 
 
 class TestOrchestrateTaskRun:
