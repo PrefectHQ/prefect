@@ -57,6 +57,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         return [
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
+            PreventRunningTasksFromStoppedFlows,
             PreventRedundantTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
@@ -696,4 +697,23 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
         ):
             await self.abort_transition(
                 reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
+            )
+
+
+class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
+    """ """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        flow_run = await context.flow_run()
+        if not flow_run.state or not flow_run.state.is_running():
+            await self.abort_transition(
+                reason=f"Tasks cannot run if the parent flow is not in a running state."
             )
