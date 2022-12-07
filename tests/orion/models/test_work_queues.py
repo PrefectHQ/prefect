@@ -238,7 +238,12 @@ class TestDeleteWorkQueue:
 
 
 class TestGetRunsInWorkQueue:
-    running_flow_count = 4
+    running_flow_states = [
+        schemas.states.StateType.PENDING,
+        schemas.states.StateType.CANCELLING,
+        schemas.states.StateType.RUNNING,
+        schemas.states.StateType.RUNNING,
+    ]
 
     @pytest.fixture
     async def work_queue_2(self, session):
@@ -272,15 +277,8 @@ class TestGetRunsInWorkQueue:
 
     @pytest.fixture
     async def running_flow_runs(self, session, deployment, work_queue, work_queue_2):
-        for i in range(self.running_flow_count):
+        for state_type in self.running_flow_states:
             for wq in [work_queue, work_queue_2]:
-                if i == 0:
-                    state_type = "PENDING"
-                elif i == 1:
-                    state_type = "CANCELLING"
-                else:
-                    state_type = "RUNNING"
-
                 await models.flow_runs.create_flow_run(
                     session=session,
                     flow_run=schemas.core.FlowRun(
@@ -378,7 +376,7 @@ class TestGetRunsInWorkQueue:
         )
 
         assert len(runs_wq1) == max(
-            0, min(3, concurrency_limit - self.running_flow_count)
+            0, min(3, concurrency_limit - len(self.running_flow_states))
         )
 
     @pytest.mark.parametrize("limit", [10, 1])
@@ -404,4 +402,6 @@ class TestGetRunsInWorkQueue:
             session=session, work_queue_id=work_queue.id, limit=limit
         )
 
-        assert len(runs_wq1) == min(limit, concurrency_limit - self.running_flow_count)
+        assert len(runs_wq1) == min(
+            limit, concurrency_limit - len(self.running_flow_states)
+        )
