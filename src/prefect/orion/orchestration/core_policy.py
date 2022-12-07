@@ -515,7 +515,9 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
 
         if initial_state.state_details.pause_reschedule:
             if not context.run.deployment_id:
-                await self.abort_transition(reason="Cannot reschedule a paused flow run without a deployment.")
+                await self.abort_transition(
+                    reason="Cannot reschedule a paused flow run without a deployment."
+                )
                 return
 
         if initial_state.state_details.pause_timeout < pendulum.now("UTC"):
