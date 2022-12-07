@@ -59,7 +59,9 @@ class KubernetesJob(Infrastructure):
             Defaults to the Prefect image.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         job: The base manifest for the Kubernetes Job.
-        job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
+        job_watch_timeout_seconds: Number of seconds to wait for each event emitted by the job before
+            timing out. Defaults to `None`, which means no timeout will be enforced
+            while waiting for each event in the job lifecycle.
         labels: An optional dictionary of labels to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
@@ -117,8 +119,12 @@ class KubernetesJob(Infrastructure):
 
     # controls the behavior of execution
     job_watch_timeout_seconds: int = Field(
-        default=5,
-        description="Number of seconds to watch for job creation before timing out.",
+        default=None,
+        description=(
+            "Number of seconds to wait for each event emitted by the job before "
+            "timing out. Defaults to `None`, which means no timeout will be enforced "
+            "while waiting for each event in the job lifecycle."
+        ),
     )
     pod_watch_timeout_seconds: int = Field(
         default=60,
@@ -519,6 +525,7 @@ class KubernetesJob(Infrastructure):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
+        # if `pod_watch_timeout_seconds` is None, no timeout will be enforced
         watch = kubernetes.watch.Watch()
         self.logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
@@ -567,6 +574,7 @@ class KubernetesJob(Infrastructure):
                     print(log.decode().rstrip())
 
         # Wait for job to complete
+        # if `job_watch_timeout_seconds` is None, no timeout will be enforced
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
         watch = kubernetes.watch.Watch()
         with self.get_batch_client() as batch_client:
