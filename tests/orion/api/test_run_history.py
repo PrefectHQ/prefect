@@ -214,7 +214,7 @@ async def test_daily_bins_flow_runs(client):
         response, include={"state_name", "state_type", "count_runs"}
     )
 
-    assert parsed == [
+    assert [p.dict() for p in parsed] == [
         dict(
             interval_start=dt.subtract(days=5),
             interval_end=dt.subtract(days=4),
@@ -291,7 +291,7 @@ async def test_weekly_bins_flow_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert parsed == [
+    assert [p.dict() for p in parsed] == [
         dict(
             interval_start=dt.subtract(days=16),
             interval_end=dt.subtract(days=9),
@@ -352,7 +352,7 @@ async def test_weekly_bins_with_filters_flow_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert parsed == [
+    assert [p.dict() for p in parsed] == [
         dict(
             interval_start=dt.subtract(days=16),
             interval_end=dt.subtract(days=9),
@@ -400,7 +400,7 @@ async def test_5_minute_bins_task_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert parsed == [
+    assert [p.dict() for p in parsed] == [
         dict(
             interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
             interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
@@ -451,7 +451,7 @@ async def test_5_minute_bins_task_runs_with_filter(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert parsed == [
+    assert [p.dict() for p in parsed] == [
         dict(
             interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
             interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
