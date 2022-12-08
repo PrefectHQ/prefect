@@ -164,6 +164,11 @@ to force column width */
     content: "Experimental";
 }
 
+.beta::before {
+    background-color: #fccc3e;
+    content: "Beta";
+}
+
 .cloud::before {
     background-color: #799AF7;
     content: "Prefect Cloud";
