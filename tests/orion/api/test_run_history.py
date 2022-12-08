@@ -10,7 +10,7 @@ from prefect.orion import models
 from prefect.orion.schemas import core, responses, states
 from prefect.orion.schemas.states import StateType
 
-dt = pendulum.datetime(2021, 7, 1)
+dt = pendulum.datetime(2021, 7, 1, tz=pendulum.tz.timezone("UTC"))
 
 
 def parse_response(response: Response, include=None):
