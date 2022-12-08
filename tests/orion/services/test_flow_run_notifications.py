@@ -3,7 +3,7 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.services.flow_run_notifications import FlowRunNotifications
-from prefect.settings import temporary_settings
+from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL, temporary_settings
 
 
 @pytest.fixture
@@ -108,12 +108,32 @@ async def test_service_sends_notifications(
         ("http://my-orion/api", "http://my-orion"),
     ],
 )
-def test_get_ui_url_for_flow_run_id(flow_run, api_url, ui_url):
-    with temporary_settings({"PREFECT_API_URL": api_url}):
+def test_get_ui_url_for_flow_run_id_inference(flow_run, api_url, ui_url):
+    with temporary_settings({PREFECT_API_URL: api_url}):
         url = FlowRunNotifications(handle_signals=False).get_ui_url_for_flow_run_id(
             flow_run_id=flow_run.id
         )
         assert url == ui_url + "/flow-runs/flow-run/{flow_run_id}".format(
+            flow_run_id=flow_run.id
+        )
+
+
+@pytest.mark.parametrize(
+    "provided_ui_url,expected_ui_url",
+    [
+        (None, "http://ephemeral-orion/api"),
+        ("https://api.prefect.cloud/api", "https://api.prefect.cloud/api"),
+        ("http://my-orion/api", "http://my-orion/api"),
+        ("http://my-orion/", "http://my-orion/"),
+        ("https://app.prefect.cloud/api", "https://app.prefect.cloud/api"),
+    ],
+)
+def test_get_ui_url_for_flow_run_id_with_ui_url_setting_does_not_change_url(flow_run, provided_ui_url, expected_ui_url):
+    with temporary_settings({PREFECT_UI_URL: provided_ui_url}):
+        url = FlowRunNotifications(handle_signals=False).get_ui_url_for_flow_run_id(
+            flow_run_id=flow_run.id
+        )
+        assert url == expected_ui_url + "/flow-runs/flow-run/{flow_run_id}".format(
             flow_run_id=flow_run.id
         )
 
