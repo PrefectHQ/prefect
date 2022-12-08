@@ -2,7 +2,7 @@
 
 ## Release 2.7.1
 
-### Task Concurrency Limits Page
+### Task concurrency limits page
 You can now add task concurrency limits in the ui!
 
 ![image](https://user-images.githubusercontent.com/6200442/206586749-3f9fff36-5359-41a9-8727-60523cf89071.png)
