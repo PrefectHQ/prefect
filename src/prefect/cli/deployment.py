@@ -751,6 +751,7 @@ async def build(
             raise exc
     try:
         flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+        app.console.print(f"Found flow {flow.name!r}", style="green")
     except Exception as exc:
         exit_with_error(exc)
     infra_overrides = {}
