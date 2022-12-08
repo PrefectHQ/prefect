@@ -1,5 +1,34 @@
 # Prefect Release Notes
 
+## Release 2.7.1
+
+### Enhancements
+- Add extra entrypoints setting for user module injection; allows registration of custom blocks — https://github.com/PrefectHQ/prefect/pull/7179
+- Update orchestration rule to wait for scheduled time to only apply to transition to running — https://github.com/PrefectHQ/prefect/pull/7585
+- Use cluster UID and namespace instead of cluster "name" for `KubernetesJob` identifiers — https://github.com/PrefectHQ/prefect/pull/7747
+- Add a task run concurrency limits page — https://github.com/PrefectHQ/prefect/pull/7779
+- Add setting to toggle interpreting square brackets as style — https://github.com/PrefectHQ/prefect/pull/7810
+- Move `/health` API route to root router — https://github.com/PrefectHQ/prefect/pull/7765
+- Add `PREFECT_API_ENABLE_HTTP2` setting to allow HTTP/2 to be disabled — https://github.com/PrefectHQ/prefect/pull/7802
+- Monitor process after kill and return early when possible — https://github.com/PrefectHQ/prefect/pull/7746
+- Update `KubernetesJob` to watch jobs without timeout by default — https://github.com/PrefectHQ/prefect/pull/7786
+- Bulk deletion of flows, deployments, and work queues from the UI - https://github.com/PrefectHQ/prefect/pull/7824
+
+### Fixes
+- Add lock to ensure that alembic commands are not run concurrently — https://github.com/PrefectHQ/prefect/pull/7789
+- Release task concurrency slots when transition is rejected as long as the task is not in a running state — https://github.com/PrefectHQ/prefect/pull/7798
+- Fix issue with improperly parsed flow run notification URLs — https://github.com/PrefectHQ/prefect/pull/7173
+- Fix radar not updating without refreshing the page - https://github.com/PrefectHQ/prefect/pull/7824
+- UI: Fullscreen layouts on screens < `lg` should take up all the available space — https://github.com/PrefectHQ/prefect/pull/7792
+
+### Documentation
+- Add documentation for creating a flow run from deployments — https://github.com/PrefectHQ/prefect/pull/7696
+- Move `wait_for` examples to the tasks documentation — https://github.com/PrefectHQ/prefect/pull/7788
+
+## Contributors
+* @t-yuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/7741
+* @padbk made their first contribution in https://github.com/PrefectHQ/prefect/pull/7173
+
 ## Release 2.7.0
 
 ### Flow run cancellation
