@@ -12,6 +12,7 @@
 - Add `PREFECT_API_ENABLE_HTTP2` setting to allow HTTP/2 to be disabled — https://github.com/PrefectHQ/prefect/pull/7802
 - Monitor process after kill and return early when possible — https://github.com/PrefectHQ/prefect/pull/7746
 - Update `KubernetesJob` to watch jobs without timeout by default — https://github.com/PrefectHQ/prefect/pull/7786
+- Bulk deletion of flows, deployments, and work queues from the UI - https://github.com/PrefectHQ/prefect/pull/7824
 
 ### Fixes
 - Add lock to ensure that alembic commands are not run concurrently — https://github.com/PrefectHQ/prefect/pull/7789
