@@ -27,6 +27,7 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   notifications: () => import('@/pages/Notifications.vue'),
   notificationCreate: () => import('@/pages/NotificationCreate.vue'),
   notificationEdit: () => import('@/pages/NotificationEdit.vue'),
+  concurrencyLimits: () => import('@/pages/ConcurrencyLimits.vue'),
 })
 
 const routeRecords: AppRouteRecord[] = [
