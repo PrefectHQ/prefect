@@ -2,7 +2,35 @@ from uuid import uuid4
 
 import pytest
 
-from prefect.orion.schemas.actions import FlowRunCreate
+from prefect.orion.schemas.actions import (
+    MAX_FLOW_DESCRIPTION_LENGTH,
+    FlowCreate,
+    FlowRunCreate,
+)
+
+
+@pytest.mark.parametrize(
+    "test_flow, expected_dict",
+    [
+        (
+            {"name": "valid_flow", "description": "short_valid_description"},
+            {"name": "valid_flow", "description": "short_valid_description"},
+        ),
+        pytest.param(
+            {
+                "name": "invalid_flow",
+                "description": "long invalid description" * MAX_FLOW_DESCRIPTION_LENGTH,
+            },
+            None,
+            marks=pytest.mark.xfail,
+        ),
+    ],
+)
+class TestFlowCreate:
+    def test_flow_create_validates_description(self, test_flow, expected_dict):
+        fc = FlowCreate(name=test_flow["name"], description=test_flow["description"])
+        assert fc.name == test_flow["name"]
+        assert fc.description == test_flow["description"]
 
 
 @pytest.mark.parametrize(

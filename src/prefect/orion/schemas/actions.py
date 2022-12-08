@@ -18,6 +18,8 @@ from prefect.orion.utilities.schemas import (
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 
+MAX_FLOW_DESCRIPTION_LENGTH = 200
+
 
 def validate_block_type_slug(value):
     if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
@@ -65,6 +67,14 @@ class FlowCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.Flow)
     description: Optional[str] = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
+
+    @validator("description")
+    def validate_description_length(cls, description):
+        if description is not None and len(description) > MAX_FLOW_DESCRIPTION_LENGTH:
+            raise ValueError(
+                f"Description is over the maximum length of {MAX_FLOW_DESCRIPTION_LENGTH}."
+            )
+        return description
 
 
 @copy_model_fields
