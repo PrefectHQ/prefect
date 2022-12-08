@@ -333,6 +333,31 @@ def log_email_flow():
 log_email_flow()
 ```
 
+## Applying markup in logs
+
+To use [Rich's markup](https://rich.readthedocs.io/en/stable/markup.html#console-markup) in Prefect logs, first configure `PREFECT_LOGGING_MARKUP`.
+
+<div class='terminal'>
+```bash
+PREFECT_LOGGING_MARKUP=True
+```
+</div>
+
+Then, the following will highlight "fancy" in red.
+```python
+from prefect import flow, get_run_logger
+
+@flow
+def my_flow():
+    logger = get_run_logger()
+    logger.info("This is [bold red]fancy[/]")
+
+log_email_flow()
+```
+
+!!! warning "Inaccurate logs could result"
+    Although this can be convenient, the downside is, if enabled, strings that contain square brackets may be inaccurately interpreted and lead to incomplete output, e.g. `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+
 ## Log database schema
 
 Logged events are also persisted to the Orion database. A log record includes the following data:
