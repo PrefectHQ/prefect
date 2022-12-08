@@ -47,6 +47,7 @@ from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -1137,6 +1138,29 @@ class TestPrefectConsoleHandler:
         _, stderr = capsys.readouterr()
         # There will be newlines in the middle if cropped
         assert "x" * 1000 in stderr
+
+    def test_outputs_square_brackets_as_text(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        handler = PrefectConsoleHandler()
+        logger.handlers = [handler]
+
+        msg = "DROP TABLE [dbo].[SomeTable];"
+        logger.info(msg)
+
+        _, stderr = capsys.readouterr()
+        assert msg in stderr
+
+    def test_outputs_square_brackets_as_style(self, capsys):
+        with temporary_settings({PREFECT_LOGGING_MARKUP: True}):
+            logger = get_logger(uuid.uuid4().hex)
+            handler = PrefectConsoleHandler()
+            logger.handlers = [handler]
+
+            msg = "this applies [red]style[/red]!;"
+            logger.info(msg)
+
+            _, stderr = capsys.readouterr()
+            assert "this applies style" in stderr
 
 
 class TestJsonFormatter:
