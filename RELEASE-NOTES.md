@@ -18,6 +18,7 @@
 - Add lock to ensure that alembic commands are not run concurrently — https://github.com/PrefectHQ/prefect/pull/7789
 - Release task concurrency slots when transition is rejected as long as the task is not in a running state — https://github.com/PrefectHQ/prefect/pull/7798
 - Fix issue with improperly parsed flow run notification URLs — https://github.com/PrefectHQ/prefect/pull/7173
+- Fix radar not updating without refreshing the page - https://github.com/PrefectHQ/prefect/pull/7824
 
 ### Documentation
 - Add documentation for creating a flow run from deployments — https://github.com/PrefectHQ/prefect/pull/7696
