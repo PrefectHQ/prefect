@@ -572,7 +572,7 @@ This allows styles to be conveniently added to log messages, e.g.
 `[red]This is a red message.[/red]`. However, the downside is,
 if enabled, strings that contain square brackets may be inaccurately
 interpreted and lead to incomplete output, e.g.
-`DROP TABLE [dbo].[SomeTable];"` results in `DROP TABLE .[SomeTable];`.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 """
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
