@@ -22,7 +22,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -1906,3 +1906,46 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+flow_code = """
+from prefect import flow
+
+@flow
+def dog():
+    return "woof!"
+"""
+
+flow_code_with_call = """
+from prefect import flow
+
+@flow
+def dog():
+    return "woof!"
+
+dog()
+"""
+
+
+def test_load_flow_from_entrypoint(tmp_path):
+    fpath = tmp_path / "f.py"
+    with open(fpath, "w") as f:
+        f.write(flow_code)
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
+def test_load_flow_from_entrypoint_does_not_execute(
+    tmp_path,
+    monkeypatch,
+):
+    mock = MagicMock()
+    monkeypatch.setattr("prefect.engine.create_and_begin_subflow_run", mock)
+    fpath = tmp_path / "f.py"
+    with open(fpath, "w") as f:
+        f.write(flow_code_with_call)
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+    mock.assert_not_called()
+    assert flow.fn() == "woof!"
