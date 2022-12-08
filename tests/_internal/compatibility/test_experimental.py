@@ -3,6 +3,7 @@ import pytest
 from prefect._internal.compatibility.experimental import (
     ExperimentalError,
     ExperimentalWarning,
+    experiment_enabled,
     experimental,
 )
 from prefect.settings import (
@@ -157,6 +158,27 @@ def test_experimental_marker_does_not_raise_with_opt_in():
     # A warning is still expected unless that has been opted out of
     with pytest.warns(ExperimentalWarning):
         assert foo() == 1
+
+
+@pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
+def test_experiment_enabled_with_opt_in():
+    assert experiment_enabled("test") is True
+
+
+def test_experiment_enabled_without_opt_in():
+    assert experiment_enabled("test") is False
+
+
+def test_experiment_enabled_with_unknown_group():
+    with pytest.raises(
+        ValueError,
+        match=(
+            "A opt-in setting for experimental feature 'foo' does not exist yet. "
+            "'PREFECT_EXPERIMENTAL_ENABLE_FOO' must be created before the group can "
+            "be used."
+        ),
+    ):
+        assert experiment_enabled("foo") is False
 
 
 def test_experimental_marker_cannot_be_used_without_warn_setting():

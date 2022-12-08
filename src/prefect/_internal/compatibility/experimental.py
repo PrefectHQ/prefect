@@ -99,3 +99,8 @@ def experimental(
         return wrapper
 
     return decorator
+
+
+def experiment_enabled(group: str) -> bool:
+    group_opt_in = _opt_in_setting_for_group(group)
+    return group_opt_in.value()
