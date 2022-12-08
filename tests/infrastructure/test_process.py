@@ -1,6 +1,7 @@
 import os
 import signal
 import socket
+import subprocess
 import sys
 from unittest.mock import MagicMock, call
 
@@ -9,6 +10,9 @@ import anyio.abc
 import pytest
 
 import prefect
+import prefect.infrastructure
+import prefect.infrastructure.process
+import prefect.utilities.processutils
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
@@ -22,6 +26,7 @@ def mock_open_process(monkeypatch):
     prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
         MagicMock()
     )
+
     yield prefect.utilities.processutils._open_anyio_process  # noqa
 
 
@@ -293,3 +298,25 @@ async def test_process_kill_windows_sends_ctrl_break(monkeypatch):
     )
 
     os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
+)
+def test_process_run_on_windows_sets_process_group_creation_flag(monkeypatch):
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.terminate = AsyncMock()
+
+    mock_run_process_call = AsyncMock(return_value=mock_process)
+
+    monkeypatch.setattr(
+        prefect.infrastructure.process, "run_process", mock_run_process_call
+    )
+
+    prefect.infrastructure.Process(command=["echo", "hello world"]).run()
+
+    mock_run_process_call.assert_awaited_once()
+    (_, kwargs) = mock_run_process_call.call_args
+    assert kwargs.get("creationflags") == subprocess.CREATE_NEW_PROCESS_GROUP
