@@ -312,6 +312,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 run.run_count = 0
 
         # Reset pause metadata on retry
+        # Pauses as a concept only exist after API version 0.8.4
         api_version = context.parameters.get("api-version", None)
         if api_version is None or api_version >= Version("0.8.4"):
             updated_policy = context.run.empirical_policy.dict()
