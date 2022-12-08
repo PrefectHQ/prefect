@@ -95,7 +95,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.RUNNING]
+    TO_STATES = [StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -164,7 +164,7 @@ class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
     Releases any concurrency slots held by a run upon exiting a Running state.
     """
 
-    FROM_STATES = [states.StateType.RUNNING]
+    FROM_STATES = [StateType.RUNNING]
     TO_STATES = ALL_ORCHESTRATION_STATES
 
     async def after_transition(
@@ -192,7 +192,7 @@ class CacheInsertion(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.COMPLETED]
+    TO_STATES = [StateType.COMPLETED]
 
     @inject_db
     async def after_transition(
@@ -225,7 +225,7 @@ class CacheRetrieval(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.RUNNING]
+    TO_STATES = [StateType.RUNNING]
 
     @inject_db
     async def before_transition(
@@ -271,8 +271,8 @@ class RetryFailedFlows(BaseOrchestrationRule):
     instructed to transition into a scheduled state to retry flow execution.
     """
 
-    FROM_STATES = [states.StateType.RUNNING]
-    TO_STATES = [states.StateType.FAILED]
+    FROM_STATES = [StateType.RUNNING]
+    TO_STATES = [StateType.FAILED]
 
     async def before_transition(
         self,
@@ -338,8 +338,8 @@ class RetryFailedTasks(BaseOrchestrationRule):
     instructed to transition into a scheduled state to retry task execution.
     """
 
-    FROM_STATES = [states.StateType.RUNNING]
-    TO_STATES = [states.StateType.FAILED]
+    FROM_STATES = [StateType.RUNNING]
+    TO_STATES = [StateType.FAILED]
 
     async def before_transition(
         self,
@@ -369,7 +369,7 @@ class RenameReruns(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.RUNNING]
+    TO_STATES = [StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -393,8 +393,8 @@ class CopyScheduledTime(BaseOrchestrationRule):
     on the scheduled state will be ignored.
     """
 
-    FROM_STATES = [states.StateType.SCHEDULED]
-    TO_STATES = [states.StateType.PENDING]
+    FROM_STATES = [StateType.SCHEDULED]
+    TO_STATES = [StateType.PENDING]
 
     async def before_transition(
         self,
@@ -419,8 +419,8 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     before attempting the transition again.
     """
 
-    FROM_STATES = [states.StateType.SCHEDULED, states.StateType.PENDING]
-    TO_STATES = [states.StateType.RUNNING]
+    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING]
+    TO_STATES = [StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -447,7 +447,7 @@ class HandlePausingFlows(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.PAUSED]
+    TO_STATES = [StateType.PAUSED]
 
     async def before_transition(
         self,
@@ -495,7 +495,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
     Governs runs attempting to leave a Paused state
     """
 
-    FROM_STATES = [states.StateType.PAUSED]
+    FROM_STATES = [StateType.PAUSED]
     TO_STATES = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
@@ -547,7 +547,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.RUNNING]
+    TO_STATES = [StateType.RUNNING]
 
     async def after_transition(
         self,
@@ -708,7 +708,12 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
 
 
 class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
-    """ """
+    """
+    Prevents running tasks from stopped flows.
+
+    A running state implies execution, but also the converse. This rule ensures that a
+    flow's tasks cannot be run unless the flow is also running.
+    """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [StateType.RUNNING]
@@ -720,7 +725,15 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         flow_run = await context.flow_run()
-        if not flow_run.state or not flow_run.state.is_running():
+        if flow_run.state is None:
             await self.abort_transition(
-                reason=f"Tasks cannot run if the parent flow is not in a running state."
+                reason=f"The enclosing flow must be running to begin task execution."
+            )
+        elif flow_run.state.type == StateType.PAUSED:
+            await self.abort_transition(
+                reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}."
+            )
+        elif not flow_run.state.type == StateType.RUNNING:
+            await self.abort_transition(
+                reason=f"The enclosing flow must be running to begin task execution."
             )

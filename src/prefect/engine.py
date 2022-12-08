@@ -1538,6 +1538,9 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     """
     try:
         yield
+    except FlowPauseExit:
+        # Do not capture FlowPauseExits as crashes
+        raise
     except Abort:
         # Do not capture aborts as crashes
         raise
@@ -1691,6 +1694,8 @@ async def propose_state(
         return state
 
     elif response.status == SetStateStatus.ABORT:
+        if response.details.reason.startswith("The flow is paused"):
+            raise FlowPauseExit(response.details.reason)
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.WAIT:
