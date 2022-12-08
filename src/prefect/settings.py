@@ -318,6 +318,18 @@ PREFECT_HOME = Setting(
 directory may be created automatically when required.
 """
 
+PREFECT_EXTRA_ENTRYPOINTS = Setting(
+    str,
+    default="",
+)
+"""
+Modules for Prefect to import when Prefect is imported.
+
+Values should be separated by commas, e.g. `my_module,my_other_module`.
+Objects within modules may be specified by a ':' partition, e.g. `my_module:my_object`.
+If a callable object is provided, it will be called with no arguments on import.
+"""
+
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
@@ -377,6 +389,12 @@ PREFECT_API_KEY = Setting(
     is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
+
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+
+If the remote Orion API does not support HTTP/2, this will have no effect and
+connections will be made via HTTP/1.1"""
 
 PREFECT_CLOUD_API_URL = Setting(
     str,

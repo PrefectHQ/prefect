@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 from prefect.orion.database.alembic_commands import (
@@ -6,6 +7,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_stamp,
     alembic_upgrade,
 )
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 # These tests do not test the actual migration functionality, only that the commands are wrapped and called
 
@@ -69,3 +71,14 @@ class TestAlembicCommands:
         _, kwargs = mocked.call_args
         assert mocked.call_count == 1
         assert kwargs["revision"] == "abcdef"
+
+    async def test_concurrent_upgrade(self):
+        jobs = [run_sync_in_worker_thread(alembic_upgrade) for _ in range(0, 10)]
+        await asyncio.gather(*jobs)
+
+    async def test_concurrent_downgrade_upgrade(self):
+        jobs = []
+        for _ in range(0, 2):
+            jobs.append(run_sync_in_worker_thread(alembic_downgrade))
+            jobs.append(run_sync_in_worker_thread(alembic_upgrade))
+        await asyncio.gather(*jobs)
