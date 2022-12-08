@@ -113,7 +113,7 @@ async def _open_anyio_process(
     cwd: Union[str, bytes, os.PathLike, None] = None,
     env: Union[Mapping[str, str], None] = None,
     start_new_session: bool = False,
-    creationflags: int = 0,
+    **kwargs,
 ):
     """
     Open a subprocess and return a `Process` object.
@@ -136,7 +136,7 @@ async def _open_anyio_process(
             cwd=cwd,
             env=env,
             start_new_session=start_new_session,
-            creationflags=creationflags,
+            **kwargs,
         )
     else:
         process = await asyncio.create_subprocess_shell(
@@ -147,7 +147,7 @@ async def _open_anyio_process(
             cwd=cwd,
             env=env,
             start_new_session=start_new_session,
-            creationflags=creationflags,
+            **kwargs,
         )
 
     return Process(

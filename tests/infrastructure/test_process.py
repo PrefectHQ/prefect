@@ -8,6 +8,7 @@ import anyio
 import anyio.abc
 import pytest
 
+import prefect
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
@@ -15,9 +16,13 @@ from prefect.testing.utilities import AsyncMock
 
 @pytest.fixture
 def mock_open_process(monkeypatch):
-    monkeypatch.setattr("anyio.open_process", AsyncMock())
-    anyio.open_process.return_value.terminate = MagicMock()  #  Not an async attribute
-    yield anyio.open_process
+    monkeypatch.setattr(
+        "prefect.utilities.processutils._open_anyio_process", AsyncMock()
+    )
+    prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
+        MagicMock()
+    )
+    yield prefect.utilities.processutils._open_anyio_process  # noqa
 
 
 @pytest.mark.parametrize("stream_output", [True, False])
