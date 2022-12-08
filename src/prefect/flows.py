@@ -791,10 +791,3 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         tmpfile.close()
         os.remove(tmpfile.name)
     return flow
-
-
-def load_flow_from_entrypoint(entrypoint: str) -> Flow:
-    """Load a flow at a given entrypoint."""
-    path, flow_name = entrypoint.split(":")
-
-    return load_flow_from_script(path=path, flow_name=flow_name)
