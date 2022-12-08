@@ -19,11 +19,11 @@
 - Release task concurrency slots when transition is rejected as long as the task is not in a running state — https://github.com/PrefectHQ/prefect/pull/7798
 - Fix issue with improperly parsed flow run notification URLs — https://github.com/PrefectHQ/prefect/pull/7173
 - Fix radar not updating without refreshing the page - https://github.com/PrefectHQ/prefect/pull/7824
+- UI: Fullscreen layouts on screens < `lg` should take up all the available space — https://github.com/PrefectHQ/prefect/pull/7792
 
 ### Documentation
 - Add documentation for creating a flow run from deployments — https://github.com/PrefectHQ/prefect/pull/7696
 - Move `wait_for` examples to the tasks documentation — https://github.com/PrefectHQ/prefect/pull/7788
-- Fullscreen layouts on screens < `lg` should take up all the available space — https://github.com/PrefectHQ/prefect/pull/7792
 
 ## Contributors
 * @t-yuki made their first contribution in https://github.com/PrefectHQ/prefect/pull/7741
