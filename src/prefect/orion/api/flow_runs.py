@@ -226,7 +226,7 @@ async def resume_flow_run(
                 orchestration_parameters=orchestration_parameters,
             )
 
-        # set the 201 because a new state was created
+        # only set the 201 when a new state was created
         if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
             response.status_code = status.HTTP_200_OK
         elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
