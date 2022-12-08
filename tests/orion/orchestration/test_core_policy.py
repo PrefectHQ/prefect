@@ -1783,7 +1783,7 @@ class TestResumingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
-    @pytest.mark.parametrize("proposed_state_type", set(states.StateType))
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
     async def test_transitions_out_of_pausing_states_are_restricted(
         self,
         session,
