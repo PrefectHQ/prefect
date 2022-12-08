@@ -134,6 +134,9 @@ def load_script_as_module(path: str) -> ModuleType:
     """
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
+    if not path.endswith(".py"):
+        raise ValueError(f"The provided path does not point to a python file: {path}")
+
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
@@ -149,7 +152,6 @@ def load_script_as_module(path: str) -> ModuleType:
     # Support implicit relative imports i.e. `from foo import bar`
     sys.path.insert(0, working_directory)
     sys.path.insert(0, parent_path)
-
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
