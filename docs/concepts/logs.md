@@ -348,7 +348,7 @@ Then, the following will highlight "fancy" in red.
 from prefect import flow, get_run_logger
 
 @flow
-def log_email_flow():
+def my_flow():
     logger = get_run_logger()
     logger.info("This is [bold red]fancy[/]")
 
