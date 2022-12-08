@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict
 
 import anyio
 import anyio.abc
@@ -119,9 +119,12 @@ class Process(Infrastructure):
                 f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
             )
 
-            creationflags = None
+            # We must add creationflags to a dict so it is only passed as a function
+            # parameter on Windows, because the presence of creationflags causes
+            # errors on Unix even if set to None
+            kwargs: Dict[str, object] = {}
             if sys.platform == "win32":
-                creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
             process = await run_process(
                 self.command,
@@ -130,7 +133,7 @@ class Process(Infrastructure):
                 task_status_handler=_infrastructure_pid_from_process,
                 env=self._get_environment_variables(),
                 cwd=working_dir,
-                creationflags=creationflags,
+                **kwargs,
             )
 
         # Use the pid for display if no name was given
