@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Tuple, Union, Dict
+from typing import Dict, Tuple, Union
 
 import anyio
 import anyio.abc
