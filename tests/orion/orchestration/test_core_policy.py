@@ -1553,7 +1553,7 @@ class TestTaskConcurrencyLimits:
         assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "shrinking limit")) == 0
 
-    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_fizzle_with_release_first(
+    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_fizzle(
         self,
         session,
         run_type,
@@ -1637,7 +1637,7 @@ class TestTaskConcurrencyLimits:
         assert task1_pending_ctx.validated_state.type != states.StateType.RUNNING
         assert (await self.count_concurrency_slots(session, "small")) == 0
 
-    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_fizzle_with_release_last(
+    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_invalidation(
         self,
         session,
         run_type,
