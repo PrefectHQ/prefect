@@ -748,20 +748,25 @@ def test_uses_cluster_config_if_not_in_cluster(
     mock_cluster_config.load_kube_config.assert_called_once()
 
 
+@pytest.mark.parametrize("job_timeout", [24, None])
 def test_allows_configurable_timeouts_for_pod_and_job_watches(
     mock_k8s_client,
     mock_watch,
     mock_k8s_batch_client,
+    job_timeout,
 ):
     mock_watch.stream = mock.Mock(
         side_effect=_mock_pods_stream_that_returns_running_pod
     )
-
-    KubernetesJob(
+    k8s_job_args = dict(
         command=["echo", "hello"],
         pod_watch_timeout_seconds=42,
-        job_watch_timeout_seconds=24,
-    ).run(MagicMock())
+    )
+
+    if job_timeout is not None:
+        k8s_job_args["job_watch_timeout_seconds"] = job_timeout
+
+    KubernetesJob(**k8s_job_args).run(MagicMock())
 
     mock_watch.stream.assert_has_calls(
         [
@@ -775,7 +780,7 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
-                timeout_seconds=24,
+                timeout_seconds=job_timeout,
             ),
         ]
     )

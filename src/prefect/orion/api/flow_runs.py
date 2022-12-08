@@ -208,16 +208,6 @@ async def resume_flow_run(
         orchestration_parameters.update({"api-version": api_version})
 
         if state.state_details.pause_reschedule:
-            if not flow_run.deployment_id:
-                result = OrchestrationResult(
-                    state=None,
-                    status=schemas.responses.SetStateStatus.ABORT,
-                    details=schemas.responses.StateAbortDetails(
-                        reason="Cannot reschedule a paused flow run without a deployment."
-                    ),
-                )
-                return result
-
             orchestration_result = await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run_id,

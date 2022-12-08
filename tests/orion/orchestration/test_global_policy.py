@@ -16,7 +16,6 @@ from prefect.orion.orchestration.global_policy import (
     SetRunStateTimestamp,
     SetRunStateType,
     SetStartTime,
-    UpdatePauseMetadata,
     UpdateSubflowParentTask,
     UpdateSubflowStateDetails,
 )
@@ -508,26 +507,6 @@ async def test_child_flow_run_states_include_parent_task_run_id(
 
 
 class TestPausingRules:
-    async def test_rule_updates_run_with_pause_metadata(
-        self,
-        session,
-        initialize_orchestration,
-    ):
-        initial_state_type = states.StateType.RUNNING
-        proposed_state_type = states.StateType.PAUSED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            "flow",
-            *intended_transition,
-        )
-        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
-
-        async with UpdatePauseMetadata(ctx, *intended_transition) as ctx:
-            await ctx.validate_proposed_state()
-
-        assert ctx.run.pause_expiration_time > pendulum.now("UTC")
-
     @pytest.mark.parametrize(
         "initial_state_type", [states.StateType.PAUSED, states.StateType.PENDING]
     )

@@ -35,6 +35,7 @@ from prefect.orion.schemas.core import (
 )
 from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
 from prefect.settings import (
+    PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
@@ -133,7 +134,7 @@ class OrionClient:
             # and responses will be transported over HTTP/2, since both the client and the server
             # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
             # client will use a standard HTTP/1.1 connection instead.
-            httpx_settings.setdefault("http2", True)
+            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
@@ -1448,7 +1449,7 @@ class OrionClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
-    async def resume_flow_run(self, flow_run_id: UUID) -> FlowRun:
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
         """
         Resumes a paused flow run.
 

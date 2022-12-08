@@ -3,7 +3,6 @@ The FailExpiredPauses service. Responsible for putting Paused flow runs in a Fai
 """
 
 import asyncio
-import datetime
 
 import pendulum
 import sqlalchemy as sa
@@ -43,12 +42,16 @@ class FailExpiredPauses(LoopService):
         while True:
             async with db.session_context(begin_transaction=True) as session:
 
-                query = self._get_select_expired_paused_flow_runs_query(
-                    expired_before=pendulum.now("UTC"), db=db
+                query = (
+                    sa.select(db.FlowRun)
+                    .where(
+                        db.FlowRun.state_type == states.StateType.PAUSED,
+                    )
+                    .limit(self.batch_size)
                 )
 
                 result = await session.execute(query)
-                runs = result.all()
+                runs = result.scalars().all()
 
                 # mark each run as failed
                 for run in runs:
@@ -60,29 +63,6 @@ class FailExpiredPauses(LoopService):
 
         self.logger.info("Finished monitoring for late runs.")
 
-    @inject_db
-    def _get_select_expired_paused_flow_runs_query(
-        self, expired_before: datetime.datetime, db: OrionDBInterface
-    ):
-        """
-        Returns a sqlalchemy query for expired paused flow runs.
-
-        Args:
-            expired_before: the expiration time of Paused flow runs to search for
-        """
-        query = (
-            sa.select(
-                db.FlowRun.id,
-                db.FlowRun.pause_expiration_time,
-            )
-            .where(
-                (db.FlowRun.pause_expiration_time <= expired_before),
-                db.FlowRun.state_type == states.StateType.PAUSED,
-            )
-            .limit(self.batch_size)
-        )
-        return query
-
     async def _mark_flow_run_as_failed(
         self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
     ) -> None:
@@ -91,12 +71,13 @@ class FailExpiredPauses(LoopService):
 
         Pass-through method for overrides.
         """
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run.id,
-            state=states.Failed(message="The flow was paused and never resumed."),
-            force=True,
-        )
+        if flow_run.state.state_details.pause_timeout < pendulum.now("UTC"):
+            await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.Failed(message="The flow was paused and never resumed."),
+                force=True,
+            )
 
 
 if __name__ == "__main__":

@@ -1733,11 +1733,62 @@ class TestPausingFlows:
 
 
 class TestResumingFlows:
-    @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_cannot_leave_nonblocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now, pause_reschedule=True
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_leave_blocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
     async def test_transitions_out_of_pausing_states_are_restricted(
         self,
         session,
         proposed_state_type,
+        deployment,
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
@@ -1747,6 +1798,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
+        ctx.run.deployment_id = deployment.id
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
@@ -1758,10 +1810,11 @@ class TestResumingFlows:
             states.StateType.COMPLETED,
             states.StateType.SCHEDULED,
             states.StateType.FAILED,
+            states.StateType.CRASHED,
             states.StateType.CANCELLED,
         ]
 
-        if ctx.proposed_state in permitted_resuming_states:
+        if proposed_state_type in permitted_resuming_states:
             assert ctx.response_status == SetStateStatus.ACCEPT
         else:
             assert ctx.response_status == SetStateStatus.ABORT
@@ -1769,6 +1822,7 @@ class TestResumingFlows:
     async def test_cannot_leave_pausing_state_if_pause_has_timed_out(
         self,
         session,
+        deployment,
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
@@ -1779,8 +1833,9 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
+        ctx.run.deployment_id = deployment.id
         five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
-        ctx.proposed_state.state_details = states.StateDetails(
+        ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_ago
         )
 
@@ -1789,11 +1844,13 @@ class TestResumingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.type == states.StateType.FAILED
 
     async def test_allows_leaving_pausing_state(
         self,
         session,
+        deployment,
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
@@ -1804,6 +1861,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
+        ctx.run.deployment_id = deployment.id
         the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
@@ -1817,6 +1875,7 @@ class TestResumingFlows:
     async def test_marks_flow_run_as_resuming_upon_leaving_paused_state(
         self,
         session,
+        deployment,
         initialize_orchestration,
     ):
         initial_state_type = states.StateType.PAUSED
@@ -1827,6 +1886,7 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
+        ctx.run.deployment_id = deployment.id
         the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
         ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
 
