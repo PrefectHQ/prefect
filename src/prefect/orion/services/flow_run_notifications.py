@@ -145,6 +145,5 @@ class FlowRunNotifications(LoopService):
         return f"{ui_url}/flow-runs/flow-run/{flow_run_id}"
 
 
-
 if __name__ == "__main__":
     asyncio.run(FlowRunNotifications().start())
