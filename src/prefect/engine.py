@@ -41,11 +41,11 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
-    PausedRun,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
     NotPausedError,
+    PausedRun,
     UpstreamTaskError,
 )
 from prefect.flows import Flow

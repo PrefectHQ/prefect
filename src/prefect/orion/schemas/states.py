@@ -304,7 +304,9 @@ def Paused(
         raise ValueError("An extra pause timeout was provided in state_details")
 
     if pause_expiration_time is not None and timeout_seconds is not None:
-        raise ValueError("Cannot supply both a pause_expiration_time and timeout_seconds")
+        raise ValueError(
+            "Cannot supply both a pause_expiration_time and timeout_seconds"
+        )
 
     state_details.pause_timeout = pause_expiration_time or (
         pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)

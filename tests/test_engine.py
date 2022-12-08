@@ -29,8 +29,8 @@ from prefect.exceptions import (
     Abort,
     CrashedRun,
     FailedRun,
-    PausedRun,
     ParameterTypeError,
+    PausedRun,
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture

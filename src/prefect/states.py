@@ -16,7 +16,13 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, MissingResult, PausedRun
+from prefect.exceptions import (
+    CancelledRun,
+    CrashedRun,
+    FailedRun,
+    MissingResult,
+    PausedRun,
+)
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -519,7 +525,9 @@ def Paused(
         raise ValueError("An extra pause timeout was provided in state_details")
 
     if pause_expiration_time is not None and timeout_seconds is not None:
-        raise ValueError("Cannot supply both a pause_expiration_time and timeout_seconds")
+        raise ValueError(
+            "Cannot supply both a pause_expiration_time and timeout_seconds"
+        )
 
     state_details.pause_timeout = pause_expiration_time or (
         pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
