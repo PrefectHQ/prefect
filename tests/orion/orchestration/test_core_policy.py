@@ -1746,9 +1746,9 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
-        ctx.proposed_state.state_details = states.StateDetails(
-            pause_timeout=five_minutes_ago, pause_reschedule=True
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now, pause_reschedule=True
         )
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -1771,9 +1771,9 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
-        ctx.proposed_state.state_details = states.StateDetails(
-            pause_timeout=five_minutes_ago
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now
         )
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
@@ -1783,7 +1783,7 @@ class TestResumingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
-    @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
+    @pytest.mark.parametrize("proposed_state_type", set(states.StateType))
     async def test_transitions_out_of_pausing_states_are_restricted(
         self,
         session,
@@ -1810,10 +1810,11 @@ class TestResumingFlows:
             states.StateType.COMPLETED,
             states.StateType.SCHEDULED,
             states.StateType.FAILED,
+            states.StateType.CRASHED,
             states.StateType.CANCELLED,
         ]
 
-        if ctx.proposed_state in permitted_resuming_states:
+        if proposed_state_type in permitted_resuming_states:
             assert ctx.response_status == SetStateStatus.ACCEPT
         else:
             assert ctx.response_status == SetStateStatus.ABORT
@@ -1834,7 +1835,7 @@ class TestResumingFlows:
         )
         ctx.run.deployment_id = deployment.id
         five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
-        ctx.proposed_state.state_details = states.StateDetails(
+        ctx.initial_state.state_details = states.StateDetails(
             pause_timeout=five_minutes_ago
         )
 
@@ -1843,7 +1844,8 @@ class TestResumingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.type == states.StateType.FAILED
 
     async def test_allows_leaving_pausing_state(
         self,
