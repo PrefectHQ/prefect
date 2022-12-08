@@ -195,7 +195,7 @@ async def resume_flow_run(
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
         state = flow_run.state
 
-        if state is None or state.type != "PAUSED":
+        if state is None or state.type != schemas.states.StateType.PAUSED:
             result = OrchestrationResult(
                 state=None,
                 status=schemas.responses.SetStateStatus.ABORT,

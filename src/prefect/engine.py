@@ -41,7 +41,7 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
-    FlowPauseExit,
+    PausedRun,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -638,7 +638,7 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-        except FlowPauseExit:
+        except PausedRun:
             paused_flow_run = await client.read_flow_run(flow_run.id)
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
@@ -765,7 +765,7 @@ async def pause_flow_run(
         raise RuntimeError(response.details.reason)
 
     if reschedule:
-        raise FlowPauseExit()
+        raise PausedRun()
 
     with anyio.move_on_after(timeout):
 
@@ -1831,6 +1831,11 @@ if __name__ == "__main__":
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except PausedRun as exc:
+        engine_logger.info(
+            f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
     except Exception:
