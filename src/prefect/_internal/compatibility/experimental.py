@@ -72,6 +72,8 @@ def _warn_setting_for_group(group: str) -> Setting[bool]:
 def experimental(
     group: str, feature: str, help: str = "", stacklevel: int = 2, opt_in: bool = False
 ) -> Callable[[T], T]:
+    group = group.upper()
+
     warn_message = EXPERIMENTAL_WARNING.format(feature=feature, group=group, help=help)
     error_message = EXPERIMENTAL_ERROR.format(feature=feature, group=group, help=help)
 
