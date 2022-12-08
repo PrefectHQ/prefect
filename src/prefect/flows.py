@@ -692,7 +692,8 @@ def select_flow(
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}"
+            f"Found the following flows: {listrepr(flows.keys())}. "
+            "Check to make sure that your flow function is decorated with `@flow`."
         )
 
     elif not flow_name and len(flows) > 1:
