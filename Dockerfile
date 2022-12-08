@@ -21,10 +21,9 @@ RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         # Required for arm64 builds
         chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install a newer npm to avoid esbuild errors
-RUN npm install -g npm@8
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    # Install a newer npm to avoid esbuild errors
+    && npm install -g npm@8
 
 # Install dependencies separately so they cache
 COPY ./orion-ui/package*.json .
@@ -56,8 +55,8 @@ COPY . ./
 COPY --from=ui-builder /opt/orion-ui/dist ./src/prefect/orion/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN rm -rf dist && python setup.py sdist
-RUN mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
+RUN rm -rf dist && python setup.py sdist \
+    && mv "dist/$(python setup.py --fullname).tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
@@ -67,12 +66,11 @@ FROM continuumio/miniconda3 as prefect-conda
 ARG PYTHON_VERSION
 RUN conda create \
     python=${PYTHON_VERSION} \
-    --name prefect
+    --name prefect \
+    # Use the prefect environment by default
+    && echo "conda activate prefect" >> ~/.bashrc
 
-# Use the prefect environment by default
-RUN echo "conda activate prefect" >> ~/.bashrc
 SHELL ["/bin/bash", "--login", "-c"]
-
 
 
 # Build the final image with Prefect installed and our entrypoint configured
@@ -98,10 +96,9 @@ RUN apt-get update && \
         tini=0.19.* \
         build-essential \
         git=1:2.* \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Pin the pip version
-RUN python -m pip install --no-cache-dir pip==21.3.1
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    # Pin the pip version
+    && python -m pip install --no-cache-dir pip==21.3.1
 
 # Install the base requirements separately so they cache
 COPY requirements.txt ./
