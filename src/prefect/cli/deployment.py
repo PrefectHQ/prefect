@@ -752,7 +752,7 @@ async def build(
     try:
         flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
     except Exception as exc:
-        exit_with_error(str(exc))
+        exit_with_error(exc)
     infra_overrides = {}
     for override in overrides or []:
         key, value = override.split("=", 1)
