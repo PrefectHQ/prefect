@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from textwrap import dedent
 from unittest.mock import Mock
 
 import pendulum
@@ -19,7 +20,9 @@ def patch_import(monkeypatch):
     def fn():
         pass
 
-    monkeypatch.setattr("prefect.utilities.importtools.import_object", lambda path: fn)
+    monkeypatch.setattr(
+        "prefect.cli.deployment.load_flow_from_entrypoint", lambda path: fn
+    )
     return fn
 
 
@@ -480,19 +483,17 @@ class TestEntrypoint:
             expected_output_contains=f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>",
         )
 
-    def test_entrypoint_that_does_not_point_to_flow_raises_error(
-        self, monkeypatch, tmp_path
-    ):
+    def test_entrypoint_that_does_not_point_to_flow_raises_error(self, tmp_path):
+        code = """
         def fn():
             pass
-
-        monkeypatch.setattr(
-            "prefect.utilities.importtools.import_object", lambda path: fn
-        )
+        """
+        fpath = tmp_path / "dog.py"
+        with open(fpath, "w") as f:
+            f.write(dedent(code))
 
         name = "TEST"
-        file_name = "test_no_suffix"
-        entrypoint = "fake-path.py:fn"
+        entrypoint = f"{fpath}:fn"
         cmd = [
             "deployment",
             "build",
@@ -504,7 +505,60 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Found object of unexpected type 'function'. Expected 'Flow'.",
+            expected_output_contains=f"No flows found in script {str(fpath)!r}",
+        )
+
+    def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):
+        code = """
+        from prefect import flow
+
+        @flow
+        def cat():
+            pass
+        """
+        fpath = tmp_path / "dog.py"
+        with open(fpath, "w") as f:
+            f.write(dedent(code))
+
+        name = "TEST"
+        entrypoint = f"{fpath}:fn"
+        cmd = [
+            "deployment",
+            "build",
+            "-n",
+            name,
+        ]
+        cmd += [entrypoint]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"Flow 'fn' not found in script {str(fpath)!r}",
+        )
+
+    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
+        code = """
+        def fn():
+            pass
+        """
+        fpath = tmp_path / "dog.cake"
+        with open(fpath, "w") as f:
+            f.write(dedent(code))
+
+        name = "TEST"
+        entrypoint = f"{fpath}:fn"
+        cmd = [
+            "deployment",
+            "build",
+            "-n",
+            name,
+        ]
+        cmd += [entrypoint]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"The provided path does not point to a python file: {str(fpath)!r}",
         )
 
 

@@ -135,7 +135,7 @@ def load_script_as_module(path: str) -> ModuleType:
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
     if not path.endswith(".py"):
-        raise ValueError(f"The provided path does not point to a python file: {path}")
+        raise ValueError(f"The provided path does not point to a python file: {path!r}")
 
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
