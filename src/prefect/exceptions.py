@@ -349,3 +349,11 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
+
+
+class JobRunIsRunning(PrefectException):
+    """Raised when dbt Cloud job run is still running."""
+
+
+class JobRunTimeoutError(PrefectException):
+    """Raised when a job run has timed out."""

@@ -26,7 +26,10 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 import prefect.exceptions
+from prefect import get_run_logger
 from prefect.client.utilities import inject_client
+from prefect.exceptions import MissingContextError
+from prefect.logging import get_logger
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -187,6 +190,19 @@ class Block(BaseModel, ABC):
 
     def block_initialization(self) -> None:
         pass
+
+    @property
+    def logger(self):
+        """
+        Returns a logger based on whether the JobBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
 
     # -- private class variables
     # set by the class itself
