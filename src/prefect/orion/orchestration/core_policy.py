@@ -22,6 +22,7 @@ from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
+    BaseUniversalTransform,
     FlowOrchestrationContext,
     OrchestrationContext,
     TaskOrchestrationContext,
@@ -155,31 +156,29 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             cl.active_slots = list(active_slots)
 
 
-class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
+class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
     """
     Releases any concurrency slots held by a run upon exiting a Running state.
     """
 
-    FROM_STATES = [states.StateType.RUNNING]
-    TO_STATES = ALL_ORCHESTRATION_STATES
-
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
-    ) -> None:
+        context: OrchestrationContext,
+    ):
+        if self.nullified_transition():
+            return
 
-        filtered_limits = (
-            await concurrency_limits.filter_concurrency_limits_for_orchestration(
-                context.session, tags=context.run.tags
+        if not context.validated_state.is_running():
+            filtered_limits = (
+                await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                    context.session, tags=context.run.tags
+                )
             )
-        )
-        run_limits = {limit.tag: limit for limit in filtered_limits}
-        for tag, cl in run_limits.items():
-            active_slots = set(cl.active_slots)
-            active_slots.discard(str(context.run.id))
-            cl.active_slots = list(active_slots)
+            run_limits = {limit.tag: limit for limit in filtered_limits}
+            for tag, cl in run_limits.items():
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(context.run.id))
+                cl.active_slots = list(active_slots)
 
 
 class CacheInsertion(BaseOrchestrationRule):
