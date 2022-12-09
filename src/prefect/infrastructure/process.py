@@ -206,7 +206,7 @@ class Process(Infrastructure):
 
             try:
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
+            except OSError:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
