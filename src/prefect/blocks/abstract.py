@@ -3,7 +3,8 @@ from typing import Any, Dict, List, Tuple
 
 from prefect import get_run_logger
 from prefect.blocks.core import Block
-from prefect.logging import MissingContextError, get_logger
+from prefect.exceptions import MissingContextError
+from prefect.logging.loggers import get_logger
 
 
 class JobRun(ABC):  # not a block

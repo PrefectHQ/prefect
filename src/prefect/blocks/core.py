@@ -26,11 +26,9 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 import prefect.exceptions
-from prefect import get_run_logger
 from prefect.client.utilities import inject_client
 from prefect.exceptions import MissingContextError
-from prefect.logging import get_logger
-from prefect.logging.loggers import disable_logger
+from prefect.logging.loggers import disable_logger, get_logger, get_run_logger
 from prefect.orion.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
