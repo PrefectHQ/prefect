@@ -759,9 +759,11 @@ async def pause_flow_run(
         Paused(timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key),
     )
 
-    if response.status == SetStateStatus.ABORT:
-        if response.details.reason == "This pause has already fired.":
+    if response.status == SetStateStatus.REJECT:
+        if response.state.type == StateType.RUNNING:
             return
+        raise RuntimeError(response.details.reason)
+    if response.status == SetStateStatus.ABORT:
         raise RuntimeError(response.details.reason)
 
     if reschedule:

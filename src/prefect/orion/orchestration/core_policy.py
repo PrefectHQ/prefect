@@ -465,7 +465,9 @@ class HandlePausingFlows(BaseOrchestrationRule):
             self.key = str(uuid4())
 
         if self.key in context.run.empirical_policy.pause_keys:
-            await self.abort_transition("This pause has already fired.")
+            await self.reject_transition(
+                state=None, reason="This pause has already fired."
+            )
 
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
