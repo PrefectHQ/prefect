@@ -6,6 +6,7 @@ from prefect.orion.schemas.actions import (
     MAX_FLOW_DESCRIPTION_LENGTH,
     FlowCreate,
     FlowRunCreate,
+    FlowUpdate,
 )
 
 
@@ -28,9 +29,29 @@ from prefect.orion.schemas.actions import (
 )
 class TestFlowCreate:
     def test_flow_create_validates_description(self, test_flow, expected_dict):
+        # Fix this test
         fc = FlowCreate(name=test_flow["name"], description=test_flow["description"])
         assert fc.name == test_flow["name"]
         assert fc.description == test_flow["description"]
+
+
+@pytest.mark.parametrize(
+    "test_flow, expected_dict",
+    [
+        ({"description": "flow_description"}, {"description": "flow_description"}),
+        pytest.param(
+            {
+                "description": "long invalid description" * MAX_FLOW_DESCRIPTION_LENGTH,
+            },
+            None,
+            marks=pytest.mark.xfail,
+        ),
+    ],
+)
+class TestFlowUpdate:
+    def test_flow_update_validates_description(self, test_flow, expected_dict):
+        fu = FlowUpdate(description=test_flow["description"])
+        assert fu.description == expected_dict["description"]
 
 
 @pytest.mark.parametrize(
