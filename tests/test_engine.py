@@ -158,6 +158,7 @@ class TestPausingFlows:
         assert min(sleep_intervals) <= 2  # Okay if this is zero
         assert max(sleep_intervals) == 2
 
+    @pytest.mark.flaky
     async def test_first_polling_is_smaller_than_the_timeout(self, monkeypatch):
         sleeper = AsyncMock(side_effect=[None, None, None, None, None])
         monkeypatch.setattr("prefect.engine.anyio.sleep", sleeper)
