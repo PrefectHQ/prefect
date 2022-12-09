@@ -2019,7 +2019,8 @@ class TestPausingFlows:
         async with HandlePausingFlows(ctx2, *intended_transition) as ctx2:
             await ctx2.validate_proposed_state()
 
-        assert ctx2.response_status == SetStateStatus.ABORT
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.validated_state.type == states.StateType.RUNNING
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_can_only_pause_running_flows(
