@@ -228,8 +228,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         state. The state on the run is set to the validated state as well.
 
         If the proposed state is `None` when this method is called, no state will be
-        written. If the response type is REJECT, `self.validated_state` will be set to
-        the run's current state.
+        written and `self.validated_state` will be set to the run's current state.
 
         Returns:
             None
@@ -364,8 +363,10 @@ class TaskOrchestrationContext(OrchestrationContext):
         After the `TaskOrchestrationContext` is governed by orchestration rules, the
         proposed state can be validated: the proposed state is added to the current
         SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
-        state. The state on the run is set to the validated state as well. If the
-        proposed state is `None` when this method is called, nothing happens.
+        state. The state on the run is set to the validated state as well.
+
+        If the proposed state is `None` when this method is called, no state will be
+        written and `self.validated_state` will be set to the run's current state.
 
         Returns:
             None
@@ -747,8 +748,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         despite the proposed state type changing.
 
         Args:
-            state: The new proposed state. If `None`, the current run state will
-                be used instead.
+            state: The new proposed state. If `None`, the current run state will be
+                returned in the result instead.
             reason: The reason for rejecting the transition
         """
 
