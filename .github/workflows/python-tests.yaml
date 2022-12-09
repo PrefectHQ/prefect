@@ -222,5 +222,5 @@ jobs:
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
-        run: >
+        run: |
           pytest tests --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
