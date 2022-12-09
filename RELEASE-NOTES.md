@@ -2,6 +2,11 @@
 
 ## Release 2.7.1
 
+### Task concurrency limits page
+You can now add task concurrency limits in the ui!
+
+![image](https://user-images.githubusercontent.com/6200442/206586749-3f9fff36-5359-41a9-8727-60523cf89071.png)
+
 ### Enhancements
 - Add extra entrypoints setting for user module injection; allows registration of custom blocks — https://github.com/PrefectHQ/prefect/pull/7179
 - Update orchestration rule to wait for scheduled time to only apply to transition to running — https://github.com/PrefectHQ/prefect/pull/7585
