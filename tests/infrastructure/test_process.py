@@ -331,7 +331,7 @@ async def test_process_kill_windows_sends_ctrl_break(monkeypatch):
     sys.platform != "win32",
     reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
 )
-def test_process_run_on_windows_sets_process_group_creation_flag(monkeypatch):
+def test_windows_process_run_sets_process_group_creation_flag(monkeypatch):
     mock_process = AsyncMock()
     mock_process.returncode = 0
     mock_process.terminate = AsyncMock()
