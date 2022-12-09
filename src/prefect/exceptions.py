@@ -353,7 +353,3 @@ class FlowPauseTimeout(PrefectException):
 
 class JobRunIsRunning(PrefectException):
     """Raised when a job run is still running."""
-
-
-class JobRunTimeoutError(PrefectException):
-    """Raised when a job run has timed out."""

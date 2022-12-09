@@ -1,14 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar
 
 from prefect import get_run_logger
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
 from prefect.logging.loggers import get_logger
-
-JobBlockType = TypeVar(
-    "JobBlockType", bound=Block
-)  # Generic type var for representing JobBlock
 
 
 class JobRun(ABC):  # not a block
@@ -47,7 +42,7 @@ class JobRun(ABC):  # not a block
         """
 
 
-class JobBlock(JobBlockType, ABC):
+class JobBlock(Block, ABC):
     """
     The JobBlock class represents a resource that can trigger a job
     in an external service, such as Airbyte, Databricks, or dbt Cloud.
