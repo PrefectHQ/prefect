@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
 import anyio.abc
-import docker
 import packaging.version
 from pydantic import Field, validator
 from typing_extensions import Literal
