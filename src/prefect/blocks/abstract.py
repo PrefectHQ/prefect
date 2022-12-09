@@ -12,9 +12,17 @@ class JobRun(ABC):  # not a block
     for the job run's completion and fetch its results
     """
 
-    run_id: int
-    timeout_seconds: int
-    interval_seconds: int
+    def __init__(
+        self,
+        credentials: Block,
+        run_id: int,
+        timeout_seconds: int,
+        interval_seconds: int,
+    ):
+        self.credentials = credentials
+        self.run_id = run_id
+        self.timeout_seconds = timeout_seconds
+        self.interval_seconds = interval_seconds
 
     @property
     def logger(self):
