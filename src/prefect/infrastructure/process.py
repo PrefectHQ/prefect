@@ -1,16 +1,20 @@
 import asyncio
 import contextlib
 import os
+import signal
+import socket
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Tuple, Union
 
+import anyio
 import anyio.abc
 import sniffio
 from pydantic import Field
 from typing_extensions import Literal
 
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
@@ -28,6 +32,16 @@ def _use_threaded_child_watcher():
         # lead to errors in tests on unix as the previous default `SafeChildWatcher`
         # is not compatible with threaded event loops.
         asyncio.get_event_loop_policy().set_child_watcher(ThreadedChildWatcher())
+
+
+def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
+    hostname = socket.gethostname()
+    return f"{hostname}:{process.pid}"
+
+
+def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
+    hostname, pid = infrastructure_pid.split(":")
+    return hostname, int(pid)
 
 
 class Process(Infrastructure):
@@ -66,7 +80,7 @@ class Process(Infrastructure):
     async def run(
         self,
         task_status: anyio.abc.TaskStatus = None,
-    ) -> Optional[bool]:
+    ) -> "ProcessResult":
         if not self.command:
             raise ValueError("Process cannot be run with empty command.")
 
@@ -89,6 +103,7 @@ class Process(Infrastructure):
                 self.command,
                 stream_output=self.stream_output,
                 task_status=task_status,
+                task_status_handler=_infrastructure_pid_from_process,
                 env=self._get_environment_variables(),
                 cwd=working_dir,
             )
@@ -101,8 +116,14 @@ class Process(Infrastructure):
             if process.returncode == -9:
                 help_message = (
                     "This indicates that the process exited due to a SIGKILL signal. "
-                    "Typically, this is caused by high memory usage causing the "
-                    "operating system to terminate the process."
+                    "Typically, this is either caused by manual cancellation or "
+                    "high memory usage causing the operating system to "
+                    "terminate the process."
+                )
+            if process.returncode == -15:
+                help_message = (
+                    "This indicates that the process exited due to a SIGTERM signal. "
+                    "Typically, this is caused by manual cancellation."
                 )
             elif process.returncode == 247:
                 help_message = (
@@ -120,6 +141,54 @@ class Process(Infrastructure):
         return ProcessResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
+
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        hostname, pid = _parse_infrastructure_pid(infrastructure_pid)
+
+        if hostname != socket.gethostname():
+            raise InfrastructureNotAvailable(
+                f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
+            )
+
+        # In a non-windows enviornment first send a SIGTERM, then, after
+        # `grace_seconds` seconds have passed subsequent send SIGKILL. In
+        # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
+        # https://bugs.python.org/issue26350
+        if sys.platform == "win32":
+            try:
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            except ProcessLookupError:
+                # The process exited before we were able to kill it.
+                return
+        else:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
+                )
+
+            # Throttle how often we check if the process is still alive to keep
+            # from making too many system calls in a short period of time.
+            check_interval = max(grace_seconds / 10, 1)
+
+            with anyio.move_on_after(grace_seconds):
+                while True:
+                    await anyio.sleep(check_interval)
+
+                    # Detect if the process is still alive. If not do an early
+                    # return as the process respected the SIGTERM from above.
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        return
+
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                # We shouldn't ever end up here, but it's possible that the
+                # process ended right after the check above.
+                return
 
     def preview(self):
         environment = self._get_environment_variables(include_os_environ=False)

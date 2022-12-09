@@ -3,6 +3,7 @@ Utilities for Python version compatibility
 """
 # Please organize additions to this file by version
 
+import shutil
 import sys
 
 if sys.version_info < (3, 10):
@@ -23,6 +24,52 @@ if sys.version_info < (3, 9):
 else:
     from asyncio import to_thread as asyncio_to_thread
 
+if sys.version_info < (3, 8):
+
+    def copytree(src, dst, symlinks=False, ignore=None, *args, **kwargs):
+        """
+        Replicates the behavior of `shutil.copytree(src=src, dst=dst, ignore=ignore, dirs_exist_ok=True)`
+        in a python 3.7 compatible manner.
+
+        Source for the logic: Cyrille Pontvieux at https://stackoverflow.com/a/22331852
+        """
+        if not os.path.exists(dst):
+            os.makedirs(dst)
+            shutil.copystat(src, dst)
+        elements = os.listdir(src)
+
+        if ignore:
+            exclude = ignore(src, elements)
+            elements = [el for el in elements if el not in exclude]
+
+        for item in elements:
+            source_path = os.path.join(src, item)
+            destination_path = os.path.join(dst, item)
+            if symlinks and os.path.islink(source_path):
+                if os.path.lexists(destination_path):
+                    os.remove(destination_path)
+                os.symlink(os.readlink(source_path), destination_path)
+                try:
+                    st = os.lstat(source_path)
+                    mode = stat.S_IMODE(st.st_mode)
+                    os.lchmod(destination_path, mode)
+                except:
+                    pass  # lchmod not available
+            elif os.path.isdir(source_path):
+                copytree(source_path, destination_path, symlinks, ignore)
+            else:
+                shutil.copy2(source_path, destination_path)
+
+else:
+    from shutil import copytree
+
+if sys.version_info < (3, 8):
+
+    def raise_signal(signal: int):
+        os.kill(os.getpid(), signal)
+
+else:
+    from signal import raise_signal
 
 if sys.version_info < (3, 8) and sys.platform != "win32":
     # https://docs.python.org/3/library/asyncio-policy.html#asyncio.ThreadedChildWatcher

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import queue
 import sys
@@ -30,6 +31,7 @@ from prefect.logging.configuration import (
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.formatters import JsonFormatter
 from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
@@ -38,12 +40,14 @@ from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
     get_run_logger,
+    patch_print,
     task_run_logger,
 )
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,
+    PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -151,13 +155,13 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     expected_config["root"]["level"] = "ROOT_LEVEL_VAL"
 
     # Test setting a value where the a key contains underscores
-    env["PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_DATEFMT"] = "UNDERSCORE_KEY_VAL"
-    expected_config["formatters"]["flow_runs"]["datefmt"] = "UNDERSCORE_KEY_VAL"
+    env["PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT"] = "UNDERSCORE_KEY_VAL"
+    expected_config["formatters"]["standard"]["flow_run_fmt"] = "UNDERSCORE_KEY_VAL"
 
     # Test setting a value where the key contains a period
-    env["PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"] = "FLOW_RUN_VAL"
+    env["PREFECT_LOGGING_LOGGERS_PREFECT_EXTRA_LEVEL"] = "VAL"
 
-    expected_config["loggers"]["prefect.flow_runs"]["level"] = "FLOW_RUN_VAL"
+    expected_config["loggers"]["prefect.extra"]["level"] = "VAL"
 
     # Test setting a value that does not exist in the yaml config and should not be
     # set in the expected_config since there is no value to override
@@ -1135,6 +1139,91 @@ class TestPrefectConsoleHandler:
         # There will be newlines in the middle if cropped
         assert "x" * 1000 in stderr
 
+    def test_outputs_square_brackets_as_text(self, capsys):
+        logger = get_logger(uuid.uuid4().hex)
+        handler = PrefectConsoleHandler()
+        logger.handlers = [handler]
+
+        msg = "DROP TABLE [dbo].[SomeTable];"
+        logger.info(msg)
+
+        _, stderr = capsys.readouterr()
+        assert msg in stderr
+
+    def test_outputs_square_brackets_as_style(self, capsys):
+        with temporary_settings({PREFECT_LOGGING_MARKUP: True}):
+            logger = get_logger(uuid.uuid4().hex)
+            handler = PrefectConsoleHandler()
+            logger.handlers = [handler]
+
+            msg = "this applies [red]style[/red]!;"
+            logger.info(msg)
+
+            _, stderr = capsys.readouterr()
+            assert "this applies style" in stderr
+
+
+class TestJsonFormatter:
+    def test_json_log_formatter(self):
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=None,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+
+    def test_json_log_formatter_with_exception(self):
+
+        exc_info = None
+        try:
+            raise Exception("test exception")  # noqa
+        except Exception as exc:  # noqa
+            exc_info = sys.exc_info()
+
+        formatter = JsonFormatter("default", None, "%")
+        record = logging.LogRecord(
+            name="Test Log",
+            level=1,
+            pathname="/path/file.py",
+            lineno=1,
+            msg="log message",
+            args=None,
+            exc_info=exc_info,
+        )
+
+        formatted = formatter.format(record)
+
+        # we should be able to load the formatted JSON successfully
+        deserialized = json.loads(formatted)
+
+        # we can't check for an exact JSON string because some attributes vary at
+        # runtime, so check some known attributes instead
+        assert deserialized["name"] == "Test Log"
+        assert deserialized["levelname"] == "Level 1"
+        assert deserialized["filename"] == "file.py"
+        assert deserialized["lineno"] == 1
+        assert deserialized["exc_info"] is not None
+        assert deserialized["exc_info"]["type"] == "Exception"
+        assert deserialized["exc_info"]["message"] == "test exception"
+        assert deserialized["exc_info"]["traceback"] is not None
+        assert len(deserialized["exc_info"]["traceback"]) > 0
+
 
 def test_log_in_flow(caplog):
     msg = "Hello world!"
@@ -1227,3 +1316,67 @@ def test_disable_run_logger(caplog):
     assert not flow_run_logger.disabled
     assert task_run_logger.disabled  # was already disabled beforehand
     assert caplog.record_tuples == [("null", logging.CRITICAL, "wont show")]
+
+
+def test_patch_print_writes_to_stdout_without_run_context(caplog, capsys):
+    with patch_print():
+        print("foo")
+
+    assert "foo" in capsys.readouterr().out
+    assert "foo" not in caplog.text
+
+
+@pytest.mark.parametrize("run_context_cls", [TaskRunContext, FlowRunContext])
+def test_patch_print_writes_to_stdout_with_run_context_and_no_log_prints(
+    caplog, capsys, run_context_cls
+):
+    with patch_print():
+        with run_context_cls.construct(log_prints=False):
+            print("foo")
+
+    assert "foo" in capsys.readouterr().out
+    assert "foo" not in caplog.text
+
+
+def test_patch_print_writes_to_logger_with_task_run_context(caplog, capsys, task_run):
+    @task
+    def my_task():
+        pass
+
+    with patch_print():
+        with TaskRunContext.construct(log_prints=True, task_run=task_run, task=my_task):
+            print("foo")
+
+    assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.task_runs"
+    assert record.task_run_id == str(task_run.id)
+    assert record.task_name == my_task.name
+
+
+def test_patch_print_writes_to_logger_with_flow_run_context(caplog, capsys, flow_run):
+    @flow
+    def my_flow():
+        pass
+
+    with patch_print():
+        with FlowRunContext.construct(log_prints=True, flow_run=flow_run, flow=my_flow):
+            print("foo")
+
+    assert "foo" not in capsys.readouterr().out
+    assert "foo" in caplog.text
+
+    for record in caplog.records:
+        if record.message == "foo":
+            break
+
+    assert record.levelname == "INFO"
+    assert record.name == "prefect.flow_runs"
+    assert record.flow_run_id == str(flow_run.id)
+    assert record.flow_name == my_flow.name

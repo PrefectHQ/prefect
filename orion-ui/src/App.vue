@@ -12,75 +12,28 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <AppRouterView />
+      <AppRouterView class="app__router-view" />
     </suspense>
   </div>
 </template>
 
 <script lang="ts" setup>
   import {
-    blockCatalogViewRouteKey,
-    blockCatalogCreateRouteKey,
-    blockCatalogRouteKey,
-    blockEditRouteKey,
-    blockRouteKey,
-    blocksRouteKey,
     canKey,
-    deploymentRouteKey,
-    deploymentsRouteKey,
-    editDeploymentRouteKey,
-    editNotificationRouteKey,
-    editQueueRouteKey,
-    flowRouteKey,
-    flowRunCreateRouteKey,
-    flowRunRouteKey,
-    flowRunsRouteKey,
-    flowsRouteKey,
-    notificationCreateRouteKey,
-    notificationsRouteKey,
-    taskRunRouteKey,
-    settingsRouteKey,
-    workQueueCreateRouteKey,
-    workQueueRouteKey,
-    workQueuesRouteKey,
-    radarRouteKey
+    createWorkspaceRoutes,
+    workspaceRoutesKey
   } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
   import { computed, provide, ref, watchEffect } from 'vue'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import AppRouterView from '@/pages/AppRouterView.vue'
-  import { routes } from '@/router/routes'
   import { healthCheck } from '@/utilities/api'
   import { can } from '@/utilities/permissions'
 
-  provide(canKey, can)
+  const routes = createWorkspaceRoutes()
 
-  provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
-  provide(blockCatalogRouteKey, routes.blocksCatalog)
-  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
-  provide(blockEditRouteKey, routes.blockEdit)
-  provide(blockRouteKey, routes.block)
-  provide(blocksRouteKey, routes.blocks)
-  provide(deploymentRouteKey, routes.deployment)
-  provide(deploymentsRouteKey, routes.deployments)
-  provide(editDeploymentRouteKey, routes.deploymentEdit)
-  provide(editNotificationRouteKey, routes.notificationEdit)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(flowRouteKey, routes.flow)
-  provide(flowRunCreateRouteKey, routes.flowRunCreate)
-  provide(flowRunRouteKey, routes.flowRun)
-  provide(flowRunsRouteKey, routes.flowRuns)
-  provide(flowsRouteKey, routes.flows)
-  provide(notificationCreateRouteKey, routes.notificationCreate)
-  provide(notificationsRouteKey, routes.notifications)
-  provide(radarRouteKey, routes.radar)
-  provide(settingsRouteKey, routes.settings)
-  provide(taskRunRouteKey, routes.taskRun)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(workQueueRouteKey, routes.workQueue)
-  provide(workQueuesRouteKey, routes.workQueues)
+  provide(workspaceRoutesKey, routes)
+  provide(canKey, can)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
@@ -105,10 +58,13 @@
 
 .app { @apply
   text-slate-900
+  flex
+  flex-col
 }
 
 .app {
   --prefect-scroll-margin: theme('spacing.20');
+  min-height: 100vh;
 }
 
 .app__prefect-icon { @apply
@@ -126,9 +82,14 @@
 @screen lg {
   .app {
     --prefect-scroll-margin: theme('spacing.2');
-
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }
+}
+
+.app__router-view {
+  /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
+  flex: 1 0 1px;
+  height: 100%;
 }
 </style>

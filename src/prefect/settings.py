@@ -318,6 +318,18 @@ PREFECT_HOME = Setting(
 directory may be created automatically when required.
 """
 
+PREFECT_EXTRA_ENTRYPOINTS = Setting(
+    str,
+    default="",
+)
+"""
+Modules for Prefect to import when Prefect is imported.
+
+Values should be separated by commas, e.g. `my_module,my_other_module`.
+Objects within modules may be specified by a ':' partition, e.g. `my_module:my_object`.
+If a callable object is provided, it will be called with no arguments on import.
+"""
+
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
@@ -377,6 +389,12 @@ PREFECT_API_KEY = Setting(
     is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
+
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+
+If the remote Orion API does not support HTTP/2, this will have no effect and
+connections will be made via HTTP/1.1"""
 
 PREFECT_CLOUD_API_URL = Setting(
     str,
@@ -511,6 +529,15 @@ will be added to these loggers. Additionally, if the level is not set, it will
 be set to the same level as the 'prefect' logger.
 """
 
+PREFECT_LOGGING_LOG_PRINTS = Setting(
+    bool,
+    default=False,
+)
+"""
+If set, `print` statements in flows and tasks will be redirected to the Prefect logger
+for the given run. This setting can be overriden by individual tasks and flows.
+"""
+
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     bool,
     default=True,
@@ -541,13 +568,26 @@ PREFECT_LOGGING_COLORS = Setting(
 )
 """Whether to style console logs with color."""
 
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=5,
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
 )
 """
-The agent loop interval, in seconds. Agents will check
-for new runs this often. Defaults to `5`.
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
+PREFECT_AGENT_QUERY_INTERVAL = Setting(
+    float,
+    default=10,
+)
+"""
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
@@ -641,10 +681,11 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=5.0,
+    default=10.0,
 )
-"""A statement timeout, in seconds, applied to all database
-interactions made by the API. Defaults to `1`.
+"""
+A statement timeout, in seconds, applied to all database interactions made by the API.
+Defaults to 10 seconds.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
@@ -874,6 +915,8 @@ class Settings(SettingsFieldsMixin):
 
     @validator(PREFECT_LOGGING_LEVEL.name, PREFECT_LOGGING_SERVER_LEVEL.name)
     def check_valid_log_level(cls, value):
+        if isinstance(value, str):
+            value = value.upper()
         logging._checkLevel(value)
         return value
 
@@ -1266,6 +1309,9 @@ class ProfilesCollection:
     def __iter__(self):
         return self.profiles_by_name.__iter__()
 
+    def items(self):
+        return self.profiles_by_name.items()
+
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, ProfilesCollection):
             return False
@@ -1334,6 +1380,24 @@ def load_profiles() -> ProfilesCollection:
             profiles.set_active(user_profiles.active_name, check=False)
 
     return profiles
+
+
+def load_current_profile():
+    """
+    Load the current profile from the default and current profile paths.
+
+    This will _not_ include settings from the current settings context. Only settings
+    that have been persisted to the profiles file will be saved.
+    """
+    from prefect.context import SettingsContext
+
+    profiles = load_profiles()
+    context = SettingsContext.get()
+
+    if context:
+        profiles.set_active(context.profile.name)
+
+    return profiles.active_profile
 
 
 def save_profiles(profiles: ProfilesCollection) -> None:

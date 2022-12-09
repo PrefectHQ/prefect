@@ -1,7 +1,7 @@
 aiosqlite >= 0.17.0
 alembic >= 1.7.5
 anyio >= 3.4.0
-apprise >= 1.0.0
+apprise >= 1.1.0
 asgi-lifespan >= 1.0
 asyncpg >= 0.23
 click >= 8.0, < 8.2
@@ -25,7 +25,7 @@ pydantic >= 1.10.0
 python-slugify >= 5.0
 pytz >= 2021.1
 pyyaml >= 5.4.1
-readchar >= 3.0.6
+readchar >= 4.0.0
 rich >= 11.0
 sqlalchemy[asyncio] >= 1.4.20, != 1.4.33
 toml >= 0.10.0

@@ -35,7 +35,6 @@ pytest.register_assert_rewrite("prefect.testing.utilities")
 
 import prefect
 import prefect.settings
-from prefect.logging import get_logger
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
@@ -50,7 +49,6 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
@@ -297,8 +295,6 @@ def pytest_sessionstart(session):
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
-            # Use more aggressive database timeouts during testing
-            PREFECT_ORION_DATABASE_TIMEOUT: 1,
         },
         source=__file__,
     )
@@ -460,12 +456,12 @@ def caplog(caplog):
     Overrides caplog to apply to all of our loggers that do not propagate and
     consequently would not be captured by caplog.
     """
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
 
-    config = setup_logging()
-
-    for name, logger_config in config["loggers"].items():
+    for name, logger_config in PROCESS_LOGGING_CONFIG["loggers"].items():
         if not logger_config.get("propagate", True):
-            logger = get_logger(name)
-            logger.handlers.append(caplog.handler)
+            logger = logging.getLogger(name)
+            if caplog.handler not in logger.handlers:
+                logger.handlers.append(caplog.handler)
 
     yield caplog

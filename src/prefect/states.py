@@ -15,7 +15,7 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, MissingResult
+from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, MissingResult
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateType
 from prefect.results import BaseResult, R, ResultFactory
@@ -38,6 +38,7 @@ def get_state_result(
 
     See `State.result()`
     """
+
     if fetch is None and (
         PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
     ):
@@ -70,7 +71,9 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
-    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+    if raise_on_failure and (
+        state.is_crashed() or state.is_failed() or state.is_cancelled()
+    ):
         raise await get_state_exception(state)
 
     if isinstance(state.data, DataDocument):
@@ -80,7 +83,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     elif isinstance(state.data, BaseResult):
         result = await state.data.get()
     elif state.data is None:
-        if state.is_failed() or state.is_crashed():
+        if state.is_failed() or state.is_crashed() or state.is_cancelled():
             return await get_state_exception(state)
         else:
             raise MissingResult(
@@ -228,13 +231,18 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
+        if states.all_completed():
+            new_state_type = StateType.COMPLETED
+        elif states.any_cancelled():
+            new_state_type = StateType.CANCELLED
+        else:
+            new_state_type = StateType.FAILED
 
         # Generate a nice message for the aggregate
         if states.all_completed():
             message = "All states completed."
+        elif states.any_cancelled():
+            message = f"{states.cancelled_count}/{states.total_count} states cancelled."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
@@ -275,14 +283,21 @@ async def get_state_exception(state: State) -> BaseException:
 
     If the state result is not of a known type, a `TypeError` will be returned.
 
-    When a wrapper exception is returned, the type will be `FailedRun` if the state type
-    is FAILED or a `CrashedRun` if the state type is CRASHED.
+    When a wrapper exception is returned, the type will be:
+        - `FailedRun` if the state type is FAILED.
+        - `CrashedRun` if the state type is CRASHED.
+        - `CancelledRun` if the state type is CANCELLED.
     """
 
     if state.is_failed():
         wrapper = FailedRun
+        default_message = "Run failed."
     elif state.is_crashed():
         wrapper = CrashedRun
+        default_message = "Run crashed."
+    elif state.is_cancelled():
+        wrapper = CancelledRun
+        default_message = "Run cancelled."
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
@@ -294,7 +309,7 @@ async def get_state_exception(state: State) -> BaseException:
         result = state.data
 
     if result is None:
-        return wrapper(state.message)
+        return wrapper(state.message or default_message)
 
     if isinstance(result, Exception):
         return result
@@ -312,7 +327,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif is_state_iterable(result):
         # Return the first failure
         for state in result:
-            if state.is_failed() or state.is_crashed():
+            if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await get_state_exception(state)
 
         raise ValueError(
@@ -331,7 +346,7 @@ async def raise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
     """
-    if not (state.is_failed() or state.is_crashed()):
+    if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
 
     raise await get_state_exception(state)
@@ -371,7 +386,9 @@ class StateGroup:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
-        self.not_final_count = self._get_not_final_count(states)
+        self.cancelled_count = self.type_counts[StateType.CANCELLED]
+        self.final_count = sum(state.is_final() for state in states)
+        self.not_final_count = self.total_count - self.final_count
 
     @property
     def fail_count(self):
@@ -380,6 +397,9 @@ class StateGroup:
     def all_completed(self) -> bool:
         return self.type_counts[StateType.COMPLETED] == self.total_count
 
+    def any_cancelled(self) -> bool:
+        return self.cancelled_count > 0
+
     def any_failed(self) -> bool:
         return (
             self.type_counts[StateType.FAILED] > 0
@@ -387,24 +407,24 @@ class StateGroup:
         )
 
     def all_final(self) -> bool:
-        return self.not_final_count == self.total_count
+        return self.final_count == self.total_count
 
     def counts_message(self) -> str:
         count_messages = [f"total={self.total_count}"]
         if self.not_final_count:
             count_messages.append(f"not_final={self.not_final_count}")
-        for state_type, count in self.type_counts.items():
-            if count:
-                count_messages.append(f"{state_type.value!r}={count}")
+
+        count_messages += [
+            f"{state_type.value!r}={count}"
+            for state_type, count in self.type_counts.items()
+            if count
+        ]
+
         return ", ".join(count_messages)
 
     @staticmethod
     def _get_type_counts(states: Iterable[State]) -> Dict[StateType, int]:
         return Counter(state.type for state in states)
-
-    @staticmethod
-    def _get_not_final_count(states: Iterable[State]) -> int:
-        return len(states) - sum(state.is_final() for state in states)
 
     def __repr__(self) -> str:
         return f"StateGroup<{self.counts_message()}>"
@@ -473,6 +493,15 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
         State: a Pending state
     """
     return schemas.states.Pending(cls=cls, **kwargs)
+
+
+def Paused(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Paused` states.
+
+    Returns:
+        State: a Paused state
+    """
+    return schemas.states.Paused(cls=cls, **kwargs)
 
 
 def AwaitingRetry(

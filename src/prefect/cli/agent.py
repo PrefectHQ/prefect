@@ -1,9 +1,11 @@
 """
 Command line interface for working with agent services
 """
+from functools import partial
 from typing import List
 from uuid import UUID
 
+import anyio
 import typer
 
 import prefect
@@ -71,6 +73,12 @@ async def start(
         "--tag",
         help="DEPRECATED: One or more optional tags that will be used to create a work queue",
     ),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
+    ),
 ):
     """
     Start an agent process to poll one or more work queues for flow runs.
@@ -137,6 +145,7 @@ async def start(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         prefetch_seconds=prefetch_seconds,
+        limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
@@ -151,11 +160,27 @@ async def start(
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 
-        await critical_service_loop(
-            agent.get_and_submit_flow_runs,
-            PREFECT_AGENT_QUERY_INTERVAL.value(),
-            printer=app.console.print,
-            run_once=run_once,
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.get_and_submit_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
+
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.check_for_cancelled_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
 
     app.console.print("Agent stopped!")

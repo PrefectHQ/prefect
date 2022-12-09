@@ -26,6 +26,7 @@ class StateType(AutoEnum):
     FAILED = AutoEnum.auto()
     CANCELLED = AutoEnum.auto()
     CRASHED = AutoEnum.auto()
+    PAUSED = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
@@ -115,6 +116,9 @@ class State(IDBaseModel, Generic[R]):
     def is_final(self) -> bool:
         return self.type in TERMINAL_STATES
 
+    def is_paused(self) -> bool:
+        return self.type == StateType.PAUSED
+
     def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
@@ -183,15 +187,15 @@ class State(IDBaseModel, Generic[R]):
         `MyCompletedState("my message", type=COMPLETED)`
         """
 
-        display_message = f"{self.message!r}" if self.message else ""
+        display = []
 
-        display_type = (
-            f", type={self.type.value}"
-            if self.type.value.lower() != self.name.lower()
-            else ""
-        )
+        if self.message:
+            display.append(repr(self.message))
 
-        return f"{self.name}({display_message}{display_type})"
+        if self.type.value.lower() != self.name.lower():
+            display.append(f"type={self.type.value}")
+
+        return f"{self.name}({', '.join(display)})"
 
     def __hash__(self) -> int:
         return hash(
@@ -276,6 +280,15 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
         State: a Pending state
     """
     return cls(type=StateType.PENDING, **kwargs)
+
+
+def Paused(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Paused` states.
+
+    Returns:
+        State: a Paused state
+    """
+    return cls(type=StateType.PAUSED, **kwargs)
 
 
 def AwaitingRetry(
