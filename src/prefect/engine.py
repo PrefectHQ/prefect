@@ -16,6 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import signal
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
@@ -41,6 +42,7 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
+    Cancel,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -72,8 +74,8 @@ from prefect.states import (
     Pending,
     Running,
     State,
-    exception_to_crashed_state,
     exception_to_failed_state,
+    exception_to_final_state,
     get_state_exception,
     return_value_to_state,
 )
@@ -1570,13 +1572,19 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
     This context _must_ reraise the exception to properly exit the run.
     """
+
+    def cancel_flow_run(*args):
+        raise Cancel(cause="SIGTERM")
+
+    original_sigterm_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+
     try:
         yield
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
-        state = await exception_to_crashed_state(exc)
+        state = await exception_to_final_state(exc)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
@@ -1592,6 +1600,8 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
         # Reraise the exception
         raise exc from None
+    finally:
+        signal.signal(signal.SIGTERM, original_sigterm_handler)
 
 
 @asynccontextmanager
@@ -1607,8 +1617,11 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
+    except Cancel:
+        # Do not capture cancellations as crashes
+        raise
     except BaseException as exc:
-        state = await exception_to_crashed_state(exc)
+        state = await exception_to_final_state(exc)
         logger = task_run_logger(task_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
@@ -1906,6 +1919,18 @@ if __name__ == "__main__":
             f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
+    except Cancel as exc:
+        engine_logger.info(
+            f"Engine execution of flow run '{flow_run_id}' cancelled by orchestrator: {exc}"
+        )
+        if exc.cause == "SIGTERM":
+            # The default SIGTERM handler is swapped out during a flow run to
+            # raise this `Cancel` exception. This `os.kill` call ensures that
+            # the previous handler (likely the Python default) gets called as
+            # well.
+            os.kill(os.getpid(), signal.SIGTERM)
+        else:
+            exit(0)
     except Exception:
         engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' exited with unexpected "

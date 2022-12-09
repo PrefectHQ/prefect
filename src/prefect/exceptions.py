@@ -276,6 +276,18 @@ class Pause(PrefectSignal):
     """
 
 
+class Cancel(PrefectSignal):
+    """
+    Raised when a flow run is cancelled via a SIGTERM
+
+    Indicates that the run should exit immediately.
+    """
+
+    def __init__(self, *args, cause="unknown"):
+        super().__init__(args)
+        self.cause = cause
+
+
 class PrefectHTTPStatusError(HTTPStatusError):
     """
     Raised when client receives a `Response` that contains an HTTPStatusError.
