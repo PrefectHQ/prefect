@@ -77,30 +77,6 @@ class Process(Infrastructure):
         " Otherwise, a temporary directory will be created.",
     )  # Underlying accepted types are str, bytes, PathLike[str], None
 
-    @staticmethod
-    def ctrl_c_handler(process: anyio.abc.Process):
-        """
-        A Windows CTRL-C handler that accepts any anyio subprocess
-        and terminates it before passing control to the next handler
-        """
-
-        def handler(*args):
-            """
-            Receives a CTRL-C press on the console and sends a termination signal
-            to the subprocess.
-            """
-            try:
-                # send signal using os.kill to avoid anyio's signal handling
-                os.kill(process.pid, signal.CTRL_BREAK_EVENT)
-            except OSError:
-                # process already terminated
-                pass
-
-            # return False to allow the next handler to be called
-            return False
-
-        return handler
-
     @sync_compatible
     async def run(
         self,
