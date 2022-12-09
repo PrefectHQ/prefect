@@ -34,15 +34,27 @@ EXPERIMENTAL_ERROR = (
 
 class ExperimentalWarning(Warning):
     """
-    A warning for use of expirimental code.
-
-    These can be globally disabled by the PREFECT_EXPIRIMENTAL_WARN setting.
+    A warning related to expirimental code.
     """
 
 
 class ExperimentalError(Exception):
     """
-    An exception for use of experimental code.
+    An exception related to experimental code.
+    """
+
+
+class ExperimentalFeature(ExperimentalWarning):
+    """
+    A warning displayed on use of an experimental feature.
+
+    These can be globally disabled by the PREFECT_EXPIRIMENTAL_WARN setting.
+    """
+
+
+class ExperimentalFeatureDisabled(ExperimentalError):
+    """
+    An error displayed on use of a disabled experimental feature that requires opt-in.
     """
 
 
@@ -86,12 +98,12 @@ def experimental(
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             if opt_in and not group_opt_in:
-                raise ExperimentalError(error_message)
+                raise ExperimentalFeatureDisabled(error_message)
 
             if PREFECT_EXPERIMENTAL_WARN and group_warn:
                 warnings.warn(
                     warn_message,
-                    ExperimentalWarning,
+                    ExperimentalFeature,
                     stacklevel=stacklevel,
                 )
             return fn(*args, **kwargs)

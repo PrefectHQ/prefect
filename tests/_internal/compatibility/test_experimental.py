@@ -1,8 +1,8 @@
 import pytest
 
 from prefect._internal.compatibility.experimental import (
-    ExperimentalError,
-    ExperimentalWarning,
+    ExperimentalFeature,
+    ExperimentalFeatureDisabled,
     experiment_enabled,
     experimental,
 )
@@ -80,7 +80,7 @@ def test_experimental_marker_on_function():
         return 1
 
     with pytest.warns(
-        ExperimentalWarning,
+        ExperimentalFeature,
         match=(
             "A test function is experimental and the interface or behavior may change "
             "without warning. We recommend pinning to a specific version to avoid "
@@ -97,7 +97,7 @@ def test_experimental_marker_on_class():
         pass
 
     with pytest.warns(
-        ExperimentalWarning,
+        ExperimentalFeature,
         match=(
             "A test class is experimental and the interface or behavior may change "
             "without warning. We recommend pinning to a specific version to avoid "
@@ -134,7 +134,7 @@ def test_experimental_marker_raises_without_opt_in():
         return 1
 
     with pytest.raises(
-        ExperimentalError,
+        ExperimentalFeatureDisabled,
         match=(
             "A test function is experimental and requires opt-in for usage. "
             "This is just a test, don't worry. To use this feature, enable "
@@ -156,7 +156,7 @@ def test_experimental_marker_does_not_raise_with_opt_in():
         return 1
 
     # A warning is still expected unless that has been opted out of
-    with pytest.warns(ExperimentalWarning):
+    with pytest.warns(ExperimentalFeature):
         assert foo() == 1
 
 
