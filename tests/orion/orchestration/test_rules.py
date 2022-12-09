@@ -6,9 +6,9 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.exceptions import OrchestrationError
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,

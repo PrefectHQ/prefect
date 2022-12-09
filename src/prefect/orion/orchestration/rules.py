@@ -25,10 +25,10 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.exceptions import OrchestrationError
 from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.models import flow_runs
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (

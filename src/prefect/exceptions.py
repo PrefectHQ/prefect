@@ -349,7 +349,3 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
-
-
-class OrchestrationError(PrefectException):
-    """An error raised while orchestrating a state transition"""
