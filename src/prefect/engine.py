@@ -721,7 +721,7 @@ async def pause_flow_run(
     timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
 ):
     """
-    Pauses a flow run by stopping execution until resumed.
+    Pauses the current flow run by stopping execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
