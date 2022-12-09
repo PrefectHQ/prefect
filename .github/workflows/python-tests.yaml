@@ -150,11 +150,18 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Run tests
-        run: |
+        run: >
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
+
+          pytest tests 
+          --numprocesses auto --dist loadscope
+          --disable-docker-image-builds
+          --exclude-service kubernetes
+          --durations=25
+          --cov=src/ --cov=tests/ --no-cov-on-fail --cov-report=term
+          ${{ matrix.pytest-options }}
 
   run-tests-postgres:
     name: Test with Postgres
@@ -184,11 +191,11 @@ jobs:
           POSTGRES_USER: prefect
           POSTGRES_PASSWORD: prefect
           POSTGRES_DB: orion
-          LANG: 'C.UTF-8'
-          LANGUAGE: 'C.UTF-8'
-          LC_ALL: 'C.UTF-8'
-          LC_COLLATE: 'C.UTF-8'
-          LC_CTYPE: 'C.UTF-8'
+          LANG: "C.UTF-8"
+          LANGUAGE: "C.UTF-8"
+          LC_ALL: "C.UTF-8"
+          LC_COLLATE: "C.UTF-8"
+          LC_CTYPE: "C.UTF-8"
         ports:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
@@ -215,5 +222,5 @@ jobs:
       - name: Run tests
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
-        run: |
+        run: >
           pytest tests --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
