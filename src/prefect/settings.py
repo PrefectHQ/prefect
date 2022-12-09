@@ -568,6 +568,19 @@ PREFECT_LOGGING_COLORS = Setting(
 )
 """Whether to style console logs with color."""
 
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
+)
+"""
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=10,
