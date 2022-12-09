@@ -546,6 +546,162 @@ class TestBlockingPause:
         )
         assert len(task_runs) == 5, "all tasks should finish running"
 
+    async def test_paused_flows_can_be_resumed(self, orion_client):
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
+            z = await foo(wait_for=[x])
+            await pause_flow_run(timeout=10, poll_interval=2, key="do-not-repeat")
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        async def flow_resumer():
+            await anyio.sleep(3)
+            flow_runs = await orion_client.read_flow_runs(limit=1)
+            active_flow_run = flow_runs[0]
+            await resume_flow_run(active_flow_run.id)
+
+        flow_run_state, the_answer = await asyncio.gather(
+            pausing_flow(return_state=True),
+            flow_resumer(),
+        )
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 5, "all tasks should finish running"
+
+
+class TestNonblockingPause:
+    async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow_without_blocking(return_state=True)
+        assert flow_run_state.is_paused()
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        assert len(task_runs) == 2, "only two tasks should have completed"
+
+    async def test_paused_flows_gracefully_exit_with_reschedule_flag(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        with pytest.raises(PausedRun):
+            await pausing_flow_without_blocking()
+
+    async def test_paused_flows_can_be_resumed_then_rescheduled(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow_without_blocking(return_state=True)
+        assert flow_run_state.is_paused()
+        flow_run_id = flow_run_state.state_details.flow_run_id
+
+        await resume_flow_run(flow_run_id)
+        flow_run = await orion_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_scheduled()
+
+    async def test_subflows_cannot_be_paused_with_reschedule_flag(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def wrapper_flow():
+            return await pausing_flow_without_blocking()
+
+        with pytest.raises(RuntimeError, match="Cannot pause subflows"):
+            flow_run_state = await wrapper_flow()
+
+    async def test_flows_without_deployments_cannot_be_paused_with_reschedule_flag(
+        self, orion_client
+    ):
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(timeout=20, reschedule=True)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        with pytest.raises(
+            RuntimeError, match="Cannot pause flows without a deployment"
+        ):
+            flow_run_state = await pausing_flow_without_blocking()
+
 
 class TestNonblockingPause:
     async def test_paused_flows_do_not_block_execution_with_reschedule_flag(
