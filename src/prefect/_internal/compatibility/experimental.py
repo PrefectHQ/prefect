@@ -18,18 +18,17 @@ from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setti
 
 T = TypeVar("T", bound=Callable)
 
-EXPERIMENTAL_WARNING = (
-    "{feature} is experimental and the interface or behavior may change without warning. "
-    "We recommend pinning to a specific version to avoid breaking changes. "
-    "{help} "
-    "To disable warnings for this group, disable PREFECT_EXPERIMENTAL_WARN_{group}. "
-)
 
-EXPERIMENTAL_ERROR = (
-    "{feature} is experimental and requires opt-in for usage. "
-    "{help} "
-    "To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_{group}. "
-)
+EXPERIMENTAL_WARNING = """
+{feature} is experimental. {help}
+The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes.
+To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}.
+""".strip()
+
+EXPERIMENTAL_ERROR = """
+{feature} is experimental and requires opt-in for usage. {help}
+To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_{group}.
+""".strip()
 
 
 class ExperimentalWarning(Warning):

@@ -82,10 +82,11 @@ def test_experimental_marker_on_function():
     with pytest.warns(
         ExperimentalFeature,
         match=(
-            "A test function is experimental and the interface or behavior may change "
-            "without warning. We recommend pinning to a specific version to avoid "
-            "breaking changes. This is just a test, don't worry. To disable warnings "
-            "for this group, disable PREFECT_EXPERIMENTAL_WARN_TEST."
+            "A test function is experimental. This is just a test, don't worry.\n"
+            "The interface or behavior may change without warning, we recommend "
+            "pinning versions to prevent unexpected changes.\n"
+            "To disable warnings for this group of experiments, "
+            "disable PREFECT_EXPERIMENTAL_WARN_TEST."
         ),
     ):
         assert foo() == 1
@@ -99,10 +100,11 @@ def test_experimental_marker_on_class():
     with pytest.warns(
         ExperimentalFeature,
         match=(
-            "A test class is experimental and the interface or behavior may change "
-            "without warning. We recommend pinning to a specific version to avoid "
-            "breaking changes. This is just a test, don't worry. To disable warnings "
-            "for this group, disable PREFECT_EXPERIMENTAL_WARN_TEST."
+            "A test class is experimental. This is just a test, don't worry.\n"
+            "The interface or behavior may change without warning, we recommend "
+            "pinning versions to prevent unexpected changes.\n"
+            "To disable warnings for this group of experiments, "
+            "disable PREFECT_EXPERIMENTAL_WARN_TEST."
         ),
     ):
         assert Foo()
@@ -137,8 +139,8 @@ def test_experimental_marker_raises_without_opt_in():
         ExperimentalFeatureDisabled,
         match=(
             "A test function is experimental and requires opt-in for usage. "
-            "This is just a test, don't worry. To use this feature, enable "
-            "PREFECT_EXPERIMENTAL_ENABLE_TEST."
+            "This is just a test, don't worry.\n"
+            "To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_TEST."
         ),
     ):
         assert foo() == 1
