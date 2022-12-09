@@ -20,6 +20,10 @@ from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
 
+if sys.platform == "win32":
+    # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
+    STATUS_CONTROL_C_EXIT = 0xC000013A
+
 
 def _use_threaded_child_watcher():
     if (
@@ -138,6 +142,13 @@ class Process(Infrastructure):
                 help_message = (
                     "This indicates that the process was terminated due to high "
                     "memory usage."
+                )
+            elif (
+                sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
+            ):
+                help_message = (
+                    f"Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                    "Typically, this is caused by manual cancellation."
                 )
 
             self.logger.error(
