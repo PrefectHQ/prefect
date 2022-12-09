@@ -763,7 +763,7 @@ async def pause_flow_run(
         if response.state.type == StateType.RUNNING:
             return
         raise RuntimeError(response.details.reason)
-    if response.status == SetStateStatus.ABORT:
+    elif response.status == SetStateStatus.ABORT:
         raise RuntimeError(response.details.reason)
 
     if reschedule:
@@ -814,7 +814,10 @@ async def resume_flow_run(flow_run_id):
     )
 
     if response.status == SetStateStatus.REJECT:
-        raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        if response.state.type == StateType.FAILED:
+            raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        else:
+            raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
 
 
 def enter_task_run_engine(

@@ -477,15 +477,13 @@ class HandlePausingFlows(BaseOrchestrationRule):
 
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
-                await self.reject_transition(
-                    state=None,
+                await self.abort_transition(
                     reason="Cannot pause subflows with the reschedule option.",
                 )
                 return
 
             if context.run.deployment_id is None:
-                await self.reject_transition(
-                    state=None,
+                await self.abort_transition(
                     reason="Cannot pause flows without a deployment with the reschedule option.",
                 )
                 return

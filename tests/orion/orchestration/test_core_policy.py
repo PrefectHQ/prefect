@@ -1896,8 +1896,7 @@ class TestPausingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.REJECT
-        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.response_status == SetStateStatus.ABORT
 
     async def test_can_not_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
         self,
@@ -1919,8 +1918,7 @@ class TestPausingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.REJECT
-        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.response_status == SetStateStatus.ABORT
 
     async def test_can_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
         self,
