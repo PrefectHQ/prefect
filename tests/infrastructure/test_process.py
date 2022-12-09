@@ -96,9 +96,7 @@ def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
     else:
         command = ["bash", "-c", "pwd"]
 
-    assert Process(
-        command=command, stream_output=True, working_dir=str(tmpdir)
-    ).run()
+    assert Process(command=command, stream_output=True, working_dir=str(tmpdir)).run()
     out, _ = capsys.readouterr()
     assert str(tmpdir) in out
 
@@ -114,9 +112,7 @@ def test_process_runs_command_in_working_dir_path(tmp_path, capsys):
     else:
         command = ["bash", "-c", "pwd"]
 
-    assert Process(
-        command=command, stream_output=True, working_dir=tmp_path
-    ).run()
+    assert Process(command=command, stream_output=True, working_dir=tmp_path).run()
     out, _ = capsys.readouterr()
     assert str(tmp_path) in out
 
