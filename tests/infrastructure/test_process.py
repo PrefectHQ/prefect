@@ -347,3 +347,25 @@ def test_windows_process_run_sets_process_group_creation_flag(monkeypatch):
     mock_run_process_call.assert_awaited_once()
     (_, kwargs) = mock_run_process_call.call_args
     assert kwargs.get("creationflags") == subprocess.CREATE_NEW_PROCESS_GROUP
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="The asyncio.open_process_*.creationflags argument is only supported on Windows",
+)
+def test_unix_process_run_does_not_set_creation_flag(monkeypatch):
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.terminate = AsyncMock()
+
+    mock_run_process_call = AsyncMock(return_value=mock_process)
+
+    monkeypatch.setattr(
+        prefect.infrastructure.process, "run_process", mock_run_process_call
+    )
+
+    prefect.infrastructure.Process(command=["echo", "hello world"]).run()
+
+    mock_run_process_call.assert_awaited_once()
+    (_, kwargs) = mock_run_process_call.call_args
+    assert kwargs.get("creationflags") is None
