@@ -57,7 +57,9 @@ async def commit_task_run_state(
         **new_state.dict(shallow=True),
     )
 
+    task_run.state = orm_state
     session.add(orm_state)
+
     await session.flush()
     return orm_state.as_state()
 
@@ -364,6 +366,59 @@ class TestBaseOrchestrationRule:
             session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
+        )
+
+        mutating_rule = StateMutatingRule(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is False
+
+        # despite the mutation, this rule is valid so before and after hooks will fire
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 1
+        assert cleanup_step.call_count == 0
+
+    async def test_rules_that_reject_state_with_null_do_not_fizzle_themselves(
+        self, session, task_run
+    ):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself
+                # upon exiting
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.reject_transition(None, reason="for testing, of course")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = TaskOrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            run=task_run,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -1288,6 +1343,31 @@ class TestOrchestrationContext:
                 the_tardy_hero = TardyHeroRule(ctx, *intended_transition)
                 ctx = await stack.enter_async_context(the_tardy_hero)
                 await ctx.validate_proposed_state()
+
+    async def test_context_will_not_write_new_state_with_null_reject(
+        self, session, run_type, initialize_orchestration
+    ):
+        class RejectNoWriteRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(None, reason="its okay")
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        async with contextlib.AsyncExitStack() as stack:
+            reject_no_write = RejectNoWriteRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(reject_no_write)
+            intial_state = ctx.run.state
+            await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state is None
+        assert ctx.validated_state == states.State.from_orm(intial_state)
+        assert ctx.response_status == schemas.responses.SetStateStatus.REJECT
 
     @pytest.mark.parametrize("delay", [42, 424242])
     async def test_context_will_propose_no_state_if_asked_to_wait(

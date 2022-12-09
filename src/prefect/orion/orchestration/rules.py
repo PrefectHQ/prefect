@@ -224,13 +224,15 @@ class FlowOrchestrationContext(OrchestrationContext):
         After the `FlowOrchestrationContext` is governed by orchestration rules, the
         proposed state can be validated: the proposed state is added to the current
         SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
-        state. The state on the run is set to the validated state as well. If the
-        proposed state is `None` when this method is called, nothing happens.
+        state. The state on the run is set to the validated state as well.
+
+        If the proposed state is `None` when this method is called, no state will be
+        written. If the response type is REJECT, `self.validated_state` will be set to
+        the run's current state.
 
         Returns:
             None
         """
-
         for validation_attempt in range(2):
             validation_errors = []
             try:
@@ -263,7 +265,12 @@ class FlowOrchestrationContext(OrchestrationContext):
         self,
         db: OrionDBInterface,
     ):
-        if self.proposed_state is not None:
+        if (
+            self.response_status == SetStateStatus.REJECT
+            and self.proposed_state is None
+        ):
+            validated_orm_state = self.run.state
+        elif self.proposed_state is not None:
             validated_orm_state = db.FlowRunState(
                 flow_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
@@ -272,6 +279,7 @@ class FlowOrchestrationContext(OrchestrationContext):
             self.run.set_state(validated_orm_state)
         else:
             validated_orm_state = None
+
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
@@ -366,7 +374,6 @@ class TaskOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
-
         for validation_attempt in range(2):
             validation_errors = []
             try:
@@ -399,7 +406,12 @@ class TaskOrchestrationContext(OrchestrationContext):
         self,
         db: OrionDBInterface,
     ):
-        if self.proposed_state is not None:
+        if (
+            self.response_status == SetStateStatus.REJECT
+            and self.proposed_state is None
+        ):
+            validated_orm_state = self.run.state
+        elif self.proposed_state is not None:
             validated_orm_state = db.TaskRunState(
                 task_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
@@ -734,7 +746,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             self.to_state_type != proposed_state_type
         )
 
-    async def reject_transition(self, state: states.State, reason: str):
+    async def reject_transition(self, state: Optional[states.State], reason: str):
         """
         Rejects a proposed transition before the transition is validated.
 
@@ -744,7 +756,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         despite the proposed state type changing.
 
         Args:
-            state: The new proposed state
+            state: The new proposed state. If `None`, the current run state will
+                be used instead.
             reason: The reason for rejecting the transition
         """
 
@@ -752,9 +765,19 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # a rule that mutates state should not fizzle itself
-        self.to_state_type = state.type
-        self.context.proposed_state = state
+        # # use the current state if a new one is not provided
+        # if state is None:
+        #     # cast from orm state class to api state type
+        #     state = states.State.from_orm(self.context.run.state)
+
+        if state is None:
+            self.to_state_type = None
+            self.context.proposed_state = None
+        else:
+            # a rule that mutates state should not fizzle itself
+            self.to_state_type = state.type
+            self.context.proposed_state = state
+
         self.context.response_status = SetStateStatus.REJECT
         self.context.response_details = StateRejectDetails(reason=reason)
 
