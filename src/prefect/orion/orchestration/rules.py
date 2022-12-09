@@ -25,6 +25,7 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect.exceptions import OrchestrationError
 from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -771,6 +772,10 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         #     state = states.State.from_orm(self.context.run.state)
 
         if state is None:
+            if self.from_state_type is None:
+                raise OrchestrationError(
+                    "The current run has no state and this transition cannot be null rejected."
+                )
             self.to_state_type = None
             self.context.proposed_state = None
         else:
