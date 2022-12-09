@@ -98,9 +98,9 @@ class OrionClient:
         httpx_settings.setdefault("headers", {})
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
-            import prefect.orion.api.server
+            from prefect.orion.api.server import ORION_API_VERSION
 
-            api_version = prefect.orion.api.server.ORION_API_VERSION
+            api_version = ORION_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
