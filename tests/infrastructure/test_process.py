@@ -68,7 +68,7 @@ def test_process_returns_exit_code(exit_code):
 def test_process_runs_command(tmp_path):
     """
     Run a command that creates a file as a side effect to demonstrate the command
-    is run. Should work on both Windows and Unix.
+    is run.
     """
     file_path = tmp_path / "test.txt"
     # don't assume any specific programs are available other than touch on
@@ -83,8 +83,21 @@ def test_process_runs_command(tmp_path):
 
 
 def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
+    """
+    Test that a command that displays the current working directory runs
+    and displays the specified working directory for the process when the
+    working directory is a string.
+    """
+
+    # a command to display the current working directory with alternatives
+    # for Windows and Unix-like systems
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", "cd"]
+    else:
+        command = ["bash", "-c", "pwd"]
+
     assert Process(
-        command=["bash", "-c", "pwd"], stream_output=True, working_dir=str(tmpdir)
+        command=command, stream_output=True, working_dir=str(tmpdir)
     ).run()
     out, _ = capsys.readouterr()
     assert str(tmpdir) in out
