@@ -786,6 +786,14 @@ have exceeded their scheduled start time by this many seconds. Defaults
 to `5` seconds.
 """
 
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The pause expiration service will look for runs to mark as failed
+this often. Defaults to `5`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -852,6 +860,15 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 )
 """Whether or not to start the flow run notifications service in the Orion application. 
 If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the paused flow run expiration service in the Orion
+application. If disabled, paused flows that have timed out will remain in a Paused state
+until a resume attempt.
 """
 
 # Collect all defined settings

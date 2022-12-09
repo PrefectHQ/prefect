@@ -39,7 +39,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.3"
+ORION_API_VERSION = "0.8.4"
 
 logger = get_logger("orion")
 
@@ -376,6 +376,9 @@ def create_app(
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
+            service_instances.append(services.pause_expirations.FailExpiredPauses())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
 
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
