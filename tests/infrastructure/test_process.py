@@ -104,8 +104,18 @@ def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
 
 
 def test_process_runs_command_in_working_dir_path(tmp_path, capsys):
+    """
+    Test that a command that displays the current working directory runs
+    and displays the specified working directory for the process when the
+    working directory is a path.
+    """
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", "cd"]
+    else:
+        command = ["bash", "-c", "pwd"]
+
     assert Process(
-        command=["bash", "-c", "pwd"], stream_output=True, working_dir=tmp_path
+        command=command, stream_output=True, working_dir=tmp_path
     ).run()
     out, _ = capsys.readouterr()
     assert str(tmp_path) in out
