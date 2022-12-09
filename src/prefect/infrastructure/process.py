@@ -170,7 +170,7 @@ class Process(Infrastructure):
                 f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
             )
 
-        # In a non-windows enviornment first send a SIGTERM, then, after
+        # In a non-windows environment first send a SIGTERM, then, after
         # `grace_seconds` seconds have passed subsequent send SIGKILL. In
         # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
         # https://bugs.python.org/issue26350
