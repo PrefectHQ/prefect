@@ -247,9 +247,6 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
 
 
 async def test_process_kill_no_matching_pid(monkeypatch):
-    os_kill = MagicMock(side_effect=ProcessLookupError())
-    monkeypatch.setattr("os.kill", os_kill)
-
     infrastructure_pid = f"{socket.gethostname()}:12345"
 
     process = Process(command=["noop"])
