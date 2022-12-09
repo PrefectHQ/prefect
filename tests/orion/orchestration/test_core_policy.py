@@ -1896,7 +1896,8 @@ class TestPausingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.RUNNING
 
     async def test_can_not_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
         self,
@@ -1918,7 +1919,8 @@ class TestPausingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.RUNNING
 
     async def test_can_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
         self,
@@ -2044,10 +2046,13 @@ class TestPausingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        if ctx.initial_state and ctx.initial_state.is_running():
+        if ctx.initial_state is None:
+            assert ctx.response_status == SetStateStatus.ABORT
+        elif ctx.initial_state.is_running():
             assert ctx.response_status == SetStateStatus.ACCEPT
         else:
-            assert ctx.response_status == SetStateStatus.ABORT
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
 
 
 class TestResumingFlows:
@@ -2074,7 +2079,8 @@ class TestResumingFlows:
         async with state_protection as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == SetStateStatus.ABORT
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.PAUSED
 
     async def test_can_leave_blocking_pausing_state_without_a_deployment(
         self,
@@ -2135,7 +2141,8 @@ class TestResumingFlows:
         if proposed_state_type in permitted_resuming_states:
             assert ctx.response_status == SetStateStatus.ACCEPT
         else:
-            assert ctx.response_status == SetStateStatus.ABORT
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
 
     async def test_cannot_leave_pausing_state_if_pause_has_timed_out(
         self,
