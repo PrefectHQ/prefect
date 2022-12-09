@@ -766,15 +766,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # # use the current state if a new one is not provided
-        # if state is None:
-        #     # cast from orm state class to api state type
-        #     state = states.State.from_orm(self.context.run.state)
-
+        # the current state will be used if a new one is not provided
         if state is None:
             if self.from_state_type is None:
                 raise OrchestrationError(
-                    "The current run has no state and this transition cannot be null rejected."
+                    "The current run has no state; this transition cannot be "
+                    "rejected without providing a new state."
                 )
             self.to_state_type = None
             self.context.proposed_state = None
