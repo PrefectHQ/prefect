@@ -17,6 +17,7 @@ from prefect.deprecated.data_documents import (
     result_from_state_with_data_document,
 )
 from prefect.exceptions import (
+    Cancel,
     CancelledRun,
     CrashedRun,
     FailedRun,
@@ -123,7 +124,7 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
     return formatted
 
 
-async def exception_to_crashed_state(
+async def exception_to_final_state(
     exc: BaseException,
     result_factory: Optional[ResultFactory] = None,
 ) -> State:
@@ -132,9 +133,15 @@ async def exception_to_crashed_state(
     'Crash' exception with a 'Crashed' state.
     """
     state_message = None
+    state_cls = Crashed
 
-    if isinstance(exc, anyio.get_cancelled_exc_class()):
+    if isinstance(exc, Cancel):
+        state_message = "Execution was cancelled by a termination signal."
+        state_cls = Cancelled
+
+    elif isinstance(exc, anyio.get_cancelled_exc_class()):
         state_message = "Execution was cancelled by the runtime environment."
+        state_cls = Cancelled
 
     elif isinstance(exc, KeyboardInterrupt):
         state_message = "Execution was aborted by an interrupt signal."
@@ -162,7 +169,7 @@ async def exception_to_crashed_state(
         # from the API
         data = exc
 
-    return Crashed(message=state_message, data=data)
+    return state_cls(message=state_message, data=data)
 
 
 async def exception_to_failed_state(
