@@ -177,12 +177,10 @@ class Process(Infrastructure):
         if sys.platform == "win32":
             try:
                 os.kill(pid, signal.CTRL_BREAK_EVENT)
-            except ProcessLookupError:
-                # The process exited before we were able to kill it.
-                return
-            except OSError:
-                # The process exited before we were able to kill it.
-                return
+            except (ProcessLookupError, WindowsError):
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
+                )
         else:
             try:
                 os.kill(pid, signal.SIGTERM)
