@@ -201,6 +201,8 @@ async def set_task_run_state(
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
+    now = pendulum.now()
+
     # create the state
     async with db.session_context(begin_transaction=True) as session:
         orchestration_result = await models.task_runs.set_task_run_state(
@@ -214,11 +216,10 @@ async def set_task_run_state(
             orchestration_parameters=orchestration_parameters,
         )
 
-    if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
-        response.status_code = status.HTTP_200_OK
-    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
-        response.status_code = status.HTTP_200_OK
-    else:
+    # set the 201 if a new state was created
+    if orchestration_result.state and orchestration_result.state.timestamp >= now:
         response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
 
     return orchestration_result
