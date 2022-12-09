@@ -51,4 +51,6 @@ Prefect tries to infer the relevant event whenever possible, but sometimes one d
 
 ## Coming soon
 
-Automations will be the foundation of several new solutions in Prefect. In addition to triggers based on work queue health and flow run state changes, we’ll soon expand the types of conditions for triggers, including triggers based on infrastructure or block method events.  We’ll also continue to expand the automations API, which allows for further customization of trigger and action policies based on arbitrary events.
+Automations will be the foundation of several new solutions in Prefect. In addition to triggers based on work queue health and flow run state changes, we’ll soon expand the types of conditions for triggers, including triggers based on infrastructure or block method events.  
+
+We’ll also continue to expand the [automations API](https://app.prefect.cloud/api/docs#tag/Automations), which allows for further customization of trigger and action policies based on arbitrary [events](https://app.prefect.cloud/api/docs#tag/Events).
