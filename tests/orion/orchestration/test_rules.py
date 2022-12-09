@@ -1723,7 +1723,7 @@ class TestNullRejection:
             await ctx.validate_proposed_state()
 
         assert side_effects == 0
-        assert await minimal_rule.fizzled() is True
+        assert await minimal_rule.invalid() is True
         assert await null_rejector.invalid() is False
         assert await null_rejector.fizzled() is False
         minimal_after_hook.assert_not_called()
