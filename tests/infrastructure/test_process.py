@@ -66,9 +66,20 @@ def test_process_returns_exit_code(exit_code):
 
 
 def test_process_runs_command(tmp_path):
-    # Perform a side-effect to demonstrate the command is run
-    assert Process(command=["touch", str(tmp_path / "canary")]).run()
-    assert (tmp_path / "canary").exists()
+    """
+    Run a command that creates a file as a side effect to demonstrate the command
+    is run. Should work on both Windows and Unix.
+    """
+    file_path = tmp_path / "test.txt"
+    # don't assume any specific programs are available other than touch on
+    # Unix-like systems and cmd.exe on Windows
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", f"echo hello > {str(file_path)}"]
+    else:
+        command = ["touch", str(file_path)]
+
+    assert Process(command=command).run()
+    assert file_path.exists()
 
 
 def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
