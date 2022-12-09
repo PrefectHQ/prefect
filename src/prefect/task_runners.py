@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 
 from prefect.logging import get_logger
 from prefect.orion.schemas.states import State
-from prefect.states import exception_to_crashed_state
+from prefect.states import exception_to_final_state
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T", bound="BaseTaskRunner")
@@ -203,7 +203,7 @@ class SequentialTaskRunner(BaseTaskRunner):
         try:
             result = await call()
         except BaseException as exc:
-            result = await exception_to_crashed_state(exc)
+            result = await exception_to_final_state(exc)
 
         self._results[key] = result
 
@@ -290,7 +290,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         try:
             self._results[key] = await call()
         except BaseException as exc:
-            self._results[key] = await exception_to_crashed_state(exc)
+            self._results[key] = await exception_to_final_state(exc)
 
         self._result_events[key].set()
 
