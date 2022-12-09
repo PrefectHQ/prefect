@@ -15,6 +15,8 @@ from prefect.orion.orchestration.core_policy import (
     CacheRetrieval,
     CopyScheduledTime,
     HandleFlowTerminalStateTransitions,
+    HandlePausingFlows,
+    HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
     ReleaseTaskConcurrencySlots,
@@ -1870,3 +1872,351 @@ class TestTaskConcurrencyLimits:
 
         assert task1_pending_ctx.response_status == SetStateStatus.ABORT
         assert (await self.count_concurrency_slots(session, "small")) == 1
+
+
+class TestPausingFlows:
+    async def test_can_not_nonblocking_pause_subflows(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.parent_task_run_id == uuid4()
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_not_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+        deployment,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_updates_pause_key_tracker(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert "hello" in ctx.run.empirical_policy.pause_keys
+
+    async def test_defaults_pause_key_to_random_uuid(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        assert len(ctx.run.empirical_policy.pause_keys) == 0
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert len(ctx.run.empirical_policy.pause_keys) == 1
+
+    async def test_does_not_permit_repeat_pauses(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            run_override=ctx.run,
+        )
+        ctx2.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx2, *intended_transition) as ctx2:
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.validated_state.type == states.StateType.RUNNING
+
+    @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_can_only_pause_running_flows(
+        self,
+        session,
+        initial_state_type,
+        initialize_orchestration,
+        deployment,
+    ):
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        if ctx.initial_state is None:
+            assert ctx.response_status == SetStateStatus.ABORT
+        elif ctx.initial_state.is_running():
+            assert ctx.response_status == SetStateStatus.ACCEPT
+        else:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
+
+
+class TestResumingFlows:
+    async def test_cannot_leave_nonblocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now, pause_reschedule=True
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.PAUSED
+
+    async def test_can_leave_blocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
+    async def test_transitions_out_of_pausing_states_are_restricted(
+        self,
+        session,
+        proposed_state_type,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        permitted_resuming_states = [
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+            states.StateType.SCHEDULED,
+            states.StateType.FAILED,
+            states.StateType.CRASHED,
+            states.StateType.CANCELLED,
+        ]
+
+        if proposed_state_type in permitted_resuming_states:
+            assert ctx.response_status == SetStateStatus.ACCEPT
+        else:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
+
+    async def test_cannot_leave_pausing_state_if_pause_has_timed_out(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_ago
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.type == states.StateType.FAILED
+
+    async def test_allows_leaving_pausing_state(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_marks_flow_run_as_resuming_upon_leaving_paused_state(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.resuming

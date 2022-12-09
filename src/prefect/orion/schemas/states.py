@@ -46,6 +46,9 @@ class StateDetails(PrefectBaseModel):
     cache_key: str = None
     cache_expiration: DateTimeTZ = None
     untrackable_result: bool = False
+    pause_timeout: DateTimeTZ = None
+    pause_reschedule: bool = False
+    pause_key: str = None
 
 
 class State(IDBaseModel, Generic[R]):
@@ -282,13 +285,36 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return cls(type=StateType.PENDING, **kwargs)
 
 
-def Paused(cls: Type[State] = State, **kwargs) -> State:
+def Paused(
+    cls: Type[State] = State,
+    timeout_seconds: int = None,
+    pause_expiration_time: datetime.datetime = None,
+    reschedule: bool = False,
+    pause_key: str = None,
+    **kwargs,
+) -> State:
     """Convenience function for creating `Paused` states.
 
     Returns:
         State: a Paused state
     """
-    return cls(type=StateType.PAUSED, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+
+    if state_details.pause_timeout:
+        raise ValueError("An extra pause timeout was provided in state_details")
+
+    if pause_expiration_time is not None and timeout_seconds is not None:
+        raise ValueError(
+            "Cannot supply both a pause_expiration_time and timeout_seconds"
+        )
+
+    state_details.pause_timeout = pause_expiration_time or (
+        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+    )
+    state_details.pause_reschedule = reschedule
+    state_details.pause_key = pause_key
+
+    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(

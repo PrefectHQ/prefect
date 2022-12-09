@@ -45,6 +45,7 @@ from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     NotPausedError,
+    PausedRun,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -367,7 +368,7 @@ async def begin_flow_run(
         if log_prints:
             stack.enter_context(patch_print())
 
-        terminal_state = await orchestrate_flow_run(
+        terminal_or_paused_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
@@ -377,6 +378,17 @@ async def begin_flow_run(
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
         )
+
+    if terminal_or_paused_state.is_paused():
+        timeout = terminal_or_paused_state.state_details.pause_timeout
+        logger.log(
+            level=logging.INFO,
+            msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
+        )
+        OrionHandler.flush(block=True)
+        return terminal_or_paused_state
+    else:
+        terminal_state = terminal_or_paused_state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -626,7 +638,10 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-
+        except PausedRun:
+            paused_flow_run = await client.read_flow_run(flow_run.id)
+            paused_flow_run_state = paused_flow_run.state
+            return paused_flow_run_state
         except Exception as exc:
             name = message = None
             if (
@@ -702,9 +717,11 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
+async def pause_flow_run(
+    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+):
     """
-    Pauses a flow run by stopping execution until resumed.
+    Pauses the current flow run by stopping execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
@@ -717,20 +734,40 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
             any configured flow-level timeout, the flow might fail even after resuming.
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
+        reschedule: Flag that will reschedule the flow run if resumed. Instead of
+            blocking execution, the flow will gracefully exit (with no result returned)
+            instead. To use this flag, a flow needs to have an associated deployment and
+            results need to be configured.
+        key: An optional key to prevent calling pauses more than once. This defaults to
+            the number of pauses observed by the flow so far, and prevents pauses that
+            use the "reschedule" option from running the same pause twice. A custom key
+            can be supplied for custom pausing behavior.
     """
-
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
     frc = FlowRunContext.get()
     logger = get_run_logger(context=frc)
+    client = get_client()
+
+    pause_counter = _observed_flow_pauses(frc)
+    pause_key = key or str(pause_counter)
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
-    client = get_client()
     response = await client.set_flow_run_state(
         frc.flow_run.id,
-        Paused(),
+        Paused(timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key),
     )
+
+    if response.status == SetStateStatus.REJECT:
+        if response.state.type == StateType.RUNNING:
+            return
+        raise RuntimeError(response.details.reason)
+    elif response.status == SetStateStatus.ABORT:
+        raise RuntimeError(response.details.reason)
+
+    if reschedule:
+        raise PausedRun()
 
     with anyio.move_on_after(timeout):
 
@@ -772,10 +809,15 @@ async def resume_flow_run(flow_run_id):
     if not flow_run.state.is_paused():
         raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    await client.set_flow_run_state(
+    response = await client.resume_flow_run(
         flow_run_id,
-        Running(name="Resuming"),
     )
+
+    if response.status == SetStateStatus.REJECT:
+        if response.state.type == StateType.FAILED:
+            raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        else:
+            raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
 
 
 def enter_task_run_engine(
@@ -1687,6 +1729,14 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
     return context.task_run_dynamic_keys[task.task_key]
 
 
+def _observed_flow_pauses(context: FlowRunContext) -> int:
+    if "counter" not in context.observed_flow_pauses:
+        context.observed_flow_pauses["counter"] = 1
+    else:
+        context.observed_flow_pauses["counter"] += 1
+    return context.observed_flow_pauses["counter"]
+
+
 def get_state_for_result(obj: Any) -> Optional[State]:
     """
     Get the state related to a result object.
@@ -1786,6 +1836,11 @@ if __name__ == "__main__":
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except PausedRun as exc:
+        engine_logger.info(
+            f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
     except Exception:
