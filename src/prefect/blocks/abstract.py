@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Tuple
 
+from prefect import get_run_logger
 from prefect.blocks.core import Block
+from prefect.logging import MissingContextError, get_logger
 
 
 class JobRun(ABC):  # not a block
@@ -13,6 +15,19 @@ class JobRun(ABC):  # not a block
     run_id: int
     timeout: int
     poll_frequency_seconds: int
+
+    @property
+    def logger(self):
+        """
+        Returns a logger based on whether the JobBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(f"prefect.block.{self.__class__.__name__}")
 
     @abstractmethod
     async def wait_for_completion(self, *args, **kwargs):
