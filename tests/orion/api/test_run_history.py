@@ -13,6 +13,15 @@ from prefect.orion.schemas.states import StateType
 dt = pendulum.datetime(2021, 7, 1)
 
 
+def assert_datetime_dictionaries_equal(a, b):
+    # DateTime objects will be equal if their timezones are compatible, but not
+    # when embedded in a dictionary
+    for dictionary_a, dictionary_b in zip(a, b):
+        assert dictionary_a.keys() == dictionary_b.keys()
+        for k, v in dictionary_a.items():
+            assert v == dictionary_b[k]
+
+
 def parse_response(response: Response, include=None):
     assert response.status_code == status.HTTP_200_OK
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
@@ -214,67 +223,90 @@ async def test_daily_bins_flow_runs(client):
         response, include={"state_name", "state_type", "count_runs"}
     )
 
-    assert [p.dict() for p in parsed] == [
-        dict(
-            interval_start=dt.subtract(days=5),
-            interval_end=dt.subtract(days=4),
-            states=[
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1)
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=4),
-            interval_end=dt.subtract(days=3),
-            states=[
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=3),
-            interval_end=dt.subtract(days=2),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
-                )
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=2),
-            interval_end=dt.subtract(days=1),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
-                ),
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=4),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=1),
-            interval_end=dt,
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
-                ),
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=4),
-                dict(
-                    state_name="Scheduled", state_type=StateType.SCHEDULED, count_runs=4
-                ),
-            ],
-        ),
-        dict(
-            interval_start=dt,
-            interval_end=dt.add(days=1),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=1
-                ),
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=2),
-                dict(
-                    state_name="Scheduled", state_type=StateType.SCHEDULED, count_runs=4
-                ),
-            ],
-        ),
-    ]
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=dt.subtract(days=5),
+                interval_end=dt.subtract(days=4),
+                states=[
+                    dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1)
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=4),
+                interval_end=dt.subtract(days=3),
+                states=[
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=1
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=3),
+                interval_end=dt.subtract(days=2),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    )
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=2),
+                interval_end=dt.subtract(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                    dict(
+                        state_name="Running", state_type=StateType.RUNNING, count_runs=4
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=1),
+                interval_end=dt,
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                    dict(
+                        state_name="Running", state_type=StateType.RUNNING, count_runs=4
+                    ),
+                    dict(
+                        state_name="Scheduled",
+                        state_type=StateType.SCHEDULED,
+                        count_runs=4,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt,
+                interval_end=dt.add(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=1,
+                    ),
+                    dict(
+                        state_name="Running", state_type=StateType.RUNNING, count_runs=2
+                    ),
+                    dict(
+                        state_name="Scheduled",
+                        state_type=StateType.SCHEDULED,
+                        count_runs=4,
+                    ),
+                ],
+            ),
+        ],
+    )
 
 
 async def test_weekly_bins_flow_runs(client):
@@ -291,50 +323,65 @@ async def test_weekly_bins_flow_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert [p.dict() for p in parsed] == [
-        dict(
-            interval_start=dt.subtract(days=16),
-            interval_end=dt.subtract(days=9),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=6
-                ),
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=9),
-            interval_end=dt.subtract(days=2),
-            states=[
-                dict(
-                    state_name="Completed",
-                    state_type=StateType.COMPLETED,
-                    count_runs=10,
-                ),
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=2),
-            interval_end=dt.add(days=5),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
-                ),
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=10),
-                dict(
-                    state_name="Scheduled",
-                    state_type=StateType.SCHEDULED,
-                    count_runs=17,
-                ),
-            ],
-        ),
-        dict(
-            interval_start=dt.add(days=5),
-            interval_end=dt.add(days=12),
-            states=[],
-        ),
-    ]
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=dt.subtract(days=16),
+                interval_end=dt.subtract(days=9),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=6,
+                    ),
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=9),
+                interval_end=dt.subtract(days=2),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=10,
+                    ),
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=2),
+                interval_end=dt.add(days=5),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=5,
+                    ),
+                    dict(
+                        state_name="Running",
+                        state_type=StateType.RUNNING,
+                        count_runs=10,
+                    ),
+                    dict(
+                        state_name="Scheduled",
+                        state_type=StateType.SCHEDULED,
+                        count_runs=17,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.add(days=5),
+                interval_end=dt.add(days=12),
+                states=[],
+            ),
+        ],
+    )
 
 
 async def test_weekly_bins_with_filters_flow_runs(client):
@@ -352,38 +399,45 @@ async def test_weekly_bins_with_filters_flow_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert [p.dict() for p in parsed] == [
-        dict(
-            interval_start=dt.subtract(days=16),
-            interval_end=dt.subtract(days=9),
-            states=[
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=9),
-            interval_end=dt.subtract(days=2),
-            states=[
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
-            ],
-        ),
-        dict(
-            interval_start=dt.subtract(days=2),
-            interval_end=dt.add(days=5),
-            states=[
-                dict(
-                    state_name="Scheduled",
-                    state_type=StateType.SCHEDULED,
-                    count_runs=17,
-                ),
-            ],
-        ),
-        dict(
-            interval_start=dt.add(days=5),
-            interval_end=dt.add(days=12),
-            states=[],
-        ),
-    ]
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=dt.subtract(days=16),
+                interval_end=dt.subtract(days=9),
+                states=[
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=9),
+                interval_end=dt.subtract(days=2),
+                states=[
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=4
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=2),
+                interval_end=dt.add(days=5),
+                states=[
+                    dict(
+                        state_name="Scheduled",
+                        state_type=StateType.SCHEDULED,
+                        count_runs=17,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.add(days=5),
+                interval_end=dt.add(days=12),
+                states=[],
+            ),
+        ],
+    )
 
 
 async def test_5_minute_bins_task_runs(client):
@@ -400,40 +454,53 @@ async def test_5_minute_bins_task_runs(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert [p.dict() for p in parsed] == [
-        dict(
-            interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
-            states=[],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
-                )
-            ],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
-                ),
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=3),
-            ],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
-            states=[
-                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=5),
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=1),
-            ],
-        ),
-    ]
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
+                states=[],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=5,
+                    )
+                ],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=5,
+                    ),
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=3
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
+                states=[
+                    dict(
+                        state_name="Failed", state_type=StateType.FAILED, count_runs=5
+                    ),
+                    dict(
+                        state_name="Running", state_type=StateType.RUNNING, count_runs=1
+                    ),
+                ],
+            ),
+        ],
+    )
 
 
 async def test_5_minute_bins_task_runs_with_filter(client):
@@ -451,38 +518,47 @@ async def test_5_minute_bins_task_runs_with_filter(client):
         response, include={"state_type", "state_name", "count_runs"}
     )
 
-    assert [p.dict() for p in parsed] == [
-        dict(
-            interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
-            states=[],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
-                )
-            ],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
-            states=[
-                dict(
-                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
-                ),
-            ],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
-            interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
-            states=[
-                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=1),
-            ],
-        ),
-    ]
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
+                states=[],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=5,
+                    )
+                ],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=5,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
+                interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
+                states=[
+                    dict(
+                        state_name="Running", state_type=StateType.RUNNING, count_runs=1
+                    ),
+                ],
+            ),
+        ],
+    )
 
 
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])

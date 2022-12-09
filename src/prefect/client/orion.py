@@ -1459,6 +1459,23 @@ class OrionClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+        """
+        Resumes a paused flow run.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        try:
+            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+        except httpx.HTTPStatusError as e:
+            raise
+
+        return OrchestrationResult.parse_obj(response.json())
+
     async def read_flow_runs(
         self,
         *,
