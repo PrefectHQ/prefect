@@ -7,16 +7,19 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
-import sqlalchemy as sa
 from pydantic import Field
-from sqlalchemy.sql.elements import BooleanClauseList
 
 import prefect.orion.schemas as schemas
 from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
+from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.elements import BooleanClauseList
+
     from prefect.orion.database.interface import OrionDBInterface
+
+sa = lazy_import("sqlalchemy")
 
 # TOOD: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
@@ -36,7 +39,7 @@ class PrefectFilterBaseModel(PrefectBaseModel):
     class Config:
         extra = "forbid"
 
-    def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
+    def as_sql_filter(self, db: "OrionDBInterface") -> "BooleanClauseList":
         """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
         filters = self._get_filter_list(db)
         if not filters:
@@ -56,7 +59,7 @@ class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
         description="Operator for combining filter criteria. Defaults to 'and_'.",
     )
 
-    def as_sql_filter(self, db: "OrionDBInterface") -> BooleanClauseList:
+    def as_sql_filter(self, db: "OrionDBInterface") -> "BooleanClauseList":
         filters = self._get_filter_list(db)
         if not filters:
             return True
