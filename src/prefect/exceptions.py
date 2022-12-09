@@ -352,7 +352,7 @@ class FlowPauseTimeout(PrefectException):
 
 
 class JobRunIsRunning(PrefectException):
-    """Raised when dbt Cloud job run is still running."""
+    """Raised when a job run is still running."""
 
 
 class JobRunTimeoutError(PrefectException):

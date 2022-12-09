@@ -23,9 +23,9 @@ async def async_wait_until_state(
         and returns a boolean indicating whether the job run is in a final state.
         get_state_fn: An async function that returns the current state of the job run.
         log_state_fn: A callable that accepts a run state and makes it human readable.
-        interval_seconds (int): The number of seconds to wait between checks of
+        interval_seconds: The number of seconds to wait between checks of
             the job run's state.
-        timeout_seconds (int): The maximum amount of time, in seconds, to wait
+        timeout_seconds: The maximum amount of time, in seconds, to wait
             for the job run to reach the final state.
     """
     start_time = time.time()
