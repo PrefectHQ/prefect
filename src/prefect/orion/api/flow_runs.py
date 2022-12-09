@@ -271,7 +271,7 @@ async def set_flow_run_state(
         )
 
     # set the 201 if a new state was created
-    if orchestration_result.state and orchestration_result.state.created >= now:
+    if orchestration_result.state and orchestration_result.state.timestamp >= now:
         response.status_code = status.HTTP_201_CREATED
     else:
         response.status_code = status.HTTP_200_OK
