@@ -1363,10 +1363,11 @@ class TestOrchestrationContext:
         async with contextlib.AsyncExitStack() as stack:
             aborting_rule = AbortingRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(aborting_rule)
+            intitial_state = ctx.run.state
             await ctx.validate_proposed_state()
 
         assert ctx.proposed_state is None
-        assert ctx.validated_state is None
+        assert ctx.validated_state == intitial_state.as_state()
         assert ctx.response_status == schemas.responses.SetStateStatus.ABORT
 
     async def test_rules_cant_abort_after_validation(
@@ -1406,7 +1407,11 @@ class TestOrchestrationContext:
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
         assert ctx.validated_state is None
         await ctx.validate_proposed_state()
-        assert ctx.validated_state_type == ctx.proposed_state_type
+
+        if proposed_state_type is not None:
+            assert ctx.validated_state_type == ctx.proposed_state_type
+        else:
+            assert ctx.validated_state_type == initial_state_type
 
     async def test_context_validation_returns_none(
         self, session, run_type, initialize_orchestration
