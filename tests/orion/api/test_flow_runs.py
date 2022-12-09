@@ -583,6 +583,72 @@ class TestDeleteFlowRuns:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestResumeFlowrun:
+    async def test_resuming_blocking_pauses(
+        self, blocking_paused_flow_run, client, session
+    ):
+        flow_run_id = blocking_paused_flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "RUNNING"
+
+    async def test_resuming_nonblocking_pauses(
+        self, nonblocking_paused_flow_run, client, session
+    ):
+        flow_run_id = nonblocking_paused_flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "SCHEDULED"
+
+    async def test_cannot_resume_nonblocking_pauses_without_deployment(
+        self, nonblockingpaused_flow_run_without_deployment, client, session
+    ):
+        flow_run_id = nonblockingpaused_flow_run_without_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "PAUSED"
+
+    async def test_cannot_resume_flow_runs_without_a_state(self, flow_run, client):
+        flow_run_id = flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+        assert response.json()["status"] == "ABORT"
+
+    async def test_cannot_resume_flow_runs_not_in_paused_state(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        flow_run_id = failed_flow_run_with_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+        assert response.json()["status"] == "ABORT"
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "FAILED"
+
+
 class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, session):
         response = await client.post(

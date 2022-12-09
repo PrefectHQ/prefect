@@ -6,6 +6,7 @@ enforces on a state transition.
 """
 
 from typing import Optional
+from uuid import uuid4
 
 import pendulum
 import sqlalchemy as sa
@@ -27,7 +28,7 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import filters, states
+from prefect.orion.schemas import core, filters, states
 from prefect.orion.schemas.states import StateType
 
 
@@ -40,6 +41,8 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             HandleFlowTerminalStateTransitions,
             PreventRedundantTransitions,
+            HandlePausingFlows,
+            HandleResumingPausedFlows,
             CopyScheduledTime,
             WaitForScheduledTime,
             RetryFailedFlows,
@@ -307,6 +310,15 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 # Reset the run count so that the task run retries still work correctly
                 run.run_count = 0
 
+        # Reset pause metadata on retry
+        # Pauses as a concept only exist after API version 0.8.4
+        api_version = context.parameters.get("api-version", None)
+        if api_version is None or api_version >= Version("0.8.4"):
+            updated_policy = context.run.empirical_policy.dict()
+            updated_policy["resuming"] = False
+            updated_policy["pause_keys"] = set()
+            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
         # Generate a new state for the flow
         retry_state = states.AwaitingRetry(
             scheduled_time=scheduled_start_time,
@@ -428,6 +440,119 @@ class WaitForScheduledTime(BaseOrchestrationRule):
             )
 
 
+class HandlePausingFlows(BaseOrchestrationRule):
+    """
+    Governs runs attempting to enter a Paused state
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.PAUSED]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        if initial_state is None:
+            await self.abort_transition("Cannot pause flows with no state.")
+            return
+
+        if not initial_state.is_running():
+            await self.reject_transition(
+                state=None, reason="Cannot pause flows that are not currently running."
+            )
+            return
+
+        self.key = proposed_state.state_details.pause_key
+        if self.key is None:
+            # if no pause key is provided, default to a UUID
+            self.key = str(uuid4())
+
+        if self.key in context.run.empirical_policy.pause_keys:
+            await self.reject_transition(
+                state=None, reason="This pause has already fired."
+            )
+            return
+
+        if proposed_state.state_details.pause_reschedule:
+            if context.run.parent_task_run_id:
+                await self.abort_transition(
+                    reason="Cannot pause subflows with the reschedule option.",
+                )
+                return
+
+            if context.run.deployment_id is None:
+                await self.abort_transition(
+                    reason="Cannot pause flows without a deployment with the reschedule option.",
+                )
+                return
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        updated_policy = context.run.empirical_policy.dict()
+        updated_policy["pause_keys"].add(self.key)
+        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
+
+class HandleResumingPausedFlows(BaseOrchestrationRule):
+    """
+    Governs runs attempting to leave a Paused state
+    """
+
+    FROM_STATES = [states.StateType.PAUSED]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        if not (
+            proposed_state.is_running()
+            or proposed_state.is_scheduled()
+            or proposed_state.is_final()
+        ):
+            await self.reject_transition(
+                state=None,
+                reason=f"This run cannot transition to the {proposed_state.type} state from the {initial_state.type} state.",
+            )
+            return
+
+        if initial_state.state_details.pause_reschedule:
+            if not context.run.deployment_id:
+                await self.reject_transition(
+                    state=None,
+                    reason="Cannot reschedule a paused flow run without a deployment.",
+                )
+                return
+        pause_timeout = initial_state.state_details.pause_timeout
+        if pause_timeout and pause_timeout < pendulum.now("UTC"):
+            pause_timeout_failure = states.Failed(
+                message="The flow was paused and never resumed.",
+            )
+            await self.reject_transition(
+                state=pause_timeout_failure,
+                reason="The flow run pause has timed out and can no longer resume.",
+            )
+            return
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        updated_policy = context.run.empirical_policy.dict()
+        updated_policy["resuming"] = True
+        context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
+
 class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
     """
     Tracks the flow run attempt a task run state is associated with.
@@ -439,7 +564,7 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
     async def after_transition(
         self,
         initial_state: Optional[states.State],
-        proposed_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
         self.flow_run = await context.flow_run()
@@ -528,15 +653,33 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
+        self.original_flow_policy = context.run.empirical_policy.dict()
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
+
+            # Reset pause metadata on manual retry
+            api_version = context.parameters.get("api-version", None)
+            if api_version is None or api_version >= Version("0.8.4"):
+                updated_policy = context.run.empirical_policy.dict()
+                updated_policy["resuming"] = False
+                updated_policy["pause_keys"] = set()
+                context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+
             if not context.run.deployment_id:
                 await self.abort_transition(
                     "Cannot restart a run without an associated deployment."
                 )
         else:
             await self.abort_transition(reason="This run has already terminated.")
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ):
+        context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
 
 
 class PreventRedundantTransitions(BaseOrchestrationRule):

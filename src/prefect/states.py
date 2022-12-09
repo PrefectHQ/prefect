@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
 import httpx
+import pendulum
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
@@ -15,9 +16,15 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CancelledRun, CrashedRun, FailedRun, MissingResult
+from prefect.exceptions import (
+    CancelledRun,
+    CrashedRun,
+    FailedRun,
+    MissingResult,
+    PausedRun,
+)
 from prefect.orion import schemas
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -71,6 +78,10 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
+    if state.is_paused():
+        # Paused states are not truly terminal and do not have results associated with them
+        raise PausedRun("Run paused.")
+
     if raise_on_failure and (
         state.is_crashed() or state.is_failed() or state.is_cancelled()
     ):
@@ -495,13 +506,36 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return schemas.states.Pending(cls=cls, **kwargs)
 
 
-def Paused(cls: Type[State] = State, **kwargs) -> State:
+def Paused(
+    cls: Type[State] = State,
+    timeout_seconds: int = None,
+    pause_expiration_time: datetime.datetime = None,
+    reschedule: bool = False,
+    pause_key: str = None,
+    **kwargs,
+) -> State:
     """Convenience function for creating `Paused` states.
 
     Returns:
         State: a Paused state
     """
-    return schemas.states.Paused(cls=cls, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+
+    if state_details.pause_timeout:
+        raise ValueError("An extra pause timeout was provided in state_details")
+
+    if pause_expiration_time is not None and timeout_seconds is not None:
+        raise ValueError(
+            "Cannot supply both a pause_expiration_time and timeout_seconds"
+        )
+
+    state_details.pause_timeout = pause_expiration_time or (
+        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+    )
+    state_details.pause_reschedule = reschedule
+    state_details.pause_key = pause_key
+
+    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(
