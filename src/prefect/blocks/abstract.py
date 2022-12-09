@@ -13,8 +13,8 @@ class JobRun(ABC):  # not a block
     """
 
     run_id: int
-    timeout: int
-    poll_frequency_seconds: int
+    timeout_seconds: int
+    interval_seconds: int
 
     @property
     def logger(self):
@@ -33,8 +33,8 @@ class JobRun(ABC):  # not a block
     async def wait_for_completion(self, *args, **kwargs):
         """
         Wait for the job run to complete and check its status
-        periodically using the poll_frequency_seconds attribute
-        until the job run is complete or the timeout
+        periodically using the interval_seconds attribute
+        until the job run is complete or the timeout_seconds
         time limit is reached.
         """
 
@@ -54,8 +54,8 @@ class JobBlock(Block, ABC):
     """
 
     job_id: int
-    timeout: int
-    poll_frequency_seconds: int
+    timeout_seconds: int
+    interval_seconds: int
 
     @abstractmethod
     async def trigger(self, *args, **kwargs) -> JobRun:
