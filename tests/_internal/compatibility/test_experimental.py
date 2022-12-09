@@ -82,9 +82,9 @@ def test_experimental_marker_on_function():
     with pytest.warns(
         ExperimentalFeature,
         match=(
-            "A test function is experimental. This is just a test, don't worry.\n"
+            "A test function is experimental. This is just a test, don't worry. "
             "The interface or behavior may change without warning, we recommend "
-            "pinning versions to prevent unexpected changes.\n"
+            "pinning versions to prevent unexpected changes. "
             "To disable warnings for this group of experiments, "
             "disable PREFECT_EXPERIMENTAL_WARN_TEST."
         ),
@@ -100,14 +100,32 @@ def test_experimental_marker_on_class():
     with pytest.warns(
         ExperimentalFeature,
         match=(
-            "A test class is experimental. This is just a test, don't worry.\n"
+            "A test class is experimental. This is just a test, don't worry. "
             "The interface or behavior may change without warning, we recommend "
-            "pinning versions to prevent unexpected changes.\n"
+            "pinning versions to prevent unexpected changes. "
             "To disable warnings for this group of experiments, "
             "disable PREFECT_EXPERIMENTAL_WARN_TEST."
         ),
     ):
         assert Foo()
+
+
+def test_experimental_warning_without_help():
+    @experimental("TEST", "A test function")
+    def foo():
+        return 1
+
+    with pytest.warns(
+        ExperimentalFeature,
+        match=(
+            "A test function is experimental. "
+            "The interface or behavior may change without warning, we recommend "
+            "pinning versions to prevent unexpected changes. "
+            "To disable warnings for this group of experiments, "
+            "disable PREFECT_EXPERIMENTAL_WARN_TEST."
+        ),
+    ):
+        assert foo() == 1
 
 
 @pytest.mark.usefixtures("disable_prefect_experimental_test_setting")
@@ -139,7 +157,7 @@ def test_experimental_marker_raises_without_opt_in():
         ExperimentalFeatureDisabled,
         match=(
             "A test function is experimental and requires opt-in for usage. "
-            "This is just a test, don't worry.\n"
+            "This is just a test, don't worry. "
             "To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_TEST."
         ),
     ):

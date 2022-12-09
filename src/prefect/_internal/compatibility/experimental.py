@@ -19,16 +19,16 @@ from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setti
 T = TypeVar("T", bound=Callable)
 
 
-EXPERIMENTAL_WARNING = """
-{feature} is experimental. {help}
-The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes.
-To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}.
-""".strip()
+EXPERIMENTAL_WARNING = (
+    "{feature} is experimental. {help}"
+    "The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes. "
+    "To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}."
+)
 
-EXPERIMENTAL_ERROR = """
-{feature} is experimental and requires opt-in for usage. {help}
-To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_{group}.
-""".strip()
+EXPERIMENTAL_ERROR = (
+    "{feature} is experimental and requires opt-in for usage. {help}"
+    "To use this feature, enable PREFECT_EXPERIMENTAL_ENABLE_{group}."
+)
 
 
 class ExperimentalWarning(Warning):
@@ -84,6 +84,10 @@ def experimental(
     group: str, feature: str, help: str = "", stacklevel: int = 2, opt_in: bool = False
 ) -> Callable[[T], T]:
     group = group.upper()
+
+    if help:
+        # Ensure help ends in a trailing space
+        help = help.rstrip() + " "
 
     warn_message = EXPERIMENTAL_WARNING.format(feature=feature, group=group, help=help)
     error_message = EXPERIMENTAL_ERROR.format(feature=feature, group=group, help=help)
