@@ -41,7 +41,6 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
-    FlowPauseExit,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
@@ -1544,8 +1543,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     """
     try:
         yield
-    except FlowPauseExit:
-        # Do not capture FlowPauseExits as crashes
+    except PausedRun:
+        # Do not capture PausedRuns as crashes
         raise
     except Abort:
         # Do not capture aborts as crashes
@@ -1701,7 +1700,7 @@ async def propose_state(
 
     elif response.status == SetStateStatus.ABORT:
         if response.details.reason.startswith("The flow is paused"):
-            raise FlowPauseExit(response.details.reason)
+            raise PausedRun(response.details.reason)
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.WAIT:

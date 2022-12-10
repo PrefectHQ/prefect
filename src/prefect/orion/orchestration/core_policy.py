@@ -164,6 +164,7 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
     """
     Releases any concurrency slots held by a run upon exiting a Running state.
     """
+
     async def after_transition(
         self,
         context: OrchestrationContext,
