@@ -82,6 +82,19 @@ class DatabaseBlock(Block, ABC):
     configuration is to the credentials configuration.
     """
 
+    @property
+    def logger(self):
+        """
+        Returns a logger based on whether the JobBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
     @abstractmethod
     async def fetch_one(self, operation, parameters) -> Tuple[Any]:
         """
@@ -93,13 +106,11 @@ class DatabaseBlock(Block, ABC):
 
         Returns:
             A list of tuples containing the data returned by the database,
-            where each row is a tuple and each column is a value in the tuple.
+                where each row is a tuple and each column is a value in the tuple.
         """
 
     @abstractmethod
-    async def fetch_many(
-        self, operation, parameters, limit, offset
-    ) -> List[Tuple[Any]]:
+    async def fetch_many(self, operation, parameters, limit) -> List[Tuple[Any]]:
         """
         Fetch a limited number of results from the database.
 
@@ -107,11 +118,10 @@ class DatabaseBlock(Block, ABC):
             operation: The SQL query or other operation to be executed.
             parameters: The parameters for the operation.
             limit: The number of results to return.
-            offset: The number of results to skip.
 
         Returns:
             A list of tuples containing the data returned by the database,
-            where each row is a tuple and each column is a value in the tuple.
+                where each row is a tuple and each column is a value in the tuple.
         """
 
     @abstractmethod
@@ -125,7 +135,7 @@ class DatabaseBlock(Block, ABC):
 
         Returns:
             A list of tuples containing the data returned by the database,
-            where each row is a tuple and each column is a value in the tuple.
+                where each row is a tuple and each column is a value in the tuple.
         """
 
     @abstractmethod
