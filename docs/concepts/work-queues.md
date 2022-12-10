@@ -42,14 +42,14 @@ Agents are configured to pull work from one or more work queues. If the agent re
 
 Configuration parameters you can specify when starting an agent include:
 
-| Option           | Description  |
-| --- | --- |
-| -q, --work-queue | One or more work queues that the agent will poll for work. |
-| --api TEXT       | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`. |
-| --run-once        | Only run agent polling once. By default, the agent runs forever. |
-| --prefetch-seconds | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
-| --hide-welcome   | Do not display the startup ASCII art for the agent process.                          |
-| --match | Start all queues that match the given match string
+| Option               | Description                                                                                                                                |
+|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| -q, --work-queue     | One or more work queues that the agent will poll for work.                                                                                 |
+| --api TEXT           | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`.                                                       |
+| --run-once           | Only run agent polling once. By default, the agent runs forever.                                                                           |
+| --prefetch-seconds   | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
+| --hide-welcome       | Do not display the startup ASCII art for the agent process.                                                                                |
+| --match QUEUE_PREFIX | Polls for queues matching the given QUEUE_PREFIX. Note: this option overrides anything passed with `-q` or `--work-queue`.                     |                  
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
 
@@ -97,7 +97,7 @@ In this case, Prefect automatically created a new `my-queue` work queue.
 
 By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
-In addition, Agents can match multiple work queues by providing a --match string instead of specifying all of the work queues. The agent will poll every work queue with a name that starts with the given string.
+In addition, agents can match multiple work queues by providing a --match string instead of specifying all of the work queues. The agent will poll every work queue with a name that starts with the given string. New queues matching this prefix will be found by the agent without needing to restart it.
 
 For example:
 <div class="terminal">
@@ -105,7 +105,9 @@ For example:
 ```bash
 $ prefect agent start --match "foo-"
 ```
+
 </div>
+
 This example will poll every work queue that starts with "foo-".
 
 ### Configuring prefetch
