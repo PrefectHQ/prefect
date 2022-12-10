@@ -15,7 +15,7 @@ async def expired_pause(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(pause_timeout=THE_PAST),
+                state=schemas.states.Paused(pause_expiration_time=THE_PAST),
             ),
         )
 
@@ -27,7 +27,7 @@ async def expired_pause_2(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(pause_timeout=THE_PAST),
+                state=schemas.states.Paused(pause_expiration_time=THE_PAST),
             ),
         )
 
@@ -39,7 +39,7 @@ async def active_pause(session, flow):
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.Paused(pause_timeout=THE_FUTURE),
+                state=schemas.states.Paused(pause_expiration_time=THE_FUTURE),
             ),
         )
 

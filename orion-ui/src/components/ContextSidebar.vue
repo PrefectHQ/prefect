@@ -6,6 +6,7 @@
     <p-context-nav-item title="Work Queues" icon="DatabaseIcon" :to="routes.workQueues()" />
     <p-context-nav-item title="Blocks" icon="CubeIcon" :to="routes.blocks()" />
     <p-context-nav-item title="Notifications" icon="BellIcon" :to="routes.notifications()" />
+    <p-context-nav-item title="Task Run Concurrency" icon="BellIcon" :to="routes.concurrencyLimits()" />
 
     <template #footer>
       <p-context-nav-item title="Settings" icon="CogIcon" :to="routes.settings()" />

@@ -30,6 +30,7 @@ from prefect.exceptions import (
     CrashedRun,
     FailedRun,
     ParameterTypeError,
+    PausedRun,
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
@@ -337,8 +338,8 @@ class TestNonblockingPause:
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
 
-        graceful_exit_result = await pausing_flow_without_blocking()
-        assert graceful_exit_result is None
+        with pytest.raises(PausedRun):
+            await pausing_flow_without_blocking()
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
         self, orion_client, deployment, monkeypatch

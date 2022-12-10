@@ -23,6 +23,7 @@ from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
+    BaseUniversalTransform,
     FlowOrchestrationContext,
     OrchestrationContext,
     TaskOrchestrationContext,
@@ -159,31 +160,28 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             cl.active_slots = list(active_slots)
 
 
-class ReleaseTaskConcurrencySlots(BaseOrchestrationRule):
+class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
     """
     Releases any concurrency slots held by a run upon exiting a Running state.
     """
-
-    FROM_STATES = [StateType.RUNNING]
-    TO_STATES = ALL_ORCHESTRATION_STATES
-
     async def after_transition(
         self,
-        initial_state: Optional[states.State],
-        validated_state: Optional[states.State],
-        context: TaskOrchestrationContext,
-    ) -> None:
+        context: OrchestrationContext,
+    ):
+        if self.nullified_transition():
+            return
 
-        filtered_limits = (
-            await concurrency_limits.filter_concurrency_limits_for_orchestration(
-                context.session, tags=context.run.tags
+        if not context.validated_state.is_running():
+            filtered_limits = (
+                await concurrency_limits.filter_concurrency_limits_for_orchestration(
+                    context.session, tags=context.run.tags
+                )
             )
-        )
-        run_limits = {limit.tag: limit for limit in filtered_limits}
-        for tag, cl in run_limits.items():
-            active_slots = set(cl.active_slots)
-            active_slots.discard(str(context.run.id))
-            cl.active_slots = list(active_slots)
+            run_limits = {limit.tag: limit for limit in filtered_limits}
+            for tag, cl in run_limits.items():
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(context.run.id))
+                cl.active_slots = list(active_slots)
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -313,6 +311,7 @@ class RetryFailedFlows(BaseOrchestrationRule):
                 run.run_count = 0
 
         # Reset pause metadata on retry
+        # Pauses as a concept only exist after API version 0.8.4
         api_version = context.parameters.get("api-version", None)
         if api_version is None or api_version >= Version("0.8.4"):
             updated_policy = context.run.empirical_policy.dict()
@@ -455,10 +454,15 @@ class HandlePausingFlows(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if initial_state is None or not initial_state.is_running():
-            await self.abort_transition(
-                "Cannot pause flows that are not currently running."
+        if initial_state is None:
+            await self.abort_transition("Cannot pause flows with no state.")
+            return
+
+        if not initial_state.is_running():
+            await self.reject_transition(
+                state=None, reason="Cannot pause flows that are not currently running."
             )
+            return
 
         self.key = proposed_state.state_details.pause_key
         if self.key is None:
@@ -466,18 +470,23 @@ class HandlePausingFlows(BaseOrchestrationRule):
             self.key = str(uuid4())
 
         if self.key in context.run.empirical_policy.pause_keys:
-            await self.abort_transition("This pause has already fired.")
+            await self.reject_transition(
+                state=None, reason="This pause has already fired."
+            )
+            return
 
         if proposed_state.state_details.pause_reschedule:
             if context.run.parent_task_run_id:
                 await self.abort_transition(
-                    "Cannot pause subflows with the reschedule option."
+                    reason="Cannot pause subflows with the reschedule option.",
                 )
+                return
 
             if context.run.deployment_id is None:
                 await self.abort_transition(
-                    "Cannot pause flows without a deployment with the reschedule option."
+                    reason="Cannot pause flows without a deployment with the reschedule option.",
                 )
+                return
 
     async def after_transition(
         self,
@@ -509,15 +518,17 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
             or proposed_state.is_scheduled()
             or proposed_state.is_final()
         ):
-            await self.abort_transition(
-                reason=f"This run cannot transition to the {proposed_state.type} state from the {initial_state.type} state."
+            await self.reject_transition(
+                state=None,
+                reason=f"This run cannot transition to the {proposed_state.type} state from the {initial_state.type} state.",
             )
             return
 
         if initial_state.state_details.pause_reschedule:
             if not context.run.deployment_id:
-                await self.abort_transition(
-                    reason="Cannot reschedule a paused flow run without a deployment."
+                await self.reject_transition(
+                    state=None,
+                    reason="Cannot reschedule a paused flow run without a deployment.",
                 )
                 return
         pause_timeout = initial_state.state_details.pause_timeout
@@ -529,6 +540,7 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
                 state=pause_timeout_failure,
                 reason="The flow run pause has timed out and can no longer resume.",
             )
+            return
 
     async def after_transition(
         self,

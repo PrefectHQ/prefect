@@ -46,6 +46,7 @@ from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     NotPausedError,
+    PausedRun,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -638,7 +639,7 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-        except FlowPauseExit:
+        except PausedRun:
             paused_flow_run = await client.read_flow_run(flow_run.id)
             paused_flow_run_state = paused_flow_run.state
             return paused_flow_run_state
@@ -721,7 +722,7 @@ async def pause_flow_run(
     timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
 ):
     """
-    Pauses a flow run by stopping execution until resumed.
+    Pauses the current flow run by stopping execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
@@ -759,13 +760,15 @@ async def pause_flow_run(
         Paused(timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key),
     )
 
-    if response.status == SetStateStatus.ABORT:
-        if response.details.reason == "This pause has already fired.":
+    if response.status == SetStateStatus.REJECT:
+        if response.state.type == StateType.RUNNING:
             return
+        raise RuntimeError(response.details.reason)
+    elif response.status == SetStateStatus.ABORT:
         raise RuntimeError(response.details.reason)
 
     if reschedule:
-        raise FlowPauseExit()
+        raise PausedRun()
 
     with anyio.move_on_after(timeout):
 
@@ -812,7 +815,10 @@ async def resume_flow_run(flow_run_id):
     )
 
     if response.status == SetStateStatus.REJECT:
-        raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        if response.state.type == StateType.FAILED:
+            raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        else:
+            raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
 
 
 def enter_task_run_engine(
@@ -1836,6 +1842,11 @@ if __name__ == "__main__":
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except PausedRun as exc:
+        engine_logger.info(
+            f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
     except Exception:
