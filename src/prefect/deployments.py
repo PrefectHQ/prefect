@@ -43,14 +43,14 @@ from prefect.utilities.slugify import slugify
 @inject_client
 async def run_deployment(
     name: str,
-    client: OrionClient = None,
-    parameters: dict = None,
-    scheduled_time: datetime = None,
-    flow_run_name: str = None,
-    timeout: float = None,
-    poll_interval: float = 5,
+    client: Optional[OrionClient] = None,
+    parameters: Optional[dict] = None,
+    scheduled_time: Optional[datetime] = None,
+    flow_run_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    poll_interval: Optional[float] = 5,
     tags: Optional[Iterable[str]] = None,
-    idempotency_key: str = None,
+    idempotency_key: Optional[str] = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -63,7 +63,7 @@ async def run_deployment(
     Args:
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
-            defaults
+            defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
@@ -72,8 +72,8 @@ async def run_deployment(
             Setting `timeout` to None will allow this function to poll indefinitely.
             Defaults to None
         poll_interval: The number of seconds between polls
-        tags: An optional list of tags to associate with this flow run; note that tags are used only for organizational purposes.
-        idempotency_key: a unique value to be used by the server to recognize subsequent retries of the same run.
+        tags: A list of tags to associate with this flow run; note that tags are used only for organizational purposes.
+        idempotency_key: A unique value to recognize retries of the same run, and prevent creating multiple flow runs.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
