@@ -1403,7 +1403,11 @@ async def orchestrate_task_run(
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
-        Running(state_details=StateDetails(cache_key=cache_key)),
+        Running(
+            state_details=StateDetails(
+                cache_key=cache_key, bypass_cache=task.bypass_cache
+            )
+        ),
         task_run_id=task_run.id,
     )
 

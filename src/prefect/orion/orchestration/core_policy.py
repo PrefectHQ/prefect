@@ -236,7 +236,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         db: OrionDBInterface,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
-        if cache_key:
+        if cache_key and not proposed_state.state_details.bypass_cache:
             # Check for cached states matching the cache key
             cached_state_id = (
                 select(db.TaskRunStateCache.task_run_state_id)
