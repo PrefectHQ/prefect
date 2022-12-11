@@ -1,10 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-import apprise
-from apprise import Apprise, AppriseAsset, NotifyType
-from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
-from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
@@ -26,7 +22,7 @@ class NotificationBlock(Block, ABC):
         """
 
 
-class PrefectNotifyType(NotifyType):
+class PrefectNotifyType:
     """
     A mapping of Prefect notification types for use with Apprise.
 
@@ -35,9 +31,6 @@ class PrefectNotifyType(NotifyType):
     """
 
     DEFAULT = "prefect_default"
-
-
-apprise.NOTIFY_TYPES += (PrefectNotifyType.DEFAULT,)
 
 
 class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
@@ -56,6 +49,8 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     )
 
     def _start_apprise_client(self, url: SecretStr):
+        from apprise import Apprise, AppriseAsset
+
         # A custom `AppriseAsset` that ensures Prefect Notifications
         # appear correctly across multiple messaging platforms
         prefect_app_data = AppriseAsset(
@@ -73,7 +68,11 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     @sync_compatible
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._apprise_client.async_notify(
-            body=body, title=subject, notify_type=self.notify_type
+            body=body,
+            title="" if subject is None else subject,
+            # Apprise type check is incompatible with Literal field type, but
+            # works regardless because
+            notify_type=self.notify_type,  # type: ignore
         )
 
 
@@ -230,6 +229,8 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
+
         url = SecretStr(
             NotifyPagerDuty(
                 apikey=self.api_key.get_secret_value(),
@@ -295,6 +296,8 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     )
 
     def block_initialization(self) -> None:
+        from apprise.plugins.NotifyTwilio import NotifyTwilio
+
         url = SecretStr(
             NotifyTwilio(
                 account_sid=self.account_sid,
