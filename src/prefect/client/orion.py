@@ -100,14 +100,13 @@ class OrionClient:
         verify = os.getenv("PREFECT_API_TLS_INSECURE_SKIP_VERIFY")
         if verify and "verify" not in httpx_settings:
             if verify.lower() == "false":
-                verify = False
                 msg = (
                     "SSL checking is disabled due to "
                     "'PREFECT_API_TLS_INSECURE_SKIP_VERIFY' "
                     "environment variable being set!"
                 )
                 warnings.warn(msg, UserWarning)
-            httpx_settings["verify"] = verify
+                httpx_settings["verify"] = False
 
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
