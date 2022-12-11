@@ -96,14 +96,14 @@ class DatabaseBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def fetch_one(self, operation, parameters, **execution_options) -> Tuple[Any]:
+    async def fetch_one(self, operation, parameters, **execution_kwargs) -> Tuple[Any]:
         """
         Fetch a single result from the database.
 
         Args:
             operation: The SQL query or other operation to be executed.
             parameters: The parameters for the operation.
-            **execution_options: Additional options to pass to execute.
+            **execution_kwargs: Additional keyword arguments to pass to execute.
 
         Returns:
             A list of tuples containing the data returned by the database,
@@ -112,7 +112,7 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_many(
-        self, operation, parameters, limit, **execution_options
+        self, operation, parameters, limit, **execution_kwargs
     ) -> List[Tuple[Any]]:
         """
         Fetch a limited number of results from the database.
@@ -121,7 +121,7 @@ class DatabaseBlock(Block, ABC):
             operation: The SQL query or other operation to be executed.
             parameters: The parameters for the operation.
             limit: The number of results to return.
-            **execution_options: Additional options to pass to execute.
+            **execution_kwargs: Additional keyword arguments to pass to execute.
 
         Returns:
             A list of tuples containing the data returned by the database,
@@ -130,7 +130,7 @@ class DatabaseBlock(Block, ABC):
 
     @abstractmethod
     async def fetch_all(
-        self, operation, parameters, **execution_options
+        self, operation, parameters, **execution_kwargs
     ) -> List[Tuple[Any]]:
         """
         Fetch all results from the database.
@@ -138,7 +138,7 @@ class DatabaseBlock(Block, ABC):
         Args:
             operation: The SQL query or other operation to be executed.
             parameters: The parameters for the operation.
-            **execution_options: Additional options to pass to execute.
+            **execution_kwargs: Additional keyword arguments to pass to execute.
 
         Returns:
             A list of tuples containing the data returned by the database,
@@ -146,7 +146,7 @@ class DatabaseBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def execute(self, operation, parameters, **execution_options) -> None:
+    async def execute(self, operation, parameters, **execution_kwargs) -> None:
         """
         Executes an operation on the database. This method is intended to be used
         for operations that do not return data, such as INSERT, UPDATE, or DELETE.
@@ -154,5 +154,5 @@ class DatabaseBlock(Block, ABC):
         Args:
             operation: The SQL query or other operation to be executed.
             parameters: The parameters for the operation.
-            **execution_options: Additional options to pass to execute.
+            **execution_kwargs: Additional keyword arguments to pass to execute.
         """
