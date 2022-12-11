@@ -20,7 +20,6 @@ from prefect.orion.database.alembic_commands import (
     alembic_stamp,
     alembic_upgrade,
 )
-
 from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
