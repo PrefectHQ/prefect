@@ -15,7 +15,6 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
@@ -72,8 +71,8 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     Internal implementation for `get_state_result` without async backwards compatibility
     """
     # deferred loading of expensive imports
-    from prefect.results import BaseResult
     from prefect.exceptions import MissingResult, PausedRun
+    from prefect.results import BaseResult
 
     if state.is_paused():
         # Paused states are not truly terminal and do not have results associated with them
@@ -298,7 +297,7 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
+    from prefect.exceptions import BaseResult, CancelledRun, CrashedRun, FailedRun
 
     if state.is_failed():
         wrapper = FailedRun

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal

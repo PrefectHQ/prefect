@@ -120,27 +120,6 @@ def register_base_type(cls: T) -> T:
     return cls
 
 
-_TYPES_REGISTERED = False
-
-
-def _register_base_types():
-    # Import modules that register types
-    import prefect.serializers
-    import prefect.deprecated.data_documents
-    import prefect.packaging
-    import prefect.blocks.kubernetes
-    import prefect.blocks.notifications
-    import prefect.blocks.system
-    import prefect.infrastructure.process
-    import prefect.infrastructure.kubernetes
-    import prefect.infrastructure.docker
-
-    import prefect.plugins
-
-    prefect.plugins.load_prefect_collections()
-    prefect.plugins.load_extra_entrypoints()
-
-
 def register_type(cls: T) -> T:
     """
     Register a type for lookup with dispatch.
@@ -235,8 +214,8 @@ class _LookupType:
 
         if subcls is None:
             raise KeyError(
-                f"No class found for dispatch key {dispatch_key!r} in registry for type "
-                f"{cls.__name__!r}."
+                f"No class found for dispatch key {dispatch_key!r} in registry for "
+                f"type {cls.__name__!r}."
             )
 
         return subcls
@@ -246,30 +225,30 @@ class _LookupType:
 
         if not self._types_registered:
             self._register_types()
-            self.fn = self._lookup_type
+            self.fn = self._lookup_type_in_registry
             self._types_registered = True
 
         self._lock.release()
 
         return _lookup_type(cls, dispatch_key)
 
-    def _lookup_type(self, cls: T, dispatch_key: str):
+    def _lookup_type_in_registry(self, cls: T, dispatch_key: str):
         return _lookup_type(cls, dispatch_key)
 
     @staticmethod
     def _register_types():
         # Import modules that register types
-        import prefect.serializers
-        import prefect.deprecated.data_documents
-        import prefect.packaging
+
         import prefect.blocks.kubernetes
         import prefect.blocks.notifications
         import prefect.blocks.system
-        import prefect.infrastructure.process
-        import prefect.infrastructure.kubernetes
+        import prefect.deprecated.data_documents
         import prefect.infrastructure.docker
-
+        import prefect.infrastructure.kubernetes
+        import prefect.infrastructure.process
+        import prefect.packaging
         import prefect.plugins
+        import prefect.serializers
 
         prefect.plugins.load_prefect_collections()
         prefect.plugins.load_extra_entrypoints()
