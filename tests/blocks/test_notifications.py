@@ -59,7 +59,7 @@ class TestAppriseNotificationBlock:
 
             notify_type = PrefectNotifyType.DEFAULT
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title="", notify_type=notify_type
             )
 
     def test_notify_sync(self, block_class: Type[AppriseNotificationBlock]):
@@ -77,7 +77,7 @@ class TestAppriseNotificationBlock:
                 block.url.get_secret_value()
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
-                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+                body="test", title="", notify_type=PrefectNotifyType.DEFAULT
             )
 
     def test_is_picklable(self, block_class: Type[AppriseNotificationBlock]):
@@ -107,7 +107,7 @@ class TestPagerDutyWebhook:
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title="", notify_type=notify_type
             )
 
     def test_notify_sync(self):
@@ -128,7 +128,7 @@ class TestPagerDutyWebhook:
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
-                body="test", title=None, notify_type=notify_type
+                body="test", title="", notify_type=notify_type
             )
 
 
@@ -163,7 +163,7 @@ class TestTwilioSMS:
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
-                title=None,
+                title="",
                 notify_type=PrefectNotifyType.DEFAULT,
             )
 
@@ -188,7 +188,7 @@ class TestTwilioSMS:
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
-                title=None,
+                title="",
                 notify_type=PrefectNotifyType.DEFAULT,
             )
 
