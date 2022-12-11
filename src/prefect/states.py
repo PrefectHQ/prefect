@@ -219,6 +219,7 @@ async def return_value_to_state(retval: R, result_factory: "ResultFactory") -> S
     Callers should resolve all futures into states before passing return values to this
     function.
     """
+    from prefect.results import BaseResult
 
     if (
         is_state(retval)
