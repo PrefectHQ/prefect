@@ -23,7 +23,7 @@ from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
-    from prefect.results import BaseResult, ResultFactory
+    from prefect.results import ResultFactory
 
 
 R = TypeVar("R")
