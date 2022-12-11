@@ -10,7 +10,7 @@ import rich.console
 import typer
 import typer.core
 
-import prefect
+# import prefect
 import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper

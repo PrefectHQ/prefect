@@ -20,7 +20,7 @@ from prefect.orion.database.alembic_commands import (
     alembic_stamp,
     alembic_upgrade,
 )
-from prefect.orion.database.dependencies import provide_database_interface
+
 from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
@@ -153,6 +153,8 @@ async def start(
 @database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
+    from prefect.orion.database.dependencies import provide_database_interface
+
     db = provide_database_interface()
     engine = await db.engine()
     if not yes:
@@ -183,6 +185,8 @@ async def upgrade(
     ),
 ):
     """Upgrade the Orion database"""
+    from prefect.orion.database.dependencies import provide_database_interface
+
     db = provide_database_interface()
     engine = await db.engine()
 
@@ -213,6 +217,8 @@ async def downgrade(
     ),
 ):
     """Downgrade the Orion database"""
+    from prefect.orion.database.dependencies import provide_database_interface
+
     db = provide_database_interface()
     engine = await db.engine()
 

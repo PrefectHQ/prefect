@@ -11,7 +11,6 @@ from typing import Any, Dict, Union
 
 import fsspec
 
-from prefect.exceptions import ScriptError
 from prefect.utilities.filesystem import filename, is_local_path, tmpchdir
 
 
@@ -90,6 +89,8 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
     def run_script(run_path: str):
         # Cast to an absolute path before changing directories to ensure relative paths
         # are not broken
+        from prefect.exceptions import ScriptError
+
         abs_run_path = os.path.abspath(run_path)
         with tmpchdir(run_path):
             try:
@@ -134,6 +135,8 @@ def load_script_as_module(path: str) -> ModuleType:
     """
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
+    from prefect.exceptions import ScriptError
+
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 

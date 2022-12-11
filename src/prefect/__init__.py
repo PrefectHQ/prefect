@@ -35,15 +35,15 @@ from prefect.client.orion import get_client, OrionClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 
 # Import modules that register types
-import prefect.serializers
-import prefect.deprecated.data_documents
-import prefect.packaging
-import prefect.blocks.kubernetes
-import prefect.blocks.notifications
-import prefect.blocks.system
-import prefect.infrastructure.process
-import prefect.infrastructure.kubernetes
-import prefect.infrastructure.docker
+# import prefect.serializers
+# import prefect.deprecated.data_documents
+# import prefect.packaging
+# import prefect.blocks.kubernetes
+# import prefect.blocks.notifications
+# import prefect.blocks.system
+# import prefect.infrastructure.process
+# import prefect.infrastructure.kubernetes
+# import prefect.infrastructure.docker
 
 # Initialize the process-wide profile and registry at import time
 import prefect.context
@@ -60,10 +60,10 @@ prefect.client.schemas.State.update_forward_refs(
 )
 
 # Ensure collections are imported and have the opportunity to register types
-import prefect.plugins
-
-prefect.plugins.load_prefect_collections()
-prefect.plugins.load_extra_entrypoints()
+# import prefect.plugins
+#
+# prefect.plugins.load_prefect_collections()
+# prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
 import prefect.logging.configuration

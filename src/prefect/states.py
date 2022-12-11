@@ -7,7 +7,6 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
-import httpx
 import pendulum
 from typing_extensions import TypeGuard
 
@@ -16,23 +15,17 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import (
-    CancelledRun,
-    CrashedRun,
-    FailedRun,
-    MissingResult,
-    PausedRun,
-)
+
 from prefect.orion import schemas
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     from prefect.deprecated.data_documents import DataDocument
-    from prefect.results import BaseResult
+    from prefect.results import BaseResult, ResultFactory
+
 
 R = TypeVar("R")
 
@@ -78,6 +71,10 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
+    # deferred loading of expensive imports
+    from prefect.results import BaseResult
+    from prefect.exceptions import MissingResult, PausedRun
+
     if state.is_paused():
         # Paused states are not truly terminal and do not have results associated with them
         raise PausedRun("Run paused.")
@@ -125,12 +122,14 @@ def format_exception(exc: BaseException, tb: TracebackType = None) -> str:
 
 async def exception_to_crashed_state(
     exc: BaseException,
-    result_factory: Optional[ResultFactory] = None,
+    result_factory: Optional["ResultFactory"] = None,
 ) -> State:
     """
     Takes an exception that occurs _outside_ of user code and converts it to a
     'Crash' exception with a 'Crashed' state.
     """
+    import httpx
+
     state_message = None
 
     if isinstance(exc, anyio.get_cancelled_exc_class()):
@@ -167,7 +166,7 @@ async def exception_to_crashed_state(
 
 async def exception_to_failed_state(
     exc: Optional[BaseException] = None,
-    result_factory: Optional[ResultFactory] = None,
+    result_factory: Optional["ResultFactory"] = None,
     **kwargs,
 ) -> State:
     """
@@ -200,7 +199,7 @@ async def exception_to_failed_state(
     return Failed(data=data, message=message, **kwargs)
 
 
-async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
+async def return_value_to_state(retval: R, result_factory: "ResultFactory") -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -299,6 +298,7 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
+    from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 
     if state.is_failed():
         wrapper = FailedRun

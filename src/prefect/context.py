@@ -35,6 +35,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.schemas import DateTimeTZ
+
 from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
@@ -44,8 +45,8 @@ from prefect.utilities.importtools import load_script_as_module
 T = TypeVar("T")
 
 if TYPE_CHECKING:
-
     from prefect.flows import Flow
+    from prefect.results import ResultFactory
     from prefect.tasks import Task
 
 # Define the global settings context variable
@@ -224,7 +225,7 @@ class FlowRunContext(RunContext):
     log_prints: bool = False
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: "ResultFactory"
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
@@ -266,7 +267,7 @@ class TaskRunContext(RunContext):
     log_prints: bool = False
 
     # Result handling
-    result_factory: ResultFactory
+    result_factory: "ResultFactory"
 
     __var__ = ContextVar("task_run")
 

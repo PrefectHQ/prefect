@@ -22,6 +22,7 @@ lookup_type(Base, key) # Foo
 import abc
 import inspect
 import warnings
+from threading import Lock
 from typing import Any, Dict, Optional, Type, TypeVar
 
 T = TypeVar("T", bound=Type)
@@ -119,6 +120,27 @@ def register_base_type(cls: T) -> T:
     return cls
 
 
+_TYPES_REGISTERED = False
+
+
+def _register_base_types():
+    # Import modules that register types
+    import prefect.serializers
+    import prefect.deprecated.data_documents
+    import prefect.packaging
+    import prefect.blocks.kubernetes
+    import prefect.blocks.notifications
+    import prefect.blocks.system
+    import prefect.infrastructure.process
+    import prefect.infrastructure.kubernetes
+    import prefect.infrastructure.docker
+
+    import prefect.plugins
+
+    prefect.plugins.load_prefect_collections()
+    prefect.plugins.load_extra_entrypoints()
+
+
 def register_type(cls: T) -> T:
     """
     Register a type for lookup with dispatch.
@@ -172,7 +194,7 @@ def register_type(cls: T) -> T:
     return cls
 
 
-def lookup_type(cls: T, dispatch_key: str) -> T:
+def _lookup_type(cls: T, dispatch_key: str) -> T:
     """
     Look up a dispatch key in the type registry for the given class.
     """
@@ -189,3 +211,74 @@ def lookup_type(cls: T, dispatch_key: str) -> T:
         )
 
     return subcls
+
+
+class _LookupType:
+    # there should only be one instance of this class, but keep these
+    # values in classes to avoid re-running registration if more
+    # instances get created.
+    _types_registered: bool = False
+    _lock: Lock = Lock()
+
+    def __init__(self):
+        self.fn = self._register_then_lookup_type
+
+    def _lookup_type(self, cls: T, dispatch_key: str) -> T:
+        """
+        Look up a dispatch key in the type registry for the given class.
+        """
+        # Get the first matching registry for the class or one of its bases
+        registry = get_registry_for_type(cls)
+
+        # Look up this type in the registry
+        subcls = registry.get(dispatch_key)
+
+        if subcls is None:
+            raise KeyError(
+                f"No class found for dispatch key {dispatch_key!r} in registry for type "
+                f"{cls.__name__!r}."
+            )
+
+        return subcls
+
+    def _register_then_lookup_type(self, cls: T, dispatch_key: str):
+        self._lock.acquire()
+
+        if not self._types_registered:
+            self._register_types()
+            self.fn = self._lookup_type
+            self._types_registered = True
+
+        self._lock.release()
+
+        return _lookup_type(cls, dispatch_key)
+
+    def _lookup_type(self, cls: T, dispatch_key: str):
+        return _lookup_type(cls, dispatch_key)
+
+    @staticmethod
+    def _register_types():
+        # Import modules that register types
+        import prefect.serializers
+        import prefect.deprecated.data_documents
+        import prefect.packaging
+        import prefect.blocks.kubernetes
+        import prefect.blocks.notifications
+        import prefect.blocks.system
+        import prefect.infrastructure.process
+        import prefect.infrastructure.kubernetes
+        import prefect.infrastructure.docker
+
+        import prefect.plugins
+
+        prefect.plugins.load_prefect_collections()
+        prefect.plugins.load_extra_entrypoints()
+
+    def __call__(self, cls: T, dispatch_key: str) -> T:
+        """
+        Look up a dispatch key in the type registry for the given class.
+        """
+        return self.fn(cls, dispatch_key)
+
+
+lookup_type = _LookupType()

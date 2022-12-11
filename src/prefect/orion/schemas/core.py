@@ -11,7 +11,6 @@ from typing_extensions import Literal
 
 import prefect.orion.database
 import prefect.orion.schemas as schemas
-from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate_string
@@ -40,6 +39,8 @@ def raise_on_invalid_name(name: str) -> None:
     Raise an InvalidNameError if the given name contains any invalid
     characters.
     """
+    from prefect.exceptions import InvalidNameError
+
     if any(c in name for c in INVALID_CHARACTERS):
         raise InvalidNameError(
             f"Name {name!r} contains an invalid character. "

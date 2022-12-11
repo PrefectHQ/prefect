@@ -65,7 +65,6 @@ import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 
-from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
 
@@ -1454,6 +1453,8 @@ def update_current_profile(settings: Dict[Union[str, Setting], Any]) -> Profile:
     current_profile = prefect.context.get_settings_context().profile
 
     if not current_profile:
+        from prefect.exceptions import MissingProfileError
+
         raise MissingProfileError("No profile is currently in use.")
 
     profiles = load_profiles()
