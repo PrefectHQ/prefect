@@ -297,7 +297,8 @@ async def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect.exceptions import BaseResult, CancelledRun, CrashedRun, FailedRun
+    from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
+    from prefect.results import BaseResult
 
     if state.is_failed():
         wrapper = FailedRun
