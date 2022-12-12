@@ -743,10 +743,12 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
                 reason=f"The enclosing flow must be running to begin task execution."
             )
         elif flow_run.state.type == StateType.PAUSED:
-            await self.abort_transition(
-                reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}."
+            await self.reject_transition(
+                state=None,
+                reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}.",
             )
         elif not flow_run.state.type == StateType.RUNNING:
-            await self.abort_transition(
-                reason=f"The enclosing flow must be running to begin task execution."
+            await self.reject_transition(
+                state=None,
+                reason=f"The enclosing flow must be running to begin task execution.",
             )
