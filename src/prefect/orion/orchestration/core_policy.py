@@ -702,10 +702,23 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
         StateType.SCHEDULED: 1,
         StateType.PENDING: 2,
         StateType.RUNNING: 3,
+        StateType.CANCELLING: 4,
     }
 
-    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
-    TO_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+    FROM_STATES = [
+        StateType.SCHEDULED,
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.CANCELLING,
+        None,
+    ]
+    TO_STATES = [
+        StateType.SCHEDULED,
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.CANCELLING,
+        None,
+    ]
 
     async def before_transition(
         self,
@@ -715,6 +728,7 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
     ) -> None:
         initial_state_type = initial_state.type if initial_state else None
         proposed_state_type = proposed_state.type if proposed_state else None
+
         if (
             self.STATE_PROGRESS[proposed_state_type]
             <= self.STATE_PROGRESS[initial_state_type]

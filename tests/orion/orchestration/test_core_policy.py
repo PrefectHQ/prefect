@@ -968,6 +968,7 @@ class TestTransitionsFromTerminalStatesRule:
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestPreventingRedundantTransitionsRule:
     active_states = (
+        states.StateType.CANCELLING,
         states.StateType.RUNNING,
         states.StateType.PENDING,
         states.StateType.SCHEDULED,
