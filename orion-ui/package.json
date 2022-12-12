@@ -15,7 +15,6 @@
     "@prefecthq/vue-compositions": "1.1.0",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
-    "d3": "^7.6.1",
     "lodash.debounce": "4.0.8",
     "tailwindcss": "3.2.4",
     "vue": "3.2.45",
@@ -24,7 +23,6 @@
   "devDependencies": {
     "@playwright/test": "1.28.1",
     "@prefecthq/eslint-config": "1.0.17",
-    "@types/d3": "^7.4.0",
     "@vitejs/plugin-vue": "^2.3.3",
     "autoprefixer": "10.4.13",
     "dotenv": "16.0.3",
