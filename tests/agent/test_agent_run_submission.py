@@ -560,15 +560,21 @@ class TestInfrastructureIntegration:
         )
 
         async with OrionAgent(
-            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
 
             mock_propose_state.return_value = return_state
+            await agent.limiter.acquire_on_behalf_of(flow_run.id)
             await agent.submit_run(flow_run)
 
         mock_infrastructure_run.assert_not_called()
+
+        assert (
+            agent.limiter.borrowed_tokens == 0
+        ), "The concurrency slot should be released"
+
         assert flow_run.id not in agent.submitting_flow_run_ids
         agent.logger.info.assert_called_with(
             f"Aborted submission of flow run '{flow_run.id}': "
@@ -586,12 +592,17 @@ class TestInfrastructureIntegration:
         await orion_client.delete_flow_run(flow_run.id)
 
         async with OrionAgent(
-            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
 
+            await agent.limiter.acquire_on_behalf_of(flow_run.id)
             await agent.submit_run(flow_run)
+
+        assert (
+            agent.limiter.borrowed_tokens == 0
+        ), "The concurrency slot should be released"
 
         mock_infrastructure_run.assert_not_called()
         assert flow_run.id not in agent.submitting_flow_run_ids
@@ -609,13 +620,17 @@ class TestInfrastructureIntegration:
         )
 
         async with OrionAgent(
-            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
             mock_propose_state.side_effect = Abort("message")
-
+            await agent.limiter.acquire_on_behalf_of(flow_run.id)
             await agent.submit_run(flow_run)
+
+        assert (
+            agent.limiter.borrowed_tokens == 0
+        ), "The concurrency slot should be released"
 
         mock_infrastructure_run.assert_not_called()
         assert flow_run.id not in agent.submitting_flow_run_ids
@@ -633,12 +648,13 @@ class TestInfrastructureIntegration:
         )
 
         async with OrionAgent(
-            work_queues=[deployment.work_queue_name], prefetch_seconds=10
+            work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
             agent.logger = MagicMock()
             agent.get_infrastructure = AsyncMock(side_effect=ValueError("Bad!"))
 
+            await agent.limiter.acquire_on_behalf_of(flow_run.id)
             await agent.submit_run(flow_run)
 
         mock_infrastructure_run.assert_not_called()
@@ -646,6 +662,10 @@ class TestInfrastructureIntegration:
         agent.logger.exception.assert_called_once_with(
             f"Failed to get infrastructure for flow run '{flow_run.id}'."
         )
+
+        assert (
+            agent.limiter.borrowed_tokens == 0
+        ), "The concurrency slot should be released"
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
@@ -671,7 +691,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.pre_start_side_effect = raise_value_error
 
         async with OrionAgent(
-            [deployment.work_queue_name], prefetch_seconds=10
+            [deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.logger = MagicMock()
             await agent.get_and_submit_flow_runs()
@@ -684,6 +704,10 @@ class TestInfrastructureIntegration:
         agent.logger.exception.assert_called_once_with(
             f"Failed to submit flow run '{flow_run.id}' to infrastructure."
         )
+
+        assert (
+            agent.limiter.borrowed_tokens == 0
+        ), "The concurrency slot should be released"
 
         state = (await orion_client.read_flow_run(flow_run.id)).state
         assert state.is_failed()
