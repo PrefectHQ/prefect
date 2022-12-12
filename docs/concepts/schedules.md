@@ -179,7 +179,7 @@ schedule:
 ```
 
 !!! info "Max RRule length"
-    Note the max supported character length of an `rrulestr` is 32000 characters
+    Note the max supported character length of an `rrulestr` is 6500 characters
 
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided. A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
