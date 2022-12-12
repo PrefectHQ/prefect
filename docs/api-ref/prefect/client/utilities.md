@@ -1,5 +1,5 @@
 ---
-description: Prefect Python client API utilities.
+description: Prefect Python client utilities.
 tags:
     - Python API
     - REST API

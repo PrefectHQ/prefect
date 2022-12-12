@@ -1,5 +1,5 @@
 ---
-description: Prefect Python client base API.
+description: Prefect Python client base classes.
 tags:
     - Python API
 ---

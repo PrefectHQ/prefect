@@ -1,5 +1,5 @@
 ---
-description: Prefect Python client cloud API.
+description: Prefect Python client for communicating with the Prefect Cloud REST API.
 tags:
     - Python API
 ---
