@@ -839,6 +839,8 @@ async def _out_of_process_pause(
         flow_run_id,
         Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
     )
+    if response.status != SetStateStatus.ACCEPT:
+        raise RuntimeError(response.details.reason)
 
 
 @sync_compatible
