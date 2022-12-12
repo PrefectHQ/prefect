@@ -242,7 +242,6 @@ class TestGetRunsInWorkQueue:
         schemas.states.StateType.PENDING,
         schemas.states.StateType.CANCELLING,
         schemas.states.StateType.RUNNING,
-        schemas.states.StateType.RUNNING,
     ]
 
     @pytest.fixture
