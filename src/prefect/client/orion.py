@@ -19,7 +19,6 @@ import prefect.states
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
-from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
@@ -51,8 +50,15 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
+    api = PREFECT_API_URL.value()
+    if not api:
+        # create an ephemeral API if none was provided
+        from prefect.orion.api.server import create_app
+
+        api = create_app(ctx.settings, ephemeral=True)
+
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
+        api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
@@ -85,13 +91,17 @@ class OrionClient:
         api: Union[str, FastAPI],
         *,
         api_key: str = None,
-        api_version: str = ORION_API_VERSION,
+        api_version: str = None,
         httpx_settings: dict = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
-        if api_version:
-            httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_version is None:
+            # deferred import to avoid importing the entire server unless needed
+            from prefect.orion.api.server import ORION_API_VERSION
+
+            api_version = ORION_API_VERSION
+        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
@@ -1448,6 +1458,23 @@ class OrionClient:
             else:
                 raise
         return FlowRun.parse_obj(response.json())
+
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+        """
+        Resumes a paused flow run.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        try:
+            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+        except httpx.HTTPStatusError as e:
+            raise
+
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_runs(
         self,
