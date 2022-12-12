@@ -12,9 +12,10 @@ Some experimental features require opt-in to enable any usage. These require the
 """
 import functools
 import warnings
-from typing import Callable, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
+from prefect.utilities.callables import get_call_parameters
 
 T = TypeVar("T", bound=Callable)
 
@@ -119,3 +120,54 @@ def experimental(
 def experiment_enabled(group: str) -> bool:
     group_opt_in = _opt_in_setting_for_group(group)
     return group_opt_in.value()
+
+
+def experimental_parameter(
+    name: str,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
+    when: Optional[Callable[[Any], bool]] = None,
+) -> Callable[[T], T]:
+    """
+    Mark a parameter in a callable as experimental.
+
+    Example:
+
+        ```python
+
+        @experimental_parameter("y", group="example", when=lambda y: y is not None)
+        def foo(x, y = None):
+            return x + 1 + (y or 0)
+        ```
+    """
+
+    when = when or (lambda _: True)
+
+    @experimental(
+        group=group,
+        feature=f"The parameter {name!r}",
+        help=help,
+        opt_in=opt_in,
+        stacklevel=stacklevel + 2,
+    )
+    def experimental_check():
+        pass
+
+    def decorator(fn: T):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                parameters = get_call_parameters(fn, args, kwargs, apply_defaults=False)
+            except Exception:
+                # Avoid raising any parsing exceptions here
+                parameters = kwargs
+
+            if name in parameters and when(parameters[name]):
+                experimental_check()
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
