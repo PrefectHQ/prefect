@@ -469,12 +469,7 @@ class TestEntrypoint:
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
         entrypoint = "fake-path.py"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         invoke_and_assert(
@@ -493,12 +488,7 @@ class TestEntrypoint:
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         res = invoke_and_assert(
@@ -520,12 +510,7 @@ class TestEntrypoint:
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         res = invoke_and_assert(
@@ -544,12 +529,7 @@ class TestEntrypoint:
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         res = invoke_and_assert(
