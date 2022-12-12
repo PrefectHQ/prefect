@@ -442,6 +442,11 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 )
 """The default timeout for requests to the API"""
 
+PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
+"""
+If enabled, warn on usage of expirimental features.
+"""
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",
