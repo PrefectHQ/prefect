@@ -15,7 +15,7 @@ class TestJobBlock:
         ):
             JobBlock()
 
-    def test_job_block_implementation(self):
+    def test_job_block_implementation(self, caplog):
         class AJobRun(JobRun):
             def __init__(self):
                 self.status = "running"
@@ -30,6 +30,7 @@ class TestJobBlock:
 
             def wait_for_completion(self):
                 self.status = "completed"
+                self.logger.info("Job run completed.")
 
             def fetch_results(self):
                 if self.status != "completed":
@@ -38,14 +39,25 @@ class TestJobBlock:
 
         class AJobBlock(JobBlock):
             def trigger(self):
+                self.logger.info("Job run triggered.")
                 return AJobRun()
 
         a_job_block = AJobBlock()
-        assert hasattr(a_job_block, "logger")
-
         a_job_run = a_job_block.trigger()
-        assert hasattr(a_job_run, "logger")
+
+        # test wait_for_completion and fetch_results
         with pytest.raises(JobRunIsRunning, match="Job run is still running."):
             a_job_run.fetch_results()
         assert a_job_run.wait_for_completion() is None
         assert a_job_run.fetch_results() == "results"
+
+        # test logging
+        assert hasattr(a_job_block, "logger")
+        assert hasattr(a_job_run, "logger")
+        assert len(caplog.records) == 2
+        record_1 = caplog.records[0]
+        assert record_1.name == "prefect.AJobBlock"
+        assert record_1.msg == "Job run triggered."
+        record_2 = caplog.records[1]
+        assert record_2.name == "prefect.AJobRun"
+        assert record_2.msg == "Job run completed."
