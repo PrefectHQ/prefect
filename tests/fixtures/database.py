@@ -55,10 +55,6 @@ async def setup_db(database_engine, db):
             f"Failed to set up the database at {database_engine.url!r}"
         ) from exc
 
-    finally:
-        # tear down the database
-        await db.drop_db()
-
 
 @pytest.fixture(autouse=True)
 async def clear_db(database_engine, db):
