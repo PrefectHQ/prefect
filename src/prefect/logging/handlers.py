@@ -21,6 +21,7 @@ from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
+    PREFECT_LOGGING_MARKUP,
     PREFECT_LOGGING_ORION_BATCH_INTERVAL,
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
@@ -381,6 +382,7 @@ class PrefectConsoleHandler(logging.StreamHandler):
         super().__init__(stream=stream)
 
         styled_console = PREFECT_LOGGING_COLORS.value()
+        markup_console = PREFECT_LOGGING_MARKUP.value()
         if styled_console:
             highlighter = highlighter()
             theme = Theme(styles, inherit=False)
@@ -389,7 +391,12 @@ class PrefectConsoleHandler(logging.StreamHandler):
             theme = Theme(inherit=False)
 
         self.level = level
-        self.console = Console(highlighter=highlighter, theme=theme, file=self.stream)
+        self.console = Console(
+            highlighter=highlighter,
+            theme=theme,
+            file=self.stream,
+            markup=markup_console,
+        )
 
     def emit(self, record: logging.LogRecord):
         try:

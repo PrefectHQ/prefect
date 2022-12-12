@@ -229,6 +229,9 @@ class FlowRunContext(RunContext):
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
 
+    # Counter for flow pauses
+    observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
+
     # Tracking for objects created by this flow run
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     task_run_states: List[State] = Field(default_factory=list)

@@ -39,7 +39,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.3"
+ORION_API_VERSION = "0.8.4"
 
 logger = get_logger("orion")
 
@@ -160,7 +160,7 @@ def create_orion_api(
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
-    @api_app.get(health_check_path)
+    @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
         return True
 
@@ -377,6 +377,9 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+            service_instances.append(services.pause_expirations.FailExpiredPauses())
 
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
