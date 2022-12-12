@@ -116,6 +116,10 @@ jobs:
           - prefect-version: "2.5"
             server-incompatible: true
 
+          # 2.6 containers have a bad version of httpcore installed
+          - prefect-version: "2.6"
+            extra_docker_run_options: '--env PIP_EXTRA_PACKAGES="httpcore>=0.16.2"'
+
       fail-fast: false
 
     runs-on: ubuntu-latest
@@ -144,6 +148,7 @@ jobs:
           --name "orion-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
+          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           prefect orion start --host 0.0.0.0
 
@@ -177,5 +182,6 @@ jobs:
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host
+          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
