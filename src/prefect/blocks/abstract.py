@@ -18,7 +18,7 @@ class JobRun(ABC, Generic[T]):  # not a block
     @property
     def logger(self):
         """
-        Returns a logger based on whether the JobBlock
+        Returns a logger based on whether the JobRun
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
