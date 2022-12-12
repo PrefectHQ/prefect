@@ -1,7 +1,11 @@
 import pytest
 
 from prefect.blocks.abstract import JobBlock, JobRun
-from prefect.exceptions import JobRunIsRunning
+from prefect.exceptions import PrefectException
+
+
+class JobRunIsRunning(PrefectException):
+    """Raised when a job run is still running."""
 
 
 class TestJobBlock:
