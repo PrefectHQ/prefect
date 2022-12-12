@@ -489,8 +489,7 @@ class TestEntrypoint:
             pass
         """
         fpath = tmp_path / "dog.py"
-        with open(fpath, "w") as f:
-            f.write(dedent(code))
+        fpath.write_text(dedent(code))
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
@@ -517,8 +516,7 @@ class TestEntrypoint:
             pass
         """
         fpath = tmp_path / "dog.py"
-        with open(fpath, "w") as f:
-            f.write(dedent(code))
+        fpath.write_text(dedent(code))
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
@@ -542,8 +540,7 @@ class TestEntrypoint:
             pass
         """
         fpath = tmp_path / "dog.cake"
-        with open(fpath, "w") as f:
-            f.write(dedent(code))
+        fpath.write_text(dedent(code))
 
         name = "TEST"
         entrypoint = f"{fpath}:fn"
