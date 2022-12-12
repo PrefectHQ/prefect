@@ -78,9 +78,10 @@ plugins:
                     show_root_heading: True
                     show_object_full_path: False
                     show_category_heading: False
-                    show_bases: False
+                    show_bases: True
                     show_submodules: False
                     show_if_no_docstring: False
+                    show_signature: False
                     heading_level: 1
                     filters: ["!^_"]
 
