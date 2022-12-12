@@ -1,7 +1,10 @@
+import concurrent.futures
+
 import anyio
 import pytest
 
 from prefect._internal.concurrency.primitives import Event, Future
+from prefect.testing.utilities import exceptions_equal
 
 
 def test_event_set_in_sync_context_before_wait():
@@ -152,15 +155,22 @@ async def test_future_result_set_from_sync_thread():
 
 async def test_future_result_set_to_exception():
     future = Future()
-    future.set_result(Exception("test"))
-    with pytest.raises(Exception, match="test"):
+    future.set_exception(ValueError("test"))
+    with pytest.raises(ValueError, match="test"):
         await future.result()
+
+
+async def test_future_result_set_to_exception_instance():
+    future = Future()
+    future.set_result(ValueError("test"))
+    result = await future.result()
+    assert exceptions_equal(result, ValueError("test"))
 
 
 async def test_future_cancel():
     future = Future()
     assert future.cancel() is True
-    with pytest.raises(Exception, match="test"):
+    with pytest.raises(concurrent.futures.CancelledError):
         await future.result()
 
 
@@ -179,3 +189,10 @@ async def test_future_set_running_or_notify_cancel():
     future = Future()
     future.cancel()
     assert future.set_running_or_notify_cancel() is False
+
+
+async def test_future_from_existing_sync_future():
+    sync_future = concurrent.futures.Future()
+    future = Future(sync_future)
+    sync_future.set_result("test")
+    assert await future.result() == "test"
