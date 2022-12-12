@@ -27,14 +27,14 @@ class Event:
 
         self._is_set = False
 
-    def set(self):
+    def set(self) -> None:
         """Set the flag, notifying all listeners."""
         self._is_set = True
         if self._loop:
             if self._loop != get_running_loop():
-                return run_in_loop_thread(self._loop, self._event.set)
+                run_in_loop_thread(self._loop, self._event.set)
             else:
-                return self._event.set()
+                self._event.set()
 
     def is_set(self) -> bool:
         """Return ``True`` if the flag is set, ``False`` if not."""
@@ -53,7 +53,7 @@ class Event:
             self._loop = get_running_loop()
             self._event = asyncio.Event()
 
-        return await self._event.wait()
+        await self._event.wait()
 
     def __repr__(self) -> str:
         return f"Event<loop={id(self._loop)}, is_set={self._is_set}>"
@@ -69,11 +69,11 @@ class Future:
         self._future = __sync_future or concurrent.futures.Future()
         self._future.add_done_callback(self._set_done_event)
 
-    def _set_done_event(self, future: "concurrent.futures.Future"):
+    def _set_done_event(self, future: "concurrent.futures.Future") -> None:
         assert future is self._future
         self._done_event.set()
 
-    async def result(self):
+    async def result(self) -> Any:
         """Get the result of the future."""
         await self._done_event.wait()
         return self._future.result(timeout=0)
@@ -81,11 +81,11 @@ class Future:
     def cancel(self) -> bool:
         return self._future.cancel()
 
-    def set_running_or_notify_cancel(self):
+    def set_running_or_notify_cancel(self) -> bool:
         return self._future.set_running_or_notify_cancel()
 
-    def set_result(self, result: Any):
-        return self._future.set_result(result)
+    def set_result(self, result: Any) -> None:
+        self._future.set_result(result)
 
-    def set_exception(self, exception: BaseException):
-        return self._future.set_exception(exception)
+    def set_exception(self, exception: BaseException) -> None:
+        self._future.set_exception(exception)
