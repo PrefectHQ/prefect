@@ -8,6 +8,7 @@ import pytest
 import prefect
 from prefect.blocks.notifications import (
     AppriseNotificationBlock,
+    OpsgenieWebhook,
     PagerDutyWebHook,
     PrefectNotifyType,
     TwilioSMS,
@@ -86,6 +87,84 @@ class TestAppriseNotificationBlock:
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
         assert isinstance(unpickled, block_class)
+
+
+class TestOpsgenieWebhook:
+    API_KEY = "api_key"
+
+    async def test_notify_async(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = OpsgenieWebhook(apikey=self.API_KEY)
+            await block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"opsgenie://{self.API_KEY}//?region=us&priority=normal&batch=no&"
+                "format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+            )
+
+    def _test_notify_sync(self, targets="", params=None, **kwargs):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            if params is None:
+                params = "region=us&priority=normal&batch=no"
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            block = OpsgenieWebhook(apikey=self.API_KEY, **kwargs)
+            block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"opsgenie://{self.API_KEY}/{targets}/?{params}"
+                "&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+            )
+
+            apprise_instance_mock.async_notify.assert_awaited_once_with(
+                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+            )
+
+    def test_notify_sync_simple(self):
+        self._test_notify_sync()
+
+    def test_notify_sync_params(self):
+        params = "region=eu&priority=low&batch=yes"
+        self._test_notify_sync(params=params, region_name="eu", priority=1, batch=True)
+
+    def test_notify_sync_targets(self):
+        targets = "%23team/%2Aschedule/%40user/%5Eescalation"
+        self._test_notify_sync(
+            targets=targets,
+            target_user=["user"],
+            target_team=["team"],
+            target_schedule=["schedule"],
+            target_escalation=["escalation"],
+        )
+
+    def test_notify_sync_users(self):
+        targets = "%40user1/%40user2"
+        self._test_notify_sync(targets=targets, target_user=["user1", "user2"])
+
+    def test_notify_sync_details(self):
+        params = "region=us&priority=normal&batch=no&%2Bkey1=value1&%2Bkey2=value2"
+        self._test_notify_sync(
+            params=params,
+            details={
+                "key1": "value1",
+                "key2": "value2",
+            },
+        )
 
 
 class TestPagerDutyWebhook:
