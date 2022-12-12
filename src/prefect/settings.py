@@ -390,6 +390,12 @@ PREFECT_API_KEY = Setting(
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+
+If the remote Orion API does not support HTTP/2, this will have no effect and
+connections will be made via HTTP/1.1"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
@@ -435,6 +441,11 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
     default=30.0,
 )
 """The default timeout for requests to the API"""
+
+PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
+"""
+If enabled, warn on usage of expirimental features.
+"""
 
 PREFECT_PROFILES_PATH = Setting(
     Path,
@@ -561,6 +572,19 @@ PREFECT_LOGGING_COLORS = Setting(
     default=True,
 )
 """Whether to style console logs with color."""
+
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
+)
+"""
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -767,6 +791,14 @@ have exceeded their scheduled start time by this many seconds. Defaults
 to `5` seconds.
 """
 
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The pause expiration service will look for runs to mark as failed
+this often. Defaults to `5`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -833,6 +865,15 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 )
 """Whether or not to start the flow run notifications service in the Orion application. 
 If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the paused flow run expiration service in the Orion
+application. If disabled, paused flows that have timed out will remain in a Paused state
+until a resume attempt.
 """
 
 # Collect all defined settings
