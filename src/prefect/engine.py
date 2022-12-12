@@ -734,10 +734,13 @@ async def pause_flow_run(
 
     Args:
         flow_run_id: a flow run id. If supplied, this function will attempt to pause
-            the specified flow run outside of the flow run process. When resumed, the
-            flow run will be rescheduled to finish execution. In order pause a flow run
-            in this way, the flow needs to have an associated deployment and results
-            need to be configured with the `persist_results` option.
+            the specified flow run outside of the flow run process. When paused, the
+            flow run will continue execution until the NEXT task is orchestrated, at
+            which point the flow will exit. Any tasks that have already started will
+            run until completion. When resumed, the flow run will be rescheduled to
+            finish execution. In order pause a flow run in this way, the flow needs to
+            have an associated deployment and results need to be configured with the
+            `persist_results` option.
         timeout: the number of seconds to wait for the flow to be resumed before
             failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
             any configured flow-level timeout, the flow might fail even after resuming.
