@@ -49,6 +49,9 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
+    """
+    Needs a docstring.
+    """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
     if not api:
@@ -79,11 +82,15 @@ class OrionClient:
 
         Say hello to an Orion server
 
+        <div class="terminal">
+        ```
         >>> async with get_client() as client:
         >>>     response = await client.hello()
         >>>
         >>> print(response.json())
         👋
+        ```
+        </div>
     """
 
     def __init__(

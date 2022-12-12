@@ -6,3 +6,6 @@ tags:
 ---
 
 ::: prefect.client
+    options:
+      filters: ["!^_", "!Config", "!copy", "!dict", "!json"]
+      members_order: source
