@@ -1742,8 +1742,6 @@ async def propose_state(
         return state
 
     elif response.status == SetStateStatus.ABORT:
-        if response.details.reason.startswith("The flow is paused"):
-            raise PausedRun(response.details.reason)
         raise prefect.exceptions.Abort(response.details.reason)
 
     elif response.status == SetStateStatus.WAIT:
@@ -1760,6 +1758,8 @@ async def propose_state(
         )
 
     elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise PausedRun(response.details.reason)
         return response.state
 
     else:
