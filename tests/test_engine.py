@@ -492,6 +492,12 @@ class TestOrchestrateTaskRun:
         result_factory,
         monkeypatch,
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         @task
         def foo():
             return 1
@@ -526,6 +532,12 @@ class TestOrchestrateTaskRun:
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run, mock_anyio_sleep, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         @task
         def foo():
             return 1
@@ -560,6 +572,12 @@ class TestOrchestrateTaskRun:
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a task that fails once and then succeeds
         mock = MagicMock()
 
@@ -681,6 +699,12 @@ class TestOrchestrateTaskRun:
     async def test_quoted_parameters_are_resolved(
         self, orion_client, flow_run, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a mock to ensure the task was not run
         mock = MagicMock()
 
@@ -726,6 +750,12 @@ class TestOrchestrateTaskRun:
         result_factory,
         local_filesystem,
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a mock to ensure the task was not run
         mock = MagicMock()
 
