@@ -794,7 +794,7 @@ async def _in_process_pause(
         raise RuntimeError(f"Flow run cannot be paused: {exc}")
 
     if state.is_running():
-        # The orchestrator requests that this paused be ignored
+        # The orchestrator requests that this pause be ignored
         return
 
     if not state.is_paused():
