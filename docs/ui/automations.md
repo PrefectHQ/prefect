@@ -1,5 +1,5 @@
 ---
-description: Configure notifications based on flow state from the Prefect UI and Prefect Cloud.
+description: Configure automations based on flow state from the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
@@ -12,7 +12,7 @@ tags:
 
 # Automations <span class="badge cloud"></span> <span class="badge beta"></span>
 
-Automations are currently in beta and under active development, with new features being added weekly. Reach out to [support@prefect.io](mailto:support@prefect.io) if you’re interested in getting early access.
+Automations are currently in beta and under active development, with new features being added weekly.
 
 Automations in Prefect Cloud allow for increased flexibility and control of your data stack by allowing you to configure [triggers](#triggers) and [actions](#actions). Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications (coming soon!) in response to real-time monitoring events.
 
