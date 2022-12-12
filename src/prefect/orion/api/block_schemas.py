@@ -140,3 +140,22 @@ async def read_block_schema_by_checksum(
     if not block_schema:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Block schema not found")
     return block_schema
+
+
+@router.get("/block_type/{block_type_id}/block_schema_versions")
+async def read_block_schema_versions_by_slug(
+    block_type_id: UUID = Path(
+        ..., description="The block type id", alias="block_type_id"
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> List[schemas.core.BlockSchema]:
+    async with db.session_context() as session:
+        block_schemas = await models.block_schemas.read_block_schema_versions(
+            session=session, block_type_id=block_type_id
+        )
+        if not block_schemas:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail="No Block schemas found for block type id",
+            )
+    return block_schemas
