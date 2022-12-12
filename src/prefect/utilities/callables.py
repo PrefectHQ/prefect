@@ -18,7 +18,10 @@ from prefect.exceptions import (
 
 
 def get_call_parameters(
-    fn: Callable, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
+    fn: Callable,
+    call_args: Tuple[Any, ...],
+    call_kwargs: Dict[str, Any],
+    apply_defaults: bool = True,
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
@@ -30,7 +33,10 @@ def get_call_parameters(
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:
         raise ParameterBindError.from_bind_failure(fn, exc, call_args, call_kwargs)
-    bound_signature.apply_defaults()
+
+    if apply_defaults:
+        bound_signature.apply_defaults()
+
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
     # Python 3.9 anyway.
