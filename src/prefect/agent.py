@@ -193,7 +193,9 @@ class OrionAgent:
                 if self.limiter:
                     self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
-                self.logger.info(f"Flow run limit reached'")
+                self.logger.info(
+                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
+                )
                 break
             else:
                 self.logger.info(f"Submitting flow run '{flow_run.id}'")
@@ -397,6 +399,11 @@ class OrionAgent:
                         )
 
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+
+        else:
+            # If the run is not ready to submit, release the concurrency slot
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
 
         self.submitting_flow_run_ids.remove(flow_run.id)
 

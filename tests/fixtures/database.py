@@ -55,10 +55,6 @@ async def setup_db(database_engine, db):
             f"Failed to set up the database at {database_engine.url!r}"
         ) from exc
 
-    finally:
-        # tear down the database
-        await db.drop_db()
-
 
 @pytest.fixture(autouse=True)
 async def clear_db(database_engine, db):
@@ -165,6 +161,55 @@ async def failed_flow_run_with_deployment_with_no_more_retries(
         task_run=schemas.actions.TaskRunCreate(
             flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
         ),
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def nonblockingpaused_flow_run_without_deployment(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def blocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=False, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def nonblocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
     )
     await session.commit()
     return flow_run
@@ -479,14 +524,18 @@ def initialize_orchestration(flow):
         proposed_details=None,
         flow_retries: int = None,
         flow_run_count: int = None,
+        resuming: bool = None,
     ):
         flow_create_kwargs = {}
         empirical_policy = {}
         if flow_retries:
             empirical_policy.update({"retries": flow_retries})
+        if resuming:
+            empirical_policy.update({"resuming": resuming})
 
-        if empirical_policy:
-            flow_create_kwargs.update({"empirical_policy": empirical_policy})
+        flow_create_kwargs.update(
+            {"empirical_policy": schemas.core.FlowRunPolicy(**empirical_policy)}
+        )
 
         if flow_run_count:
             flow_create_kwargs.update({"run_count": flow_run_count})

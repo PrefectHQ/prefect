@@ -353,3 +353,7 @@ class FlowPauseTimeout(PrefectException):
 
 class JobRunIsRunning(PrefectException):
     """Raised when a job run is still running."""
+
+
+class PausedRun(BaseException):
+    """Signal raised when exiting a flow early for nonblocking pauses"""
