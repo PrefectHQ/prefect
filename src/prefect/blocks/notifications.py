@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import AnyHttpUrl, Field, SecretStr
@@ -301,6 +302,109 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
                 auth_token=self.auth_token.get_secret_value(),
                 source=self.from_phone_number,
                 targets=self.to_phone_numbers,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
+class OpsgenieWebhook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided Opsgenie webhook.
+    See [Apprise notify_opsgenie docs](https://github.com/caronc/apprise/wiki/Notify_opsgenie)
+    for more info on formatting the URL.
+
+    Examples:
+        Load a saved Opsgenie webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import OpsgenieWebhook
+        opsgenie_webhook_block = OpsgenieWebhook.load("BLOCK_NAME")
+        opsgenie_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided Opsgenie webhook."
+
+    _block_type_name = "Opsgenie Webhook"
+    _block_type_slug = "opsgenie-webhook"
+    _logo_url = "https://images.ctfassets.net/sahxz1jinscj/3habq8fTzmplh7Ctkppk4/590cecb73f766361fcea9223cd47bad8/opsgenie.png"
+
+    apikey: SecretStr = Field(
+        default=...,
+        title="API Key",
+        description=("The API Key associated with your Opsgenie account."),
+    )
+
+    target_user: Optional[List] = Field(
+        default=None, description="The user(s) you wish to notify."
+    )
+
+    target_team: Optional[List] = Field(
+        default=None, description="The team(s) you wish to notify."
+    )
+
+    target_schedule: Optional[List] = Field(
+        default=None, description="The schedule(s) you wish to notify."
+    )
+
+    target_escalation: Optional[List] = Field(
+        default=None, description="The escalation(s) you wish to notify."
+    )
+
+    region_name: Literal["us", "eu"] = Field(
+        default="us", description="The 2-character region code."
+    )
+
+    batch: bool = Field(
+        default=False,
+        description="Notify all targets in batches (instead of individually).",
+    )
+
+    tags: Optional[List] = Field(
+        default=None,
+        description="A comma-separated list of tags you can associate with your Opsgenie message.",
+        example='["tag1", "tag2"]',
+    )
+
+    priority: Optional[str] = Field(
+        default=3,
+        description="The priority to associate with the message. It is on a scale between 1 (LOW) and 5 (EMERGENCY).",
+    )
+
+    alias: Optional[str] = Field(
+        default=None, description="The alias to associate with the message."
+    )
+
+    entity: Optional[str] = Field(
+        default=None, description="The entity to associate with the message."
+    )
+
+    details: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Additional details composed of key/values pairs.",
+        example='{"key1": "value1", "key2": "value2"}',
+    )
+
+    def block_initialization(self) -> None:
+        targets = []
+        if self.target_user:
+            [targets.append(f"@{x}") for x in self.target_user]
+        if self.target_team:
+            [targets.append(f"#{x}") for x in self.target_team]
+        if self.target_schedule:
+            [targets.append(f"*{x}") for x in self.target_schedule]
+        if self.target_escalation:
+            [targets.append(f"^{x}") for x in self.target_escalation]
+        url = SecretStr(
+            NotifyOpsgenie(
+                apikey=self.apikey.get_secret_value(),
+                targets=targets,
+                region_name=self.region_name,
+                details=self.details,
+                priority=self.priority,
+                alias=self.alias,
+                entity=self.entity,
+                batch=self.batch,
+                tags=self.tags,
             ).url()
         )
         self._start_apprise_client(url)
