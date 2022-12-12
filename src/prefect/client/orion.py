@@ -1021,21 +1021,6 @@ class OrionClient:
                 raise
         return BlockType.parse_obj(response.json())
 
-    async def read_block_schema_versions_by_slug(self, slug: str) -> List[str]:
-        """
-        Read all block schema versions by slug.
-        """
-        try:
-            response = await self._client.get(
-                f"/block_types/{slug}/block_schema_versions"
-            )
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
-        return response.json()
-
     async def read_block_schema_by_checksum(
         self, checksum: str, version: Optional[str] = None
     ) -> schemas.core.BlockSchema:
