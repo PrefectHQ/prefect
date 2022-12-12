@@ -82,7 +82,12 @@ def _warn_setting_for_group(group: str) -> Setting[bool]:
 
 
 def experimental(
-    group: str, feature: str, help: str = "", stacklevel: int = 2, opt_in: bool = False
+    feature: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
 ) -> Callable[[T], T]:
     group = group.upper()
 
@@ -124,6 +129,7 @@ def experiment_enabled(group: str) -> bool:
 
 def experimental_parameter(
     name: str,
+    *,
     group: str,
     help: str = "",
     stacklevel: int = 2,
