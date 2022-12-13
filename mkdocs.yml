@@ -141,6 +141,7 @@ nav:
             - Prefect Cloud Overview: ui/cloud.md
             - Prefect Cloud Quickstart: ui/cloud-getting-started.md
             - Workspaces: ui/workspaces.md
+            - Automations: ui/automations.md
             - Organizations: ui/organizations.md
             - Service Accounts: ui/service-accounts.md
             - Roles (RBAC): ui/roles.md
