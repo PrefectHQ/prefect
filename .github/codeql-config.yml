@@ -4,6 +4,9 @@ query-filters:
       id: py/unsafe-cyclic-import
   - exclude:
       id: py/unreachable-statement
+  - exclude:
+      # catching base exceptions is required
+      id: py/catch-base-exception
 
 paths-ignore:
   - tests/**/test_*.py
