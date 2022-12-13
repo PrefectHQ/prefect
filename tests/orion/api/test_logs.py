@@ -8,7 +8,7 @@ task run ID with a stable order across test machines.
 
 from datetime import timedelta
 from unittest import mock
-from uuid import UUID, uuid1
+from uuid import uuid1
 
 import pendulum
 import pytest
@@ -175,67 +175,3 @@ class TestReadLogs:
         api_logs = [Log(**log_data) for log_data in response.json()]
         assert api_logs[0].timestamp > api_logs[1].timestamp
         assert api_logs[0].message == "Black flag ahead, captain!"
-
-    async def test_read_logs_sort_by_level_asc(self, client, logs):
-        response = await client.post(READ_LOGS_URL, json={"sort": "LEVEL_ASC"})
-        data = response.json()
-        assert data[0]["level"] < data[1]["level"]
-        assert data[0]["message"] == "Ahoy, captain"
-
-    async def test_read_logs_sort_by_level_desc(self, client, logs):
-        response = await client.post(READ_LOGS_URL, json={"sort": "LEVEL_DESC"})
-        data = response.json()
-        assert data[0]["level"] > data[1]["level"]
-        assert data[0]["message"] == "Black flag ahead, captain!"
-
-    async def test_read_logs_sort_by_flow_run_id_asc(
-        self, client, logs, flow_run_id, single_flow_run_log
-    ):
-        response = await client.post(READ_LOGS_URL, json={"sort": "FLOW_RUN_ID_ASC"})
-        api_logs = [Log(**log_data) for log_data in response.json()]
-        assert api_logs[0].flow_run_id == flow_run_id
-        assert api_logs[-1].flow_run_id == UUID(single_flow_run_log["flow_run_id"])
-        assert api_logs[0].flow_run_id < api_logs[-1].flow_run_id
-
-    async def test_read_logs_sort_by_flow_run_id_desc(
-        self, client, logs, flow_run_id, single_flow_run_log
-    ):
-        response = await client.post(READ_LOGS_URL, json={"sort": "FLOW_RUN_ID_DESC"})
-        api_logs = [Log(**log_data) for log_data in response.json()]
-        assert api_logs[0].flow_run_id == UUID(single_flow_run_log["flow_run_id"])
-        assert api_logs[-1].flow_run_id == flow_run_id
-        assert api_logs[0].flow_run_id > api_logs[-1].flow_run_id
-
-    async def test_read_logs_sort_by_task_run_id_asc(
-        self, client, logs, task_run_id, single_task_run_log
-    ):
-        log_filter = {
-            "logs": {
-                "task_run_id": {
-                    "any_": [str(task_run_id), single_task_run_log["task_run_id"]]
-                }
-            },
-            "sort": "TASK_RUN_ID_ASC",
-        }
-        response = await client.post(READ_LOGS_URL, json=log_filter)
-        api_logs = [Log(**log_data) for log_data in response.json()]
-        assert api_logs[0].task_run_id == task_run_id
-        assert api_logs[-1].task_run_id == UUID(single_task_run_log["task_run_id"])
-        assert api_logs[0].task_run_id < api_logs[-1].task_run_id
-
-    async def test_read_logs_sort_by_task_run_id_desc(
-        self, client, logs, task_run_id, single_task_run_log
-    ):
-        log_filter = {
-            "logs": {
-                "task_run_id": {
-                    "any_": [str(task_run_id), single_task_run_log["task_run_id"]]
-                }
-            },
-            "sort": "TASK_RUN_ID_DESC",
-        }
-        response = await client.post(READ_LOGS_URL, json=log_filter)
-        api_logs = [Log(**log_data) for log_data in response.json()]
-        assert api_logs[0].task_run_id == UUID(single_task_run_log["task_run_id"])
-        assert api_logs[-1].task_run_id == task_run_id
-        assert api_logs[0].task_run_id > api_logs[-1].task_run_id
