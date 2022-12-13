@@ -3,7 +3,7 @@ Thread-safe async primitives.
 """
 import asyncio
 import concurrent.futures
-from typing import Generic, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from prefect._internal.concurrency.event_loop import (
     get_running_loop,
@@ -81,13 +81,13 @@ class Future(concurrent.futures.Future, Generic[T]):
     def _set_done_event(self, _: "concurrent.futures.Future") -> None:
         self._done_event.set()
 
-    def result(self: "Future[T]") -> T:
+    def result(self: "Future[T]", timeout: Optional[float] = None) -> T:
         if get_running_loop() is not None:
             raise RuntimeError(
                 "Future.result() cannot be called from an async thread; "
                 "use `aresult()` instead to avoid blocking the event loop."
             )
-        return super().result()
+        return super().result(timeout)
 
     async def aresult(self: "Future[T]") -> T:
         """
@@ -96,7 +96,7 @@ class Future(concurrent.futures.Future, Generic[T]):
         If the future encountered an exception, it will be raised.
         """
         await self._done_event.wait()
-        return self.result(timeout=0)
+        return super().result(timeout=0)
 
     @classmethod
     def from_existing(cls, future: "concurrent.futures.Future") -> "Future":
