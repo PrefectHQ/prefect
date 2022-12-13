@@ -182,7 +182,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support async context management."
         )
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args) -> None:
         """
         Context management method for async databases.
         """
@@ -198,7 +198,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support context management."
         )
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         """
         Context management method for databases.
         """
