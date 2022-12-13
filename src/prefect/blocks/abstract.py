@@ -84,7 +84,7 @@ class DatabaseBlock(Block, ABC):
     @property
     def logger(self):
         """
-        Returns a logger based on whether the JobBlock
+        Returns a logger based on whether the DatabaseBlock
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
@@ -178,6 +178,19 @@ class ObjectStorageBlock(Block, ABC):
     Block that represents a resource that can upload and download
     objects in an external service.
     """
+
+    @property
+    def logger(self):
+        """
+        Returns a logger based on whether the ObjectStorageBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
 
     @abstractmethod
     async def download_object_to_path(
