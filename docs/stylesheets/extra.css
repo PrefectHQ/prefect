@@ -159,8 +159,22 @@ to force column width */
     border-radius: 5px;
 }
 
-.experimental::before {
+/* .experimental::before {
     background-color: #fccc3e;
+    content: "Experimental";
+} */
+
+.beta::before {
+    background-color: #ffffff00;
+    color: rgb(131, 131, 131);
+    border: 1px solid rgb(131, 131, 131);
+    content: "Beta";
+}
+
+.experimental::before {
+    background-color: #ffffff00;
+    color: rgb(131, 131, 131);
+    border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
 }
 
