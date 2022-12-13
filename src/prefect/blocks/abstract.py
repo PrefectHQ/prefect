@@ -43,7 +43,7 @@ class JobRun(ABC, Generic[T]):  # not a block
 
 class JobBlock(Block, ABC):
     """
-   Block that represents an entity in an external service that can trigger a long running execution.
+    Block that represents an entity in an external service that can trigger a long running execution.
     """
 
     @property
