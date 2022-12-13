@@ -380,7 +380,9 @@ class KubernetesJob(Infrastructure):
         namespace is immutable and has a persistence UID that we use instead.
 
         PREFECT_KUBERNETES_CLUSTER_UID can be set in cases where the `kube-system`
-        namespace cannot be read e.g. when a cluster role cannot be created.
+        namespace cannot be read e.g. when a cluster role cannot be created. If set,
+        this variable will be used and we will not attempt to read the `kube-system`
+        namespace.
 
         See https://github.com/kubernetes/kubernetes/issues/44954
         """
