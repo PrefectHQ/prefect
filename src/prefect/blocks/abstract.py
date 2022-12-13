@@ -167,6 +167,6 @@ class DatabaseBlock(Block, ABC):
 
         Args:
             operation: The SQL query or other operation to be executed.
-            parameters: The parameters for the operation.
+            seq_of_parameters: The sequence of parameters for the operation.
             **execution_kwargs: Additional keyword arguments to pass to execute.
         """
