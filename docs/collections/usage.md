@@ -55,3 +55,7 @@ def connect_to_database():
 ```
 
 **Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
+
+## Recipes and Tutorials
+
+To learn more about how to use Collections, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Collections can be used in various scenarios.
