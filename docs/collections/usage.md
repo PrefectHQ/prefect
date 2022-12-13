@@ -58,4 +58,4 @@ def connect_to_database():
 
 ## Recipes and Tutorials
 
-To learn more about how to use Collections, check out the [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-). on GitHub. These recipes provide examples of how Collections can be used in various scenarios.
+To learn more about how to use Collections, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Collections can be used in various scenarios.
