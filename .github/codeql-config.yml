@@ -2,6 +2,8 @@ query-filters:
   - exclude:
       # this creates many false positives with our code
       id: py/unsafe-cyclic-import
+  - exclude:
+      id: py/unreachable-statement
 
 paths-ignore:
   - tests/**/test_*.py
