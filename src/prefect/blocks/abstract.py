@@ -170,3 +170,54 @@ class DatabaseBlock(Block, ABC):
             seq_of_parameters: The sequence of parameters for the operation.
             **execution_kwargs: Additional keyword arguments to pass to execute.
         """
+
+
+class ObjectStorageBlock(Block, ABC):
+    """
+    Block that represents a resource that can upload and download
+    objects in an external service.
+    """
+
+    @abstractmethod
+    async def download_object_to_path(self):
+        """
+        Downloads an object from the object storage service to a path.
+        """
+
+    @abstractmethod
+    async def download_folder_to_path(self):
+        """
+        Downloads a folder from the object storage service to a path.
+        """
+
+    @abstractmethod
+    async def download_object_to_file_object(self):
+        """
+        Downloads an object from the object storage service to a file-like object,
+        which can be a BytesIO object or a BufferedWriter.
+        """
+
+    @abstractmethod
+    async def download_folder_to_path(self):
+        """
+        Downloads a folder from the object storage service to a path.
+        """
+
+    @abstractmethod
+    async def upload_from_path(self):
+        """
+        Uploads an object from a path to the object storage service.
+        """
+
+    @abstractmethod
+    async def upload_from_file_object(self):
+        """
+        Uploads an object to the object storage service from a file-like object,
+        which can be a BytesIO object or a BufferedWriter.
+        """
+
+    @abstractmethod
+    async def upload_from_folder(self):
+        """
+        Uploads a folder to the object storage service from a path.
+        """
