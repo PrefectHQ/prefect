@@ -384,7 +384,7 @@ class KubernetesJob(Infrastructure):
 
         See https://github.com/kubernetes/kubernetes/issues/44954
         """
-        # Default to an environment variablle
+        # Default to an environment variable
         env_cluster_uid = os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID")
         if env_cluster_uid:
             return env_cluster_uid
