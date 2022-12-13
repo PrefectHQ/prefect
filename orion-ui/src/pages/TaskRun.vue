@@ -55,7 +55,8 @@
   const flowRunDetailsSubscription = useSubscriptionWithDependencies(api.flowRuns.getFlowRun, flowRunIdArgs)
 
   const parameters = computed(() => {
-    return taskRun.value?.taskInputs ? JSON.stringify(taskRun.value.taskInputs, undefined, 2) : '{}'
+    const parameterKeys = computed(()=> taskRun.value?.taskInputs ? Object.keys(taskRun.value.taskInputs) : null)
+    return parameterKeys.value ? JSON.stringify(parameterKeys.value, undefined, 2) : '{}'
   })
 
   function goToFlowRun(): void {
