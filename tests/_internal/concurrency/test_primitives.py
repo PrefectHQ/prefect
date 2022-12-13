@@ -116,6 +116,19 @@ async def test_future_result_set_in_same_async_context():
     assert await future.aresult() == "test"
 
 
+async def test_future_result_from_async_context():
+    future = Future()
+    future.set_result("test")
+    with pytest.raises(RuntimeError, match="cannot be called from an async thread"):
+        future.result()
+
+
+async def test_future_result_from_sync_context():
+    future = Future()
+    future.set_result("test")
+    assert await anyio.to_thread.run_sync(future.result) == "test"
+
+
 async def test_future_result_set_from_async_task():
     future = Future()
     result = None

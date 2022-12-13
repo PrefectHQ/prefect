@@ -81,6 +81,14 @@ class Future(concurrent.futures.Future, Generic[T]):
     def _set_done_event(self, _: "concurrent.futures.Future") -> None:
         self._done_event.set()
 
+    def result(self: "Future[T]") -> T:
+        if get_running_loop() is not None:
+            raise RuntimeError(
+                "Future.result() cannot be called from an async thread; "
+                "use `aresult()` instead to avoid blocking the event loop."
+            )
+        return super().result()
+
     async def aresult(self: "Future[T]") -> T:
         """
         Wait for the result from the future and return it.
