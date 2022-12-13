@@ -113,7 +113,7 @@ def test_event_is_set():
 async def test_future_result_set_in_same_async_context():
     future = Future()
     future.set_result("test")
-    assert await future.result() == "test"
+    assert await future.aresult() == "test"
 
 
 async def test_future_result_set_from_async_task():
@@ -125,7 +125,7 @@ async def test_future_result_set_from_async_task():
 
     async def get_result():
         nonlocal result
-        result = await future.result()
+        result = await future.aresult()
 
     with anyio.fail_after(1):
         async with anyio.create_task_group() as tg:
@@ -133,7 +133,7 @@ async def test_future_result_set_from_async_task():
             tg.start_soon(set_result)
 
     assert result == "test"
-    assert await future.result() == "test"
+    assert await future.aresult() == "test"
 
 
 async def test_future_result_set_from_sync_thread():
@@ -142,7 +142,7 @@ async def test_future_result_set_from_sync_thread():
 
     async def get_result():
         nonlocal result
-        result = await future.result()
+        result = await future.aresult()
 
     with anyio.fail_after(1):
         async with anyio.create_task_group() as tg:
@@ -150,20 +150,20 @@ async def test_future_result_set_from_sync_thread():
             tg.start_soon(anyio.to_thread.run_sync, future.set_result, "test")
 
     assert result == "test"
-    assert await future.result() == "test"
+    assert await future.aresult() == "test"
 
 
 async def test_future_result_set_to_exception():
     future = Future()
     future.set_exception(ValueError("test"))
     with pytest.raises(ValueError, match="test"):
-        await future.result()
+        await future.aresult()
 
 
 async def test_future_result_set_to_exception_instance():
     future = Future()
     future.set_result(ValueError("test"))
-    result = await future.result()
+    result = await future.aresult()
     assert exceptions_equal(result, ValueError("test"))
 
 
@@ -171,7 +171,7 @@ async def test_future_cancel():
     future = Future()
     assert future.cancel() is True
     with pytest.raises(concurrent.futures.CancelledError):
-        await future.result()
+        await future.aresult()
 
 
 async def test_future_cancel_after_running():
@@ -184,7 +184,7 @@ async def test_future_set_running_or_notify_cancel():
     future = Future()
     assert future.set_running_or_notify_cancel() is True
     future.set_result("test")
-    await future.result() == "test"
+    await future.aresult() == "test"
 
     future = Future()
     future.cancel()
@@ -193,6 +193,6 @@ async def test_future_set_running_or_notify_cancel():
 
 async def test_future_from_existing_sync_future():
     sync_future = concurrent.futures.Future()
-    future = Future(sync_future)
+    future = Future.from_existing(sync_future)
     sync_future.set_result("test")
-    assert await future.result() == "test"
+    assert await future.aresult() == "test"
