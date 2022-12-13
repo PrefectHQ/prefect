@@ -19,6 +19,7 @@ from prefect.orion.orchestration.core_policy import (
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
+    PreventRunningTasksFromStoppedFlows,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
@@ -2220,3 +2221,53 @@ class TestResumingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.run.empirical_policy.resuming
+
+
+class TestPreventRunningTasksFromStoppedFlows:
+    async def test_allows_task_runs_to_run(self, session, initialize_orchestration):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=states.StateType.RUNNING,
+        )
+
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state.is_running()
+
+    @pytest.mark.parametrize(
+        "initial_flow_run_state_type",
+        sorted(list(set(states.StateType) - {states.StateType.RUNNING})),
+    )
+    async def test_prevents_tasks_From_running(
+        self, session, initial_flow_run_state_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=initial_flow_run_state_type,
+        )
+
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        if initial_flow_run_state_type == states.StateType.PAUSED:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state.is_paused()
+        else:
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert ctx.validated_state.is_pending()
