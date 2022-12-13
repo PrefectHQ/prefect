@@ -76,14 +76,6 @@ class TestCreateLogs:
 
 
 class TestReadLogs:
-    async def test_read_logs_level(self, session, logs):
-        log_filter = LogFilter(level={"le_": 40})
-        logs = await models.logs.read_logs(
-            session=session, log_filter=log_filter, sort=LogSort.LEVEL_ASC
-        )
-        assert len(logs) == 2
-        assert [10, 20] == [log.level for log in logs]
-
     async def test_read_logs_timestamp_after_inclusive(self, session, logs, log_data):
         after = log_data[1].timestamp
         log_filter = LogFilter(timestamp={"after_": after})
