@@ -12,7 +12,7 @@ tags:
 
 # Task Run Concurrency
 
-There are situations in which you want to actively prevent too many tasks from running simultaneously. For example, if many tasks across multiple flows are designed to interact with a database that only allows 10 connections, you want to make sure that no more than 10 tasks that connect to this database are running at any given time.
+There are situations in which you want to restrict the number of certain tasks that can run simultaneously. For example, if many tasks across multiple flows are designed to interact with a database that only allows 10 connections, you want to make sure that no more than 10 tasks that connect to this database are running at any given time.
 
 Prefect has built-in functionality for achieving this: [task run concurrency limits](/concepts/tasks/#task-run-concurrency-limits).
 

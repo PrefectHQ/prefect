@@ -70,7 +70,7 @@ The following sections provide details about Prefect UI pages and visualizations
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
 - [Blocks](/ui/blocks/) enable you to create and manage configuration for [blocks](/concepts/blocks/) such as [storage](/concepts/storage/).
 - [Notifications](/ui/notifications/) enable you to create and manage alerts based on flow run states and tags.
-- [Task Run Concurrency Limits](/ui/task-concurrency/) enable you to prevent too many tasks from running simultaneously.
+- [Task Run Concurrency Limits](/ui/task-concurrency/) enable you to restrict the number of certain tasks that can run simultaneously.
 
 ## Navigating the UI
 
