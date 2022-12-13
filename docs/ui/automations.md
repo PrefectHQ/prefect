@@ -16,6 +16,20 @@ Automations are currently in beta and under active development, with new feature
 
 Automations in Prefect Cloud allow for increased flexibility and control of your data stack by allowing you to configure [triggers](#triggers) and [actions](#actions). Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications (coming soon!) in response to real-time monitoring events.
 
+The **Automations** page provides an overview of all configured automations for your workspace.
+
+![Viewing automations for a workspace in Prefect Cloud.](/img/ui/automations.png)
+
+Selecting the toggle next to an automation pauses execution of the automation. 
+
+The button next to the toggle provides commands to copy the automation ID or delete the automation.
+
+On the **Automations** page, select the **+** icon to create a new automation. You'll be prompted to configure:
+
+- A [trigger](#triggers) condition that causes the automation to execute.
+- An [action](#actions) carried out by the automation.
+- [Details](#details) about the automation, such as a name and description.
+
 ## Triggers
 
 Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
@@ -25,6 +39,8 @@ Triggers specify the conditions under which your action should be performed. Tri
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
+![Configuring a trigger for an automation in Prefect Cloud.](/img/ui/automations-trigger.png)
+
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
 
 
@@ -32,8 +48,12 @@ For example, in the case of flow run state change triggers, you might expect pro
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
 
-- Starting a flow run
-- Pausing/resuming a deployment schedule
+- Cancel a flow run
+- Pause or resume a deployment schedule
+- Run a deployment
+- Pause or resume a work queue
+
+![Configuring an action for an automation in Prefect Cloud.](/img/ui/automations-action.png)
 
 ### Selected and inferred action targets
 
@@ -48,6 +68,12 @@ For example, if a trigger fires on a flow run that is stuck in a running state, 
 Similarly, if a trigger fires on work queue health and the action is to pause an inferred work queue, the work queue to pause is inferred as the unhealthy work queue that caused the trigger to fire. 
 
 Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
+
+## Details
+
+Finally, specify a name and, optionally, a description for the automation.
+
+![Configuring details for an automation in Prefect Cloud.](/img/ui/automations-details.png)
 
 ## Coming soon
 
