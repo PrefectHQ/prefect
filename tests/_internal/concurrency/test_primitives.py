@@ -59,7 +59,7 @@ async def test_event_set_from_sync_thread_before_wait():
             tg.start_soon(event.wait)
 
 
-async def test_event_created_and_set_from_sync_threadt():
+async def test_event_created_and_set_from_sync_thread():
     def create_event():
         return Event()
 
