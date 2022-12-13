@@ -518,6 +518,7 @@ def initialize_orchestration(flow):
         run_type,
         initial_state_type,
         proposed_state_type,
+        initial_flow_run_state_type=None,
         run_override=None,
         run_tags=None,
         initial_details=None,
@@ -556,6 +557,13 @@ def initialize_orchestration(flow):
             context = FlowOrchestrationContext
             state_constructor = commit_flow_run_state
         elif run_type == "task":
+            if initial_flow_run_state_type:
+                flow_state_constructor = commit_flow_run_state
+                await flow_state_constructor(
+                    session,
+                    flow_run,
+                    initial_flow_run_state_type,
+                )
             task_run = await models.task_runs.create_task_run(
                 session=session,
                 task_run=schemas.actions.TaskRunCreate(
