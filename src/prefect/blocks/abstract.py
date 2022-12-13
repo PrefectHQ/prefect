@@ -11,8 +11,8 @@ T = TypeVar("T")
 
 class JobRun(ABC, Generic[T]):  # not a block
     """
-    Represents a job run in an external system that can wait
-    for the job run's completion and fetch its results.
+    Represents a job run in an external system. Allows waiting
+    for the job run's completion and fetching its results.
     """
 
     @property
@@ -43,8 +43,7 @@ class JobRun(ABC, Generic[T]):  # not a block
 
 class JobBlock(Block, ABC):
     """
-    Block that represents a resource that can trigger a long
-    running job in an external service.
+   Block that represents an entity in an external service that can trigger a long running execution.
     """
 
     @property
