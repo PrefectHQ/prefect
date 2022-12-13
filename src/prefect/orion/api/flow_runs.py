@@ -191,6 +191,8 @@ async def resume_flow_run(
     """
     Resume a paused flow run.
     """
+    now = pendulum.now()
+
     async with db.session_context(begin_transaction=True) as session:
         flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
         state = flow_run.state
@@ -226,13 +228,11 @@ async def resume_flow_run(
                 orchestration_parameters=orchestration_parameters,
             )
 
-        # only set the 201 when a new state was created
-        if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
-            response.status_code = status.HTTP_200_OK
-        elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
-            response.status_code = status.HTTP_200_OK
-        else:
+        # set the 201 if a new state was created
+        if orchestration_result.state and orchestration_result.state.timestamp >= now:
             response.status_code = status.HTTP_201_CREATED
+        else:
+            response.status_code = status.HTTP_200_OK
 
         return orchestration_result
 

@@ -718,7 +718,11 @@ async def orchestrate_flow_run(
 
 @sync_compatible
 async def pause_flow_run(
-    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+    flow_run_id: UUID = None,
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule=False,
+    key: str = None,
 ):
     """
     Pauses the current flow run by stopping execution until resumed.
@@ -729,6 +733,14 @@ async def pause_flow_run(
     been resumed within the specified time.
 
     Args:
+        flow_run_id: a flow run id. If supplied, this function will attempt to pause
+            the specified flow run outside of the flow run process. When paused, the
+            flow run will continue execution until the NEXT task is orchestrated, at
+            which point the flow will exit. Any tasks that have already started will
+            run until completion. When resumed, the flow run will be rescheduled to
+            finish execution. In order pause a flow run in this way, the flow needs to
+            have an associated deployment and results need to be configured with the
+            `persist_results` option.
         timeout: the number of seconds to wait for the flow to be resumed before
             failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
             any configured flow-level timeout, the flow might fail even after resuming.
@@ -737,12 +749,28 @@ async def pause_flow_run(
         reschedule: Flag that will reschedule the flow run if resumed. Instead of
             blocking execution, the flow will gracefully exit (with no result returned)
             instead. To use this flag, a flow needs to have an associated deployment and
-            results need to be configured.
+            results need to be configured with the `persist_results` option.
         key: An optional key to prevent calling pauses more than once. This defaults to
             the number of pauses observed by the flow so far, and prevents pauses that
             use the "reschedule" option from running the same pause twice. A custom key
             can be supplied for custom pausing behavior.
     """
+    if flow_run_id:
+        return await _out_of_process_pause(
+            flow_run_id=flow_run_id,
+            timeout=timeout,
+            reschedule=reschedule,
+            key=key,
+        )
+    else:
+        return await _in_process_pause(
+            timeout=timeout, poll_interval=poll_interval, reschedule=reschedule, key=key
+        )
+
+
+async def _in_process_pause(
+    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
@@ -793,6 +821,26 @@ async def pause_flow_run(
         return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
+
+
+async def _out_of_process_pause(
+    flow_run_id: UUID,
+    timeout: int = 300,
+    reschedule: bool = True,
+    key: str = None,
+):
+    if reschedule:
+        raise RuntimeError(
+            "Pausing a flow run out of process requires the `reschedule` option set to True."
+        )
+
+    client = get_client()
+    response = await client.set_flow_run_state(
+        flow_run_id,
+        Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
+    )
+    if response.status != SetStateStatus.ACCEPT:
+        raise RuntimeError(response.details.reason)
 
 
 @sync_compatible
@@ -1543,6 +1591,9 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     """
     try:
         yield
+    except PausedRun:
+        # Do not capture PausedRuns as crashes
+        raise
     except Abort:
         # Do not capture aborts as crashes
         raise
@@ -1712,6 +1763,8 @@ async def propose_state(
         )
 
     elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise PausedRun(response.details.reason)
         return response.state
 
     else:
