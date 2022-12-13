@@ -35,7 +35,7 @@ class JobRun(ABC, Generic[T]):  # not a block
         """
 
     @abstractmethod
-    async def fetch_results(self) -> T:
+    async def fetch_result(self) -> T:
         """
         Retrieve the results of the job run and return them.
         """

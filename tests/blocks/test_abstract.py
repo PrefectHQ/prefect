@@ -32,7 +32,7 @@ class TestJobBlock:
                 self.status = "completed"
                 self.logger.info("Job run completed.")
 
-            def fetch_results(self):
+            def fetch_result(self):
                 if self.status != "completed":
                     raise JobRunIsRunning("Job run is still running.")
                 return "results"
@@ -45,11 +45,11 @@ class TestJobBlock:
         a_job_block = AJobBlock()
         a_job_run = a_job_block.trigger()
 
-        # test wait_for_completion and fetch_results
+        # test wait_for_completion and fetch_result
         with pytest.raises(JobRunIsRunning, match="Job run is still running."):
-            a_job_run.fetch_results()
+            a_job_run.fetch_result()
         assert a_job_run.wait_for_completion() is None
-        assert a_job_run.fetch_results() == "results"
+        assert a_job_run.fetch_result() == "results"
 
         # test logging
         assert hasattr(a_job_block, "logger")
