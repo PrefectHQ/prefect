@@ -1599,11 +1599,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     """
     try:
         yield
-    except PausedRun:
-        # Do not capture PausedRuns as crashes
-        raise
-    except Abort:
-        # Do not capture aborts as crashes
+    except (Abort, Pause):
+        # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
         state = await exception_to_crashed_state(exc)
@@ -1772,7 +1769,7 @@ async def propose_state(
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():
-            raise PausedRun(response.details.reason)
+            raise Pause(response.details.reason)
         return response.state
 
     else:

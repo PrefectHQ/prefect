@@ -489,7 +489,7 @@ class TestOutOfProcessPause:
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
 
-        with pytest.raises(PausedRun):
+        with pytest.raises(Pause):
             flow_run_state = await pausing_flow_without_blocking()
 
 
