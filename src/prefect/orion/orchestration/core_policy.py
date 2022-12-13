@@ -738,17 +738,25 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         flow_run = await context.flow_run()
+
+        # Pauses as a concept only exist after API version 0.8.4
+        api_version = context.parameters.get("api-version", None)
+        if api_version is None or api_version >= Version("0.8.4"):
+            if flow_run.state and flow_run.state.type == StateType.PAUSED:
+                await self.reject_transition(
+                    state=states.Paused(name="NotReady"),
+                    reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}.",
+                )
+                return
+
         if flow_run.state is None:
             await self.abort_transition(
                 reason=f"The enclosing flow must be running to begin task execution."
             )
-        elif flow_run.state.type == StateType.PAUSED:
-            await self.reject_transition(
-                state=states.Paused(name="NotReady"),
-                reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}.",
-            )
+            return
         elif not flow_run.state.type == StateType.RUNNING:
             # task runners should abort task run execution
             await self.abort_transition(
                 reason=f"The enclosing flow must be running to begin task execution.",
             )
+            return
