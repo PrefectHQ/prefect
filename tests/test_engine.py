@@ -417,6 +417,71 @@ class TestNonblockingPause:
             flow_run_state = await pausing_flow_without_blocking()
 
 
+class TestOutOfProcessPause:
+    async def test_flows_can_be_paused_out_of_process(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        # when pausing the flow run with a specific flow run id, `pause_flow_run`
+        # attempts an out-of-process pause; this continues execution until the NEXT
+        # task run attempts to start, then gracefully exits
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            context = FlowRunContext.get()
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        flow_run_state = await pausing_flow_without_blocking(return_state=True)
+        assert flow_run_state.is_paused()
+        flow_run_id = flow_run_state.state_details.flow_run_id
+        task_runs = await orion_client.read_task_runs(
+            flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
+        )
+        completed_task_runs = list(
+            filter(lambda tr: tr.state.is_completed(), task_runs)
+        )
+        paused_task_runs = list(filter(lambda tr: tr.state.is_paused(), task_runs))
+        assert len(task_runs) == 3, "only three tasks should have tried to run"
+        assert len(completed_task_runs) == 2, "only two task runs should have completed"
+        assert (
+            len(paused_task_runs) == 1
+        ), "one task run should have exited with a paused state"
+
+    async def test_out_of_process_pauses_exit_gracefully(
+        self, orion_client, deployment, monkeypatch
+    ):
+        frc = partial(FlowRunCreate, deployment_id=deployment.id)
+        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+
+        @task
+        async def foo():
+            return 42
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def pausing_flow_without_blocking():
+            context = FlowRunContext.get()
+            x = await foo.submit()
+            y = await foo.submit()
+            await pause_flow_run(flow_run_id=context.flow_run.id, timeout=20)
+            z = await foo(wait_for=[x])
+            alpha = await foo(wait_for=[y])
+            omega = await foo(wait_for=[x, y])
+
+        with pytest.raises(PausedRun):
+            flow_run_state = await pausing_flow_without_blocking()
+
+
 class TestOrchestrateTaskRun:
     async def test_waits_until_scheduled_start_time(
         self,
@@ -427,6 +492,12 @@ class TestOrchestrateTaskRun:
         result_factory,
         monkeypatch,
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         @task
         def foo():
             return 1
@@ -461,6 +532,12 @@ class TestOrchestrateTaskRun:
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run, mock_anyio_sleep, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         @task
         def foo():
             return 1
@@ -495,6 +572,12 @@ class TestOrchestrateTaskRun:
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a task that fails once and then succeeds
         mock = MagicMock()
 
@@ -616,6 +699,12 @@ class TestOrchestrateTaskRun:
     async def test_quoted_parameters_are_resolved(
         self, orion_client, flow_run, result_factory, local_filesystem
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a mock to ensure the task was not run
         mock = MagicMock()
 
@@ -661,6 +750,12 @@ class TestOrchestrateTaskRun:
         result_factory,
         local_filesystem,
     ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
         # Define a mock to ensure the task was not run
         mock = MagicMock()
 

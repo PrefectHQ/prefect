@@ -291,6 +291,12 @@ class TestDeleteTaskRuns:
 
 class TestSetTaskRunState:
     async def test_set_task_run_state(self, task_run, client, session):
+        # first ensure the parent flow run is in a running state
+        await client.post(
+            f"/flow_runs/{task_run.flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="RUNNING", name="Test State")),
@@ -316,6 +322,12 @@ class TestSetTaskRunState:
         # A multi-agent environment may attempt to orchestrate a run more than once,
         # this test ensures that a 2nd agent cannot re-propose a state that's already
         # been set
+
+        # first ensure the parent flow run is in a running state
+        await client.post(
+            f"/flow_runs/{task_run.flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
 
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
