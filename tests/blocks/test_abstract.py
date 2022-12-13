@@ -70,12 +70,13 @@ class TestDatabaseBlock:
         ):
             DatabaseBlock()
 
-    def test_database_block_implementation(self, caplog):
+    async def test_database_block_implementation(self, caplog):
         class ADatabaseBlock(DatabaseBlock):
             def __init__(self):
                 self._results = tuple(
                     zip(["apple", "banana", "cherry"], [1, 2, 3], [True, False, True])
                 )
+                self._engine = None
 
             def fetch_one(self, operation, parameters=None, **execution_kwargs):
                 self.logger.info(f"Fetching one result using {parameters}.")
@@ -100,6 +101,13 @@ class TestDatabaseBlock:
                 self.logger.info(
                     f"Executing many operations using {seq_of_parameters}."
                 )
+
+            def __enter__(self):
+                self._engine = True
+                return self
+
+            def __exit__(self, *args):
+                self._engine = None
 
         a_database_block = ADatabaseBlock()
         parameters = {"a": "b"}
@@ -138,3 +146,13 @@ class TestDatabaseBlock:
             records[4].message
             == "Executing many operations using [{'a': 'b'}, {'a': 'b'}]."
         )
+
+        # test context manager
+        with a_database_block as db:
+            assert db._engine is True
+        assert a_database_block._engine is None
+
+        match = "ADatabaseBlock does not support async context management."
+        with pytest.raises(NotImplementedError, match=match):
+            async with a_database_block:
+                pass
