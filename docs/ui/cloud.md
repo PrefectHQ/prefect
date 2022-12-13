@@ -36,6 +36,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
     - [Audit Log](/ui/audit-log/) record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your workspace or organization.
     - [Email notifications](/ui/notifications/) &mdash; configure email alerts based on flow run states and tags.
+    - [Automations](/ui/automations/) &mdash; configure triggers and actions in response to real-time monitoring events.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
@@ -102,6 +103,10 @@ Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/prici
 ## Audit Log <span class="badge orgs"></span> <span class="badge enterprise"></span>
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/ui/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes. 
+
+## Automations <span class="badge beta"></span>
+
+Prefect Cloud automations enable you to configure triggers and actions that can automatically kick off flow runs, pause deployments, or send custom notifications (coming soon!) in response to real-time monitoring events.
 
 ## Start using Prefect Cloud
 
