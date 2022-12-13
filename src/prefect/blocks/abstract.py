@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from logging import Logger
 from typing import Any, Generic, List, Tuple, TypeVar
 
 from prefect import get_run_logger
@@ -16,7 +17,7 @@ class JobRun(ABC, Generic[T]):  # not a block
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the JobRun
         is called from within a flow or task run context.
@@ -29,7 +30,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self):
+    async def wait_for_completion(self) -> Logger:
         """
         Wait for the job run to complete.
         """
@@ -48,7 +49,7 @@ class JobBlock(Block, ABC):
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the JobBlock
         is called from within a flow or task run context.
@@ -81,7 +82,7 @@ class DatabaseBlock(Block, ABC):
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the JobBlock
         is called from within a flow or task run context.
@@ -170,3 +171,37 @@ class DatabaseBlock(Block, ABC):
             seq_of_parameters: The sequence of parameters for the operation.
             **execution_kwargs: Additional keyword arguments to pass to execute.
         """
+
+    # context management methods are not abstract methods because
+    # they are not supported by all database drivers
+    async def __aenter__(self) -> "DatabaseBlock":
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    async def __aexit__(self, *args):
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    def __enter__(self) -> "DatabaseBlock":
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
+
+    def __exit__(self, *args):
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
