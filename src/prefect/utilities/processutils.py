@@ -153,3 +153,11 @@ def kill_on_interrupt(pid: int, process_name: str, print_fn: Callable):
             os.kill(pid, signal.SIGKILL)
 
     signal.signal(signal.SIGINT, stop_process)
+
+
+def get_os_term_signal() -> int:
+    """Return the termination signal used by the current operating system"""
+    if sys.platform == "win32":
+        return signal.CTRL_BREAK_EVENT
+    else:
+        return signal.SIGTERM

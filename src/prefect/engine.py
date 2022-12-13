@@ -96,6 +96,7 @@ from prefect.utilities.asyncutils import (
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
 from prefect.utilities.hashing import stable_hash
+from prefect.utilities.processutils import get_os_term_signal
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -1563,7 +1564,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     def cancel_flow_run(*args):
         raise Cancel(cause="SIGTERM")
 
-    original_sigterm_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+    original_term_handler = signal.signal(get_os_term_signal(), cancel_flow_run)
 
     try:
         yield
@@ -1588,7 +1589,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         # Reraise the exception
         raise exc from None
     finally:
-        signal.signal(signal.SIGTERM, original_sigterm_handler)
+        signal.signal(get_os_term_signal(), original_term_handler)
 
 
 @asynccontextmanager
@@ -1914,11 +1915,11 @@ if __name__ == "__main__":
             f"Engine execution of flow run '{flow_run_id}' cancelled by orchestrator: {exc}"
         )
         if exc.cause == "SIGTERM":
-            # The default SIGTERM handler is swapped out during a flow run to
+            # The default termination handler is swapped out during a flow run to
             # raise this `Cancel` exception. This `os.kill` call ensures that
             # the previous handler (likely the Python default) gets called as
             # well.
-            os.kill(os.getpid(), signal.SIGTERM)
+            os.kill(os.getpid(), get_os_term_signal())
         else:
             exit(0)
     except Exception:
