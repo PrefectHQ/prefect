@@ -133,15 +133,9 @@ async def exception_to_crashed_state(
     'Crash' exception with a 'Crashed' state.
     """
     state_message = None
-    state_cls = Crashed
 
-    if isinstance(exc, Cancel):
-        state_message = "Execution was cancelled by a termination signal."
-        state_cls = Cancelled
-
-    elif isinstance(exc, anyio.get_cancelled_exc_class()):
+    if isinstance(exc, anyio.get_cancelled_exc_class()):
         state_message = "Execution was cancelled by the runtime environment."
-        state_cls = Cancelled
 
     elif isinstance(exc, KeyboardInterrupt):
         state_message = "Execution was aborted by an interrupt signal."
@@ -169,7 +163,7 @@ async def exception_to_crashed_state(
         # from the API
         data = exc
 
-    return state_cls(message=state_message, data=data)
+    return Crashed(message=state_message, data=data)
 
 
 async def exception_to_failed_state(
@@ -536,9 +530,13 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    state_details.pause_timeout = pause_expiration_time or (
-        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
-    )
+    if pause_expiration_time is None and timeout_seconds is None:
+        pass
+    else:
+        state_details.pause_timeout = pause_expiration_time or (
+            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+        )
+
     state_details.pause_reschedule = reschedule
     state_details.pause_key = pause_key
 
