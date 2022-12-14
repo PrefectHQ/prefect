@@ -705,6 +705,14 @@ class TestPreventOrphanedConcurrencySlots:
         return model
 
     async def test_force_releases_concurrency(self, session, task_run_1, task_run_2):
+        # first set flow runs in a running state
+        await models.flow_runs.set_flow_run_state(
+            session=session, flow_run_id=task_run_1.flow_run_id, state=Running()
+        )
+        await models.flow_runs.set_flow_run_state(
+            session=session, flow_run_id=task_run_2.flow_run_id, state=Running()
+        )
+
         await concurrency_limits.create_concurrency_limit(
             session=session,
             concurrency_limit=schemas.core.ConcurrencyLimit(
