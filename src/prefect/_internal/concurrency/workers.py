@@ -135,8 +135,11 @@ class WorkerThreadPool:
 
     def _adjust_worker_count(self):
         """
+        This method should called after work is added to the queue.
+
         If no workers are idle and the maximum worker count is not reached, add a new
-        worker.
+        worker. Otherwise, decrement the idle worker count since work as been added
+        to the queue and a worker will be busy.
 
         Note on cleanup of workers:
             Workers are only removed on shutdown. Workers could be shutdown after a
@@ -145,7 +148,12 @@ class WorkerThreadPool:
             created. As long as the maximum number of workers remains relatively small,
             the overhead of idle workers should be negligable.
         """
-        if not self._idle.acquire(timeout=0) and len(self._workers) < self._max_workers:
+        if (
+            # `acquire` returns false if the idle count is at zero; otherwise, it
+            # decrements the idle count and returns true
+            not self._idle.acquire(blocking=False)
+            and len(self._workers) < self._max_workers
+        ):
             self._add_worker()
 
     def _add_worker(self):
