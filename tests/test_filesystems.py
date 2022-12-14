@@ -111,14 +111,38 @@ class TestLocalFileSystem:
             )
             # move file contents to tmp_dst
             with TemporaryDirectory() as tmp_dst:
-
-                f = LocalFileSystem()
+                f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
                 await f.put_directory(
                     local_path=tmp_src,
                     to_path=tmp_dst,
                 )
 
+                assert set(os.listdir(tmp_dst)) == set(parent_contents)
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
+
+    async def test_to_path_modifies_base_path_correctly(self):
+
+        sub_dir_name = "puppy"
+
+        with TemporaryDirectory() as tmp_src:
+            parent_contents, child_contents = setup_test_directory(
+                tmp_src, sub_dir_name
+            )
+            # move file contents to tmp_dst
+            with TemporaryDirectory() as tmp_dst:
+                # Do not include final destination dir in the basepath
+                f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+                # add final destination_dir
+                await f.put_directory(
+                    local_path=tmp_src,
+                    to_path=Path(tmp_dst).name,
+                )
+
+                # Make sure that correct destination was reached at <basepath>/<to_path>
                 assert set(os.listdir(tmp_dst)) == set(parent_contents)
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
                     child_contents
@@ -154,7 +178,7 @@ class TestLocalFileSystem:
             # move file contents to tmp_dst
             with TemporaryDirectory() as tmp_dst:
 
-                f = LocalFileSystem()
+                f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
                 await f.put_directory(
                     local_path=tmp_src, to_path=tmp_dst, ignore_file=ignore_fpath
@@ -195,7 +219,7 @@ class TestLocalFileSystem:
             # move file contents to tmp_dst
             with TemporaryDirectory() as tmp_dst:
 
-                f = LocalFileSystem()
+                f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
                 await f.put_directory(
                     local_path=tmp_src, to_path=tmp_dst, ignore_file=ignore_fpath
