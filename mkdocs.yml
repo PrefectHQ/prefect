@@ -141,6 +141,7 @@ nav:
         - ui/work-queues.md
         - ui/blocks.md
         - ui/notifications.md
+        - ui/task-concurrency.md
         - Prefect Cloud Overview: ui/cloud.md
         - Prefect Cloud Quickstart: ui/cloud-getting-started.md
         - Workspaces: ui/workspaces.md

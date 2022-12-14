@@ -24,6 +24,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 - [Work queues](/ui/work-queues/) created to queue work for agents.
 - [Blocks](/ui/blocks/) configured for storage or infrastructure used by your flow runs.
 - [Notifications](/ui/notifications/) configured to alert on flow run state changes.
+- [Task Run Concurrency Limits](/ui/task-concurrency/) configured to prevent too many tasks from running simultaneously.
 
 !!! cloud-ad "Prefect Cloud features"
     Features only available on Prefect Cloud include:
