@@ -11,18 +11,33 @@ def identity(x):
     return x
 
 
-async def test_submit():
+def aidentity(x):
+    return x
+
+
+@pytest.mark.parametrize("fn", [identity, aidentity], ids=["sync", "async"])
+async def test_submit(fn):
     async with WorkerThreadPool() as pool:
-        future = await pool.submit(identity, 1)
+        future = await pool.submit(fn, 1)
         assert await future.aresult() == 1
 
 
-async def test_submit_many():
-    async with WorkerThreadPool() as pool:
-        futures = [await pool.submit(identity, i) for i in range(100)]
+@pytest.mark.parametrize("fn", [identity, aidentity], ids=["sync", "async"])
+async def test_submit_many(fn):
+    async with WorkerThreadPool(max_workers=20) as pool:
+        futures = [await pool.submit(fn, i) for i in range(100)]
         results = await asyncio.gather(*[future.aresult() for future in futures])
         assert results == list(range(100))
-        assert len(pool._workers) == pool._max_workers
+        assert len(pool._workers) == 20
+
+
+@pytest.mark.parametrize("fn", [identity, aidentity], ids=["sync", "async"])
+async def test_submit_many_single_worker(fn):
+    async with WorkerThreadPool(max_workers=1) as pool:
+        futures = [await pool.submit(fn, i) for i in range(100)]
+        results = await asyncio.gather(*[future.aresult() for future in futures])
+        assert results == list(range(100))
+        assert len(pool._workers) == 1
 
 
 async def test_submit_reuses_idle_thread():
@@ -37,7 +52,6 @@ async def test_submit_reuses_idle_thread():
 
         future = await pool.submit(identity, 1)
         await future.aresult()
-        assert len(pool._workers) == 1
 
 
 async def test_submit_after_shutdown():
@@ -51,15 +65,15 @@ async def test_submit_after_shutdown():
 
 
 async def test_submit_during_shutdown():
-    async with WorkerThreadPool() as pool:
+    pool = WorkerThreadPool()
 
-        async with anyio.create_task_group() as tg:
-            await tg.start(pool.shutdown)
+    async with anyio.create_task_group() as tg:
+        await tg.start(pool.shutdown)
 
-            with pytest.raises(
-                RuntimeError, match="Work cannot be submitted to pool after shutdown"
-            ):
-                await pool.submit(identity, 1)
+        with pytest.raises(
+            RuntimeError, match="Work cannot be submitted to pool after shutdown"
+        ):
+            await pool.submit(identity, 1)
 
 
 async def test_shutdown_no_workers():

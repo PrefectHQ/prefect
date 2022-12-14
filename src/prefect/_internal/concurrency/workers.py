@@ -1,6 +1,7 @@
 import asyncio
 import contextvars
 import dataclasses
+import inspect
 import threading
 import weakref
 from queue import Queue
@@ -27,11 +28,27 @@ class _WorkItem:
     kwargs: Dict
     context: contextvars.Context
 
-    def run(self):
+    def run(self, event_loop: asyncio.AbstractEventLoop):
+        """
+        Execute the work item.
+
+        The provided event loop is used to run coroutine functions.
+
+        All exceptions during execution of the work item are captured and attached to
+        the future.
+        """
+        # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
             return
+
+        # Execute the work and set the result on the future
         try:
             result = self.context.run(self.fn, *self.args, **self.kwargs)
+
+            # Check for a returned coroutine; run to completion
+            if inspect.iscoroutine(result):
+                result = self.context.run(event_loop.run_until_complete, result)
+
         except BaseException as exc:
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
@@ -41,28 +58,67 @@ class _WorkItem:
 
 
 class _WorkerThread(threading.Thread):
+    """
+    A worker thread; reads sync and async work from a queue and executes it.
+
+    The lifetime of a worker thread:
+
+    - Create an event loop
+    - Block until an object is found in the queue
+    - If the object is a work item, execute it
+        - If the work item returns a coroutine, it will be run on the event loop
+        - After execution, mark the thread as idle and get the next item from the queue
+    - If the object is null, shutdown has been requested
+        - Place another null in the queue to pass the message to the next worker
+        - Exit the loop watching for new work
+    - Shutdown the event loop
+    - Exit the thread
+
+    """
+
     def __init__(
         self,
         queue: "Queue[Union[_WorkItem, None]]",  # Typing only supported in Python 3.9+
         idle: threading.Semaphore,
         name: str = None,
     ):
+        """
+        Create a new worker thread.
+
+        Args:
+            queue: The queue to pull work from.
+            idle: A semaphore to release when work is complete. The semaphore must be
+                acquired by the manager of the thread when work is submitted.
+            name: A name for the thread; used for debugging purposes.
+        """
         super().__init__(name=name)
         self._queue = queue
         self._idle = idle
+        self._loop = asyncio.new_event_loop()
 
     def run(self) -> None:
         while True:
             work_item = self._queue.get()
-            if work_item is None:
-                # Shutdown command received; forward to other workers and exit
-                self._queue.put_nowait(None)
-                return
 
-            work_item.run()
+            # Check for shutdown
+            if work_item is None:
+                # Forward message to other workers and exit
+                self._queue.put_nowait(None)
+                break
+
+            # Execute the work item
+            work_item.run(self._loop)
+
+            # Mark the worker as idle
             self._idle.release()
 
+            # Remove the reference to the work item immediately instead of waiting
+            # for completion of the next blocking `queue.get` call
+            # See https://bugs.python.org/issue16284
             del work_item
+
+        self._loop.stop()
+        self._loop.close()
 
 
 class WorkerThreadPool:
