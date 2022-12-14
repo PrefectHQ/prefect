@@ -39,9 +39,9 @@ from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
-    PREFECT_BETA_WORKERS_ENABLED,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
@@ -473,5 +473,5 @@ def caplog(caplog):
 
 @pytest.fixture
 def enable_workers():
-    with temporary_settings({PREFECT_BETA_WORKERS_ENABLED: 1}):
+    with temporary_settings({PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1}):
         yield

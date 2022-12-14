@@ -9,7 +9,7 @@ import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkerPoolCreate
 from prefect.orion.schemas.core import WorkerPool, WorkerPoolQueue
-from prefect.settings import PREFECT_BETA_WORKERS_ENABLED, temporary_settings
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS, temporary_settings
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -28,16 +28,16 @@ def auto_enable_workers(enable_workers):
     """
     Enable workers for testing
     """
-    assert PREFECT_BETA_WORKERS_ENABLED
+    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
 class TestEnableWorkersFlag:
     async def test_flag_defaults_to_false(self):
-        with temporary_settings(restore_defaults={PREFECT_BETA_WORKERS_ENABLED}):
-            assert not PREFECT_BETA_WORKERS_ENABLED
+        with temporary_settings(restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORKERS}):
+            assert not PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
     async def test_404_when_flag_disabled(self, client):
-        with temporary_settings(restore_defaults={PREFECT_BETA_WORKERS_ENABLED}):
+        with temporary_settings(restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORKERS}):
             response = await client.post(
                 "/experimental/workers/pools/", json=dict(name="Pool 1")
             )
