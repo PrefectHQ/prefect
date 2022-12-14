@@ -3,6 +3,8 @@ from logging import Logger
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Generic, List, Tuple, TypeVar, Union
 
+from typing_extensions import Self
+
 from prefect import get_run_logger
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
@@ -70,16 +72,21 @@ class JobBlock(Block, ABC):
         """
 
 
+# TODO: This interface is heavily influenced by
+# [PEP 249](https://peps.python.org/pep-0249/)
+# Primarily intended for use with relational databases.
+# A separate interface may be necessary for
+# non relational databases.
 class DatabaseBlock(Block, ABC):
     """
-    The DatabaseBlock class represents a resource for interacting with a database.
-    Heavily influenced by [PEP 249](https://peps.python.org/pep-0249/).
-    Skewed towards RDBMS systems and a separate interface may be necessary
-    for non relational databases.
-
-    These blocks have the option to compose a credentials block or accept
-    credentials directly. It depends on how tightly coupled the database
-    configuration is to the credentials configuration.
+    An abstract block type that represents a database and
+    provides an interface for interacting with it.
+    Blocks that implement this interface have the option to accept
+    credentials directly via attributes or via a nested `CredentialsBlock`.
+    Use of a nested credentials block is recommended unless credentials
+    are tightly coupled to database connection configuration.
+    Implementing either sync or async context management on `DatabaseBlock`
+    implementations is recommended.
     """
 
     @property
@@ -173,11 +180,45 @@ class DatabaseBlock(Block, ABC):
             **execution_kwargs: Additional keyword arguments to pass to execute.
         """
 
+    # context management methods are not abstract methods because
+    # they are not supported by all database drivers
+    async def __aenter__(self) -> Self:
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    async def __aexit__(self, *args) -> None:
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    def __enter__(self) -> Self:
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
+
+    def __exit__(self, *args) -> None:
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
+
 
 class ObjectStorageBlock(Block, ABC):
     """
-    Block that represents a resource that can upload and download
-    objects in an external service.
+    Block that represents a resource in an external service that can store
+    objects.
     """
 
     @property
