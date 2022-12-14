@@ -1,6 +1,6 @@
 import pytest
 
-from prefect.blocks.abstract import DatabaseBlock, JobBlock, JobRun
+from prefect.blocks.abstract import DatabaseBlock, JobBlock, JobRun, ObjectStorageBlock
 from prefect.exceptions import PrefectException
 
 
@@ -156,3 +156,96 @@ class TestDatabaseBlock:
         with pytest.raises(NotImplementedError, match=match):
             async with a_database_block:
                 pass
+
+
+class TestObjectStorageBlock:
+    def test_object_storage_block_is_abstract(self):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class ObjectStorageBlock"
+        ):
+            ObjectStorageBlock()
+
+    def test_object_storage_block_implementation(self, caplog, tmp_path):
+        class AObjectStorageBlock(ObjectStorageBlock):
+            def __init__(self):
+                self._storage = {}
+
+            def download_object_to_path(self, from_path, to_path, **download_kwargs):
+                with open(to_path, "w") as f:
+                    f.write(self._storage[from_path])
+                return to_path
+
+            def download_object_to_file_object(
+                self, from_path, to_file_object, **download_kwargs
+            ):
+                to_file_object.write(self._storage[from_path])
+                return to_file_object
+
+            def download_folder_to_path(
+                self, from_folder, to_folder, **download_kwargs
+            ):
+                self.logger.info(f"downloaded from {from_folder} to {to_folder}")
+
+            def upload_from_path(self, from_path, to_path, **upload_kwargs):
+                with open(from_path, "r") as f:
+                    self._storage[to_path] = f.read()
+                return to_path
+
+            def upload_from_file_object(
+                self, from_file_object, to_path, **upload_kwargs
+            ):
+                self._storage[to_path] = from_file_object.read()
+                return to_path
+
+            def upload_from_folder(self, from_folder, to_folder, **upload_kwargs):
+                self.logger.info(f"uploaded from {from_folder} to {to_folder}")
+
+        a_object_storage_block = AObjectStorageBlock()
+
+        # seed with data
+        a_file_path = tmp_path / "a_file.txt"
+        a_file_path.write_text("hello")
+
+        # upload from path
+        a_object_storage_block.upload_from_path(
+            from_path=a_file_path, to_path="uploaded_from_path.txt"
+        )
+        assert a_object_storage_block._storage["uploaded_from_path.txt"] == "hello"
+
+        # upload from file object
+        with open(a_file_path, "r") as f:
+            a_object_storage_block.upload_from_file_object(
+                from_file_object=f, to_path="uploaded_from_file_object.txt"
+            )
+        assert (
+            a_object_storage_block._storage["uploaded_from_file_object.txt"] == "hello"
+        )
+
+        # upload from folder
+        a_object_storage_block.upload_from_folder(
+            from_folder=tmp_path, to_folder="uploaded_from_folder"
+        )
+        caplog.records[0].message == f"uploaded from {tmp_path} to uploaded_from_folder"
+
+        # download to path
+        a_object_storage_block.download_object_to_path(
+            from_path="uploaded_from_path.txt",
+            to_path=tmp_path / "downloaded_to_path.txt",
+        )
+        assert (tmp_path / "downloaded_to_path.txt").exists()
+
+        # download to file object
+        with open(tmp_path / "downloaded_to_file_object.txt", "w") as f:
+            a_object_storage_block.download_object_to_file_object(
+                from_path="uploaded_from_file_object.txt", to_file_object=f
+            )
+        with open(tmp_path / "downloaded_to_file_object.txt", "r") as f:
+            assert f.read() == "hello"
+
+        # download folder to path
+        a_object_storage_block.download_folder_to_path(
+            from_folder="uploaded_from_folder", to_folder="downloaded_to_folder"
+        )
+        caplog.records[
+            1
+        ].message == f"downloaded from uploaded_from_folder to downloaded_to_folder"
