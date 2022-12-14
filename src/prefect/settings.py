@@ -813,6 +813,11 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 If disabled, you will need to run this service separately to send flow run notifications.
 """
 
+PREFECT_BETA_WORKERS_ENABLED = Setting(bool, default=False)
+"""
+Whether or not to enable the beta Prefect worker architecture. 
+"""
+
 # Collect all defined settings
 
 SETTING_VARIABLES = {
