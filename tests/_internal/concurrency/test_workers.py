@@ -11,7 +11,8 @@ def identity(x):
     return x
 
 
-def aidentity(x):
+async def aidentity(x):
+    await asyncio.sleep(0)
     return x
 
 
