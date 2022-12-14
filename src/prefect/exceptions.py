@@ -85,6 +85,12 @@ class CancelledRun(PrefectException):
     """
 
 
+class PausedRun(PrefectException):
+    """
+    Raised when the result from a paused run is retrieved.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
@@ -261,6 +267,12 @@ class Abort(PrefectSignal):
     Raised when the API sends an 'ABORT' instruction during state proposal.
 
     Indicates that the run should exit immediately.
+    """
+
+
+class Pause(PrefectSignal):
+    """
+    Raised when a flow run is PAUSED and needs to exit for resubmission.
     """
 
 
