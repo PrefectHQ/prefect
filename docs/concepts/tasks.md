@@ -402,7 +402,11 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 
