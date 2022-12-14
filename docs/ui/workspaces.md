@@ -1,5 +1,6 @@
 ---
 description: Workspaces are isolated environments for flows and deployments within Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - Prefect Cloud
@@ -29,7 +30,7 @@ Your list of available workspaces may include:
 - Workspaces owned by other users, who have invited you to their workspace as a collaborator.
 - Workspaces in an [organization](/ui/organizations/) to which you've been invited and have been given access to organization workspaces.
 
-!!! info "Workspace-specific features"
+!!! cloud-ad "Workspace-specific features"
     Each workspace keeps track of its own:
 
     - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)

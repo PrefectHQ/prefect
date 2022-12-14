@@ -1,5 +1,6 @@
 ---
 description: Monitor user access and activity with Audit Logs in Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard

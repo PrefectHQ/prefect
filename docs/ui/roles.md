@@ -1,5 +1,6 @@
 ---
 description: Configure user workspace roles in Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
