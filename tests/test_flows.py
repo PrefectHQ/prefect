@@ -1980,3 +1980,34 @@ def test_warning_raised_when_flow_call_in_loaded_flow_script(
         res = flow()
         assert res == "woof!"
         assert "meow!" in caplog.text
+
+
+def test_flow_script_with_flow_call_only_run_once(
+    tmp_path,
+    caplog,
+):
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
+
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert len(caplog.messages) == 1
+        assert "meow!" not in caplog.text
+
+        res = flow()
+        assert res == "woof!"
+        # "meow!" is logged with each flow run
+        meow_instances = [w for w in caplog.text.split() if w.strip() == "meow!"]
+        assert len(meow_instances) == 1
+        flow()
+        meow_instances = [w for w in caplog.text.split() if w.strip() == "meow!"]
+        assert len(meow_instances) == 2
