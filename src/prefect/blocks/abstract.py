@@ -10,7 +10,7 @@ T = TypeVar("T")
 
 class NotificationBlock(Block, ABC):
     """
-    A `Block` base class for sending notifications.
+   Block that represents a resource in an external system that is able to send notifications.
     """
 
     _block_schema_capabilities = ["notify"]
