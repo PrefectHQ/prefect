@@ -179,7 +179,7 @@ class DatabaseBlock(Block, ABC):
 
     # context management methods are not abstract methods because
     # they are not supported by all database drivers
-    async def __aenter__(self) -> "DatabaseBlock":
+    async def __aenter__(self) -> Self:
         """
         Context management method for async databases.
         """
@@ -195,7 +195,7 @@ class DatabaseBlock(Block, ABC):
             f"{self.__class__.__name__} does not support async context management."
         )
 
-    def __enter__(self) -> "DatabaseBlock":
+    def __enter__(self) -> Self:
         """
         Context management method for databases.
         """
