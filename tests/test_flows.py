@@ -2,6 +2,7 @@ import enum
 import inspect
 import sys
 import time
+from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock
 
@@ -26,7 +27,6 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
@@ -1908,44 +1908,75 @@ class TestFlowRetries:
         ), "Child flow should run 2 times for each parent run"
 
 
-flow_code = """
-from prefect import flow
-
-@flow
-def dog():
-    return "woof!"
-"""
-
-flow_code_with_call = """
-from prefect import flow
-
-@flow
-def dog():
-    return "woof!"
-
-dog()
-"""
-
-
 def test_load_flow_from_entrypoint(tmp_path):
+    flow_code = """
+    from prefect import flow
+
+    @flow
+    def dog():
+        return "woof!"
+    """
     fpath = tmp_path / "f.py"
-    with open(fpath, "w") as f:
-        f.write(flow_code)
+    fpath.write_text(dedent(flow_code))
 
     flow = load_flow_from_entrypoint(f"{fpath}:dog")
     assert flow.fn() == "woof!"
 
 
-def test_load_flow_from_entrypoint_does_not_execute(
+def test_load_flow_from_entrypoint_ignores_flow_calls(
     tmp_path,
-    monkeypatch,
+    caplog,
 ):
-    mock = MagicMock()
-    monkeypatch.setattr("prefect.engine.create_and_begin_subflow_run", mock)
-    fpath = tmp_path / "f.py"
-    with open(fpath, "w") as f:
-        f.write(flow_code_with_call)
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
 
-    flow = load_flow_from_entrypoint(f"{fpath}:dog")
-    mock.assert_not_called()
-    assert flow.fn() == "woof!"
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        # Make sure that flow has not run on load
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert len(caplog.messages) == 1
+        assert "meow!" not in caplog.text
+
+        # Make sure that flow runs when called
+        res = flow()
+        assert res == "woof!"
+        assert "meow!" in caplog.text
+
+
+def test_warning_raised_when_flow_call_in_loaded_flow_script(
+    tmp_path,
+    caplog,
+):
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
+
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+        assert len(caplog.messages) == 1
+        assert (
+            "Script loading is in progress, flow 'dog' will not be executed. "
+            "Consider updating the script to only call the flow"
+        ) in caplog.text
+
+        # Make sure that flow runs when called
+        res = flow()
+        assert res == "woof!"
+        assert "meow!" in caplog.text
