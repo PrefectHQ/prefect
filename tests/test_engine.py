@@ -1,9 +1,10 @@
 import asyncio
+import signal
 import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import anyio
@@ -22,11 +23,13 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
 from prefect.exceptions import (
     Abort,
+    Cancel,
     CrashedRun,
     FailedRun,
     ParameterTypeError,
@@ -1273,6 +1276,27 @@ class TestFlowRunCrashes:
         await anyio.sleep(1)
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
+
+    async def test_report_flow_run_crashes_handles_sigterm(
+        self, flow_run, orion_client, monkeypatch
+    ):
+        original_handler = lambda args: args
+        signal_receiver = Mock(return_value=original_handler)
+        monkeypatch.setattr("signal.signal", signal_receiver)
+
+        async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
+            assert signal_receiver.call_args_list[0][0][0] == signal.SIGTERM
+            signal_handler = signal_receiver.call_args_list[0][0][1]
+
+            # Call the signal handler and expect that it raises a `Cancel`
+            # exception.
+            with pytest.raises(Cancel):
+                signal_handler()
+
+        # The original handler should be restorted when the context manager
+        # exits.
+        assert signal_receiver.call_args_list[1][0][0] == signal.SIGTERM
+        assert signal_receiver.call_args_list[1][0][1] == original_handler
 
 
 class TestTaskRunCrashes:
