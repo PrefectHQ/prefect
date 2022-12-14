@@ -70,6 +70,7 @@ The following sections provide details about Prefect UI pages and visualizations
 - [Work Queues](/ui/work-queues/) enable you to create and manage work queues that distribute flow runs to agents.
 - [Blocks](/ui/blocks/) enable you to create and manage configuration for [blocks](/concepts/blocks/) such as [storage](/concepts/storage/).
 - [Notifications](/ui/notifications/) enable you to create and manage alerts based on flow run states and tags.
+- [Task Run Concurrency Limits](/ui/task-concurrency/) enable you to restrict the number of certain tasks that can run simultaneously.
 
 ## Navigating the UI
 
@@ -80,10 +81,10 @@ Use the left side of the Prefect UI to navigate between pages.
 | **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/flow-runs/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**          | Displays a searchable list of flows tracked by the API. |
 | **Deployments**    | Displays flow [deployments](/concepts/deployments/) created on the API. |
-| <span class="no-wrap">**Work Queues**</span> | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
+| **Work Queues** | Displays configured [work queues](/ui/work-queues/) and enables creating new work queues. |
 | **Blocks**         | Displays a list of [blocks](/ui/blocks/) configured on the API and enables configuring new blocks. |
-| **Notifications**  | Displays a list of configured flow run state [notifications](/ui/notifications/) and enables configuring new notifications. |
-
+| **Notifications**  | Displays a list of configured [notifications](/ui/notifications/) and enables configuring new notifications. |
+| <span class="no-wrap">**Task Run Concurrency**</span> | Displays a list of configured [task run concurrency limits](/ui/task-concurrency/) and enables configuring new limits. |
 
 In Prefect Cloud, the Prefect icon returns you to the workspaces list. Currently, you can create only one workspace per personal account, but you may have access to other workspaces as a collaborator. See the [Prefect Cloud Workspaces](/ui/cloud/#workspaces) documentation for details. 
 
