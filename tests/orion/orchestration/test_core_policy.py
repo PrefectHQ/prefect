@@ -1772,7 +1772,11 @@ class TestTaskConcurrencyLimits:
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
-                        - {initial_state.type, proposed_state.type}
+                        - {
+                            initial_state.type,
+                            proposed_state.type,
+                            states.StateType.CANCELLING,
+                        }
                     )
                 )
                 await self.reject_transition(
