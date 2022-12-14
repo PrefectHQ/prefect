@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from logging import Logger
 from typing import Any, Generic, List, Tuple, TypeVar
+
 from typing_extensions import Self
 
 from prefect import get_run_logger
