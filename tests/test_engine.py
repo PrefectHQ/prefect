@@ -553,6 +553,7 @@ class TestNonblockingPause:
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        flow_run_id = None
 
         @task
         async def foo():
@@ -560,16 +561,21 @@ class TestNonblockingPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
+            nonlocal flow_run_id
+            flow_run_id = get_run_context().flow_run.id
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
             z = await foo(wait_for=[x])
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
+            assert False, "This line should not be reached"
 
-        flow_run_state = await pausing_flow_without_blocking(return_state=True)
-        assert flow_run_state.is_paused()
-        flow_run_id = flow_run_state.state_details.flow_run_id
+        with pytest.raises(Pause):
+            await pausing_flow_without_blocking(return_state=True)
+
+        flow_run = await orion_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused()
         task_runs = await orion_client.read_task_runs(
             flow_run_filter=FlowRunFilter(id={"any_": [flow_run_id]})
         )
@@ -594,7 +600,7 @@ class TestNonblockingPause:
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
 
-        with pytest.raises(PausedRun):
+        with pytest.raises(Pause):
             await pausing_flow_without_blocking()
 
     async def test_paused_flows_can_be_resumed_then_rescheduled(
@@ -602,6 +608,7 @@ class TestNonblockingPause:
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
         monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        flow_run_id = None
 
         @task
         async def foo():
@@ -609,6 +616,8 @@ class TestNonblockingPause:
 
         @flow(task_runner=SequentialTaskRunner())
         async def pausing_flow_without_blocking():
+            nonlocal flow_run_id
+            flow_run_id = get_run_context().flow_run.id
             x = await foo.submit()
             y = await foo.submit()
             await pause_flow_run(timeout=20, reschedule=True)
@@ -616,9 +625,11 @@ class TestNonblockingPause:
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
 
-        flow_run_state = await pausing_flow_without_blocking(return_state=True)
-        assert flow_run_state.is_paused()
-        flow_run_id = flow_run_state.state_details.flow_run_id
+        with pytest.raises(Pause):
+            await pausing_flow_without_blocking()
+
+        flow_run = await orion_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused()
 
         await resume_flow_run(flow_run_id)
         flow_run = await orion_client.read_flow_run(flow_run_id)
