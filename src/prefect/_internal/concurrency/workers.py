@@ -59,8 +59,8 @@ class _WorkerThread(threading.Thread):
                 self._queue.put_nowait(None)
                 return
 
-            self._idle.release()
             work_item.run()
+            self._idle.release()
 
             del work_item
 
