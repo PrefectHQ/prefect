@@ -257,14 +257,14 @@ class TestSecretBlock:
     def test_secret_block_implementation(self, caplog):
         class ASecretBlock(SecretBlock):
 
-            secret_name = "my_secret_name"
+            secret_name: str
 
-            def __init__(self):
+            def __init__(self, secret_name: str):
                 self._secrets = {}
 
             def read_secret(self):
                 if self.secret_name not in self._secrets:
-                    raise ValueError("Secret does not exist")
+                    raise KeyError("Secret does not exist")
                 return self._secrets[self.secret_name]
 
             def write_secret(self, secret_value):
@@ -278,7 +278,7 @@ class TestSecretBlock:
             def delete_secret(self):
                 del self._secrets[self.secret_name]
 
-        a_secret_block = ASecretBlock()
+        a_secret_block = ASecretBlock(secret_name="secret_name")
         a_secret_block.write_secret("hello")
         assert a_secret_block.read_secret() == "hello"
         with pytest.raises(ValueError, match="Secret already exists"):
