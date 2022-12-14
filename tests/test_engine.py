@@ -31,6 +31,7 @@ from prefect.exceptions import (
     FailedRun,
     ParameterTypeError,
     Pause,
+    PausedRun,
     SignatureMismatchError,
 )
 from prefect.futures import PrefectFuture
@@ -489,7 +490,7 @@ class TestOutOfProcessPause:
             alpha = await foo(wait_for=[y])
             omega = await foo(wait_for=[x, y])
 
-        with pytest.raises(Pause):
+        with pytest.raises(PausedRun):
             flow_run_state = await pausing_flow_without_blocking()
 
 

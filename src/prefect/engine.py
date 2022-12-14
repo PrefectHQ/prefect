@@ -46,6 +46,7 @@ from prefect.exceptions import (
     MappingMissingIterable,
     NotPausedError,
     Pause,
+    PausedRun,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -638,6 +639,10 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
+        except PausedRun:
+            paused_flow_run = await client.read_flow_run(flow_run.id)
+            paused_flow_run_state = paused_flow_run.state
+            return paused_flow_run_state
         except Exception as exc:
             name = message = None
             if (
@@ -1315,7 +1320,7 @@ async def begin_task_run(
                 # loss if the process exits
                 OrionHandler.flush(block=True)
 
-        except Abort:
+        except (Abort, Pause):
             # Task run already completed, just fetch its state
             task_run = await client.read_task_run(task_run.id)
             task_run_logger(task_run).info(
