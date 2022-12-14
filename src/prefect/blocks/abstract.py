@@ -329,25 +329,34 @@ class SecretBlock(Block, ABC):
         """
 
     @abstractmethod
-    async def write_secret(self, secret_value) -> None:
+    async def write_secret(self, secret_data) -> str:
         """
         Writes the secret to the secret storage service.
 
         Args:
-            secret_value: The secret to write.
+            secret_data: The secret data to write.
+
+        Returns:
+            The path that the secret was written to.
         """
 
     @abstractmethod
-    async def update_secret(self, secret_value) -> None:
+    async def update_secret(self, secret_data) -> str:
         """
         Updates the secret to the secret storage service.
 
         Args:
-            secret_value: The secret value to update.
+            secret_data: The secret data to update.
+
+        Returns:
+            The path that the secret was updated to.
         """
 
     @abstractmethod
-    async def delete_secret(self) -> None:
+    async def delete_secret(self) -> str:
         """
         Deletes the secret from the secret storage service.
+
+        Returns:
+            The path that the secret was deleted from.
         """
