@@ -302,3 +302,52 @@ class ObjectStorageBlock(Block, ABC):
         Returns:
             The path that the folder was uploaded to.
         """
+
+
+class SecretBlock(Block, ABC):
+    """
+    Block that represents a resource that can store and retrieve secrets.
+    """
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the SecretBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def read_secret(self):
+        """
+        Reads the secret from the secret storage service.
+        """
+
+    @abstractmethod
+    async def write_secret(self, secret_value) -> None:
+        """
+        Writes the secret to the secret storage service.
+
+        Args:
+            secret_value: The secret to write.
+        """
+
+    @abstractmethod
+    async def update_secret(self, secret_value) -> None:
+        """
+        Updates the secret to the secret storage service.
+
+        Args:
+            secret_value: The secret value to update.
+        """
+
+    @abstractmethod
+    async def delete_secret(self) -> None:
+        """
+        Deletes the secret from the secret storage service.
+        """
