@@ -43,7 +43,7 @@ class _WorkItem:
 class _WorkerThread(threading.Thread):
     def __init__(
         self,
-        queue: Queue[Union[_WorkItem, None]],
+        queue: "Queue[Union[_WorkItem, None]]",  # Typing only supported in Python 3.9+
         idle: threading.Semaphore,
         name: str = None,
     ):
@@ -67,7 +67,7 @@ class _WorkerThread(threading.Thread):
 
 class WorkerThreadPool:
     def __init__(self, max_workers: int = 40) -> None:
-        self._queue: Queue[Union[_WorkItem, None]] = Queue()
+        self._queue: "Queue[Union[_WorkItem, None]]" = Queue()
         self._workers: Set[_WorkerThread] = set()
         self._max_workers = max_workers
         self._idle = threading.Semaphore(0)
