@@ -41,6 +41,8 @@ from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
+from .fields import SecretDict
+
 if TYPE_CHECKING:
     from prefect.client.orion import OrionClient
 
@@ -143,6 +145,8 @@ class Block(BaseModel, ABC):
             for field in model.__fields__.values():
                 if field.type_ in [SecretStr, SecretBytes]:
                     secrets.append(field.name)
+                if field.type_ == SecretDict:
+                    secrets.append(f"{field.name}.*")
                 elif Block.is_block_class(field.type_):
                     secrets.extend(
                         f"{field.name}.{s}"
@@ -647,6 +651,7 @@ class Block(BaseModel, ABC):
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
+            print(block_document)
         except prefect.exceptions.ObjectNotFound as e:
             raise ValueError(
                 f"Unable to find block document named {block_document_name} for block type {block_type_slug}"

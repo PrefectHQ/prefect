@@ -14,7 +14,7 @@ import orjson
 import pendulum
 import pydantic
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretField
 from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
@@ -230,10 +230,7 @@ class PrefectBaseModel(BaseModel):
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,
-                {
-                    SecretStr: lambda v: v.get_secret_value() if v else None,
-                    SecretBytes: lambda v: v.get_secret_value() if v else None,
-                },
+                {SecretField: lambda v: v.get_secret_value() if v else None},
             )
         return super().json(*args, **kwargs)
 
