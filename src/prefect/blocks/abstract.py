@@ -30,7 +30,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self) -> Logger:
+    async def wait_for_completion(self):
         """
         Wait for the job run to complete.
         """
@@ -73,7 +73,7 @@ class DatabaseBlock(Block, ABC):
     """
     The DatabaseBlock class represents a resource for interacting with a database.
     Heavily influenced by [PEP 249](https://peps.python.org/pep-0249/).
-    Skewed towards RDBMS systems and a separate interface may be necessary
+   Primarily intended for use with relational databases. A separate interface may be necessary
     for non relational databases.
 
     These blocks have the option to compose a credentials block or accept
@@ -84,7 +84,7 @@ class DatabaseBlock(Block, ABC):
     @property
     def logger(self) -> Logger:
         """
-        Returns a logger based on whether the JobBlock
+        Returns a logger based on whether the DatabaseBlock
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
