@@ -85,6 +85,12 @@ class CancelledRun(PrefectException):
     """
 
 
+class PausedRun(PrefectException):
+    """
+    Raised when the result from a paused run is retrieved.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
@@ -264,6 +270,12 @@ class Abort(PrefectSignal):
     """
 
 
+class Pause(PrefectSignal):
+    """
+    Raised when a flow run is PAUSED and needs to exit for resubmission.
+    """
+
+
 class PrefectHTTPStatusError(HTTPStatusError):
     """
     Raised when client receives a `Response` that contains an HTTPStatusError.
@@ -349,7 +361,3 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
-
-
-class PausedRun(PrefectSignal):
-    """Signal raised when exiting a flow early for nonblocking pauses"""
