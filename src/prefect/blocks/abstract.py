@@ -3,6 +3,8 @@ from logging import Logger
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Generic, List, Tuple, TypeVar, Union
 
+from typing_extensions import Self
+
 from prefect import get_run_logger
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
@@ -31,7 +33,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self) -> Logger:
+    async def wait_for_completion(self):
         """
         Wait for the job run to complete.
         """
@@ -177,6 +179,40 @@ class DatabaseBlock(Block, ABC):
             seq_of_parameters: The sequence of parameters for the operation.
             **execution_kwargs: Additional keyword arguments to pass to execute.
         """
+
+    # context management methods are not abstract methods because
+    # they are not supported by all database drivers
+    async def __aenter__(self) -> Self:
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    async def __aexit__(self, *args) -> None:
+        """
+        Context management method for async databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support async context management."
+        )
+
+    def __enter__(self) -> Self:
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
+
+    def __exit__(self, *args) -> None:
+        """
+        Context management method for databases.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support context management."
+        )
 
 
 class ObjectStorageBlock(Block, ABC):
