@@ -81,7 +81,6 @@ class DatabaseBlock(Block, ABC):
     credentials directly via attributes or via a nested `CredentialsBlock`.
     Use of a nested credentials block is recommended unless credentials
     are tightly coupled to database connection configuration.
-    
     Implementing either sync or async context management on `DatabaseBlock`
     implementations is recommended.
     """
