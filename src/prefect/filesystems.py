@@ -161,11 +161,16 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
-
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        if not to_path:
-            to_path = Path(self.basepath).expanduser()
+        # If to_path is provided as an exact destination, use that instead of the basepath
+        if to_path and Path(to_path).expanduser().is_absolute():
+            destination_path = to_path
+        else:
+            # to_path should modify the basepath
+            destination_path = Path(self.basepath).expanduser()
+            if to_path:
+                destination_path = destination_path / to_path
 
         if not local_path:
             local_path = Path(".").absolute()
@@ -177,11 +182,14 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        if local_path == to_path:
+        if local_path == destination_path:
             pass
         else:
             copytree(
-                src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True
+                src=local_path,
+                dst=destination_path,
+                ignore=ignore_func,
+                dirs_exist_ok=True,
             )
 
     @sync_compatible
