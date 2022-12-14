@@ -176,8 +176,8 @@ class DatabaseBlock(Block, ABC):
 
 class ObjectStorageBlock(Block, ABC):
     """
-    Block that represents a resource that can upload and download
-    objects in an external service.
+    Block that represents a resource in an external service that can store
+    objects.
     """
 
     @property
