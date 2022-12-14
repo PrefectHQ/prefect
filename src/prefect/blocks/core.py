@@ -655,15 +655,17 @@ class Block(BaseModel, ABC):
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
-            missing_fields = listrepr(err["loc"][0] for err in e.errors())
-            raise ValueError(
+            missing_fields = tuple(err["loc"][0] for err in e.errors())
+            missing_block_data = {field: None for field in missing_fields}
+            warnings.warn(
                 f"Unable to load {block_document_name!r} for block type {cls.__name__!r} - "
                 "this likely because one or more required fields were added to the schema "
-                f"for {cls.__name__!r} that were not present when the block was saved. "
-                f"Please specify values for new field(s): {missing_fields} and then run "
-                f'`{cls.__name__}.save("{block_document_name}", overwrite=True)` '
+                f"for {cls.__name__!r} that were not present when this block was last saved. "
+                f"Please specify values for new field(s): {listrepr(missing_fields)} and then "
+                f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)` '
                 "before attempting to load this block again."
-            ) from e
+            )
+            return cls.construct(**block_document.data, **missing_block_data)
 
     @staticmethod
     def is_block_class(block) -> bool:
