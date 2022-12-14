@@ -55,3 +55,27 @@ def connect_to_database():
 ```
 
 **Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
+
+To customize the settings of a task or flow pre-configured in a collection, use `with_options`:
+    
+```python
+from prefect import flow
+from prefect_dbt.cloud import DbtCloudCredentials
+from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run_and_wait_for_completion
+
+custom_run_dbt_cloud_job = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
+    name="Run My DBT Cloud Job",
+    retries=2,
+    retry_delay_seconds=10
+)
+
+@flow
+def run_dbt_job_flow():
+    run_result = custom_run_dbt_cloud_job(
+        dbt_cloud_credentials=DbtCloudCredentials.load("my-dbt-cloud-credentials"),
+        job_id=1
+    )
+
+run_dbt_job_flow()
+
+``` 
