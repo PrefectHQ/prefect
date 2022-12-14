@@ -21,7 +21,7 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -652,7 +652,16 @@ class Block(BaseModel, ABC):
                 f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
             ) from e
 
-        return cls._from_block_document(block_document)
+        try:
+            return cls._from_block_document(block_document)
+        except ValidationError as e:
+            raise ValueError(
+                f"Unable to load block {block_document.name!r} - this likely "
+                "because a new required field was added to the block schema "
+                "that was not present when the block was saved."
+                f"Please `save` {block_document.name!r} with a value for the "
+                "new field before attempting to `load` it again."
+            ) from e
 
     @staticmethod
     def is_block_class(block) -> bool:
