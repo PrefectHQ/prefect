@@ -29,6 +29,12 @@ async def test_submit_reuses_idle_thread():
     async with WorkerThreadPool() as pool:
         future = await pool.submit(identity, 1)
         await future.aresult()
+
+        # Spin until the worker is marked as idle
+        with anyio.fail_after(1):
+            while pool._idle._value == 0:
+                await anyio.sleep(0)
+
         future = await pool.submit(identity, 1)
         await future.aresult()
         assert len(pool._workers) == 1

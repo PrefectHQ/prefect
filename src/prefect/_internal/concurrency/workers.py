@@ -145,10 +145,7 @@ class WorkerThreadPool:
             created. As long as the maximum number of workers remains relatively small,
             the overhead of idle workers should be negligable.
         """
-        if (
-            not self._idle.acquire(blocking=False)
-            and len(self._workers) < self._max_workers
-        ):
+        if not self._idle.acquire(timeout=0) and len(self._workers) < self._max_workers:
             self._add_worker()
 
     def _add_worker(self):
