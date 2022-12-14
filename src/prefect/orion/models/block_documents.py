@@ -545,10 +545,6 @@ async def create_block_document_reference(
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
     db: OrionDBInterface,
 ):
-    values = block_document_reference.dict(
-        shallow=True, exclude_unset=True, exclude={"created", "updated"}
-    )
-
     insert_stmt = (await db.insert(db.BlockDocumentReference)).values(
         **block_document_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}

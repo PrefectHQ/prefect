@@ -122,6 +122,8 @@ class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
 
+        json_encoders = {SecretDict: lambda v: v.dict()}
+
         @staticmethod
         def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
             """

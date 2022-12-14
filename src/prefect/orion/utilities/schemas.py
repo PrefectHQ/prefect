@@ -157,6 +157,10 @@ class PrefectBaseModel(BaseModel):
         else:
             extra = "ignore"
 
+        json_encoders = {
+            SecretField: lambda v: v.dict() if getattr(v, "dict", None) else str(v)
+        }
+
         pydantic_version = getattr(pydantic, "__version__", None)
         if pydantic_version is not None and Version(pydantic_version) >= Version(
             "1.9.2"
@@ -226,7 +230,7 @@ class PrefectBaseModel(BaseModel):
         if include_secrets:
             if "encoder" in kwargs:
                 raise ValueError(
-                    "Alternative encoder provided; can not set encoder for SecretStr and SecretBytes."
+                    "Alternative encoder provided; can not set encoder for SecretFields."
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,

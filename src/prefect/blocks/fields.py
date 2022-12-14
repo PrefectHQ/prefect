@@ -1,4 +1,3 @@
-import json
 from typing import TYPE_CHECKING, Any, Dict
 
 from pydantic import SecretField
@@ -44,5 +43,5 @@ class SecretDict(SecretField):
     def get_secret_value(self) -> Dict[str, Any]:
         return self._secret_value
 
-    def toJSON(self) -> str:
-        return json.dumps(self.get_secret_value())
+    def dict(self) -> Dict:
+        return {key: "**********" for key in self.get_secret_value().keys()}
