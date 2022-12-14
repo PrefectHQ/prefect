@@ -68,17 +68,22 @@ class JobBlock(Block, ABC):
         to track the execution of the run.
         """
 
-
+# TODO: This interface is heavily influenced by
+# [PEP 249](https://peps.python.org/pep-0249/)
+# Primarily intended for use with relational databases.
+# A separate interface may be necessary for
+# non relational databases.
 class DatabaseBlock(Block, ABC):
     """
-    The DatabaseBlock class represents a resource for interacting with a database.
-    Heavily influenced by [PEP 249](https://peps.python.org/pep-0249/).
-   Primarily intended for use with relational databases. A separate interface may be necessary
-    for non relational databases.
-
-    These blocks have the option to compose a credentials block or accept
-    credentials directly. It depends on how tightly coupled the database
-    configuration is to the credentials configuration.
+    An abstract block type that represents a database and
+    provides an interface for interacting with it.
+    Blocks that implement this interface have the option to accept
+    credentials directly via attributes or via a nested `CredentialsBlock`.
+    Use of a nested credentials block is recommended unless credentials
+    are tightly coupled to database connection configuration.
+    
+    Implementing either sync or async context management on `DatabaseBlock`
+    implementations is recommended.
     """
 
     @property
