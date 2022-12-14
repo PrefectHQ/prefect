@@ -32,7 +32,7 @@ class TestJobBlock:
                 self.status = "completed"
                 self.logger.info("Job run completed.")
 
-            def fetch_results(self):
+            def fetch_result(self):
                 if self.status != "completed":
                     raise JobRunIsRunning("Job run is still running.")
                 return "results"
@@ -45,11 +45,11 @@ class TestJobBlock:
         a_job_block = AJobBlock()
         a_job_run = a_job_block.trigger()
 
-        # test wait_for_completion and fetch_results
+        # test wait_for_completion and fetch_result
         with pytest.raises(JobRunIsRunning, match="Job run is still running."):
-            a_job_run.fetch_results()
+            a_job_run.fetch_result()
         assert a_job_run.wait_for_completion() is None
-        assert a_job_run.fetch_results() == "results"
+        assert a_job_run.fetch_result() == "results"
 
         # test logging
         assert hasattr(a_job_block, "logger")
@@ -70,12 +70,13 @@ class TestDatabaseBlock:
         ):
             DatabaseBlock()
 
-    def test_database_block_implementation(self, caplog):
+    async def test_database_block_implementation(self, caplog):
         class ADatabaseBlock(DatabaseBlock):
             def __init__(self):
                 self._results = tuple(
                     zip(["apple", "banana", "cherry"], [1, 2, 3], [True, False, True])
                 )
+                self._engine = None
 
             def fetch_one(self, operation, parameters=None, **execution_kwargs):
                 self.logger.info(f"Fetching one result using {parameters}.")
@@ -100,6 +101,13 @@ class TestDatabaseBlock:
                 self.logger.info(
                     f"Executing many operations using {seq_of_parameters}."
                 )
+
+            def __enter__(self):
+                self._engine = True
+                return self
+
+            def __exit__(self, *args):
+                self._engine = None
 
         a_database_block = ADatabaseBlock()
         parameters = {"a": "b"}

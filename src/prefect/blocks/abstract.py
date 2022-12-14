@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from logging import Logger
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, Generic, List, Tuple, TypeVar, Union
 
@@ -12,12 +13,12 @@ T = TypeVar("T")
 
 class JobRun(ABC, Generic[T]):  # not a block
     """
-    Represents a job run in an external system that can wait
-    for the job run's completion and fetch its results.
+    Represents a job run in an external system. Allows waiting
+    for the job run's completion and fetching its results.
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the JobRun
         is called from within a flow or task run context.
@@ -30,13 +31,13 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self):
+    async def wait_for_completion(self) -> Logger:
         """
         Wait for the job run to complete.
         """
 
     @abstractmethod
-    async def fetch_results(self) -> T:
+    async def fetch_result(self) -> T:
         """
         Retrieve the results of the job run and return them.
         """
@@ -44,12 +45,12 @@ class JobRun(ABC, Generic[T]):  # not a block
 
 class JobBlock(Block, ABC):
     """
-    Block that represents a resource that can trigger a long
-    running job in an external service.
+    Block that represents an entity in an external service
+    that can trigger a long running execution.
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the JobBlock
         is called from within a flow or task run context.
@@ -82,7 +83,7 @@ class DatabaseBlock(Block, ABC):
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the DatabaseBlock
         is called from within a flow or task run context.
