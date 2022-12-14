@@ -2,7 +2,8 @@ import uuid
 
 import pytest
 
-from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
+from prefect.exceptions import Cancel, CancelledRun, CrashedRun, FailedRun
+from prefect.orion.schemas.states import StateType
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.states import (
     Cancelled,
@@ -12,6 +13,7 @@ from prefect.states import (
     Pending,
     Running,
     StateGroup,
+    exception_to_final_state,
     is_state,
     is_state_iterable,
     raise_state_exception,
@@ -323,3 +325,11 @@ class TestStateGroup:
         assert "'FAILED'=1" in counts_message
         assert "'CRASHED'=1" in counts_message
         assert "'RUNNING'=2" in counts_message
+
+
+class TestExceptionToFinalState:
+    async def test_cancel_exception(self):
+        state = await exception_to_final_state(Cancel())
+        assert state.type == StateType.CANCELLED
+        assert state.message == "Execution was cancelled by a termination signal."
+        assert isinstance(await state.result(raise_on_failure=False), Cancel)
