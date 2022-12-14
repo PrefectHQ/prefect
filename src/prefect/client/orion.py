@@ -19,7 +19,6 @@ import prefect.states
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
-from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
@@ -35,6 +34,7 @@ from prefect.orion.schemas.core import (
 )
 from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
 from prefect.settings import (
+    PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
@@ -50,8 +50,15 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
+    api = PREFECT_API_URL.value()
+    if not api:
+        # create an ephemeral API if none was provided
+        from prefect.orion.api.server import create_app
+
+        api = create_app(ctx.settings, ephemeral=True)
+
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
+        api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
@@ -84,13 +91,17 @@ class OrionClient:
         api: Union[str, FastAPI],
         *,
         api_key: str = None,
-        api_version: str = ORION_API_VERSION,
+        api_version: str = None,
         httpx_settings: dict = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
-        if api_version:
-            httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_version is None:
+            # deferred import to avoid importing the entire server unless needed
+            from prefect.orion.api.server import ORION_API_VERSION
+
+            api_version = ORION_API_VERSION
+        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
@@ -133,7 +144,7 @@ class OrionClient:
             # and responses will be transported over HTTP/2, since both the client and the server
             # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
             # client will use a standard HTTP/1.1 connection instead.
-            httpx_settings.setdefault("http2", True)
+            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
@@ -1274,7 +1285,7 @@ class OrionClient:
 
     async def update_deployment(
         self,
-        deployment,
+        deployment: schemas.core.Deployment,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         is_schedule_active: bool = None,
     ):
@@ -1448,6 +1459,23 @@ class OrionClient:
                 raise
         return FlowRun.parse_obj(response.json())
 
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+        """
+        Resumes a paused flow run.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        try:
+            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+        except httpx.HTTPStatusError as e:
+            raise
+
+        return OrchestrationResult.parse_obj(response.json())
+
     async def read_flow_runs(
         self,
         *,
@@ -1517,11 +1545,17 @@ class OrionClient:
         """
         state_create = state.to_state_create()
         state_create.state_details.flow_run_id = flow_run_id
+        try:
+            response = await self._client.post(
+                f"/flow_runs/{flow_run_id}/set_state",
+                json=dict(state=state_create.dict(json_compatible=True), force=force),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
-        response = await self._client.post(
-            f"/flow_runs/{flow_run_id}/set_state",
-            json=dict(state=state_create.dict(json_compatible=True), force=force),
-        )
         return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_run_states(
