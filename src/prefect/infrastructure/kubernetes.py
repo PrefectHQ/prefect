@@ -1,5 +1,6 @@
 import copy
 import enum
+import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
@@ -378,11 +379,23 @@ class KubernetesJob(Infrastructure):
         There is no real unique identifier for a cluster. However, the `kube-system`
         namespace is immutable and has a persistence UID that we use instead.
 
+        PREFECT_KUBERNETES_CLUSTER_UID can be set in cases where the `kube-system`
+        namespace cannot be read e.g. when a cluster role cannot be created. If set,
+        this variable will be used and we will not attempt to read the `kube-system`
+        namespace.
+
         See https://github.com/kubernetes/kubernetes/issues/44954
         """
+        # Default to an environment variable
+        env_cluster_uid = os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID")
+        if env_cluster_uid:
+            return env_cluster_uid
+
+        # Read the UID from the cluster namespace
         with self.get_client() as client:
             namespace = client.read_namespace("kube-system")
         cluster_uid = namespace.metadata.uid
+
         return cluster_uid
 
     def _configure_kubernetes_library_client(self) -> None:
