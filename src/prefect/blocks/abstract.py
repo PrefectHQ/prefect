@@ -323,40 +323,22 @@ class SecretBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def read_secret(self):
+    async def read_secret(self) -> bytes:
         """
-        Reads the secret from the secret storage service.
+        Reads the configured secret from the secret storage service.
+
+        Returns:
+            The secret data.
         """
 
     @abstractmethod
     async def write_secret(self, secret_data) -> str:
         """
-        Writes the secret to the secret storage service.
+        Writes secret data to the configured secret in the secret storage service.
 
         Args:
             secret_data: The secret data to write.
 
         Returns:
-            The path that the secret was written to.
-        """
-
-    @abstractmethod
-    async def update_secret(self, secret_data) -> str:
-        """
-        Updates the secret to the secret storage service.
-
-        Args:
-            secret_data: The secret data to update.
-
-        Returns:
-            The path that the secret was updated to.
-        """
-
-    @abstractmethod
-    async def delete_secret(self) -> str:
-        """
-        Deletes the secret from the secret storage service.
-
-        Returns:
-            The path that the secret was deleted from.
+            The key of the secret that can be used for retrieval.
         """
