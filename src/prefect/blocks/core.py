@@ -35,7 +35,7 @@ from prefect.orion.schemas.core import (
     BlockType,
 )
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.collections import remove_nested_keys
+from prefect.utilities.collections import listrepr, remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
@@ -655,12 +655,14 @@ class Block(BaseModel, ABC):
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
+            missing_fields = listrepr(err["loc"][0] for err in e.errors())
             raise ValueError(
-                f"Unable to load block {block_document.name!r} - this likely "
-                "because a new required field was added to the block schema "
-                "that was not present when the block was saved."
-                f"Please `save` {block_document.name!r} with a value for the "
-                "new field before attempting to `load` it again."
+                f"Unable to load {block_document_name!r} for block type {cls.__name__!r} - "
+                "this likely because one or more required fields were added to the schema "
+                f"for {cls.__name__!r} that were not present when the block was saved. "
+                f"Please specify values for new field(s): {missing_fields} and then run "
+                f'`{cls.__name__}.save("{block_document_name}", overwrite=True)` '
+                "before attempting to load this block again."
             ) from e
 
     @staticmethod
