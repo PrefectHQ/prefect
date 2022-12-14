@@ -32,7 +32,7 @@ result = my_flow()
 assert result == 2
 ```
 
-When working with flow and task states, the result can be retreived with the `State.result()` method:
+When working with flow and task states, the result can be retrieved with the `State.result()` method:
 
 ```python
 from prefect import flow, task
