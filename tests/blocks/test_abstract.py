@@ -147,6 +147,16 @@ class TestDatabaseBlock:
             == "Executing many operations using [{'a': 'b'}, {'a': 'b'}]."
         )
 
+        # test context manager
+        with a_database_block as db:
+            assert db._engine is True
+        assert a_database_block._engine is None
+
+        match = "ADatabaseBlock does not support async context management."
+        with pytest.raises(NotImplementedError, match=match):
+            async with a_database_block:
+                pass
+
 
 class TestObjectStorageBlock:
     def test_object_storage_block_is_abstract(self):
