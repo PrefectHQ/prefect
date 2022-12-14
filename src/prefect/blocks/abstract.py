@@ -181,7 +181,7 @@ class ObjectStorageBlock(Block, ABC):
     """
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
         Returns a logger based on whether the ObjectStorageBlock
         is called from within a flow or task run context.
@@ -269,7 +269,7 @@ class ObjectStorageBlock(Block, ABC):
 
     @abstractmethod
     async def upload_from_file_object(
-        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
     ) -> str:
         """
         Uploads an object to the object storage service from a file-like object,
