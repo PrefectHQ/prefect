@@ -12,17 +12,26 @@ def identity(x):
 
 
 async def test_submit():
-    pool = WorkerThreadPool()
-    future = await pool.submit(identity, 1)
-    assert await future.aresult() == 1
+    async with WorkerThreadPool() as pool:
+        future = await pool.submit(identity, 1)
+        assert await future.aresult() == 1
 
 
 async def test_submit_many():
-    pool = WorkerThreadPool()
-    futures = [await pool.submit(identity, i) for i in range(100)]
-    results = await asyncio.gather(*[future.aresult() for future in futures])
-    assert results == list(range(100))
-    assert len(pool._workers) == pool._max_workers
+    async with WorkerThreadPool() as pool:
+        futures = [await pool.submit(identity, i) for i in range(100)]
+        results = await asyncio.gather(*[future.aresult() for future in futures])
+        assert results == list(range(100))
+        assert len(pool._workers) == pool._max_workers
+
+
+async def test_submit_reuses_idle_thread():
+    async with WorkerThreadPool() as pool:
+        future = await pool.submit(identity, 1)
+        await future.aresult()
+        future = await pool.submit(identity, 1)
+        await future.aresult()
+        assert len(pool._workers) == 1
 
 
 async def test_submit_after_shutdown():
@@ -36,15 +45,15 @@ async def test_submit_after_shutdown():
 
 
 async def test_submit_during_shutdown():
-    pool = WorkerThreadPool()
+    async with WorkerThreadPool() as pool:
 
-    async with anyio.create_task_group() as tg:
-        await tg.start(pool.shutdown)
+        async with anyio.create_task_group() as tg:
+            await tg.start(pool.shutdown)
 
-        with pytest.raises(
-            RuntimeError, match="Work cannot be submitted to pool after shutdown"
-        ):
-            await pool.submit(identity, 1)
+            with pytest.raises(
+                RuntimeError, match="Work cannot be submitted to pool after shutdown"
+            ):
+                await pool.submit(identity, 1)
 
 
 async def test_shutdown_no_workers():
@@ -71,3 +80,26 @@ async def test_shutdown_with_active_worker():
     future = await pool.submit(time.sleep, 1)
     await pool.shutdown()
     assert await future.aresult() is None
+
+
+async def test_shutdown_exception_during_join():
+    pool = WorkerThreadPool()
+    future = await pool.submit(identity, 1)
+    await future.aresult()
+
+    try:
+        async with anyio.create_task_group() as tg:
+            await tg.start(pool.shutdown)
+            raise ValueError()
+    except ValueError:
+        pass
+
+    assert pool._shutdown is True
+
+
+async def test_context_manager_with_outstanding_future():
+    async with WorkerThreadPool() as pool:
+        future = await pool.submit(identity, 1)
+
+    assert pool._shutdown is True
+    assert await future.aresult() == 1

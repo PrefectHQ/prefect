@@ -118,6 +118,7 @@ class WorkerThreadPool:
         after signalling shutdown to workers.
         """
         async with self._lock:
+            self._shutdown = True
             self._queue.put_nowait(None)
 
             if task_status:
@@ -131,7 +132,6 @@ class WorkerThreadPool:
             await asyncio.gather(*[future.aresult() for future in futures])
 
             self._workers.clear()
-            self._shutdown = True
 
     def _adjust_worker_count(self):
         """
@@ -159,3 +159,9 @@ class WorkerThreadPool:
         )
         self._workers.add(worker)
         worker.start()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        await self.shutdown()
