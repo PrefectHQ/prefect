@@ -25,6 +25,29 @@ from anyio.streams.text import TextReceiveStream, TextSendStream
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
 
+if sys.platform == "win32":
+    import ctypes
+
+_windows_process_group_pids = set()
+
+
+@ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)
+def _win32_ctrl_handler(dwCtrlType):
+    """
+    A callback function for handling CTRL events cleanly on Windows. When called,
+    this function will terminate all running win32 subprocesses the current
+    process started in new process groups.
+    """
+    for pid in _windows_process_group_pids:
+        try:
+            os.kill(pid, signal.CTRL_BREAK_EVENT)
+        except OSError:
+            # process is already terminated
+            pass
+
+    # returning 0 lets the next handler in the chain handle the signal
+    return 0
+
 
 # anyio process wrapper classes
 @dataclass(eq=False)
@@ -158,22 +181,6 @@ async def _open_anyio_process(
     )
 
 
-def _ctrl_c_handler(process: anyio.abc.Process):
-    """
-    A Windows CTRL-C handler that accepts any anyio subprocess
-    and terminates it before passing control to the next handler
-    """
-
-    def handler(*args):
-        # send signal using os.kill to avoid anyio's signal handling
-        os.kill(process.pid, signal.CTRL_BREAK_EVENT)
-
-        # return False to allow the next handler to be called
-        return False
-
-    return handler
-
-
 @asynccontextmanager
 async def open_process(command: List[str], **kwargs):
     """
@@ -192,22 +199,26 @@ async def open_process(command: List[str], **kwargs):
         )
 
     if sys.platform == "win32":
-        import win32api
-
         command = " ".join(command)
 
-    # process = await anyio.open_process(command, **kwargs)
     process = await _open_anyio_process(command, **kwargs)
 
     # if there's a creationflags kwarg and it contains CREATE_NEW_PROCESS_GROUP,
     # use SetConsoleCtrlHandler to handle CTRL-C
-    handler = None
+    win32_process_group = False
     if (
         sys.platform == "win32"
         and "creationflags" in kwargs
         and kwargs["creationflags"] & subprocess.CREATE_NEW_PROCESS_GROUP
     ):
-        handler = win32api.SetConsoleCtrlHandler(_ctrl_c_handler(process), True)
+        win32_process_group = True
+        _windows_process_group_pids.add(process.pid)
+        # Add a handler for CTRL-C. Re-adding the handler is safe as Windows
+        # will not add a duplicate handler if _win32_ctrl_handler is
+        # already registered.
+        ctypes.windll.kernel32.SetConsoleCtrlHandler(
+            _win32_ctrl_handler, 1
+        )
 
     try:
         async with process:
@@ -215,10 +226,10 @@ async def open_process(command: List[str], **kwargs):
     finally:
         try:
             process.terminate()
-            if handler:
-                win32api.SetConsoleCtrlHandler(handler, False)
+            if win32_process_group:
+                _windows_process_group_pids.remove(process.pid)
 
-        except ProcessLookupError:
+        except OSError:
             # Occurs if the process is already terminated
             pass
 
