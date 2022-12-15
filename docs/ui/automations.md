@@ -1,5 +1,6 @@
 ---
 description: Configure automations based on flow state from the Prefect UI and Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - Orion
     - UI
