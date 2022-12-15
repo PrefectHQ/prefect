@@ -871,7 +871,7 @@ class TestCountDeploymentModels:
         [
             dict(
                 worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Prefect Agents"])
+                    name=dict(any_=["Test Pool"])
                 )
             ),
             1,
@@ -879,7 +879,7 @@ class TestCountDeploymentModels:
         [
             dict(
                 worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["test-queue-for-filters"])
+                    name=dict(any_=["Default Queue"])
                 )
             ),
             1,
@@ -887,10 +887,10 @@ class TestCountDeploymentModels:
         [
             dict(
                 worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Prefect Agents"])
+                    name=dict(any_=["Test Pool"])
                 ),
                 worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["test-queue-for-filters"])
+                    name=dict(any_=["Default Queue"])
                 ),
             ),
             1,
@@ -901,7 +901,18 @@ class TestCountDeploymentModels:
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
                 worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["test-queue-for-filters"])
+                    name=dict(any_=["Default Queue"])
+                ),
+            ),
+            0,
+        ],
+        [
+            dict(
+                worker_pool_filter=filters.WorkerPoolFilter(
+                    name=dict(any_=["Test Pool"])
+                ),
+                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                    name=dict(any_=["a queue that doesn't exist"])
                 ),
             ),
             0,
