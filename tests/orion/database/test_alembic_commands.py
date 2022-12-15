@@ -1,6 +1,8 @@
 import asyncio
 from unittest import mock
 
+import pytest
+
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
     alembic_revision,
