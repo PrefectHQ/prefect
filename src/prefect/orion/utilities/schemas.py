@@ -158,7 +158,11 @@ class PrefectBaseModel(BaseModel):
             extra = "ignore"
 
         json_encoders = {
-            SecretField: lambda v: v.dict() if getattr(v, "dict", None) else str(v)
+            # Uses secret fields and strange logic to avoid a circular import error
+            # for Secret dict in prefect.blocks.fields
+            SecretField: lambda v: v.dict()
+            if getattr(v, "dict", None)
+            else str(v)
         }
 
         pydantic_version = getattr(pydantic, "__version__", None)
