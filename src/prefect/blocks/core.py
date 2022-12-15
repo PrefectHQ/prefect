@@ -601,7 +601,12 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def load(cls, name: str, client: "OrionClient" = None):
+    async def load(
+        cls,
+        name: str,
+        skip_validation: Optional[bool] = False,
+        client: "OrionClient" = None,
+    ):
         """
         Retrieves data from the block document with the given name for the block type
         that corresponds with the current class and returns an instantiated version of
@@ -610,6 +615,11 @@ class Block(BaseModel, ABC):
         Args:
             name: The name or slug of the block document. A block document slug is a
                 string with the format <block_type_slug>/<block_document_name>
+            skip_validation: If True, the block document will be loaded without
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
 
         Raises:
             ValueError: If the requested block document is not found.
@@ -636,6 +646,26 @@ class Block(BaseModel, ABC):
             Custom(message="Hello!").save("my-custom-message")
 
             loaded_block = Block.load("custom/my-custom-message")
+
+            Migrate a block document to a new schema:
+            ```python
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            class Custom(Block):
+                message: str
+                number_of_ducks: int
+
+            loaded_block = Custom.load("my-custom-message", skip_validation=True)
+
+            # Prints UserWarning about schema mismatch
+
+            loaded_block.number_of_ducks = 42
+
+            loaded_block.save("my-custom-message", overwrite=True)
+            ```
         """
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
@@ -655,17 +685,19 @@ class Block(BaseModel, ABC):
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
-            missing_fields = tuple(err["loc"][0] for err in e.errors())
-            missing_block_data = {field: None for field in missing_fields}
-            warnings.warn(
-                f"Unable to load {block_document_name!r} for block type {cls.__name__!r} - "
-                "this likely because one or more required fields were added to the schema "
-                f"for {cls.__name__!r} that were not present when this block was last saved. "
-                f"Please specify values for new field(s): {listrepr(missing_fields)} and then "
-                f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)` '
-                "before attempting to load this block again."
-            )
-            return cls.construct(**block_document.data, **missing_block_data)
+            if skip_validation:
+                missing_fields = tuple(err["loc"][0] for err in e.errors())
+                missing_block_data = {field: None for field in missing_fields}
+                warnings.warn(
+                    f"Could not fully load {block_document_name!r} of block type {cls.__name__!r} - "
+                    "this is likely because one or more required fields were added to the schema "
+                    f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
+                    f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
+                    f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)`, and '
+                    "load this block again before attempting to use it."
+                )
+                return cls.construct(**block_document.data, **missing_block_data)
+            raise
 
     @staticmethod
     def is_block_class(block) -> bool:

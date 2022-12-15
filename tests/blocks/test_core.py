@@ -7,7 +7,8 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic.fields import ModelField
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -1996,3 +1997,46 @@ class TestTypeDispatch:
         model.block = BChildBlock(b=4).dict()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
+
+
+class TestBlockSchemaMigration:
+    @pytest.fixture
+    def new_field(self):
+        return {
+            "y": ModelField.infer(
+                name="y",
+                value=...,
+                annotation=int,
+                class_validators=None,
+                config=Block.__config__,
+            )
+        }
+
+    def test_schema_mismatch_with_validation_raises(self, new_field):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        A.__fields__.update(new_field)  # simulate a schema change
+
+        with pytest.raises(ValidationError):
+            A.load("test")
+
+    def test_schema_mismatch_with_skip_validation(self, new_field):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        A.__fields__.update(new_field)  # simulate a schema change
+
+        with pytest.warns(UserWarning, match="Could not fully load"):
+            a = A.load("test", skip_validation=True)
+
+        assert a.x == 1
+        assert a.y == None
