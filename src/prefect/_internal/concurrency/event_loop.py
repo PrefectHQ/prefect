@@ -174,6 +174,16 @@ def call_soon_in_loop(
 
     Returns a future that can be used to retrieve the result of the call.
     """
+    future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
+    return future.result()
+
+
+def call_soon_in_loop(
+    __loop: asyncio.AbstractEventLoop,
+    __fn: Callable[P, T],
+    *args: P.args,
+    **kwargs: P.kwargs
+) -> concurrent.futures.Future:
     future = concurrent.futures.Future()
 
     @functools.wraps(__fn)
