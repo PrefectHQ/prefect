@@ -43,10 +43,13 @@ class Event:
             if not self._value:
                 self._value = True
 
-                # Each waiter is an `asyncio.Future` — the `set_result` method is not
-                # thread-safe and must be run in the loop that owns the future.
-                for fut in self._waiters:
+                # We freeze the waiters queue during iteration so removal in `wait()`
+                # does not change the size during iteration. The lock ensures that no
+                # waiters are added until after we finish here.
+                for fut in tuple(self._waiters):
                     if not fut.done():
+                        # The `asyncio.Future.set_result` method is not thread-safe
+                        # and must be run in the loop that owns the future
                         call_soon_in_loop(fut._loop, fut.set_result, True)
 
     def is_set(self):
