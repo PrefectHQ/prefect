@@ -18,6 +18,8 @@ See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/Prefec
 ### Fixes
 - Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
 - Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
+- Fix deployments builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
+- Fix path argument behavior in `LocalFileSystem` block - https://github.com/PrefectHQ/prefect/pull/7891
 
 ### Documentation
 - Add CSS for beta and experimental badges — https://github.com/PrefectHQ/prefect/pull/7831
