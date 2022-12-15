@@ -182,7 +182,10 @@ system_configuration_block = SystemConfiguration(
 
 ```python
 print(system_configuration_block)
-# SystemConfiguration(system_secrets=SecretDict('{'password': '**********', 'api_token': '**********', 'private_key': '**********'}'), system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7})
+# SystemConfiguration(
+#   system_secrets=SecretDict('{'password': '**********', 'api_token': '**********', 'private_key': '**********'}'), 
+#   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
+# )
 ```
 ### Blocks metadata
 
