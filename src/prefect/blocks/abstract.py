@@ -20,12 +20,15 @@ class NotificationBlock(Block, ABC):
     _block_schema_capabilities = ["notify"]
 
     @property
-    def logger(self):
+    def logger(self) -> Logger:
         """
-        Returns a logger based on whether the JobRun
+        Returns a logger based on whether the NotificationBlock
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -36,6 +39,10 @@ class NotificationBlock(Block, ABC):
     async def notify(self, body: str, subject: Optional[str] = None) -> None:
         """
         Send a notification.
+
+        Args:
+            body: The body of the notification.
+            subject: The subject of the notification.
         """
 
 
@@ -52,6 +59,9 @@ class JobRun(ABC, Generic[T]):  # not a block
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -59,7 +69,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self) -> Logger:
+    async def wait_for_completion(self):
         """
         Wait for the job run to complete.
         """
@@ -84,6 +94,9 @@ class JobBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -107,10 +120,13 @@ class DatabaseBlock(Block, ABC):
     """
     An abstract block type that represents a database and
     provides an interface for interacting with it.
+
     Blocks that implement this interface have the option to accept
     credentials directly via attributes or via a nested `CredentialsBlock`.
+
     Use of a nested credentials block is recommended unless credentials
     are tightly coupled to database connection configuration.
+
     Implementing either sync or async context management on `DatabaseBlock`
     implementations is recommended.
     """
@@ -122,6 +138,9 @@ class DatabaseBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -254,6 +273,9 @@ class ObjectStorageBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -383,6 +405,9 @@ class SecretBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
