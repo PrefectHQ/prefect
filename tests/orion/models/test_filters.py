@@ -5,7 +5,6 @@ from uuid import uuid4
 import pendulum
 import pydantic
 import pytest
-import sqlalchemy as sa
 
 from prefect.client import get_client
 from prefect.orion import models
@@ -286,7 +285,7 @@ async def data(flow_function, db):
 
     async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(sa.delete(db.WorkerPool))
+        await session.execute(db.WorkerPool.__table__.delete())
 
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())

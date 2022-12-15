@@ -3,7 +3,6 @@ import warnings
 
 import pendulum
 import pytest
-import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -65,7 +64,7 @@ async def clear_db(db):
     yield
     async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(sa.delete(db.WorkerPool))
+        await session.execute(db.WorkerPool.__table__.delete())
 
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())

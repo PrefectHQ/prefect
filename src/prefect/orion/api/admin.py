@@ -1,7 +1,6 @@
 """
 Routes for admin-level interactions with the Orion API.
 """
-import sqlalchemy as sa
 from fastapi import Body, Depends, Response, status
 
 import prefect
@@ -45,7 +44,7 @@ async def clear_database(
         return
     async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(sa.delete(db.WorkerPool))
+        await session.execute(db.WorkerPool.__table__.delete())
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
 
