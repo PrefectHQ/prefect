@@ -7,9 +7,31 @@ from prefect._internal.concurrency.primitives import Event, Future
 from prefect.testing.utilities import exceptions_equal
 
 
-def test_event_created_in_sync_context():
-    with pytest.raises(RuntimeError, match="no .* event loop"):
-        Event()
+def test_event_set_in_sync_context_before_wait():
+
+    event = Event()
+    event.set()
+
+    async def main():
+        with anyio.fail_after(1):
+            await event.wait()
+
+    anyio.run(main)
+
+
+async def test_event_created_and_set_from_sync_thread():
+    def create_event():
+        return Event()
+
+    async def create_and_set_event(task_status):
+        event = await anyio.to_thread.run_sync(create_event)
+        task_status.started(event)
+        await anyio.to_thread.run_sync(event.set)
+
+    with anyio.fail_after(1):
+        async with anyio.create_task_group() as tg:
+            event = await tg.start(create_and_set_event)
+            tg.start_soon(event.wait)
 
 
 async def test_event_set_in_async_context_before_wait():
@@ -81,7 +103,7 @@ async def test_event_set_from_async_thread_before_wait():
         await event.wait()
 
 
-async def test_events_in_two_loops_do_not_deadlock():
+async def test_dependent_events_in_two_loops_do_not_deadlock():
     event_one = None
     event_two = None
 
@@ -113,8 +135,22 @@ async def test_event_wait_in_different_loop():
     async def wait_for_event():
         await event.wait()
 
-    with pytest.raises(RuntimeError, match="different .* loop"):
-        await anyio.to_thread.run_sync(anyio.run, wait_for_event)
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(anyio.to_thread.run_sync, anyio.run, wait_for_event)
+        event.set()
+
+
+async def test_event_wait_in_multiple_loops():
+    event = Event()
+
+    async def wait_for_event():
+        await event.wait()
+
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(anyio.to_thread.run_sync, anyio.run, wait_for_event)
+        tg.start_soon(anyio.to_thread.run_sync, anyio.run, wait_for_event)
+        tg.start_soon(anyio.to_thread.run_sync, anyio.run, wait_for_event)
+        event.set()
 
 
 async def test_event_is_set():

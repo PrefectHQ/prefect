@@ -29,24 +29,20 @@ class Event:
 
     def set(self) -> None:
         """
-        Set the flag, notifying all listeners.
+        Set the flag, notifying all waiters.
 
         Unlike `asyncio.Event`, waiters may not be notified immediately when this is
-        called; instead, notification will be placed on the owning loop for each waiter
+        called; instead, notification will be placed on the owning loop of each waiter
         for thread safety.
         """
-        if not self._is_set:
-            # Immediately set the flag to true
-            # This implementation tracks the value of the event with `_is_set` but the
-            # parent class uses `_value`. We need a separate variable because if we set
-            # `_value` now, the delayed `set()` call will do nothing.
-            self._is_set = True
+        if not self._value:
+            self._value = True
 
-            # Ask the loop to notify its listeners in the future
-            call_soon_in_loop(self._loop, super().set)
-
-    def is_set(self) -> bool:
-        return self._is_set
+            # Each waiter is an `asyncio.Future` — the `set_result` method is not
+            # thread-safe and must be run in the loop that owns the future.
+            for fut in self._waiters:
+                if not fut.done():
+                    call_soon_in_loop(fut._loop, fut.set_result, True)
 
     def is_set(self):
         return self._value
