@@ -63,6 +63,7 @@ When viewing task run concurrency in the UI, each limit has its own page. Includ
 - Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
 - Fix deployment builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
 - Fix path argument behavior in `LocalFileSystem` block - https://github.com/PrefectHQ/prefect/pull/7891
+- Fix flow cancellation in `Process` block on Windows - https://github.com/PrefectHQ/prefect/pull/7799
 
 ### Documentation
 - Add documentation for Automations UI — https://github.com/PrefectHQ/prefect/pull/7833
