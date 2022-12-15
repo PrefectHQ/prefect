@@ -14,7 +14,7 @@ T = TypeVar("T")
 
 class CredentialsBlock(Block, ABC):
     """
-    Stores credentials for an external system and exposed a client for interacting
+    Stores credentials for an external system and exposes a client for interacting
     with that system. Can also hold config that is tightly coupled to credentials
     (domain, endpoint, account ID, etc.) Will often be composed with other blocks.
     Parent block should rely on the client provided by a credentials block for
@@ -24,7 +24,7 @@ class CredentialsBlock(Block, ABC):
     @property
     def logger(self) -> Logger:
         """
-        Returns a logger based on whether the NotificationBlock
+        Returns a logger based on whether the CredentialsBlock
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
