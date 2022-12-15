@@ -1,5 +1,6 @@
 ---
 description: Prefect Cloud provides a hosted coordination-as-a-service platform for your workflows.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -24,7 +25,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 - [Blocks](/ui/blocks/) configured for storage or infrastructure used by your flow runs.
 - [Notifications](/ui/notifications/) configured to alert on flow run state changes.
 
-!!! info "Prefect Cloud features"
+!!! cloud-ad "Prefect Cloud features"
     Features only available on Prefect Cloud include:
 
     - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
@@ -34,7 +35,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
     - [Custom role-based access controls (RBAC)](/ui/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
     - [Single Sign-on (SSO)](/ui/sso/) authentication using your identity provider.
     - [Audit Log](/ui/audit-log/) record of user activities to monitor security and compliance.
-    - Collaborators &mdash; invite others to work in your workspace or organization.
+    - Collaborators &mdash; invite others to work in your [workspace](/ui/workspaces/#workspace-collaborators) or [organization](/ui/organizations/#organization-members).
     - [Email notifications](/ui/notifications/) &mdash; configure email alerts based on flow run states and tags.
     - [Automations](/ui/automations/) &mdash; configure triggers and actions in response to real-time monitoring events.
 
@@ -51,7 +52,7 @@ As a personal account owner, you can create a [workspace](#workspaces) and invit
 
 [Organizations](#organizations) in Prefect Cloud enable you to invite users to collaborate in your workspaces with the ability to set [role-based access controls (RBAC)](#roles-and-custom-permissions) for organization members. Organizations may also configure [service accounts](#service-accounts) with API keys for non-user access to the Prefect Cloud API.
 
-!!! tip "Prefect Cloud plans for teams of every size"
+!!! cloud-ad "Prefect Cloud plans for teams of every size"
     See the [Prefect Cloud plans](https://www.prefect.io/pricing/) for details on options for individual users and teams.
 
 ## Workspaces
