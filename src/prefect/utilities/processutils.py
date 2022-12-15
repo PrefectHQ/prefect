@@ -22,28 +22,31 @@ from typing import (
 import anyio
 import anyio.abc
 from anyio.streams.text import TextReceiveStream, TextSendStream
-from ctypes import c_int, c_uint, windll, WINFUNCTYPE
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
-_windows_process_group_pids = set()
 
 
-@WINFUNCTYPE(c_int, c_uint)
-def _win32_ctrl_handler(dwCtrlType):
-    """
-    A callback function for handling CTRL events cleanly on Windows. When called,
-    this function will terminate all running win32 subprocesses the current
-    process started in new process groups.
-    """
-    for pid in _windows_process_group_pids:
-        try:
-            os.kill(pid, signal.CTRL_BREAK_EVENT)
-        except OSError:
-            # process is already terminated
-            pass
+if sys.platform == "win32":
+    from ctypes import WINFUNCTYPE, c_int, c_uint, windll
 
-    # returning 0 lets the next handler in the chain handle the signal
-    return 0
+    _windows_process_group_pids = set()
+
+    @WINFUNCTYPE(c_int, c_uint)
+    def _win32_ctrl_handler(dwCtrlType):
+        """
+        A callback function for handling CTRL events cleanly on Windows. When called,
+        this function will terminate all running win32 subprocesses the current
+        process started in new process groups.
+        """
+        for pid in _windows_process_group_pids:
+            try:
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            except OSError:
+                # process is already terminated
+                pass
+
+        # returning 0 lets the next handler in the chain handle the signal
+        return 0
 
 
 # anyio process wrapper classes
@@ -213,9 +216,7 @@ async def open_process(command: List[str], **kwargs):
         # Add a handler for CTRL-C. Re-adding the handler is safe as Windows
         # will not add a duplicate handler if _win32_ctrl_handler is
         # already registered.
-        windll.kernel32.SetConsoleCtrlHandler(
-            _win32_ctrl_handler, 1
-        )
+        windll.kernel32.SetConsoleCtrlHandler(_win32_ctrl_handler, 1)
 
     try:
         async with process:
