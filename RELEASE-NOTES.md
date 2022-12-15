@@ -38,6 +38,12 @@ Read the full documentation at https://docs.prefect.io/concepts/flows/#pause-a-f
 
 See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/PrefectHQ/prefect/pull/7863 for details
 
+## Pages for individual task run concurrency limits
+When viewing task run concurrency in the UI each limit has its own page. Included in the details for each limit is the tasks which are actively part of that limit.
+
+<img width="1245" alt="image" src="https://user-images.githubusercontent.com/6200442/207954852-60e7a185-0f9d-4a3d-b9f7-2b393ef12726.png">
+
+
 ### Enhancements
 - Improve Prefect import time by deferring imports — https://github.com/PrefectHQ/prefect/pull/7836
 - Add Opsgenie notification block — https://github.com/PrefectHQ/prefect/pull/7778
