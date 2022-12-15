@@ -14,7 +14,7 @@ import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
-from prefect.utilities.names import generate_slug, obfuscate_string
+from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -653,7 +653,6 @@ class BlockDocument(ORMBaseModel):
         include_secrets: bool = False,
     ):
         data = await orm_block_document.decrypt_data(session=session)
-
         # if secrets are not included, obfuscate them based on the schema's
         # `secret_fields`. Note this walks any nested blocks as well. If the
         # nested blocks were recovered from named blocks, they will already
@@ -663,12 +662,21 @@ class BlockDocument(ORMBaseModel):
             flat_data = dict_to_flatdict(data)
             # iterate over the (possibly nested) secret fields
             # and obfuscate their data
-            for field in orm_block_document.block_schema.fields.get(
+            for secret_field in orm_block_document.block_schema.fields.get(
                 "secret_fields", []
             ):
-                key = tuple(field.split("."))
-                if flat_data.get(key) is not None:
-                    flat_data[key] = obfuscate_string(flat_data[key])
+                secret_key = tuple(secret_field.split("."))
+                if flat_data.get(secret_key) is not None:
+                    flat_data[secret_key] = obfuscate_string(flat_data[secret_key])
+                # If a wildcard (*) is in the current secret key path, we take the portion
+                # of the path before the wildcard and compare it to the same level of each
+                # key. A match means that the field is nested under the secret key and should
+                # be obfuscated.
+                elif "*" in secret_key:
+                    wildcard_index = secret_key.index("*")
+                    for data_key in flat_data.keys():
+                        if secret_key[0:wildcard_index] == data_key[0:wildcard_index]:
+                            flat_data[data_key] = obfuscate(flat_data[data_key])
             data = flatdict_to_dict(flat_data)
 
         return cls(
