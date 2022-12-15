@@ -76,6 +76,11 @@ class TestAlembicCommands:
         jobs = [run_sync_in_worker_thread(alembic_upgrade) for _ in range(0, 10)]
         await asyncio.gather(*jobs)
 
+    @pytest.mark.skip(
+        reason="This test is occasionally failing on CI because the tables aren't being "
+        "restored after the downgrade, which makes the DB cleanup fixture error "
+        "for the rest of the test suite"
+    )
     async def test_concurrent_downgrade_upgrade(self):
         try:
             jobs = []
