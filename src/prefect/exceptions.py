@@ -120,7 +120,7 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
-        message = f"Script at {str(path)!r} encountered an exception"
+        message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)
         self.user_exc = user_exc
 
