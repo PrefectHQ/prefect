@@ -1923,9 +1923,10 @@ def test_load_flow_from_entrypoint(tmp_path):
     assert flow.fn() == "woof!"
 
 
-def test_handling_script_with_unprotected_call_in_flow_script(
+async def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
+    orion_client,
 ):
     flow_code_with_call = """
     from prefect import flow, get_run_logger
@@ -1941,7 +1942,6 @@ def test_handling_script_with_unprotected_call_in_flow_script(
     fpath.write_text(dedent(flow_code_with_call))
     with caplog.at_level("WARNING"):
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
-        assert len(caplog.messages) == 1
 
         # Make sure that warning is raised
         assert (
@@ -1949,16 +1949,11 @@ def test_handling_script_with_unprotected_call_in_flow_script(
             "Consider updating the script to only call the flow"
         ) in caplog.text
 
+        flow_runs = await orion_client.read_flows()
+        assert len(flow_runs) == 0
+
         # Make sure that flow runs when called
         res = flow()
         assert res == "woof!"
-
-        # Make sure that loading the flow for a flow run instead of for a deployment
-        #   still does not execute a flow script with a flow call
-
-        # "meow!" is logged with each flow run
-        meow_instances = [w for w in caplog.text.split() if w.strip() == "meow!"]
-        assert len(meow_instances) == 1
-        flow()
-        meow_instances = [w for w in caplog.text.split() if w.strip() == "meow!"]
-        assert len(meow_instances) == 2
+        flow_runs = await orion_client.read_flows()
+        assert len(flow_runs) == 1
