@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `CANCELLING` to StateType enum
+SQLite: None
+Postgres: `9326a6aee18b`
+
 # Add infrastructure_pid to flow runs
 SQLite: `7201de756d85`
 Postgres: `5d526270ddb4`
