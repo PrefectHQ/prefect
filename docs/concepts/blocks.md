@@ -178,7 +178,7 @@ system_configuration_block = SystemConfiguration(
     },
 )
 ```
-`system_secrets` will be obfuscated if `system_configuration_block` is logged, but `system_variables` will be shown in plain-text:
+`system_secrets` will be obfuscated when `system_configuration_block` is displayed, but `system_variables` will be shown in plain-text:
 
 ```python
 print(system_configuration_block)
