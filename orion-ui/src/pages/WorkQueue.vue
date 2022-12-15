@@ -44,7 +44,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, inject, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
@@ -106,7 +106,7 @@
 
   const activeFlowRunsFilter = useFlowRunFilter({ states: ['Running', 'Pending'], workQueues: workQueueName })
   const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
-  const activeFlowRunsCount = computed(()=> flowRunsCountSubscription.response ?? [])
+  const activeFlowRunsCount = computed(() => flowRunsCountSubscription.response ?? [])
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {
