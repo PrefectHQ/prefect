@@ -85,4 +85,4 @@ class TestAlembicCommands:
             await asyncio.gather(*jobs)
         finally:
             # Ensure we're back at the latest revision
-            alembic_upgrade()
+            await run_sync_in_worker_thread(alembic_upgrade)
