@@ -50,135 +50,135 @@ if sys.platform == "win32":
 
 
 # anyio process wrapper classes
-@dataclass(eq=False)
-class StreamReaderWrapper(anyio.abc.ByteReceiveStream):
-    _stream: asyncio.StreamReader
+    @dataclass(eq=False)
+    class StreamReaderWrapper(anyio.abc.ByteReceiveStream):
+        _stream: asyncio.StreamReader
 
-    async def receive(self, max_bytes: int = 65536) -> bytes:
-        data = await self._stream.read(max_bytes)
-        if data:
-            return data
+        async def receive(self, max_bytes: int = 65536) -> bytes:
+            data = await self._stream.read(max_bytes)
+            if data:
+                return data
+            else:
+                raise anyio.EndOfStream
+
+        async def aclose(self) -> None:
+            self._stream.feed_eof()
+
+
+    @dataclass(eq=False)
+    class StreamWriterWrapper(anyio.abc.ByteSendStream):
+        _stream: asyncio.StreamWriter
+
+        async def send(self, item: bytes) -> None:
+            self._stream.write(item)
+            await self._stream.drain()
+
+        async def aclose(self) -> None:
+            self._stream.close()
+
+
+    @dataclass(eq=False)
+    class Process(anyio.abc.Process):
+        _process: asyncio.subprocess.Process
+        _stdin: Union[StreamWriterWrapper, None]
+        _stdout: Union[StreamReaderWrapper, None]
+        _stderr: Union[StreamReaderWrapper, None]
+
+        async def aclose(self) -> None:
+            if self._stdin:
+                await self._stdin.aclose()
+            if self._stdout:
+                await self._stdout.aclose()
+            if self._stderr:
+                await self._stderr.aclose()
+
+            await self.wait()
+
+        async def wait(self) -> int:
+            return await self._process.wait()
+
+        def terminate(self) -> None:
+            self._process.terminate()
+
+        def kill(self) -> None:
+            self._process.kill()
+
+        def send_signal(self, signal: int) -> None:
+            self._process.send_signal(signal)
+
+        @property
+        def pid(self) -> int:
+            return self._process.pid
+
+        @property
+        def returncode(self) -> Union[int, None]:
+            return self._process.returncode
+
+        @property
+        def stdin(self) -> Union[anyio.abc.ByteSendStream, None]:
+            return self._stdin
+
+        @property
+        def stdout(self) -> Union[anyio.abc.ByteReceiveStream, None]:
+            return self._stdout
+
+        @property
+        def stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]:
+            return self._stderr
+
+
+    async def _open_anyio_process(
+        command: Union[str, bytes, Sequence[Union[str, bytes]]],
+        *,
+        stdin: Union[int, IO[Any], None] = None,
+        stdout: Union[int, IO[Any], None] = None,
+        stderr: Union[int, IO[Any], None] = None,
+        cwd: Union[str, bytes, os.PathLike, None] = None,
+        env: Union[Mapping[str, str], None] = None,
+        start_new_session: bool = False,
+        **kwargs,
+    ):
+        """
+        Open a subprocess and return a `Process` object.
+
+        Args:
+            command: The command to run
+            kwargs: Additional arguments to pass to `asyncio.create_subprocess_exec`
+
+        Returns:
+            A `Process` object
+        """
+        # call either asyncio.create_subprocess_exec or asyncio.create_subprocess_shell
+        # depending on whether the command is a list or a string
+        if isinstance(command, list):
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                cwd=cwd,
+                env=env,
+                start_new_session=start_new_session,
+                **kwargs,
+            )
         else:
-            raise anyio.EndOfStream
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                cwd=cwd,
+                env=env,
+                start_new_session=start_new_session,
+                **kwargs,
+            )
 
-    async def aclose(self) -> None:
-        self._stream.feed_eof()
-
-
-@dataclass(eq=False)
-class StreamWriterWrapper(anyio.abc.ByteSendStream):
-    _stream: asyncio.StreamWriter
-
-    async def send(self, item: bytes) -> None:
-        self._stream.write(item)
-        await self._stream.drain()
-
-    async def aclose(self) -> None:
-        self._stream.close()
-
-
-@dataclass(eq=False)
-class Process(anyio.abc.Process):
-    _process: asyncio.subprocess.Process
-    _stdin: Union[StreamWriterWrapper, None]
-    _stdout: Union[StreamReaderWrapper, None]
-    _stderr: Union[StreamReaderWrapper, None]
-
-    async def aclose(self) -> None:
-        if self._stdin:
-            await self._stdin.aclose()
-        if self._stdout:
-            await self._stdout.aclose()
-        if self._stderr:
-            await self._stderr.aclose()
-
-        await self.wait()
-
-    async def wait(self) -> int:
-        return await self._process.wait()
-
-    def terminate(self) -> None:
-        self._process.terminate()
-
-    def kill(self) -> None:
-        self._process.kill()
-
-    def send_signal(self, signal: int) -> None:
-        self._process.send_signal(signal)
-
-    @property
-    def pid(self) -> int:
-        return self._process.pid
-
-    @property
-    def returncode(self) -> Union[int, None]:
-        return self._process.returncode
-
-    @property
-    def stdin(self) -> Union[anyio.abc.ByteSendStream, None]:
-        return self._stdin
-
-    @property
-    def stdout(self) -> Union[anyio.abc.ByteReceiveStream, None]:
-        return self._stdout
-
-    @property
-    def stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]:
-        return self._stderr
-
-
-async def _open_anyio_process(
-    command: Union[str, bytes, Sequence[Union[str, bytes]]],
-    *,
-    stdin: Union[int, IO[Any], None] = None,
-    stdout: Union[int, IO[Any], None] = None,
-    stderr: Union[int, IO[Any], None] = None,
-    cwd: Union[str, bytes, os.PathLike, None] = None,
-    env: Union[Mapping[str, str], None] = None,
-    start_new_session: bool = False,
-    **kwargs,
-):
-    """
-    Open a subprocess and return a `Process` object.
-
-    Args:
-        command: The command to run
-        kwargs: Additional arguments to pass to `asyncio.create_subprocess_exec`
-
-    Returns:
-        A `Process` object
-    """
-    # call either asyncio.create_subprocess_exec or asyncio.create_subprocess_shell
-    # depending on whether the command is a list or a string
-    if isinstance(command, list):
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            cwd=cwd,
-            env=env,
-            start_new_session=start_new_session,
-            **kwargs,
+        return Process(
+            process,
+            StreamWriterWrapper(process.stdin) if process.stdin else None,
+            StreamReaderWrapper(process.stdout) if process.stdout else None,
+            StreamReaderWrapper(process.stderr) if process.stderr else None,
         )
-    else:
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-            cwd=cwd,
-            env=env,
-            start_new_session=start_new_session,
-            **kwargs,
-        )
-
-    return Process(
-        process,
-        StreamWriterWrapper(process.stdin) if process.stdin else None,
-        StreamReaderWrapper(process.stdout) if process.stdout else None,
-        StreamReaderWrapper(process.stderr) if process.stderr else None,
-    )
 
 
 @asynccontextmanager
@@ -200,8 +200,9 @@ async def open_process(command: List[str], **kwargs):
 
     if sys.platform == "win32":
         command = " ".join(command)
-
-    process = await _open_anyio_process(command, **kwargs)
+        process = await _open_anyio_process(command, **kwargs)
+    else:
+        process = await anyio.open_process(command, **kwargs)
 
     # if there's a creationflags kwarg and it contains CREATE_NEW_PROCESS_GROUP,
     # use SetConsoleCtrlHandler to handle CTRL-C
