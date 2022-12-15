@@ -42,7 +42,7 @@ You can also pause a flow run from code: the `pause_flow_run` utility now accept
 
 Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7863) for details.
 
-## Pages for individual task run concurrency limits
+### Pages for individual task run concurrency limits
 
 When viewing task run concurrency in the UI, each limit has its own page. Included in the details for each limit is the tasks that are actively part of that limit.
 
