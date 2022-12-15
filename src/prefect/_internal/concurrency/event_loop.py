@@ -25,7 +25,7 @@ def get_running_loop() -> Optional[asyncio.BaseEventLoop]:
         return None
 
 
-def run_in_loop_thread(
+def call_in_loop(
     __loop: asyncio.AbstractEventLoop,
     __fn: Callable[P, T],
     *args: P.args,
@@ -34,6 +34,16 @@ def run_in_loop_thread(
     """
     Run a synchronous call in event loop's thread from another thread.
     """
+    future = call_soon_in_loop(__loop, __fn, *args, **kwargs)
+    return future.result()
+
+
+def call_soon_in_loop(
+    __loop: asyncio.AbstractEventLoop,
+    __fn: Callable[P, T],
+    *args: P.args,
+    **kwargs: P.kwargs
+) -> concurrent.futures.Future:
     future = concurrent.futures.Future()
 
     @functools.wraps(__fn)
@@ -46,4 +56,23 @@ def run_in_loop_thread(
                 raise
 
     __loop.call_soon_threadsafe(wrapper)
-    return future.result()
+    return future
+
+
+def call_soon(
+    __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+) -> concurrent.futures.Future:
+    future = concurrent.futures.Future()
+    __loop = asyncio.get_running_loop()
+
+    @functools.wraps(__fn)
+    def wrapper() -> None:
+        try:
+            future.set_result(__fn(*args, **kwargs))
+        except BaseException as exc:
+            future.set_exception(exc)
+            if not isinstance(exc, Exception):
+                raise
+
+    __loop.call_soon(wrapper)
+    return future
