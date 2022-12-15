@@ -81,17 +81,17 @@ async def create_database_models(database_engine):
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def clear_database_models(database_engine):
+async def clear_database_models(db):
     """
     Clears the models defined in this file
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await conn.execute(sa.text("DELETE FROM worker_pool;"))
+        await session.execute(sa.text("DELETE FROM worker_pool;"))
 
         for table in reversed(DBBase.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 class TestPydantic:

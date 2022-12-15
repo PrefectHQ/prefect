@@ -45,7 +45,7 @@ def adjust_kwargs_for_client(kwargs):
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine, flow_function, db):
+async def data(flow_function, db):
     # This fixture uses the prefix of `test-` whenever the value is going to be
     # used for a filter in the actual tests below ensuring that the
     # auto-generated names never conflict.
@@ -284,12 +284,12 @@ async def data(database_engine, flow_function, db):
 
     # ----------------- clear data
 
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await conn.execute(sa.text("DELETE FROM worker_pool;"))
+        await session.execute(sa.text("DELETE FROM worker_pool;"))
 
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 class TestCountFlowsModels:
