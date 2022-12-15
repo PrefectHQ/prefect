@@ -1,15 +1,15 @@
 /* Prefect Overrides */
 
 /* Code block background and highlight */
-:root > * {
-    /* theme */ 
+:root>* {
+    /* theme */
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
-    --md-primary-fg-color--dark:  #115AF4;  
-  }
+    --md-primary-fg-color--dark: #115AF4;
+}
 
 /* code block margin and padding  */
-.highlight > pre > code {
+.highlight>pre>code {
     margin-top: 1rem;
     margin-bottom: 1rem;
     border-radius: 10px;
@@ -28,7 +28,7 @@
 }
 
 /* terminal code block formatting */
-.terminal {  
+.terminal {
     --md-code-bg-color: #252a33;
     --md-code-fg-color: #eee;
     --md-code-hl-color: #4a556a;
@@ -36,7 +36,7 @@
 }
 
 /* give terminal code a little more padding to look less crowded */
-.terminal > .highlight > pre > code {
+.terminal>.highlight>pre>code {
     padding-top: 30px;
     padding-bottom: 25px;
 }
@@ -51,7 +51,7 @@
 img {
     margin-top: 1rem;
     margin-bottom: 1rem;
-    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0, 0, 0, 0.2))
 }
 
 /* remove margin just for the top nav logo */
@@ -69,9 +69,11 @@ img {
 .md-typeset table:not([class]) {
     font-size: .8rem;
 }
+
 .md-typeset table:not([class]) td {
     padding: 0.5em 1.25em;
 }
+
 .md-typeset table:not([class]) th {
     padding: 0.5em 1.25em;
 }
@@ -85,34 +87,34 @@ to force column width */
 
 /* collections and recipes catalogs */
 .collection-grid {
-    display: grid; 
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-    gap: .5rem; 
+    gap: .5rem;
 }
 
 .collection-item {
-    padding: 1rem; 
+    padding: 1rem;
     margin: .2rem;
-    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3); 
+    box-shadow: .1rem .1rem .3rem rgba(0, 0, 0, .3);
     border-radius: 5px;
 }
 
 .collection-item img {
-    max-height: 100px; 
+    max-height: 100px;
     max-width: 100px;
 }
 
 .recipe-grid {
-    display:grid; 
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-    gap: .5rem; 
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: .5rem;
     margin: 1rem 0 3rem;
 }
 
 .recipe-item {
-    padding: 1rem; 
+    padding: 1rem;
     margin: .2rem;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, .3); 
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .3);
     border-radius: 8px;
     display: flex;
     flex-direction: column;
@@ -120,8 +122,8 @@ to force column width */
 }
 
 .recipe-item img {
-    max-height: 48px; 
-    max-width: 48px; 
+    max-height: 48px;
+    max-width: 48px;
     margin: 0 0.5em 0 auto;
 }
 
@@ -176,13 +178,6 @@ to force column width */
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
-}
-
-.beta::before {
-    background-color: #ffffff00;
-    color: rgb(131, 131, 131);
-    border: 1px solid rgb(131, 131, 131);
-    content: "Beta";
 }
 
 .cloud::before {
