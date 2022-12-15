@@ -150,6 +150,43 @@ print(aws_credentials_block)
 # aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
 ```
 
+There's  also use the `SecretDict` field type provided by Prefect. This type will allow you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs. This is useful for blocks where typing or structure of secret fields is not known until configuration time.
+
+Here's an example of a block that uses `SecretDict`:
+
+```python
+from typing import Dict
+
+from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
+
+
+class SystemConfiguration(Block):
+    system_secrets: SecretDict
+    system_variables: Dict
+
+
+system_configuration_block = SystemConfiguration(
+    system_secrets={
+        "password": "p@ssw0rd",
+        "api_token": "token_123456789",
+        "private_key": "<private key here>",
+    },
+    system_variables={
+        "self_destruct_countdown_seconds": 60,
+        "self_destruct_countdown_stop_time": 7,
+    },
+)
+```
+`system_secrets` will be obfuscated when `system_configuration_block` is displayed, but `system_variables` will be shown in plain-text:
+
+```python
+print(system_configuration_block)
+# SystemConfiguration(
+#   system_secrets=SecretDict('{'password': '**********', 'api_token': '**********', 'private_key': '**********'}'), 
+#   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
+# )
+```
 ### Blocks metadata
 
 The way that a block is displayed can be controlled by metadata fields that can be set on a block subclass.

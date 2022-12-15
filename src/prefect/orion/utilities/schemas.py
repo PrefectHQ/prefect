@@ -14,7 +14,7 @@ import orjson
 import pendulum
 import pydantic
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretField
 from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
@@ -157,6 +157,14 @@ class PrefectBaseModel(BaseModel):
         else:
             extra = "ignore"
 
+        json_encoders = {
+            # Uses secret fields and strange logic to avoid a circular import error
+            # for Secret dict in prefect.blocks.fields
+            SecretField: lambda v: v.dict()
+            if getattr(v, "dict", None)
+            else str(v)
+        }
+
         pydantic_version = getattr(pydantic, "__version__", None)
         if pydantic_version is not None and Version(pydantic_version) >= Version(
             "1.9.2"
@@ -226,14 +234,11 @@ class PrefectBaseModel(BaseModel):
         if include_secrets:
             if "encoder" in kwargs:
                 raise ValueError(
-                    "Alternative encoder provided; can not set encoder for SecretStr and SecretBytes."
+                    "Alternative encoder provided; can not set encoder for SecretFields."
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,
-                {
-                    SecretStr: lambda v: v.get_secret_value() if v else None,
-                    SecretBytes: lambda v: v.get_secret_value() if v else None,
-                },
+                {SecretField: lambda v: v.get_secret_value() if v else None},
             )
         return super().json(*args, **kwargs)
 
