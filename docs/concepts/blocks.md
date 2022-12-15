@@ -150,7 +150,7 @@ print(aws_credentials_block)
 # aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
 ```
 
-For more complex secret values, you can also use the `SecretDict` field type provided by Prefect. This type will allow you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs. This is useful for blocks where typing or structure of secret fields is not known until configuration time.
+There's  also use the `SecretDict` field type provided by Prefect. This type will allow you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs. This is useful for blocks where typing or structure of secret fields is not known until configuration time.
 
 Here's an example of a block that uses `SecretDict`:
 
