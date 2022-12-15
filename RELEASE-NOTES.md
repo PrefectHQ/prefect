@@ -55,17 +55,15 @@ When viewing task run concurrency in the UI each limit has its own page. Include
 ### Fixes
 - Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
 - Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
-- Fix deployments builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
+- Fix deployment builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
 - Fix path argument behavior in `LocalFileSystem` block - https://github.com/PrefectHQ/prefect/pull/7891
 
 ### Documentation
-- Add CSS for beta and experimental badges — https://github.com/PrefectHQ/prefect/pull/7831
 - Add documentation for Automations UI — https://github.com/PrefectHQ/prefect/pull/7833
 - Mention recipes and tutorials under Recipes and Collections pages — https://github.com/PrefectHQ/prefect/pull/7876
-- Add cloud icons and admonitions — https://github.com/PrefectHQ/prefect/pull/7878
 - Add documentation for Task Run Concurrency UI — https://github.com/PrefectHQ/prefect/pull/7840
 - Add `with_options` example to collections usage docs — https://github.com/PrefectHQ/prefect/pull/7894
-- Add link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
+- Add a link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
 
 ### Collections
 - Add new [`prefect-kubernetes`](https://prefecthq.github.io/prefect-kubernetes/) collection for [Kubernetes](https://kubernetes.io/) — https://github.com/PrefectHQ/prefect/pull/7907
