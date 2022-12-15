@@ -1131,7 +1131,7 @@ class TestSecretBlockDocuments:
             "/block_documents/",
             json=schemas.actions.BlockDocumentCreate(
                 name="secret-block",
-                data=dict(w={"secret": "value"}, x=X, y=Y, z=Z),
+                data=dict(w={"secret": W}, x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
             ).dict(json_compatible=True),
