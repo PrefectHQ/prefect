@@ -61,6 +61,9 @@ See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/Prefec
 - Add `with_options` example to collections usage docs — https://github.com/PrefectHQ/prefect/pull/7894
 - Add link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
 
+### Collections
+- Add new [`prefect-kubernetes`](https://prefecthq.github.io/prefect-kubernetes/) collection for [Kubernetes](https://kubernetes.io/) — https://github.com/PrefectHQ/prefect/pull/7907
+- Add new [`prefect-bitbucket`](https://prefecthq.github.io/prefect-bitbucket/) collection for [Bitbucket](https://bitbucket.org/product) — https://github.com/PrefectHQ/prefect/pull/7907
 
 ## Contributors
 - @jlutran
