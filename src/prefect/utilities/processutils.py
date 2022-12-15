@@ -22,16 +22,13 @@ from typing import (
 import anyio
 import anyio.abc
 from anyio.streams.text import TextReceiveStream, TextSendStream
+from ctypes import c_int, c_uint, windll, WINFUNCTYPE
 
 TextSink = Union[anyio.AsyncFile, TextIO, TextSendStream]
-
-if sys.platform == "win32":
-    import ctypes
-
 _windows_process_group_pids = set()
 
 
-@ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)
+@WINFUNCTYPE(c_int, c_uint)
 def _win32_ctrl_handler(dwCtrlType):
     """
     A callback function for handling CTRL events cleanly on Windows. When called,
@@ -216,7 +213,7 @@ async def open_process(command: List[str], **kwargs):
         # Add a handler for CTRL-C. Re-adding the handler is safe as Windows
         # will not add a duplicate handler if _win32_ctrl_handler is
         # already registered.
-        ctypes.windll.kernel32.SetConsoleCtrlHandler(
+        windll.kernel32.SetConsoleCtrlHandler(
             _win32_ctrl_handler, 1
         )
 
