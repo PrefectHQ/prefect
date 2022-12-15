@@ -98,3 +98,11 @@ Select **Send** to initiate the invitation.
 To add a service account to a workspace, select the Service Accounts **+** icon. You can select from a list of existing service accounts configured for the organization. Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace. A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
 To delete a workspace collaborator or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
+
+## Workspace transfer
+
+Moving a workspace from a personal account to an organization account allows those who have expanding needs/reliance on Prefect to take their history and existing work with them as they grow. 
+
+Currently, users moving to an organization from a personal account need to re-create all of their Blocks, Deployments, Notifications, and Work Queues in a new workspace within the organization. Additionally, any flow run history will remain in the personal workspace, and quickly be lost to the personal workspace’s shorter retention policy. 
+
+Workspace transfer enables people to upgrade their existing Prefect experience with additional management tooling available in organizations, such as audit log and extended flow run retention. This provides users with immediate value through the upgrade experience, rather than the current experience of an immediate empty state in the organization, and additional work on their end to transfer the workspace items that can be manually moved over.
