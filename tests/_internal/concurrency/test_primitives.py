@@ -113,7 +113,7 @@ async def test_event_wait_in_different_loop():
     async def wait_for_event():
         await event.wait()
 
-    with pytest.raises(RuntimeError, match="different loop"):
+    with pytest.raises(RuntimeError, match="different .* loop"):
         await anyio.to_thread.run_sync(anyio.run, wait_for_event)
 
 
