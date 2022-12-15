@@ -28,14 +28,10 @@ def mock_open_process(monkeypatch):
             MagicMock()
         )
 
-        yield prefect.utilities.processutils._open_anyio_process  #noqa
+        yield prefect.utilities.processutils._open_anyio_process  # noqa
     else:
-        monkeypatch.setattr(
-            "anyio.open_process", AsyncMock()
-        )
-        anyio.open_process.return_value.terminate = (  # noqa
-            MagicMock()
-        )
+        monkeypatch.setattr("anyio.open_process", AsyncMock())
+        anyio.open_process.return_value.terminate = MagicMock()  # noqa
 
         yield anyio.open_process
 
