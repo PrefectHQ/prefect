@@ -45,7 +45,7 @@ async def clear_database(
         return
     async with db.session_context(begin_transaction=True) as session:
         # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(sa.text("DELETE FROM worker_pool;"))
+        await session.execute(sa.delete(db.WorkerPool))
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
 
