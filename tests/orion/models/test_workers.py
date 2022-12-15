@@ -30,7 +30,7 @@ class TestCreateWorkerPool:
 
         assert result.name == "My Test Pool"
         assert result.is_paused is True
-        assert result.concurrency_limit is 5
+        assert result.concurrency_limit == 5
 
     async def test_create_duplicate_worker_pool(self, session, worker_pool):
         with pytest.raises(sa.exc.IntegrityError):
@@ -152,7 +152,7 @@ class TestUpdateWorkerPool:
             session=session, worker_pool_id=worker_pool.id
         )
         assert result.is_paused is True
-        assert result.concurrency_limit is 5
+        assert result.concurrency_limit == 5
 
     async def test_update_worker_pool_invalid_concurrency(self, session, worker_pool):
         with pytest.raises(pydantic.ValidationError):
@@ -360,7 +360,7 @@ class TestUpdateWorkerPoolQueue:
             session=session, worker_pool_queue_id=worker_pool_queue.id
         )
         assert result.is_paused is True
-        assert result.concurrency_limit is 5
+        assert result.concurrency_limit == 5
 
     async def test_update_worker_pool_queue_invalid_concurrency(
         self, session, worker_pool_queue
