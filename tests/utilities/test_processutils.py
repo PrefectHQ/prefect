@@ -107,7 +107,6 @@ class TestOpenProcess:
             stderr=mock.ANY,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
         )
-        #mock_ctrl_c_handler.assert_called_once_with()
         mock_set_console_ctrl_handler.assert_called_once_with(mock_ctrl_c_handler, 1)
 
 
