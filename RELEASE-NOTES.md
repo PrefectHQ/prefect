@@ -4,6 +4,36 @@
 
 ### Extensions to the new pausing feature!
 
+Pausing flow runs with Prefect have become much more powerful!
+
+Flow runs can now be paused without blocking the flow run process. This feature can free up agents to run other flows while waiting for approval. In order to use rescheduling pauses, flows must be deployed and results must be configured with the `persist_result` option.
+
+```
+from prefect import task, flow, pause_flow_run
+
+@task(persist_result=True)
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+
+@task(persist_result=True)
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+
+@flow(persist_result=True)
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600, reschedule=True)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+If set up as a deployment, running this flow will set up a joke, then pause and leave execution until it is resumed. Once resumed either with the `resume_flow_run` utility or the Prefect UI, the flow will be rescheduled and deliver the punchline.
+
+Deployed flows can also be paused outside of the flow process!
+
+The UI now features a **Pause** button on deployed flows that will stop execution at the beginning of the **next** task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will reschedule it.
+
+Additionally, the `pause_flow_run` utility accepts an optional `flow_run_id` argument. When supplied, the specified flow run will be paused as long as it is still running and there are tasks remaining to run.
+
 
 See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/PrefectHQ/prefect/pull/7863 for details
 
