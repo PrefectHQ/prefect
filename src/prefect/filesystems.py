@@ -100,7 +100,11 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
+        if path is None:
+            return basepath
+
         path: Path = Path(path).expanduser()
+
         if not path.is_absolute():
             path = basepath / path
         else:
@@ -161,11 +165,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
-
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        if not to_path:
-            to_path = Path(self.basepath).expanduser()
+        destination_path = self._resolve_path(to_path)
 
         if not local_path:
             local_path = Path(".").absolute()
@@ -177,11 +179,14 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        if local_path == to_path:
+        if local_path == destination_path:
             pass
         else:
             copytree(
-                src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True
+                src=local_path,
+                dst=destination_path,
+                ignore=ignore_func,
+                dirs_exist_ok=True,
             )
 
     @sync_compatible
