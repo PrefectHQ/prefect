@@ -1,16 +1,42 @@
 from abc import ABC, abstractmethod
 from logging import Logger
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, Generic, List, Tuple, TypeVar, Union
+from typing import Any, BinaryIO, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 from typing_extensions import Self
 
-from prefect import get_run_logger
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 
 T = TypeVar("T")
+
+
+class NotificationBlock(Block, ABC):
+    """
+    Block that represents a resource in an external system that is able to send notifications.
+    """
+
+    _block_schema_capabilities = ["notify"]
+
+    @property
+    def logger(self):
+        """
+        Returns a logger based on whether the JobRun
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def notify(self, body: str, subject: Optional[str] = None) -> None:
+        """
+        Send a notification.
+        """
 
 
 class JobRun(ABC, Generic[T]):  # not a block

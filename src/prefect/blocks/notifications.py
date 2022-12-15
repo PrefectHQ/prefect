@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Dict, List, Optional
 
 import apprise
@@ -9,22 +9,8 @@ from apprise.plugins.NotifyTwilio import NotifyTwilio
 from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
-from prefect.blocks.core import Block
+from prefect.blocks.abstract import NotificationBlock
 from prefect.utilities.asyncutils import sync_compatible
-
-
-class NotificationBlock(Block, ABC):
-    """
-    A `Block` base class for sending notifications.
-    """
-
-    _block_schema_capabilities = ["notify"]
-
-    @abstractmethod
-    async def notify(self, body: str, subject: Optional[str] = None):
-        """
-        Send a notification
-        """
 
 
 class PrefectNotifyType(NotifyType):
