@@ -10,7 +10,7 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.1.35",
+    "@prefecthq/orion-design": "1.1.39",
     "@prefecthq/prefect-design": "1.1.35",
     "@prefecthq/vue-compositions": "1.1.0",
     "@types/lodash.debounce": "4.0.7",
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.28.1",
-    "@prefecthq/eslint-config": "1.0.17",
+    "@prefecthq/eslint-config": "1.0.19",
     "@vitejs/plugin-vue": "^2.3.3",
     "autoprefixer": "10.4.13",
     "dotenv": "16.0.3",
