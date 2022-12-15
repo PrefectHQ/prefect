@@ -148,6 +148,22 @@ class TestLocalFileSystem:
                     child_contents
                 )
 
+    async def test_to_path_raises_error_when_not_in_basepath(self):
+
+        with TemporaryDirectory() as tmp_basepath:
+            f = LocalFileSystem(basepath=tmp_basepath)
+            outside_path = "~/puppy"
+            with pytest.raises(
+                ValueError, match="Provided path .* is outside of the base path.*"
+            ):
+                await f.put_directory(to_path=outside_path)
+
+                # Make sure that correct destination was reached at <basepath>/<to_path>
+                assert set(os.listdir(tmp_dst)) == set(parent_contents)
+                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(
+                    child_contents
+                )
+
     async def test_dir_contents_copied_correctly_with_put_directory_and_file_pattern(
         self,
     ):
