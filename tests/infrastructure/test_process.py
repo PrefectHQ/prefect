@@ -20,14 +20,24 @@ from prefect.testing.utilities import AsyncMock
 
 @pytest.fixture
 def mock_open_process(monkeypatch):
-    monkeypatch.setattr(
-        "prefect.utilities.processutils._open_anyio_process", AsyncMock()
-    )
-    prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
-        MagicMock()
-    )
+    if sys.platform == "win32":
+        monkeypatch.setattr(
+            "prefect.utilities.processutils._open_anyio_process", AsyncMock()
+        )
+        prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
+            MagicMock()
+        )
 
-    yield prefect.utilities.processutils._open_anyio_process  # noqa
+        yield prefect.utilities.processutils._open_anyio_process  #noqa
+    else:
+        monkeypatch.setattr(
+            "anyio.open_process", AsyncMock()
+        )
+        anyio.open_process.return_value.terminate = (  # noqa
+            MagicMock()
+        )
+
+        yield anyio.open_process
 
 
 @pytest.mark.parametrize("stream_output", [True, False])
