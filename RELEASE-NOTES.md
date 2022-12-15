@@ -30,7 +30,7 @@ If set up as a deployment, running this flow will set up a joke, then pause and 
 
 Deployed flows can also be paused outside of the flow process!
 
-The UI now features a **Pause** button on deployed flows that will stop execution at the beginning of the **next** task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will reschedule it.
+The UI now features a **Pause** button on deployed flows that will stop execution at the beginning of the _next_ task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will reschedule it.
 
 Additionally, the `pause_flow_run` utility accepts an optional `flow_run_id` argument. When supplied, the specified flow run will be paused as long as it is still running and there are tasks remaining to run.
 
