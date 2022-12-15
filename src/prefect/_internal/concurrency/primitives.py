@@ -5,10 +5,7 @@ import asyncio
 import concurrent.futures
 from typing import Generic, Optional, TypeVar
 
-from prefect._internal.concurrency.event_loop import (
-    get_running_loop,
-    run_in_loop_thread,
-)
+from prefect._internal.concurrency.event_loop import call_in_loop, get_running_loop
 
 T = TypeVar("T")
 
@@ -33,7 +30,7 @@ class Event:
         self._is_set = True
         if self._loop:
             if self._loop != get_running_loop():
-                run_in_loop_thread(self._loop, self._event.set)
+                call_in_loop(self._loop, self._event.set)
             else:
                 self._event.set()
 
