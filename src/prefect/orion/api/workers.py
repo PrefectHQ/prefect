@@ -24,8 +24,8 @@ def error_404_if_workers_not_enabled():
 
 
 router = OrionRouter(
-    prefix="/experimental/workers",
-    tags=["Workers"],
+    prefix="/experimental/worker_pools",
+    tags=["Worker Pools"],
     dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
@@ -91,7 +91,7 @@ class WorkerLookups:
 # -----------------------------------------------------
 
 
-@router.post("/pools/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_worker_pool(
     worker_pool: schemas.actions.WorkerPoolCreate,
     db: OrionDBInterface = Depends(provide_database_interface),
@@ -121,7 +121,7 @@ async def create_worker_pool(
     return model
 
 
-@router.get("/pools/{name}")
+@router.get("/{name}")
 async def read_worker_pool(
     worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
@@ -140,7 +140,7 @@ async def read_worker_pool(
         )
 
 
-@router.post("/pools/filter")
+@router.post("/filter")
 async def read_worker_pools(
     worker_pools: schemas.filters.WorkerPoolFilter = None,
     limit: int = dependencies.LimitBody(),
@@ -160,7 +160,7 @@ async def read_worker_pools(
         )
 
 
-@router.patch("/pools/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_worker_pool(
     worker_pool: schemas.actions.WorkerPoolUpdate,
     worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
@@ -194,7 +194,7 @@ async def update_worker_pool(
         )
 
 
-@router.delete("/pools/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_worker_pool(
     worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
@@ -220,7 +220,7 @@ async def delete_worker_pool(
         )
 
 
-@router.post("/pools/{name}/get_scheduled_flow_runs")
+@router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
     worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
     worker_pool_queue_names: List[str] = Body(
@@ -279,7 +279,7 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
-@router.post("/pools/{worker_pool_name}/queues", status_code=status.HTTP_201_CREATED)
+@router.post("/{worker_pool_name}/queues", status_code=status.HTTP_201_CREATED)
 async def create_worker_pool_queue(
     worker_pool_queue: schemas.actions.WorkerPoolQueueCreate,
     worker_pool_name: str = Path(..., description="The worker pool name"),
@@ -313,7 +313,7 @@ async def create_worker_pool_queue(
     return model
 
 
-@router.get("/pools/{worker_pool_name}/queues/{name}")
+@router.get("/{worker_pool_name}/queues/{name}")
 async def read_worker_pool_queue(
     worker_pool_name: str = Path(..., description="The worker pool name"),
     worker_pool_queue_name: str = Path(
@@ -338,7 +338,7 @@ async def read_worker_pool_queue(
         )
 
 
-@router.get("/pools/{worker_pool_name}/queues")
+@router.get("/{worker_pool_name}/queues")
 async def read_worker_pool_queues(
     worker_pool_name: str = Path(..., description="The worker pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
@@ -426,7 +426,7 @@ async def delete_worker_pool_queue(
 
 
 @router.post(
-    "/pools/{worker_pool_name}/workers/heartbeat",
+    "/{worker_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def worker_heartbeat(
@@ -448,7 +448,7 @@ async def worker_heartbeat(
         )
 
 
-@router.post("/pools/{worker_pool_name}/workers/filter")
+@router.post("/{worker_pool_name}/workers/filter")
 async def read_workers(
     worker_pool_name: str = Path(..., description="The worker pool name"),
     workers: schemas.filters.WorkerFilter = None,

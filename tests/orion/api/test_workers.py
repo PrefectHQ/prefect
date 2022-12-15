@@ -39,7 +39,7 @@ class TestEnableWorkersFlag:
     async def test_404_when_flag_disabled(self, client):
         with temporary_settings(restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORKERS}):
             response = await client.post(
-                "/experimental/workers/pools/", json=dict(name="Pool 1")
+                "/experimental/worker_pools/", json=dict(name="Pool 1")
             )
             assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -47,7 +47,7 @@ class TestEnableWorkersFlag:
 class TestCreateWorkerPool:
     async def test_create_worker_pool(self, session, client):
         response = await client.post(
-            "/experimental/workers/pools/", json=dict(name="Pool 1")
+            "/experimental/worker_pools/", json=dict(name="Pool 1")
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkerPool, response.json())
@@ -62,7 +62,7 @@ class TestCreateWorkerPool:
 
     async def test_create_worker_pool_with_options(self, client):
         response = await client.post(
-            "/experimental/workers/pools/",
+            "/experimental/worker_pools/",
             json=dict(name="Pool 1", is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -73,7 +73,7 @@ class TestCreateWorkerPool:
 
     async def test_create_duplicate_worker_pool(self, client, worker_pool):
         response = await client.post(
-            "/experimental/workers/pools/",
+            "/experimental/worker_pools/",
             json=dict(name=worker_pool.name, type="PROCESS"),
         )
         assert response.status_code == status.HTTP_409_CONFLICT
@@ -81,14 +81,14 @@ class TestCreateWorkerPool:
     @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
     async def test_create_worker_pool_with_invalid_name(self, client, name):
         response = await client.post(
-            "/experimental/workers/pools/", json=dict(name=name)
+            "/experimental/worker_pools/", json=dict(name=name)
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
     async def test_create_typed_worker_pool(self, session, client, type):
         response = await client.post(
-            "/experimental/workers/pools/", json=dict(name="Pool 1", type=type)
+            "/experimental/worker_pools/", json=dict(name="Pool 1", type=type)
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkerPool, response.json())
@@ -97,7 +97,7 @@ class TestCreateWorkerPool:
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
     async def test_create_reserved_pool_fails(self, session, client, name):
         response = await client.post(
-            "/experimental/workers/pools/", json=dict(name=name)
+            "/experimental/worker_pools/", json=dict(name=name)
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "reserved for internal use" in response.json()["detail"]
@@ -106,16 +106,14 @@ class TestCreateWorkerPool:
 class TestDeleteWorkerPool:
     async def test_delete_worker_pool(self, client, worker_pool, session):
         worker_pool_id = worker_pool.id
-        response = await client.delete(
-            f"/experimental/workers/pools/{worker_pool.name}"
-        )
+        response = await client.delete(f"/experimental/worker_pools/{worker_pool.name}")
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not await models.workers.read_worker_pool(
             session=session, worker_pool_id=worker_pool_id
         )
 
     async def test_nonexistent_worker_pool(self, client):
-        response = await client.delete("/experimental/workers/pools/does-not-exist")
+        response = await client.delete("/experimental/worker_pools/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
@@ -125,7 +123,7 @@ class TestDeleteWorkerPool:
         )
         await session.commit()
 
-        response = await client.delete(f"/experimental/workers/pools/{name}")
+        response = await client.delete(f"/experimental/worker_pools/{name}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "reserved for internal use" in response.json()["detail"]
 
@@ -133,7 +131,7 @@ class TestDeleteWorkerPool:
 class TestUpdateWorkerPool:
     async def test_update_worker_pool(self, client, session, worker_pool):
         response = await client.patch(
-            f"/experimental/workers/pools/{worker_pool.name}",
+            f"/experimental/worker_pools/{worker_pool.name}",
             json=dict(is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -149,7 +147,7 @@ class TestUpdateWorkerPool:
         self, client, session, worker_pool, db
     ):
         response = await client.patch(
-            f"/experimental/workers/pools/{worker_pool.name}",
+            f"/experimental/worker_pools/{worker_pool.name}",
             json=dict(concurrency_limit=0),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -164,7 +162,7 @@ class TestUpdateWorkerPool:
         self, client, session, worker_pool
     ):
         response = await client.patch(
-            f"/experimental/workers/pools/{worker_pool.name}",
+            f"/experimental/worker_pools/{worker_pool.name}",
             json=dict(concurrency_limit=-5),
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -184,7 +182,7 @@ class TestUpdateWorkerPool:
 
         # fails if we try to update the description
         response = await client.patch(
-            f"/experimental/workers/pools/{name}",
+            f"/experimental/worker_pools/{name}",
             json=dict(description=name, is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -192,7 +190,7 @@ class TestUpdateWorkerPool:
 
         # succeeds if just pause and concurrency
         response = await client.patch(
-            f"/experimental/workers/pools/{name}",
+            f"/experimental/worker_pools/{name}",
             json=dict(is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
@@ -200,14 +198,14 @@ class TestUpdateWorkerPool:
 
 class TestReadWorkerPool:
     async def test_read_worker_pool(self, client, worker_pool):
-        response = await client.get(f"/experimental/workers/pools/{worker_pool.name}")
+        response = await client.get(f"/experimental/worker_pools/{worker_pool.name}")
         assert response.status_code == status.HTTP_200_OK
         result = pydantic.parse_obj_as(WorkerPool, response.json())
         assert result.name == worker_pool.name
         assert result.id == worker_pool.id
 
     async def test_read_invalid_config(self, client):
-        response = await client.get("/experimental/workers/pools/does-not-exist")
+        response = await client.get("/experimental/worker_pools/does-not-exist")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -215,17 +213,17 @@ class TestReadWorkerPools:
     @pytest.fixture(autouse=True)
     async def create_worker_pools(self, client):
         for name in ["C", "B", "A"]:
-            await client.post("/experimental/workers/pools/", json=dict(name=name))
+            await client.post("/experimental/worker_pools/", json=dict(name=name))
 
     async def test_read_worker_pools(self, client, session):
-        response = await client.post("/experimental/workers/pools/filter")
+        response = await client.post("/experimental/worker_pools/filter")
         assert response.status_code == status.HTTP_200_OK
         result = pydantic.parse_obj_as(List[WorkerPool], response.json())
         assert [r.name for r in result] == ["A", "B", "C"]
 
     async def test_read_worker_pools_with_limit(self, client, session):
         response = await client.post(
-            "/experimental/workers/pools/filter", json=dict(limit=2)
+            "/experimental/worker_pools/filter", json=dict(limit=2)
         )
         assert response.status_code == status.HTTP_200_OK
         result = pydantic.parse_obj_as(List[WorkerPool], response.json())
@@ -233,7 +231,7 @@ class TestReadWorkerPools:
 
     async def test_read_worker_pools_with_offset(self, client, session):
         response = await client.post(
-            "/experimental/workers/pools/filter", json=dict(offset=1)
+            "/experimental/worker_pools/filter", json=dict(offset=1)
         )
         assert response.status_code == status.HTTP_200_OK
         result = pydantic.parse_obj_as(List[WorkerPool], response.json())
@@ -243,7 +241,7 @@ class TestReadWorkerPools:
 class TestCreateWorkerPoolQueue:
     async def test_create_worker_pool_queue(self, client, worker_pool):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/queues",
+            f"/experimental/worker_pools/{worker_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
         )
         assert response.status_code == status.HTTP_201_CREATED
@@ -255,20 +253,20 @@ class TestCreateWorkerPoolQueue:
 class TestWorkerProcess:
     async def test_heartbeat_worker(self, client, worker_pool):
         workers_response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/filter"
+            f"/experimental/worker_pools/{worker_pool.name}/workers/filter"
         )
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 0
 
         dt = pendulum.now()
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/heartbeat",
+            f"/experimental/worker_pools/{worker_pool.name}/workers/heartbeat",
             json=dict(name="test-worker"),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         workers_response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/filter"
+            f"/experimental/worker_pools/{worker_pool.name}/workers/filter"
         )
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 1
@@ -277,7 +275,7 @@ class TestWorkerProcess:
 
     async def test_heartbeat_worker_requires_name(self, client, worker_pool):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/heartbeat"
+            f"/experimental/worker_pools/{worker_pool.name}/workers/heartbeat"
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert b"field required" in response.content
@@ -285,12 +283,12 @@ class TestWorkerProcess:
     async def test_heartbeat_worker_upserts_for_same_name(self, client, worker_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
             response = await client.post(
-                f"/experimental/workers/pools/{worker_pool.name}/workers/heartbeat",
+                f"/experimental/worker_pools/{worker_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )
 
         workers_response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/filter"
+            f"/experimental/worker_pools/{worker_pool.name}/workers/filter"
         )
         assert workers_response.status_code == status.HTTP_200_OK
         assert len(workers_response.json()) == 2
@@ -298,12 +296,12 @@ class TestWorkerProcess:
     async def test_heartbeat_worker_limit(self, client, worker_pool):
         for name in ["test-worker", "test-worker", "test-worker", "another-worker"]:
             response = await client.post(
-                f"/experimental/workers/pools/{worker_pool.name}/workers/heartbeat",
+                f"/experimental/worker_pools/{worker_pool.name}/workers/heartbeat",
                 json=dict(name=name),
             )
 
         workers_response = await client.post(
-            f"/experimental/workers/pools/{worker_pool.name}/workers/filter",
+            f"/experimental/worker_pools/{worker_pool.name}/workers/filter",
             json=dict(limit=1),
         )
         assert workers_response.status_code == status.HTTP_200_OK
@@ -445,7 +443,7 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs(self, client, worker_pools):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -459,7 +457,7 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_limit(self, client, worker_pools):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(limit=7),
         )
 
@@ -470,7 +468,7 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_wq_aa(self, client, worker_pools, worker_pool_queues):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(worker_pool_queue_names=[worker_pool_queues["wq_aa"].name]),
         )
 
@@ -483,7 +481,7 @@ class TestGetScheduledRuns:
         self, client, worker_pools, worker_pool_queues
     ):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
                 worker_pool_queue_names=[
                     worker_pool_queues["wq_aa"].name,
@@ -501,7 +499,7 @@ class TestGetScheduledRuns:
         self, client, worker_pools, worker_pool_queues
     ):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(worker_pool_queue_names=[worker_pool_queues["wq_ba"].name]),
         )
 
@@ -511,7 +509,7 @@ class TestGetScheduledRuns:
         self, client, worker_pools, worker_pool_queues
     ):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(scheduled_before=str(pendulum.now())),
         )
 
@@ -522,7 +520,7 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_after(self, client, worker_pools):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(scheduled_after=str(pendulum.now())),
         )
 
@@ -533,7 +531,7 @@ class TestGetScheduledRuns:
 
     async def test_get_all_runs_scheduled_before_and_after(self, client, worker_pools):
         response = await client.post(
-            f"/experimental/workers/pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
+            f"/experimental/worker_pools/{worker_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
                 scheduled_before=str(pendulum.now().subtract(hours=1)),
                 scheduled_after=str(pendulum.now()),
