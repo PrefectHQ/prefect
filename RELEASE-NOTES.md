@@ -1,5 +1,39 @@
 # Prefect Release Notes
 
+## Release 2.7.2
+
+### Extensions to the new pausing feature!
+
+
+See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/PrefectHQ/prefect/pull/7863 for details
+
+### Enhancements
+- Improve Prefect import time by deferring imports — https://github.com/PrefectHQ/prefect/pull/7836
+- Add Opsgenie notification block — https://github.com/PrefectHQ/prefect/pull/7778
+- Add individual concurrency limit page with active runs list — https://github.com/PrefectHQ/prefect/pull/7848
+- Add `PREFECT_KUBERNETES_CLUSTER_UID` to allow bypass of `kube-system` namespace read — https://github.com/PrefectHQ/prefect/pull/7864
+- Refactor `pause_flow_run` for consistency with engine state handling — https://github.com/PrefectHQ/prefect/pull/7857
+- API: Allow `reject_transition` to return current state — https://github.com/PrefectHQ/prefect/pull/7830
+
+### Fixes
+- Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
+- Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
+
+### Documentation
+- Add CSS for beta and experimental badges — https://github.com/PrefectHQ/prefect/pull/7831
+- Add documentation for Automations UI — https://github.com/PrefectHQ/prefect/pull/7833
+- Mention recipes and tutorials under Recipes and Collections pages — https://github.com/PrefectHQ/prefect/pull/7876
+- Add cloud icons and admonitions — https://github.com/PrefectHQ/prefect/pull/7878
+- Add documentation for Task Run Concurrency UI — https://github.com/PrefectHQ/prefect/pull/7840
+- Add `with_options` example to collections usage docs — https://github.com/PrefectHQ/prefect/pull/7894
+- Add link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
+
+
+## Contributors
+- @jlutran
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.1...2.7.2
+
 ## Release 2.7.1
 
 ### Task concurrency limits page
