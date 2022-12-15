@@ -1923,36 +1923,7 @@ def test_load_flow_from_entrypoint(tmp_path):
     assert flow.fn() == "woof!"
 
 
-def test_load_flow_from_entrypoint_ignores_flow_calls(
-    tmp_path,
-    caplog,
-):
-    flow_code_with_call = """
-    from prefect import flow, get_run_logger
-
-    @flow
-    def dog():
-        get_run_logger().warning("meow!")
-        return "woof!"
-
-    dog()
-    """
-
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code_with_call))
-    with caplog.at_level("WARNING"):
-        # Make sure that flow has not run on load
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
-        assert len(caplog.messages) == 1
-        assert "meow!" not in caplog.text
-
-        # Make sure that flow runs when called
-        res = flow()
-        assert res == "woof!"
-        assert "meow!" in caplog.text
-
-
-def test_warning_raised_when_flow_call_in_loaded_flow_script(
+def test_handling_script_with_flow_call_in_loaded_flow_script(
     tmp_path,
     caplog,
 ):
@@ -1971,6 +1942,8 @@ def test_warning_raised_when_flow_call_in_loaded_flow_script(
     with caplog.at_level("WARNING"):
         flow = load_flow_from_entrypoint(f"{fpath}:dog")
         assert len(caplog.messages) == 1
+
+        # Make sure that warning is raised
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
             "Consider updating the script to only call the flow"
@@ -1979,32 +1952,10 @@ def test_warning_raised_when_flow_call_in_loaded_flow_script(
         # Make sure that flow runs when called
         res = flow()
         assert res == "woof!"
-        assert "meow!" in caplog.text
 
+        # Make sure that loading the flow for a flow run instead of for a deployment
+        #   still does not execute a flow script with a flow call
 
-def test_flow_script_with_flow_call_only_run_once(
-    tmp_path,
-    caplog,
-):
-    flow_code_with_call = """
-    from prefect import flow, get_run_logger
-
-    @flow
-    def dog():
-        get_run_logger().warning("meow!")
-        return "woof!"
-
-    dog()
-    """
-    fpath = tmp_path / "f.py"
-    fpath.write_text(dedent(flow_code_with_call))
-    with caplog.at_level("WARNING"):
-        flow = load_flow_from_entrypoint(f"{fpath}:dog")
-        assert len(caplog.messages) == 1
-        assert "meow!" not in caplog.text
-
-        res = flow()
-        assert res == "woof!"
         # "meow!" is logged with each flow run
         meow_instances = [w for w in caplog.text.split() if w.strip() == "meow!"]
         assert len(meow_instances) == 1
