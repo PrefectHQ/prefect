@@ -69,7 +69,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self):
+    async def wait_for_completion(self) -> Logger:
         """
         Wait for the job run to complete.
         """
