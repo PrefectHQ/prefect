@@ -3,10 +3,11 @@ import contextlib
 import os
 import signal
 import socket
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Dict, Tuple, Union
 
 import anyio
 import anyio.abc
@@ -18,6 +19,10 @@ from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFoun
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.processutils import run_process
+
+if sys.platform == "win32":
+    # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
+    STATUS_CONTROL_C_EXIT = 0xC000013A
 
 
 def _use_threaded_child_watcher():
@@ -99,6 +104,13 @@ class Process(Infrastructure):
                 f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
             )
 
+            # We must add creationflags to a dict so it is only passed as a function
+            # parameter on Windows, because the presence of creationflags causes
+            # errors on Unix even if set to None
+            kwargs: Dict[str, object] = {}
+            if sys.platform == "win32":
+                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
             process = await run_process(
                 self.command,
                 stream_output=self.stream_output,
@@ -106,6 +118,7 @@ class Process(Infrastructure):
                 task_status_handler=_infrastructure_pid_from_process,
                 env=self._get_environment_variables(),
                 cwd=working_dir,
+                **kwargs,
             )
 
         # Use the pid for display if no name was given
@@ -130,6 +143,13 @@ class Process(Infrastructure):
                     "This indicates that the process was terminated due to high "
                     "memory usage."
                 )
+            elif (
+                sys.platform == "win32" and process.returncode == STATUS_CONTROL_C_EXIT
+            ):
+                help_message = (
+                    f"Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
+                    "Typically, this is caused by manual cancellation."
+                )
 
             self.logger.error(
                 f"Process{display_name} exited with status code: "
@@ -150,16 +170,17 @@ class Process(Infrastructure):
                 f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
             )
 
-        # In a non-windows enviornment first send a SIGTERM, then, after
+        # In a non-windows environment first send a SIGTERM, then, after
         # `grace_seconds` seconds have passed subsequent send SIGKILL. In
         # Windows we use CTRL_BREAK_EVENT as SIGTERM is useless:
         # https://bugs.python.org/issue26350
         if sys.platform == "win32":
             try:
                 os.kill(pid, signal.CTRL_BREAK_EVENT)
-            except ProcessLookupError:
-                # The process exited before we were able to kill it.
-                return
+            except (ProcessLookupError, WindowsError):
+                raise InfrastructureNotFound(
+                    f"Unable to kill process {pid!r}: The process was not found."
+                )
         else:
             try:
                 os.kill(pid, signal.SIGTERM)
@@ -185,7 +206,7 @@ class Process(Infrastructure):
 
             try:
                 os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
+            except OSError:
                 # We shouldn't ever end up here, but it's possible that the
                 # process ended right after the check above.
                 return
