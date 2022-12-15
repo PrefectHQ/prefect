@@ -51,6 +51,7 @@ When viewing task run concurrency in the UI each limit has its own page. Include
 - Add `PREFECT_KUBERNETES_CLUSTER_UID` to allow bypass of `kube-system` namespace read — https://github.com/PrefectHQ/prefect/pull/7864
 - Refactor `pause_flow_run` for consistency with engine state handling — https://github.com/PrefectHQ/prefect/pull/7857
 - API: Allow `reject_transition` to return current state — https://github.com/PrefectHQ/prefect/pull/7830
+- Add `SecretDict` block field that obfuscates nested values in a dictionary — https://github.com/PrefectHQ/prefect/pull/7885
 
 ### Fixes
 - Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
