@@ -2,34 +2,38 @@
 Thread-safe async primitives.
 """
 import asyncio
+import collections
 import concurrent.futures
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Literal, Optional, TypeVar
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 
 T = TypeVar("T")
 
 
-class Event(asyncio.Event):
+class Event:
     """
     A thread-safe async event.
 
-    Unlike `asyncio.Event`, this event is bound to an event loop on creation and must
-    be instantiated in a running event loop. This matches Python behavior in before
-    3.10.
+    Unlike `asyncio.Event` this implementation does not bind to a loop on creation. This
+    matches the behavior of `asyncio.Event` in Python 3.10+, but differs from earlier
+    versions.
+
+    This event also does not support a `clear()` operation. This matches the behavior of
+    `anyio.Event` types and prevents sneaky bugs; create a new event instead.
     """
 
     def __init__(self) -> None:
-        super().__init__()
-        self._loop = asyncio.get_running_loop()
-        self._is_set = False
+        self._waiters = collections.deque()
+        self._value = False
 
     def set(self) -> None:
         """
         Set the flag, notifying all listeners.
 
-        Unlike `asyncio.Event`, listeners may not be notified immediately when this is
-        called; instead, notification will be placed on the event loop.
+        Unlike `asyncio.Event`, waiters may not be notified immediately when this is
+        called; instead, notification will be placed on the owning loop for each waiter
+        for thread safety.
         """
         if not self._is_set:
             # Immediately set the flag to true
@@ -43,6 +47,27 @@ class Event(asyncio.Event):
 
     def is_set(self) -> bool:
         return self._is_set
+
+    def is_set(self):
+        return self._value
+
+    async def wait(self) -> Literal[True]:
+        """
+        Block until the internal flag is true.
+
+        If the internal flag is true on entry, return True immediately.
+        Otherwise, block until another `set()` is called, then return True.
+        """
+        if self._value:
+            return True
+
+        fut = asyncio.get_running_loop().create_future()
+        self._waiters.append(fut)
+        try:
+            await fut
+            return True
+        finally:
+            self._waiters.remove(fut)
 
 
 class Future(concurrent.futures.Future, Generic[T]):
