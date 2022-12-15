@@ -48,8 +48,7 @@ if sys.platform == "win32":
         # returning 0 lets the next handler in the chain handle the signal
         return 0
 
-
-# anyio process wrapper classes
+    # anyio process wrapper classes
     @dataclass(eq=False)
     class StreamReaderWrapper(anyio.abc.ByteReceiveStream):
         _stream: asyncio.StreamReader
@@ -64,7 +63,6 @@ if sys.platform == "win32":
         async def aclose(self) -> None:
             self._stream.feed_eof()
 
-
     @dataclass(eq=False)
     class StreamWriterWrapper(anyio.abc.ByteSendStream):
         _stream: asyncio.StreamWriter
@@ -75,7 +73,6 @@ if sys.platform == "win32":
 
         async def aclose(self) -> None:
             self._stream.close()
-
 
     @dataclass(eq=False)
     class Process(anyio.abc.Process):
@@ -125,7 +122,6 @@ if sys.platform == "win32":
         @property
         def stderr(self) -> Union[anyio.abc.ByteReceiveStream, None]:
             return self._stderr
-
 
     async def _open_anyio_process(
         command: Union[str, bytes, Sequence[Union[str, bytes]]],
