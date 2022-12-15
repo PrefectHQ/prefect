@@ -2,6 +2,7 @@ import enum
 import inspect
 import sys
 import time
+from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock
 
@@ -22,11 +23,10 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
@@ -1906,3 +1906,54 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+def test_load_flow_from_entrypoint(tmp_path):
+    flow_code = """
+    from prefect import flow
+
+    @flow
+    def dog():
+        return "woof!"
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code))
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
+async def test_handling_script_with_unprotected_call_in_flow_script(
+    tmp_path,
+    caplog,
+    orion_client,
+):
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
+
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+        # Make sure that warning is raised
+        assert (
+            "Script loading is in progress, flow 'dog' will not be executed. "
+            "Consider updating the script to only call the flow"
+        ) in caplog.text
+
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 0
+
+    # Make sure that flow runs when called
+    res = flow()
+    assert res == "woof!"
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 1
