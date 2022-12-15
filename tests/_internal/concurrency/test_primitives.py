@@ -133,7 +133,7 @@ async def test_dependent_events_in_two_loops_do_not_deadlock():
         event_one.set()
         await event_two.wait()
 
-    with anyio.fail_after(1):
+    with anyio.fail_after(2):
         async with anyio.create_task_group() as tg:
             tg.start_soon(anyio.to_thread.run_sync, anyio.run, one)
             tg.start_soon(anyio.to_thread.run_sync, anyio.run, two)
