@@ -608,10 +608,102 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
+## Pause a flow run
 
-## Flow run cancellation
+Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as via the Prefect Orion UI and Prefect Cloud. 
 
-Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
+Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
+
+```python
+from prefect import task, flow, pause_flow_run, resume_flow_run
+
+@task
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+@task
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+@flow
+async def inspiring_joke():
+    await marvin_set()
+    await pause_flow_run(timeout=600)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+Calling this flow will pause after the first task and wait for resumption.
+
+<div class="terminal">
+```bash
+await inspiring_joke()
+> "a raft of ducks walk into a bar..."
+```
+</div>
+
+Paused flows can be resumed via the resume flow run utility in another process.
+
+```python
+resume_flow_run(FLOW_RUN_ID)
+```
+
+The paused flow run will then finish!
+
+<div class="terminal">
+```
+> "it's a wonder none of them ducked!"
+```
+</div>
+
+Here is an example of a flow that stops executing in a paused state after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
+
+```python
+from prefect import flow, pause_flow_run, task
+
+@task
+def foo():
+    return 42
+
+@flow
+def noblock_pausing():
+    x = foo.submit()
+    pause_flow_run(timeout=30, reschedule=True)
+    y = foo.submit()
+    z = foo(wait_for=[x])
+    alpha = foo(wait_for=[y])
+    omega = foo(wait_for=[x, y])
+```
+
+This long-running flow can be paused out of process, either by calling `pause_flow_run(flow_run_id=<ID>)` or selecting the **Pause** button in the Prefect UI or Prefect Cloud.
+
+```python
+from prefect import flow, task
+import time
+
+@task(persist_result=True)
+async def foo():
+    return 42
+
+@flow(persist_result=True)
+async def longrunning():
+    res = 0
+    for ii in range(20):
+        time.sleep(5)
+        res += (await foo())
+    return res
+```
+
+!!! tip "Pausing flow runs is blocking by default"
+    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs.
+
+    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused. 
+    
+    Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
+    
+    - An associated deployment
+    - Results configured with the `persist_results` flag
+
+## Cancel a flow run
+
+You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client. 
 
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
