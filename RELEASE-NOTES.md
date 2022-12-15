@@ -2,11 +2,11 @@
 
 ## Release 2.7.2
 
-### Extensions to the new pausing feature!
+### Rescheduling paused flow runs
 
-Pausing flow runs with Prefect has become much more powerful!
+When pausing a flow run, you can ask that Prefect reschedule the run for you instead of blocking until resume. This allows infrastructure to tear down, saving costs if the flow run is going to be pasued for significant amount of time.
 
-Flow runs can now be paused without blocking the flow run process by passing `reschedule=True` to the `pause_flow_run` function. This feature can free up agents to run other flows while waiting for approval. In order to use rescheduling pauses, flows must be deployed and results must be configured with the `persist_result` option.
+You can request that a flow run be rescheduled by setting the `reschedule` option when calling `pause_flow_run`.
 
 ```python
 from prefect import task, flow, pause_flow_run
@@ -28,17 +28,22 @@ async def inspiring_joke():
 
 If set up as a deployment, running this flow will set up a joke, then pause and leave execution until it is resumed. Once resumed either with the `resume_flow_run` utility or the Prefect UI, the flow will be rescheduled and deliver the punchline.
 
-Deployed flows can also be paused outside of the flow process!
+In order to use this feature pauses, the flow run must be associated with a deployment and results must be enabled.
 
-The UI now features a **Pause** button on deployed flows that will stop execution at the beginning of the _next_ task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will reschedule it.
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7738) for details.
 
-Additionally, the `pause_flow_run` utility accepts an optional `flow_run_id` argument. When supplied, the specified flow run will be paused as long as it is still running and there are tasks remaining to run.
+### Pausing flow runs from the outside
 
-Read the full documentation at https://docs.prefect.io/concepts/flows/#pause-a-flow-run
+Flow runs from deployments can now be paused outside of the flow itself!
 
-See https://github.com/PrefectHQ/prefect/pull/7738 and https://github.com/PrefectHQ/prefect/pull/7863 for details
+The UI features a **Pause** button for flow runs that will stop execution at the beginning of the _next_ task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will schedule it to start again.
+
+You can also pause a flow run from code: the `pause_flow_run` utility now accepts an optional `flow_run_id` argument. For example, you can pause a flow run from another flow run!
+
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7863) for details.
 
 ## Pages for individual task run concurrency limits
+
 When viewing task run concurrency in the UI each limit has its own page. Included in the details for each limit is the tasks which are actively part of that limit.
 
 <img width="1245" alt="image" src="https://user-images.githubusercontent.com/6200442/207954852-60e7a185-0f9d-4a3d-b9f7-2b393ef12726.png">
