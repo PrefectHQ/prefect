@@ -24,7 +24,7 @@ ONE_HOUR = 60 * 60
 jinja_env = Environment(
     loader=PackageLoader(
         "prefect",
-        package_path=Path(__file__).parent / "sql",
+        package_path=str(Path(__file__).parent / "sql"),
     ),
     autoescape=select_autoescape(),
     trim_blocks=True,
