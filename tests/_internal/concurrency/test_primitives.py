@@ -8,9 +8,8 @@ from prefect.testing.utilities import exceptions_equal
 
 
 def test_event_created_in_sync_context():
-
-    with pytest.raises(RuntimeError, match="no running event loop"):
-        event = Event()
+    with pytest.raises(RuntimeError, match="no .* event loop"):
+        Event()
 
 
 async def test_event_set_in_async_context_before_wait():
