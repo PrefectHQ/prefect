@@ -384,7 +384,8 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now and an agent must execute it.
+    The flow run will be scheduled for now if --start-in or --start-at are unspecified
+    and an agent must execute it.
 
     The flow run will not execute until an agent starts.
     """
