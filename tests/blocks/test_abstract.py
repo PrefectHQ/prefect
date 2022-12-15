@@ -1,7 +1,36 @@
 import pytest
 
-from prefect.blocks.abstract import DatabaseBlock, JobBlock, JobRun, ObjectStorageBlock
+from prefect.blocks.abstract import (
+    DatabaseBlock,
+    JobBlock,
+    JobRun,
+    NotificationBlock,
+    ObjectStorageBlock,
+)
 from prefect.exceptions import PrefectException
+
+
+class TestNotificationBlock:
+    def test_notification_block_is_abstract(self):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class NotificationBlock"
+        ):
+            NotificationBlock()
+
+    def test_notification_block_implementation(self, caplog):
+        class ANotificationBlock(NotificationBlock):
+            def notify(self, body, subject=None):
+                self.logger.info(f"Notification sent with {body} {subject}.")
+
+        a_notification_block = ANotificationBlock()
+        a_notification_block.notify("body", "subject")
+
+        # test logging
+        assert hasattr(a_notification_block, "logger")
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.name == "prefect.ANotificationBlock"
+        assert record.msg == "Notification sent with body subject."
 
 
 class JobRunIsRunning(PrefectException):
