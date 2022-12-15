@@ -1,7 +1,37 @@
 import pytest
 
-from prefect.blocks.abstract import DatabaseBlock, JobBlock, JobRun, ObjectStorageBlock
+from prefect.blocks.abstract import (
+    DatabaseBlock,
+    JobBlock,
+    JobRun,
+    NotificationBlock,
+    ObjectStorageBlock,
+    SecretBlock,
+)
 from prefect.exceptions import PrefectException
+
+
+class TestNotificationBlock:
+    def test_notification_block_is_abstract(self):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class NotificationBlock"
+        ):
+            NotificationBlock()
+
+    def test_notification_block_implementation(self, caplog):
+        class ANotificationBlock(NotificationBlock):
+            def notify(self, body, subject=None):
+                self.logger.info(f"Notification sent with {body} {subject}.")
+
+        a_notification_block = ANotificationBlock()
+        a_notification_block.notify("body", "subject")
+
+        # test logging
+        assert hasattr(a_notification_block, "logger")
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.name == "prefect.ANotificationBlock"
+        assert record.msg == "Notification sent with body subject."
 
 
 class JobRunIsRunning(PrefectException):
@@ -249,3 +279,46 @@ class TestObjectStorageBlock:
         caplog.records[
             1
         ].message == f"downloaded from uploaded_from_folder to downloaded_to_folder"
+
+
+class TestSecretBlock:
+    def test_secret_block_is_abstract(self):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class SecretBlock"
+        ):
+            SecretBlock()
+
+    def test_secret_block_implementation(self, caplog):
+        class ASecretBlock(SecretBlock):
+
+            secret_name: str
+
+            def __init__(self, secret_name: str):
+                self._secrets = {}
+
+            def read_secret(self):
+                if self.secret_name not in self._secrets:
+                    raise KeyError("Secret does not exist")
+                return self._secrets[self.secret_name]
+
+            def write_secret(self, secret_value):
+                if self.secret_name in self._secrets:
+                    raise ValueError("Secret already exists")
+                self._secrets[self.secret_name] = secret_value
+
+            def update_secret(self, secret_value):
+                self._secrets[self.secret_name] = secret_value
+
+            def delete_secret(self):
+                del self._secrets[self.secret_name]
+
+        a_secret_block = ASecretBlock(secret_name="secret_name")
+        a_secret_block.write_secret("hello")
+        assert a_secret_block.read_secret() == "hello"
+        with pytest.raises(ValueError, match="Secret already exists"):
+            a_secret_block.write_secret("hello again")
+        a_secret_block.update_secret("hello again")
+        assert a_secret_block.read_secret() == "hello again"
+        a_secret_block.delete_secret()
+        with pytest.raises(KeyError, match="Secret does not exist"):
+            assert a_secret_block.read_secret()
