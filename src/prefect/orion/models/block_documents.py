@@ -461,10 +461,11 @@ async def update_block_document(
             elif "*" in secret_key:
                 wildcard_index = secret_key.index("*")
                 for data_key in flat_update_data.keys():
-                    if secret_key[0:wildcard_index] == data_key[
-                        0:wildcard_index
-                    ] and flat_update_data[data_key] == obfuscate(
+                    if (
+                        secret_key[0:wildcard_index] == data_key[0:wildcard_index]
+                    ) and (
                         flat_update_data[data_key]
+                        == obfuscate(flat_update_data[data_key])
                     ):
                         flat_update_data[data_key] = flat_current_data[data_key]
 
