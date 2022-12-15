@@ -26,6 +26,7 @@ from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 import prefect.exceptions
+from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
@@ -40,8 +41,6 @@ from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
-
-from .fields import SecretDict
 
 if TYPE_CHECKING:
     from prefect.client.orion import OrionClient
@@ -140,14 +139,17 @@ class Block(BaseModel, ABC):
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
-            # for example: ["x", "y", "child.a"]
-            # means the top-level keys "x" and "y" are secret, as is the key "a" of a block
-            # nested under the "child" key. There is no limit to nesting.
+            # A wildcard (*) means that all fields under a given key are secret.
+            # for example: ["x", "y", "z.*", "child.a"]
+            # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
+            # nested under the "child" key are all secret. There is no limit to nesting.
             secrets = schema["secret_fields"] = []
             for field in model.__fields__.values():
                 if field.type_ in [SecretStr, SecretBytes]:
                     secrets.append(field.name)
-                if field.type_ == SecretDict:
+                elif field.type_ == SecretDict:
+                    # Append .* to field name to signify that all values under this
+                    # field are secret and should be obfuscated.
                     secrets.append(f"{field.name}.*")
                 elif Block.is_block_class(field.type_):
                     secrets.extend(
@@ -653,7 +655,6 @@ class Block(BaseModel, ABC):
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            print(block_document)
         except prefect.exceptions.ObjectNotFound as e:
             raise ValueError(
                 f"Unable to find block document named {block_document_name} for block type {block_type_slug}"

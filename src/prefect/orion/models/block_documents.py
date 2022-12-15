@@ -454,6 +454,10 @@ async def update_block_document(
             if current_secret is not None:
                 if flat_update_data.get(secret_key) == obfuscate_string(current_secret):
                     del flat_update_data[secret_key]
+            # Looks for obfuscated values nested under a secret field with a wildcard.
+            # If any obfuscated values are found, we assume that it shouldn't be update,
+            # and they are replaced with the current value for that key to avoid losing
+            # data during update.
             elif "*" in secret_key:
                 wildcard_index = secret_key.index("*")
                 for data_key in flat_update_data.keys():
