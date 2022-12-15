@@ -1949,11 +1949,11 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
             "Consider updating the script to only call the flow"
         ) in caplog.text
 
-        flow_runs = await orion_client.read_flows()
-        assert len(flow_runs) == 0
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 0
 
-        # Make sure that flow runs when called
-        res = flow()
-        assert res == "woof!"
-        flow_runs = await orion_client.read_flows()
-        assert len(flow_runs) == 1
+    # Make sure that flow runs when called
+    res = flow()
+    assert res == "woof!"
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 1
