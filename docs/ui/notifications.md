@@ -20,6 +20,7 @@ Currently Prefect 2 supports sending notifications via:
 
 - Slack message to a channel
 - Microsoft Teams message to a channel
+- Opsgenie to alerts
 - PagerDuty to alerts
 - Twilio to phone numbers
 - Email (Prefect Cloud only)
