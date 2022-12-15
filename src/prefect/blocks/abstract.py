@@ -59,7 +59,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self):
+    async def wait_for_completion(self) -> Logger:
         """
         Wait for the job run to complete.
         """
@@ -368,4 +368,44 @@ class ObjectStorageBlock(Block, ABC):
 
         Returns:
             The path that the folder was uploaded to.
+        """
+
+
+class SecretBlock(Block, ABC):
+    """
+    Block that represents a resource that can store and retrieve secrets.
+    """
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the SecretBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def read_secret(self) -> bytes:
+        """
+        Reads the configured secret from the secret storage service.
+
+        Returns:
+            The secret data.
+        """
+
+    @abstractmethod
+    async def write_secret(self, secret_data) -> str:
+        """
+        Writes secret data to the configured secret in the secret storage service.
+
+        Args:
+            secret_data: The secret data to write.
+
+        Returns:
+            The key of the secret that can be used for retrieval.
         """
