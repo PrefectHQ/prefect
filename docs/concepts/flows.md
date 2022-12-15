@@ -625,7 +625,7 @@ async def marvin_punchline():
     return "it's a wonder none of them ducked!"
 @flow
 async def inspiring_joke():
-    await marvin_set()
+    await marvin_setup()
     await pause_flow_run(timeout=600)  # pauses for 10 minutes
     await marvin_punchline()
 ```
@@ -653,16 +653,16 @@ The paused flow run will then finish!
 ```
 </div>
 
-Here is an example of a flow that stops executing in a paused state after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
+Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
 
 ```python
 from prefect import flow, pause_flow_run, task
 
-@task
+@task(persist_result=True)
 def foo():
     return 42
 
-@flow
+@flow(persist_result=True)
 def noblock_pausing():
     x = foo.submit()
     pause_flow_run(timeout=30, reschedule=True)
@@ -692,7 +692,7 @@ async def longrunning():
 ```
 
 !!! tip "Pausing flow runs is blocking by default"
-    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs.
+    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
 
     Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused. 
     
