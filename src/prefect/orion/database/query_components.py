@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod, abstractproperty
+from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Hashable, List, Optional, Tuple
 from uuid import UUID
 
@@ -21,7 +22,10 @@ ONE_HOUR = 60 * 60
 
 
 jinja_env = Environment(
-    loader=PackageLoader("prefect", package_path="./orion/database/sql"),
+    loader=PackageLoader(
+        "prefect",
+        package_path=Path(__file__).parent / "sql",
+    ),
     autoescape=select_autoescape(),
     trim_blocks=True,
 )
