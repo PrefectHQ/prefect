@@ -1923,7 +1923,7 @@ def test_load_flow_from_entrypoint(tmp_path):
     assert flow.fn() == "woof!"
 
 
-def test_handling_script_with_flow_call_in_loaded_flow_script(
+def test_handling_script_with_unprotected_call_in_flow_script(
     tmp_path,
     caplog,
 ):
