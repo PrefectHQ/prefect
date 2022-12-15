@@ -5,56 +5,44 @@ import asyncio
 import concurrent.futures
 from typing import Generic, Optional, TypeVar
 
-from prefect._internal.concurrency.event_loop import call_in_loop, get_running_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 
 T = TypeVar("T")
 
 
-class Event:
+class Event(asyncio.Event):
     """
     A thread-safe async event.
+
+    Unlike `asyncio.Event`, this event is bound to an event loop on creation and must
+    be instantiated in a running event loop. This matches Python behavior in before
+    3.10.
     """
 
     def __init__(self) -> None:
-        self._loop = get_running_loop()
-
-        # For compatibility with Python <3.10, do not create the event until a loop
-        # is present
-        if self._loop:
-            self._event = asyncio.Event()
-
+        super().__init__()
+        self._loop = asyncio.get_running_loop()
         self._is_set = False
 
     def set(self) -> None:
-        """Set the flag, notifying all listeners."""
-        self._is_set = True
-        if self._loop:
-            if self._loop != get_running_loop():
-                call_in_loop(self._loop, self._event.set)
-            else:
-                self._event.set()
+        """
+        Set the flag, notifying all listeners.
+
+        Unlike `asyncio.Event`, listeners may not be notified immediately when this is
+        called; instead, notification will be placed on the event loop.
+        """
+        if not self._is_set:
+            # Immediately set the flag to true
+            # This implementation tracks the value of the event with `_is_set` but the
+            # parent class uses `_value`. We need a separate variable because if we set
+            # `_value` now, the delayed `set()` call will do nothing.
+            self._is_set = True
+
+            # Ask the loop to notify its listeners in the future
+            call_soon_in_loop(self._loop, super().set)
 
     def is_set(self) -> bool:
-        """Return ``True`` if the flag is set, ``False`` if not."""
         return self._is_set
-
-    async def wait(self) -> None:
-        """
-        Wait until the flag has been set.
-
-        If the flag has already been set when this method is called, it returns immediately.
-        """
-        if self._is_set:
-            return
-
-        if not self._loop:
-            self._loop = get_running_loop()
-            self._event = asyncio.Event()
-
-        await self._event.wait()
-
-    def __repr__(self) -> str:
-        return f"Event<loop={id(self._loop)}, is_set={self._is_set}>"
 
 
 class Future(concurrent.futures.Future, Generic[T]):
