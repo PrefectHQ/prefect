@@ -4,9 +4,12 @@ module.exports = {
     node: true
   },
   extends: ["@prefecthq"],
+  parser: 'vue-eslint-parser',
   parserOptions: {
     ecmaVersion: 2020,
-    project: "./tsconfig.json"
+    project: ["./tsconfig.json"],
+    sourceType: 'module',
+    parser: '@typescript-eslint/parser'
   },
   settings: {
     "import/resolver": {

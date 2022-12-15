@@ -19,7 +19,7 @@
   const router = useRouter()
   const flowRunId = useRouteParam('flowRunId')
 
-  const options = { interval:  5000 }
+  const options = { interval: 5000 }
 
   const api = useWorkspaceApi()
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId.value], options)
