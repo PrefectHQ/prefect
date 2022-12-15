@@ -27,6 +27,7 @@ class StateType(AutoEnum):
     CANCELLED = AutoEnum.auto()
     CRASHED = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
+    CANCELLING = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
@@ -266,6 +267,15 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
         State: a Crashed state
     """
     return cls(type=StateType.CRASHED, **kwargs)
+
+
+def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelling` states.
+
+    Returns:
+        State: a Cancelling state
+    """
+    return cls(type=StateType.CANCELLING, **kwargs)
 
 
 def Cancelled(cls: Type[State] = State, **kwargs) -> State:
