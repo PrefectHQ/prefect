@@ -1,9 +1,11 @@
 import signal
+import subprocess
 import sys
 from unittest import mock
 
 import pytest
 
+import prefect.utilities.processutils
 from prefect.utilities.processutils import kill_on_interrupt, open_process, run_process
 
 
@@ -67,6 +69,45 @@ class TestOpenProcess:
     async def test_runs_if_cmd_is_list(self):
         async with open_process(self.list_cmd) as process:
             assert process
+
+    @pytest.mark.skipif(
+        sys.platform != "win32",
+        reason="CTRL_C_HANDLER is only defined in Windows",
+    )
+    async def test_adds_ctrl_c_handler_to_win32_process_group(self, monkeypatch):
+        """
+        If the process is a Windows process group, we need to add a handler for
+        CTRL_C_EVENT to the process group so we can kill the process group
+        when the user presses CTRL+C.
+        """
+        mock_ctrl_c_handler = mock.Mock()
+        monkeypatch.setattr(
+            prefect.utilities.processutils, "_win32_ctrl_handler", mock_ctrl_c_handler
+        )
+        mock_set_console_ctrl_handler = mock.Mock()
+        monkeypatch.setattr(
+            prefect.utilities.processutils.windll.kernel32,
+            "SetConsoleCtrlHandler",
+            mock_set_console_ctrl_handler,
+        )
+
+        mock_process = mock.AsyncMock()
+        mock_process.terminate = mock.MagicMock()
+        mock_open_process = mock.AsyncMock(return_value=mock_process)
+        monkeypatch.setattr(
+            prefect.utilities.processutils, "_open_anyio_process", mock_open_process
+        )
+
+        await prefect.utilities.processutils.run_process(
+            self.list_cmd, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+        )
+        mock_open_process.assert_called_once_with(
+            " ".join(self.list_cmd),
+            stdout=mock.ANY,
+            stderr=mock.ANY,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+        mock_set_console_ctrl_handler.assert_called_once_with(mock_ctrl_c_handler, 1)
 
 
 class TestKillOnInterrupt:
