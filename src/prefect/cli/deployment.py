@@ -413,9 +413,10 @@ async def run(
     parameters = {**multi_params, **cli_params}
 
     if start_in and start_at:
-        raise ValueError(
+        exit_with_error(
             "Expected optional start_in field or start_at field but not both."
         )
+
     elif start_in is None and start_at is None:
         scheduled_start_time = now
         human_readable_dt_diff = " (now)"
