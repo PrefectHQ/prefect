@@ -438,6 +438,7 @@ async def run(
             )
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+
         scheduled_start_time = pendulum.instance(start_time_parsed)
         human_readable_dt_diff = (
             " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"

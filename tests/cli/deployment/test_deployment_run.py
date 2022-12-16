@@ -47,7 +47,7 @@ def test_start_at_arg_correctly_parsed():
         ("5 days", pendulum.duration(days=5)),
     ],
 )
-async def test_start_in_option_scheduled_flow_run_in_future(
+async def test_start_in_option_schedules_flow_run_in_future(
     deployment_name: str,
     frozen_now,
     orion_client: prefect.OrionClient,
@@ -95,6 +95,20 @@ def test_displays_scheduled_start_time(deployment_name: str, monkeypatch):
             "January 1st 2022",
         ],
         expected_output_contains="Scheduled start time: 2022-01-01 00:00:00 (1 year ago)",
+    )
+
+
+def test_start_at_invalid_input(deployment_name: str):
+    invoke_and_assert(
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-at",
+            "foobar",
+        ],
+        expected_code=1,
+        expected_output="Unable to parse scheduled start time 'at foobar'.",
     )
 
 
