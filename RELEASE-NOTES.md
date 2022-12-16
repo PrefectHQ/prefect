@@ -1,5 +1,86 @@
 # Prefect Release Notes
 
+## Release 2.7.2
+
+### Rescheduling paused flow runs
+
+When pausing a flow run, you can ask that Prefect reschedule the run for you instead of blocking until resume. This allows infrastructure to tear down, saving costs if the flow run is going to be pasued for significant amount of time.
+
+You can request that a flow run be rescheduled by setting the `reschedule` option when calling `pause_flow_run`.
+
+```python
+from prefect import task, flow, pause_flow_run
+
+@task(persist_result=True)
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+
+@task(persist_result=True)
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+
+@flow(persist_result=True)
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600, reschedule=True)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+If set up as a deployment, running this flow will set up a joke, then pause and leave execution until it is resumed. Once resumed either with the `resume_flow_run` utility or the Prefect UI, the flow will be rescheduled and deliver the punchline.
+
+In order to use this feature pauses, the flow run must be associated with a deployment and results must be enabled.
+
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7738) for details.
+
+### Pausing flow runs from the outside
+
+Flow runs from deployments can now be paused outside of the flow itself!
+
+The UI features a **Pause** button for flow runs that will stop execution at the beginning of the _next_ task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will schedule it to start again.
+
+You can also pause a flow run from code: the `pause_flow_run` utility now accepts an optional `flow_run_id` argument. For example, you can pause a flow run from another flow run!
+
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7863) for details.
+
+### Pages for individual task run concurrency limits
+
+When viewing task run concurrency in the UI, each limit has its own page. Included in the details for each limit is the tasks that are actively part of that limit.
+
+<img width="1245" alt="image" src="https://user-images.githubusercontent.com/6200442/207954852-60e7a185-0f9d-4a3d-b9f7-2b393ef12726.png">
+
+
+### Enhancements
+- Improve Prefect import time by deferring imports — https://github.com/PrefectHQ/prefect/pull/7836
+- Add Opsgenie notification block — https://github.com/PrefectHQ/prefect/pull/7778
+- Add individual concurrency limit page with active runs list — https://github.com/PrefectHQ/prefect/pull/7848
+- Add `PREFECT_KUBERNETES_CLUSTER_UID` to allow bypass of `kube-system` namespace read — https://github.com/PrefectHQ/prefect/pull/7864
+- Refactor `pause_flow_run` for consistency with engine state handling — https://github.com/PrefectHQ/prefect/pull/7857
+- API: Allow `reject_transition` to return current state — https://github.com/PrefectHQ/prefect/pull/7830
+- Add `SecretDict` block field that obfuscates nested values in a dictionary — https://github.com/PrefectHQ/prefect/pull/7885
+
+### Fixes
+- Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
+- Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
+- Fix deployment builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
+- Fix path argument behavior in `LocalFileSystem` block - https://github.com/PrefectHQ/prefect/pull/7891
+- Fix flow cancellation in `Process` block on Windows - https://github.com/PrefectHQ/prefect/pull/7799
+
+### Documentation
+- Add documentation for Automations UI — https://github.com/PrefectHQ/prefect/pull/7833
+- Mention recipes and tutorials under Recipes and Collections pages — https://github.com/PrefectHQ/prefect/pull/7876
+- Add documentation for Task Run Concurrency UI — https://github.com/PrefectHQ/prefect/pull/7840
+- Add `with_options` example to collections usage docs — https://github.com/PrefectHQ/prefect/pull/7894
+- Add a link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
+
+### Collections
+- New [`prefect-kubernetes`](https://prefecthq.github.io/prefect-kubernetes/) collection for [Kubernetes](https://kubernetes.io/) — https://github.com/PrefectHQ/prefect/pull/7907
+- New [`prefect-bitbucket`](https://prefecthq.github.io/prefect-bitbucket/) collection for [Bitbucket](https://bitbucket.org/product) — https://github.com/PrefectHQ/prefect/pull/7907
+
+## Contributors
+- @jlutran
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.1...2.7.2
+
 ## Release 2.7.1
 
 ### Task concurrency limits page

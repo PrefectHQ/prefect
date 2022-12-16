@@ -692,7 +692,8 @@ def select_flow(
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}"
+            f"Found the following flows: {listrepr(flows.keys())}. "
+            "Check to make sure that your flow function is decorated with `@flow`."
         )
 
     elif not flow_name and len(flows) > 1:
@@ -747,6 +748,26 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         flow_name=flow_name,
         from_message=f"in script '{path}'",
     )
+
+
+def load_flow_from_entrypoint(entrypoint: str) -> Flow:
+    """
+    Extract a flow object from a script at an entrypoint by running all of the code in the file.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+    """
+    flow_path, flow_name = entrypoint.split(":")
+    return load_flow_from_script(path=flow_path, flow_name=flow_name)
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):

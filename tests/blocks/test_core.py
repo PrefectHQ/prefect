@@ -12,6 +12,7 @@ from pydantic.fields import ModelField
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import OrionClient
 from prefect.exceptions import PrefectHTTPStatusError
@@ -78,18 +79,20 @@ class TestAPICompatibility:
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        assert SecretBlock.schema()["secret_fields"] == ["x", "y"]
+        assert SecretBlock.schema()["secret_fields"] == ["w.*", "x", "y"]
 
         schema = SecretBlock._to_block_schema(block_type_id=uuid4())
-        assert schema.fields["secret_fields"] == ["x", "y"]
+        assert schema.fields["secret_fields"] == ["w.*", "x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
             "block_type_slug": "secretblock",
             "properties": {
+                "w": {"title": "W", "type": "object"},
                 "x": {
                     "format": "password",
                     "title": "X",
@@ -104,8 +107,8 @@ class TestAPICompatibility:
                 },
                 "z": {"title": "Z", "type": "string"},
             },
-            "required": ["x", "y", "z"],
-            "secret_fields": ["x", "y"],
+            "required": ["w", "x", "y", "z"],
+            "secret_fields": ["w.*", "x", "y"],
             "title": "SecretBlock",
             "type": "object",
         }
@@ -114,20 +117,21 @@ class TestAPICompatibility:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        assert Child.schema()["secret_fields"] == ["a"]
-        assert Parent.schema()["secret_fields"] == ["a", "child.a"]
+        assert Child.schema()["secret_fields"] == ["a", "c.*"]
+        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
         schema = Parent._to_block_schema(block_type_id=uuid4())
-        assert schema.fields["secret_fields"] == ["a", "child.a"]
+        assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
             "block_schema_references": {
                 "child": {
-                    "block_schema_checksum": "sha256:95a2b74a0d1d31fcaaef6561ee1249bba3de2445baa60dd6b5f9e0bdad8da60b",
+                    "block_schema_checksum": "sha256:3e50c75591f4071c7df082d8a7969c57ae97f6a62c2345017e6b64bc13c39cd0",
                     "block_type_slug": "child",
                 }
             },
@@ -144,9 +148,10 @@ class TestAPICompatibility:
                             "writeOnly": True,
                         },
                         "b": {"title": "B", "type": "string"},
+                        "c": {"title": "C", "type": "object"},
                     },
-                    "required": ["a", "b"],
-                    "secret_fields": ["a"],
+                    "required": ["a", "b", "c"],
+                    "secret_fields": ["a", "c.*"],
                     "title": "Child",
                     "type": "object",
                 }
@@ -162,29 +167,43 @@ class TestAPICompatibility:
                 "child": {"$ref": "#/definitions/Child"},
             },
             "required": ["a", "b", "child"],
-            "secret_fields": ["a", "child.a"],
+            "secret_fields": ["a", "child.a", "child.c.*"],
             "title": "Parent",
             "type": "object",
         }
 
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(x="x", y=b"y", z="z")
+        block = SecretBlock(
+            w={
+                "Here's my shallow secret": "I don't like olives",
+                "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
+            },
+            x="x",
+            y=b"y",
+            z="z",
+        )
 
         block_type_id = uuid4()
         block_schema_id = uuid4()
         blockdoc = block._to_block_document(
             name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
         )
+        assert isinstance(blockdoc.data["w"], SecretDict)
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
         json_blockdoc = json.loads(blockdoc.json())
         assert json_blockdoc["data"] == {
+            "w": {
+                "Here's my shallow secret": "**********",
+                "deeper secrets": "**********",
+            },
             "x": "**********",
             "y": "**********",
             "z": "z",
@@ -192,6 +211,10 @@ class TestAPICompatibility:
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {
+            "w": {
+                "Here's my shallow secret": "I don't like olives",
+                "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
+            },
             "x": "x",
             "y": "y",
             "z": "z",
@@ -201,13 +224,14 @@ class TestAPICompatibility:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         block_type_id = uuid4()
         block_schema_id = uuid4()
         blockdoc = block._to_block_document(
@@ -224,6 +248,7 @@ class TestAPICompatibility:
             "child": {
                 "a": "**********",
                 "b": "b",
+                "c": {"secret": "**********"},
                 "block_type_slug": "child",
             },
         }
@@ -233,7 +258,12 @@ class TestAPICompatibility:
             "a": "a",
             "b": "b",
             # The child includes the type slug because it is not a block document
-            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": "a",
+                "b": "b",
+                "c": {"secret": "value"},
+                "block_type_slug": "child",
+            },
         }
 
     def test_registering_blocks_with_capabilities(self):
@@ -1182,11 +1212,12 @@ class TestSaveBlock:
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(x="x", y=b"y", z="z")
+        block = SecretBlock(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1197,6 +1228,7 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
+            "w": {"secret": obfuscate_string("value")},
             "x": obfuscate_string("x"),
             "y": obfuscate_string("x"),
             "z": "z",
@@ -1208,10 +1240,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"x": "x", "y": "y", "z": "z"}
+        assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
 
         # load block with secrets
         api_block = await SecretBlock.load("secret-block")
+        assert api_block.w.get_secret_value() == {"secret": "value"}
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
         assert api_block.z == "z"
@@ -1222,13 +1255,14 @@ class TestSaveBlock:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1241,7 +1275,12 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": obfuscate_string("a"),
+                "b": "b",
+                "c": {"secret": obfuscate_string("value")},
+                "block_type_slug": "child",
+            },
         }
 
         # read from DB with secrets
@@ -1253,7 +1292,12 @@ class TestSaveBlock:
         assert db_block.data == {
             "a": "a",
             "b": "b",
-            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": "a",
+                "b": "b",
+                "c": {"secret": "value"},
+                "block_type_slug": "child",
+            },
         }
 
         # load block with secrets
@@ -1262,18 +1306,20 @@ class TestSaveBlock:
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
+        assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        child = Child(a="a", b="b")
+        child = Child(a="a", b="b", c=dict(secret="value"))
         await child.save("child-block")
         block = Parent(a="a", b="b", child=child)
         await block.save("parent-block")
@@ -1288,7 +1334,11 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b"},
+            "child": {
+                "a": obfuscate_string("a"),
+                "b": "b",
+                "c": {"secret": obfuscate_string("value")},
+            },
         }
 
         # read from DB with secrets
@@ -1297,7 +1347,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+        assert db_block.data == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b", "c": {"secret": "value"}},
+        }
 
         # load block with secrets
         api_block = await Parent.load("parent-block")
@@ -1305,6 +1359,7 @@ class TestSaveBlock:
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
+        assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_block_with_overwrite(self, InnerBlock):
         inner_block = InnerBlock(size=1)
@@ -1373,6 +1428,27 @@ class TestSaveBlock:
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
+
+    async def test_update_block_with_secret_dict(self):
+        class HasSomethingToHide(Block):
+            something_to_hide: SecretDict
+
+        shifty_block = HasSomethingToHide(
+            something_to_hide={
+                "what I'm hiding": "a surprise birthday party",
+            }
+        )
+        await shifty_block.save("my-shifty-block")
+
+        updated_shifty_block = HasSomethingToHide(
+            something_to_hide={"what I'm hiding": "a birthday present"}
+        )
+        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+
+        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        assert loaded_shifty_block.something_to_hide.get_secret_value() == {
+            "what I'm hiding": "a birthday present"
+        }
 
     async def test_block_with_alias(self):
         class AliasBlock(Block):
