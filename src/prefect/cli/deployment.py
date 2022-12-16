@@ -384,7 +384,7 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now if start-in or start-at are unspecified
+    The flow run will be scheduled for now if start-in or start-at are unspecified;
     and an agent must execute it.
 
     The flow run will not execute until an agent starts.
@@ -418,6 +418,7 @@ async def run(
         )
     elif start_in is None and start_at is None:
         scheduled_start_time = now
+        human_readable_dt_diff = " (now)"
     else:
         if start_in:
             start_time_raw = "in " + start_in
@@ -437,6 +438,9 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
         scheduled_start_time = pendulum.instance(start_time_parsed)
+        human_readable_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -474,13 +478,6 @@ async def run(
         run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
-
-    if start_in is None and start_at is None:
-        human_readable_dt_diff = " (now)"
-    else:
-        human_readable_dt_diff = (
-            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
-        )
 
     scheduled_display = (
         scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
