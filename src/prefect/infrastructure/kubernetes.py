@@ -119,7 +119,7 @@ class KubernetesJob(Infrastructure):
     )
 
     # controls the behavior of execution
-    job_watch_timeout_seconds: int = Field(
+    job_watch_timeout_seconds: Optional[int] = Field(
         default=None,
         description=(
             "Number of seconds to wait for each event emitted by the job before "
