@@ -44,6 +44,12 @@ def upgrade():
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("type", sa.String(), nullable=True),
+        sa.Column(
+            "base_job_template",
+            prefect.orion.utilities.database.JSON(),
+            nullable=False,
+            server_default="{}",
+        ),
         sa.Column("is_paused", sa.Boolean(), server_default="0", nullable=False),
         sa.Column("concurrency_limit", sa.Integer(), nullable=True),
         sa.Column(

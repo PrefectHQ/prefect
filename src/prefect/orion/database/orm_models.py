@@ -1022,6 +1022,7 @@ class ORMWorkerPool:
     name = sa.Column(sa.String, nullable=False)
     description = sa.Column(sa.String)
     type = sa.Column(sa.String)
+    base_job_template = sa.Column(JSON, nullable=False, server_default="{}", default={})
     is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
     default_queue_id = sa.Column(UUID, nullable=True)
     concurrency_limit = sa.Column(

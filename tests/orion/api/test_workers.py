@@ -54,6 +54,7 @@ class TestCreateWorkerPool:
         assert result.name == "Pool 1"
         assert result.is_paused is False
         assert result.concurrency_limit is None
+        assert result.base_job_template == {}
 
         model = await models.workers.read_worker_pool(
             session=session, worker_pool_id=result.id
@@ -70,6 +71,15 @@ class TestCreateWorkerPool:
         assert result.name == "Pool 1"
         assert result.is_paused is True
         assert result.concurrency_limit == 5
+
+    async def test_create_worker_pool_with_template(self, client):
+        response = await client.post(
+            "/experimental/worker_pools/",
+            json=dict(name="Pool 1", base_job_template={"foo": "bar", "x": ["y"]}),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        result = pydantic.parse_obj_as(WorkerPool, response.json())
+        assert result.base_job_template == {"foo": "bar", "x": ["y"]}
 
     async def test_create_duplicate_worker_pool(self, client, worker_pool):
         response = await client.post(
@@ -194,6 +204,26 @@ class TestUpdateWorkerPool:
             json=dict(is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    async def test_update_worker_pool_template(self, session, client):
+        name = "Pool 1"
+        pool = await models.workers.create_worker_pool(
+            session=session,
+            worker_pool=WorkerPoolCreate(name=name, base_job_template={"a": "b"}),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/experimental/worker_pools/{name}",
+            json=dict(base_job_template={"c": "d"}),
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        session.expunge_all()
+        result = await models.workers.read_worker_pool(
+            session=session, worker_pool_id=pool.id
+        )
+        assert result.base_job_template == {"c": "d"}
 
 
 class TestReadWorkerPool:

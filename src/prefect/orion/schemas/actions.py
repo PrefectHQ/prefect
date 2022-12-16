@@ -347,6 +347,7 @@ class WorkerPoolCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.WorkerPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
     type: Optional[str] = FieldFrom(schemas.core.WorkerPool)
+    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkerPool)
     is_paused: bool = FieldFrom(schemas.core.WorkerPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
 
@@ -356,7 +357,8 @@ class WorkerPoolUpdate(ActionBaseModel):
     """Data used by the Orion API to update a worker pool."""
 
     description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkerPool)
+    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkerPool)
+    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkerPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
 
 

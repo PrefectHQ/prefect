@@ -916,6 +916,9 @@ class WorkerPool(ORMBaseModel):
         default=None, description="A description of the worker pool."
     )
     type: Optional[str] = Field(None, description="The worker pool type.")
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict, description="The worker pool's base job template."
+    )
     is_paused: bool = Field(
         default=False,
         description="Pausing the worker pool stops the delivery of all work.",
