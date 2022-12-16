@@ -680,15 +680,13 @@ def select_flow(
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
-
-    # flow names have underscores replaced with dashes
-    flow_name = flow_name.replace("_", "-")
-
-    # Just get flow names
-    flows = {f.name: f for f in flows}
+    # We search for the flow's underlying function, so any dashes must be
+    #   replaced with underscores
+    flow_name = flow_name.replace("-", "_")
+    # Get underlying flow_function names
+    flows = {f.fn.__name__: f for f in flows}
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
 
