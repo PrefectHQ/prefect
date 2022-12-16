@@ -1098,9 +1098,7 @@ class OrionClient:
         response = await self._client.post(f"/block_types/filter", json={})
         return pydantic.parse_obj_as(List[schemas.core.BlockType], response.json())
 
-    async def read_block_schemas(
-        self, block_schema_filter: Optional[schemas.filters.BlockSchemaFilterId]
-    ) -> List[schemas.core.BlockSchema]:
+    async def read_block_schemas(self) -> List[schemas.core.BlockSchema]:
         """
         Read all block schemas
         Raises:
@@ -1109,12 +1107,7 @@ class OrionClient:
         Returns:
             A BlockSchema.
         """
-        response = await self._client.post(
-            f"/block_schemas/filter",
-            json=block_schema_filter.dict(
-                json_compatible=True, exclude_unset=True, exclude_none=True
-            ),
-        )
+        response = await self._client.post(f"/block_schemas/filter", json={})
         return pydantic.parse_obj_as(List[schemas.core.BlockSchema], response.json())
 
     async def read_block_document(
