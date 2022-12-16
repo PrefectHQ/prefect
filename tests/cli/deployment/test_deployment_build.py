@@ -536,7 +536,7 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            # expected_output_contains=f"The provided path does not point to a python file: {str(fpath)!r}",
+            expected_output_contains=f"No module named ",
         )
 
     def test_entrypoint_works_with_flow_with_custom_name(self):
