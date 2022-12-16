@@ -752,6 +752,8 @@ async def build(
     try:
         flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
         app.console.print(f"Found flow {flow.name!r}", style="green")
+    except AttributeError as exc:
+        exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
     except Exception as exc:
         exit_with_error(exc)
     infra_overrides = {}

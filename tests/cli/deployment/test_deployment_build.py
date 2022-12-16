@@ -495,7 +495,7 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"No flows found in script {str(fpath)!r}",
+            expected_output_contains=f"'fn' not found in {str(fpath)!r}",
         )
 
     def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):
@@ -517,10 +517,10 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Flow 'fn' not found in script {str(fpath)!r}",
+            expected_output_contains=f"Flow function with name 'fn' not found in {str(fpath)!r}",
         )
 
-    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self):
+    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
         code = """
         def fn():
             pass
@@ -536,7 +536,7 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"The provided path does not point to a python file: {str(fpath)!r}",
+            # expected_output_contains=f"The provided path does not point to a python file: {str(fpath)!r}",
         )
 
     def test_entrypoint_works_with_flow_with_custom_name(self):
