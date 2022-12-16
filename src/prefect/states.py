@@ -3,7 +3,7 @@ import sys
 import traceback
 import warnings
 from collections import Counter
-from types import TracebackType
+from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
@@ -272,8 +272,14 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             data=await result_factory.create_result(retval),
         )
 
+    # Generators aren't portable, implicitly convert them to a list.
+    if isinstance(retval, GeneratorType):
+        data = list(retval)
+    else:
+        data = retval
+
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(retval))
+    return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
