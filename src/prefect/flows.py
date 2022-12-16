@@ -681,9 +681,8 @@ def select_flow(
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
-    # Get underlying flow_function names
-    flows = {f.fn.__name__: f for f in flows}
-    # Add a leading space if given, otherwise use an empty string
+    flows = {f.name: f for f in flows}
+
     from_message = (" " + from_message) if from_message else ""
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
@@ -771,7 +770,9 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
             return import_object(entrypoint)
         except AttributeError:
             raise MissingFlowError(
-                f"Function with name {func_name!r} not found in {path!r}"
+                f"Flow function with name {func_name!r} not found in {path!r}. "
+                "If the function exists in the script at that path, check to make "
+                "sure that it is decorated with '@flow'."
             )
 
 
