@@ -391,6 +391,32 @@ async def run(
     """
     now = pendulum.now("UTC")
 
+    if start_in and start_at:
+        raise ValueError(
+            "Expected optional start_in field or start_at field but not both."
+        )
+    elif start_in is None and start_at is None:
+        scheduled_start_time = now
+    else:
+        if start_in:
+            start_time_raw = "in " + start_in
+        else:
+            start_time_raw = "at " + start_at
+        with warnings.catch_warnings():
+            # PyTZ throws a warning based on dateparser usage of the library
+            # See https://github.com/scrapinghub/dateparser/issues/1089
+            warnings.filterwarnings("ignore", module="dateparser")
+            start_time_parsed = dateparser.parse(
+                start_time_raw,
+                settings={
+                    "TO_TIMEZONE": "UTC",
+                    "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                },
+            )
+        if start_time_parsed is None:
+            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+        scheduled_start_time = pendulum.instance(start_time_parsed)
+
     multi_params = {}
     if multiparams:
         if multiparams == "-":
@@ -411,32 +437,6 @@ async def run(
             f"`--param` value will be used: {conflicting_keys}"
         )
     parameters = {**multi_params, **cli_params}
-
-    # Parse the start time if provided
-    if start_in:
-        start_time_raw = "in " + start_in
-    elif start_at:
-        start_time_raw = "at " + start_at
-    else:
-        start_time_raw = None
-
-    if start_time_raw:
-        with warnings.catch_warnings():
-            # PyTZ throws a warning based on dateparser usage of the library
-            # See https://github.com/scrapinghub/dateparser/issues/1089
-            warnings.filterwarnings("ignore", module="dateparser")
-            start_time_parsed = dateparser.parse(
-                start_time_raw,
-                settings={
-                    "TO_TIMEZONE": "UTC",
-                    "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
-                },
-            )
-        if start_time_parsed is None:
-            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
-        scheduled_start_time = pendulum.instance(start_time_parsed)
-    else:
-        scheduled_start_time = now
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -475,21 +475,17 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    if start_in:
-        scheduled_display = (
-            scheduled_start_time.in_tz(
-                pendulum.tz.local_timezone()
-            ).to_datetime_string()
-            + " ("
-            + pendulum.format_diff(scheduled_start_time.diff(now))
-            + ")"
-        )
-    elif start_at:
-        scheduled_display = scheduled_start_time.in_tz(
-            pendulum.tz.local_timezone()
-        ).to_datetime_string()
+    if start_in is None and start_at is None:
+        human_readable_dt_diff = " (now)"
     else:
-        scheduled_display = "now"
+        human_readable_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
+
+    scheduled_display = (
+        scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
+        + human_readable_dt_diff
+    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
