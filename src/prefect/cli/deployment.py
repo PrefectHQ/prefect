@@ -384,12 +384,33 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now if --start-in or --start-at are unspecified
+    The flow run will be scheduled for now if start-in or start-at are unspecified
     and an agent must execute it.
 
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
+
+    multi_params = {}
+    if multiparams:
+        if multiparams == "-":
+            multiparams = sys.stdin.read()
+            if not multiparams:
+                exit_with_error("No data passed to stdin")
+
+        try:
+            multi_params = json.loads(multiparams)
+        except ValueError as exc:
+            exit_with_error(f"Failed to parse JSON: {exc}")
+
+    cli_params = _load_json_key_values(params, "parameter")
+    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
+    if conflicting_keys:
+        app.console.print(
+            "The following parameters were specified by `--param` and `--params`, the "
+            f"`--param` value will be used: {conflicting_keys}"
+        )
+    parameters = {**multi_params, **cli_params}
 
     if start_in and start_at:
         raise ValueError(
@@ -416,27 +437,6 @@ async def run(
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
         scheduled_start_time = pendulum.instance(start_time_parsed)
-
-    multi_params = {}
-    if multiparams:
-        if multiparams == "-":
-            multiparams = sys.stdin.read()
-            if not multiparams:
-                exit_with_error("No data passed to stdin")
-
-        try:
-            multi_params = json.loads(multiparams)
-        except ValueError as exc:
-            exit_with_error(f"Failed to parse JSON: {exc}")
-
-    cli_params = _load_json_key_values(params, "parameter")
-    conflicting_keys = set(cli_params.keys()).intersection(multi_params.keys())
-    if conflicting_keys:
-        app.console.print(
-            "The following parameters were specified by `--param` and `--params`, the "
-            f"`--param` value will be used: {conflicting_keys}"
-        )
-    parameters = {**multi_params, **cli_params}
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
