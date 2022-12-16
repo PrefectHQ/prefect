@@ -495,7 +495,7 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"'fn' not found in {str(fpath)!r}",
+            expected_output_contains=f"Function with name 'fn' is not a flow. Make sure that it is decorated with '@flow'",
         )
 
     def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):

@@ -769,13 +769,19 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
     ) as registry:
         path, func_name = entrypoint.split(":")
         try:
-            return import_object(entrypoint)
+            flow = import_object(entrypoint)
         except AttributeError as exc:
             raise MissingFlowError(
                 f"Flow function with name {func_name!r} not found in {path!r}. "
-                "If the function exists in the script at that path, check to make "
-                "sure that it is decorated with '@flow'."
             ) from exc
+
+        if not isinstance(flow, Flow):
+            raise MissingFlowError(
+                f"Function with name {func_name!r} is not a flow. Make sure that it is "
+                "decorated with '@flow'."
+            )
+
+        return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
