@@ -276,16 +276,19 @@ class Pause(PrefectSignal):
     """
 
 
-class Cancel(PrefectSignal):
+class ExternalSignal(BaseException):
     """
-    Raised when a flow run is cancelled via a SIGTERM
-
-    Indicates that the run should exit immediately.
+    Base type for external signal-like exceptions that should never be caught by users.
     """
 
-    def __init__(self, *args, cause="unknown"):
-        super().__init__(args)
-        self.cause = cause
+
+class TerminationSignal(ExternalSignal):
+    """
+    Raised when a flow run receives a termination signal.
+    """
+
+    def __init__(self, signal: int):
+        self.signal = signal
 
 
 class PrefectHTTPStatusError(HTTPStatusError):
