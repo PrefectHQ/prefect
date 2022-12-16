@@ -19,9 +19,12 @@ async def test_submit():
 
 async def test_submit_many():
     async with WorkerThreadPool() as pool:
-        futures = [await pool.submit(identity, i) for i in range(100)]
+        futures = [await pool.submit(identity, i) for i in range(1000)]
         results = await asyncio.gather(*[future.aresult() for future in futures])
-        assert results == list(range(100))
+        assert results == list(range(1000))
+
+        # Note: We need to submit an order of magnitude more than the max worker count
+        #       to actually saturate the pool.
         assert len(pool._workers) == pool._max_workers
 
 
