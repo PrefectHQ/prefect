@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest.mock import Mock
 
@@ -519,7 +520,7 @@ class TestEntrypoint:
             expected_output_contains=f"Flow 'fn' not found in script {str(fpath)!r}",
         )
 
-    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
+    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self):
         code = """
         def fn():
             pass
@@ -537,6 +538,50 @@ class TestEntrypoint:
             expected_code=1,
             expected_output_contains=f"The provided path does not point to a python file: {str(fpath)!r}",
         )
+
+    def test_entrypoint_works_with_flow_with_custom_name(self):
+        flow_code = """
+        from prefect import flow
+
+        @flow(name="SoMe CrAz_y N@me")
+        def dog():
+            pass
+        """
+        file_name = "f.py"
+        with TemporaryDirectory() as tmp_dir:
+            Path(file_name).write_text(dedent(flow_code))
+
+            dep_name = "TEST"
+            entrypoint = f"{file_name}:dog"
+            cmd = ["deployment", "build", "-n", dep_name]
+            cmd += [entrypoint]
+
+            res = invoke_and_assert(
+                cmd,
+                expected_code=0,
+            )
+
+    def test_entrypoint_works_with_flow_func_with_underscores(self):
+        flow_code = """
+        from prefect import flow
+        
+        @flow
+        def dog_flow_func():
+            pass
+        """
+        file_name = "f.py"
+        with TemporaryDirectory() as tmp_dir:
+            Path(file_name).write_text(dedent(flow_code))
+
+            dep_name = "TEST"
+            entrypoint = f"{file_name}:dog_flow_func"
+            cmd = ["deployment", "build", "-n", dep_name]
+            cmd += [entrypoint]
+
+            res = invoke_and_assert(
+                cmd,
+                expected_code=0,
+            )
 
 
 class TestWorkQueue:
