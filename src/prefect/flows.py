@@ -55,6 +55,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.importtools import import_object
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -685,7 +686,6 @@ def select_flow(
 
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
 
@@ -719,7 +719,6 @@ def load_flows_from_script(path: str) -> List[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-
     return registry_from_script(path).get_instances(Flow)
 
 
@@ -762,12 +761,27 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
 
     Raises:
         FlowScriptError: If an exception is encountered while running the script
-        MissingFlowError: If no flows exist in the iterable
-        MissingFlowError: If a flow name is provided and that flow does not exist
-        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+        MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    flow_path, flow_name = entrypoint.split(":")
-    return load_flow_from_script(path=flow_path, flow_name=flow_name)
+    with PrefectObjectRegistry(
+        block_code_execution=True,
+        capture_failures=True,
+    ) as registry:
+        path, func_name = entrypoint.split(":")
+        try:
+            flow = import_object(entrypoint)
+        except AttributeError as exc:
+            raise MissingFlowError(
+                f"Flow function with name {func_name!r} not found in {path!r}. "
+            ) from exc
+
+        if not isinstance(flow, Flow):
+            raise MissingFlowError(
+                f"Function with name {func_name!r} is not a flow. Make sure that it is "
+                "decorated with '@flow'."
+            )
+
+        return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
