@@ -55,6 +55,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.importtools import import_object
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -759,12 +760,19 @@ def load_flow_from_entrypoint(entrypoint: str) -> Flow:
 
     Raises:
         FlowScriptError: If an exception is encountered while running the script
-        MissingFlowError: If no flows exist in the iterable
-        MissingFlowError: If a flow name is provided and that flow does not exist
-        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+        MissingFlowError: If the flow function specified in the entrypoint does not exist
     """
-    flow_path, flow_name = entrypoint.split(":")
-    return load_flow_from_script(path=flow_path, flow_name=flow_name)
+    with PrefectObjectRegistry(
+        block_code_execution=True,
+        capture_failures=True,
+    ) as registry:
+        path, func_name = entrypoint.split(":")
+        try:
+            return import_object(entrypoint)
+        except AttributeError:
+            raise MissingFlowError(
+                f"Function with name {func_name!r} not found in {path!r}"
+            )
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):

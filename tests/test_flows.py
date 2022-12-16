@@ -23,7 +23,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow, load_flow_from_entrypoint, select_flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -1957,24 +1957,3 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     assert res == "woof!"
     flow_runs = await orion_client.read_flows()
     assert len(flow_runs) == 1
-
-
-def test_select_flows_finds_flows_with_underscores():
-    # underscores and dashes
-    @flow
-    def dog_flow():
-        pass
-
-    assert dog_flow.name == "dog-flow"
-    found_flow_1 = select_flow([dog_flow], "dog_flow")
-    assert found_flow_1 == dog_flow
-
-
-def test_select_flows_finds_flows_with_custom_names():
-    @flow(name="not-a-cat")
-    def cat_flow():
-        pass
-
-    assert cat_flow.name == "not-a-cat"
-    found_flow_1 = select_flow([cat_flow], "cat_flow")
-    assert found_flow_1 == cat_flow
