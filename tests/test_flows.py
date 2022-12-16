@@ -1959,7 +1959,7 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     assert len(flow_runs) == 1
 
 
-def test_select_flows_finds_flows_with_underscores_and_dashes():
+def test_select_flows_finds_flows_with_underscores():
     # underscores and dashes
     @flow
     def dog_flow():
@@ -1967,8 +1967,7 @@ def test_select_flows_finds_flows_with_underscores_and_dashes():
 
     assert dog_flow.name == "dog-flow"
     found_flow_1 = select_flow([dog_flow], "dog_flow")
-    found_flow_2 = select_flow([dog_flow], "dog-flow")
-    assert found_flow_1 == found_flow_2 == dog_flow
+    assert found_flow_1 == dog_flow
 
 
 def test_select_flows_finds_flows_with_custom_names():
@@ -1978,5 +1977,4 @@ def test_select_flows_finds_flows_with_custom_names():
 
     assert cat_flow.name == "not-a-cat"
     found_flow_1 = select_flow([cat_flow], "cat_flow")
-    found_flow_2 = select_flow([cat_flow], "cat-flow")
-    assert found_flow_1 == found_flow_2 == cat_flow
+    assert found_flow_1 == cat_flow
