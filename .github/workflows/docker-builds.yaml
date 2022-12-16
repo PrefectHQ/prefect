@@ -52,16 +52,12 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: prefecthq/prefect-dev
-          # first tag generated here will be used in CACHE_IMAGE below
           tags: |
-            type=raw,enable=${{ github.event_name == 'release' }},value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}
+            type=raw,enable=${{ github.event_name != 'release' }},value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}
             type=sha,suffix=-python${{ matrix.python-version }}
           flavor: |
             latest=false
             suffix=${{ matrix.flavor }}
-
-      - name: Export CACHE_IMAGE env var
-        run: echo "CACHE_IMAGE=$(echo '${{ steps.metadata.outputs.json }}' | jq -r '.tags[0]')" >> $GITHUB_ENV
 
       - name: Build image
         uses: docker/build-push-action@v3
@@ -74,9 +70,6 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           push: true
-          # cache images need additional suffix because they are not usable for runtime
-          cache-from: type=registry,ref=${{ env.CACHE_IMAGE }}-buildcache
-          cache-to: type=registry,ref=${{ env.CACHE_IMAGE }}-buildcache,mode=max
-
-      - name: Test docker image
-        run: docker run --rm ${{ env.CACHE_IMAGE }} prefect version
+          # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
+          cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}
+          cache-to: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max
