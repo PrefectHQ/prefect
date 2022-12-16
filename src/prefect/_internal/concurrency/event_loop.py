@@ -167,6 +167,13 @@ def call_soon_in_loop(
     *args: P.args,
     **kwargs: P.kwargs
 ) -> concurrent.futures.Future:
+    """
+    Run a synchronous call in an event loop's thread from another thread.
+
+    This function is non-blocking and safe to call from an asynchronous context.
+
+    Returns a future that can be used to retrieve the result of the call.
+    """
     future = concurrent.futures.Future()
 
     @functools.wraps(__fn)
