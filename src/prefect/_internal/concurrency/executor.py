@@ -5,9 +5,8 @@ import inspect
 import threading
 from concurrent.futures import Executor as BaseExecutor
 from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
-from typing import Any, Callable, Optional, TypeVar
+from typing import Callable, Optional, TypeVar
 
-import cloudpickle
 from typing_extensions import Literal, ParamSpec
 
 T = TypeVar("T")
@@ -17,36 +16,16 @@ WorkerType = Literal["thread", "process"]
 threadlocals = threading.local()
 
 
-def _cloudpickle_wrapped_call(
-    __fn: Callable, *args: Any, **kwargs: Any
-) -> Callable[[], bytes]:
-    """
-    Serializes a function call using cloudpickle then returns a callable which will
-    execute that call and return a cloudpickle serialized return value
-
-    This is particularly useful for sending calls to libraries that only use the Python
-    built-in pickler (e.g. `anyio.to_process` and `multiprocessing`) but may require
-    a wider range of pickling support.
-    """
-    payload = cloudpickle.dumps((__fn, args, kwargs))
-    return functools.partial(_run_serialized_call, payload)
-
-
-def _run_serialized_call(payload) -> bytes:
-    """
-    Defined at the top-level so it can be pickled by the Python pickler.
-    Used by `_cloudpickle_wrapped_call`.
-    """
-    fn, args, kwargs = cloudpickle.loads(payload)
-    retval = fn(*args, **kwargs)
-    return cloudpickle.dumps(retval)
-
-
 def _initialize_worker():
     threadlocals.is_worker = True
 
 
 def _run(__fn, *args, **kwargs):
+    """
+    Internal utility to run a function on a worker.
+
+    Defined at the top-level to support multiprocess pickling.
+    """
     result = __fn(*args, **kwargs)
 
     # Check for a returned coroutine; run to completion in a new loop
@@ -90,10 +69,7 @@ class Executor(BaseExecutor):
     def submit(
         self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
     ) -> Future[T]:
-        future = self._worker_pool.submit(
-            self._wrap_submitted_call(fn, *args, **kwargs)
-        )
-        return self._wrap_future(future)
+        return self._worker_pool.submit(self._wrap_submitted_call(fn, *args, **kwargs))
 
     def shutdown(self, wait=True, *, cancel_futures=False) -> None:
         self._worker_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
@@ -106,58 +82,19 @@ class Executor(BaseExecutor):
 
         - Run returned coroutines to completion in a new event loop
         - Run functions with the context from submission (threads only)
-        - Serialize functions, parameters, and retvals with cloudpickle (processes only)
         """
+        wrapped = functools.partial(_run, fn, *args, **kwargs)
 
         if self._worker_type == "thread":
             context = contextvars.copy_context()
+            wrapped = functools.partial(context.run, wrapped)
 
-            def wrapped():
-                result = fn(*args, **kwargs)
+        # We should support pickling of context variables for processes eventually, but
+        # it looks pretty complicated; see
+        # - https://peps.python.org/pep-0567/#making-context-objects-picklable
+        # - https://github.com/akruis/cvpickle
 
-                # Check for a returned coroutine; run to completion in a new loop
-                if inspect.iscoroutine(result):
-                    result = asyncio.run(result)
-
-                return result
-
-            return functools.partial(context.run, wrapped)
-
-        else:
-            # We should support pickling of context variables eventually; see
-            # - https://peps.python.org/pep-0567/#making-context-objects-picklable
-            # - https://github.com/akruis/cvpickle
-
-            @functools.wraps(fn)
-            def wrapped(*args, **kwargs):
-                result = fn(*args, **kwargs)
-
-                # Check for a returned coroutine; run to completion in a new loop
-                if inspect.iscoroutine(result):
-                    result = asyncio.run(result)
-
-                return result
-
-            return _cloudpickle_wrapped_call(wrapped, *args, **kwargs)
-
-    def _wrap_future(self, future: Future) -> Future:
-        """
-        Extends the future created by `submit`.
-
-        - Deserializes result with cloudpickle when set (process only)
-        """
-
-        if self._worker_type == "process":
-            set_result = future.set_result
-
-            @functools.wraps(set_result)
-            def wrapped(result: Any):
-                result = cloudpickle.loads(result)
-                return set_result(result)
-
-            future.set_result = wrapped
-
-        return future
+        return wrapped
 
     async def __aenter__(self):
         return self
