@@ -2116,3 +2116,15 @@ class TestBlockSchemaMigration:
 
         assert a.x == 1
         assert a.y == None
+
+    def test_load_with_skip_validation_keeps_metadata(self, new_field):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        a_new = A.load("test", skip_validation=True)
+
+        assert a.dict() == a_new.dict()
