@@ -1,5 +1,10 @@
 # Prefect Release Notes
 
+## Release 2.7.3
+
+### Fixes
+- Fix bug where flows with names that do not match the function name could not be loaded — https://github.com/PrefectHQ/prefect/pull/7920
+
 ## Release 2.7.2
 
 ### Rescheduling paused flow runs
