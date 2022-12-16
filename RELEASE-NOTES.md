@@ -4,6 +4,7 @@
 
 ### Fixes
 - Fix bug where flows with names that do not match the function name could not be loaded — https://github.com/PrefectHQ/prefect/pull/7920
+- Fix type annotation for `KubernetesJob.job_watch_timeout_seconds` — https://github.com/PrefectHQ/prefect/pull/7914
 
 ## Release 2.7.2
 
