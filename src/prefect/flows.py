@@ -681,8 +681,10 @@ def select_flow(
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
+    # Convert to flows by name
     flows = {f.name: f for f in flows}
 
+    # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
