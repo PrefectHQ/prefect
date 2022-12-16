@@ -1,5 +1,12 @@
 # Prefect Release Notes
 
+## Release 2.7.3
+
+### Fixes
+- Fix bug where flows with names that do not match the function name could not be loaded — https://github.com/PrefectHQ/prefect/pull/7920
+- Fix type annotation for `KubernetesJob.job_watch_timeout_seconds` — https://github.com/PrefectHQ/prefect/pull/7914
+- Keep data from being lost when assigning a generator to `State.data` — https://github.com/PrefectHQ/prefect/pull/7714
+
 ## Release 2.7.2
 
 ### Rescheduling paused flow runs
