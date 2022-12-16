@@ -38,9 +38,13 @@ class CredentialsBlock(Block, ABC):
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    def get_client(self):
+    def get_client(self, *args, **kwargs):
         """
         Returns a client for interacting with the external system.
+        
+        If a service offers various clients, this method can accept
+        a `client_type` keyword argument to get the desired client
+        within the service.
         """
 
 
