@@ -41,7 +41,7 @@ class CredentialsBlock(Block, ABC):
     def get_client(self, *args, **kwargs):
         """
         Returns a client for interacting with the external system.
-        
+
         If a service offers various clients, this method can accept
         a `client_type` keyword argument to get the desired client
         within the service.
