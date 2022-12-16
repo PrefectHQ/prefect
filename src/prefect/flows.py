@@ -680,9 +680,12 @@ def select_flow(
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
-    # Convert to flows by name
-    flows = {f.name: f for f in flows}
 
+    # flow names have underscores replaced with dashes
+    flow_name = flow_name.replace("_", "-")
+
+    # Just get flow names
+    flows = {f.name: f for f in flows}
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
 
@@ -719,7 +722,6 @@ def load_flows_from_script(path: str) -> List[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-
     return registry_from_script(path).get_instances(Flow)
 
 
