@@ -1627,6 +1627,8 @@ class OrionClient:
             empirical_policy=schemas.core.TaskRunPolicy(
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
+                retry_backoff_factor=task.retry_backoff_factor,
+                retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),
             task_inputs=task_inputs or {},

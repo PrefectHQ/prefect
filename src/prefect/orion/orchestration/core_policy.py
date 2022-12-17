@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from packaging.version import Version
 from sqlalchemy import select
 
+from prefect.utilities.math import clamped_poisson_interval
 from prefect.orion import models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
@@ -349,10 +350,20 @@ class RetryFailedTasks(BaseOrchestrationRule):
     ) -> None:
         run_settings = context.run_settings
         run_count = context.run.run_count
+        base_delay = run_settings.retry_delay or 0
+
+        if run_settings.retry_backoff_factor:
+            base_delay = retry_backoff_factor * (2 ** max(0, run_count - 1))
+
+        if run_settings.retry_jitter_factor:
+            delay = clamped_poisson_interval(base_delay, clamping_factor=run_settings.retry_jitter_factor)
+        else:
+            delay = base_delay
+
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
-                    seconds=run_settings.retry_delay or 0
+                    seconds=delay
                 ),
                 message=proposed_state.message,
                 data=proposed_state.data,

@@ -800,6 +800,8 @@ def task(
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
     retry_delay_seconds: Union[float, int] = 0,
+    retry_backoff_factor: Optional[float] = None,
+    retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
