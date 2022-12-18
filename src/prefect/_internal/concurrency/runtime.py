@@ -17,6 +17,18 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
+threadlocals = threading.local()
+
+
+def _initialize_worker_process():
+    _initialize_worker()
+    threading.current_thread().name = "RuntimeWorkerProcess"
+
+
+def _initialize_worker():
+    threadlocals.is_worker = True
+
+
 @dataclasses.dataclass
 class _WorkItem:
     future: concurrent.futures.Future
@@ -64,10 +76,16 @@ class _WorkItem:
 
 
 class _RuntimeThread(threading.Thread):
-    def __init__(self, name: str = "PrefectRuntime"):
+    def __init__(self, name: str = "Runtime"):
         super().__init__(name=name)
-        self._worker_threads = Executor(worker_type="thread")
-        self._worker_processes = Executor(worker_type="process")
+        self._worker_threads = Executor(
+            worker_type="thread",
+            thread_name_prefix="RuntimeWorkerThread-",
+            initializer=_initialize_worker,
+        )
+        self._worker_processes = Executor(
+            worker_type="process", initializer=_initialize_worker_process
+        )
         self._ready_event = threading.Event()
         self._loop = None
 
@@ -114,7 +132,7 @@ class Runtime:
         self._runtime = _RuntimeThread()
         self._work_queue = Queue()
         self._watcher = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="PrefectRuntimeWatcher-"
+            max_workers=1, thread_name_prefix="RuntimeFutureWatcher-"
         )
         self._owner_loop = get_running_loop()
 
