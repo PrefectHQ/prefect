@@ -4,7 +4,7 @@ Thread-safe async primitives.
 import asyncio
 import collections
 import threading
-from typing import Literal, TypeVar
+from typing import TypeVar
 
 from typing_extensions import Literal
 
