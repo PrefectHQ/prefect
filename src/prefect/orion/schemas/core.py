@@ -299,7 +299,7 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Optional[int] = Field(
+    retry_delay: Union[None, int, List[int]] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
     retry_backoff_factor: Optional[float] = Field(

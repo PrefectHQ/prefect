@@ -350,7 +350,12 @@ class RetryFailedTasks(BaseOrchestrationRule):
     ) -> None:
         run_settings = context.run_settings
         run_count = context.run.run_count
-        base_delay = run_settings.retry_delay or 0
+        delay = run_settings.retry_delay
+
+        if isinstance(delay, list):
+            base_delay = delay[min(run_count - 1, len(delay) - 1)]
+        else:
+            base_delay = run_settings.retry_delay or 0
 
         if run_settings.retry_backoff_factor:
             base_delay = run_settings.retry_backoff_factor * (
