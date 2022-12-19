@@ -56,7 +56,7 @@ async def create(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags. This feature is planned to be fully deprecated on 2023-02-23.",
+        help="DEPRECATED: One or more optional tags. This option will be removed on 2023-02-23.",
     ),
 ):
     """
@@ -66,7 +66,7 @@ async def create(
         app.console.print(
             "Supplying `tags` for work queues is deprecated. This work "
             "queue will use legacy tag-matching behavior. "
-            "This feature is planned to be fully deprecated on 2023-02-23.",
+            "This option will be removed on 2023-02-23.",
             style="red",
         )
 

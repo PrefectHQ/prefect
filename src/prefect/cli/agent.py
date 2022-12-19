@@ -71,7 +71,7 @@ async def start(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags that will be used to create a work queue. This feature is planned to be fully deprecated on 2023-02-23.",
+        help="DEPRECATED: One or more optional tags that will be used to create a work queue. This option will be removed on 2023-02-23.",
     ),
     limit: int = typer.Option(
         None,
@@ -115,7 +115,7 @@ async def start(
             "`tags` are deprecated. For backwards-compatibility with old "
             f"versions of Prefect, this agent will create a work queue named `{work_queue_name}` "
             "that uses legacy tag-based matching. "
-            "This feature is planned to be fully deprecated on 2023-02-23.",
+            "This option will be removed on 2023-02-23.",
             style="red",
         )
 
