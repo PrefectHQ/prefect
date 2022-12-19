@@ -50,7 +50,7 @@ async def test_async_runtime_run_in_loop_many_concurrent():
     with Runtime() as runtime:
         async with anyio.create_task_group() as tg:
             for _ in range(100):
-                tg.start_soon(runtime.run_in_loop, work, _)
+                tg.start_soon(runtime.run_in_loop, work)
 
 
 def test_runtime_run_in_loop_does_not_accept_sync_functions():
@@ -59,7 +59,7 @@ def test_runtime_run_in_loop_does_not_accept_sync_functions():
             runtime.run_in_loop(identity, 1)
 
 
-def test_sync_runtime_submit_from_thread():
+def test_sync_runtime_submit_from_runtime_loop_thread():
     async def work():
         future = runtime.submit_from_thread(identity, 1)
         return await asyncio.wrap_future(future)
@@ -68,20 +68,43 @@ def test_sync_runtime_submit_from_thread():
         assert runtime.run_in_loop(work) == 1
 
 
-def test_async_runtime_submit_from_thread():
-    async def work():
-        future = runtime.submit_from_thread(identity, 1)
-        return await asyncio.wrap_future(future)
-
-    with Runtime() as runtime:
-        assert runtime.run_in_loop(work) == 1
-
-
-async def test_runtime_submit_from_thread_async_owner():
+async def test_async_runtime_submit_from_runtime_loop_thread():
     async def work():
         future = runtime.submit_from_thread(aidentity, 1)
-        await asyncio.wrap_future(future)
-        return future.result()
+        return await asyncio.wrap_future(future)
 
     with Runtime() as runtime:
         assert await runtime.run_in_loop(work) == 1
+
+
+def test_sync_runtime_submit_thread_requires_sync_function():
+    async def work():
+        with pytest.raises(
+            RuntimeError,
+            match="The runtime is sync but 'aidentity' is async",
+        ):
+            runtime.submit_from_thread(aidentity, 1)
+
+    with Runtime() as runtime:
+        runtime.run_in_loop(work)
+
+
+async def test_async_runtime_submit_from_thread_requires_async_function():
+    async def work():
+        with pytest.raises(
+            RuntimeError,
+            match="The runtime is async but 'identity' is sync",
+        ):
+            runtime.submit_from_thread(identity, 1)
+
+    with Runtime() as runtime:
+        await runtime.run_in_loop(work)
+
+
+def test_async_runtime_submit_from_worker_thread():
+    async def work():
+        future = runtime.submit_from_thread(identity, 1)
+        return await asyncio.wrap_future(future)
+
+    with Runtime() as runtime:
+        assert runtime.run_in_thread(work) == 1
