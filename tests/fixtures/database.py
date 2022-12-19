@@ -57,16 +57,17 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db):
-    """Clear the database by
-
-    Args:
-        database_engine ([type]): [description]
+async def clear_db(db):
+    """
+    Delete all data from all tables after running each test.
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # worker pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkerPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 @pytest.fixture
@@ -362,6 +363,27 @@ async def work_queue(session):
     )
     await session.commit()
     return work_queue
+
+
+@pytest.fixture
+async def worker_pool(session):
+    model = await models.workers.create_worker_pool(
+        session=session,
+        worker_pool=schemas.actions.WorkerPoolCreate(name="Test Worker Pool"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def worker_pool_queue(session, worker_pool):
+    model = await models.workers.create_worker_pool_queue(
+        session=session,
+        worker_pool_id=worker_pool.id,
+        worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="Test Queue"),
+    )
+    await session.commit()
+    return model
 
 
 @pytest.fixture

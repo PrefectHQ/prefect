@@ -4,6 +4,7 @@ Schemas for special responses from the Orion API.
 
 import datetime
 from typing import List, Optional, Union
+from uuid import UUID
 
 from pydantic import Field
 from typing_extensions import Literal
@@ -119,3 +120,12 @@ class OrchestrationResult(PrefectBaseModel):
     state: Optional[schemas.states.State]
     status: SetStateStatus
     details: StateResponseDetails
+
+
+class WorkerFlowRunResponse(PrefectBaseModel):
+    class Config:
+        arbitrary_types_allowed = True
+
+    worker_pool_id: UUID
+    worker_pool_queue_id: UUID
+    flow_run: schemas.core.FlowRun
