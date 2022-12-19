@@ -498,7 +498,7 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 ### Create a flow run in a Python script 
 
-You can create a flow run from a deployment in a Python script with the `run_deployment` method.
+You can create a flow run from a deployment in a Python script with the `run_deployment` function.
 
 ```python
 from prefect.deployments import run_deployment
