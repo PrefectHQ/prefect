@@ -72,4 +72,4 @@ jobs:
           push: true
           # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
           cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}
-          cache-to: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max
+          cache-to: ${{ ( github.event_name == 'push' && 'type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max' ) || '' }}
