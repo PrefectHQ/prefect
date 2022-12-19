@@ -429,13 +429,20 @@ async def run(
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
             warnings.filterwarnings("ignore", module="dateparser")
-            start_time_parsed = dateparser.parse(
-                start_time_raw,
-                settings={
-                    "TO_TIMEZONE": "UTC",
-                    "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
-                },
-            )
+
+            try:
+                start_time_parsed = dateparser.parse(
+                    start_time_raw,
+                    settings={
+                        "TO_TIMEZONE": "UTC",
+                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                    },
+                )
+            except Exception as exc:
+                exit_with_error(
+                    f"Exception occurred while parsing '{start_time_raw}': {exc!r}"
+                )
+
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
@@ -481,10 +488,17 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    scheduled_display = (
-        scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
-        + human_dt_diff
-    )
+    try:
+        scheduled_display = (
+            scheduled_start_time.in_tz(
+                pendulum.tz.local_timezone()
+            ).to_datetime_string()
+            + human_dt_diff
+        )
+    except Exception as exc:
+        exit_with_error(
+            f"Unable to format scheduled start time display from '{scheduled_start_time}': {exc!r}"
+        )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
