@@ -439,14 +439,18 @@ async def run(
                     },
                 )
             except Exception as exc:
-                exit_with_error(
-                    f"Exception occurred while parsing '{start_time_raw}': {exc!r}"
-                )
+                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
 
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        scheduled_start_time = pendulum.instance(start_time_parsed)
+        if start_time_parsed.tzinfo:
+            exit_with_error(
+                f"Timezone not expected in '{start_time_raw!r}'. Timezone is inferred with pendulum.tz.local_timezone()."
+            )
+        else:
+            scheduled_start_time = pendulum.instance(start_time_parsed)
+
         human_dt_diff = (
             " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
         )
@@ -488,17 +492,10 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    try:
-        scheduled_display = (
-            scheduled_start_time.in_tz(
-                pendulum.tz.local_timezone()
-            ).to_datetime_string()
-            + human_dt_diff
-        )
-    except Exception as exc:
-        exit_with_error(
-            f"Unable to format scheduled start time display from '{scheduled_start_time}': {exc!r}"
-        )
+    scheduled_display = (
+        scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
+        + human_dt_diff
+    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
