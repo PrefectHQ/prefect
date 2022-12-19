@@ -109,8 +109,6 @@ class Task(Generic[P, R]):
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
-        retry_backoff_factor: An optional backoff factor used to configure exponential
-            backoff for task retries
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd"
         persist_result: An optional toggle indicating whether the result of this task
@@ -144,7 +142,6 @@ class Task(Generic[P, R]):
         cache_expiration: datetime.timedelta = None,
         retries: int = 0,
         retry_delay_seconds: Union[float, int, List[float]] = 0,
-        retry_backoff_factor: Optional[float] = None,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -189,7 +186,6 @@ class Task(Generic[P, R]):
         #       validate that the user passes positive numbers here
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
-        self.retry_backoff_factor = retry_backoff_factor
         self.retry_jitter_factor = retry_jitter_factor
 
         self.persist_result = persist_result
@@ -230,7 +226,6 @@ class Task(Generic[P, R]):
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[float, int, List[float]] = NotSet,
-        retry_backoff_factor: Optional[float] = NotSet,
         retry_jitter_factor: Optional[float] = NotSet,
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
@@ -252,8 +247,6 @@ class Task(Generic[P, R]):
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: A new number of seconds to wait before retrying the
                 task after failure. This is only applicable if `retries` is nonzero.
-            retry_backoff_factor: An optional backoff factor used to configure exponential
-                backoff for task retries
             retry_jitter_factor: An optional factor that defines the factor to which a retry
                 can be jittered in order to avoid a "thundering herd"
             persist_result: A new option for enabling or disabling result persistence.
@@ -309,11 +302,6 @@ class Task(Generic[P, R]):
                 retry_delay_seconds
                 if retry_delay_seconds is not NotSet
                 else self.retry_delay_seconds
-            ),
-            retry_backoff_factor=(
-                retry_backoff_factor
-                if retry_backoff_factor is not NotSet
-                else self.retry_backoff_factor
             ),
             retry_jitter_factor=(
                 retry_jitter_factor
@@ -781,7 +769,6 @@ def task(
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
     retry_delay_seconds: Union[float, int, List[float]] = 0,
-    retry_backoff_factor: Optional[float] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -804,7 +791,6 @@ def task(
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
     retry_delay_seconds: Union[float, int, List[float]] = 0,
-    retry_backoff_factor: Optional[float] = None,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -835,8 +821,6 @@ def task(
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
-        retry_backoff_factor: An optional backoff factor used to configure exponential
-            backoff for task retries
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd"
         persist_result: An optional toggle indicating whether the result of this task
@@ -915,7 +899,6 @@ def task(
                 cache_expiration=cache_expiration,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
-                retry_backoff_factor=retry_backoff_factor,
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,
@@ -938,7 +921,6 @@ def task(
                 cache_expiration=cache_expiration,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
-                retry_backoff_factor=retry_backoff_factor,
                 retry_jitter_factor=retry_jitter_factor,
                 persist_result=persist_result,
                 result_storage=result_storage,

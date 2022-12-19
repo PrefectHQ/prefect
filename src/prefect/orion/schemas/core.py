@@ -302,9 +302,6 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay: Union[None, int, List[int]] = Field(
         default=None, description="The delay time between retries, in seconds."
     )
-    retry_backoff_factor: Optional[float] = Field(
-        default=None, description="Specifies the backoff in retry delays"
-    )
     retry_jitter_factor: Optional[float] = Field(
         default=None, description="Determines the amount a retry should jitter"
     )

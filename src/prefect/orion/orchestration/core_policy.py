@@ -357,11 +357,6 @@ class RetryFailedTasks(BaseOrchestrationRule):
         else:
             base_delay = run_settings.retry_delay or 0
 
-        if run_settings.retry_backoff_factor:
-            base_delay = run_settings.retry_backoff_factor * (
-                2 ** max(0, run_count - 1)
-            )
-
         if run_settings.retry_jitter_factor:
             delay = clamped_poisson_interval(
                 base_delay, clamping_factor=run_settings.retry_jitter_factor
