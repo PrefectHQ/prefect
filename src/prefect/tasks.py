@@ -311,10 +311,14 @@ class Task(Generic[P, R]):
                 else self.retry_delay_seconds
             ),
             retry_backoff_factor=(
-                retry_backoff_factor if retry_backoff_factor is not NotSet else self.retry_backoff_factor
+                retry_backoff_factor
+                if retry_backoff_factor is not NotSet
+                else self.retry_backoff_factor
             ),
             retry_jitter_factor=(
-                retry_jitter_factor if retry_jitter_factor is not NotSet else self.retry_jitter_factor
+                retry_jitter_factor
+                if retry_jitter_factor is not NotSet
+                else self.retry_jitter_factor
             ),
             persist_result=(
                 persist_result if persist_result is not NotSet else self.persist_result
