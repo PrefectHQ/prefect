@@ -14,6 +14,7 @@ from typing_extensions import ParamSpec
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.executor import Executor
 from prefect._internal.concurrency.primitives import Event
+from prefect.context import ContextModel
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -29,6 +30,11 @@ def _initialize_worker_process():
 
 def _initialize_worker_thread():
     threadlocals.is_worker_thread = True
+
+
+class _FutureContext(ContextModel):
+    __var__ = contextvars.ContextVar("future-context")
+    callback_queue: Queue
 
 
 @dataclasses.dataclass
@@ -75,11 +81,6 @@ class _WorkItem:
             self = None
         else:
             self.future.set_result(result)
-
-
-@dataclasses.dataclass
-class _DoneFlag:
-    future_id: int
 
 
 class _RuntimeLoopThread(threading.Thread):
@@ -152,14 +153,6 @@ class Runtime:
         # A thread for an isolated event loop
         self._loop_thread = _RuntimeLoopThread()
 
-        # A queue for passing data back to the runtime thread from workers
-        self._work_queue = Queue()
-
-        # A thread for non-blocking async retrieval of items from the queue
-        self._watcher = concurrent.futures.ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="RuntimeFutureWatcher-"
-        )
-
     def run_in_thread(
         self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
     ) -> T:
@@ -174,8 +167,10 @@ class Runtime:
 
         Returns the result of the function call.
         """
-        future = self._loop_thread.submit_to_worker_thread(__fn, *args, **kwargs)
-        return self._wait_for_future(future)
+        queue = Queue()
+        with _FutureContext(callback_queue=queue):
+            future = self._loop_thread.submit_to_worker_thread(__fn, *args, **kwargs)
+        return self._wait_for_future(future, queue)
 
     def run_in_process(
         self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
@@ -211,10 +206,13 @@ class Runtime:
         Returns:
             The result of the function call.
         """
-        future = self._loop_thread.submit_to_loop(__fn, *args, **kwargs)
-        return self._wait_for_future(future)
 
-    def _wait_for_future(self, future):
+        queue = Queue()
+        with _FutureContext(callback_queue=queue):
+            future = self._loop_thread.submit_to_loop(__fn, *args, **kwargs)
+        return self._wait_for_future(future, queue)
+
+    def _wait_for_future(self, future: concurrent.futures.Future[T], queue: Queue) -> T:
         # Select the correct watcher for this context
         watcher = (
             self._wait_for_future_async
@@ -223,15 +221,13 @@ class Runtime:
         )
 
         # Trigger shutdown of the watcher on completion of the future
-        future.add_done_callback(
-            lambda future: self._work_queue.put_nowait(_DoneFlag(future_id=id(future)))
-        )
-        return watcher(future)
+        future.add_done_callback(lambda _: queue.put_nowait(None))
+        return watcher(future, queue)
 
-    def _wait_for_future_sync(self, future):
+    def _wait_for_future_sync(self, future, queue):
         while True:
-            work_item = self._work_queue.get()
-            if isinstance(work_item, _DoneFlag):
+            work_item = queue.get()
+            if work_item is None:
                 break
 
             work_item.run()
@@ -239,18 +235,19 @@ class Runtime:
 
         return future.result()
 
-    async def _wait_for_future_async(self, future):
-        while True:
-            # Retrieve the next work item from the queue without blocking the event loop
-            work_item_future = asyncio.wrap_future(
-                self._watcher.submit(self._work_queue.get)
-            )
-            work_item = await work_item_future
-            if isinstance(work_item, _DoneFlag):
-                break
+    async def _wait_for_future_async(self, future, queue):
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="RuntimeFutureWatcher-"
+        ) as watcher:
+            while True:
+                # Retrieve the next work item from the queue without blocking the event loop
+                work_item_future = asyncio.wrap_future(watcher.submit(queue.get))
+                work_item = await work_item_future
+                if work_item is None:
+                    break
 
-            await work_item.run()
-            del work_item
+                await work_item.run()
+                del work_item
 
         # The future should be complete the queue is closed
         return future.result()
@@ -289,7 +286,13 @@ class Runtime:
 
         future = concurrent.futures.Future()
 
-        self._work_queue.put_nowait(
+        context = _FutureContext.get()
+        if context is None:
+            raise RuntimeError(
+                "No future context found. Work cannot be submitted back to the runtime."
+            )
+
+        context.callback_queue.put_nowait(
             _WorkItem(
                 future=future,
                 fn=__fn,
