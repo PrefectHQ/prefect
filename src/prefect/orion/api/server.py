@@ -64,6 +64,7 @@ API_ROUTERS = (
     api.concurrency_limits.router,
     api.block_types.router,
     api.block_documents.router,
+    api.workers.router,
     api.work_queues.router,
     api.block_schemas.router,
     api.block_capabilities.router,
