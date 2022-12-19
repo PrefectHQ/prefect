@@ -419,7 +419,7 @@ async def run(
 
     elif start_in is None and start_at is None:
         scheduled_start_time = now
-        human_readable_dt_diff = " (now)"
+        human_dt_diff = " (now)"
     else:
         if start_in:
             start_time_raw = "in " + start_in
@@ -440,7 +440,7 @@ async def run(
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
         scheduled_start_time = pendulum.instance(start_time_parsed)
-        human_readable_dt_diff = (
+        human_dt_diff = (
             " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
         )
 
@@ -483,7 +483,7 @@ async def run(
 
     scheduled_display = (
         scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
-        + human_readable_dt_diff
+        + human_dt_diff
     )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
