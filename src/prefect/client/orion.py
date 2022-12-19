@@ -1379,6 +1379,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
@@ -1392,6 +1394,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             limit: a limit for the deployment query
             offset: an offset for the deployment query
 
@@ -1412,10 +1416,21 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
             "sort": sort,
         }
+
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 

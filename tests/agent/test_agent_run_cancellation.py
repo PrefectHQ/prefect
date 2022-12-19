@@ -25,7 +25,12 @@ async def _create_test_deployment_from_orm(
     deployment_id = await orion_client.create_deployment(
         **updated_deployment.dict(
             exclude=api_deployment._reset_fields().union(
-                {"is_schedule_active", "created_by", "updated_by"}
+                {
+                    "is_schedule_active",
+                    "created_by",
+                    "updated_by",
+                    "worker_pool_queue_id",
+                }
             )
         )
     )

@@ -85,6 +85,7 @@ class DeploymentCreate(ActionBaseModel):
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    worker_pool_queue_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
@@ -113,6 +114,7 @@ class DeploymentUpdate(ActionBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    worker_pool_queue_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -336,6 +338,50 @@ class LogCreate(ActionBaseModel):
     timestamp: schemas.core.DateTimeTZ = FieldFrom(schemas.core.Log)
     flow_run_id: UUID = FieldFrom(schemas.core.Log)
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Log)
+
+
+@copy_model_fields
+class WorkerPoolCreate(ActionBaseModel):
+    """Data used by the Orion API to create a worker pool."""
+
+    name: str = FieldFrom(schemas.core.WorkerPool)
+    description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
+    type: Optional[str] = FieldFrom(schemas.core.WorkerPool)
+    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkerPool)
+    is_paused: bool = FieldFrom(schemas.core.WorkerPool)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
+
+
+@copy_model_fields
+class WorkerPoolUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a worker pool."""
+
+    description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
+    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkerPool)
+    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkerPool)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
+
+
+@copy_model_fields
+class WorkerPoolQueueCreate(ActionBaseModel):
+    """Data used by the Orion API to create a worker pool queue."""
+
+    name: str = FieldFrom(schemas.core.WorkerPoolQueue)
+    description: Optional[str] = FieldFrom(schemas.core.WorkerPoolQueue)
+    is_paused: bool = FieldFrom(schemas.core.WorkerPoolQueue)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
+
+
+@copy_model_fields
+class WorkerPoolQueueUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a worker pool queue."""
+
+    name: str = FieldFrom(schemas.core.WorkerPoolQueue)
+    description: Optional[str] = FieldFrom(schemas.core.WorkerPoolQueue)
+    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkerPoolQueue)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
 
 
 @copy_model_fields

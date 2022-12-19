@@ -13,6 +13,7 @@ from . import (
     dependencies,
     logs,
     concurrency_limits,
+    workers,
     work_queues,
     block_schemas,
     block_types,

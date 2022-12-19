@@ -200,3 +200,16 @@ class TestWorkQueueHealthPolicy:
         assert (
             policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
         )
+
+
+class TestWorkerPool:
+    def test_more_helpful_validation_message_for_worker_pools(self):
+        with pytest.raises(
+            pydantic.ValidationError, match="`default_queue_id` is a required field."
+        ):
+            schemas.core.WorkerPool(name="test")
+
+    async def test_valid_worker_pool_default_queue_id(self):
+        qid = uuid4()
+        wp = schemas.core.WorkerPool(name="test", default_queue_id=qid)
+        assert wp.default_queue_id == qid
