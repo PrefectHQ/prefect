@@ -1,6 +1,7 @@
-import dateparser
 import pendulum
 import pytest
+from pendulum.datetime import DateTime
+from pendulum.tz.timezone import Timezone
 
 import prefect
 from prefect.testing.cli import invoke_and_assert
@@ -20,6 +21,7 @@ def frozen_now(monkeypatch):
     yield now
 
 
+@pytest.mark.skip
 def test_both_start_in_and_start_at_raises():
     invoke_and_assert(
         command=["deployment", "run", "--start-in", "foo", "--start-at", "bar"],
@@ -28,6 +30,7 @@ def test_both_start_in_and_start_at_raises():
     )
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
@@ -38,7 +41,7 @@ def test_both_start_in_and_start_at_raises():
         ("January 2nd 2023", "2023-01-02 00:00:00"),
     ],
 )
-async def test_start_at_option_schedules_flow_run_in_future(
+async def test_start_at_option_displays_scheduled_start_time(
     deployment_name: str,
     orion_client: prefect.OrionClient,
     start_at: str,
@@ -57,13 +60,8 @@ async def test_start_at_option_schedules_flow_run_in_future(
         expected_output_contains=["Scheduled start time:", expected_start_time],
     )
 
-    flow_runs = await orion_client.read_flow_runs()
-    assert len(flow_runs) == 1
-    flow_run = flow_runs[0]
 
-    assert flow_run.state.is_scheduled()
-
-
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_in,expected_duration",
     [
@@ -110,6 +108,44 @@ async def test_start_in_option_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
+# working on
+@pytest.mark.parametrize(
+    "start_at,expected_start_time",
+    [("12/20/2022 1am", DateTime(2022, 12, 20, 6, 0, 0, tzinfo=Timezone("UTC")))],
+)
+async def test_start_at_option_schedules_flow_run_in_future(
+    deployment_name: str,
+    start_at: str,
+    expected_start_time: DateTime,
+    orion_client: prefect.OrionClient,
+):
+    expected_display = expected_start_time.in_tz(
+        pendulum.tz.local_timezone()
+    ).to_datetime_string()
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-at",
+            start_at,
+        ],
+        expected_output_contains=f"Scheduled start time: {expected_display}",
+    )
+
+    flow_runs = await orion_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    flow_run = flow_runs[0]
+
+    assert flow_run.state.is_scheduled()
+    scheduled_time = flow_run.state.state_details.scheduled_time
+
+    assert scheduled_time == expected_start_time
+
+
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_in, expected_display",
     [
@@ -124,7 +160,6 @@ async def test_start_in_option_schedules_flow_run_in_future(
 )
 async def test_start_in_displays_scheduled_start_time(
     deployment_name: str,
-    orion_client: prefect.OrionClient,
     start_in: str,
     expected_display: str,
 ):
@@ -141,41 +176,35 @@ async def test_start_in_displays_scheduled_start_time(
         expected_output_contains=["Scheduled start time:", expected_display],
     )
 
-    flow_runs = await orion_client.read_flow_runs()
-    assert len(flow_runs) == 1
-    flow_run = flow_runs[0]
 
-    assert flow_run.state.is_scheduled()
-
-
-def test_start_at_displays_scheduled_start_time(deployment_name: str, monkeypatch):
-    monkeypatch.setattr(
-        "pendulum.now",
-        lambda *_: pendulum.instance(dateparser.parse("January 1st 2023")),
-    )
+@pytest.mark.skip
+@pytest.mark.parametrize(
+    "start_at,expected_output",
+    [
+        ("foobar", "Unable to parse scheduled start time 'at foobar'."),
+        ("1671483897", "Unable to parse scheduled start time 'at 1671483897'."),
+        ("Jan 32nd 2023", "Unable to parse scheduled start time 'at Jan 32nd 2023'."),
+        ("Jan 31st 20231", "Unable to parse scheduled start time 'at Jan 31st 20231'."),
+        ("Octob 1st 2020", "Unable to parse scheduled start time 'at Octob 1st 2020'."),
+        (
+            "5:30pm PST",
+            "Timezone not expected in 'at 5:30pm PST'. Timezone is inferred with pendulum.tz.local_timezone().",
+        ),
+    ],
+)
+def test_start_at_invalid_input(
+    deployment_name: str, start_at: str, expected_output: str
+):
     invoke_and_assert(
         command=[
             "deployment",
             "run",
             deployment_name,
             "--start-at",
-            "January 1st 2022",
-        ],
-        expected_output_contains="Scheduled start time: 2022-01-01 00:00:00 (1 year ago)",
-    )
-
-
-def test_start_at_invalid_input(deployment_name: str):
-    invoke_and_assert(
-        command=[
-            "deployment",
-            "run",
-            deployment_name,
-            "--start-at",
-            "foobar",
+            start_at,
         ],
         expected_code=1,
-        expected_output="Unable to parse scheduled start time 'at foobar'.",
+        expected_output=expected_output,
     )
 
 
