@@ -108,10 +108,13 @@ async def test_start_in_option_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
-# working on
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
-    [("12/20/2022 1am", DateTime(2022, 12, 20, 6, 0, 0, tzinfo=Timezone("UTC")))],
+    [
+        ("12/20/2022 1am", DateTime(2022, 12, 20, 6, 0, 0, tzinfo=Timezone("UTC"))),
+        ("1-1-2020", DateTime(2020, 1, 1, 5, 0, 0, tzinfo=Timezone("UTC"))),
+        ("5 June 2015", DateTime(2015, 6, 5, 4, 0, 0, tzinfo=Timezone("UTC"))),
+    ],
 )
 async def test_start_at_option_schedules_flow_run_in_future(
     deployment_name: str,
