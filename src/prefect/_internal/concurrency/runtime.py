@@ -34,7 +34,7 @@ def _initialize_worker_thread():
 
 class _FutureContext(ContextModel):
     __var__ = contextvars.ContextVar("future-context")
-    callback_queue: Queue
+    callback_queue: Union[Queue, asyncio.Queue]
 
 
 @dataclasses.dataclass
@@ -167,7 +167,7 @@ class Runtime:
 
         Returns the result of the function call.
         """
-        queue = Queue()
+        queue = self._get_callback_queue()
         with _FutureContext(callback_queue=queue):
             future = self._loop_thread.submit_to_worker_thread(__fn, *args, **kwargs)
         return self._wait_for_future(future, queue)
@@ -207,10 +207,26 @@ class Runtime:
             The result of the function call.
         """
 
-        queue = Queue()
+        queue = self._get_callback_queue()
         with _FutureContext(callback_queue=queue):
             future = self._loop_thread.submit_to_loop(__fn, *args, **kwargs)
         return self._wait_for_future(future, queue)
+
+    def _get_callback_queue(self) -> Union[Queue, asyncio.Queue]:
+        return Queue() if self._owner_loop is None else asyncio.Queue()
+
+    def _put_in_callback_queue(
+        self, queue: Union[Queue, asyncio.Queue], item: Any
+    ) -> None:
+        """
+        Put an item in the given callback queue.
+
+        Ensures async queues are used in a threadsafe manner.
+        """
+        if isinstance(queue, asyncio.Queue):
+            self._owner_loop.call_soon_threadsafe(queue.put_nowait, item)
+        else:
+            queue.put_nowait(item)
 
     def _wait_for_future(self, future: concurrent.futures.Future[T], queue: Queue) -> T:
         # Select the correct watcher for this context
@@ -221,7 +237,7 @@ class Runtime:
         )
 
         # Trigger shutdown of the watcher on completion of the future
-        future.add_done_callback(lambda _: queue.put_nowait(None))
+        future.add_done_callback(lambda _: self._put_in_callback_queue(queue, None))
         return watcher(future, queue)
 
     def _wait_for_future_sync(self, future, queue):
@@ -236,18 +252,14 @@ class Runtime:
         return future.result()
 
     async def _wait_for_future_async(self, future, queue):
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="RuntimeFutureWatcher-"
-        ) as watcher:
-            while True:
-                # Retrieve the next work item from the queue without blocking the event loop
-                work_item_future = asyncio.wrap_future(watcher.submit(queue.get))
-                work_item = await work_item_future
-                if work_item is None:
-                    break
+        while True:
+            # Retrieve the next work item from the queue without blocking the event loop
+            work_item = await queue.get()
+            if work_item is None:
+                break
 
-                await work_item.run()
-                del work_item
+            await work_item.run()
+            del work_item
 
         # The future should be complete the queue is closed
         return future.result()
@@ -289,17 +301,20 @@ class Runtime:
         context = _FutureContext.get()
         if context is None:
             raise RuntimeError(
-                "No future context found. Work cannot be submitted back to the runtime."
+                "No runtime future context found. "
+                "Work cannot be sent back to the runtime unless the runtime was used "
+                "to execute the current call."
             )
 
-        context.callback_queue.put_nowait(
+        self._put_in_callback_queue(
+            context.callback_queue,
             _WorkItem(
                 future=future,
                 fn=__fn,
                 args=args,
                 kwargs=kwargs,
                 context=contextvars.copy_context(),
-            )
+            ),
         )
 
         return future
