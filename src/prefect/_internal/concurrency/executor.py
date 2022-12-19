@@ -71,8 +71,8 @@ class Executor(BaseExecutor):
     ) -> "Future[T]":
         return self._worker_pool.submit(self._wrap_submitted_call(fn, *args, **kwargs))
 
-    def shutdown(self, wait=True, *, cancel_futures=False) -> None:
-        self._worker_pool.shutdown(wait=wait, cancel_futures=cancel_futures)
+    def shutdown(self, wait=True) -> None:
+        self._worker_pool.shutdown(wait=wait)
 
     def _wrap_submitted_call(
         self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
