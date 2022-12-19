@@ -28,16 +28,40 @@ def test_both_start_in_and_start_at_raises():
     )
 
 
-def test_run_with_bygone_start_at_arg_begins_immediately():
-    ...
+@pytest.mark.parametrize(
+    "start_at,expected_start_time",
+    [
+        ("12-1-22 5pm", "2022-12-01 17:00:00"),
+        ("1/1/30", "2030-01-01 00:00:00"),
+        ("13/1/20 13:31", "2020-01-13 13:31:00"),
+        ("9pm December 31st 2022", "2022-12-31 21:00:00"),
+        ("January 2nd 2023", "2023-01-02 00:00:00"),
+    ],
+)
+async def test_start_at_option_schedules_flow_run_in_future(
+    deployment_name: str,
+    orion_client: prefect.OrionClient,
+    start_at: str,
+    expected_start_time,
+):
 
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-at",
+            start_at,
+        ],
+        expected_output_contains=["Scheduled start time:", expected_start_time],
+    )
 
-def test_run_with_no_start_at_or_start_in_arg_begins_immediately():
-    ...
+    flow_runs = await orion_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    flow_run = flow_runs[0]
 
-
-def test_start_at_arg_correctly_parsed():
-    ...
+    assert flow_run.state.is_scheduled()
 
 
 @pytest.mark.parametrize(
@@ -45,6 +69,11 @@ def test_start_at_arg_correctly_parsed():
     [
         ("10 minutes", pendulum.duration(minutes=10)),
         ("5 days", pendulum.duration(days=5)),
+        ("3 seconds", pendulum.duration(seconds=3)),
+        (None, pendulum.duration(seconds=0)),
+        ("1 year and 3 months", pendulum.duration(years=1, months=3)),
+        ("2 weeks & 1 day", pendulum.duration(weeks=2, days=1)),
+        ("27 hours + 4 mins", pendulum.duration(days=1, hours=3, minutes=4)),
     ],
 )
 async def test_start_in_option_schedules_flow_run_in_future(
@@ -81,7 +110,45 @@ async def test_start_in_option_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
-def test_displays_scheduled_start_time(deployment_name: str, monkeypatch):
+@pytest.mark.parametrize(
+    "start_in, expected_display",
+    [
+        ("10 minutes", "in 10 minutes"),
+        ("5 days", "in 5 days"),
+        ("3 seconds", "in a few seconds"),
+        (None, "now"),
+        ("1 year and 3 months", "in 1 year"),
+        ("2 weeks & 1 day", "in 2 weeks"),
+        ("27 hours + 4 mins", "in 1 day"),
+    ],
+)
+async def test_start_in_displays_scheduled_start_time(
+    deployment_name: str,
+    orion_client: prefect.OrionClient,
+    start_in: str,
+    expected_display: str,
+):
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-in",
+            start_in,
+        ],
+        expected_output_contains=["Scheduled start time:", expected_display],
+    )
+
+    flow_runs = await orion_client.read_flow_runs()
+    assert len(flow_runs) == 1
+    flow_run = flow_runs[0]
+
+    assert flow_run.state.is_scheduled()
+
+
+def test_start_at_displays_scheduled_start_time(deployment_name: str, monkeypatch):
     monkeypatch.setattr(
         "pendulum.now",
         lambda *_: pendulum.instance(dateparser.parse("January 1st 2023")),
@@ -109,6 +176,20 @@ def test_start_at_invalid_input(deployment_name: str):
         ],
         expected_code=1,
         expected_output="Unable to parse scheduled start time 'at foobar'.",
+    )
+
+
+def test_start_in_invalid_input(deployment_name: str):
+    invoke_and_assert(
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-in",
+            "foobar",
+        ],
+        expected_code=1,
+        expected_output="Unable to parse scheduled start time 'in foobar'.",
     )
 
 
