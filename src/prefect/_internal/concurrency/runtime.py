@@ -228,7 +228,9 @@ class Runtime:
         else:
             queue.put_nowait(item)
 
-    def _wait_for_future(self, future: concurrent.futures.Future[T], queue: Queue) -> T:
+    def _wait_for_future(
+        self, future: "concurrent.futures.Future[T]", queue: Queue
+    ) -> T:
         # Select the correct watcher for this context
         watcher = (
             self._wait_for_future_async
@@ -269,7 +271,7 @@ class Runtime:
         __fn: Union[Callable[P, Awaitable[T]], Callable[P, T]],
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> concurrent.futures.Future[T]:
+    ) -> "concurrent.futures.Future[T]":
 
         # Safety check thread and process identifiers
         if threading.get_ident() == self._owner_thread_id:
