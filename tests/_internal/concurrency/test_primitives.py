@@ -59,7 +59,7 @@ async def test_event_set_from_sync_thread():
 
 async def test_event_many_set_and_wait():
     event = Event()
-    with anyio.fail_after(1):
+    with anyio.fail_after(5):
         async with anyio.create_task_group() as tg:
             for _ in range(100):
                 # Interleave many set and wait operations
