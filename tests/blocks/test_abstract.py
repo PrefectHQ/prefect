@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.blocks.abstract import (
+    CredentialsBlock,
     DatabaseBlock,
     JobBlock,
     JobRun,
@@ -9,6 +10,30 @@ from prefect.blocks.abstract import (
     SecretBlock,
 )
 from prefect.exceptions import PrefectException
+
+
+class TestCredentialsBlock:
+    def test_credentials_block_is_abstract(self):
+        with pytest.raises(
+            TypeError, match="Can't instantiate abstract class CredentialsBlock"
+        ):
+            CredentialsBlock()
+
+    def test_credentials_block_implementation(self, caplog):
+        class ACredentialsBlock(CredentialsBlock):
+            def get_client(self):
+                self.logger.info("Got client.")
+                return "client"
+
+        a_credentials_block = ACredentialsBlock()
+        assert a_credentials_block.get_client() == "client"
+
+        # test logging
+        assert hasattr(a_credentials_block, "logger")
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.name == "prefect.ACredentialsBlock"
+        assert record.msg == "Got client."
 
 
 class TestNotificationBlock:
