@@ -390,6 +390,7 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
+    user_provided_tz = False
 
     multi_params = {}
     if multiparams:
@@ -431,29 +432,28 @@ async def run(
             warnings.filterwarnings("ignore", module="dateparser")
 
             try:
-                start_time_parsed = dateparser.parse(
+
+                if hasattr(dateparser.parse(start_time_raw), "tzinfo"):
+                    user_provided_tz = True
+
+                start_time_parsed_utc = dateparser.parse(
                     start_time_raw,
                     settings={
                         "TO_TIMEZONE": "UTC",
+                        "RETURN_AS_TIMEZONE_AWARE": False,
                         "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
                     },
                 )
+
             except Exception as exc:
                 exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
 
-        if start_time_parsed is None:
+        if start_time_parsed_utc is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        if start_time_parsed.tzinfo:
-            exit_with_error(
-                f"Timezone not expected in '{start_time_raw!r}'. Timezone is inferred with pendulum.tz.local_timezone()."
-            )
-        else:
-            scheduled_start_time = pendulum.instance(start_time_parsed)
-
-        human_dt_diff = (
-            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
-        )
+        # pendulum.instance only takes tz arg such as "America/Los Angeles", not "PST"
+        scheduled_start_time = pendulum.instance(start_time_parsed_utc)
+        human_dt_diff = " (" + scheduled_start_time.diff_for_humans() + ")"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -492,10 +492,19 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    scheduled_display = (
-        scheduled_start_time.in_tz(pendulum.tz.local_timezone()).to_datetime_string()
-        + human_dt_diff
-    )
+    # cannot parse with a timezone, so converted to UTC
+    if user_provided_tz:
+        scheduled_display = (
+            dateparser.parse(start_time_raw).strftime("%Y-%m-%d %H:%M:%S %z")
+            + human_dt_diff
+        )
+    else:
+        scheduled_display = (
+            scheduled_start_time.in_tz(
+                pendulum.tz.local_timezone()
+            ).to_datetime_string()
+            + human_dt_diff
+        )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
