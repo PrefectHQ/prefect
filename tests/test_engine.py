@@ -13,6 +13,7 @@ import pytest
 from pydantic import BaseModel
 
 import prefect.flows
+from prefect.tasks import exponential_backoff
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
@@ -670,6 +671,53 @@ class TestOrchestrateTaskRun:
         # Actually run the task
         # this task should sleep for a total of 17 seconds across all conifgured retries
         with mock_anyio_sleep.assert_sleeps_for(17):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=orion_client,
+                log_prints=False,
+            )
+
+        assert mock_anyio_sleep.await_count == 3
+
+        # Check for a proper final result
+        assert await state.result() == 1
+
+    async def test_waits_configured_with_callable(
+        self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
+    ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        @task(retries=3, retry_delay_seconds=exponential_backoff(10))
+        def flaky_function():
+            mock()
+
+            if mock.call_count == 4:
+                return 1
+
+            raise ValueError("try again")
+
+        # Create a task run to test
+        task_run = await orion_client.create_task_run(
+            task=flaky_function,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # exponential backoff will automatically configure increasing sleeps
+        with mock_anyio_sleep.assert_sleeps_for(70):
             state = await orchestrate_task_run(
                 task=flaky_function,
                 task_run=task_run,

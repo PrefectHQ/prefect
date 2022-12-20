@@ -77,6 +77,26 @@ def task_input_hash(
     )
 
 
+def exponential_backoff(backoff_factor: float) -> Callable:
+    """
+    A task retry backoff utility that configures exponential backoff for task retries.
+    The exponential backoff design matches the urllib3 implementation.
+
+    Arguments:
+        backoff_factor: the base delay for the first retry, subsequent retries will
+            increase the delay time by powers of 2.
+
+    Returns:
+        a callable that can be passed to the task constructor
+    """
+    def retry_backoff_callable(
+        retries: int
+    ) -> List[float]:
+        return [backoff_factor * max(0, 2**r) for r in range(retries)]
+
+    return retry_backoff_callable
+
+
 @PrefectObjectRegistry.register_instances
 class Task(Generic[P, R]):
     """
@@ -141,7 +161,12 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: datetime.timedelta = None,
         retries: int = 0,
-        retry_delay_seconds: Union[float, int, List[float]] = 0,
+        retry_delay_seconds: Union[
+            float,
+            int,
+            List[float],
+            Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+        ] = 0,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -225,7 +250,12 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
-        retry_delay_seconds: Union[float, int, List[float]] = NotSet,
+        retry_delay_seconds: Union[
+            float,
+            int,
+            List[float],
+            Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+        ] = NotSet,
         retry_jitter_factor: Optional[float] = NotSet,
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
@@ -768,7 +798,12 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
-    retry_delay_seconds: Union[float, int, List[float]] = 0,
+    retry_delay_seconds: Union[
+        float,
+        int,
+        List[float],
+        Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+    ] = 0,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
@@ -790,7 +825,12 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
-    retry_delay_seconds: Union[float, int, List[float]] = 0,
+    retry_delay_seconds: Union[
+        float,
+        int,
+        List[float],
+        Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+    ] = 0,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
