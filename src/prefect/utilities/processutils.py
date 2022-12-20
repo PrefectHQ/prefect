@@ -337,3 +337,4 @@ def kill_on_interrupt(pid: int, process_name: str, print_fn: Callable):
             os.kill(pid, signal.SIGKILL)
 
     signal.signal(signal.SIGINT, stop_process)
+    signal.signal(signal.SIGTERM, stop_process)
