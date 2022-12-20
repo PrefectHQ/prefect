@@ -488,13 +488,15 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 | Command | Description |
 | ------- | ----------- |
-| `create`  | Create or update a deployment from a file. |
-| `delete`  | Delete a deployment. |
-| `execute` | Execute a local flow run for a given deployment. Does not require an agent and bypasses flow runner settings attached to the deployment. Intended for testing purposes. |
-| `inspect` | View details about a deployment. |
-| `ls`      | View all deployments or deployments for specific flows. |
-| `preview` | Prints a preview of a deployment. |
-| `run`     | Create a flow run for the given flow and deployment. |
+| `apply`             | Create or update a deployment from a YAML file. |
+| `build`           | Generate a deployment YAML from /path/to/file.py:flow_function. |
+| `delete`          | Delete a deployment. |
+| `inspect`         | View details about a deployment. |
+| `ls`              | View all deployments or deployments for specific flows. |
+| `pause-schedule`  | Pause schedule of a given deployment. |
+| `resume-schedule` | Resume schedule of a given deployment. |
+| `run`             | Create a flow run for the given flow and deployment. |
+| `set-schedule`    | Set schedule for a given deployment. |
 
 ### Create a flow run in a Python script 
 
