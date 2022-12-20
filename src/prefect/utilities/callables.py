@@ -188,13 +188,10 @@ def parameter_schema(fn: Callable, overrides: dict = {}) -> ParameterSchema:
 def get_default_values_from_parameter_schema_dict(schema: Dict[str, Any]) -> Dict[str, Any]:
     """Given a parameter schema, return a dictionary of the default values for each
     parameter."""
-
-
     values = {}
     properties = schema.get("properties", {})
     for key in properties:
-        value = properties.get(key).get('default', None)
-        values[key] = value
+        values[key] = properties.get(key).get('default', None)
 
     return values
 
