@@ -119,7 +119,7 @@ class ParameterSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
-def parameter_schema(fn: Callable) -> ParameterSchema:
+def parameter_schema(fn: Callable, overrides: dict = {}) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
         - name
@@ -149,10 +149,18 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
         else:
             name = param.name
 
+        # If an override is provided, use that, otherwise use the default value
+        # from the flow definition
+        parameter_default = ...
+        if overrides.get(param.name) is not None:
+            parameter_default = overrides.get(param.name)
+        elif param.default is not None:
+            parameter_default = param.default
+
         type_, field = (
             Any if param.annotation is inspect._empty else param.annotation,
             pydantic.Field(
-                default=... if param.default is param.empty else param.default,
+                default=parameter_default,
                 title=param.name,
                 description=None,
                 alias=aliases.get(name),

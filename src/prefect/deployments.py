@@ -708,6 +708,12 @@ class Deployment(BaseModel):
         # set a few attributes for this flow object
         deployment.parameter_openapi_schema = parameter_schema(flow)
 
+        if deployment.parameters is not None:
+            # for each parameter, if a default value is provided, set it
+            for param in deployment.parameters:
+                if param.name in deployment.parameter_openapi_schema:
+                    param.default = flow.parameters()[param.name]
+
         if not deployment.version:
             deployment.version = flow.version
         if not deployment.description:
