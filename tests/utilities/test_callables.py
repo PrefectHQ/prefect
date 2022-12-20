@@ -71,6 +71,26 @@ class TestFunctionToSchema:
             ],
         }
 
+    def test_override_is_respected(self):
+        def f(x: int = 42):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "default": 42, "type": "integer"}},
+            "required": ["x"],
+        }
+
+        schema = callables.parameter_schema(f, overrides={"x": 43})
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "default": 43, "type": "integer"}},
+            "required": ["x"],
+        }
+
     def test_function_with_one_required_argument(self):
         def f(x):
             pass
