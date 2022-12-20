@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import MagicMock
 
 import anyio
 import pytest
@@ -15,9 +16,24 @@ async def aidentity(x):
     return x
 
 
+@pytest.mark.timeout(10)
 def test_runtime_context_manager():
     with Runtime():
         pass
+
+
+def test_runtime_with_failure_in_loop_thread_start():
+    runtime = Runtime()
+
+    # Simulate a failure during loop thread start
+    runtime._loop_thread._ready_future.set_result = MagicMock(
+        side_effect=ValueError("test")
+    )
+
+    # The error should propagate to the main thread
+    with pytest.raises(ValueError, match="test"):
+        with runtime:
+            pass
 
 
 @pytest.mark.parametrize("fn", [identity, aidentity], ids=["sync", "async"])

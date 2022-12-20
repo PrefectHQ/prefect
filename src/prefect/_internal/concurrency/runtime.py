@@ -96,7 +96,7 @@ class _RuntimeLoopThread(threading.Thread):
         self._worker_processes = Executor(
             worker_type="process", initializer=_initialize_worker_process
         )
-        self._ready_event = threading.Event()
+        self._ready_future = concurrent.futures.Future()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def run(self):
@@ -107,19 +107,27 @@ class _RuntimeLoopThread(threading.Thread):
         """
         asyncio.run(self._run_until_shutdown())
 
+    def start(self):
+        """
+        Extends the default `Thread.start()` to wait until `run` is ready and reraise
+        any errors encountered during setup.
+        """
+        super().start()
+        self._ready_future.result()
+
     async def _run_until_shutdown(self):
         threadlocals.is_runtime = True
         self._loop = asyncio.get_running_loop()
         self._shutdown_event = Event()
 
-        # TODO: Failure here will result in a deadlock as the parent waits for this
-        #       thread to start
-
-        async with contextlib.AsyncExitStack() as stack:
-            await stack.enter_async_context(self._worker_threads)
-            await stack.enter_async_context(self._worker_processes)
-            self._ready_event.set()
-            await self._shutdown_event.wait()
+        try:
+            async with contextlib.AsyncExitStack() as stack:
+                await stack.enter_async_context(self._worker_threads)
+                await stack.enter_async_context(self._worker_processes)
+                self._ready_future.set_result(True)
+                await self._shutdown_event.wait()
+        except Exception as exc:
+            self._ready_future.set_exception(exc)
 
     def submit_to_worker_process(
         self, __fn, *args, **kwargs
@@ -137,9 +145,6 @@ class _RuntimeLoopThread(threading.Thread):
 
     def shutdown(self) -> None:
         self._shutdown_event.set()
-
-    def wait_ready(self) -> None:
-        self._ready_event.wait()
 
 
 class Runtime:
@@ -329,7 +334,6 @@ class Runtime:
 
     def __enter__(self):
         self._loop_thread.start()
-        self._loop_thread.wait_ready()
         return self
 
     def __exit__(self, *_):
