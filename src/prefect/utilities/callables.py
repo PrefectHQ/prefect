@@ -11,17 +11,11 @@ from pydantic import create_model
 import pydantic.schema
 from typing_extensions import Literal
 
-from prefect.logging.loggers import (
-    get_logger,
-)
-
 from prefect.exceptions import (
     ParameterBindError,
     ReservedArgumentError,
     SignatureMismatchError,
 )
-
-callable_logger = get_logger("callables")
 
 
 def get_call_parameters(
