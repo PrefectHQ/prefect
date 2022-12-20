@@ -7,7 +7,7 @@ def test_poisson_intervals():
     expected_average = 42
     bunch_of_intervals = [poisson_interval(expected_average) for _ in range(100_000)]
     observed_average = sum(bunch_of_intervals) / len(bunch_of_intervals)
-    assert expected_average * 0.95 < observed_average < expected_average * 1.05
+    assert expected_average * 0.97 < observed_average < expected_average * 1.03
 
 
 @pytest.mark.parametrize("clamping_factor", [0.1, 0.2, 0.5, 1, 10, 100])
@@ -19,7 +19,7 @@ def test_clamped_poisson_intervals(clamping_factor):
     ]
     observed_average = sum(bunch_of_intervals) / len(bunch_of_intervals)
 
-    assert expected_average * 0.95 < observed_average < expected_average * 1.05
+    assert expected_average * 0.97 < observed_average < expected_average * 1.03
 
     assert max(bunch_of_intervals) < expected_average * (
         1 + clamping_factor
