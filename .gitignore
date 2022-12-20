@@ -36,7 +36,7 @@ env/
 venv/
 
 # Documentation artifacts
-docs/api-ref/rest-api/schema.json
+schema.json
 site/
 .cache/
 
@@ -46,6 +46,9 @@ src/prefect/orion/ui/*
 
 # Databases
 *.db
+
+# API artifacts
+
 
 # MacOS
 .DS_Store
