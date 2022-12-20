@@ -1,4 +1,5 @@
 import asyncio
+import statistics
 import time
 from contextlib import contextmanager
 from functools import partial
@@ -636,6 +637,110 @@ class TestOrchestrateTaskRun:
             StateType.RUNNING,
             StateType.COMPLETED,
         ]
+
+    async def test_waits_for_configurable_sleeps(
+        self, mock_anyio_sleep, orion_client, flow_run, result_factory, local_filesystem
+    ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        @task(retries=3, retry_delay_seconds=[3, 5, 9])
+        def flaky_function():
+            mock()
+
+            if mock.call_count == 4:
+                return 1
+
+            raise ValueError("try again")
+
+        # Create a task run to test
+        task_run = await orion_client.create_task_run(
+            task=flaky_function,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        # this task should sleep for a total of 17 seconds across all conifgured retries
+        with mock_anyio_sleep.assert_sleeps_for(17):
+            state = await orchestrate_task_run(
+                task=flaky_function,
+                task_run=task_run,
+                parameters={},
+                wait_for=None,
+                result_factory=result_factory,
+                interruptible=False,
+                client=orion_client,
+                log_prints=False,
+            )
+
+        assert mock_anyio_sleep.await_count == 3
+
+        # Check for a proper final result
+        assert await state.result() == 1
+
+    @pytest.mark.parametrize("jitter_factor", [0.1, 1, 10, 100])
+    async def test_waits_jittery_sleeps(
+        self,
+        mock_anyio_sleep,
+        orion_client,
+        flow_run,
+        result_factory,
+        local_filesystem,
+        jitter_factor,
+    ):
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        @task(retries=10, retry_delay_seconds=100, retry_jitter_factor=jitter_factor)
+        def flaky_function():
+            mock()
+
+            if mock.call_count == 11:
+                return 1
+
+            raise ValueError("try again")
+
+        # Create a task run to test
+        task_run = await orion_client.create_task_run(
+            task=flaky_function,
+            flow_run_id=flow_run.id,
+            state=Pending(),
+            dynamic_key="0",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=flaky_function,
+            task_run=task_run,
+            parameters={},
+            wait_for=None,
+            result_factory=result_factory,
+            interruptible=False,
+            client=orion_client,
+            log_prints=False,
+        )
+
+        assert mock_anyio_sleep.await_count == 10
+        sleeps = [c.args[0] for c in mock_anyio_sleep.await_args_list]
+        assert statistics.variance(sleeps) > 0
+        assert max(sleeps) < 100 * (1 + jitter_factor)
+
+        # Check for a proper final result
+        assert await state.result() == 1
 
     @pytest.mark.parametrize(
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]

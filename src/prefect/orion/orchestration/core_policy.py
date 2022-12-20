@@ -445,9 +445,11 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if not scheduled_time:
             return
 
-        # At this moment, we take the floor of the actual delay as the API schema
+        # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
-        delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
+        delay = scheduled_time - pendulum.now()
+        delay_seconds = delay.in_seconds()
+        delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
