@@ -151,10 +151,10 @@ def parameter_schema(fn: Callable, overrides: dict = {}) -> ParameterSchema:
 
         # If an override is provided, use that, otherwise use the default value
         # from the flow definition
-        parameter_default = ...
+        parameter_default = None
         if overrides.get(param.name) is not None:
             parameter_default = overrides.get(param.name)
-        elif param.default is not None:
+        elif param.default is not param.empty:
             parameter_default = param.default
 
         type_, field = (
