@@ -55,7 +55,6 @@ def test_both_start_in_and_start_at_raises():
 )
 async def test_start_at_option_displays_scheduled_start_time(
     deployment_name: str,
-    orion_client: prefect.OrionClient,
     start_at: str,
     expected_start_time,
 ):

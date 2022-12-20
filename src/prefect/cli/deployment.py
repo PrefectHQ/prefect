@@ -492,7 +492,6 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    # cannot parse with a timezone, so converted to UTC
     if user_provided_tz:
         scheduled_display = (
             dateparser.parse(start_time_raw).strftime("%Y-%m-%d %H:%M:%S %z")
