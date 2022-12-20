@@ -1,15 +1,49 @@
 from abc import ABC, abstractmethod
 from logging import Logger
-from typing import Any, Generic, List, Tuple, TypeVar
+from pathlib import Path
+from typing import Any, BinaryIO, Dict, Generic, List, Optional, Tuple, TypeVar, Union
 
 from typing_extensions import Self
 
-from prefect import get_run_logger
 from prefect.blocks.core import Block
 from prefect.exceptions import MissingContextError
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 
 T = TypeVar("T")
+
+
+class NotificationBlock(Block, ABC):
+    """
+    Block that represents a resource in an external system that is able to send notifications.
+    """
+
+    _block_schema_capabilities = ["notify"]
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the NotificationBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def notify(self, body: str, subject: Optional[str] = None) -> None:
+        """
+        Send a notification.
+
+        Args:
+            body: The body of the notification.
+            subject: The subject of the notification.
+        """
 
 
 class JobRun(ABC, Generic[T]):  # not a block
@@ -25,6 +59,9 @@ class JobRun(ABC, Generic[T]):  # not a block
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -32,7 +69,7 @@ class JobRun(ABC, Generic[T]):  # not a block
             return get_logger(self.__class__.__name__)
 
     @abstractmethod
-    async def wait_for_completion(self):
+    async def wait_for_completion(self) -> Logger:
         """
         Wait for the job run to complete.
         """
@@ -57,6 +94,9 @@ class JobBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -80,10 +120,13 @@ class DatabaseBlock(Block, ABC):
     """
     An abstract block type that represents a database and
     provides an interface for interacting with it.
+
     Blocks that implement this interface have the option to accept
     credentials directly via attributes or via a nested `CredentialsBlock`.
+
     Use of a nested credentials block is recommended unless credentials
     are tightly coupled to database connection configuration.
+
     Implementing either sync or async context management on `DatabaseBlock`
     implementations is recommended.
     """
@@ -95,6 +138,9 @@ class DatabaseBlock(Block, ABC):
         is called from within a flow or task run context.
         If a run context is present, the logger property returns a run logger.
         Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
         """
         try:
             return get_run_logger()
@@ -212,3 +258,179 @@ class DatabaseBlock(Block, ABC):
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support context management."
         )
+
+
+class ObjectStorageBlock(Block, ABC):
+    """
+    Block that represents a resource in an external service that can store
+    objects.
+    """
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the ObjectStorageBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def download_object_to_path(
+        self,
+        from_path: str,
+        to_path: Union[str, Path],
+        **download_kwargs: Dict[str, Any],
+    ) -> Path:
+        """
+        Downloads an object from the object storage service to a path.
+
+        Args:
+            from_path: The path to download from.
+            to_path: The path to download to.
+            **download_kwargs: Additional keyword arguments to pass to download.
+
+        Returns:
+            The path that the object was downloaded to.
+        """
+
+    @abstractmethod
+    async def download_object_to_file_object(
+        self,
+        from_path: str,
+        to_file_object: BinaryIO,
+        **download_kwargs: Dict[str, Any],
+    ) -> BinaryIO:
+        """
+        Downloads an object from the object storage service to a file-like object,
+        which can be a BytesIO object or a BufferedWriter.
+
+        Args:
+            from_path: The path to download from.
+            to_file_object: The file-like object to download to.
+            **download_kwargs: Additional keyword arguments to pass to download.
+
+        Returns:
+            The file-like object that the object was downloaded to.
+        """
+
+    @abstractmethod
+    async def download_folder_to_path(
+        self,
+        from_folder: str,
+        to_folder: Union[str, Path],
+        **download_kwargs: Dict[str, Any],
+    ) -> Path:
+        """
+        Downloads a folder from the object storage service to a path.
+
+        Args:
+            from_folder: The path to the folder to download from.
+            to_folder: The path to download the folder to.
+            **download_kwargs: Additional keyword arguments to pass to download.
+
+        Returns:
+            The path that the folder was downloaded to.
+        """
+
+    @abstractmethod
+    async def upload_from_path(
+        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
+    ) -> str:
+        """
+        Uploads an object from a path to the object storage service.
+
+        Args:
+            from_path: The path to the file to upload from.
+            to_path: The path to upload the file to.
+            **upload_kwargs: Additional keyword arguments to pass to upload.
+
+        Returns:
+            The path that the object was uploaded to.
+        """
+
+    @abstractmethod
+    async def upload_from_file_object(
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
+    ) -> str:
+        """
+        Uploads an object to the object storage service from a file-like object,
+        which can be a BytesIO object or a BufferedReader.
+
+        Args:
+            from_file_object: The file-like object to upload from.
+            to_path: The path to upload the object to.
+            **upload_kwargs: Additional keyword arguments to pass to upload.
+
+        Returns:
+            The path that the object was uploaded to.
+        """
+
+    @abstractmethod
+    async def upload_from_folder(
+        self,
+        from_folder: Union[str, Path],
+        to_folder: str,
+        **upload_kwargs: Dict[str, Any],
+    ) -> str:
+        """
+        Uploads a folder to the object storage service from a path.
+
+        Args:
+            from_folder: The path to the folder to upload from.
+            to_folder: The path to upload the folder to.
+            **upload_kwargs: Additional keyword arguments to pass to upload.
+
+        Returns:
+            The path that the folder was uploaded to.
+        """
+
+
+class SecretBlock(Block, ABC):
+    """
+    Block that represents a resource that can store and retrieve secrets.
+    """
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the SecretBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    async def read_secret(self) -> bytes:
+        """
+        Reads the configured secret from the secret storage service.
+
+        Returns:
+            The secret data.
+        """
+
+    @abstractmethod
+    async def write_secret(self, secret_data) -> str:
+        """
+        Writes secret data to the configured secret in the secret storage service.
+
+        Args:
+            secret_data: The secret data to write.
+
+        Returns:
+            The key of the secret that can be used for retrieval.
+        """

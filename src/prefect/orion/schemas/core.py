@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, root_validator, validator
+from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -14,7 +14,7 @@ import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
-from prefect.utilities.names import generate_slug, obfuscate_string
+from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -256,6 +256,9 @@ class FlowRun(ORMBaseModel):
     created_by: Optional[CreatedBy] = Field(
         default=None,
         description="Optional information about the creator of this flow run.",
+    )
+    worker_pool_queue_id: Optional[UUID] = Field(
+        default=None, description="The id of the run's worker pool queue."
     )
 
     # relationships
@@ -515,6 +518,10 @@ class Deployment(ORMBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
+    worker_pool_queue_id: UUID = Field(
+        default=None,
+        description="The id of the worker pool queue to which this deployment is assigned.",
+    )
 
     @validator("name", check_fields=False)
     def validate_name_characters(cls, v):
@@ -653,7 +660,6 @@ class BlockDocument(ORMBaseModel):
         include_secrets: bool = False,
     ):
         data = await orm_block_document.decrypt_data(session=session)
-
         # if secrets are not included, obfuscate them based on the schema's
         # `secret_fields`. Note this walks any nested blocks as well. If the
         # nested blocks were recovered from named blocks, they will already
@@ -663,12 +669,21 @@ class BlockDocument(ORMBaseModel):
             flat_data = dict_to_flatdict(data)
             # iterate over the (possibly nested) secret fields
             # and obfuscate their data
-            for field in orm_block_document.block_schema.fields.get(
+            for secret_field in orm_block_document.block_schema.fields.get(
                 "secret_fields", []
             ):
-                key = tuple(field.split("."))
-                if flat_data.get(key) is not None:
-                    flat_data[key] = obfuscate_string(flat_data[key])
+                secret_key = tuple(secret_field.split("."))
+                if flat_data.get(secret_key) is not None:
+                    flat_data[secret_key] = obfuscate_string(flat_data[secret_key])
+                # If a wildcard (*) is in the current secret key path, we take the portion
+                # of the path before the wildcard and compare it to the same level of each
+                # key. A match means that the field is nested under the secret key and should
+                # be obfuscated.
+                elif "*" in secret_key:
+                    wildcard_index = secret_key.index("*")
+                    for data_key in flat_data.keys():
+                        if secret_key[0:wildcard_index] == data_key[0:wildcard_index]:
+                            flat_data[data_key] = obfuscate(flat_data[data_key])
             data = flatdict_to_dict(flat_data)
 
         return cls(
@@ -897,6 +912,100 @@ class Agent(ORMBaseModel):
     last_activity_time: Optional[DateTimeTZ] = Field(
         default=None, description="The last time this agent polled for work."
     )
+
+
+class WorkerPool(ORMBaseModel):
+    """An ORM representation of a worker pool"""
+
+    name: str = Field(
+        description="The name of the worker pool.",
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the worker pool."
+    )
+    type: Optional[str] = Field(None, description="The worker pool type.")
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict, description="The worker pool's base job template."
+    )
+    is_paused: bool = Field(
+        default=False,
+        description="Pausing the worker pool stops the delivery of all work.",
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the worker pool."
+    )
+
+    # this required field has a default of None so that the custom validator
+    # below will be called and produce a more helpful error message
+    default_queue_id: UUID = Field(
+        None, description="The id of the pool's default queue."
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
+
+    @validator("default_queue_id", always=True)
+    def helpful_error_for_missing_default_queue_id(cls, v):
+        """
+        Default queue ID is required because all pools must have a default queue
+        ID, but it represents a circular foreign key relationship to a
+        WorkerPoolQueue (which can't be created until the worker pool exists).
+        Therefore, while this field can *technically* be null, it shouldn't be.
+        This should only be an issue when creating new pools, as reading
+        existing ones will always have this field populated. This custom error
+        message will help users understand that they should use the
+        `actions.WorkerPoolCreate` model in that case.
+        """
+        if v is None:
+            raise ValueError(
+                "`default_queue_id` is a required field. If you are "
+                "creating a new WorkerPool and don't have a queue "
+                "ID yet, use the `actions.WorkerPoolCreate` model instead."
+            )
+        return v
+
+
+class Worker(ORMBaseModel):
+    """An ORM representation of a worker"""
+
+    name: str = Field(description="The name of the worker.")
+    worker_pool_id: UUID = Field(
+        description="The worker pool with which the queue is associated."
+    )
+    last_heartbeat_time: datetime.datetime = Field(
+        None, description="The last time the worker process sent a heartbeat."
+    )
+
+
+class WorkerPoolQueue(ORMBaseModel):
+    """An ORM representation of a worker pool queue"""
+
+    worker_pool_id: UUID = Field(
+        description="The worker pool with which the queue is associated."
+    )
+    name: str = Field(
+        description="The name of the queue.",
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the queue."
+    )
+    is_paused: bool = Field(
+        default=False, description="Pausing the queue stops the delivery of all work."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the queue."
+    )
+    priority: conint(ge=1) = Field(
+        ...,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
 
 Flow.update_forward_refs()
