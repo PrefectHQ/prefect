@@ -116,7 +116,7 @@ To transfer a workspace, select **Workspace Settings** within the workspace. The
 
 ![Initiating a workspace transfer in the Prefect Cloud UI.](/img/ui/workspace-transfer.png)
 
-The **Transfer Workspace** page shows the workspace to be transferred on the left. Select the target account or organization for the workspace on the left. You may also change the name of the workspace during the transfer process.
+The **Transfer Workspace** page shows the workspace to be transferred on the left. Select the target account or organization for the workspace on the right. You may also change the handle of the workspace during the transfer process.
 
 ![Selecting a workspace transfer target in the Prefect Cloud UI.](/img/ui/workspace-transfer-options.png)
 
