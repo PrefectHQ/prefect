@@ -126,8 +126,12 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         retries: An optional number of times to retry on task run failure.
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            task after failure. This is only applicable if `retries` is nonzero.
+        retry_delay_seconds: Optionally configures how long to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero. This
+            setting can either be a number of seconds, a list of retry delays, or a
+            callable that, given the total number of retries, generates a list of retry
+            delays. If a number of seconds, that delay will be applied to all retries.
+            If a list, each retry will wait for the corresponding delay before retrying.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd"
         persist_result: An optional toggle indicating whether the result of this task
@@ -274,8 +278,12 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             retries: A new number of times to retry on task run failure.
-            retry_delay_seconds: A new number of seconds to wait before retrying the
-                task after failure. This is only applicable if `retries` is nonzero.
+            retry_delay_seconds: Optionally configures how long to wait before retrying the
+                task after failure. This is only applicable if `retries` is nonzero. This
+                setting can either be a number of seconds, a list of retry delays, or a
+                callable that, given the total number of retries, generates a list of retry
+                delays. If a number of seconds, that delay will be applied to all retries.
+                If a list, each retry will wait for the corresponding delay before retrying.
             retry_jitter_factor: An optional factor that defines the factor to which a retry
                 can be jittered in order to avoid a "thundering herd"
             persist_result: A new option for enabling or disabling result persistence.
@@ -858,8 +866,12 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         retries: An optional number of times to retry on task run failure
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            task after failure. This is only applicable if `retries` is nonzero.
+        retry_delay_seconds: Optionally configures how long to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero. This
+            setting can either be a number of seconds, a list of retry delays, or a
+            callable that, given the total number of retries, generates a list of retry
+            delays. If a number of seconds, that delay will be applied to all retries.
+            If a list, each retry will wait for the corresponding delay before retrying.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
             can be jittered in order to avoid a "thundering herd"
         persist_result: An optional toggle indicating whether the result of this task
