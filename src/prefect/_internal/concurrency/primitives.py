@@ -3,13 +3,12 @@ Thread-safe async primitives.
 """
 import asyncio
 import collections
-import concurrent.futures
 import threading
-from typing import Generic, Optional, TypeVar
+from typing import TypeVar
 
 from typing_extensions import Literal
 
-from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop
 
 T = TypeVar("T")
 
@@ -77,52 +76,3 @@ class Event:
             return True
         finally:
             self._waiters.remove(fut)
-
-
-class Future(concurrent.futures.Future, Generic[T]):
-    """
-    A thread-safe async future.
-
-    See `concurrent.futures.Future` documentation for details.
-        https://docs.python.org/3/library/concurrent.futures.html#future-objects
-
-    This implemention adds an `aresult` method to wait for results asynchronously.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._attach_async_callback()
-
-    def _attach_async_callback(self):
-        self._done_event = Event()
-        self.add_done_callback(self._set_done_event)
-
-    def _set_done_event(self, _: "concurrent.futures.Future") -> None:
-        self._done_event.set()
-
-    def result(self: "Future[T]", timeout: Optional[float] = None) -> T:
-        if get_running_loop() is not None:
-            raise RuntimeError(
-                "Future.result() cannot be called from an async thread; "
-                "use `aresult()` instead to avoid blocking the event loop."
-            )
-        return super().result(timeout)
-
-    async def aresult(self: "Future[T]") -> T:
-        """
-        Wait for the result from the future and return it.
-
-        If the future encountered an exception, it will be raised.
-        """
-        await self._done_event.wait()
-        return super().result(timeout=0)
-
-    @classmethod
-    def from_existing(cls, future: "concurrent.futures.Future") -> "Future":
-        """
-        Create an async future from an existing future.
-        """
-        new = cls.__new__(cls)
-        new.__dict__ = future.__dict__
-        new._attach_async_callback()
-        return new
