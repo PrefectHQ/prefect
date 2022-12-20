@@ -12,6 +12,42 @@ from prefect.logging.loggers import get_logger, get_run_logger
 T = TypeVar("T")
 
 
+class CredentialsBlock(Block, ABC):
+    """
+    Stores credentials for an external system and exposes a client for interacting
+    with that system. Can also hold config that is tightly coupled to credentials
+    (domain, endpoint, account ID, etc.) Will often be composed with other blocks.
+    Parent block should rely on the client provided by a credentials block for
+    interacting with the corresponding external system.
+    """
+
+    @property
+    def logger(self) -> Logger:
+        """
+        Returns a logger based on whether the CredentialsBlock
+        is called from within a flow or task run context.
+        If a run context is present, the logger property returns a run logger.
+        Else, it returns a default logger labeled with the class's name.
+
+        Returns:
+            The run logger or a default logger with the class's name.
+        """
+        try:
+            return get_run_logger()
+        except MissingContextError:
+            return get_logger(self.__class__.__name__)
+
+    @abstractmethod
+    def get_client(self, *args, **kwargs):
+        """
+        Returns a client for interacting with the external system.
+
+        If a service offers various clients, this method can accept
+        a `client_type` keyword argument to get the desired client
+        within the service.
+        """
+
+
 class NotificationBlock(Block, ABC):
     """
     Block that represents a resource in an external system that is able to send notifications.
