@@ -17,6 +17,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
+from prefect.utilities.callables import get_default_values_from_parameter_schema_dict
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -304,7 +305,7 @@ async def create_flow_run_from_deployment(
     """
     Create a flow run from a deployment.
 
-    Any parameters not provided will be inferred from the deployment's parameters.
+    Any parameters not provided will be inferred from the deployment's parameter schema.
     If tags are not provided, the deployment's tags will be used.
 
     If no state is provided, the flow run will be created in a PENDING state.
@@ -320,7 +321,7 @@ async def create_flow_run_from_deployment(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
 
-        parameters = deployment.parameters
+        parameters = get_default_values_from_parameter_schema_dict(deployment.parameter_openapi_schema)
         parameters.update(flow_run.parameters or {})
 
         # hydrate the input model into a full flow run / state model
