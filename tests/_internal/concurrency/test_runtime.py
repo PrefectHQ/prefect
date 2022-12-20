@@ -81,7 +81,7 @@ def test_sync_runtime_submit_thread_requires_sync_function():
     async def work():
         with pytest.raises(
             RuntimeError,
-            match="The runtime is sync but 'aidentity' is async",
+            match="The runtime is sync but .*aidentity.* is async",
         ):
             runtime.submit_from_thread(aidentity, 1)
 
@@ -93,7 +93,7 @@ async def test_async_runtime_submit_from_thread_requires_async_function():
     async def work():
         with pytest.raises(
             RuntimeError,
-            match="The runtime is async but 'identity' is sync",
+            match="The runtime is async but .*identity.* is sync",
         ):
             runtime.submit_from_thread(identity, 1)
 

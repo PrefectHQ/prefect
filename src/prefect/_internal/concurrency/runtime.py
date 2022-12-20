@@ -99,15 +99,6 @@ class _RuntimeLoopThread(threading.Thread):
         self._ready_event = threading.Event()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def start(self):
-        """
-        Start the thread and wait until the event loop is ready.
-        """
-        super().start()
-        # Extends the typical thread start event to include a readiness event set from
-        # within the event loop.
-        self._ready_event.wait()
-
     def run(self):
         """
         Entrypoint for the thread.
@@ -120,6 +111,10 @@ class _RuntimeLoopThread(threading.Thread):
         threadlocals.is_runtime = True
         self._loop = asyncio.get_running_loop()
         self._shutdown_event = Event()
+
+        # TODO: Failure here will result in a deadlock as the parent waits for this
+        #       thread to start
+
         async with contextlib.AsyncExitStack() as stack:
             await stack.enter_async_context(self._worker_threads)
             await stack.enter_async_context(self._worker_processes)
@@ -143,15 +138,23 @@ class _RuntimeLoopThread(threading.Thread):
     def shutdown(self) -> None:
         self._shutdown_event.set()
 
+    def wait_ready(self) -> None:
+        self._ready_event.wait()
+
 
 class Runtime:
-    def __init__(self) -> None:
+    def __init__(self, sync: bool = None) -> None:
         self._owner_loop = get_running_loop()
         self._owner_thread_id = threading.get_ident()
         self._owner_process_id = os.getpid()
+        self._is_async = not sync if sync is not None else self._owner_loop is not None
 
         # A thread for an isolated event loop
         self._loop_thread = _RuntimeLoopThread()
+
+    @property
+    def is_async(self) -> bool:
+        return self._is_async
 
     def run_in_thread(
         self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
@@ -187,7 +190,7 @@ class Runtime:
             The result of the function call.
         """
         future = self._loop_thread.submit_to_worker_process(__fn, *args, **kwargs)
-        return asyncio.wrap_future(future) if self._owner_loop else future.result()
+        return asyncio.wrap_future(future) if self.is_async else future.result()
 
     def run_in_loop(
         self,
@@ -213,7 +216,7 @@ class Runtime:
         return self._wait_for_future(future, queue)
 
     def _get_callback_queue(self) -> Union[Queue, asyncio.Queue]:
-        return Queue() if self._owner_loop is None else asyncio.Queue()
+        return Queue() if not self.is_async else asyncio.Queue()
 
     def _put_in_callback_queue(
         self, queue: Union[Queue, asyncio.Queue], item: Any
@@ -229,12 +232,15 @@ class Runtime:
             queue.put_nowait(item)
 
     def _wait_for_future(
-        self, future: "concurrent.futures.Future[T]", queue: Queue
+        self,
+        future: "concurrent.futures.Future[T]",
+        queue: Queue,
+        sync: Optional[bool] = None,
     ) -> T:
         # Select the correct watcher for this context
         watcher = (
             self._wait_for_future_async
-            if self._owner_loop
+            if (self.is_async if sync is None else sync)
             else self._wait_for_future_sync
         )
 
@@ -287,14 +293,14 @@ class Runtime:
             )
 
         #  Safety check sync / async
-        if self._owner_loop and not inspect.iscoroutinefunction(__fn):
+        if self.is_async and not inspect.iscoroutinefunction(__fn):
             raise RuntimeError(
-                f"The runtime is async but {__fn.__name__!r} is sync. "
+                f"The runtime is async but {__fn!r} is sync. "
                 "Work returned to the runtime must match type."
             )
-        if not self._owner_loop and inspect.iscoroutinefunction(__fn):
+        if not self.is_async and inspect.iscoroutinefunction(__fn):
             raise RuntimeError(
-                f"The runtime is sync but {__fn.__name__!r} is async. "
+                f"The runtime is sync but {__fn!r} is async. "
                 "Work returned to the runtime must match type."
             )
 
@@ -323,8 +329,55 @@ class Runtime:
 
     def __enter__(self):
         self._loop_thread.start()
+        self._loop_thread.wait_ready()
         return self
 
-    def __exit__(self, *exc_info):
+    def __exit__(self, *_):
         self._loop_thread.shutdown()
         self._loop_thread.join()
+
+    async def __aenter__(self):
+        # Set the owner loop
+        loop = get_running_loop()
+        if self._owner_loop and self._owner_loop != loop:
+            raise RuntimeError(
+                "Runtime context entered in different event loop than it was created in."
+            )
+        self._owner_loop = loop
+
+        # Create a thread for waiting on sync calls
+        self._waiter_thread = Executor(
+            worker_type="thread",
+            max_workers=1,
+            thread_name_prefix="RuntimeContextManager-",
+        )
+        await self._waiter_thread.__aenter__()
+
+        return await asyncio.wrap_future(self._waiter_thread.submit(self.__enter__))
+
+    async def __aexit__(self, *exc_info):
+        retval = await asyncio.wrap_future(
+            self._waiter_thread.submit(self.__exit__, *exc_info)
+        )
+        await self._waiter_thread.__aexit__(*exc_info)
+        return retval
+
+
+def call_in_new_runtime(
+    fn: Callable[[Runtime], Awaitable[T]], sync: bool = None
+) -> Union[T, Awaitable[T]]:
+    runtime = Runtime(sync=sync)
+
+    async def _run_coroutine_in_new_runtime_async(fn, runtime):
+        async with runtime:
+            return await runtime.run_in_loop(fn, runtime=runtime)
+
+    def _run_coroutine_in_new_runtime_sync(fn, runtime):
+        with runtime:
+            return runtime.run_in_loop(fn, runtime=runtime)
+
+    return (
+        _run_coroutine_in_new_runtime_async(fn, runtime)
+        if runtime.is_async
+        else _run_coroutine_in_new_runtime_sync(fn, runtime)
+    )
