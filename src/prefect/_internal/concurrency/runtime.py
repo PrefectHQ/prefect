@@ -99,14 +99,6 @@ class _RuntimeLoopThread(threading.Thread):
         self._ready_future = concurrent.futures.Future()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def run(self):
-        """
-        Entrypoint for the thread.
-
-        Immediately create a new event loop and pass control to `run_until_shutdown`.
-        """
-        asyncio.run(self._run_until_shutdown())
-
     def start(self):
         """
         Extends the default `Thread.start()` to wait until `run` is ready and reraise
@@ -114,6 +106,14 @@ class _RuntimeLoopThread(threading.Thread):
         """
         super().start()
         self._ready_future.result()
+
+    def run(self):
+        """
+        Entrypoint for the thread.
+
+        Immediately create a new event loop and pass control to `run_until_shutdown`.
+        """
+        asyncio.run(self._run_until_shutdown())
 
     async def _run_until_shutdown(self):
         threadlocals.is_runtime = True
@@ -253,7 +253,7 @@ class Runtime:
         future.add_done_callback(lambda _: self._put_in_callback_queue(queue, None))
         return watcher(future, queue)
 
-    def _wait_for_future_sync(self, future, queue):
+    def _wait_for_future_sync(self, future, queue: Queue):
         while True:
             work_item = queue.get()
             if work_item is None:
@@ -264,7 +264,7 @@ class Runtime:
 
         return future.result()
 
-    async def _wait_for_future_async(self, future, queue):
+    async def _wait_for_future_async(self, future, queue: asyncio.Queue):
         while True:
             # Retrieve the next work item from the queue without blocking the event loop
             work_item = await queue.get()

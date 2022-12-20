@@ -447,6 +447,18 @@ PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
 If enabled, warn on usage of expirimental features.
 """
 
+PREFECT_EXPERIMENTAL_WARN_ENGINE_V2 = Setting(bool, default=False)
+"""
+If enabled, warn on usage of the new implementation of the flow run engine.
+By default, warnings are not displayed for this implementation as the interface is
+private.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_ENGINE_V2 = Setting(bool, default=False)
+"""
+If enabled, opt-in to usage of the new implementation of the flow run engine.
+"""
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",

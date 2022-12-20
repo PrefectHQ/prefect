@@ -78,7 +78,8 @@ def test_runtime_run_in_loop_does_not_accept_sync_functions():
 def test_sync_runtime_submit_from_runtime_loop_thread():
     async def work():
         future = runtime.submit_from_thread(identity, 1)
-        return await asyncio.wrap_future(future)
+        result = await asyncio.wrap_future(future)
+        return result
 
     with Runtime() as runtime:
         assert runtime.run_in_loop(work) == 1

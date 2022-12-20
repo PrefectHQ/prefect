@@ -45,6 +45,7 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
 
+    from prefect._internal.concurrency.runtime import Runtime
     from prefect.flows import Flow
     from prefect.tasks import Task
 
@@ -197,8 +198,8 @@ class RunContext(ContextModel):
         client: The Orion client instance being used for API communication
     """
 
-    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     client: OrionClient
+    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
 
 
 class FlowRunContext(RunContext):
@@ -222,6 +223,7 @@ class FlowRunContext(RunContext):
     flow_run: FlowRun
     task_runner: BaseTaskRunner
     log_prints: bool = False
+    runtime: Optional["Runtime"] = None
 
     # Result handling
     result_factory: ResultFactory
@@ -244,7 +246,7 @@ class FlowRunContext(RunContext):
     timeout_scope: Optional[anyio.abc.CancelScope] = None
 
     # Task group that can be used for background tasks during the flow run
-    background_tasks: anyio.abc.TaskGroup
+    background_tasks: Optional[anyio.abc.TaskGroup] = None
 
     __var__ = ContextVar("flow_run")
 
