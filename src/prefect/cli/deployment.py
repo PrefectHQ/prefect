@@ -453,7 +453,9 @@ async def run(
 
         # pendulum.instance only takes tz arg such as "America/Los Angeles", not "PST"
         scheduled_start_time = pendulum.instance(start_time_parsed_utc)
-        human_dt_diff = " (" + scheduled_start_time.diff_for_humans() + ")"
+        human_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
