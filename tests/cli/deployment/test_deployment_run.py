@@ -21,7 +21,19 @@ def frozen_now(monkeypatch):
     yield now
 
 
-@pytest.mark.skip
+@pytest.fixture
+def expected_start_time_and_display():
+    def _get_expected_start_time_and_display(a, b):
+        expected_start_time = a + b
+        expected_display = expected_start_time.in_tz(
+            pendulum.tz.local_timezone()
+        ).to_datetime_string()
+
+        return expected_start_time, expected_display
+
+    return _get_expected_start_time_and_display
+
+
 def test_both_start_in_and_start_at_raises():
     invoke_and_assert(
         command=["deployment", "run", "--start-in", "foo", "--start-at", "bar"],
@@ -30,7 +42,6 @@ def test_both_start_in_and_start_at_raises():
     )
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
@@ -39,6 +50,7 @@ def test_both_start_in_and_start_at_raises():
         ("13/1/20 13:31", "2020-01-13 13:31:00"),
         ("9pm December 31st 2022", "2022-12-31 21:00:00"),
         ("January 2nd 2023", "2023-01-02 00:00:00"),
+        ("5-17-23 5:30pm PST", "2023-05-17 17:30:00 -0800"),
     ],
 )
 async def test_start_at_option_displays_scheduled_start_time(
@@ -61,7 +73,6 @@ async def test_start_at_option_displays_scheduled_start_time(
     )
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_in,expected_duration",
     [
@@ -80,11 +91,11 @@ async def test_start_in_option_schedules_flow_run_in_future(
     orion_client: prefect.OrionClient,
     start_in: str,
     expected_duration,
+    expected_start_time_and_display,
 ):
-    expected_start_time = frozen_now + expected_duration
-    expected_display = expected_start_time.in_tz(
-        pendulum.tz.local_timezone()
-    ).to_datetime_string()
+    expected_start_time, expected_display = expected_start_time_and_display(
+        frozen_now, expected_duration
+    )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -148,11 +159,10 @@ async def test_start_at_option_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_in, expected_display",
     [
-        ("10 minutes", "in 10 minutes"),
+        ("20 minutes", "in 20 minutes"),
         ("5 days", "in 5 days"),
         ("3 seconds", "in a few seconds"),
         (None, "now"),
@@ -180,7 +190,6 @@ async def test_start_in_displays_scheduled_start_time(
     )
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     "start_at,expected_output",
     [
@@ -189,10 +198,6 @@ async def test_start_in_displays_scheduled_start_time(
         ("Jan 32nd 2023", "Unable to parse scheduled start time 'at Jan 32nd 2023'."),
         ("Jan 31st 20231", "Unable to parse scheduled start time 'at Jan 31st 20231'."),
         ("Octob 1st 2020", "Unable to parse scheduled start time 'at Octob 1st 2020'."),
-        (
-            "5:30pm PST",
-            "Timezone not expected in 'at 5:30pm PST'. Timezone is inferred with pendulum.tz.local_timezone().",
-        ),
     ],
 )
 def test_start_at_invalid_input(
