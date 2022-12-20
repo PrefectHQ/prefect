@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple
 
 import cloudpickle
 import pydantic
-from pydantic import create_model
 import pydantic.schema
 from typing_extensions import Literal
 
