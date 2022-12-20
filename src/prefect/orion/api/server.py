@@ -23,6 +23,7 @@ import prefect
 import prefect.orion.api as api
 import prefect.orion.services as services
 import prefect.settings
+from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -226,6 +227,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "flags": enabled_experiments(),
         }
 
     if (
