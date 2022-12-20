@@ -27,8 +27,8 @@ def lower_clamping_factor(k):
     from an exponential distribution.
 
     Given an upper clamping factor `k` (and corresponding upper bound k * average_interval),
-    this function computes a lower clamping factor `c` that corresponds to a lower bound
-    (c * average_interval) where the probability mass between the lower bound and the
+    this function computes a lower clamping factor `c` (corresponding to a lower bound
+    c * average_interval) where the probability mass between the lower bound and the
     median is equal to the probability mass between the median and the upper bound.
     """
 
@@ -39,7 +39,7 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
     """
     Bounds Poisson "inter-arrival times" to a range defined by the clamping factor.
 
-    The upper bound for this random variate is average_interval * (1 + clamping_factor).
+    The upper bound for this random variate is: average_interval * (1 + clamping_factor).
     A lower bound is picked so that the average interval remains fixed.
     """
     k = 1 + clamping_factor

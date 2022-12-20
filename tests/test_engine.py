@@ -13,7 +13,6 @@ import pytest
 from pydantic import BaseModel
 
 import prefect.flows
-from prefect.tasks import exponential_backoff
 from prefect import engine, flow, task
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
@@ -43,6 +42,7 @@ from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
+from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel

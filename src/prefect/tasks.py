@@ -89,9 +89,8 @@ def exponential_backoff(backoff_factor: float) -> Callable:
     Returns:
         a callable that can be passed to the task constructor
     """
-    def retry_backoff_callable(
-        retries: int
-    ) -> List[float]:
+
+    def retry_backoff_callable(retries: int) -> List[float]:
         return [backoff_factor * max(0, 2**r) for r in range(retries)]
 
     return retry_backoff_callable

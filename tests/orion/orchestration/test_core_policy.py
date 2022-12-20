@@ -1,4 +1,5 @@
 import contextlib
+import math
 import random
 from itertools import combinations_with_replacement, product
 from unittest import mock
@@ -772,6 +773,158 @@ class TestTaskRetryingRule:
 
         assert ctx.response_status == SetStateStatus.REJECT
         assert ctx.validated_state_type == states.StateType.SCHEDULED
+
+    async def test_task_retry_uses_configured_delay(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.retries = 2
+        run_settings.retry_delay = 10
+
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = pendulum.now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert math.isclose(
+            (scheduled_time - orchestration_start).in_seconds(), 10, rel_tol=0.1
+        )
+
+    @pytest.mark.parametrize("retry", [1, 2, 3, 4, 5])
+    async def test_retry_uses_configured_delays(
+        self, session, initialize_orchestration, retry
+    ):
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = retry
+        run_settings.retries = 5
+
+        configured_retry_delays = [2, 3, 5, 7, 11]
+        run_settings.retry_delay = configured_retry_delays
+
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = pendulum.now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert math.isclose(
+            (scheduled_time - orchestration_start).in_seconds(),
+            configured_retry_delays[retry - 1],
+            rel_tol=0.1,
+        )
+
+    async def test_retry_uses_falls_back_to_last_delay(
+        self, session, initialize_orchestration
+    ):
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 6
+        run_settings.retries = 6
+
+        configured_retry_delays = [2, 3, 5, 7]
+        run_settings.retry_delay = configured_retry_delays
+
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = pendulum.now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert math.isclose(
+            (scheduled_time - orchestration_start).in_seconds(),
+            configured_retry_delays[-1],
+            rel_tol=0.1,
+        )
+
+    async def test_retries_can_jitter_sleeps(
+        self, session, initialize_orchestration, monkeypatch
+    ):
+        def randomizer(average_interval, clamping_factor=0.3):
+            # is not really a randomizer
+            return average_interval * (1 + clamping_factor)
+
+        monkeypatch.setattr(
+            "prefect.orion.orchestration.core_policy.clamped_poisson_interval",
+            randomizer,
+        )
+
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.retries = 2
+
+        run_settings.retry_delay = 10
+        run_settings.retry_jitter_factor = 9
+
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = pendulum.now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert math.isclose(
+            (scheduled_time - orchestration_start).in_seconds(),
+            11,
+            rel_tol=0.1,
+        )
 
     async def test_stops_retrying_eventually(
         self,
