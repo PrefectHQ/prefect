@@ -229,7 +229,6 @@ class Task(Generic[P, R]):
 
         self.retry_jitter_factor = retry_jitter_factor
 
-
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer

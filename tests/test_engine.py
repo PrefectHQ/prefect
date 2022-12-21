@@ -735,6 +735,7 @@ class TestOrchestrateTaskRun:
         assert await state.result() == 1
 
     @pytest.mark.parametrize("jitter_factor", [0.1, 1, 10, 100])
+    @pytest.mark.flaky(max_runs=3)
     async def test_waits_jittery_sleeps(
         self,
         mock_anyio_sleep,
@@ -754,7 +755,7 @@ class TestOrchestrateTaskRun:
         mock = MagicMock()
 
         @task(retries=10, retry_delay_seconds=100, retry_jitter_factor=jitter_factor)
-        def flaky_function():
+        async def flaky_function():
             mock()
 
             if mock.call_count == 11:
