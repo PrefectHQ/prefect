@@ -23,8 +23,8 @@ def frozen_now(monkeypatch):
 
 @pytest.fixture
 def expected_start_time_and_display():
-    def _get_expected_start_time_and_display(a, b):
-        expected_start_time = a + b
+    def _get_expected_start_time_and_display(now, duration):
+        expected_start_time = now + duration
         expected_display = expected_start_time.in_tz(
             pendulum.tz.local_timezone()
         ).to_datetime_string()
@@ -45,12 +45,11 @@ def test_both_start_in_and_start_at_raises():
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
-        ("12-1-22 5pm", "2022-12-01 17:00:00"),
+        ("12-1-2022 5pm", "2022-12-01 17:00:00"),
         ("1/1/30", "2030-01-01 00:00:00"),
-        ("13/1/20 13:31", "2020-01-13 13:31:00"),
+        ("13/1/2020 13:31", "2020-01-13 13:31:00"),
         ("9pm December 31st 2022", "2022-12-31 21:00:00"),
         ("January 2nd 2023", "2023-01-02 00:00:00"),
-        ("5-17-23 5:30pm PST", "2023-05-17 17:30:00 -0800"),
     ],
 )
 async def test_start_at_option_displays_scheduled_start_time(
@@ -58,7 +57,6 @@ async def test_start_at_option_displays_scheduled_start_time(
     start_at: str,
     expected_start_time,
 ):
-
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -69,6 +67,32 @@ async def test_start_at_option_displays_scheduled_start_time(
             start_at,
         ],
         expected_output_contains=["Scheduled start time:", expected_start_time],
+    )
+
+
+@pytest.mark.parametrize(
+    "start_at,parsed_date",
+    [
+        ("5-17-23 5:30pm EST", pendulum.parse("2023-05-17T17:30:00", tz="EST")),
+        ("5-20-23 5:30pm PDT", pendulum.parse("2023-05-20T17:30:00", tz="PST8PDT")),
+    ],
+)
+async def test_start_at_with_tz_option_displays_scheduled_start_time(
+    deployment_name: str, start_at: str, parsed_date: DateTime
+):
+    local_dt = parsed_date.in_tz(pendulum.tz.local_timezone())
+    expected_display = local_dt.to_datetime_string() + " " + local_dt.tzname()
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-at",
+            start_at,
+        ],
+        expected_output_contains=["Scheduled start time:", expected_display],
     )
 
 
