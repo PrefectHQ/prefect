@@ -880,6 +880,10 @@ PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers.
 """
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect workers are used.
+"""
 
 PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)

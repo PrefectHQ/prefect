@@ -4,11 +4,13 @@ import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
 from uuid import uuid4
+from zipfile import ZipFile
 
 import pendulum
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from pydantic import ValidationError
 
+from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orion import get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
@@ -47,6 +49,7 @@ class BaseWorker(LoopService, abc.ABC):
             "Workers must implement logic for submitting scheduled flow runs."
         )
 
+    @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
         name: str,
@@ -257,13 +260,15 @@ class BaseWorker(LoopService, abc.ABC):
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
 
-    async def _unzip_deployments(self, zip_file: UploadFile):
+    async def _unzip_deployments(self, data: UploadFile):
         self.logger.info(
             "Unzipping deployments in %s to %s",
-            zip_file.filename,
+            data.filename,
             self.workflow_storage_path,
         )
-        shutil.unpack_archive(zip_file.filename, self.workflow_storage_path)
+        # UploadFile.file claims to be a BinaryIO, but doesn't implement seekable
+        data.file.seekable = lambda: False
+        ZipFile(data.file).extractall(self.workflow_storage_path)
 
     async def get_scheduled_flow_runs(
         self,
@@ -323,8 +328,20 @@ class BaseWorker(LoopService, abc.ABC):
             }
 
         @app.post("/submit_deployments")
-        async def accept_deployment_zip(zip_file: UploadFile = File(...)) -> bool:
-            asyncio.create_task(self._unzip_deployments(zip_file))
-            return True
+        async def accept_deployment_zip(zip_file: UploadFile = File(...)):
+            try:
+                await self._unzip_deployments(zip_file)
+                return {"message": "Successfully recieved submitted deployments"}
+            except shutil.ReadError:
+                raise HTTPException(
+                    status_code=400, detail="Please upload deployments as a zip file."
+                )
+            except Exception:
+                self.logger.exception(
+                    "Failed to receive and unzip submitted deployments."
+                )
+                raise HTTPException(
+                    status_code=500, detail="Failed to receive submitted deployments."
+                )
 
         return app

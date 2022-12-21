@@ -276,6 +276,7 @@ class Deployment(BaseModel):
             "description",
             "version",
             "work_queue_name",
+            "worker_pool_queue_id",
             "tags",
             "parameters",
             "schedule",
@@ -376,7 +377,6 @@ class Deployment(BaseModel):
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-    worker_pool_name: Optional[str] = Field(default=None)
     worker_pool_queue_id: Optional[UUID] = Field(default=None)
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
