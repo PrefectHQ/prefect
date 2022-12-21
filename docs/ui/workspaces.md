@@ -103,12 +103,14 @@ To delete a workspace collaborator or service account, select **Remove** from th
 
 Workspace transfer enables you to move an existing workspace from one account to another. For example, you may transfer a workspace from a personal account to an organization.
 
-Transferring a workspace enables you to take existing configuration and flow run history with you as projects move to different teams or organizations. Without transfer, users moving to a new organization from, for example, a personal account would need to re-create all of their block, deployment, notification, and work queue configuration in a new workspace. Additionally, any flow run history would remain in the personal workspace. 
+Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work queues, and logs. 
 
 !!! note "Workspace transfer permissions"
     Workspace transfer must be initiated or approved by a user with admin priviliges for the workspace to be transferred.
 
     For example, if you are transferring a personal workspace to an organization, the owner of the personal account is the default admin for that account and must initiate or approve the transfer.
+
+    To initiate a workspace transfer between personal accounts, contact [support@prefect.io](mailto:support@prefect.io).
 
 ### Transfer a workspace
 
