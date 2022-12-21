@@ -260,6 +260,7 @@ async def read_flow_runs(
 
 class DependencyResult(PrefectBaseModel):
     id: UUID
+    name: str
     upstream_dependencies: List[TaskRunResult]
     state: State
     expected_start_time: Optional[datetime.datetime]
