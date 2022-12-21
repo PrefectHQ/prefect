@@ -140,6 +140,58 @@ async def run_deployment(
     return flow_run
 
 
+@sync_compatible
+@inject_client
+async def run_deployment_by_id(
+    deployment_id: str,
+    client: OrionClient = None,
+    parameters: dict = None,
+    scheduled_time: datetime = None,
+    flow_run_name: str = None,
+    timeout: float = None,
+    poll_interval: float = 5,
+    tags: Optional[Iterable[str]] = None,
+    idempotency_key: str = None,
+):
+    """
+    Create a flow run for a deployment and return it after completion or a timeout.
+
+    This function will return when the created flow run enters any terminal state or
+    the timeout is reached. If the timeout is reached and the flow run has not reached
+    a terminal state, it will still be returned. When using a timeout, we suggest
+    checking the state of the flow run if completion is important moving forward.
+
+    Args:
+        deployment_id: The deployment id as string
+        parameters: Parameter overrides for this flow run. Merged with the deployment
+            defaults
+        scheduled_time: The time to schedule the flow run for, defaults to scheduling
+            the flow run to start now.
+        flow_run_name: A name for the created flow run
+        timeout: The amount of time to wait for the flow run to complete before
+            returning. Setting `timeout` to 0 will return the flow run immediately.
+            Setting `timeout` to None will allow this function to poll indefinitely.
+            Defaults to None
+        poll_interval: The number of seconds between polls
+    """
+    try:
+        deployment_uuid = UUID(deployment_id)
+    except:
+        raise ValueError("Invalid deployment_id passed")
+    deployment = await client.read_deployment(deployment_uuid)
+    flow = await client.read_flow(deployment.flow_id)
+    return await run_deployment(
+        name=f'{flow.name}/{deployment.name}', 
+        client=client, 
+        parameters=parameters, 
+        scheduled_time=scheduled_time,
+        flow_run_name=flow_run_name,
+        timeout=timeout,
+        poll_interval=poll_interval,
+        tags=tags,
+        idempotency_key=idempotency_key)
+
+
 @inject_client
 async def load_flow_from_flow_run(
     flow_run: schemas.core.FlowRun, client: OrionClient, ignore_storage: bool = False
