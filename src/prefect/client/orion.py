@@ -1617,12 +1617,6 @@ class OrionClient:
         if state is None:
             state = prefect.states.Pending()
 
-        task_retries = task.retries
-        if callable(task.retry_delay_seconds):
-            retry_delay = task.retry_delay_seconds(task_retries)
-        else:
-            retry_delay = task.retry_delay_seconds
-
         task_run_data = schemas.actions.TaskRunCreate(
             name=name,
             flow_run_id=flow_run_id,
@@ -1631,8 +1625,8 @@ class OrionClient:
             tags=list(tags),
             task_version=task.version,
             empirical_policy=schemas.core.TaskRunPolicy(
-                retries=task_retries,
-                retry_delay=retry_delay,
+                retries=task.retries,
+                retry_delay=task.retry_delay_seconds,
                 retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),

@@ -213,7 +213,12 @@ class Task(Generic[P, R]):
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
         self.retries = retries
-        self.retry_delay_seconds = retry_delay_seconds
+
+        if callable(retry_delay_seconds):
+            self.retry_delay_seconds = retry_delay_seconds(retries)
+        else:
+            self.retry_delay_seconds = retry_delay_seconds
+
         self.retry_jitter_factor = retry_jitter_factor
 
         self.persist_result = persist_result
