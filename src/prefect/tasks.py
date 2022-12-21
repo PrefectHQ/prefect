@@ -836,7 +836,7 @@ def task(
         float,
         int,
         List[float],
-        Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+        Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
     persist_result: Optional[bool] = None,
