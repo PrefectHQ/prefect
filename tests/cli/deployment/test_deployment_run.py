@@ -164,9 +164,7 @@ async def test_start_at_option_schedules_flow_run_in_future(
     expected_start_time: DateTime,
     orion_client: prefect.OrionClient,
 ):
-    expected_display = expected_start_time.in_tz(
-        pendulum.tz.local_timezone()
-    ).to_datetime_string()
+    expected_display = expected_start_time.to_datetime_string()
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
