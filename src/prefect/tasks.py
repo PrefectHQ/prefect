@@ -219,6 +219,11 @@ class Task(Generic[P, R]):
         else:
             self.retry_delay_seconds = retry_delay_seconds
 
+        if isinstance(self.retry_delay_seconds, list) and (
+            len(self.retry_delay_seconds) > 50
+        ):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
+
         self.retry_jitter_factor = retry_jitter_factor
 
         self.persist_result = persist_result

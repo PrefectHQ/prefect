@@ -92,6 +92,22 @@ class TestCreateTaskRun:
         # the timestamp was overwritten
         assert task_run.state.timestamp < pendulum.now()
 
+    async def test_truncate_retry_delays(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "empirical_policy": {"retries": 3, "retry_delay": list(range(100))}
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        assert len(task_run.empirical_policy) == 50
+
 
 class TestReadTaskRun:
     async def test_read_task_run(self, flow_run, task_run, client):

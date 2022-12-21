@@ -314,11 +314,25 @@ class TaskRunPolicy(PrefectBaseModel):
         """
         if not values.get("retries", None) and values.get("max_retries", 0) != 0:
             values["retries"] = values["max_retries"]
+
         if (
             not values.get("retry_delay", None)
             and values.get("retry_delay_seconds", 0) != 0
         ):
             values["retry_delay"] = values["retry_delay_seconds"]
+
+        return values
+
+    @root_validator
+    def truncate_configured_retry_delays(cls, values):
+        """
+        Limit the number of configured retry delays to a maximum of 50.
+        """
+        if isinstance(values["retry_delay"], list) and (
+            len(values["retry_delay"]) > 50
+        ):
+            values["retry_delay"] = values["retry_delay"][:50]
+
         return values
 
 
