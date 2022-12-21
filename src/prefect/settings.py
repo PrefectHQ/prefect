@@ -878,8 +878,18 @@ until a resume attempt.
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
-Whether or not to enable experimental Prefect workers. 
+Whether or not to enable experimental Prefect workers.
 """
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
+PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
+PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
+PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "workflows",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
 
 # Collect all defined settings
 
