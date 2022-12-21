@@ -106,7 +106,7 @@ class TestCreateTaskRun:
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
         )
-        assert len(task_run.empirical_policy) == 50
+        assert len(task_run.empirical_policy.retry_delay) == 50
 
 
 class TestReadTaskRun:

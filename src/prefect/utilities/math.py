@@ -40,7 +40,7 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
     Bounds Poisson "inter-arrival times" to a range defined by the clamping factor.
 
     The upper bound for this random variate is: average_interval * (1 + clamping_factor).
-    A lower bound is picked so that the average interval remains fixed.
+    A lower bound is picked so that the average interval remains approximately fixed.
     """
     k = 1 + clamping_factor
     upper_bound = average_interval * k
