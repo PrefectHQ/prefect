@@ -221,7 +221,7 @@ A real-world example might include the flow run ID from the context in the cache
 
 ```python
 def cache_within_flow_run(context, parameters):
-    return f"{context.flow_run_id}-{task_input_hash(context, parameters)}"
+    return f"{context.task_run.flow_run_id}-{task_input_hash(context, parameters)}"
 
 @task(cache_key_fn=cache_within_flow_run)
 def cached_task():
@@ -266,6 +266,26 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
 
 !!! tip "Task runners are optional"
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+## Wait for
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
+
+```python
+@task
+def task_1():
+    pass
+
+@task
+def task_2():
+    pass
+
+@flow
+def my_flow():
+    x = task_1()
+
+    # task 2 will wait for task_1 to complete
+    y = task_2(wait_for=[x])
+```
 
 ## Map
 
@@ -382,7 +402,11 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 

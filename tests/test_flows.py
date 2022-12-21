@@ -2,6 +2,7 @@ import enum
 import inspect
 import sys
 import time
+from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock
 
@@ -15,20 +16,20 @@ from prefect.client.orion import OrionClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
+    CancelledRun,
     InvalidNameError,
     MissingResult,
     ParameterTypeError,
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
-from prefect.states import State, StateType, raise_state_exception
+from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from prefect.testing.utilities import (
     exceptions_equal,
@@ -200,6 +201,7 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            log_prints=False,
         )
         def initial_flow():
             pass
@@ -218,6 +220,7 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem()
         assert flow_with_options.cache_result_in_memory is False
+        assert flow_with_options.log_prints is False
 
     def test_with_options_can_unset_timeout_seconds_with_zero(self):
         @flow(timeout_seconds=1)
@@ -517,6 +520,61 @@ class TestFlowCall:
             state = foo(1, 2)
             assert state is None
 
+    def test_flow_can_end_in_cancelled_state(self):
+        @flow
+        def my_flow():
+            return Cancelled()
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+
+    def test_flow_state_with_cancelled_tasks_has_cancelled_state(self):
+        @task
+        def cancel():
+            return Cancelled()
+
+        @task
+        def fail():
+            raise ValueError("Fail")
+
+        @task
+        def succeed():
+            return True
+
+        @flow(version="test")
+        def my_flow():
+            return cancel.submit(), succeed.submit(), fail.submit()
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+        assert flow_state.message == "1/3 states cancelled."
+
+        # The task run states are attached as a tuple
+        first, second, third = flow_state.result(raise_on_failure=False)
+        assert first.is_cancelled()
+        assert second.is_completed()
+        assert third.is_failed()
+
+        with pytest.raises(CancelledRun):
+            first.result()
+
+    def test_flow_with_cancelled_subflow_has_cancelled_state(self):
+        @task
+        def cancel():
+            return Cancelled()
+
+        @flow(version="test")
+        def subflow():
+            return cancel.submit()
+
+        @flow
+        def my_flow():
+            return subflow(return_state=True)
+
+        flow_state = my_flow(return_state=True)
+        assert flow_state.is_cancelled()
+        assert flow_state.message == "1/1 states cancelled."
+
 
 class TestSubflowCalls:
     async def test_subflow_call_with_no_tasks(self):
@@ -762,7 +820,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
-        @flow(timeout_seconds=0.5)
+        @flow(timeout_seconds=1)
         def my_flow():
             time.sleep(0.1)
 
@@ -1848,3 +1906,54 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+def test_load_flow_from_entrypoint(tmp_path):
+    flow_code = """
+    from prefect import flow
+
+    @flow
+    def dog():
+        return "woof!"
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code))
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
+async def test_handling_script_with_unprotected_call_in_flow_script(
+    tmp_path,
+    caplog,
+    orion_client,
+):
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
+
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+        # Make sure that warning is raised
+        assert (
+            "Script loading is in progress, flow 'dog' will not be executed. "
+            "Consider updating the script to only call the flow"
+        ) in caplog.text
+
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 0
+
+    # Make sure that flow runs when called
+    res = flow()
+    assert res == "woof!"
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 1

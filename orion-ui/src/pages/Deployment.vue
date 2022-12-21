@@ -56,7 +56,7 @@
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
 
-  const deploymentId = useRouteParam('id')
+  const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
   const api = useWorkspaceApi()
   const showToast = useToast()

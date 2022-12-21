@@ -55,6 +55,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.importtools import import_object
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -130,6 +131,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
+        log_prints: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -143,6 +145,8 @@ class Flow(Generic[P, R]):
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
         )
+
+        self.log_prints = log_prints
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -221,6 +225,7 @@ class Flow(Generic[P, R]):
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
+        log_prints: Optional[bool] = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -301,6 +306,7 @@ class Flow(Generic[P, R]):
                 if cache_result_in_memory is not None
                 else self.cache_result_in_memory
             ),
+            log_prints=log_prints if log_prints is not NotSet else self.log_prints,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -512,6 +518,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -531,6 +538,7 @@ def flow(
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -574,6 +582,10 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        log_prints: If set, `print` statements in the flow will be redirected to the
+            Prefect logger for the flow run. Defaults to `None`, which indicates that
+            the value from the parent flow should be used. If this is a parent flow,
+            the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -630,6 +642,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
     else:
@@ -649,6 +662,7 @@ def flow(
                 result_storage=result_storage,
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
 
@@ -672,14 +686,14 @@ def select_flow(
 
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
 
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}"
+            f"Found the following flows: {listrepr(flows.keys())}. "
+            "Check to make sure that your flow function is decorated with `@flow`."
         )
 
     elif not flow_name and len(flows) > 1:
@@ -705,7 +719,6 @@ def load_flows_from_script(path: str) -> List[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-
     return registry_from_script(path).get_instances(Flow)
 
 
@@ -734,6 +747,41 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         flow_name=flow_name,
         from_message=f"in script '{path}'",
     )
+
+
+def load_flow_from_entrypoint(entrypoint: str) -> Flow:
+    """
+    Extract a flow object from a script at an entrypoint by running all of the code in the file.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If the flow function specified in the entrypoint does not exist
+    """
+    with PrefectObjectRegistry(
+        block_code_execution=True,
+        capture_failures=True,
+    ) as registry:
+        path, func_name = entrypoint.split(":")
+        try:
+            flow = import_object(entrypoint)
+        except AttributeError as exc:
+            raise MissingFlowError(
+                f"Flow function with name {func_name!r} not found in {path!r}. "
+            ) from exc
+
+        if not isinstance(flow, Flow):
+            raise MissingFlowError(
+                f"Function with name {func_name!r} is not a flow. Make sure that it is "
+                "decorated with '@flow'."
+            )
+
+        return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
