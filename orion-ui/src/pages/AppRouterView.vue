@@ -9,16 +9,19 @@
 </template>
 
 <script lang="ts" setup>
-  import { createApi, workspaceApiKey } from '@prefecthq/orion-design'
+  import { createApi, workspaceApiKey, createCan, workspacePermissions } from '@prefecthq/orion-design'
   import { provide } from 'vue'
   import { UiSettings } from '@/services/uiSettings'
-
+  import { canKey } from '@/utilities/permissions'
 
   const baseUrl = await UiSettings.get('apiUrl')
   const api = createApi({
     baseUrl,
   })
 
+  const can = createCan(workspacePermissions)
+
+  provide(canKey, can)
   provide(workspaceApiKey, api)
 </script>
 
