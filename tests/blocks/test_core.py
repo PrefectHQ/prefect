@@ -19,7 +19,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
-from prefect.utilities.dispatch import lookup_type, register_type
+from prefect.utilities.dispatch import get_registry_for_type, lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
 
@@ -2101,7 +2101,7 @@ class TestBlockSchemaMigration:
         with pytest.raises(ValidationError):
             A.load("test")
 
-    def test_schema_mismatch_with_skip_validation(self, new_field):
+    def test_add_field_to_schema_with_skip_validation(self, new_field):
         class A(Block):
             x: int = 1
 
@@ -2116,6 +2116,36 @@ class TestBlockSchemaMigration:
 
         assert a.x == 1
         assert a.y == None
+
+    def test_rm_field_from_schema_loads_with_validation(self, new_field):
+        class A(Block):
+            _block_type_name = "a"
+            _block_type_slug = "a"
+            x: int = 1
+            y: int = 2
+
+        a = A()
+
+        a.save("xy")
+
+        get_registry_for_type(Block).pop("a")
+
+        class B(Block):
+            _block_type_name = "a"
+            _block_type_slug = "a"
+            x: int = 1
+
+        with pytest.warns(
+            UserWarning, match="does not match the schema checksum for class"
+        ):
+            b = B.load("xy")
+
+        assert b.x == 1
+
+        # TODO: This should raise an AttributeError, but it doesn't
+        # because `Config.extra = "allow"`
+        # with pytest.raises(AttributeError):
+        #     b.y
 
     def test_load_with_skip_validation_keeps_metadata(self, new_field):
         class A(Block):

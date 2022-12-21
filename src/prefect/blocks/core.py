@@ -21,7 +21,14 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+from pydantic import (
+    BaseModel,
+    HttpUrl,
+    PrivateAttr,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+)
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -218,9 +225,9 @@ class Block(BaseModel, ABC):
     _block_schema_id: Optional[UUID] = None
     _block_schema_capabilities: Optional[List[str]] = None
     _block_schema_version: Optional[str] = None
-    _block_document_id: Optional[UUID] = None
-    _block_document_name: Optional[str] = None
-    _is_anonymous: Optional[bool] = None
+    _block_document_id: Optional[UUID] = PrivateAttr(default=None)
+    _block_document_name: Optional[str] = PrivateAttr(default=None)
+    _is_anonymous: Optional[bool] = PrivateAttr(default=None)
 
     @classmethod
     def __dispatch_key__(cls):
