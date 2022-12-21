@@ -224,7 +224,11 @@ class Task(Generic[P, R]):
         ):
             raise ValueError("Can not configure more than 50 retry delays per task.")
 
+        if retry_jitter_factor is not None and retry_jitter_factor < 0:
+            raise ValueError("`retry_jitter_factor` must be >= 0.")
+
         self.retry_jitter_factor = retry_jitter_factor
+
 
         self.persist_result = persist_result
         self.result_storage = result_storage

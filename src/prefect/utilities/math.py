@@ -46,7 +46,7 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
     A lower bound is picked so that the average interval remains approximately fixed.
     """
     if clamping_factor <= 0:
-        raise ValueError("`clamping_factor` must be >= 0")
+        raise ValueError("`clamping_factor` must be >= 0.")
 
     k = 1 + clamping_factor
     upper_bound = average_interval * k
