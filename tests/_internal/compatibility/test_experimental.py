@@ -5,6 +5,7 @@ import pytest
 from prefect._internal.compatibility.experimental import (
     ExperimentalFeature,
     ExperimentalFeatureDisabled,
+    enabled_experiments,
     experiment_enabled,
     experimental,
     experimental_parameter,
@@ -339,3 +340,12 @@ def test_experimental_marker_cannot_be_used_without_opt_in_setting_if_required()
         @experimental(feature="A test feature", group="ANOTHER_GROUP", opt_in=True)
         def foo():
             return 1
+
+
+@pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
+def test_enabled_experiments_with_opt_in():
+    assert enabled_experiments() == {"test"}
+
+
+def test_enabled_experiments_without_opt_in():
+    assert enabled_experiments() == set()
