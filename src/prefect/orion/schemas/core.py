@@ -303,7 +303,8 @@ class TaskRunPolicy(PrefectBaseModel):
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
     retry_delay: Union[None, int, List[int]] = Field(
-        default=None, description="The delay time between retries, in seconds."
+        default=None,
+        description="A delay time or list of delay times between retries, in seconds.",
     )
     retry_jitter_factor: Optional[float] = Field(
         default=None, description="Determines the amount a retry should jitter"
@@ -327,14 +328,19 @@ class TaskRunPolicy(PrefectBaseModel):
         return values
 
     @root_validator
-    def truncate_configured_retry_delays(cls, values):
+    def validate_retry_and_jitter_inputs(cls, values):
         """
-        Limit the number of configured retry delays to a maximum of 50.
+        Limits the number of configured retry delays to a maximum of 50. And ensures
+        that the relative jitter factor is positive.
         """
         if isinstance(values["retry_delay"], list) and (
             len(values["retry_delay"]) > 50
         ):
             values["retry_delay"] = values["retry_delay"][:50]
+
+        configured_relative_jitter = values.get("retry_jitter_factor", None)
+        if configured_relative_jitter is not None and configured_relative_jitter < 0:
+            values["retry_jitter_factor"] = None
 
         return values
 

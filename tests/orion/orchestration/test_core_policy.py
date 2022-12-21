@@ -926,6 +926,45 @@ class TestTaskRetryingRule:
             rel_tol=0.1,
         )
 
+    async def test_retries_does_not_jitter_with_negative_values(
+        self, session, initialize_orchestration, monkeypatch
+    ):
+        randomizer = mock.Mock()
+
+        monkeypatch.setattr(
+            "prefect.orion.orchestration.core_policy.clamped_poisson_interval",
+            randomizer,
+        )
+
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.retries = 2
+
+        run_settings.retry_delay = 10
+        run_settings.retry_jitter_factor = -42
+
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = pendulum.now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert randomizer.call_count == 0
+
     async def test_stops_retrying_eventually(
         self,
         session,
