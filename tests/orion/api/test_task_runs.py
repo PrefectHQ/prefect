@@ -98,7 +98,7 @@ class TestCreateTaskRun:
             "task_key": "my-task-key",
             "name": "my-cool-task-run-name",
             "dynamic_key": "0",
-            "empirical_policy": {"retries": 3, "retry_delay": list(range(100))}
+            "empirical_policy": {"retries": 3, "retry_delay": list(range(100))},
         }
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == status.HTTP_201_CREATED
