@@ -42,8 +42,9 @@ PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
 
 
 def get_thread_limiter():
+    global PREFECT_THREAD_LIMITER
+
     if PREFECT_THREAD_LIMITER is None:
-        global PREFECT_THREAD_LIMITER
         PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
 
     return PREFECT_THREAD_LIMITER
