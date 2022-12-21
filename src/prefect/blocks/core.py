@@ -21,14 +21,7 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import (
-    BaseModel,
-    HttpUrl,
-    PrivateAttr,
-    SecretBytes,
-    SecretStr,
-    ValidationError,
-)
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
@@ -225,9 +218,9 @@ class Block(BaseModel, ABC):
     _block_schema_id: Optional[UUID] = None
     _block_schema_capabilities: Optional[List[str]] = None
     _block_schema_version: Optional[str] = None
-    _block_document_id: Optional[UUID] = PrivateAttr(default=None)
-    _block_document_name: Optional[str] = PrivateAttr(default=None)
-    _is_anonymous: Optional[bool] = PrivateAttr(default=None)
+    _block_document_id: Optional[UUID] = None
+    _block_document_name: Optional[str] = None
+    _is_anonymous: Optional[bool] = None
 
     @classmethod
     def __dispatch_key__(cls):
@@ -619,7 +612,7 @@ class Block(BaseModel, ABC):
     async def load(
         cls,
         name: str,
-        skip_validation: Optional[bool] = False,
+        validate: bool = True,
         client: "OrionClient" = None,
     ):
         """
@@ -631,17 +624,17 @@ class Block(BaseModel, ABC):
         than the current class calling `load`, a warning will be raised.
 
         If the current class schema is a subset of the block document schema, the block
-        can be loaded normally without `skip_validation` being set to True.
+        can be loaded as normal using the default `validate = True`.
 
         If the current class schema is a superset of the block document schema, `load`
-        must be called with `skip_validation` set to True to prevent a validation error. In
+        must be called with `validate` set to False to prevent a validation error. In
         this case, the block attributes will default to `None` and must be set manually
         and saved to a new block document before the block can be used.
 
         Args:
             name: The name or slug of the block document. A block document slug is a
                 string with the format <block_type_slug>/<block_document_name>
-            skip_validation: If True, the block document will be loaded without
+            validate: If False, the block document will be loaded without Pydantic
                 validating the block schema. This is useful if the block schema has
                 changed client-side since the block document referred to by `name` was saved.
             client: The client to use to load the block document. If not provided, the
@@ -684,7 +677,7 @@ class Block(BaseModel, ABC):
                 message: str
                 number_of_ducks: int
 
-            loaded_block = Custom.load("my-custom-message", skip_validation=True)
+            loaded_block = Custom.load("my-custom-message", validate=False)
 
             # Prints UserWarning about schema mismatch
 
@@ -711,7 +704,7 @@ class Block(BaseModel, ABC):
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
-            if skip_validation:
+            if validate == False:
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(

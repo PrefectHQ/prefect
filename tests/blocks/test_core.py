@@ -2112,49 +2112,49 @@ class TestBlockSchemaMigration:
         A.__fields__.update(new_field)  # simulate a schema change
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = A.load("test", skip_validation=True)
+            a = A.load("test", validate=False)
 
         assert a.x == 1
         assert a.y == None
 
     def test_rm_field_from_schema_loads_with_validation(self, new_field):
-        class A(Block):
-            _block_type_name = "a"
-            _block_type_slug = "a"
+        class Foo(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
             x: int = 1
             y: int = 2
 
-        a = A()
+        foo = Foo()
 
-        a.save("xy")
+        foo.save("xy")
 
-        get_registry_for_type(Block).pop("a")
+        get_registry_for_type(Block).pop("foo")
 
-        class B(Block):
-            _block_type_name = "a"
-            _block_type_slug = "a"
+        class Foo_Alias(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
             x: int = 1
 
         with pytest.warns(
             UserWarning, match="does not match the schema checksum for class"
         ):
-            b = B.load("xy")
+            foo_alias = Foo_Alias.load("xy")
 
-        assert b.x == 1
+        assert foo_alias.x == 1
 
         # TODO: This should raise an AttributeError, but it doesn't
         # because `Config.extra = "allow"`
         # with pytest.raises(AttributeError):
-        #     b.y
+        #     foo_alias.y
 
     def test_load_with_skip_validation_keeps_metadata(self, new_field):
-        class A(Block):
+        class Bar(Block):
             x: int = 1
 
-        a = A()
+        bar = Bar()
 
-        a.save("test")
+        bar.save("test")
 
-        a_new = A.load("test", skip_validation=True)
+        bar_new = Bar.load("test", validate=False)
 
-        assert a.dict() == a_new.dict()
+        assert bar.dict() == bar_new.dict()
