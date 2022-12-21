@@ -390,7 +390,6 @@ async def run(
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
-    user_provided_tz = False
 
     multi_params = {}
     if multiparams:
@@ -433,14 +432,12 @@ async def run(
 
             try:
 
-                if hasattr(dateparser.parse(start_time_raw), "tzinfo"):
-                    user_provided_tz = True
-
                 start_time_parsed_utc = dateparser.parse(
                     start_time_raw,
                     settings={
                         "TO_TIMEZONE": "UTC",
                         "RETURN_AS_TIMEZONE_AWARE": False,
+                        "PREFER_DATES_FROM": "future",
                         "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
                     },
                 )
@@ -494,18 +491,13 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    if user_provided_tz:
-        scheduled_display = (
-            dateparser.parse(start_time_raw).strftime("%Y-%m-%d %H:%M:%S %z")
-            + human_dt_diff
-        )
-    else:
-        scheduled_display = (
-            scheduled_start_time.in_tz(
-                pendulum.tz.local_timezone()
-            ).to_datetime_string()
-            + human_dt_diff
-        )
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        datetime_local_tz.to_datetime_string()
+        + " "
+        + datetime_local_tz.tzname()
+        + human_dt_diff
+    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
