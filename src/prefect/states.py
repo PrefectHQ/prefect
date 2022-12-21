@@ -3,11 +3,12 @@ import sys
 import traceback
 import warnings
 from collections import Counter
-from types import TracebackType
+from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
 import httpx
+import pendulum
 from typing_extensions import TypeGuard
 
 from prefect.client.schemas import State as State
@@ -15,9 +16,15 @@ from prefect.deprecated.data_documents import (
     DataDocument,
     result_from_state_with_data_document,
 )
-from prefect.exceptions import CrashedRun, FailedRun, MissingResult
+from prefect.exceptions import (
+    CancelledRun,
+    CrashedRun,
+    FailedRun,
+    MissingResult,
+    PausedRun,
+)
 from prefect.orion import schemas
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
@@ -38,6 +45,7 @@ def get_state_result(
 
     See `State.result()`
     """
+
     if fetch is None and (
         PREFECT_ASYNC_FETCH_STATE_RESULT or not in_async_main_thread()
     ):
@@ -70,7 +78,13 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     """
     Internal implementation for `get_state_result` without async backwards compatibility
     """
-    if raise_on_failure and (state.is_crashed() or state.is_failed()):
+    if state.is_paused():
+        # Paused states are not truly terminal and do not have results associated with them
+        raise PausedRun("Run paused.")
+
+    if raise_on_failure and (
+        state.is_crashed() or state.is_failed() or state.is_cancelled()
+    ):
         raise await get_state_exception(state)
 
     if isinstance(state.data, DataDocument):
@@ -80,7 +94,7 @@ async def _get_state_result(state: State[R], raise_on_failure: bool) -> R:
     elif isinstance(state.data, BaseResult):
         result = await state.data.get()
     elif state.data is None:
-        if state.is_failed() or state.is_crashed():
+        if state.is_failed() or state.is_crashed() or state.is_cancelled():
             return await get_state_exception(state)
         else:
             raise MissingResult(
@@ -228,13 +242,18 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         states = StateGroup(ensure_iterable(retval))
 
         # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
+        if states.all_completed():
+            new_state_type = StateType.COMPLETED
+        elif states.any_cancelled():
+            new_state_type = StateType.CANCELLED
+        else:
+            new_state_type = StateType.FAILED
 
         # Generate a nice message for the aggregate
         if states.all_completed():
             message = "All states completed."
+        elif states.any_cancelled():
+            message = f"{states.cancelled_count}/{states.total_count} states cancelled."
         elif states.any_failed():
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
@@ -253,8 +272,14 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             data=await result_factory.create_result(retval),
         )
 
+    # Generators aren't portable, implicitly convert them to a list.
+    if isinstance(retval, GeneratorType):
+        data = list(retval)
+    else:
+        data = retval
+
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(retval))
+    return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
@@ -275,14 +300,21 @@ async def get_state_exception(state: State) -> BaseException:
 
     If the state result is not of a known type, a `TypeError` will be returned.
 
-    When a wrapper exception is returned, the type will be `FailedRun` if the state type
-    is FAILED or a `CrashedRun` if the state type is CRASHED.
+    When a wrapper exception is returned, the type will be:
+        - `FailedRun` if the state type is FAILED.
+        - `CrashedRun` if the state type is CRASHED.
+        - `CancelledRun` if the state type is CANCELLED.
     """
 
     if state.is_failed():
         wrapper = FailedRun
+        default_message = "Run failed."
     elif state.is_crashed():
         wrapper = CrashedRun
+        default_message = "Run crashed."
+    elif state.is_cancelled():
+        wrapper = CancelledRun
+        default_message = "Run cancelled."
     else:
         raise ValueError(f"Expected failed or crashed state got {state!r}.")
 
@@ -294,7 +326,7 @@ async def get_state_exception(state: State) -> BaseException:
         result = state.data
 
     if result is None:
-        return wrapper(state.message)
+        return wrapper(state.message or default_message)
 
     if isinstance(result, Exception):
         return result
@@ -312,7 +344,7 @@ async def get_state_exception(state: State) -> BaseException:
     elif is_state_iterable(result):
         # Return the first failure
         for state in result:
-            if state.is_failed() or state.is_crashed():
+            if state.is_failed() or state.is_crashed() or state.is_cancelled():
                 return await get_state_exception(state)
 
         raise ValueError(
@@ -331,7 +363,7 @@ async def raise_state_exception(state: State) -> None:
     """
     Given a FAILED or CRASHED state, raise the contained exception.
     """
-    if not (state.is_failed() or state.is_crashed()):
+    if not (state.is_failed() or state.is_crashed() or state.is_cancelled()):
         return None
 
     raise await get_state_exception(state)
@@ -371,6 +403,7 @@ class StateGroup:
         self.states = states
         self.type_counts = self._get_type_counts(states)
         self.total_count = len(states)
+        self.cancelled_count = self.type_counts[StateType.CANCELLED]
         self.final_count = sum(state.is_final() for state in states)
         self.not_final_count = self.total_count - self.final_count
 
@@ -380,6 +413,9 @@ class StateGroup:
 
     def all_completed(self) -> bool:
         return self.type_counts[StateType.COMPLETED] == self.total_count
+
+    def any_cancelled(self) -> bool:
+        return self.cancelled_count > 0
 
     def any_failed(self) -> bool:
         return (
@@ -476,13 +512,40 @@ def Pending(cls: Type[State] = State, **kwargs) -> State:
     return schemas.states.Pending(cls=cls, **kwargs)
 
 
-def Paused(cls: Type[State] = State, **kwargs) -> State:
+def Paused(
+    cls: Type[State] = State,
+    timeout_seconds: int = None,
+    pause_expiration_time: datetime.datetime = None,
+    reschedule: bool = False,
+    pause_key: str = None,
+    **kwargs,
+) -> State:
     """Convenience function for creating `Paused` states.
 
     Returns:
         State: a Paused state
     """
-    return schemas.states.Paused(cls=cls, **kwargs)
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+
+    if state_details.pause_timeout:
+        raise ValueError("An extra pause timeout was provided in state_details")
+
+    if pause_expiration_time is not None and timeout_seconds is not None:
+        raise ValueError(
+            "Cannot supply both a pause_expiration_time and timeout_seconds"
+        )
+
+    if pause_expiration_time is None and timeout_seconds is None:
+        pass
+    else:
+        state_details.pause_timeout = pause_expiration_time or (
+            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+        )
+
+    state_details.pause_reschedule = reschedule
+    state_details.pause_key = pause_key
+
+    return cls(type=StateType.PAUSED, state_details=state_details, **kwargs)
 
 
 def AwaitingRetry(

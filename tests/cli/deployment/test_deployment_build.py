@@ -1,5 +1,7 @@
 from datetime import timedelta
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from textwrap import dedent
 from unittest.mock import Mock
 
 import pendulum
@@ -19,7 +21,9 @@ def patch_import(monkeypatch):
     def fn():
         pass
 
-    monkeypatch.setattr("prefect.utilities.importtools.import_object", lambda path: fn)
+    monkeypatch.setattr(
+        "prefect.cli.deployment.load_flow_from_entrypoint", lambda path: fn
+    )
     return fn
 
 
@@ -466,12 +470,7 @@ class TestEntrypoint:
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
         entrypoint = "fake-path.py"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         invoke_and_assert(
@@ -480,32 +479,109 @@ class TestEntrypoint:
             expected_output_contains=f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>",
         )
 
-    def test_entrypoint_that_does_not_point_to_flow_raises_error(
-        self, monkeypatch, tmp_path
-    ):
+    def test_entrypoint_that_does_not_point_to_flow_raises_error(self, tmp_path):
+        code = """
         def fn():
             pass
-
-        monkeypatch.setattr(
-            "prefect.utilities.importtools.import_object", lambda path: fn
-        )
+        """
+        fpath = tmp_path / "dog.py"
+        fpath.write_text(dedent(code))
 
         name = "TEST"
-        file_name = "test_no_suffix"
-        entrypoint = "fake-path.py:fn"
-        cmd = [
-            "deployment",
-            "build",
-            "-n",
-            name,
-        ]
+        entrypoint = f"{fpath}:fn"
+        cmd = ["deployment", "build", "-n", name]
         cmd += [entrypoint]
 
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Found object of unexpected type 'function'. Expected 'Flow'.",
+            expected_output_contains=f"Function with name 'fn' is not a flow. Make sure that it is decorated with '@flow'",
         )
+
+    def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):
+        code = """
+        from prefect import flow
+
+        @flow
+        def cat():
+            pass
+        """
+        fpath = tmp_path / "dog.py"
+        fpath.write_text(dedent(code))
+
+        name = "TEST"
+        entrypoint = f"{fpath}:fn"
+        cmd = ["deployment", "build", "-n", name]
+        cmd += [entrypoint]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"Flow function with name 'fn' not found in {str(fpath)!r}",
+        )
+
+    def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
+        code = """
+        def fn():
+            pass
+        """
+        fpath = tmp_path / "dog.cake"
+        fpath.write_text(dedent(code))
+
+        name = "TEST"
+        entrypoint = f"{fpath}:fn"
+        cmd = ["deployment", "build", "-n", name]
+        cmd += [entrypoint]
+
+        res = invoke_and_assert(
+            cmd,
+            expected_code=1,
+            expected_output_contains=f"No module named ",
+        )
+
+    def test_entrypoint_works_with_flow_with_custom_name(self):
+        flow_code = """
+        from prefect import flow
+
+        @flow(name="SoMe CrAz_y N@me")
+        def dog():
+            pass
+        """
+        file_name = "f.py"
+        with TemporaryDirectory() as tmp_dir:
+            Path(file_name).write_text(dedent(flow_code))
+
+            dep_name = "TEST"
+            entrypoint = f"{file_name}:dog"
+            cmd = ["deployment", "build", "-n", dep_name]
+            cmd += [entrypoint]
+
+            res = invoke_and_assert(
+                cmd,
+                expected_code=0,
+            )
+
+    def test_entrypoint_works_with_flow_func_with_underscores(self):
+        flow_code = """
+        from prefect import flow
+        
+        @flow
+        def dog_flow_func():
+            pass
+        """
+        file_name = "f.py"
+        with TemporaryDirectory() as tmp_dir:
+            Path(file_name).write_text(dedent(flow_code))
+
+            dep_name = "TEST"
+            entrypoint = f"{file_name}:dog_flow_func"
+            cmd = ["deployment", "build", "-n", dep_name]
+            cmd += [entrypoint]
+
+            res = invoke_and_assert(
+                cmd,
+                expected_code=0,
+            )
 
 
 class TestWorkQueue:

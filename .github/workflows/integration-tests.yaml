@@ -21,7 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -45,8 +44,8 @@ jobs:
       - name: Set up node
         uses: actions/setup-node@v3
         with:
-          node-version-file: '.nvmrc'
-          cache-dependency-path: '**/package-lock.json'
+          node-version-file: ".nvmrc"
+          cache-dependency-path: "**/package-lock.json"
 
       - name: Retrieve Playwright version
         id: playwright-cache-key
@@ -91,6 +90,7 @@ jobs:
           - "2.4"
           - "2.5"
           - "2.6"
+          - "2.7"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -115,6 +115,10 @@ jobs:
             server-incompatible: true
           - prefect-version: "2.5"
             server-incompatible: true
+
+          # 2.6 containers have a bad version of httpcore installed
+          - prefect-version: "2.6"
+            extra_docker_run_options: '--env PIP_EXTRA_PACKAGES="httpcore>=0.16.2"'
 
       fail-fast: false
 
@@ -144,6 +148,7 @@ jobs:
           --name "orion-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
+          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           prefect orion start --host 0.0.0.0
 
@@ -177,5 +182,6 @@ jobs:
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host
+          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows

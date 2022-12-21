@@ -15,15 +15,13 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-import prefect
-from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.client.orion import OrionClient
-from prefect.context import PrefectObjectRegistry, registry_from_script
+from prefect.context import PrefectObjectRegistry
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
@@ -32,6 +30,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
+from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.orion.schemas.schedules import (
@@ -40,6 +39,7 @@ from prefect.orion.schemas.schedules import (
     RRuleSchedule,
 )
 from prefect.settings import PREFECT_UI_URL
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
@@ -657,7 +657,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb', 'gitlab-repository'",
     ),
     skip_upload: bool = typer.Option(
         False,
@@ -718,7 +718,6 @@ async def build(
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
     """
-
     # validate inputs
     if not name:
         exit_with_error(
@@ -751,18 +750,10 @@ async def build(
         else:
             raise exc
     try:
-        flow = prefect.utilities.importtools.import_object(entrypoint)
-        if isinstance(flow, Flow):
-            app.console.print(f"Found flow {flow.name!r}", style="green")
-        else:
-            exit_with_error(
-                f"Found object of unexpected type {type(flow).__name__!r}. Expected 'Flow'."
-            )
-    except AttributeError:
-        exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
-    except FileNotFoundError:
-        exit_with_error(f"{fpath!r} not found.")
-
+        flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+    except Exception as exc:
+        exit_with_error(exc)
+    app.console.print(f"Found flow {flow.name!r}", style="green")
     infra_overrides = {}
     for override in overrides or []:
         key, value = override.split("=", 1)

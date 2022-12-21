@@ -175,6 +175,68 @@ async def read_flow_run_graph(
         )
 
 
+@router.post("/{id}/resume")
+async def resume_flow_run(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+    response: Response = None,
+    flow_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_flow_policy
+    ),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_flow_orchestration_parameters
+    ),
+    api_version=Depends(dependencies.provide_request_api_version),
+) -> OrchestrationResult:
+    """
+    Resume a paused flow run.
+    """
+    now = pendulum.now()
+
+    async with db.session_context(begin_transaction=True) as session:
+        flow_run = await models.flow_runs.read_flow_run(session, flow_run_id)
+        state = flow_run.state
+
+        if state is None or state.type != schemas.states.StateType.PAUSED:
+            result = OrchestrationResult(
+                state=None,
+                status=schemas.responses.SetStateStatus.ABORT,
+                details=schemas.responses.StateAbortDetails(
+                    reason="Cannot resume a flow run that is not paused."
+                ),
+            )
+            return result
+
+        orchestration_parameters.update({"api-version": api_version})
+
+        if state.state_details.pause_reschedule:
+            orchestration_result = await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run_id,
+                state=schemas.states.Scheduled(
+                    name="Resuming", scheduled_time=pendulum.now("UTC")
+                ),
+                flow_policy=flow_policy,
+                orchestration_parameters=orchestration_parameters,
+            )
+        else:
+            orchestration_result = await models.flow_runs.set_flow_run_state(
+                session=session,
+                flow_run_id=flow_run_id,
+                state=schemas.states.Running(),
+                flow_policy=flow_policy,
+                orchestration_parameters=orchestration_parameters,
+            )
+
+        # set the 201 if a new state was created
+        if orchestration_result.state and orchestration_result.state.timestamp >= now:
+            response.status_code = status.HTTP_201_CREATED
+        else:
+            response.status_code = status.HTTP_200_OK
+
+        return orchestration_result
+
+
 @router.post("/filter", response_class=ORJSONResponse)
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
@@ -256,6 +318,8 @@ async def set_flow_run_state(
     # pass the request version to the orchestration engine to support compatibility code
     orchestration_parameters.update({"api-version": api_version})
 
+    now = pendulum.now()
+
     # create the state
     async with db.session_context(begin_transaction=True) as session:
         orchestration_result = await models.flow_runs.set_flow_run_state(
@@ -268,12 +332,10 @@ async def set_flow_run_state(
             orchestration_parameters=orchestration_parameters,
         )
 
-    # set the 201 because a new state was created
-    if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
-        response.status_code = status.HTTP_200_OK
-    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
-        response.status_code = status.HTTP_200_OK
-    else:
+    # set the 201 if a new state was created
+    if orchestration_result.state and orchestration_result.state.timestamp >= now:
         response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
 
     return orchestration_result

@@ -13,9 +13,13 @@ from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
+    CopyScheduledTime,
     HandleFlowTerminalStateTransitions,
+    HandlePausingFlows,
+    HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
     PreventRedundantTransitions,
+    PreventRunningTasksFromStoppedFlows,
     ReleaseTaskConcurrencySlots,
     RenameReruns,
     RetryFailedFlows,
@@ -66,13 +70,16 @@ def fizzling_rule():
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
-    async def test_late_scheduled_states_just_run(
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.SCHEDULED, states.StateType.PENDING]
+    )
+    async def test_running_after_scheduled_start_time_is_not_delayed(
         self,
         session,
         run_type,
         initialize_orchestration,
+        initial_state_type,
     ):
-        initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
@@ -87,13 +94,16 @@ class TestWaitForScheduledTimeRule:
 
         assert ctx.validated_state_type == proposed_state_type
 
-    async def test_early_scheduled_states_are_delayed(
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.SCHEDULED, states.StateType.PENDING]
+    )
+    async def test_running_before_scheduled_start_time_is_delayed(
         self,
         session,
         run_type,
         initialize_orchestration,
+        initial_state_type,
     ):
-        initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
@@ -110,24 +120,93 @@ class TestWaitForScheduledTimeRule:
         assert ctx.proposed_state is None
         assert abs(ctx.response_details.delay_seconds - 300) < 2
 
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+        ],
+    )
     async def test_scheduling_rule_does_not_fire_against_other_state_types(
         self,
         session,
         run_type,
         initialize_orchestration,
+        proposed_state_type,
     ):
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
+        initial_state_type = states.StateType.SCHEDULED
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
             session,
             run_type,
             *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
         )
 
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
         async with scheduling_rule as ctx:
             pass
+        assert await scheduling_rule.invalid()
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestCopyScheduledTime:
+    async def test_scheduled_time_copied_from_scheduled_to_pending(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.PENDING
+        intended_transition = (initial_state_type, proposed_state_type)
+        scheduled_time = pendulum.now().subtract(minutes=5)
+
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": scheduled_time},
+        )
+
+        async with CopyScheduledTime(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == proposed_state_type
+        assert ctx.validated_state.state_details.scheduled_time == scheduled_time
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        [
+            states.StateType.COMPLETED,
+            states.StateType.FAILED,
+            states.StateType.CANCELLED,
+            states.StateType.CRASHED,
+            states.StateType.RUNNING,
+        ],
+    )
+    async def test_scheduled_time_not_copied_for_other_transitions(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.SCHEDULED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
+        )
+
+        scheduling_rule = CopyScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            await ctx.validate_proposed_state()
+
         assert await scheduling_rule.invalid()
 
 
@@ -1418,7 +1497,6 @@ class TestTaskConcurrencyLimits:
         task2_running_ctx = await initialize_orchestration(
             session, "task", *running_transition, run_tags=["shrinking limit"]
         )
-
         async with contextlib.AsyncExitStack() as stack:
             for rule in concurrency_policy:
                 task2_running_ctx = await stack.enter_async_context(
@@ -1477,3 +1555,719 @@ class TestTaskConcurrencyLimits:
         # the concurrency slot is released as expected
         assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "shrinking limit")) == 0
+
+    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_fizzle(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """Make sure that we return the concurrency slot when even on a fizzle as long as we transition
+        out of running, with ReleaseTaskConcurrencySlots listed first in priority.
+        """
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        accept_concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        reject_concurrency_policy = [
+            ReleaseTaskConcurrencySlots,
+            SecureTaskConcurrencySlots,
+            StateMutatingRule,
+        ]
+
+        await self.create_concurrency_limit(session, "small", 1)
+
+        # Fill the concurrency slot by transitioning into a running state
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["small"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in accept_concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+        # Make sure that the concurrency slot is released even though the transition was
+        # rejected, because the task was still moved out of a RUNNING state
+        pending_transition = (states.StateType.RUNNING, states.StateType.PENDING)
+
+        task1_pending_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *pending_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["small"],
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in reject_concurrency_policy:
+                task1_pending_ctx = await stack.enter_async_context(
+                    rule(task1_pending_ctx, *pending_transition)
+                )
+            await task1_pending_ctx.validate_proposed_state()
+
+        assert task1_pending_ctx.response_status == SetStateStatus.REJECT
+        assert task1_pending_ctx.validated_state.type != states.StateType.RUNNING
+        assert (await self.count_concurrency_slots(session, "small")) == 0
+
+    async def test_returning_concurrency_slots_when_transitioning_out_of_running_even_on_invalidation(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """Make sure that we return the concurrency slot when even on a fizzle as long as we transition
+        out of running, with ReleaseTaskConcurrencySlots listed last in priority.
+        """
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        accept_concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        reject_concurrency_policy = [
+            StateMutatingRule,
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        await self.create_concurrency_limit(session, "small", 1)
+
+        # Fill the concurrency slot by transitioning into a running state
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["small"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in accept_concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+        # Make sure that the concurrency slot is released even though the transition was
+        # rejected, because the task was still moved out of a RUNNING state
+        pending_transition = (states.StateType.RUNNING, states.StateType.PENDING)
+
+        task1_pending_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *pending_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["small"],
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in reject_concurrency_policy:
+                task1_pending_ctx = await stack.enter_async_context(
+                    rule(task1_pending_ctx, *pending_transition)
+                )
+            await task1_pending_ctx.validate_proposed_state()
+
+        assert task1_pending_ctx.response_status == SetStateStatus.REJECT
+        assert task1_pending_ctx.validated_state.type != states.StateType.RUNNING
+        assert (await self.count_concurrency_slots(session, "small")) == 0
+
+    async def test_releasing_concurrency_slots_does_not_happen_if_nullified_with_release_first(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """Make sure that concurrency slots are not released if the transition is nullified,
+        with ReleaseTaskConcurrencySlots listed first in priority
+        """
+
+        class NullifiedTransition(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.abort_transition(reason="For testing purposes")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        accept_concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        abort_concurrency_policy = [
+            ReleaseTaskConcurrencySlots,
+            SecureTaskConcurrencySlots,
+            NullifiedTransition,
+        ]
+
+        await self.create_concurrency_limit(session, "small", 1)
+
+        # Fill the concurrency slot by transitioning into a running state
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["small"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in accept_concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+        # Make sure that the concurrency slot is not released because the transition
+        # was aborted
+        pending_transition = (states.StateType.RUNNING, states.StateType.PENDING)
+
+        task1_pending_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *pending_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["small"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:  # Here
+            for rule in abort_concurrency_policy:
+                task1_pending_ctx = await stack.enter_async_context(
+                    rule(task1_pending_ctx, *pending_transition)
+                )
+            await task1_pending_ctx.validate_proposed_state()
+
+        assert task1_pending_ctx.response_status == SetStateStatus.ABORT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+    async def test_releasing_concurrency_slots_does_not_happen_if_nullified_with_release_last(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """Make sure that concurrency slots are not released if the transition is nullified,
+        with ReleaseTaskConcurrencySlots listed last in priority
+        """
+
+        class NullifiedTransition(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.abort_transition(reason="For testing purposes")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        accept_concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        abort_concurrency_policy = [
+            NullifiedTransition,
+            SecureTaskConcurrencySlots,
+            ReleaseTaskConcurrencySlots,
+        ]
+
+        await self.create_concurrency_limit(session, "small", 1)
+
+        # Fill the concurrency slot by transitioning into a running state
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["small"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in accept_concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+        # Make sure that the concurrency slot is not released because the transition
+        # was aborted
+        pending_transition = (states.StateType.RUNNING, states.StateType.PENDING)
+
+        task1_pending_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *pending_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["small"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:  # Here
+            for rule in abort_concurrency_policy:
+                task1_pending_ctx = await stack.enter_async_context(
+                    rule(task1_pending_ctx, *pending_transition)
+                )
+            await task1_pending_ctx.validate_proposed_state()
+
+        assert task1_pending_ctx.response_status == SetStateStatus.ABORT
+        assert (await self.count_concurrency_slots(session, "small")) == 1
+
+
+class TestPausingFlows:
+    async def test_can_not_nonblocking_pause_subflows(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.parent_task_run_id == uuid4()
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_not_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    async def test_can_nonblocking_pause_flows_with_deployments_with_reschedule_flag(
+        self,
+        session,
+        initialize_orchestration,
+        deployment,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state.state_details = states.StateDetails(pause_reschedule=True)
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_updates_pause_key_tracker(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert "hello" in ctx.run.empirical_policy.pause_keys
+
+    async def test_defaults_pause_key_to_random_uuid(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        assert len(ctx.run.empirical_policy.pause_keys) == 0
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert len(ctx.run.empirical_policy.pause_keys) == 1
+
+    async def test_does_not_permit_repeat_pauses(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            run_override=ctx.run,
+        )
+        ctx2.proposed_state = states.Paused(pause_key="hello", timeout_seconds=1000)
+
+        async with HandlePausingFlows(ctx2, *intended_transition) as ctx2:
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.REJECT
+        assert ctx2.validated_state.type == states.StateType.RUNNING
+
+    @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_can_only_pause_running_flows(
+        self,
+        session,
+        initial_state_type,
+        initialize_orchestration,
+        deployment,
+    ):
+        proposed_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandlePausingFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        if ctx.initial_state is None:
+            assert ctx.response_status == SetStateStatus.ABORT
+        elif ctx.initial_state.is_running():
+            assert ctx.response_status == SetStateStatus.ACCEPT
+        else:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
+
+
+class TestResumingFlows:
+    async def test_cannot_leave_nonblocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now, pause_reschedule=True
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.PAUSED
+
+    async def test_can_leave_blocking_pausing_state_without_a_deployment(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        five_minutes_from_now = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_from_now
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
+    async def test_transitions_out_of_pausing_states_are_restricted(
+        self,
+        session,
+        proposed_state_type,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        permitted_resuming_states = [
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+            states.StateType.SCHEDULED,
+            states.StateType.FAILED,
+            states.StateType.CRASHED,
+            states.StateType.CANCELLED,
+        ]
+
+        if proposed_state_type in permitted_resuming_states:
+            assert ctx.response_status == SetStateStatus.ACCEPT
+        else:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state_type == initial_state_type
+
+    async def test_cannot_leave_pausing_state_if_pause_has_timed_out(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        five_minutes_ago = pendulum.now("UTC") - pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_ago
+        )
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state.type == states.StateType.FAILED
+
+    async def test_allows_leaving_pausing_state(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_marks_flow_run_as_resuming_upon_leaving_paused_state(
+        self,
+        session,
+        deployment,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.PAUSED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.deployment_id = deployment.id
+        the_future = pendulum.now("UTC") + pendulum.Duration(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+
+        state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.run.empirical_policy.resuming
+
+
+class TestPreventRunningTasksFromStoppedFlows:
+    async def test_allows_task_runs_to_run(self, session, initialize_orchestration):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=states.StateType.RUNNING,
+        )
+
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state.is_running()
+
+    @pytest.mark.parametrize(
+        "initial_flow_run_state_type",
+        sorted(list(set(states.StateType) - {states.StateType.RUNNING})),
+    )
+    async def test_prevents_tasks_From_running(
+        self, session, initial_flow_run_state_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_flow_run_state_type=initial_flow_run_state_type,
+        )
+
+        run_preventer = PreventRunningTasksFromStoppedFlows(ctx, *intended_transition)
+
+        async with run_preventer as ctx:
+            await ctx.validate_proposed_state()
+
+        if initial_flow_run_state_type == states.StateType.PAUSED:
+            assert ctx.response_status == SetStateStatus.REJECT
+            assert ctx.validated_state.is_paused()
+        else:
+            assert ctx.response_status == SetStateStatus.ABORT
+            assert ctx.validated_state.is_pending()

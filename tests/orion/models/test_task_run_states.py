@@ -69,6 +69,14 @@ class TestCreateTaskRunState:
         assert task_run.total_run_time == (dt2 - dt)
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
+        # first ensure the task run's flow run is in a running state
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=task_run.flow_run_id,
+            state=Running(),
+            force=True,
+        )
+
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
@@ -125,6 +133,13 @@ class TestCreateTaskRunState:
     async def test_database_is_not_updated_when_no_transition_takes_place(
         self, task_run, session
     ):
+        # first ensure the task run's flow run is in a running state
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=task_run.flow_run_id,
+            state=Running(),
+            force=True,
+        )
 
         # place the run in a scheduled state in the future
         trs = await models.task_runs.set_task_run_state(

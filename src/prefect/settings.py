@@ -318,6 +318,18 @@ PREFECT_HOME = Setting(
 directory may be created automatically when required.
 """
 
+PREFECT_EXTRA_ENTRYPOINTS = Setting(
+    str,
+    default="",
+)
+"""
+Modules for Prefect to import when Prefect is imported.
+
+Values should be separated by commas, e.g. `my_module,my_other_module`.
+Objects within modules may be specified by a ':' partition, e.g. `my_module:my_object`.
+If a callable object is provided, it will be called with no arguments on import.
+"""
+
 PREFECT_DEBUG_MODE = Setting(
     bool,
     default=False,
@@ -378,6 +390,12 @@ PREFECT_API_KEY = Setting(
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
 
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+
+If the remote Orion API does not support HTTP/2, this will have no effect and
+connections will be made via HTTP/1.1"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
@@ -423,6 +441,11 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
     default=30.0,
 )
 """The default timeout for requests to the API"""
+
+PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
+"""
+If enabled, warn on usage of expirimental features.
+"""
 
 PREFECT_PROFILES_PATH = Setting(
     Path,
@@ -511,6 +534,15 @@ will be added to these loggers. Additionally, if the level is not set, it will
 be set to the same level as the 'prefect' logger.
 """
 
+PREFECT_LOGGING_LOG_PRINTS = Setting(
+    bool,
+    default=False,
+)
+"""
+If set, `print` statements in flows and tasks will be redirected to the Prefect logger
+for the given run. This setting can be overriden by individual tasks and flows.
+"""
+
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     bool,
     default=True,
@@ -541,13 +573,26 @@ PREFECT_LOGGING_COLORS = Setting(
 )
 """Whether to style console logs with color."""
 
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=5,
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
 )
 """
-The agent loop interval, in seconds. Agents will check
-for new runs this often. Defaults to `5`.
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
+PREFECT_AGENT_QUERY_INTERVAL = Setting(
+    float,
+    default=10,
+)
+"""
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
 """
 
 PREFECT_AGENT_PREFETCH_SECONDS = Setting(
@@ -641,10 +686,11 @@ PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=5.0,
+    default=10.0,
 )
-"""A statement timeout, in seconds, applied to all database
-interactions made by the API. Defaults to `1`.
+"""
+A statement timeout, in seconds, applied to all database interactions made by the API.
+Defaults to 10 seconds.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
@@ -745,6 +791,14 @@ have exceeded their scheduled start time by this many seconds. Defaults
 to `5` seconds.
 """
 
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The pause expiration service will look for runs to mark as failed
+this often. Defaults to `5`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -811,6 +865,20 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 )
 """Whether or not to start the flow run notifications service in the Orion application. 
 If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the paused flow run expiration service in the Orion
+application. If disabled, paused flows that have timed out will remain in a Paused state
+until a resume attempt.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers. 
 """
 
 # Collect all defined settings
