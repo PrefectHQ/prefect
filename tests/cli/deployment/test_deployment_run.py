@@ -1,7 +1,6 @@
 import pendulum
 import pytest
 from pendulum.datetime import DateTime
-from pendulum.tz.timezone import Timezone
 
 import prefect
 from prefect.testing.cli import invoke_and_assert
@@ -145,9 +144,18 @@ async def test_start_in_option_schedules_flow_run_in_future(
 @pytest.mark.parametrize(
     "start_at,expected_start_time",
     [
-        ("12/20/2022 1am", DateTime(2022, 12, 20, 6, 0, 0, tzinfo=Timezone("UTC"))),
-        ("1-1-2020", DateTime(2020, 1, 1, 5, 0, 0, tzinfo=Timezone("UTC"))),
-        ("5 June 2015", DateTime(2015, 6, 5, 4, 0, 0, tzinfo=Timezone("UTC"))),
+        (
+            "12/20/2022 1am",
+            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
+        (
+            "1-1-2020",
+            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
+        (
+            "5 June 2015",
+            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
     ],
 )
 async def test_start_at_option_schedules_flow_run_in_future(
