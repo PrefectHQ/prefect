@@ -257,7 +257,7 @@ class Task(Generic[P, R]):
             float,
             int,
             List[float],
-            Callable[["TaskRunContext", Dict[str, Any]], List[float]],
+            Callable[[int], List[float]],
         ] = NotSet,
         retry_jitter_factor: Optional[float] = NotSet,
         persist_result: Optional[bool] = NotSet,
