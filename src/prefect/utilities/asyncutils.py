@@ -27,6 +27,8 @@ A = TypeVar("A", Async, Sync, covariant=True)
 # Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
 EVENT_LOOP_GC_REFS = {}
 
+PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
+
 
 def is_async_fn(
     func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
@@ -66,7 +68,9 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(call, cancellable=True)
+    return await anyio.to_thread.run_sync(
+        call, cancellable=True, limiter=PREFECT_THREAD_LIMITER
+    )
 
 
 def raise_async_exception_in_thread(thread: Thread, exc_type: Type[BaseException]):
@@ -134,6 +138,7 @@ async def run_sync_in_interruptible_worker_thread(
                 anyio.to_thread.run_sync,
                 capture_worker_thread_and_result,
                 cancellable=True,
+                limiter=PREFECT_THREAD_LIMITER,
             )
         )
 
