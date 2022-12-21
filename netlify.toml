@@ -12,7 +12,7 @@ command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
 && pip install git+https://oauth:${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
-&& prefect dev build-docs  \
+&& prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 || mkdocs build --config-file mkdocs.yml \
 """
