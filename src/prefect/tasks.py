@@ -77,7 +77,7 @@ def task_input_hash(
     )
 
 
-def exponential_backoff(backoff_factor: float) -> Callable:
+def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
     """
     A task retry backoff utility that configures exponential backoff for task retries.
     The exponential backoff design matches the urllib3 implementation.
