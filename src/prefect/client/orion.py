@@ -31,8 +31,11 @@ from prefect.orion.schemas.core import (
     BlockType,
     FlowRunNotificationPolicy,
     QueueFilter,
+    WorkerPool,
+    WorkerPoolQueue,
 )
 from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
+from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
@@ -1227,6 +1230,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
+        worker_pool_queue_id: UUID = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
@@ -1264,6 +1268,7 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
+            worker_pool_queue_id=worker_pool_queue_id,
             description=description,
             storage_document_id=storage_document_id,
             path=path,
@@ -1889,6 +1894,60 @@ class OrionClient:
             return data
 
         return await resolve_inner(datadoc)
+
+    async def send_worker_heartbeat(self, worker_pool_name: str, worker_name: str):
+        await self._client.post(
+            f"/experimental/worker_pools/{worker_pool_name}/workers/heartbeat",
+            json={"name": worker_name},
+        )
+
+    async def read_worker_pool(self, worker_pool_name: str):
+        try:
+            response = await self._client.get(
+                f"/experimental/worker_pools/{worker_pool_name}"
+            )
+            return pydantic.parse_obj_as(WorkerPool, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def create_worker_pool(
+        self,
+        worker_pool: schemas.actions.WorkerPoolCreate,
+    ):
+        response = await self._client.post(
+            "/experimental/worker_pools/",
+            json=worker_pool.dict(json_compatible=True, exclude_unset=True),
+        )
+
+        return pydantic.parse_obj_as(WorkerPool, response.json())
+
+    async def read_worker_pool_queues(self, worker_pool_name: str):
+        response = await self._client.get(
+            f"/experimental/worker_pools/{worker_pool_name}/queues"
+        )
+
+        return pydantic.parse_obj_as(List[WorkerPoolQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_worker(
+        self,
+        worker_pool_name: str,
+        worker_pool_queue_names: List[str],
+        scheduled_before: datetime.datetime,
+    ):
+        body = {
+            "worker_pool_queue_names": worker_pool_queue_names,
+            "scheduled_before": str(scheduled_before),
+        }
+
+        response = await self._client.post(
+            f"/experimental/worker_pools/{worker_pool_name}/get_scheduled_flow_runs",
+            json=body,
+        )
+
+        return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
 
     async def __aenter__(self):
         """
