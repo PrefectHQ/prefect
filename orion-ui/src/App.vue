@@ -18,11 +18,16 @@
 </template>
 
 <script lang="ts" setup>
+  import { createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
-  import { computed, ref, watchEffect } from 'vue'
+  import { computed, provide, ref, watchEffect } from 'vue'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import AppRouterView from '@/pages/AppRouterView.vue'
   import { healthCheck } from '@/utilities/api'
+
+  const routes = createWorkspaceRoutes()
+
+  provide(workspaceRoutesKey, routes)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
