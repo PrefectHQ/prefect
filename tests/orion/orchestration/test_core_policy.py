@@ -922,7 +922,7 @@ class TestTaskRetryingRule:
         assert ctx.validated_state_type == states.StateType.SCHEDULED
         assert math.isclose(
             (scheduled_time - orchestration_start).in_seconds(),
-            11,
+            100,
             rel_tol=0.1,
         )
 
