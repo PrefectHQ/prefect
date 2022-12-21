@@ -627,6 +627,17 @@ class Block(BaseModel, ABC):
         that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded normally without `skip_validation` being set to True.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `skip_validation` set to True to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used.
+
         Args:
             name: The name or slug of the block document. A block document slug is a
                 string with the format <block_type_slug>/<block_document_name>
