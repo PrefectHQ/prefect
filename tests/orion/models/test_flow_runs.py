@@ -1131,8 +1131,17 @@ class TestReadFlowRunTaskRunDependencies:
 
         assert len(dependencies) == 3
 
-        fields = ["id", "name", "state", "expected_start_time", "start_time", "end_time", "total_run_time", "estimated_run_time"]
-        
+        fields = [
+            "id",
+            "name",
+            "state",
+            "expected_start_time",
+            "start_time",
+            "end_time",
+            "total_run_time",
+            "estimated_run_time",
+        ]
+
         for field in fields:
             assert d1[field] == getattr(task_run_1, field)
             assert d2[field] == getattr(task_run_2, field)
