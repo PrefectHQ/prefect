@@ -2,13 +2,16 @@
 Command line interface for working with deployments.
 """
 import json
+import shutil
 import sys
+import tempfile
 import textwrap
 from datetime import timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import httpx
 import pendulum
 import typer
 import yaml
@@ -38,7 +41,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_UI_URL, PREFECT_WORKER_WORKFLOW_STORAGE_PATH
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
@@ -603,6 +606,46 @@ InfrastructureSlugs = Enum(
 
 
 @deployment_app.command()
+async def submit(
+    deployments_folder_path: Path = typer.Option(
+        Path.cwd,
+        file_okay=False,
+        dir_okay=True,
+        resolve_path=True,
+        help="Path to folder containing deployment manifests and flow code.",
+    ),
+    worker_address: str = typer.Option(
+        default=None, help="Network address of worker to which to submit deployments."
+    ),
+    local: bool = typer.Option(default=False, help="Submit deployment to local worker"),
+):
+    if local:
+        copy_destination = shutil.copytree(
+            deployments_folder_path,
+            PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value(),
+            dirs_exist_ok=True,
+        )
+    if worker_address:
+        with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
+            copy_destination = shutil.copytree(
+                deployments_folder_path,
+                Path(working_dir) / deployments_folder_path.name,
+            )
+            zip_file_path = shutil.make_archive(
+                base_name=copy_destination,
+                format="zip",
+                root_dir=copy_destination,
+            )
+            with httpx.Client() as client:
+                with open(zip_file_path, "rb") as file:
+                    r = client.post(
+                        f"http://{worker_address}/submit_deployments",
+                        files={"zip_file": file},
+                    )
+                    print(r.status_code, r.json(), sep=" ")
+
+
+@deployment_app.command()
 async def build(
     entrypoint: str = typer.Argument(
         ...,
@@ -628,6 +671,14 @@ async def build(
             "The work queue that will handle this deployment's runs. "
             "It will be created if it doesn't already exist. Defaults to `None`. "
             "Note that if a work queue is not set, work will not be scheduled."
+        ),
+    ),
+    worker_pool_queue_id: str = typer.Option(
+        None,
+        "--worker-pool-queue-id",
+        help=(
+            "EXPERIMENTAL "
+            "The ID of the worker pool queue that will handle this deployment's runs."
         ),
     ),
     work_queue_concurrency: int = typer.Option(
@@ -847,6 +898,7 @@ async def build(
         version=version,
         storage=storage,
         infra_overrides=infra_overrides or {},
+        worker_pool_queue_id=worker_pool_queue_id,
     )
 
     if parameters:
