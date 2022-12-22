@@ -331,11 +331,13 @@ class TaskRunPolicy(PrefectBaseModel):
     def validate_configured_retry_delays(cls, v):
         if isinstance(v, list) and (len(v) > 50):
             raise ValueError("Can not configure more than 50 retry delays per task.")
+        return v
 
     @validator("retry_jitter_factor")
     def validate_jitter_factor(cls, v):
         if v is not None and v < 0:
             raise ValueError("`retry_jitter_factor` must be >= 0.")
+        return v
 
 
 class TaskRunInput(PrefectBaseModel):
