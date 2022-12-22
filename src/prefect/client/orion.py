@@ -1342,13 +1342,7 @@ class OrionClient:
         Returns:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
-        try:
-            response = await self._client.get(f"/deployments/{deployment_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == status.HTTP_404_NOT_FOUND:
-                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
-            else:
-                raise
+        response = await self._client.get(f"/deployments/{deployment_id}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployment_by_name(
