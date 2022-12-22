@@ -3,6 +3,7 @@
     <p-context-nav-item title="Flow Runs" icon="FlowRun" :to="routes.flowRuns()" />
     <p-context-nav-item title="Flows" icon="Flow" :to="routes.flows()" />
     <p-context-nav-item title="Deployments" icon="LocationMarkerIcon" :to="routes.deployments()" />
+    <p-context-nav-item title="Workers" icon="DatabaseIcon" :to="routes.workerPools()" />
     <p-context-nav-item title="Work Queues" icon="DatabaseIcon" :to="routes.workQueues()" />
     <p-context-nav-item title="Blocks" icon="CubeIcon" :to="routes.blocks()" />
     <p-context-nav-item title="Notifications" icon="BellIcon" :to="routes.notifications()" />
