@@ -7,12 +7,14 @@ from functools import partial
 
 import anyio
 import anyio.abc
+import pendulum
 import typer
 
 import prefect
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client import get_client
 from prefect.logging import get_logger
 from prefect.orion.database.alembic_commands import (
     alembic_downgrade,
@@ -148,6 +150,42 @@ async def start(
         kill_on_interrupt(orion_process_id, "Orion", app.console.print)
 
     app.console.print("Orion stopped!")
+
+
+@orion_app.command()
+async def status(
+    wait: bool = typer.Option(
+        False,
+        "--wait",
+        help="Runs health check loop until successful or optional timeout value is exceeded.",
+    ),
+    timeout: int = typer.Option(
+        None, "--timeout", help="Optional Timeout value in seconds"
+    ),
+):
+    """Verify Connection status with Orion API"""
+    async with get_client() as client:
+        status_check = True
+        start_time = pendulum.now()
+        while status_check == True:
+            response = await client.api_healthcheck()
+            if not response:
+                print("Orion Healthy")
+                status_check = False
+            else:
+                if wait == False:
+                    print(response)
+                    status_check = False
+                else:
+                    if not timeout:
+                        print(f"{response} retrying")
+                    else:
+                        timeout_diff = pendulum.now() - start_time
+                        if timeout_diff.seconds > timeout:
+                            print(f"Timeout exceed, {response}")
+                            status_check = False
+                        else:
+                            print(f"{response} retrying")
 
 
 @database_app.command()
