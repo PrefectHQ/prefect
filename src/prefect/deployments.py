@@ -41,7 +41,7 @@ from prefect.utilities.slugify import slugify
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name: str,
+    name_or_id: str,
     client: OrionClient = None,
     parameters: dict = None,
     scheduled_time: datetime = None,
@@ -80,7 +80,12 @@ async def run_deployment(
 
     parameters = parameters or {}
 
-    deployment = await client.read_deployment_by_name(name)
+    deployment_id = None
+    try:
+        deployment_id = UUID(name_or_id)
+        deployment = await client.read_deployment(deployment_id=deployment_id)
+    except ValueError:
+        deployment = await client.read_deployment_by_name(name_or_id)
 
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
@@ -95,14 +100,20 @@ async def run_deployment(
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
 
+        if deployment_id:
+            flow = await client.read_flow(deployment.flow_id)
+            deployment_name = f"{flow.name}/{deployment.name}"
+        else:
+            deployment_name = name_or_id
+
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
-            name=name,
+            name=deployment_name,
             fn=lambda: None,
             version=deployment.version,
         )
         # Override the default task key to include the deployment name
-        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(name)}"
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=flow_run_ctx.flow_run.id,
@@ -138,58 +149,6 @@ async def run_deployment(
             await anyio.sleep(poll_interval)
 
     return flow_run
-
-
-@sync_compatible
-@inject_client
-async def run_deployment_by_id(
-    deployment_id: str,
-    client: OrionClient = None,
-    parameters: dict = None,
-    scheduled_time: datetime = None,
-    flow_run_name: str = None,
-    timeout: float = None,
-    poll_interval: float = 5,
-    tags: Optional[Iterable[str]] = None,
-    idempotency_key: str = None,
-):
-    """
-    Create a flow run for a deployment and return it after completion or a timeout.
-
-    This function will return when the created flow run enters any terminal state or
-    the timeout is reached. If the timeout is reached and the flow run has not reached
-    a terminal state, it will still be returned. When using a timeout, we suggest
-    checking the state of the flow run if completion is important moving forward.
-
-    Args:
-        deployment_id: The deployment id as string
-        parameters: Parameter overrides for this flow run. Merged with the deployment
-            defaults
-        scheduled_time: The time to schedule the flow run for, defaults to scheduling
-            the flow run to start now.
-        flow_run_name: A name for the created flow run
-        timeout: The amount of time to wait for the flow run to complete before
-            returning. Setting `timeout` to 0 will return the flow run immediately.
-            Setting `timeout` to None will allow this function to poll indefinitely.
-            Defaults to None
-        poll_interval: The number of seconds between polls
-    """
-    try:
-        deployment_uuid = UUID(deployment_id)
-    except:
-        raise ValueError("Invalid deployment_id passed")
-    deployment = await client.read_deployment(deployment_uuid)
-    flow = await client.read_flow(deployment.flow_id)
-    return await run_deployment(
-        name=f'{flow.name}/{deployment.name}', 
-        client=client, 
-        parameters=parameters, 
-        scheduled_time=scheduled_time,
-        flow_run_name=flow_run_name,
-        timeout=timeout,
-        poll_interval=poll_interval,
-        tags=tags,
-        idempotency_key=idempotency_key)
 
 
 @inject_client
