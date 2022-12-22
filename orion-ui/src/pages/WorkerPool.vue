@@ -6,8 +6,7 @@
 
     <p-tabs :tabs="tabs">
       <template #details>
-        details
-        <!-- <WorkerPoolDetails :worker-pool="workerPool" /> -->
+        <WorkerPoolDetails :worker-pool="workerPool" />
       </template>
 
       <template #runs>
@@ -27,14 +26,13 @@
     </p-tabs>
 
     <template #well>
-      Details
-      <!-- <WorkerPoolDetails :worker-pool="workerPool" /> -->
+      <WorkerPoolDetails :worker-pool="workerPool" />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkerPool } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkerPool, WorkerPoolDetails } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
