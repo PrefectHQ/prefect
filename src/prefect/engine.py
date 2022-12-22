@@ -1405,7 +1405,7 @@ async def orchestrate_task_run(
         client,
         Running(
             state_details=StateDetails(
-                cache_key=cache_key, bypass_cache=task.bypass_cache
+                cache_key=cache_key, cache_refresh=task.cache_refresh
             )
         ),
         task_run_id=task_run.id,

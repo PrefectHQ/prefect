@@ -153,7 +153,7 @@ class Task(Generic[P, R]):
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
-        bypass_cache: If set, eventually cached results for the cache key are not used.
+        cache_refresh: If set, eventually cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
     """
@@ -185,7 +185,7 @@ class Task(Generic[P, R]):
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
-        bypass_cache: Optional[bool] = False,
+        cache_refresh: Optional[bool] = False,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -217,7 +217,7 @@ class Task(Generic[P, R]):
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
-        self.bypass_cache = bypass_cache
+        self.cache_refresh = cache_refresh
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -289,7 +289,7 @@ class Task(Generic[P, R]):
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
-        bypass_cache: Optional[bool] = NotSet,
+        cache_refresh: Optional[bool] = NotSet,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -317,7 +317,7 @@ class Task(Generic[P, R]):
             result_serializer: A new serializer to use for results.
             timeout_seconds: A new maximum number of runtime in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
-            bypass_cache: A new option for enabling or disabling cache bypassing.
+            cache_refresh: A new option for enabling or disabling cache bypassing.
 
         Returns:
             A new `Task` instance.
@@ -394,8 +394,8 @@ class Task(Generic[P, R]):
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
             log_prints=(log_prints if log_prints is not NotSet else self.log_prints),
-            bypass_cache=(
-                bypass_cache if bypass_cache is not NotSet else self.bypass_cache
+            cache_refresh=(
+                cache_refresh if cache_refresh is not NotSet else self.cache_refresh
             ),
         )
 
@@ -850,7 +850,7 @@ def task(
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
-    bypass_cache: Optional[bool] = None,
+    cache_refresh: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -878,7 +878,7 @@ def task(
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
-    bypass_cache: Optional[bool] = None,
+    cache_refresh: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -924,7 +924,7 @@ def task(
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
-        bypass_cache: If set, eventually cached results for the cache key are not used.
+        cache_refresh: If set, eventually cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
 
@@ -996,7 +996,7 @@ def task(
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
-                bypass_cache=bypass_cache,
+                cache_refresh=cache_refresh,
             ),
         )
     else:
@@ -1019,6 +1019,6 @@ def task(
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
-                bypass_cache=bypass_cache,
+                cache_refresh=cache_refresh,
             ),
         )
