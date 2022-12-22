@@ -58,7 +58,7 @@ def test_both_start_in_and_start_at_raises():
         ("Octob 1st 2020", "Unable to parse scheduled start time 'at Octob 1st 2020'."),
     ],
 )
-def test_start_at_invalid_input(
+def test_start_at_option_invalid_input(
     deployment_name: str, start_at: str, expected_output: str
 ):
     invoke_and_assert(
@@ -115,8 +115,12 @@ async def test_start_at_option_displays_scheduled_start_time(
 async def test_start_at_option_with_tz_displays_scheduled_start_time(
     deployment_name: str, start_at: str, expected_start_time: DateTime
 ):
-    local_dt = expected_start_time.in_tz(pendulum.tz.local_timezone())
-    expected_display = local_dt.to_datetime_string() + " " + local_dt.tzname()
+    expected_start_time_local = expected_start_time.in_tz(pendulum.tz.local_timezone())
+    expected_display = (
+        expected_start_time_local.to_datetime_string()
+        + " "
+        + expected_start_time_local.tzname()
+    )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -194,8 +198,12 @@ async def test_start_at_option_with_tz_schedules_flow_run_in_future(
     expected_start_time: DateTime,
     orion_client: prefect.OrionClient,
 ):
-    local_dt = expected_start_time.in_tz(pendulum.tz.local_timezone())
-    expected_display = local_dt.to_datetime_string() + " " + local_dt.tzname()
+    expected_start_time_local = expected_start_time.in_tz(pendulum.tz.local_timezone())
+    expected_display = (
+        expected_start_time_local.to_datetime_string()
+        + " "
+        + expected_start_time_local.tzname()
+    )
 
     await run_sync_in_worker_thread(
         invoke_and_assert,
@@ -219,7 +227,7 @@ async def test_start_at_option_with_tz_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
-def test_start_in_invalid_input(deployment_name: str):
+def test_start_in_option_invalid_input(deployment_name: str):
     invoke_and_assert(
         command=[
             "deployment",
@@ -245,7 +253,7 @@ def test_start_in_invalid_input(deployment_name: str):
         ("27 hours + 4 mins", "in 1 day"),
     ],
 )
-async def test_start_in_displays_scheduled_start_time(
+async def test_start_in_option_displays_scheduled_start_time(
     deployment_name: str,
     start_in: str,
     expected_display: str,
