@@ -9,7 +9,18 @@ import warnings
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from threading import Thread
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -26,6 +37,17 @@ A = TypeVar("A", Async, Sync, covariant=True)
 
 # Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
 EVENT_LOOP_GC_REFS = {}
+
+PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
+
+
+def get_thread_limiter():
+    global PREFECT_THREAD_LIMITER
+
+    if PREFECT_THREAD_LIMITER is None:
+        PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
+
+    return PREFECT_THREAD_LIMITER
 
 
 def is_async_fn(
@@ -66,7 +88,9 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(call, cancellable=True)
+    return await anyio.to_thread.run_sync(
+        call, cancellable=True, limiter=get_thread_limiter()
+    )
 
 
 def raise_async_exception_in_thread(thread: Thread, exc_type: Type[BaseException]):
@@ -134,6 +158,7 @@ async def run_sync_in_interruptible_worker_thread(
                 anyio.to_thread.run_sync,
                 capture_worker_thread_and_result,
                 cancellable=True,
+                limiter=get_thread_limiter(),
             )
         )
 
