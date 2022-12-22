@@ -61,21 +61,21 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()  # PrefectFuture[str, Sync] includes result type
+        >>>     future = my_task.submit()  # PrefectFuture[str, Sync] includes result type
         >>>     future.task_run.id  # UUID for the task run
 
         Wait for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait()
 
         Wait N sconds for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait(0.1)
         >>>     if final_state:
         >>>         ... # Task done
@@ -86,7 +86,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result()
         >>>     assert result == "hello"
 
@@ -94,7 +94,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result(timeout=5)
         >>>     assert result == "hello"
 
@@ -102,7 +102,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     state = future.get_state()
     """
 
