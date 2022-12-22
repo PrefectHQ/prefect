@@ -135,8 +135,10 @@ class Task(Generic[P, R]):
             callable that, given the total number of retries, generates a list of retry
             delays. If a number of seconds, that delay will be applied to all retries.
             If a list, each retry will wait for the corresponding delay before retrying.
+            When passing a callable or a list, the number of configured retry delays
+            cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
-            can be jittered in order to avoid a "thundering herd"
+            can be jittered in order to avoid a "thundering herd".
         persist_result: An optional toggle indicating whether the result of this task
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
@@ -294,14 +296,16 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             retries: A new number of times to retry on task run failure.
-            retry_delay_seconds: Optionally configures how long to wait before retrying the
-                task after failure. This is only applicable if `retries` is nonzero. This
-                setting can either be a number of seconds, a list of retry delays, or a
-                callable that, given the total number of retries, generates a list of retry
-                delays. If a number of seconds, that delay will be applied to all retries.
-                If a list, each retry will wait for the corresponding delay before retrying.
-            retry_jitter_factor: An optional factor that defines the factor to which a retry
-                can be jittered in order to avoid a "thundering herd"
+            retry_delay_seconds: Optionally configures how long to wait before retrying
+                the task after failure. This is only applicable if `retries` is nonzero.
+                This setting can either be a number of seconds, a list of retry delays,
+                or a callable that, given the total number of retries, generates a list
+                of retry delays. If a number of seconds, that delay will be applied to
+                all retries. If a list, each retry will wait for the corresponding delay
+                before retrying. When passing a callable or a list, the number of
+                configured retry delays cannot exceed 50.
+            retry_jitter_factor: An optional factor that defines the factor to which a
+                retry can be jittered in order to avoid a "thundering herd".
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
@@ -888,8 +892,10 @@ def task(
             callable that, given the total number of retries, generates a list of retry
             delays. If a number of seconds, that delay will be applied to all retries.
             If a list, each retry will wait for the corresponding delay before retrying.
+            When passing a callable or a list, the number of configured retry delays
+            cannot exceed 50.
         retry_jitter_factor: An optional factor that defines the factor to which a retry
-            can be jittered in order to avoid a "thundering herd"
+            can be jittered in order to avoid a "thundering herd".
         persist_result: An optional toggle indicating whether the result of this task
             should be persisted to result storage. Defaults to `None`, which indicates
             that Prefect should choose whether the result should be persisted depending on
