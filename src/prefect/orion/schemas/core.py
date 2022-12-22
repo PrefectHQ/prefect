@@ -327,22 +327,15 @@ class TaskRunPolicy(PrefectBaseModel):
 
         return values
 
-    @root_validator
-    def validate_retry_and_jitter_inputs(cls, values):
-        """
-        Limits the number of configured retry delays to a maximum of 50. And ensures
-        that the relative jitter factor is positive.
-        """
-        if isinstance(values["retry_delay"], list) and (
-            len(values["retry_delay"]) > 50
-        ):
-            values["retry_delay"] = values["retry_delay"][:50]
+    @validator("retry_delay")
+    def validate_configured_retry_delays(cls, v):
+        if isinstance(v, list) and (len(v) > 50):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
 
-        configured_relative_jitter = values.get("retry_jitter_factor", None)
-        if configured_relative_jitter is not None and configured_relative_jitter < 0:
-            values["retry_jitter_factor"] = None
-
-        return values
+    @validator("retry_jitter_factor")
+    def validate_jitter_factor(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("`retry_jitter_factor` must be >= 0.")
 
 
 class TaskRunInput(PrefectBaseModel):

@@ -50,9 +50,7 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
 
     upper_clamp_multiple = 1 + clamping_factor
     upper_bound = average_interval * upper_clamp_multiple
-    lower_bound = max(
-        0, average_interval * lower_clamp_multiple(upper_clamp_multiple)
-    )
+    lower_bound = max(0, average_interval * lower_clamp_multiple(upper_clamp_multiple))
 
     upper_rv = exponential_cdf(upper_bound, average_interval)
     lower_rv = exponential_cdf(lower_bound, average_interval)

@@ -91,6 +91,9 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
     """
 
     def retry_backoff_callable(retries: int) -> List[float]:
+        # no more than 50 retry delays can be configured on a task
+        retries = min(retries, 50)
+
         return [backoff_factor * max(0, 2**r) for r in range(retries)]
 
     return retry_backoff_callable
