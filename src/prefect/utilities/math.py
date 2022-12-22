@@ -21,13 +21,13 @@ def exponential_cdf(x, average_interval):
     return 1 - math.exp(-ld * x)
 
 
-def lower_clamping_factor(k):
+def lower_clamp_multiple(k):
     """
-    Computes a lower clamping factor that can be used to bound a random variate drawn
+    Computes a lower clamp multiple that can be used to bound a random variate drawn
     from an exponential distribution.
 
-    Given an upper clamping factor `k` (and corresponding upper bound k * average_interval),
-    this function computes a lower clamping factor `c` (corresponding to a lower bound
+    Given an upper clamp multiple `k` (and corresponding upper bound k * average_interval),
+    this function computes a lower clamp multiple `c` (corresponding to a lower bound
     c * average_interval) where the probability mass between the lower bound and the
     median is equal to the probability mass between the median and the upper bound.
     """
@@ -48,9 +48,11 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
     if clamping_factor <= 0:
         raise ValueError("`clamping_factor` must be >= 0.")
 
-    k = 1 + clamping_factor
-    upper_bound = average_interval * k
-    lower_bound = max(0, average_interval * lower_clamping_factor(k))
+    upper_clamp_multiple = 1 + clamping_factor
+    upper_bound = average_interval * upper_clamp_multiple
+    lower_bound = max(
+        0, average_interval * lower_clamp_multiple(upper_clamp_multiple)
+    )
 
     upper_rv = exponential_cdf(upper_bound, average_interval)
     lower_rv = exponential_cdf(lower_bound, average_interval)
