@@ -1,5 +1,37 @@
 # Prefect Release Notes
 
+## Release 2.7.4
+
+### Custom retry delays and exponential backoffs
+
+...
+
+### Enhancements
+- Add task run names to the `/graph`  API route — https://github.com/PrefectHQ/prefect/pull/7951
+- Add vcs directories `.git`, and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
+
+### Deprecations
+- Add removal date to tag-based work queue deprecation messages — https://github.com/PrefectHQ/prefect/pull/7930
+
+### Documentation
+- Fix `prefect deployment` command listing — https://github.com/PrefectHQ/prefect/pull/7949
+- Add workspace transfer documentation — https://github.com/PrefectHQ/prefect/pull/7941
+- Fix docstring examples in the `PrefectFuture` — https://github.com/PrefectHQ/prefect/pull/7877
+- Update `setup.py` metadata to link to correct repo — https://github.com/PrefectHQ/prefect/pull/7933
+
+### Experimental
+- Add experimental workers API routes — https://github.com/PrefectHQ/prefect/pull/7896
+
+### Collections
+- New [`prefect-google-sheets` collection](https://stefanocascavilla.github.io/prefect-google-sheets/)
+
+### Contributors
+* @devanshdoshi9 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7949
+* @stefanocascavilla made their first contribution in https://github.com/PrefectHQ/prefect/pull/7960
+* @quassy made their first contribution in https://github.com/PrefectHQ/prefect/pull/7919
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.3...2.7.4
+
 ## Release 2.7.3
 
 ### Fixes
