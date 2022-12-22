@@ -995,6 +995,34 @@ class TestTaskCaching:
         assert second_state.name == "Completed"
         assert second_state.result() != first_state.result()
 
+    def test_cache_misses_w_cache_refresh(self):
+        @task(cache_key_fn=lambda *_: "cache hit", cache_refresh=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo._run(1), foo._run(2)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.result() != first_state.result()
+
+    def test_cache_hits_wo_cache_refresh(self):
+        @task(cache_key_fn=lambda *_: "cache hit", cache_refresh=False)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo._run(1), foo._run(2)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.result() == first_state.result()
+
 
 class TestCacheFunctionBuiltins:
     def test_task_input_hash_within_flows(self):
@@ -2239,6 +2267,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
             timeout_seconds=None,
+            cache_refresh=False,
         )
         def initial_task():
             pass
@@ -2256,6 +2285,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
             timeout_seconds=42,
+            cache_refresh=True,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2270,6 +2300,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.cache_refresh == True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2288,6 +2319,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
             timeout_seconds=42,
+            cache_refresh=True,
         )
         def initial_task():
             pass
@@ -2310,12 +2342,14 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.cache_refresh == True
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
             persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(),
+            cache_refresh=True,
         )
         def initial_task():
             pass
@@ -2324,10 +2358,12 @@ class TestTaskWithOptions:
             persist_result=None,
             result_serializer=None,
             result_storage=None,
+            cache_refresh=None,
         )
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
+        assert task_with_options.cache_refresh is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
@@ -2364,6 +2400,31 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
+
+    def test_with_options_cache_refresh(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return (
+                foo._run(1),
+                foo._run(2),
+                foo.with_options(cache_refresh=True)._run(3),
+                foo._run(4),
+            )
+
+        first, second, third, fourth = bar()
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        assert first.result() == second.result()
+        assert second.result() != third.result()
+        assert third.result() == fourth.result()
+        assert fourth.result() != first.result()
 
 
 class TestTaskRegistration:
