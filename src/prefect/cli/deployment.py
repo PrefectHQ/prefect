@@ -432,7 +432,7 @@ async def run(
 
             try:
 
-                start_time_parsed_utc = dateparser.parse(
+                start_time_parsed = dateparser.parse(
                     start_time_raw,
                     settings={
                         "TO_TIMEZONE": "UTC",
@@ -445,11 +445,10 @@ async def run(
             except Exception as exc:
                 exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
 
-        if start_time_parsed_utc is None:
+        if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
 
-        # pendulum.instance only takes tz arg such as "America/Los Angeles", not "PST"
-        scheduled_start_time = pendulum.instance(start_time_parsed_utc)
+        scheduled_start_time = pendulum.instance(start_time_parsed)
         human_dt_diff = (
             " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
         )
