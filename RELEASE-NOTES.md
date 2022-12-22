@@ -9,6 +9,7 @@
 ### Enhancements
 - Add task run names to the `/graph`  API route — https://github.com/PrefectHQ/prefect/pull/7951
 - Add vcs directories `.git`, and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
+- Increase the default thread limit from 40 to 250 — https://github.com/PrefectHQ/prefect/pull/7961
 
 ### Deprecations
 - Add removal date to tag-based work queue deprecation messages — https://github.com/PrefectHQ/prefect/pull/7930
