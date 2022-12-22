@@ -98,3 +98,37 @@ Select **Send** to initiate the invitation.
 To add a service account to a workspace, select the Service Accounts **+** icon. You can select from a list of existing service accounts configured for the organization. Select a Workspace Role for the service account. This will be the initial role for the service account within the workspace. A workspace Owner can change this role at any time. Select **Share** to finalize adding the service account.
 
 To delete a workspace collaborator or service account, select **Remove** from the menu on the right side of the user or service account information on this page.
+
+## Workspace transfer
+
+Workspace transfer enables you to move an existing workspace from one account to another. For example, you may transfer a workspace from a personal account to an organization.
+
+Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work queues, and logs. 
+
+!!! note "Workspace transfer permissions"
+    Workspace transfer must be initiated or approved by a user with admin priviliges for the workspace to be transferred.
+
+    For example, if you are transferring a personal workspace to an organization, the owner of the personal account is the default admin for that account and must initiate or approve the transfer.
+
+    To initiate a workspace transfer between personal accounts, contact [support@prefect.io](mailto:support@prefect.io).
+
+### Transfer a workspace
+
+To transfer a workspace, select **Workspace Settings** within the workspace. Then, from the options menu, select **Transfer** to initiate the workspace transfer process.
+
+![Initiating a workspace transfer in the Prefect Cloud UI.](/img/ui/workspace-transfer.png)
+
+The **Transfer Workspace** page shows the workspace to be transferred on the left. Select the target account or organization for the workspace on the right. You may also change the handle of the workspace during the transfer process.
+
+![Selecting a workspace transfer target in the Prefect Cloud UI.](/img/ui/workspace-transfer-options.png)
+
+Select **Transfer** to transfer the workspace. 
+
+!!! tip "Workspace transfer impact on accounts"
+    Workspace transfer may impact resource usage and costs for source and target account or organization. 
+
+    When you transfer a workspace, users, API keys, and service accounts may lose access to the workspace. Audit log will no longer track activity on the workspace. Flow runs ending outside of the destination account’s flow run retention period will be removed. You may also need to update Prefect CLI profiles and execution environment settings to access the workspace's new location.
+
+    You may also incur new charges in the target account to accommodate the transferred workspace.
+
+    The **Transfer Workspace** page outlines the impacts of transferring the selected workspace to the selected target. Please review these notes carefully before selecting **Transfer** to transfer the workspace.
