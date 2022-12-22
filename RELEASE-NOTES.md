@@ -17,7 +17,7 @@ def flaky_function():
     return 42
 ```
 
-Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an `exponential backoff` utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20 then 40 seconds before each retry.
+Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an `exponential_backoff` utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
 
 ```python
 from prefect import task, flow
@@ -31,7 +31,7 @@ def flaky_function():
     return 42
 ```
 
-Many users that configure exponential backoff also wish to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of `10` seconds with a `retry_jitter_factor` of `0.5` will be allowed to delay up to `15` seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40 and 80 seconds respectively.
+Many users that configure exponential backoff also wish to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of `10` seconds with a `retry_jitter_factor` of `0.5` will be allowed to delay up to `15` seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
 
 ```python
 from prefect import task, flow
@@ -53,7 +53,7 @@ See https://github.com/PrefectHQ/prefect/pull/7961 for implementation details.
 
 ### Enhancements
 - Add task run names to the `/graph`  API route — https://github.com/PrefectHQ/prefect/pull/7951
-- Add vcs directories `.git`, and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
+- Add vcs directories `.git` and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
 - Increase the default thread limit from 40 to 250 — https://github.com/PrefectHQ/prefect/pull/7961
 
 ### Deprecations
@@ -62,7 +62,7 @@ See https://github.com/PrefectHQ/prefect/pull/7961 for implementation details.
 ### Documentation
 - Fix `prefect deployment` command listing — https://github.com/PrefectHQ/prefect/pull/7949
 - Add workspace transfer documentation — https://github.com/PrefectHQ/prefect/pull/7941
-- Fix docstring examples in the `PrefectFuture` — https://github.com/PrefectHQ/prefect/pull/7877
+- Fix docstring examples in `PrefectFuture` — https://github.com/PrefectHQ/prefect/pull/7877
 - Update `setup.py` metadata to link to correct repo — https://github.com/PrefectHQ/prefect/pull/7933
 
 ### Experimental
