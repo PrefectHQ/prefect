@@ -1,5 +1,3 @@
-import { getAppPermissions } from '@prefecthq/orion-design'
+import { createCan, workspacePermissions } from '@prefecthq/orion-design'
 
-export const can = getAppPermissions(
-  () => true,
-)
+export const can = createCan(workspacePermissions)
