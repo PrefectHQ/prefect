@@ -2783,3 +2783,19 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+
+class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_too_many_custom_retry_delays(self):
+        with pytest.raises(ValueError, match="Can not configure more"):
+
+            @task(retries=42, retry_delay_seconds=list(range(51)))
+            async def insanity():
+                raise RuntimeError("try again!")
+
+    async def test_task_cannot_configure_negative_relative_jitter(self):
+        with pytest.raises(ValueError, match="`retry_jitter_factor` must be >= 0"):
+
+            @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
+            async def insanity():
+                raise RuntimeError("try again!")

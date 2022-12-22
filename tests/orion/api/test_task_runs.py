@@ -92,6 +92,36 @@ class TestCreateTaskRun:
         # the timestamp was overwritten
         assert task_run.state.timestamp < pendulum.now()
 
+    async def test_raises_on_retry_delay_validation(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "empirical_policy": {"retries": 3, "retry_delay": list(range(100))},
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.json()["exception_detail"][0]["msg"]
+            == "Can not configure more than 50 retry delays per task."
+        )
+
+    async def test_raises_on_jitter_factor_validation(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "empirical_policy": {"retries": 3, "retry_jitter_factor": -100},
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.json()["exception_detail"][0]["msg"]
+            == "`retry_jitter_factor` must be >= 0."
+        )
+
 
 class TestReadTaskRun:
     async def test_read_task_run(self, flow_run, task_run, client):
