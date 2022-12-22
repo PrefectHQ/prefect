@@ -1,5 +1,5 @@
 import { MapFunction } from '@/services/mapper'
-import { FlagResponse } from '@/types/FlagResponse'
+import { FlagResponse } from '@/types/flagResponse'
 import { FeatureFlag } from '@/utilities/permissions'
 
 export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag> = (source) => {

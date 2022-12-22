@@ -1,6 +1,6 @@
 import { MapFunction } from '@/services/mapper'
 import { Settings } from '@/services/uiSettings'
-import { SettingsResponse } from '@/types/SettingsResponse'
+import { SettingsResponse } from '@/types/settingsResponse'
 
 export const mapSettingsResponseToSettings: MapFunction<SettingsResponse, Settings> = function(source) {
   return {

@@ -1,7 +1,7 @@
 
 import axios from 'axios'
 import { mapper } from '@/services/mapper'
-import { SettingsResponse } from '@/types/SettingsResponse'
+import { SettingsResponse } from '@/types/settingsResponse'
 import { MODE, BASE_URL } from '@/utilities/meta'
 import { FeatureFlag } from '@/utilities/permissions'
 
