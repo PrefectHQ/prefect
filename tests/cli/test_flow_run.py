@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
 
 import prefect.exceptions
 from prefect import flow
+from prefect.orion.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -274,4 +276,42 @@ class TestCancelFlowRun:
             ["flow-run", "cancel", bad_id],
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
+        )
+
+
+class TestFlowRunLogs:
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_get_flow_run_logs_by_id(self, orion_client, state):
+        # Given
+        flow_run = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+
+        # Create a log entry
+        logs = [
+            LogCreate(
+                name="prefect.flow_runs",
+                level=20,
+                message=f"Log from flow_run {flow_run.id}.",
+                timestamp=datetime.now(tz=timezone.utc),
+                flow_run_id=flow_run.id,
+            )
+        ]
+        await orion_client.create_logs(logs)
+
+        # When
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+            ],
+            expected_code=0,
+        )
+
+        # Then
+        assert (
+            f"{logs[0].timestamp.isoformat()}  | INFO  | Log from flow_run {flow_run.id}."
+            in res.stdout
         )
