@@ -1,13 +1,13 @@
 """
 Command line interface for working with Orion
 """
+import contextlib
 import os
 import textwrap
 from functools import partial
 
 import anyio
 import anyio.abc
-import pendulum
 import typer
 
 import prefect
@@ -165,27 +165,23 @@ async def status(
 ):
     """Verify Connection status with Orion API"""
     async with get_client() as client:
-        status_check = True
-        start_time = pendulum.now()
-        while status_check == True:
-            response = await client.api_healthcheck()
-            if not response:
-                print("Orion Healthy")
-                status_check = False
-            else:
-                if wait == False:
-                    print(response)
-                    status_check = False
+        with (
+            anyio.move_on_after(timeout) if timeout else contextlib.nullcontext()
+        ) as timeout_scope:
+            while True:
+                response = await client.api_healthcheck()
+                if not response:
+                    break
                 else:
-                    if not timeout:
-                        print(f"{response} retrying")
+                    if wait == False:
+                        exit_with_error(response)
                     else:
-                        timeout_diff = pendulum.now() - start_time
-                        if timeout_diff.seconds > timeout:
-                            print(f"Timeout exceeded, {response}")
-                            status_check = False
-                        else:
-                            print(f"{response} retrying")
+                        app.console.print(f"{response} retrying")
+
+        if timeout and timeout_scope.cancel_called:
+            exit_with_error(f"Timeout value exceeded")
+
+        app.console.print("Healthy")
 
 
 @database_app.command()
