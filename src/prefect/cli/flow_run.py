@@ -1,6 +1,7 @@
 """
 Command line interface for working with flow runs
 """
+import logging
 from typing import List
 from uuid import UUID
 
@@ -14,9 +15,9 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
+from prefect.client.orion import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
@@ -135,3 +136,26 @@ async def cancel(id: UUID):
         )
 
     exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
+
+
+@flow_run_app.command()
+async def logs(id: UUID):
+    """
+    View logs for a flow run.
+    """
+    async with get_client() as client:
+        try:
+            log_filter = LogFilter(flow_run_id={"any_": [id]})
+            logs = await client.read_logs(log_filter=log_filter)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
+                exit_with_error(f"Flow run {id!r} not found!")
+            else:
+                raise
+
+    for log in logs:
+        app.console.print(
+            "  | ".join(
+                [str(log.timestamp), logging.getLevelName(log.level), log.message]
+            )
+        )
