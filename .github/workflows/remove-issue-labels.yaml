@@ -1,0 +1,14 @@
+name: Remove Labels
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  remove_label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-ecosystem/action-remove-labels@v1
+        with:
+          labels: status:triage
