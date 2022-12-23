@@ -182,7 +182,7 @@ async def status(
                     else:
                         timeout_diff = pendulum.now() - start_time
                         if timeout_diff.seconds > timeout:
-                            print(f"Timeout exceed, {response}")
+                            print(f"Timeout exceeded, {response}")
                             status_check = False
                         else:
                             print(f"{response} retrying")
