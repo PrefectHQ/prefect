@@ -164,6 +164,7 @@ async def status(
     ),
 ):
     """Verify Connection status with Orion API"""
+    sleep_time = 1  # Initial sleep time when polling
     async with get_client() as client:
         with (
             anyio.move_on_after(timeout) if timeout else contextlib.nullcontext()
@@ -173,15 +174,17 @@ async def status(
                 if not response:
                     break
                 else:
-                    if wait == False:
+                    if not wait:
                         exit_with_error(response)
-                    else:
-                        app.console.print(f"{response} retrying")
+
+                    app.console.print(f"{response} retrying in {sleep_time}s")
+                    await anyio.sleep(sleep_time)
+                    sleep_time = sleep_time * 2  # Exponential backoff
 
         if timeout and timeout_scope.cancel_called:
-            exit_with_error(f"Timeout value exceeded")
+            exit_with_error(f"Server did not respond within timeout of {timeout}s.")
 
-        app.console.print("Healthy")
+        exit_with_success("Server is healthy!")
 
 
 @database_app.command()

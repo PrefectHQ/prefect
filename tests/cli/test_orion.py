@@ -37,15 +37,14 @@ def test_orion_status_wait_arg(monkeypatch):
     invoke_and_assert(["orion", "status", "--wait"], expected_output_contains="Healthy")
 
 
-# Need to fix
-# def test_orion_status_timeout(monkeypatch):
-#     async def mock_api_healthcheck(*args):
-#         return Exception("All connection attempts failed")
+def test_orion_status_timeout(monkeypatch):
+    async def mock_api_healthcheck(*_):
+        return Exception("All connection attempts failed")
 
-#     monkeypatch.setattr(
-#         "prefect.client.OrionClient.api_healthcheck", mock_api_healthcheck
-#     )
-#     invoke_and_assert(
-#         ["orion", "status", "--wait", "--timeout", 10],
-#         expected_output_contains="Timeout value exceeded"
-#     )
+    monkeypatch.setattr(
+        "prefect.client.OrionClient.api_healthcheck", mock_api_healthcheck
+    )
+    invoke_and_assert(
+        ["orion", "status", "--wait", "--timeout", "1"],
+        expected_output_contains="Server did not respond",
+    )
