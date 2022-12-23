@@ -49,7 +49,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
-    cache_refresh: bool = None
+    refresh_cache: bool = None
 
 
 class State(IDBaseModel, Generic[R]):
