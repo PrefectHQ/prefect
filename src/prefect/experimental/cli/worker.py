@@ -17,13 +17,22 @@ async def start(
     worker_name: str = typer.Option(..., "--name"),
     worker_pool_name: str = typer.Option(...),
     worker_type: str = typer.Option("process", "--type"),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
+    ),
+    port: int = typer.Option(5000, "--port"),
 ):
-    worker = lookup_type(BaseWorker, worker_type)
-    config = uvicorn.Config(
-        worker(name=worker_name, worker_pool_name=worker_pool_name).create_app(),
-        host="127.0.0.1",
-        port=5000,
-        log_level="info",
-    )
-    server = uvicorn.Server(config)
-    await server.serve()
+    Worker = lookup_type(BaseWorker, worker_type)
+    async with Worker(
+        name=worker_name, worker_pool_name=worker_pool_name, limit=limit
+    ) as worker:
+        config = uvicorn.Config(
+            worker.create_app(),
+            port=port,
+            log_level="info",
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
