@@ -143,19 +143,37 @@ async def logs(id: UUID):
     """
     View logs for a flow run.
     """
-    async with get_client() as client:
-        try:
-            log_filter = LogFilter(flow_run_id={"any_": [id]})
-            logs = await client.read_logs(log_filter=log_filter)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == status.HTTP_404_NOT_FOUND:
-                exit_with_error(f"Flow run {id!r} not found!")
-            else:
-                raise
+    page_size = 50
+    offset = 0
+    more_logs = True
+    log_filter = LogFilter(flow_run_id={"any_": [id]})
 
-    for log in logs:
-        app.console.print(
-            "  | ".join(
-                [str(log.timestamp), logging.getLevelName(log.level), log.message]
+    async with get_client() as client:
+        while more_logs:
+            print()
+
+            # Get the next page of logs
+            page_logs = await client.read_logs(
+                log_filter=log_filter, limit=page_size, offset=offset
             )
-        )
+
+            # Print the logs
+            for log in page_logs:
+                app.console.print(
+                    "  | ".join(
+                        [
+                            str(log.timestamp),
+                            logging.getLevelName(log.level),
+                            log.message,
+                        ]
+                    ),
+                    soft_wrap=True,
+                )
+
+            # Wait for the user to press enter to get the next page
+            if len(page_logs) == page_size:
+                app.console.input(f"Press any key to to see more logs...")
+                offset += page_size
+            else:
+                # No more logs to show, exit
+                more_logs = False

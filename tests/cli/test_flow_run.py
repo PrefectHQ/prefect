@@ -280,27 +280,32 @@ class TestCancelFlowRun:
 
 
 class TestFlowRunLogs:
+    PAGE_SIZE = 50
+
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
-    async def test_get_flow_run_logs_by_id(self, orion_client, state):
+    async def test_when_less_than_page_size_logs_exists_then_no_pagination(
+        self, orion_client, state
+    ):
         # Given
         flow_run = await orion_client.create_flow_run(
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
 
-        # Create a log entry
+        # Create less than page size flow run logs
         logs = [
             LogCreate(
                 name="prefect.flow_runs",
                 level=20,
-                message=f"Log from flow_run {flow_run.id}.",
+                message=f"Log {i} from flow_run {flow_run.id}.",
                 timestamp=datetime.now(tz=timezone.utc),
                 flow_run_id=flow_run.id,
             )
+            for i in range(self.PAGE_SIZE - 1)
         ]
         await orion_client.create_logs(logs)
 
-        # When
-        res = await run_sync_in_worker_thread(
+        # When/Then
+        await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
                 "flow-run",
@@ -308,10 +313,63 @@ class TestFlowRunLogs:
                 str(flow_run.id),
             ],
             expected_code=0,
+            expected_output_contains=[
+                f"Log {i} from flow_run {flow_run.id}."
+                for i in range(self.PAGE_SIZE - 1)
+            ],
+            expected_output_does_not_contain=["Press any key to to see more logs..."],
         )
 
-        # Then
-        assert (
-            f"{logs[0].timestamp.isoformat()}  | INFO  | Log from flow_run {flow_run.id}."
-            in res.stdout
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_when_more_than_page_size_logs_exists_then_pagination(
+        self, orion_client, state
+    ):
+        # Given
+        flow_run = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+
+        # Create more than page size flow run logs
+        logs = [
+            LogCreate(
+                name="prefect.flow_runs",
+                level=20,
+                message=f"Log {i} from flow_run {flow_run.id}.",
+                timestamp=datetime.now(tz=timezone.utc),
+                flow_run_id=flow_run.id,
+            )
+            for i in range(self.PAGE_SIZE + 1)
+        ]
+        await orion_client.create_logs(logs)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+            ],
+            expected_code=0,
+            # Press any key to see more logs
+            user_input=" ",
+            expected_output_contains=[
+                "Press any key to to see more logs...",
+                *[
+                    f"Log {i} from flow_run {flow_run.id}."
+                    for i in range(self.PAGE_SIZE)
+                ],
+            ],
+        )
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    def test_when_logs_not_found_then_output_is_empty(self, state):
+        # Given
+        bad_id = str(uuid4())
+
+        # When/Then
+        invoke_and_assert(
+            ["flow-run", "logs", bad_id],
+            expected_code=0,
+            expected_output="",
         )
