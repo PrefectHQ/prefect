@@ -1,7 +1,7 @@
 
 # Contribute
 
-We welcome contributors!
+We welcome contributors! You can help contribute blocks and collections by following these steps.
 
 ## Contributing Blocks
 
