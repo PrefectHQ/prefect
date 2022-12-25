@@ -149,6 +149,12 @@ async def logs(id: UUID):
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
     async with get_client() as client:
+        # Get the flow run
+        try:
+            flow_run = await client.read_flow_run(id)
+        except ObjectNotFound as exc:
+            exit_with_error(f"Flow run {str(id)!r} not found!")
+
         while more_logs:
             # Get the next page of logs
             page_logs = await client.read_logs(
@@ -158,13 +164,8 @@ async def logs(id: UUID):
             # Print the logs
             for log in page_logs:
                 app.console.print(
-                    "  | ".join(
-                        [
-                            str(log.timestamp),
-                            logging.getLevelName(log.level),
-                            log.message,
-                        ]
-                    ),
+                    # Print following the flow run format (declared in logging.yml)
+                    f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} | {logging.getLevelName(log.level):7s} | Flow run {flow_run.name!r} - {log.message}",
                     soft_wrap=True,
                 )
 

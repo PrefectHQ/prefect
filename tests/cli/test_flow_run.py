@@ -314,7 +314,7 @@ class TestFlowRunLogs:
             ],
             expected_code=0,
             expected_output_contains=[
-                f"Log {i} from flow_run {flow_run.id}."
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
                 for i in range(self.PAGE_SIZE - 1)
             ],
         )
@@ -351,7 +351,8 @@ class TestFlowRunLogs:
             ],
             expected_code=0,
             expected_output_contains=[
-                f"Log {i} from flow_run {flow_run.id}." for i in range(self.PAGE_SIZE)
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.PAGE_SIZE)
             ],
         )
 
@@ -365,4 +366,21 @@ class TestFlowRunLogs:
             ["flow-run", "logs", bad_id],
             expected_code=0,
             expected_output="",
+        )
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_when_flow_run_not_found_then_exit_with_error(self, state):
+        # Given
+        bad_id = str(uuid4())
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                bad_id,
+            ],
+            expected_code=1,
+            expected_output_contains=f"Flow run '{bad_id}' not found!\n",
         )
