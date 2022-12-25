@@ -357,18 +357,6 @@ class TestFlowRunLogs:
         )
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
-    def test_when_logs_not_found_then_output_is_empty(self, state):
-        # Given
-        bad_id = str(uuid4())
-
-        # When/Then
-        invoke_and_assert(
-            ["flow-run", "logs", bad_id],
-            expected_code=0,
-            expected_output="",
-        )
-
-    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_when_flow_run_not_found_then_exit_with_error(self, state):
         # Given
         bad_id = str(uuid4())
