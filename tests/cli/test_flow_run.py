@@ -280,7 +280,7 @@ class TestCancelFlowRun:
 
 
 class TestFlowRunLogs:
-    PAGE_SIZE = 50
+    PAGE_SIZE = 200
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_when_less_than_page_size_logs_exists_then_no_pagination(
@@ -317,7 +317,6 @@ class TestFlowRunLogs:
                 f"Log {i} from flow_run {flow_run.id}."
                 for i in range(self.PAGE_SIZE - 1)
             ],
-            expected_output_does_not_contain=["Press any key to to see more logs..."],
         )
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
@@ -351,14 +350,8 @@ class TestFlowRunLogs:
                 str(flow_run.id),
             ],
             expected_code=0,
-            # Press any key to see more logs
-            user_input=" ",
             expected_output_contains=[
-                "Press any key to to see more logs...",
-                *[
-                    f"Log {i} from flow_run {flow_run.id}."
-                    for i in range(self.PAGE_SIZE)
-                ],
+                f"Log {i} from flow_run {flow_run.id}." for i in range(self.PAGE_SIZE)
             ],
         )
 

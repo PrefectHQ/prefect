@@ -143,15 +143,13 @@ async def logs(id: UUID):
     """
     View logs for a flow run.
     """
-    page_size = 50
+    page_size = 200
     offset = 0
     more_logs = True
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
     async with get_client() as client:
         while more_logs:
-            print()
-
             # Get the next page of logs
             page_logs = await client.read_logs(
                 log_filter=log_filter, limit=page_size, offset=offset
@@ -172,7 +170,6 @@ async def logs(id: UUID):
 
             # Wait for the user to press enter to get the next page
             if len(page_logs) == page_size:
-                app.console.input(f"Press any key to to see more logs...")
                 offset += page_size
             else:
                 # No more logs to show, exit
