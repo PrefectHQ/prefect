@@ -410,19 +410,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
-    if start_in and start_at:
-        exit_with_error(
-            "Expected optional `start_in` field or `start_at` field but not both."
-        )
-
-    elif start_in is None and start_at is None:
-        scheduled_start_time = now
-        human_dt_diff = " (now)"
-    else:
-        if start_in:
-            start_time_raw = "in " + start_in
-        else:
-            start_time_raw = "at " + start_at
+    def parse_start_time(start_time_raw):
         with warnings.catch_warnings():
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
@@ -450,6 +438,23 @@ async def run(
         human_dt_diff = (
             " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
         )
+        return scheduled_start_time, human_dt_diff
+
+    if start_in and start_at:
+        exit_with_error(
+            "Expected optional `start_in` field or `start_at` field but not both."
+        )
+    elif start_in:
+        start_time_raw = "in " + start_in
+        scheduled_start_time, human_dt_diff = parse_start_time(start_time_raw)
+
+    elif start_at:
+        start_time_raw = "at " + start_at
+        scheduled_start_time, human_dt_diff = parse_start_time(start_time_raw)
+
+    else:
+        scheduled_start_time = now
+        human_dt_diff = " (now)"
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
