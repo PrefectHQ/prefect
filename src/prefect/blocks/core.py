@@ -629,7 +629,7 @@ class Block(BaseModel, ABC):
         If the current class schema is a superset of the block document schema, `load`
         must be called with `validate` set to False to prevent a validation error. In
         this case, the block attributes will default to `None` and must be set manually
-        and saved to a new block document before the block can be used.
+        and saved to a new block document before the block can be used as expected.
 
         Args:
             name: The name or slug of the block document. A block document slug is a
