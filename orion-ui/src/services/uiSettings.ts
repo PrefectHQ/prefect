@@ -1,13 +1,13 @@
 
-import axios, { AxiosResponse } from 'axios'
+import axios from 'axios'
+import { mapper } from '@/services/mapper'
+import { SettingsResponse } from '@/types/settingsResponse'
 import { MODE, BASE_URL } from '@/utilities/meta'
+import { FeatureFlag } from '@/utilities/permissions'
 
-type SettingsResponse = {
-  api_url: string,
-}
-
-type Settings = {
+export type Settings = {
   apiUrl: string,
+  flags: FeatureFlag[],
 }
 
 export class UiSettings {
@@ -27,7 +27,9 @@ export class UiSettings {
     this.promise = new Promise(resolve => {
       return axios.get<SettingsResponse>('/ui-settings', {
         baseURL: this.baseUrl,
-      }).then(mapSettingsResponse).then(resolve)
+      })
+        .then(({ data }) => mapper.map('SettingsResponse', data, 'Settings'))
+        .then(resolve)
     })
 
     const settings = await this.promise
@@ -49,13 +51,5 @@ export class UiSettings {
     }
 
     return value
-  }
-}
-
-function mapSettingsResponse(response: AxiosResponse<SettingsResponse>): Settings {
-  const settings = response.data
-
-  return {
-    apiUrl: settings.api_url,
   }
 }
