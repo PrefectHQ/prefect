@@ -31,7 +31,7 @@ from prefect.settings import (
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import kill_on_interrupt, run_process
+from prefect.utilities.processutils import setup_signal_handlers, run_process
 
 orion_app = PrefectTyper(
     name="orion",
@@ -145,7 +145,7 @@ async def start(
         # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/orion/issues/2475
 
-        kill_on_interrupt(orion_process_id, "Orion", app.console.print)
+        setup_signal_handlers(orion_process_id, "Orion", app.console.print)
 
     app.console.print("Orion stopped!")
 
