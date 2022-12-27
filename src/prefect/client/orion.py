@@ -668,7 +668,7 @@ class OrionClient:
         Args:
             name: a unique name for the work queue
             tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue
+                will be included in the queue. This option will be removed on 2023-02-23.
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
@@ -679,7 +679,7 @@ class OrionClient:
         """
         if tags:
             warnings.warn(
-                "The use of tags for creating work queue filters is deprecated.",
+                "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
                 DeprecationWarning,
             )
             filter = QueueFilter(tags=tags)
@@ -1642,6 +1642,7 @@ class OrionClient:
             empirical_policy=schemas.core.TaskRunPolicy(
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
+                retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),
             task_inputs=task_inputs or {},
