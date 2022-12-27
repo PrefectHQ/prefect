@@ -799,7 +799,7 @@ class TestSetFlowRunState:
         assert api_response.status == responses.SetStateStatus.WAIT
         assert (
             0
-            < (
+            <= (
                 # Fuzzy comparison
                 pendulum.duration(days=1).total_seconds()
                 - api_response.details.delay_seconds
