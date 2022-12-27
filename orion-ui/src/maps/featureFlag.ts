@@ -4,14 +4,8 @@ import { FeatureFlag } from '@/utilities/permissions'
 
 export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag> = (source) => {
   switch (source) {
-    case 'magic':
-      return 'access:magic'
-    case 'wizardry':
-      return 'access:wizardry'
-    case 'alchemy':
-      return 'access:alchemy'
-    case 'witchcraft':
-      return 'access:witchcraft'
+    // case 'magic':
+    //   return 'access:magic'
     default:
       throw new Error(`Invalid FlagResponse in mapper ${source}`)
   }
