@@ -384,9 +384,7 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now if start-in or start-at are unspecified;
-    and an agent must execute it.
-
+    The flow run will be scheduled to run immediately if start-in or start-at are unspecified.
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
@@ -414,7 +412,7 @@ async def run(
 
     if start_in and start_at:
         exit_with_error(
-            "Expected optional start_in field or start_at field but not both."
+            "Expected optional `start_in` field or `start_at` field but not both."
         )
 
     elif start_in is None and start_at is None:
