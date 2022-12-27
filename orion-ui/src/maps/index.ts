@@ -4,6 +4,6 @@ import { mapSettingsResponseToSettings } from '@/maps/uiSettings'
 
 export const maps = {
   ...designMaps,
-  FlagResponse: { Flag: mapFlagResponseToFeatureFlag },
+  FlagResponse: { FeatureFlag: mapFlagResponseToFeatureFlag },
   SettingsResponse: { Settings: mapSettingsResponseToSettings },
 }
