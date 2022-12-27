@@ -574,11 +574,6 @@ async def orchestrate_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    timeout_context = (
-        anyio.fail_after(flow.timeout_seconds)
-        if flow.timeout_seconds
-        else nullcontext()
-    )
     flow_run_context = None
 
     try:
@@ -597,6 +592,12 @@ async def orchestrate_flow_run(
         )
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
+
+    timeout_context = (
+        anyio.fail_after(flow.timeout_seconds)
+        if flow.timeout_seconds
+        else nullcontext()
+    )
 
     while state.is_running():
         waited_for_task_runs = False
