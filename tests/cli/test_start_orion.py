@@ -76,6 +76,32 @@ class TestUvicornSignalForwarding:
         ), "When sending two SIGTERM shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn process"
 
     @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="SIGTERM is only used in non-Windows environments",
+    )
+    def test_sigterm_sends_sigterm_directly(self):
+        with subprocess.Popen(
+            ORION_START_ARGS,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ) as proc:
+            out = []
+            for line in proc.stdout:
+                out.append(line)
+                if b"Uvicorn running" in line:
+                    break
+            assert proc.returncode is None, "Orion should now be running"
+            proc.send_signal(signal.SIGTERM)
+            proc.wait(timeout=SHUTDOWN_TIMEOUT)
+            out += proc.stdout
+        out = "".join(line.decode() for line in out)
+
+        assert re.search(
+            r"(Sending SIGTERM)(.|\s)*(Application shutdown complete)", out
+        ), "When sending a SIGTERM, it should forward directly and exit gracefully"
+        assert proc.returncode == 0
+
+    @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
