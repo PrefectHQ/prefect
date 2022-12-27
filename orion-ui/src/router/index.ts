@@ -33,6 +33,9 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   workerPools: () => import('@/pages/WorkerPools.vue'),
   workerPoolCreate: () => import('@/pages/WorkerPoolCreate.vue'),
   workerPoolEdit: () => import('@/pages/WorkerPoolEdit.vue'),
+  workerPoolQueue: () => import('@/pages/WorkerPoolQueue.vue'),
+  workerPoolQueueCreate: () => import('@/pages/WorkerPoolQueueCreate.vue'),
+  workerPoolQueueEdit: () => import('@/pages/WorkerPoolQueueEdit.vue'),
 })
 
 const routeRecords: AppRouteRecord[] = [
