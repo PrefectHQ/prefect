@@ -313,7 +313,6 @@ class BaseWorker(LoopService, abc.ABC):
 
             await self.verify_submitted_deployment(deployment)
 
-            updated = None
             async with get_client() as client:
                 try:
                     api_deployment = await client.read_deployment_by_name(
@@ -321,7 +320,7 @@ class BaseWorker(LoopService, abc.ABC):
                     )
                     updated = api_deployment.updated
                 except ObjectNotFound:
-                    pass
+                    updated = None
             if updated is None:
                 await deployment.apply()
                 self.logger.info(
