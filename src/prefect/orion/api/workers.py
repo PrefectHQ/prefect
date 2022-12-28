@@ -378,7 +378,6 @@ async def update_worker_pool_queue(
             worker_pool_name=worker_pool_name,
             worker_pool_queue_name=worker_pool_queue_name,
             session=session,
-            db=db,
         )
 
         await models.workers.update_worker_pool_queue(
