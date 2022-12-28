@@ -384,7 +384,7 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled to run immediately if start-in or start-at are unspecified.
+    The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
