@@ -1,6 +1,7 @@
 """
 Command line interface for working with flow runs
 """
+import logging
 from typing import List
 from uuid import UUID
 
@@ -14,9 +15,9 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
+from prefect.client.orion import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
@@ -135,3 +136,41 @@ async def cancel(id: UUID):
         )
 
     exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
+
+
+@flow_run_app.command()
+async def logs(id: UUID):
+    """
+    View logs for a flow run.
+    """
+    page_size = 200
+    offset = 0
+    more_logs = True
+    log_filter = LogFilter(flow_run_id={"any_": [id]})
+
+    async with get_client() as client:
+        # Get the flow run
+        try:
+            flow_run = await client.read_flow_run(id)
+        except ObjectNotFound as exc:
+            exit_with_error(f"Flow run {str(id)!r} not found!")
+
+        while more_logs:
+            # Get the next page of logs
+            page_logs = await client.read_logs(
+                log_filter=log_filter, limit=page_size, offset=offset
+            )
+
+            # Print the logs
+            for log in page_logs:
+                app.console.print(
+                    # Print following the flow run format (declared in logging.yml)
+                    f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} | {logging.getLevelName(log.level):7s} | Flow run {flow_run.name!r} - {log.message}",
+                    soft_wrap=True,
+                )
+
+            if len(page_logs) == page_size:
+                offset += page_size
+            else:
+                # No more logs to show, exit
+                more_logs = False
