@@ -152,7 +152,7 @@ async def test_start_at_option_with_tz_displays_scheduled_start_time(
         ),
     ],
 )
-async def test_start_at_option_schedules_flow_run_in_future(
+async def test_start_at_option_schedules_flow_run(
     deployment_name: str,
     start_at: str,
     expected_start_time: DateTime,
@@ -192,7 +192,7 @@ async def test_start_at_option_schedules_flow_run_in_future(
         ("01/31/23 5:30 PST", pendulum.parse("2023-01-31T05:30:00", tz="PST8PDT")),
     ],
 )
-async def test_start_at_option_with_tz_schedules_flow_run_in_future(
+async def test_start_at_option_with_tz_schedules_flow_run(
     deployment_name: str,
     start_at: str,
     expected_start_time: DateTime,
@@ -227,17 +227,29 @@ async def test_start_at_option_with_tz_schedules_flow_run_in_future(
     assert scheduled_time == expected_start_time
 
 
-def test_start_in_option_invalid_input(deployment_name: str):
+@pytest.mark.parametrize(
+    "start_in,expected_output",
+    [
+        ("foobar", "Unable to parse scheduled start time 'in foobar'."),
+        ("1671483897", "Unable to parse scheduled start time 'in 1671483897'."),
+        ("Jan 32nd 2023", "Unable to parse scheduled start time 'in Jan 32nd 2023'."),
+        ("Jan 31st 20231", "Unable to parse scheduled start time 'in Jan 31st 20231'."),
+        ("Octob 1st 2020", "Unable to parse scheduled start time 'in Octob 1st 2020'."),
+    ],
+)
+def test_start_in_option_invalid_input(
+    deployment_name: str, start_in: str, expected_output: str
+):
     invoke_and_assert(
         command=[
             "deployment",
             "run",
             deployment_name,
             "--start-in",
-            "foobar",
+            start_in,
         ],
         expected_code=1,
-        expected_output="Unable to parse scheduled start time 'in foobar'.",
+        expected_output=expected_output,
     )
 
 
@@ -284,7 +296,7 @@ async def test_start_in_option_displays_scheduled_start_time(
         ("27 hours + 4 mins", pendulum.duration(days=1, hours=3, minutes=4)),
     ],
 )
-async def test_start_in_option_schedules_flow_run_in_future(
+async def test_start_in_option_schedules_flow_run(
     deployment_name: str,
     frozen_now: DateTime,
     orion_client: prefect.OrionClient,
