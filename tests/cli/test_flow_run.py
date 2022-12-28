@@ -283,7 +283,7 @@ class TestFlowRunLogs:
     PAGE_SIZE = 200
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
-    async def test_when_less_than_page_size_logs_exists_then_no_pagination(
+    async def test_when_num_logs_smaller_than_page_size_then_no_pagination(
         self, orion_client, state
     ):
         # Given
@@ -291,7 +291,7 @@ class TestFlowRunLogs:
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
 
-        # Create less than page size flow run logs
+        # Create not enough flow run logs to result in pagination (page_size <= 200)
         logs = [
             LogCreate(
                 name="prefect.flow_runs",
@@ -320,7 +320,7 @@ class TestFlowRunLogs:
         )
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
-    async def test_when_more_than_page_size_logs_exists_then_pagination(
+    async def test_when_num_logs_greater_than_page_size_then_pagination(
         self, orion_client, state
     ):
         # Given
@@ -328,7 +328,7 @@ class TestFlowRunLogs:
             name="scheduled_flow_run", flow=hello_flow, state=state()
         )
 
-        # Create more than page size flow run logs
+        # Create enough flow run logs to result in pagination (page_size > 200)
         logs = [
             LogCreate(
                 name="prefect.flow_runs",
@@ -352,7 +352,7 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE)
+                for i in range(self.PAGE_SIZE + 1)
             ],
         )
 
