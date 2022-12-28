@@ -1896,12 +1896,29 @@ class OrionClient:
         return await resolve_inner(datadoc)
 
     async def send_worker_heartbeat(self, worker_pool_name: str, worker_name: str):
+        """
+        Sends a worker heartbeat for a given worker pool.
+
+        Args:
+            worker_pool_name: The name of the worker pool to heartbeat against.
+            worker_name: The name of the worker sending the heartbeat.
+        """
         await self._client.post(
             f"/experimental/worker_pools/{worker_pool_name}/workers/heartbeat",
             json={"name": worker_name},
         )
 
-    async def read_worker_pool(self, worker_pool_name: str):
+    async def read_worker_pool(self, worker_pool_name: str) -> WorkerPool:
+        """
+        Reads information for a given worker pool
+
+        Args:
+            worker_pool_name: The name of the worker pool to for which to get
+                information.
+
+        Returns:
+            Information about the requested worker pool.
+        """
         try:
             response = await self._client.get(
                 f"/experimental/worker_pools/{worker_pool_name}"
@@ -1916,7 +1933,16 @@ class OrionClient:
     async def create_worker_pool(
         self,
         worker_pool: schemas.actions.WorkerPoolCreate,
-    ):
+    ) -> WorkerPool:
+        """
+        Creates a worker pool with the provided configuration.
+
+        Args:
+            worker_pool: Desired configuration for the new worker pool.
+
+        Returns:
+            Information about the newly created worker pool.
+        """
         response = await self._client.post(
             "/experimental/worker_pools/",
             json=worker_pool.dict(json_compatible=True, exclude_unset=True),
@@ -1931,12 +1957,27 @@ class OrionClient:
 
         return pydantic.parse_obj_as(List[WorkerPoolQueue], response.json())
 
-    async def get_scheduled_flow_runs_for_worker(
+    async def get_scheduled_flow_runs_for_worker_pool_queues(
         self,
         worker_pool_name: str,
         worker_pool_queue_names: List[str],
         scheduled_before: datetime.datetime,
-    ):
+    ) -> List[WorkerFlowRunResponse]:
+        """
+        Retrieves scheduled flow runs for the provided set of worker pool queues.
+
+        Args:
+            worker_pool_name: The name of the worker pool that the worker pool
+                queues are associated with.
+            worker_pool_queue_names: The names of the worker pool queues from which
+                to get scheduled flow runs.
+            scheduled_before: Datetime used to filter returned flow runs. Flow runs
+                scheduled for after the given datetime string will not be returned.
+
+        Returns:
+            A list of worker flow run responses containing information about the
+            retrieved flow runs.
+        """
         body = {
             "worker_pool_queue_names": worker_pool_queue_names,
             "scheduled_before": str(scheduled_before),
@@ -2007,4 +2048,5 @@ class OrionClient:
         )
 
     def __exit__(self, *_):
+        assert False, "This should never be called but must be defined for __enter__"
         assert False, "This should never be called but must be defined for __enter__"

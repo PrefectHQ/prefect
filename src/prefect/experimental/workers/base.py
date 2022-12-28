@@ -356,7 +356,7 @@ class BaseWorker(LoopService, abc.ABC):
                 seconds=int(self.prefetch_seconds)
             )
             try:
-                return await client.get_scheduled_flow_runs_for_worker(
+                return await client.get_scheduled_flow_runs_for_worker_pool_queues(
                     worker_pool_name=self.worker_pool_name,
                     worker_pool_queue_names=[q.name for q in self.worker_pool_queues],
                     scheduled_before=scheduled_before,
