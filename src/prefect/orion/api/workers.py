@@ -333,7 +333,7 @@ async def read_worker_pool_queue(
             worker_pool_queue_name=worker_pool_queue_name,
         )
 
-        return await models.workers.create_worker_pool_queue(
+        return await models.workers.read_worker_pool_queue(
             session=session, worker_pool_queue_id=worker_pool_queue_id, db=db
         )
 
