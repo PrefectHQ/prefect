@@ -161,7 +161,6 @@ async def load_flow_from_flow_run(
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
-            print(basepath)
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
