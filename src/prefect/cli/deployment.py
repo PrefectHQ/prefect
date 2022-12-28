@@ -442,7 +442,7 @@ async def run(
 
     if start_in and start_at:
         exit_with_error(
-            "Expected optional `start_in` field or `start_at` field but not both."
+            "Only one of `--start-in` or `--start-at` can be set, not both."
         )
     elif start_in:
         start_time_raw = "in " + start_in
