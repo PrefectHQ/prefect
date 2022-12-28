@@ -423,9 +423,9 @@ Note that `.result()` also limits Prefect's ability to track task dependencies. 
     When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
 
 ```python
-@task
 from prefect import flow, task
 
+@task
 def say_hello(name):
     return f"Hello {name}!"
 

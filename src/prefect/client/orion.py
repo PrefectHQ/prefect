@@ -19,7 +19,6 @@ import prefect.states
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
-from prefect.orion.api.server import ORION_API_VERSION, create_app
 from prefect.orion.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
@@ -35,6 +34,7 @@ from prefect.orion.schemas.core import (
 )
 from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
 from prefect.settings import (
+    PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_URL,
@@ -50,8 +50,15 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
     ctx = prefect.context.get_settings_context()
+    api = PREFECT_API_URL.value()
+    if not api:
+        # create an ephemeral API if none was provided
+        from prefect.orion.api.server import create_app
+
+        api = create_app(ctx.settings, ephemeral=True)
+
     return OrionClient(
-        PREFECT_API_URL.value() or create_app(ctx.settings, ephemeral=True),
+        api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
@@ -84,13 +91,17 @@ class OrionClient:
         api: Union[str, FastAPI],
         *,
         api_key: str = None,
-        api_version: str = ORION_API_VERSION,
+        api_version: str = None,
         httpx_settings: dict = None,
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
-        if api_version:
-            httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
+        if api_version is None:
+            # deferred import to avoid importing the entire server unless needed
+            from prefect.orion.api.server import ORION_API_VERSION
+
+            api_version = ORION_API_VERSION
+        httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)
         if api_key:
             httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")
 
@@ -133,7 +144,7 @@ class OrionClient:
             # and responses will be transported over HTTP/2, since both the client and the server
             # need to support HTTP/2. If you connect to a server that only supports HTTP/1.1 the
             # client will use a standard HTTP/1.1 connection instead.
-            httpx_settings.setdefault("http2", True)
+            httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
@@ -657,7 +668,7 @@ class OrionClient:
         Args:
             name: a unique name for the work queue
             tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
-                will be included in the queue
+                will be included in the queue. This option will be removed on 2023-02-23.
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
@@ -668,7 +679,7 @@ class OrionClient:
         """
         if tags:
             warnings.warn(
-                "The use of tags for creating work queue filters is deprecated.",
+                "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
                 DeprecationWarning,
             )
             filter = QueueFilter(tags=tags)
@@ -1368,6 +1379,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
@@ -1381,6 +1394,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             limit: a limit for the deployment query
             offset: an offset for the deployment query
 
@@ -1401,10 +1416,21 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
             "sort": sort,
         }
+
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
@@ -1447,6 +1473,23 @@ class OrionClient:
             else:
                 raise
         return FlowRun.parse_obj(response.json())
+
+    async def resume_flow_run(self, flow_run_id: UUID) -> OrchestrationResult:
+        """
+        Resumes a paused flow run.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            an OrchestrationResult model representation of state orchestration output
+        """
+        try:
+            response = await self._client.post(f"/flow_runs/{flow_run_id}/resume")
+        except httpx.HTTPStatusError as e:
+            raise
+
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_runs(
         self,
@@ -1599,6 +1642,7 @@ class OrionClient:
             empirical_policy=schemas.core.TaskRunPolicy(
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
+                retry_jitter_factor=task.retry_jitter_factor,
             ),
             state=state.to_state_create(),
             task_inputs=task_inputs or {},

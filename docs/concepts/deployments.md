@@ -302,7 +302,7 @@ To create an ad-hoc flow run with different parameter values, go the the details
 
 ![Configuring custom parameter values for an ad-hoc flow run](/img/concepts/custom-parameters.png)
 
-## Create a deployment with the CLI
+### Create a deployment
 
 When you've configured `deployment.yaml` for a deployment, you can create the deployment on the API by running the `prefect deployment apply` Prefect CLI command.
 
@@ -478,21 +478,42 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ## Create a flow run from a deployment
 
+### Create a flow run with a schedule
 If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
+### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
 The `prefect deployment` CLI command provides commands for managing and running deployments locally.
 
 | Command | Description |
 | ------- | ----------- |
-| `create`  | Create or update a deployment from a file. |
-| `delete`  | Delete a deployment. |
-| `execute` | Execute a local flow run for a given deployment. Does not require an agent and bypasses flow runner settings attached to the deployment. Intended for testing purposes. |
-| `inspect` | View details about a deployment. |
-| `ls`      | View all deployments or deployments for specific flows. |
-| `preview` | Prints a preview of a deployment. |
-| `run`     | Create a flow run for the given flow and deployment. |
+| `apply`             | Create or update a deployment from a YAML file. |
+| `build`           | Generate a deployment YAML from /path/to/file.py:flow_function. |
+| `delete`          | Delete a deployment. |
+| `inspect`         | View details about a deployment. |
+| `ls`              | View all deployments or deployments for specific flows. |
+| `pause-schedule`  | Pause schedule of a given deployment. |
+| `resume-schedule` | Resume schedule of a given deployment. |
+| `run`             | Create a flow run for the given flow and deployment. |
+| `set-schedule`    | Set schedule for a given deployment. |
+
+### Create a flow run in a Python script 
+
+You can create a flow run from a deployment in a Python script with the `run_deployment` function.
+
+```python
+from prefect.deployments import run_deployment
+
+
+def main():
+    response = run_deployment(name="flow-name/deployment-name")
+    print(response)
+
+
+if __name__ == "__main__":
+   main()
+``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
     You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
