@@ -410,7 +410,7 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
-    def parse_start_time(start_time_raw):
+    def get_scheduled_start_time_and_human_dt_diff(start_time_raw):
         with warnings.catch_warnings():
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
@@ -446,11 +446,17 @@ async def run(
         )
     elif start_in:
         start_time_raw = "in " + start_in
-        scheduled_start_time, human_dt_diff = parse_start_time(start_time_raw)
+        (
+            scheduled_start_time,
+            human_dt_diff,
+        ) = get_scheduled_start_time_and_human_dt_diff(start_time_raw)
 
     elif start_at:
         start_time_raw = "at " + start_at
-        scheduled_start_time, human_dt_diff = parse_start_time(start_time_raw)
+        (
+            scheduled_start_time,
+            human_dt_diff,
+        ) = get_scheduled_start_time_and_human_dt_diff(start_time_raw)
 
     else:
         scheduled_start_time = now
