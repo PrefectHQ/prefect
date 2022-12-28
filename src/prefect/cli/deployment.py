@@ -384,8 +384,7 @@ async def run(
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now and an agent must execute it.
-
+    The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until an agent starts.
     """
     now = pendulum.now("UTC")
@@ -411,31 +410,46 @@ async def run(
         )
     parameters = {**multi_params, **cli_params}
 
-    # Parse the start time if provided
-    if start_in:
-        start_time_raw = "in " + start_in
-    elif start_at:
-        start_time_raw = "at " + start_at
-    else:
-        start_time_raw = None
+    if start_in and start_at:
+        exit_with_error(
+            "Only one of `--start-in` or `--start-at` can be set, not both."
+        )
 
-    if start_time_raw:
+    elif start_in is None and start_at is None:
+        scheduled_start_time = now
+        human_dt_diff = " (now)"
+    else:
+        if start_in:
+            start_time_raw = "in " + start_in
+        else:
+            start_time_raw = "at " + start_at
         with warnings.catch_warnings():
             # PyTZ throws a warning based on dateparser usage of the library
             # See https://github.com/scrapinghub/dateparser/issues/1089
             warnings.filterwarnings("ignore", module="dateparser")
-            start_time_parsed = dateparser.parse(
-                start_time_raw,
-                settings={
-                    "TO_TIMEZONE": "UTC",
-                    "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
-                },
-            )
+
+            try:
+
+                start_time_parsed = dateparser.parse(
+                    start_time_raw,
+                    settings={
+                        "TO_TIMEZONE": "UTC",
+                        "RETURN_AS_TIMEZONE_AWARE": False,
+                        "PREFER_DATES_FROM": "future",
+                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                    },
+                )
+
+            except Exception as exc:
+                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
+
         if start_time_parsed is None:
             exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+
         scheduled_start_time = pendulum.instance(start_time_parsed)
-    else:
-        scheduled_start_time = now
+        human_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -474,21 +488,13 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
-    if start_in:
-        scheduled_display = (
-            scheduled_start_time.in_tz(
-                pendulum.tz.local_timezone()
-            ).to_datetime_string()
-            + " ("
-            + pendulum.format_diff(scheduled_start_time.diff(now))
-            + ")"
-        )
-    elif start_at:
-        scheduled_display = scheduled_start_time.in_tz(
-            pendulum.tz.local_timezone()
-        ).to_datetime_string()
-    else:
-        scheduled_display = "now"
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        datetime_local_tz.to_datetime_string()
+        + " "
+        + datetime_local_tz.tzname()
+        + human_dt_diff
+    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
