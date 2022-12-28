@@ -335,7 +335,7 @@ async def test_start_in_option_schedules_flow_run(
     [
         (
             "12/20/2030 1am",
-            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+            DateTime(2030, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
         ),
         (
             "1-1-2020",
@@ -363,7 +363,8 @@ async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
     have the same scheduled start time.
 
     The result of the design is unintentional and this test documents the observed
-    output."""
+    output.
+    """
     expected_display = expected_start_time.to_datetime_string()
 
     await run_sync_in_worker_thread(
