@@ -3,7 +3,7 @@ import socket
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import anyio
 import anyio.abc
@@ -38,11 +38,6 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
-def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
-    hostname, pid = infrastructure_pid.split(":")
-    return hostname, int(pid)
-
-
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
@@ -51,7 +46,8 @@ class ProcessWorker(BaseWorker):
     type = "process"
 
     async def verify_submitted_deployment(self, deployment: Deployment):
-        return True
+        # TODO: Implement deployment verification for `ProcessWorker`
+        pass
 
     async def run(
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None

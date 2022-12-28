@@ -1,15 +1,13 @@
 import abc
-import shutil
 from functools import partial
 from pathlib import Path
 from typing import Dict, List, Optional
 from uuid import uuid4
-from zipfile import ZipFile
 
 import anyio
 import anyio.abc
 import pendulum
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import FastAPI
 from pydantic import BaseModel, ValidationError
 
 from prefect._internal.compatibility.experimental import experimental
@@ -86,6 +84,8 @@ class BaseWorker(LoopService, abc.ABC):
             create_pool_if_not_found: Whether to create the worker pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
                 ensure that worker pools are not created accidentally.
+            limit: The maximum number of flow runs this worker should be running at
+                a given time.
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
@@ -128,10 +128,21 @@ class BaseWorker(LoopService, abc.ABC):
     async def run(
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
     ):
+        """
+        Runs a given flow run on the current worker.
+        """
         raise NotImplementedError("Workers must implement a run command")
 
     @abc.abstractclassmethod
     async def verify_submitted_deployment(self, deployment: Deployment):
+        """
+        Checks that scheduled flow runs for a submitted deployment can be run by the
+        current worker.
+
+        Should be implemented by `BaseWorker` implementations. Implementation of this
+        method should raise if any of the checks performed by the worker fail. If all
+        checks pass, then this method does not need to return anything.
+        """
         raise NotImplementedError(
             "Workers must implement a method for verifying submitted deployments"
         )
@@ -143,6 +154,7 @@ class BaseWorker(LoopService, abc.ABC):
         return cls.type
 
     async def setup(self):
+        """Prepares the worker to run."""
         self.logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
         self._loop_task_group = anyio.create_task_group()
@@ -156,6 +168,7 @@ class BaseWorker(LoopService, abc.ABC):
         self.is_setup = True
 
     async def teardown(self, *exc_info):
+        """Cleans up resources after the worker is stopped."""
         self.logger.debug("Tearing down worker...")
         self.is_setup = False
         if self._runs_task_group:
@@ -171,7 +184,7 @@ class BaseWorker(LoopService, abc.ABC):
 
     async def _on_start(self):
         """
-        Start the heartbeat loop when the worker starts
+        Starts the heartbeat and storage scan loops when the worker starts.
         """
         if not self.is_setup or not self._loop_task_group:
             raise RuntimeError(
@@ -219,11 +232,12 @@ class BaseWorker(LoopService, abc.ABC):
 
     async def heartbeat_worker(self):
         """
-        Refreshes the worker's config and queues, and sends a heartbeat to the server.
+        Updates the worker's local information about it's current worker pool and queues.
+        Sends a heart beat to the API.
         """
 
         # ----------------------------------------------
-        # refresh config
+        # Update local worker pool information
         # ----------------------------------------------
 
         try:
@@ -254,7 +268,7 @@ class BaseWorker(LoopService, abc.ABC):
         self.worker_pool = worker_pool
 
         # ----------------------------------------------
-        # refresh queues
+        # Update local queue list
         # ----------------------------------------------
         worker_pool_queues = await self._client.read_worker_pool_queues(
             worker_pool_name=self.worker_pool_name
@@ -267,37 +281,34 @@ class BaseWorker(LoopService, abc.ABC):
         self.worker_pool_queues = worker_pool_queues
 
         # ----------------------------------------------
-        # heartbeat
+        # Send Heartbeat to the API
         # ----------------------------------------------
         await self._client.send_worker_heartbeat(
             worker_pool_name=self.worker_pool_name, worker_name=self.name
         )
         self.logger.debug(f"{self} refreshed")
 
-    async def _run_heartbeat_loop(self):
-        """
-        Utility function to run the heartbeat loop forever
-        """
-        while self._is_running:
-            await anyio.sleep(self.heartbeat_seconds)
-            await self.heartbeat_worker()
-
-    async def _run_storage_scan_loop(self):
-        while self._is_running:
-            await anyio.sleep(self.storage_scan_seconds)
-            await self.scan_storage_for_deployments()
-
     async def scan_storage_for_deployments(self):
+        """
+        Performs a scan of the worker's configured workflow storage location. If any
+        .yaml files are found in the workflow storage location, the worker will attempt
+        to apply the deployments defined in the discovered manifests.
+        """
         self.logger.debug("Scanning %s for deployments", self.workflow_storage_path)
         possible_deployment_files = self.workflow_storage_path.glob("*.yaml")
         for possible_deployment_file in possible_deployment_files:
             if possible_deployment_file.is_file:
-                await self._attempt_to_register_deployment(possible_deployment_file)
+                await self._attempt_to_apply_deployment(possible_deployment_file)
 
-    async def _attempt_to_register_deployment(self, deployment_manifest_path: Path):
+    async def _attempt_to_apply_deployment(self, deployment_manifest_path: Path):
+        """
+        Attempts to apply a deployment frm a discovered .yaml file. Will not apply
+        if validation fails when loading the deployment from the discovered .yaml file.
+        """
         try:
             deployment = await Deployment.load_from_yaml(str(deployment_manifest_path))
-            # Update path to match worker's file system instead of submitters
+            # Update path to match worker's file system instead of submitters so that
+            # deployment will run successfully when scheduled
             deployment.path = str(deployment_manifest_path.parent)
 
             await self.verify_submitted_deployment(deployment)
@@ -335,16 +346,6 @@ class BaseWorker(LoopService, abc.ABC):
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
 
-    def _unzip_deployments(self, data: UploadFile):
-        self.logger.info(
-            "Unzipping deployments in %s to %s",
-            data.filename,
-            self.workflow_storage_path,
-        )
-        # UploadFile.file claims to be a BinaryIO, but doesn't implement seekable
-        data.file.seekable = lambda: False
-        ZipFile(data.file).extractall(self.workflow_storage_path)
-
     async def get_scheduled_flow_runs(
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
@@ -369,6 +370,10 @@ class BaseWorker(LoopService, abc.ABC):
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List[WorkerFlowRunResponse]
     ):
+        """
+        Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
+        for execution by the worker.
+        """
         for entry in flow_run_response:
             try:
                 if self.limiter:
@@ -387,6 +392,9 @@ class BaseWorker(LoopService, abc.ABC):
                 )
 
     async def _submit_run(self, flow_run: FlowRun) -> None:
+        """
+        Submits a given flow run for execution by the worker.
+        """
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
@@ -412,6 +420,8 @@ class BaseWorker(LoopService, abc.ABC):
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
     ):
         try:
+            # TODO: Add functionality to handle base job configuration and
+            # job configuration variables when kicking off a flow run
             result = await self.run(flow_run=flow_run, task_status=task_status)
         except Exception as exc:
             if not task_status._future.done():
@@ -452,6 +462,10 @@ class BaseWorker(LoopService, abc.ABC):
         return result
 
     def get_status(self):
+        """
+        Retrieves the status of the current worker including its name, current worker
+        pool, the worker pool queues it is polling, and its local settings.
+        """
         return {
             "name": self.name,
             "worker_pool": self.worker_pool.dict(json_compatible=True)
@@ -533,7 +547,9 @@ class BaseWorker(LoopService, abc.ABC):
                 )
 
     def create_app(self) -> FastAPI:
-
+        """
+        Creates a FastAPI app that allows a worker to expose an API.
+        """
         app = FastAPI()
 
         @app.on_event("startup")
@@ -562,25 +578,6 @@ class BaseWorker(LoopService, abc.ABC):
         @app.get("/status")
         async def get_status() -> Dict:
             return self.get_status()
-
-        @app.post("/submit_deployments", status_code=status.HTTP_202_ACCEPTED)
-        async def accept_deployment_zip(
-            background_tasks: BackgroundTasks, zip_file: UploadFile = File(...)
-        ):
-            try:
-                background_tasks.add_task(self._unzip_deployments, zip_file)
-                return {"message": "Successfully received submitted deployments"}
-            except shutil.ReadError:
-                raise HTTPException(
-                    status_code=400, detail="Please upload deployments as a zip file."
-                )
-            except Exception:
-                self.logger.exception(
-                    "Failed to receive and unzip submitted deployments."
-                )
-                raise HTTPException(
-                    status_code=500, detail="Failed to receive submitted deployments."
-                )
 
         return app
 

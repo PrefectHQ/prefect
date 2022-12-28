@@ -2049,4 +2049,3 @@ class OrionClient:
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
-        assert False, "This should never be called but must be defined for __enter__"
