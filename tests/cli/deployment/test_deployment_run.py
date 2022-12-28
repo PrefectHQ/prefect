@@ -328,3 +328,78 @@ async def test_start_in_option_schedules_flow_run(
     scheduled_time = flow_run.state.state_details.scheduled_time
 
     assert scheduled_time == expected_start_time
+
+
+@pytest.mark.parametrize(
+    "start_time,expected_start_time",
+    [
+        (
+            "12/20/2030 1am",
+            DateTime(2022, 12, 20, 1, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
+        (
+            "1-1-2020",
+            DateTime(2020, 1, 1, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
+        (
+            "5 June 2015",
+            DateTime(2015, 6, 5, 0, 0, 0, tzinfo=pendulum.tz.local_timezone()),
+        ),
+    ],
+)
+async def test_date_as_start_in_option_schedules_flow_run_equal_to_start_at(
+    deployment_name: str,
+    start_time: str,
+    expected_start_time: DateTime,
+    orion_client: prefect.OrionClient,
+):
+    """
+    Passing a date (rather than something like `5 minutes`) as an argument to start_in results in a scheduled flow run,
+    equivalent to passing the same date as a start_at argument.
+
+    Example:
+    `prefect deployment run --start-in 12/20/2022` and
+    `prefect deployment run --start-at 12/20/2022`
+    have the same scheduled start time.
+
+    The result of the design is unintentional and this test documents the observed
+    output."""
+    expected_display = expected_start_time.to_datetime_string()
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-at",
+            start_time,
+        ],
+        expected_output_contains=f"Scheduled start time: {expected_display}",
+    )
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "deployment",
+            "run",
+            deployment_name,
+            "--start-in",
+            start_time,
+        ],
+        expected_output_contains=f"Scheduled start time: {expected_display}",
+    )
+
+    flow_runs = await orion_client.read_flow_runs()
+
+    assert len(flow_runs) == 2
+    start_at_flow_run = flow_runs[0]
+    start_in_flow_run = flow_runs[1]
+
+    assert start_at_flow_run.state.is_scheduled()
+    assert start_in_flow_run.state.is_scheduled()
+    start_at_scheduled_time = start_at_flow_run.state.state_details.scheduled_time
+    start_in_scheduled_time = start_in_flow_run.state.state_details.scheduled_time
+
+    assert start_at_scheduled_time == expected_start_time
+    assert start_in_scheduled_time == expected_start_time
