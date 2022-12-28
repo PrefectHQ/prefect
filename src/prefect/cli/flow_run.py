@@ -169,7 +169,6 @@ async def logs(id: UUID):
                     soft_wrap=True,
                 )
 
-            # Wait for the user to press enter to get the next page
             if len(page_logs) == page_size:
                 offset += page_size
             else:
