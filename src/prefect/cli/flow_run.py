@@ -139,13 +139,25 @@ async def cancel(id: UUID):
 
 
 @flow_run_app.command()
-async def logs(id: UUID):
+async def logs(
+    id: UUID,
+    head: int = typer.Option(
+        None,
+        help="Number of lines to show from the head of the log",
+    ),
+):
     """
     View logs for a flow run.
     """
+    # Pagination - API returns max 200 lines at a time
     page_size = 200
     offset = 0
     more_logs = True
+
+    # If head is specified, we need to stop after we've retrieved enough lines
+    remaining_logs = head
+    num_logs_returned = 0
+
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
     async with get_client() as client:
@@ -156,9 +168,13 @@ async def logs(id: UUID):
             exit_with_error(f"Flow run {str(id)!r} not found!")
 
         while more_logs:
+            num_logs_to_return_from_page = (
+                page_size if remaining_logs is None else min(page_size, remaining_logs)
+            )
+
             # Get the next page of logs
             page_logs = await client.read_logs(
-                log_filter=log_filter, limit=page_size, offset=offset
+                log_filter=log_filter, limit=num_logs_to_return_from_page, offset=offset
             )
 
             # Print the logs
@@ -168,6 +184,9 @@ async def logs(id: UUID):
                     f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} | {logging.getLevelName(log.level):7s} | Flow run {flow_run.name!r} - {log.message}",
                     soft_wrap=True,
                 )
+
+            # Update the number of logs retrieved
+            num_logs_returned += num_logs_to_return_from_page
 
             if len(page_logs) == page_size:
                 offset += page_size

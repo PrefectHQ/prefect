@@ -372,3 +372,83 @@ class TestFlowRunLogs:
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
         )
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_when_num_logs_smaller_than_page_size_with_head_then_no_pagination(
+        self, orion_client, state
+    ):
+        # Given
+        flow_run = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+
+        # Create enough flow run logs to result in pagination (page_size > 200)
+        logs = [
+            LogCreate(
+                name="prefect.flow_runs",
+                level=20,
+                message=f"Log {i} from flow_run {flow_run.id}.",
+                timestamp=datetime.now(tz=timezone.utc),
+                flow_run_id=flow_run.id,
+            )
+            for i in range(self.PAGE_SIZE + 1)
+        ]
+        await orion_client.create_logs(logs)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(10)
+            ],
+            expected_line_count=10,
+        )
+
+    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
+    async def test_when_num_logs_greater_than_page_size_with_head_then_pagination(
+        self, orion_client, state
+    ):
+        # Given
+        flow_run = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow, state=state()
+        )
+
+        # Create enough flow run logs to result in pagination (page_size > 200)
+        logs = [
+            LogCreate(
+                name="prefect.flow_runs",
+                level=20,
+                message=f"Log {i} from flow_run {flow_run.id}.",
+                timestamp=datetime.now(tz=timezone.utc),
+                flow_run_id=flow_run.id,
+            )
+            for i in range(self.PAGE_SIZE + 1)
+        ]
+        await orion_client.create_logs(logs)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "300",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.PAGE_SIZE + 1)
+            ],
+            expected_line_count=self.PAGE_SIZE + 1,
+        )
