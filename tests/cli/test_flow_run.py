@@ -443,7 +443,7 @@ class TestFlowRunLogs:
                 "logs",
                 str(flow_run.id),
                 "--head",
-                "300",
+                self.PAGE_SIZE + 1,
             ],
             expected_code=0,
             expected_output_contains=[
