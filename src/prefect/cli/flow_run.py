@@ -153,10 +153,10 @@ async def logs(
     page_size = 200
     offset = 0
     more_logs = True
+    num_logs_returned = 0
 
     # If head is specified, we need to stop after we've retrieved enough lines
-    remaining_logs = head
-    num_logs_returned = 0
+    user_specified_num_logs = head
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
@@ -169,7 +169,9 @@ async def logs(
 
         while more_logs:
             num_logs_to_return_from_page = (
-                page_size if remaining_logs is None else min(page_size, remaining_logs)
+                page_size
+                if user_specified_num_logs is None
+                else min(page_size, user_specified_num_logs)
             )
 
             # Get the next page of logs
