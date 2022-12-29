@@ -21,6 +21,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
+    import kubernetes.client.exceptions
     import kubernetes.config
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
