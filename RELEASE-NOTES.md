@@ -2,7 +2,7 @@
 
 ## Release 2.7.5
 
-### Improved CLI experience, and updates to the GCP, Airbyte, and DBT Collections
+### Schedule flow runs and read logs from the CLI
 
 You can now specify either `--start-in` or `--start-at` when running deployments from the CLI.
 ```
