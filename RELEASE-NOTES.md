@@ -2,7 +2,7 @@
 
 ## Release 2.7.5
 
-### Set start times for deployments using the CLI and get flow run logs from the CLI
+### Improved CLI experience, and updates to the GCP, Airbyte, and DBT Collections
 
 You can now specify either `--start-in` or `--start-at` when running deployments from the CLI.
 ```
