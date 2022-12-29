@@ -32,6 +32,11 @@ You can also get the logs for a flow run using `prefect flow-run logs <flow UUID
 - Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
 - Add instructions for building custom blocks — https://github.com/PrefectHQ/prefect/pull/7979
 
+### Collections
+- Added `BigQueryWarehouse` block in `prefect-gcp` v0.2.1
+- Added `AirbyteConnection` block in `prefect-airbyte` v0.2.0
+- Added dbt Cloud metadata API client to `DbtCloudCredentials` in `prefect-dbt` v0.2.7
+
 ### Experimental 
 - Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
 - Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
