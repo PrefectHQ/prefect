@@ -593,18 +593,16 @@ async def orchestrate_flow_run(
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
-    timeout_context = (
-        anyio.fail_after(flow.timeout_seconds)
-        if flow.timeout_seconds
-        else nullcontext()
-    )
-
     while state.is_running():
         waited_for_task_runs = False
 
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
+            timeout_context = anyio.fail_after(
+                flow.timeout_seconds if flow.timeout_seconds else None
+            )
+
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
                     flow=flow,
