@@ -500,11 +500,9 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage"}
+                    {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
-                    if field == "timestamp":
-                        continue
                     new_value = getattr(deployment, field)
                     setattr(self, field, new_value)
 

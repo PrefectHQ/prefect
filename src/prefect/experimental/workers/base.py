@@ -16,9 +16,9 @@ from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
+from prefect.logging.loggers import get_logger
 from prefect.orion import schemas
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
-from prefect.orion.services.loop_service import LoopService
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -40,13 +40,8 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 
 
 @register_base_type
-class BaseWorker(LoopService, abc.ABC):
+class BaseWorker(abc.ABC):
     type: str
-    loop_seconds = PREFECT_WORKER_QUERY_SECONDS.value()
-    prefetch_seconds = PREFECT_WORKER_PREFETCH_SECONDS.value()
-    heartbeat_seconds = PREFECT_WORKER_HEARTBEAT_SECONDS.value()
-    workflow_storage_scan_seconds = PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
-    workflow_storage_path = PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
     default_pool_name = "Default Pool"
 
     @experimental(feature="The workers feature", group="workers")
@@ -54,7 +49,7 @@ class BaseWorker(LoopService, abc.ABC):
         self,
         name: str,
         worker_pool_name: str,
-        loop_seconds: Optional[float] = None,
+        query_seconds: Optional[float] = None,
         prefetch_seconds: Optional[float] = None,
         heartbeat_seconds: Optional[float] = None,
         workflow_storage_scan_seconds: Optional[float] = None,
@@ -63,18 +58,18 @@ class BaseWorker(LoopService, abc.ABC):
         limit: Optional[int] = None,
     ):
         """
-        Base worker class for all Prefect workers.
+        Base class for all Prefect workers.
 
         Args:
-            worker_pool_name: The name of the worker pool to use. If not
-                provided, the default will be used.
             name: The name of the worker. If not provided, a random one
                 will be generated. If provided, it cannot contain '/' or '%'.
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            loop_seconds: The number of seconds to wait between each loop
-                of the worker.
+            worker_pool_name: The name of the worker pool to use. If not
+                provided, the default will be used.
+            query_seconds: The number of seconds to wait between each query for
+                scheduled flow runs.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             heartbeat_seconds: The number of seconds between each heartbeat.
             workflow_storage_scan_seconds: The number of seconds between each
@@ -89,27 +84,34 @@ class BaseWorker(LoopService, abc.ABC):
         """
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
-        name = name or f"{self.__class__.__name__} {uuid4()}"
+        self.name = name or f"{self.__class__.__name__} {uuid4()}"
+        self.logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
 
-        super().__init__(loop_seconds=loop_seconds or self.__class__.loop_seconds)
+        self.query_seconds: float = (
+            query_seconds or PREFECT_WORKER_QUERY_SECONDS.value()
+        )
 
         self.is_setup = False
         self.create_pool_if_not_found = create_pool_if_not_found
         self.worker_pool_name = worker_pool_name or self.default_pool_name
 
-        self.heartbeat_seconds = heartbeat_seconds or self.__class__.heartbeat_seconds
-        self.prefetch_seconds = prefetch_seconds or self.__class__.prefetch_seconds
-        self.storage_scan_seconds = (
-            workflow_storage_scan_seconds
-            or self.__class__.workflow_storage_scan_seconds
+        self.heartbeat_seconds: float = (
+            heartbeat_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
-        self.workflow_storage_path = (
-            workflow_storage_path or self.__class__.workflow_storage_path
+        self.prefetch_seconds: float = (
+            prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+        )
+        self.workflow_storage_scan_seconds: float = (
+            workflow_storage_scan_seconds
+            or PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
+        )
+        self.workflow_storage_path: Path = (
+            workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
         # Setup workflows directory
         self.workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
-        if self.prefetch_seconds < self.loop_seconds:
+        if self.prefetch_seconds < self.query_seconds:
             self.logger.warning(
                 "Prefetch seconds is less than loop seconds, "
                 "which could lead to unexpected delays scheduling flow runs."
@@ -182,7 +184,7 @@ class BaseWorker(LoopService, abc.ABC):
         self._runs_task_group = None
         self._client = None
 
-    async def _on_start(self):
+    async def start(self):
         """
         Starts the heartbeat and storage scan loops when the worker starts.
         """
@@ -190,16 +192,24 @@ class BaseWorker(LoopService, abc.ABC):
             raise RuntimeError(
                 f"Worker has not been setup. Use `async with {self.__class__.__name__}()...`"
             )
-        await super()._on_start()
         # wait for an initial heartbeat to configure the worker
-        await self.heartbeat_worker()
+        await self.sync_worker()
         # perform initial scan of storage
         await self.scan_storage_for_deployments()
-        # schedule the heartbeat loop to run every `heartbeat_seconds`
+        # schedule the scheduled flow run polling loop to run every `query_seconds`
         self._loop_task_group.start_soon(
             partial(
                 critical_service_loop,
-                workload=self.heartbeat_worker,
+                workload=self.get_and_submit_flow_runs,
+                interval=self.query_seconds,
+                printer=self.logger.debug,
+            )
+        )
+        # schedule the sync loop to run every `heartbeat_seconds`
+        self._loop_task_group.start_soon(
+            partial(
+                critical_service_loop,
+                workload=self.sync_worker,
                 interval=self.heartbeat_seconds,
                 printer=self.logger.debug,
             )
@@ -209,18 +219,12 @@ class BaseWorker(LoopService, abc.ABC):
             partial(
                 critical_service_loop,
                 workload=self.scan_storage_for_deployments,
-                interval=self.storage_scan_seconds,
+                interval=self.workflow_storage_scan_seconds,
                 printer=self.logger.debug,
             )
         )
 
-    async def _on_stop(self) -> None:
-        await super()._on_stop()
-
-    def __repr__(self):
-        return f"Worker(pool={self.worker_pool_name!r}, name={self.name!r})"
-
-    async def run_once(self):
+    async def get_and_submit_flow_runs(self):
         # if the pool is paused or has a 0 concurrency limit, don't bother polling
         if self.worker_pool and (
             self.worker_pool.is_paused or self.worker_pool.concurrency_limit == 0
@@ -230,16 +234,7 @@ class BaseWorker(LoopService, abc.ABC):
         runs_response = await self.get_scheduled_flow_runs()
         await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def heartbeat_worker(self):
-        """
-        Updates the worker's local information about it's current worker pool and queues.
-        Sends a heart beat to the API.
-        """
-
-        # ----------------------------------------------
-        # Update local worker pool information
-        # ----------------------------------------------
-
+    async def _update_local_worker_pool_info(self):
         try:
             worker_pool = await self._client.read_worker_pool(
                 worker_pool_name=self.worker_pool_name
@@ -267,9 +262,7 @@ class BaseWorker(LoopService, abc.ABC):
                 )
         self.worker_pool = worker_pool
 
-        # ----------------------------------------------
-        # Update local queue list
-        # ----------------------------------------------
+    async def _update_local_queue_list(self):
         worker_pool_queues = await self._client.read_worker_pool_queues(
             worker_pool_name=self.worker_pool_name
         )
@@ -280,12 +273,22 @@ class BaseWorker(LoopService, abc.ABC):
 
         self.worker_pool_queues = worker_pool_queues
 
-        # ----------------------------------------------
-        # Send Heartbeat to the API
-        # ----------------------------------------------
+    async def _send_worker_heartbeat(self):
         await self._client.send_worker_heartbeat(
             worker_pool_name=self.worker_pool_name, worker_name=self.name
         )
+
+    async def sync_worker(self):
+        """
+        Updates the worker's local information about it's current worker pool and
+        queues. Sends a worker heartbeat to the API.
+        """
+        await self._update_local_worker_pool_info()
+
+        await self._update_local_queue_list()
+
+        await self._send_worker_heartbeat()
+
         self.logger.debug(f"{self} refreshed")
 
     async def scan_storage_for_deployments(self):
@@ -351,20 +354,24 @@ class BaseWorker(LoopService, abc.ABC):
         """
         Retrieve scheduled flow runs from the worker pool's queues.
         """
-        async with get_client() as client:
-            scheduled_before = pendulum.now("utc").add(
-                seconds=int(self.prefetch_seconds)
-            )
-            try:
-                return await client.get_scheduled_flow_runs_for_worker_pool_queues(
+        scheduled_before = pendulum.now("utc").add(seconds=int(self.prefetch_seconds))
+        self.logger.debug(f"Querying for flow runs scheduled before {scheduled_before}")
+        try:
+            scheduled_flow_runs = (
+                await self._client.get_scheduled_flow_runs_for_worker_pool_queues(
                     worker_pool_name=self.worker_pool_name,
                     worker_pool_queue_names=[q.name for q in self.worker_pool_queues],
                     scheduled_before=scheduled_before,
                 )
-            except ObjectNotFound:
-                # the pool doesn't exist; it will be created on the next
-                # heartbeat (or an appropriate warning will be logged)
-                return []
+            )
+            self.logger.debug(
+                f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs"
+            )
+            return scheduled_flow_runs
+        except ObjectNotFound:
+            # the pool doesn't exist; it will be created on the next
+            # heartbeat (or an appropriate warning will be logged)
+            return []
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List[WorkerFlowRunResponse]
@@ -374,6 +381,9 @@ class BaseWorker(LoopService, abc.ABC):
         for execution by the worker.
         """
         for entry in flow_run_response:
+            if entry.flow_run.id in self._submitting_flow_run_ids:
+                continue
+
             try:
                 if self.limiter:
                     self.limiter.acquire_on_behalf_of_nowait(entry.flow_run.id)
@@ -414,6 +424,13 @@ class BaseWorker(LoopService, abc.ABC):
                     )
 
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+
+        else:
+            # If the run is not ready to submit, release the concurrency slot
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
+
+        self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
@@ -475,10 +492,10 @@ class BaseWorker(LoopService, abc.ABC):
                 for worker_pool_queue in self.worker_pool_queues
             ],
             "settings": {
-                "loop_seconds": self.loop_seconds,
+                "loop_seconds": self.query_seconds,
                 "prefetch_seconds": self.prefetch_seconds,
                 "heartbeat_seconds": self.heartbeat_seconds,
-                "storage_scan_seconds": self.storage_scan_seconds,
+                "storage_scan_seconds": self.workflow_storage_scan_seconds,
                 "workflow_storage_path": self.workflow_storage_path,
             },
         }
@@ -561,15 +578,6 @@ class BaseWorker(LoopService, abc.ABC):
                 )
             self._loop_task_group.start_soon(self.start)
 
-        @app.on_event("shutdown")
-        async def stop_worker():
-            if not self.is_setup or not self._loop_task_group:
-                raise RuntimeError(
-                    "Worker has not been setup. "
-                    f"Use `async with {self.__class__.__name__}()...`"
-                )
-            self._loop_task_group.start_soon(self.stop)
-
         @app.get("/health")
         async def health() -> bool:
             return True
@@ -588,3 +596,6 @@ class BaseWorker(LoopService, abc.ABC):
     async def __aexit__(self, *exc_info):
         self.logger.debug("Exiting worker context...")
         await self.teardown(*exc_info)
+
+    def __repr__(self):
+        return f"Worker(pool={self.worker_pool_name!r}, name={self.name!r})"

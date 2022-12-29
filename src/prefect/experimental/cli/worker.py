@@ -14,9 +14,15 @@ app.add_typer(worker_app)
 
 @worker_app.command()
 async def start(
-    worker_name: str = typer.Option(..., "--name"),
-    worker_pool_name: str = typer.Option(...),
-    worker_type: str = typer.Option("process", "--type"),
+    worker_name: str = typer.Option(
+        ..., "-n", "--name", help="The name to give to the started worker."
+    ),
+    worker_pool_name: str = typer.Option(
+        ..., "-p", "--pool", help="The worker pool the started worker should join."
+    ),
+    worker_type: str = typer.Option(
+        "process", "-t", "--type", help="The type of worker to start."
+    ),
     limit: int = typer.Option(
         None,
         "-l",
