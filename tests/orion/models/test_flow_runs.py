@@ -1016,6 +1016,68 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+    async def test_read_flow_runs_filters_by_worker_pool_name(self, flow, session):
+        worker_pool = await models.workers.create_worker_pool(
+            session=session,
+            worker_pool=schemas.actions.WorkerPoolCreate(name="worker-pool"),
+        )
+        worker_pool_queue = await models.workers.create_worker_pool_queue(
+            session=session,
+            worker_pool_id=worker_pool.id,
+            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(
+                name="worker-pool-queue"
+            ),
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, worker_pool_queue_id=worker_pool_queue.id
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            worker_pool_filter=schemas.filters.WorkerPoolFilter(
+                name=schemas.filters.WorkerPoolFilterName(any_=[worker_pool.name])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id}
+
+    async def test_read_flow_runs_filters_by_worker_pool_queue_id(self, session, flow):
+        worker_pool = await models.workers.create_worker_pool(
+            session=session,
+            worker_pool=schemas.actions.WorkerPoolCreate(name="worker-pool"),
+        )
+        worker_pool_queue = await models.workers.create_worker_pool_queue(
+            session=session,
+            worker_pool_id=worker_pool.id,
+            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(
+                name="worker-pool-queue"
+            ),
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, worker_pool_queue_id=worker_pool_queue.id
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            worker_pool_queue_filter=schemas.filters.WorkerPoolQueueFilter(
+                id=schemas.filters.WorkerPoolQueueFilterId(any_=[worker_pool_queue.id])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id}
+
     async def test_read_flow_runs_applies_sort(self, flow, session):
         now = pendulum.now()
         flow_run_1 = await models.flow_runs.create_flow_run(

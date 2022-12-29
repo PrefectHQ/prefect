@@ -246,6 +246,8 @@ async def read_flow_runs(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    worker_pools: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.FlowRun]:
     """
@@ -258,6 +260,8 @@ async def read_flow_runs(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
+            worker_pool_filter=worker_pools,
+            worker_pool_queue_filter=worker_pool_queues,
             offset=offset,
             limit=limit,
             sort=sort,
