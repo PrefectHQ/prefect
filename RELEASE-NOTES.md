@@ -40,7 +40,6 @@ You can also get the logs for a flow run using `prefect flow-run logs <flow UUID
 ### Experimental 
 - Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
 - Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
-- 
 ## Contributors
 * @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
 * @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
