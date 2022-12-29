@@ -1,7 +1,7 @@
 import abc
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
 import anyio
@@ -129,7 +129,7 @@ class BaseWorker(abc.ABC):
     @abc.abstractmethod
     async def run(
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
-    ):
+    ) -> BaseWorkerResult:
         """
         Runs a given flow run on the current worker.
         """
@@ -419,8 +419,9 @@ class BaseWorker(abc.ABC):
                     )
                 except Exception:
                     self.logger.exception(
-                        "An error occured while setting the `infrastructure_pid` on "
-                        f"flow run {flow_run.id!r}. The flow run will not be cancellable."
+                        "An error occurred while setting the `infrastructure_pid` on "
+                        f"flow run {flow_run.id!r}. The flow run will "
+                        "not be cancellable."
                     )
 
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
@@ -434,7 +435,7 @@ class BaseWorker(abc.ABC):
 
     async def _submit_run_and_capture_errors(
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
-    ):
+    ) -> Union[BaseWorkerResult, Exception]:
         try:
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
@@ -450,7 +451,7 @@ class BaseWorker(abc.ABC):
                 await self._propose_failed_state(flow_run, exc)
             else:
                 self.logger.exception(
-                    f"An error occured while monitoring flow run '{flow_run.id}'. "
+                    f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )
