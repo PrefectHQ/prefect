@@ -707,6 +707,47 @@
     },
     "prefect-gcp": {
       "block_types": {
+        "gcp-credentials": {
+          "name": "GCP Credentials",
+          "slug": "gcp-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250",
+          "documentation_url": null,
+          "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+          "code_example": "Load GCP credentials stored in a `GCP Credentials` Block:\n```python\nfrom prefect_gcp import GcpCredentials\ngcp_credentials_block = GcpCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:276b3197d186ff97c26b14cbbdc0f4d0c4b1639285c7dcb9cd233f0eefffeb35",
+              "fields": {
+                "title": "GcpCredentials",
+                "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+                "type": "object",
+                "properties": {
+                  "service_account_file": {
+                    "title": "Service Account File",
+                    "description": "Path to the service account JSON keyfile.",
+                    "type": "string",
+                    "format": "path"
+                  },
+                  "service_account_info": {
+                    "title": "Service Account Info",
+                    "description": "The contents of the keyfile as a dict.",
+                    "type": "object"
+                  },
+                  "project": {
+                    "title": "Project",
+                    "description": "The GCP project to use for the client.",
+                    "type": "string"
+                  }
+                },
+                "block_type_slug": "gcp-credentials",
+                "secret_fields": ["service_account_info.*"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.1"
+            }
+          ]
+        },
         "bigquery-warehouse": {
           "name": "BigQuery Warehouse",
           "slug": "bigquery-warehouse",
@@ -902,47 +943,6 @@
                 }
               },
               "capabilities": ["run-infrastructure"],
-              "version": "0.2.1"
-            }
-          ]
-        },
-        "gcp-credentials": {
-          "name": "GCP Credentials",
-          "slug": "gcp-credentials",
-          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250",
-          "documentation_url": null,
-          "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
-          "code_example": "Load GCP credentials stored in a `GCP Credentials` Block:\n```python\nfrom prefect_gcp import GcpCredentials\ngcp_credentials_block = GcpCredentials.load(\"BLOCK_NAME\")\n```",
-          "block_schemas": [
-            {
-              "checksum": "sha256:276b3197d186ff97c26b14cbbdc0f4d0c4b1639285c7dcb9cd233f0eefffeb35",
-              "fields": {
-                "title": "GcpCredentials",
-                "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
-                "type": "object",
-                "properties": {
-                  "service_account_file": {
-                    "title": "Service Account File",
-                    "description": "Path to the service account JSON keyfile.",
-                    "type": "string",
-                    "format": "path"
-                  },
-                  "service_account_info": {
-                    "title": "Service Account Info",
-                    "description": "The contents of the keyfile as a dict.",
-                    "type": "object"
-                  },
-                  "project": {
-                    "title": "Project",
-                    "description": "The GCP project to use for the client.",
-                    "type": "string"
-                  }
-                },
-                "block_type_slug": "gcp-credentials",
-                "secret_fields": ["service_account_info.*"],
-                "block_schema_references": {}
-              },
-              "capabilities": [],
               "version": "0.2.1"
             }
           ]
