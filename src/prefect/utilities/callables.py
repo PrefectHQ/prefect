@@ -2,8 +2,10 @@
 Utilities for working with Python callables.
 """
 import inspect
+import re
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Tuple
+from textwrap import dedent
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
@@ -119,7 +121,7 @@ class ParameterSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
-def parameter_docstrings(docstring: str) -> Dict[str, str]:
+def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
     """Given a docstring in Google docstring format, parse the 'Args:' section
     and return a dictionary that maps parameter names to docstring.
 
@@ -130,17 +132,21 @@ def parameter_docstrings(docstring: str) -> Dict[str, str]:
         dict: mapping from parameter names to docstrings.
     """
     param_docstrings = {}
+    if not docstring:
+        return param_docstrings
     # match anything from section header until end of paragraph or end of string
     section_headers = ["Args", "Params", "Parameters", "Arguments"]
     section_header_pattern = r"(?:(?:" + r")|(?:".join(section_headers) + r"))"
     arg_section_regex = re.compile(section_header_pattern + r":\n((?:.+\n?)+)(?:\n|$)")
-    args_section_raw = arg_section_regex.findall(docstring)[0]
-    # dedent and merge multiline docstrings
-    args_section = re.sub("\n +", " ", dedent(args_section_raw))
-    for line in args_section.splitlines():
-        param_name = line.split(":")[0].split()[0]
-        docstring = line.split(":")[1][1:]
-        param_docstrings[param_name] = docstring
+    arg_section_finds = arg_section_regex.findall(docstring)
+    if arg_section_finds:
+        args_section_raw = arg_section_finds[0]
+        # dedent and merge multiline docstrings
+        args_section = re.sub("\n +", " ", dedent(args_section_raw))
+        for line in args_section.splitlines():
+            param_name = line.split(":")[0].split()[0]
+            docstring = line.split(":")[1][1:]
+            param_docstrings[param_name] = docstring
     return param_docstrings
 
 
@@ -162,7 +168,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     signature = inspect.signature(fn)
     model_fields = {}
     aliases = {}
-    docstrings = parameter_docstrings(fn.description)
+    docstrings = parameter_docstrings(getattr(fn, "description", None))
 
     class ModelConfig:
         arbitrary_types_allowed = True
