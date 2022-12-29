@@ -15,7 +15,7 @@ Created flow run 'pompous-porpoise'.
 └── URL: <no dashboard available>
 ```
 
-You can also get the logs for a flow run using `prefect flow-run logs <flow UUID>`
+You can also get the logs for a flow run using `prefect flow-run logs <flow run UUID>`
 ```
 ❯ prefect flow-run logs 7aec7a60-a0ab-4f3e-9f2a-479cd85a2aaf 
 2022-12-29 20:00:40.651 | INFO    | Flow run 'optimal-pegasus' - meow
