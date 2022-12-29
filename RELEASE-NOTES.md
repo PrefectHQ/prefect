@@ -30,7 +30,7 @@ You can also get the logs for a flow run using `prefect flow-run logs <flow UUID
 
 ### Documentation
 - Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
-- Add instructions for building custom blocks docs — https://github.com/PrefectHQ/prefect/pull/7979
+- Add instructions for building custom blocks — https://github.com/PrefectHQ/prefect/pull/7979
 
 ### Experimental 
 - Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
