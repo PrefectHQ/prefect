@@ -25,7 +25,7 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
@@ -35,7 +35,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
-from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
 
@@ -179,7 +178,7 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
-    flow = await run_sync_in_worker_thread(import_object, str(import_path))
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
     return flow
 
 

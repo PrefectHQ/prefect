@@ -450,6 +450,11 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 )
 """The default timeout for requests to the API"""
 
+PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
+"""
+If enabled, warn on usage of expirimental features.
+"""
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",
@@ -877,6 +882,11 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
 """Whether or not to start the paused flow run expiration service in the Orion
 application. If disabled, paused flows that have timed out will remain in a Paused state
 until a resume attempt.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers. 
 """
 
 # Collect all defined settings
