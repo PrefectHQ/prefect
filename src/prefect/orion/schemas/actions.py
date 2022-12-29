@@ -207,7 +207,6 @@ class FlowRunCreate(ActionBaseModel):
     empirical_policy: schemas.core.FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
     tags: List[str] = FieldFrom(schemas.core.FlowRun)
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
-    worker_pool_queue_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
         json_dumps = orjson_dumps_non_str_keys

@@ -313,7 +313,7 @@ class TestReadFlowRuns:
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow_2.id,
                 name="fr3",
                 tags=["blue", "red"],
