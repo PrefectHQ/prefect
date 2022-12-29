@@ -119,6 +119,31 @@ class ParameterSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
+def parameter_docstrings(docstring: str) -> Dict[str, str]:
+    """Given a docstring in Google docstring format, parse the 'Args:' section
+    and return a dictionary that maps parameter names to docstring.
+
+    Args:
+        docstring: function docstring.
+
+    Returns:
+        dict: mapping from parameter names to docstrings.
+    """
+    param_docstrings = {}
+    # match anything from section header until end of paragraph or end of string
+    section_headers = ["Args", "Params", "Parameters", "Arguments"]
+    section_header_pattern = r"(?:(?:" + r")|(?:".join(section_headers) + r"))"
+    arg_section_regex = re.compile(section_header_pattern + r":\n((?:.+\n?)+)(?:\n|$)")
+    args_section_raw = arg_section_regex.findall(docstring)[0]
+    # dedent and merge multiline docstrings
+    args_section = re.sub("\n +", " ", dedent(args_section_raw))
+    for line in args_section.splitlines():
+        param_name = line.split(":")[0].split()[0]
+        docstring = line.split(":")[1][1:]
+        param_docstrings[param_name] = docstring
+    return param_docstrings
+
+
 def parameter_schema(fn: Callable) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
@@ -137,6 +162,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     signature = inspect.signature(fn)
     model_fields = {}
     aliases = {}
+    docstrings = parameter_docstrings(fn.description)
 
     class ModelConfig:
         arbitrary_types_allowed = True
@@ -154,7 +180,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
-                description=None,
+                description=docstrings.get(param.name, None),
                 alias=aliases.get(name),
             ),
         )
