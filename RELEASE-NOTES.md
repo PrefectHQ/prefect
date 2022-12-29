@@ -42,7 +42,7 @@ You can also get the logs for a flow run using `prefect flow-run logs <flow run 
 - Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
 - Add filtering to flow runs by worker pool and worker pool queue attributes — https://github.com/PrefectHQ/prefect/pull/8006
 
-## Contributors
+### Contributors
 * @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
 * @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
 
