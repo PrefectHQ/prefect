@@ -28,25 +28,17 @@ You can also get the logs for a flow run using `prefect flow-run logs <flow UUID
 - Add `--start-in` and `--start-at` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7772
 - Add `flow-run logs` to get logs using the CLI — https://github.com/PrefectHQ/prefect/pull/7982
 
-### Fixes
-- Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
-- Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
-
 ### Documentation
 - Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
 - Add instructions for building custom blocks docs — https://github.com/PrefectHQ/prefect/pull/7979
 
-## New Contributors
-* @robfreedy made their first contribution in https://github.com/PrefectHQ/prefect/pull/7977
+### Experimental 
+- Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
+- Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
+- 
+## Contributors
 * @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
 * @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
-
-### Contributors
-- @ahuang11
-- @desertaxle
-- @madkinsz
-- @ohadch
-- @robfreedy
 
 **All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
 
