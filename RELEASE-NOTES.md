@@ -1,5 +1,56 @@
 # Prefect Release Notes
 
+## Release 2.7.5
+
+### Set start times for deployments using the CLI and get flow run logs from the CLI
+
+You can now specify either `--start-in` or `--start-at` when running deployments from the CLI.
+```
+❯ prefect deployment run foo/test --start-at "3pm tomorrow"
+Creating flow run for deployment 'foo/test'...
+Created flow run 'pompous-porpoise'.
+└── UUID: 0ce7930e-8ec0-40cb-8a0e-65bccb7a9605
+└── Parameters: {}
+└── Scheduled start time: 2022-12-06 15:00:00
+└── URL: <no dashboard available>
+```
+
+You can also get the logs for a flow run using `prefect flow-run logs <flow UUID>`
+```
+❯ prefect flow-run logs 7aec7a60-a0ab-4f3e-9f2a-479cd85a2aaf 
+2022-12-29 20:00:40.651 | INFO    | Flow run 'optimal-pegasus' - meow
+2022-12-29 20:00:40.652 | INFO    | Flow run 'optimal-pegasus' - that food in my bowl is gross
+2022-12-29 20:00:40.652 | WARNING | Flow run 'optimal-pegasus' - seriously, it needs to be replaced ASAP
+2022-12-29 20:00:40.662 | INFO    | Flow run 'optimal-pegasus' - Finished in state Completed()
+```
+
+### Enhancements
+- Add `--start-in` and `--start-at` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7772
+- Add `flow-run logs` to get logs using the CLI — https://github.com/PrefectHQ/prefect/pull/7982
+
+### Fixes
+- Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
+- Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
+
+### Documentation
+- Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
+- Add instructions for building custom blocks docs — https://github.com/PrefectHQ/prefect/pull/7979
+
+## New Contributors
+* @robfreedy made their first contribution in https://github.com/PrefectHQ/prefect/pull/7977
+* @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
+* @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
+
+### Contributors
+- @ahuang11
+- @desertaxle
+- @madkinsz
+- @ohadch
+- @robfreedy
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
+
+
 ## Release 2.7.4
 
 ### Improvements to retry delays: multiple delays, exponential backoff, and jitter
