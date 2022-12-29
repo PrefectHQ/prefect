@@ -272,7 +272,9 @@ async def read_flow_runs(
     # In particular, the FastAPI encoder is very slow for large, nested objects.
     # See: https://github.com/tiangolo/fastapi/issues/1224
     encoded = [
-        schemas.core.FlowRun.from_orm(fr).dict(json_compatible=True)
+        schemas.responses.FlowRunResponse.from_orm_model(session, fr).dict(
+            json_compatible=True
+        )
         for fr in db_flow_runs
     ]
     return ORJSONResponse(content=encoded)

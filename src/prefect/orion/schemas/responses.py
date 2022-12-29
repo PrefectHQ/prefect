@@ -9,8 +9,10 @@ from uuid import UUID
 from pydantic import Field
 from typing_extensions import Literal
 
+import prefect.orion.models as models
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy
+from prefect.orion.utilities.schemas import DateTimeTZ, FieldFrom, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
 
 
@@ -129,3 +131,60 @@ class WorkerFlowRunResponse(PrefectBaseModel):
     worker_pool_id: UUID
     worker_pool_queue_id: UUID
     flow_run: schemas.core.FlowRun
+
+
+class FlowRunResponse(PrefectBaseModel):
+    class Config:
+        extra = "ignore"
+
+    name: str = FieldFrom(schemas.core.FlowRun)
+    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
+    state_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    parameters: dict = FieldFrom(schemas.core.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    context: dict = FieldFrom(schemas.core.FlowRun)
+    empirical_policy: FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
+    tags: List[str] = FieldFrom(schemas.core.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    state_type: Optional[schemas.states.StateType] = FieldFrom(schemas.core.FlowRun)
+    state_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    run_count: int = FieldFrom(schemas.core.FlowRun)
+    expected_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    next_scheduled_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    end_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    total_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    estimated_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    estimated_start_time_delta: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    auto_scheduled: bool = FieldFrom(schemas.core.FlowRun)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
+    worker_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the flow run's worker pool.",
+        example="my-worker-pool",
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the flow run's worker pool queue.",
+        example="my-worker-pool-queue",
+    )
+
+    @classmethod
+    def from_orm_model(cls, session, orm_flow_run):
+        response = cls.from_orm(orm_flow_run)
+        if orm_flow_run.worker_pool_queue_id:
+            worker_pool_queue = models.workers.read_worker_pool_queue(
+                session=session, worker_pool_queue_id=orm_flow_run.worker_pool_queue_id
+            )
+            response.worker_pool_queue_name = worker_pool_queue.name
+            worker_pool = models.workers.read_worker_pool(
+                session=session, worker_pool_id=worker_pool_queue.worker_pool_id
+            )
+            response.worker_pool_name = worker_pool.name
+
+        return response
