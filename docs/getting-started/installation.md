@@ -169,11 +169,11 @@ You can also:
 
 If you're using a self-signed SSL certificate, you need to configure your
 environment to trust the certificate. This is usually done by adding the
-certificte to your system bundle and pointing your tools to use that bundle
+certificate to your system bundle and pointing your tools to use that bundle
 by configuring the `SSL_CERT_FILE` environment variable.
 
 If the certificate is not part of your system bundle you can set the
-`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `true` to disable certificate
+`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate
 verification altogether.
 
 ***Note:*** This is not secure and so is recommended only for testing!
