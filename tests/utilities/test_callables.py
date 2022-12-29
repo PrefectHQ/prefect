@@ -7,6 +7,7 @@ import pydantic.version
 import pytest
 from packaging.version import Version
 
+from prefect import flow
 from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
 
@@ -356,6 +357,149 @@ class TestMethodToSchema:
                 },
                 "required": ["x"],
             }
+
+
+class TestParseFlowDescriptionToSchema:
+    def test_flow_with_args_docstring(self):
+        @flow()
+        def f(x):
+            """Function f.
+
+            Args:
+                x: required argument x
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "description": "required argument x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_params_docstring(self):
+        @flow()
+        def f(x):
+            """Function f.
+
+            Params:
+                x: required argument x
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "description": "required argument x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_args_multiline_docstring(self):
+        @flow()
+        def f(x):
+            """Function f.
+
+            Args:
+                x: required argument x
+                    with some additional info
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "description": "required argument x with some additional info",
+                }
+            },
+            "required": ["x"],
+        }
+
+    def test_flow_without_docstring(self):
+        @flow()
+        def f(x):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_without_args_docstring(self):
+        @flow()
+        def f(x):
+            """Function f."""
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_args_and_returns_docstring(self):
+        @flow()
+        def f(x):
+            """Function f.
+
+            Args:
+                x: required argument x
+
+            Returns:
+                None: nothing
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "description": "required argument x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_typed_args_docstring(self):
+        @flow()
+        def f(x):
+            """Function f.
+
+            Args:
+                x (str): required argument x
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "description": "required argument x"}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_multiple_args_docstring(self):
+        @flow()
+        def f(x, y):
+            """Function f.
+
+            Args:
+                x (str): required argument x
+                y: required argument y
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {"title": "x", "description": "required argument x"},
+                "y": {"title": "y", "description": "required argument y"},
+            },
+            "required": ["x", "y"],
+        }
 
 
 class TestGetCallParameters:
