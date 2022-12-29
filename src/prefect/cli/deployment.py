@@ -14,6 +14,7 @@ import dateparser
 import pendulum
 import typer
 import yaml
+from pendulum.datetime import DateTime
 from rich.pretty import Pretty
 from rich.table import Table
 
@@ -71,6 +72,58 @@ def assert_deployment_name_format(name: str) -> None:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
+
+
+def parse_human_readable_datetime(
+    raw_value: str, relative_to: datetime = None
+) -> DateTime:
+    """
+    Parse a human readable datetime or duration string into a datetime object.
+
+    Always returns a datetime in UTC, but the given string can specify a time zone.
+
+    Prefers dates from the future for scheduling, otherwise dates from the past can
+    take precedence if closer.
+    """
+    relative_to = relative_to or pendulum.now()
+
+    if raw_value == "now":
+        return relative_to
+
+    with warnings.catch_warnings():
+        # PyTZ throws a warning based on dateparser usage of the library
+        # See https://github.com/scrapinghub/dateparser/issues/1089
+        warnings.filterwarnings("ignore", module="dateparser")
+
+        parsed_value = dateparser.parse(
+            raw_value,
+            settings={
+                "TO_TIMEZONE": "UTC",
+                "RETURN_AS_TIMEZONE_AWARE": False,
+                "PREFER_DATES_FROM": "future",
+                "RELATIVE_BASE": datetime.fromtimestamp(relative_to.timestamp()),
+            },
+        )
+
+    if parsed_value is None:
+        raise ValueError(f"Unable to parse datetime string {raw_value!r}")
+
+    return pendulum.instance(parsed_value)
+
+
+def human_readable_datetime_diff(value: DateTime, relative_to: datetime = None) -> str:
+    """
+    Return a human readable difference between two date times. Defaults to comparison
+    with now.
+
+    Unlike the pendulum `diff`, this will not say "a few seconds ago" when the times
+    match; instead, it will say "now".
+    """
+    relative_to = relative_to or pendulum.now()
+    if relative_to == value:
+        return "now"
+    else:
+        return pendulum.format_diff(value.diff(relative_to))
 
 
 async def get_deployment(client: OrionClient, name, deployment_id):
@@ -384,7 +437,7 @@ async def run(
     Create a flow run for the given flow and deployment.
 
     The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
-    The flow run will not execute until an agent starts.
+    The flow run will not execute unless an agent is running.
     """
     now = pendulum.now("UTC")
 
@@ -414,41 +467,25 @@ async def run(
             "Only one of `--start-in` or `--start-at` can be set, not both."
         )
 
-    elif start_in is None and start_at is None:
-        scheduled_start_time = now
-        human_dt_diff = " (now)"
+    if start_in:
+        raw_start_time = "in " + start_in
+    elif start_at:
+        raw_start_time = "at " + start_at
     else:
-        if start_in:
-            start_time_raw = "in " + start_in
-        else:
-            start_time_raw = "at " + start_at
-        with warnings.catch_warnings():
-            # PyTZ throws a warning based on dateparser usage of the library
-            # See https://github.com/scrapinghub/dateparser/issues/1089
-            warnings.filterwarnings("ignore", module="dateparser")
+        raw_start_time = "now"
 
-            try:
-
-                start_time_parsed = dateparser.parse(
-                    start_time_raw,
-                    settings={
-                        "TO_TIMEZONE": "UTC",
-                        "RETURN_AS_TIMEZONE_AWARE": False,
-                        "PREFER_DATES_FROM": "future",
-                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
-                    },
-                )
-
-            except Exception as exc:
-                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
-
-        if start_time_parsed is None:
-            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
-
-        scheduled_start_time = pendulum.instance(start_time_parsed)
-        human_dt_diff = (
-            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+    try:
+        scheduled_start_time = parse_human_readable_datetime(
+            raw_start_time, relative_to=now
         )
+    except Exception as exc:
+        exit_with_error(f"Unable to parse scheduled start time {raw_start_time!r}.")
+
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        f"{datetime_local_tz.to_datetime_string()} {datetime_local_tz.tzname()} "
+        f"({human_readable_datetime_diff(scheduled_start_time, now)})"
+    )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -486,14 +523,6 @@ async def run(
         run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
-
-    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
-    scheduled_display = (
-        datetime_local_tz.to_datetime_string()
-        + " "
-        + datetime_local_tz.tzname()
-        + human_dt_diff
-    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
