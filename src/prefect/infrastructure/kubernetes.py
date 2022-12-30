@@ -529,7 +529,7 @@ class KubernetesJob(Infrastructure):
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except kubernetes.ApiException:
+            except kubernetes.client.exceptions.ApiException:
                 self.logger.error(f"Job{job_id!r} was removed.", exc_info=True)
                 return None
             return job
