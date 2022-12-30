@@ -3,7 +3,7 @@ Schemas for special responses from the Orion API.
 """
 
 import datetime
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field
@@ -197,3 +197,17 @@ class FlowRunResponse(ORMBaseModel):
             response.worker_pool_name = worker_pool.name
 
         return response
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Check for "equality" to another flow run schema
+
+        Estimates times are rolling and will always change with repeated queries for
+        a flow run so we ignore them during equality checks.
+        """
+        if isinstance(other, FlowRunResponse):
+            exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
+            return self.dict(exclude=exclude_fields) == other.dict(
+                exclude=exclude_fields
+            )
+        return super().__eq__(other)
