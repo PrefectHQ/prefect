@@ -682,7 +682,6 @@ class OrionClient:
             UUID: The UUID of the newly created workflow
         """
         if tags:
-            breakpoint()
             warnings.warn(
                 "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
                 DeprecationWarning,
