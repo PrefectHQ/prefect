@@ -28,9 +28,12 @@ Once the Prefect Collection is installed, [register the blocks](/concepts/blocks
 As an example, to register the blocks available in `prefect-aws`:
 
 ```bash
-prefect block register -m prefect_aws.credentials
-prefect block register -m prefect_aws.ecs
+prefect block register -m prefect_aws
 ```
+
+**Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
+
+Learn more about Blocks [here](/concepts/blocks)!
 
 ## Using Tasks and Flows from a Collection
 
@@ -53,8 +56,6 @@ def connect_to_database():
 
     # Use secret_value to connect to a database
 ```
-
-**Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
 
 ## Customizing Tasks and Flows from a Collection
 
