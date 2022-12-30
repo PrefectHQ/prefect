@@ -34,7 +34,11 @@ def test_register_blocks_from_module():
     invoke_and_assert(
         ["block", "register", "-m", "prefect.blocks.core"],
         expected_code=0,
-        expected_output_contains=["Successfully registered", "blocks"],
+        expected_output_contains=[
+            "Successfully registered",
+            "blocks",
+            "blocks/catalog",
+        ],
     )
 
 
@@ -69,7 +73,7 @@ def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
     invoke_and_assert(
         ["block", "register", "-f", str(test_file_path)],
         expected_code=0,
-        expected_output_contains="Successfully registered 1 block",
+        expected_output_contains=["Successfully registered 1 block", "blocks/catalog"],
     )
 
     block_type = asyncio.run(
