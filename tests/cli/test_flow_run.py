@@ -5,6 +5,7 @@ import pytest
 
 import prefect.exceptions
 from prefect import flow
+from prefect.cli.flow_run import LOGS_HEAD_DEFAULT_NUM_LINES
 from prefect.orion.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
@@ -414,7 +415,7 @@ class TestFlowRunLogs:
             expected_line_count=self.PAGE_SIZE + 1,
         )
 
-    async def test_when_head_without_num_lines_then_return_50_lines(
+    async def test_when_head_without_num_lines_then_return_the_default_number_of_lines(
         self, flow_run_factory
     ):
         # Given
@@ -432,9 +433,9 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(50)
+                for i in range(LOGS_HEAD_DEFAULT_NUM_LINES)
             ],
-            expected_line_count=50,
+            expected_line_count=LOGS_HEAD_DEFAULT_NUM_LINES,
         )
 
     async def test_h_and_n_shortcuts_for_head_and_num_lines(self, flow_run_factory):

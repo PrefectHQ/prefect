@@ -29,7 +29,7 @@ flow_run_app = PrefectTyper(
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 LOGS_PAGE_SIZE = 200
-LOGS_HEAD_DEFAULT_NUM_LINES = 50
+LOGS_HEAD_DEFAULT_NUM_LINES = 20
 
 
 @flow_run_app.command()
