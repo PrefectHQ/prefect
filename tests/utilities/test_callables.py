@@ -403,7 +403,9 @@ class TestParseFlowDescriptionToSchema:
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x", "description": "required argument x"}},
+            "properties": {
+                "x": {"title": "x", "description": "required argument x", "position": 0}
+            },
             "required": ["x"],
         }
 
@@ -415,7 +417,7 @@ class TestParseFlowDescriptionToSchema:
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x"}},
+            "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
         }
 
@@ -427,7 +429,7 @@ class TestParseFlowDescriptionToSchema:
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x"}},
+            "properties": {"x": {"title": "x", "position": 0}},
             "required": ["x"],
         }
 
@@ -451,10 +453,15 @@ class TestParseFlowDescriptionToSchema:
             "title": "Parameters",
             "type": "object",
             "properties": {
-                "x": {"title": "x", "description": "required argument x"},
+                "x": {
+                    "title": "x",
+                    "description": "required argument x",
+                    "position": 0,
+                },
                 "y": {
                     "title": "y",
                     "description": "required typed argument y\nwith second line",
+                    "position": 1,
                 },
             },
             "required": ["x", "y"],
