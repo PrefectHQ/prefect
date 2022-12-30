@@ -12,6 +12,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
@@ -37,16 +38,19 @@ async def create_deployment(
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
+    TEMPORARY_NAME = "test-worker-pool2"
     async with db.session_context(begin_transaction=True) as session:
         worker_pool = await models.workers.read_worker_pool_by_name(
-            session=session, worker_pool_name="TODO"  # TODO
+            session=session, worker_pool_name=TEMPORARY_NAME  # TODO
         )
-
+    logger = get_logger()  # TODO
     try:
         deployment.check_valid_configuration(worker_pool.base_job_template)
     except MissingVariableError as exc:
-        # TODO
-        raise Exception("TODO!!!")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Error creating deployment: {exc!r}",
+        )
 
     async with db.session_context(begin_transaction=True) as session:
         # check to see if relevant blocks exist, allowing us throw a useful error message
@@ -102,8 +106,10 @@ async def update_deployment(
     try:
         deployment.check_valid_configuration(worker_pool.base_job_template)
     except MissingVariableError as exc:
-        # TODO
-        raise Exception("TODO!!!")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Error updating deployment: {exc!r}",
+        )
 
     async with db.session_context(begin_transaction=True) as session:
         result = await models.deployments.update_deployment(

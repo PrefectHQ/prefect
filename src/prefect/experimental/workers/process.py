@@ -61,8 +61,8 @@ PROCESS_WORKER_BASE_TEMPLATE = {
             "type": "string",
             "default": "",
         },
-        "required_variables": [],
     },
+    "required_variables": [],
 }
 
 

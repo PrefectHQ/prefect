@@ -553,12 +553,14 @@ class Deployment(ORMBaseModel):
 
         missing_variables = set(required_variables).difference(self.infra_overrides)
         if missing_variables:
-            raise MissingVariableError(missing_variables)
+            raise MissingVariableError(
+                f"The following required parameters are missing: {missing_variables!r}"
+            )
 
-        default_variables = self._get_base_config_defaults()
-        combined_variables = default_variables.update(self.infra_overrides)
+        variables = self._get_base_config_defaults(variables_schema)
+        variables.update(self.infra_overrides)
 
-        self._validate_variables(variables_schema, combined_variables)
+        self._validate_variables(variables_schema, variables)
 
 
 class ConcurrencyLimit(ORMBaseModel):
