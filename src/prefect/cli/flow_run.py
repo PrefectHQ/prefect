@@ -28,6 +28,9 @@ flow_run_app = PrefectTyper(
 )
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
+LOGS_PAGE_SIZE = 200
+LOGS_HEAD_AND_TAIL_DEFAULT_NUM_LINES = 50
+
 
 @flow_run_app.command()
 async def inspect(id: UUID):
@@ -141,16 +144,18 @@ async def cancel(id: UUID):
 @flow_run_app.command()
 async def logs(
     id: UUID,
-    head: int = typer.Option(
-        None,
-        help="Number of lines to show from the head of the log",
+    # Boolean head flag
+    head: bool = typer.Option(
+        False,
+        "--head",
+        "-h",
+        help="Show the first 10 lines of logs instead of the last 10 lines",
     ),
 ):
     """
     View logs for a flow run.
     """
     # Pagination - API returns max 200 lines at a time
-    page_size = 200
     offset = 0
     more_logs = True
     num_logs_returned = 0
@@ -169,9 +174,9 @@ async def logs(
 
         while more_logs:
             num_logs_to_return_from_page = (
-                page_size
+                LOGS_PAGE_SIZE
                 if user_specified_num_logs is None
-                else min(page_size, user_specified_num_logs)
+                else min(LOGS_PAGE_SIZE, user_specified_num_logs)
             )
 
             # Get the next page of logs
@@ -190,8 +195,8 @@ async def logs(
             # Update the number of logs retrieved
             num_logs_returned += num_logs_to_return_from_page
 
-            if len(page_logs) == page_size:
-                offset += page_size
+            if len(page_logs) == LOGS_PAGE_SIZE:
+                offset += LOGS_PAGE_SIZE
             else:
                 # No more logs to show, exit
                 more_logs = False
