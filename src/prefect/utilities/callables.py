@@ -124,27 +124,31 @@ class ParameterSchema(pydantic.BaseModel):
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
-    """Given a docstring in Google docstring format, parse the parameter section
+    """
+    Given a docstring in Google docstring format, parse the parameter section
     and return a dictionary that maps parameter names to docstring.
 
     Args:
-        docstring: function docstring.
+        docstring: The function's docstring.
 
     Returns:
-        dict: mapping from parameter names to docstrings.
+        Mapping from parameter names to docstrings.
     """
     param_docstrings = {}
 
-    if docstring:
-        with disable_logger("griffe.docstrings.google"):
-            with disable_logger("griffe.agents.nodes"):
-                parsed = parse(Docstring(docstring), Parser.google)
-                for section in parsed:
-                    if section.kind == DocstringSectionKind.parameters:
-                        param_docstrings = {
-                            parameter.name: parameter.description
-                            for parameter in section.value
-                        }
+    if not docstring:
+        return param_docstrings
+
+    with disable_logger("griffe.docstrings.google"), disable_logger(
+        "griffe.agents.nodes"
+    ):
+        parsed = parse(Docstring(docstring), Parser.google)
+        for section in parsed:
+            if section.kind != DocstringSectionKind.parameters:
+                continue
+            param_docstrings = {
+                parameter.name: parameter.description for parameter in section.value
+            }
 
     return param_docstrings
 
@@ -167,7 +171,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     signature = inspect.signature(fn)
     model_fields = {}
     aliases = {}
-    docstrings = parameter_docstrings(getattr(fn, "description", None))
+    docstrings = parameter_docstrings(inspect.getdoc(fn))
 
     class ModelConfig:
         arbitrary_types_allowed = True
