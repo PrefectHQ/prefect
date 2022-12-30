@@ -62,10 +62,12 @@ async def create_flow_run(
             flow_run=flow_run,
             orchestration_parameters=orchestration_parameters,
         )
-    if model.created >= now:
-        response.status_code = status.HTTP_201_CREATED
+        if model.created >= now:
+            response.status_code = status.HTTP_201_CREATED
 
-    return await schemas.responses.FlowRunResponse.from_orm_model(model, session)
+        return await schemas.responses.FlowRunResponse.from_orm_model(
+            session=session, orm_flow_run=model
+        )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -156,9 +158,11 @@ async def read_flow_run(
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-    if not flow_run:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-    return await schemas.responses.FlowRunResponse.from_orm_model(flow_run, session)
+        if not flow_run:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+        return await schemas.responses.FlowRunResponse.from_orm_model(
+            session=session, orm_flow_run=flow_run
+        )
 
 
 @router.get("/{id}/graph")
@@ -272,9 +276,11 @@ async def read_flow_runs(
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
         encoded = [
-            (await schemas.responses.FlowRunResponse.from_orm_model(session, fr)).dict(
-                json_compatible=True
-            )
+            (
+                await schemas.responses.FlowRunResponse.from_orm_model(
+                    session=session, orm_flow_run=fr
+                )
+            ).dict(json_compatible=True)
             for fr in db_flow_runs
         ]
         return ORJSONResponse(content=encoded)

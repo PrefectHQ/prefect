@@ -7,7 +7,7 @@ from typing import List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field
-from typing_extensions import Literal
+from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -19,6 +19,9 @@ from prefect.orion.utilities.schemas import (
     PrefectBaseModel,
 )
 from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    import prefect.orion.database.orm_models
 
 
 class SetStateStatus(AutoEnum):
@@ -176,9 +179,12 @@ class FlowRunResponse(ORMBaseModel):
         description="The name of the flow run's worker pool queue.",
         example="my-worker-pool-queue",
     )
+    state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
 
     @classmethod
-    async def from_orm_model(cls, session, orm_flow_run):
+    async def from_orm_model(
+        cls, session, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"
+    ):
         response = cls.from_orm(orm_flow_run)
         if orm_flow_run.worker_pool_queue_id:
             worker_pool_queue = await models.workers.read_worker_pool_queue(
