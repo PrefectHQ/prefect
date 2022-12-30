@@ -2,14 +2,17 @@ import abc
 import shutil
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from uuid import uuid4
 from zipfile import ZipFile
 
 import anyio
 import anyio.abc
+import jinja2
 import pendulum
+import yaml
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, status
+from jinja2 import Environment
 from pydantic import BaseModel, ValidationError
 
 from prefect._internal.compatibility.experimental import experimental
@@ -41,6 +44,66 @@ class BaseWorkerResult(BaseModel, abc.ABC):
         return self.status_code == 0
 
 
+class BaseConfiguration(BaseModel):
+    command: List[str]
+
+    @classmethod
+    def _get_configuration_components(
+        cls, configuration: dict
+    ) -> Tuple[dict, dict, dict]:
+        job_configuration = configuration["job_configuration"]
+        variables = configuration["variables"]
+        required_variables = configuration["required_variables"]
+
+        return job_configuration, variables, required_variables
+
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @staticmethod
+    def _create_job_config_template(job_config: dict) -> jinja2.Template:
+        """Create jinja template for job configuration."""
+        job_config_str = str(job_config)
+        template = Environment().from_string(job_config_str)
+        return template
+
+    @classmethod
+    def _get_combined_configuration(
+        cls, base_config: dict, deployment_overrides: dict
+    ) -> dict:
+        """Return the combined configuration values."""
+        (
+            job_config,
+            variables_schema,
+            required_variables,
+        ) = cls._get_configuration_components(base_config)
+
+        variables = cls._get_base_config_defaults(variables_schema)
+        variables.update(deployment_overrides)
+
+        template = cls._create_job_config_template(job_config)
+
+        populated_configuration_str = template.render(**variables)
+        populated_configuration = yaml.safe_load(populated_configuration_str)
+
+        return populated_configuration
+
+    @classmethod
+    def from_configurations(cls, base_config: dict, deployment_overrides: dict):
+        """Creates a valid worker configuration object from the provided base
+        configuration and overrides.
+        """
+        config = cls._get_combined_configuration(base_config, deployment_overrides)
+        return cls(**config)
+
+
 @register_base_type
 class BaseWorker(LoopService, abc.ABC):
     type: str
@@ -50,6 +113,7 @@ class BaseWorker(LoopService, abc.ABC):
     workflow_storage_scan_seconds = PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
     workflow_storage_path = PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
     default_pool_name = "Default Pool"
+    base_template: dict
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -130,8 +194,9 @@ class BaseWorker(LoopService, abc.ABC):
     ):
         raise NotImplementedError("Workers must implement a run command")
 
-    @abc.abstractclassmethod
-    async def verify_submitted_deployment(self, deployment: Deployment):
+    @classmethod
+    @abc.abstractmethod
+    async def verify_submitted_deployment(cls, deployment: Deployment):
         raise NotImplementedError(
             "Workers must implement a method for verifying submitted deployments"
         )
@@ -169,6 +234,9 @@ class BaseWorker(LoopService, abc.ABC):
         self._runs_task_group = None
         self._client = None
 
+    async def _add_base_template(self):
+        await self._client.update_worker_pool(self.base_template)
+
     async def _on_start(self):
         """
         Start the heartbeat loop when the worker starts
@@ -181,6 +249,7 @@ class BaseWorker(LoopService, abc.ABC):
         # wait for an initial heartbeat to configure the worker
         await self.heartbeat_worker()
         # perform initial scan of storage
+
         await self.scan_storage_for_deployments()
         # schedule the heartbeat loop to run every `heartbeat_seconds`
         self._loop_task_group.start_soon(
@@ -251,6 +320,9 @@ class BaseWorker(LoopService, abc.ABC):
                     f"{self.type!r} but received {worker_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
+        if not worker_pool.base_job_template:
+            worker_pool = await self._add_base_template(worker_pool)
+
         self.worker_pool = worker_pool
 
         # ----------------------------------------------

@@ -14,7 +14,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
@@ -37,6 +37,16 @@ async def create_deployment(
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
+    async with db.session_context(begin_transaction=True) as session:
+        worker_pool = await models.workers.read_worker_pool_by_name(
+            session=session, worker_pool_name="TODO"  # TODO
+        )
+
+    try:
+        deployment.check_valid_configuration(worker_pool.base_job_template)
+    except MissingVariableError as exc:
+        # TODO
+        raise Exception("TODO!!!")
 
     async with db.session_context(begin_transaction=True) as session:
         # check to see if relevant blocks exist, allowing us throw a useful error message
@@ -84,6 +94,17 @@ async def update_deployment(
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
+    async with db.session_context(begin_transaction=True) as session:
+        worker_pool = await models.workers.read_worker_pool_by_name(
+            session=session, worker_pool_name="TODO"  # TODO
+        )
+
+    try:
+        deployment.check_valid_configuration(worker_pool.base_job_template)
+    except MissingVariableError as exc:
+        # TODO
+        raise Exception("TODO!!!")
+
     async with db.session_context(begin_transaction=True) as session:
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment

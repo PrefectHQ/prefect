@@ -3,7 +3,8 @@ import socket
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Optional, Tuple
+from pathlib import Path
+from typing import Dict, Optional, Tuple, Union
 
 import anyio
 import anyio.abc
@@ -11,7 +12,11 @@ import sniffio
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
-from prefect.experimental.workers.base import BaseWorker, BaseWorkerResult
+from prefect.experimental.workers.base import (
+    BaseConfiguration,
+    BaseWorker,
+    BaseWorkerResult,
+)
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -43,12 +48,36 @@ def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
     return hostname, int(pid)
 
 
+PROCESS_WORKER_BASE_TEMPLATE = {
+    "job_configuration": {
+        "command": "{{ command }}",
+        "steam_output": "{{ steam_output }}",
+        "working_dir": "{{ working_dir }}",
+    },
+    "variables": {
+        "command": {"type": "array", "items": {"type": "string"}, "default": []},
+        "steam_output": {"type": "boolean", "default": True},
+        "working_dir": {
+            "type": "string",
+            "default": "",
+        },
+        "required_variables": [],
+    },
+}
+
+
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
+class ProcessWorkerConfiguration(BaseConfiguration):
+    stream_output: bool
+    working_dir: Union[str, Path, None]
+
+
 class ProcessWorker(BaseWorker):
     type = "process"
+    base_template = PROCESS_WORKER_BASE_TEMPLATE
 
     async def verify_submitted_deployment(self, deployment: Deployment):
         return True
@@ -56,8 +85,16 @@ class ProcessWorker(BaseWorker):
     async def run(
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
     ):
-        command = [sys.executable, "-m", "prefect.engine"]
 
+        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        configuration = ProcessWorkerConfiguration.from_configuration(
+            base_template=self.worker_pool.base_job_template,
+            deployment_overrides=deployment.infra_overrides,
+        )
+
+        command = configuration.command
+        if not command:
+            command = [sys.executable, "-m", "prefect.engine"]
         _use_threaded_child_watcher()
         self.logger.info("Opening process...")
         with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
@@ -74,7 +111,7 @@ class ProcessWorker(BaseWorker):
 
             process = await run_process(
                 command,
-                stream_output=True,
+                stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
