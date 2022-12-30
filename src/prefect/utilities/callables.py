@@ -2,14 +2,15 @@
 Utilities for working with Python callables.
 """
 import inspect
-import re
 from functools import partial
-from textwrap import dedent
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
 import pydantic.schema
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.docstrings.parsers import Parser, parse
 from typing_extensions import Literal
 
 from prefect.exceptions import (
@@ -17,6 +18,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
     SignatureMismatchError,
 )
+from prefect.logging.loggers import disable_logger
 
 
 def get_call_parameters(
@@ -122,7 +124,7 @@ class ParameterSchema(pydantic.BaseModel):
 
 
 def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
-    """Given a docstring in Google docstring format, parse the 'Args:' section
+    """Given a docstring in Google docstring format, parse the parameter section
     and return a dictionary that maps parameter names to docstring.
 
     Args:
@@ -132,21 +134,18 @@ def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
         dict: mapping from parameter names to docstrings.
     """
     param_docstrings = {}
-    if not docstring:
-        return param_docstrings
-    # match anything from section header until end of paragraph or end of string
-    section_headers = ["Args", "Params", "Parameters", "Arguments"]
-    section_header_pattern = r"(?:(?:" + r")|(?:".join(section_headers) + r"))"
-    arg_section_regex = re.compile(section_header_pattern + r":\n((?:.+\n?)+)(?:\n|$)")
-    arg_section_finds = arg_section_regex.findall(docstring)
-    if arg_section_finds:
-        args_section_raw = arg_section_finds[0]
-        # dedent and merge multiline docstrings
-        args_section = re.sub("\n +", " ", dedent(args_section_raw))
-        for line in args_section.splitlines():
-            param_name = line.split(":")[0].split()[0]
-            docstring = line.split(":")[1][1:]
-            param_docstrings[param_name] = docstring
+
+    if docstring:
+        with disable_logger("griffe.docstrings.google"):
+            with disable_logger("griffe.agents.nodes"):
+                parsed = parse(Docstring(docstring), Parser.google)
+                for section in parsed:
+                    if section.kind == DocstringSectionKind.parameters:
+                        param_docstrings = {
+                            parameter.name: parameter.description
+                            for parameter in section.value
+                        }
+
     return param_docstrings
 
 

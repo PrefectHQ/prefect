@@ -377,46 +377,6 @@ class TestParseFlowDescriptionToSchema:
             "required": ["x"],
         }
 
-    def test_flow_with_params_docstring(self):
-        @flow()
-        def f(x):
-            """Function f.
-
-            Params:
-                x: required argument x
-            """
-
-        schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {"x": {"title": "x", "description": "required argument x"}},
-            "required": ["x"],
-        }
-
-    def test_flow_with_args_multiline_docstring(self):
-        @flow()
-        def f(x):
-            """Function f.
-
-            Args:
-                x: required argument x
-                    with some additional info
-            """
-
-        schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {
-                "x": {
-                    "title": "x",
-                    "description": "required argument x with some additional info",
-                }
-            },
-            "required": ["x"],
-        }
-
     def test_flow_without_docstring(self):
         @flow()
         def f(x):
@@ -443,13 +403,17 @@ class TestParseFlowDescriptionToSchema:
             "required": ["x"],
         }
 
-    def test_flow_with_args_and_returns_docstring(self):
+    def test_flow_with_complex_args_docstring(self):
         @flow()
-        def f(x):
+        def f(x, y):
             """Function f.
+
+            Second line of docstring.
 
             Args:
                 x: required argument x
+                y (str): required typed argument y
+                  with second line
 
             Returns:
                 None: nothing
@@ -459,44 +423,12 @@ class TestParseFlowDescriptionToSchema:
         assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
-            "properties": {"x": {"title": "x", "description": "required argument x"}},
-            "required": ["x"],
-        }
-
-    def test_flow_with_typed_args_docstring(self):
-        @flow()
-        def f(x):
-            """Function f.
-
-            Args:
-                x (str): required argument x
-            """
-
-        schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {"x": {"title": "x", "description": "required argument x"}},
-            "required": ["x"],
-        }
-
-    def test_flow_with_multiple_args_docstring(self):
-        @flow()
-        def f(x, y):
-            """Function f.
-
-            Args:
-                x (str): required argument x
-                y: required argument y
-            """
-
-        schema = callables.parameter_schema(f)
-        assert schema.dict() == {
-            "title": "Parameters",
-            "type": "object",
             "properties": {
                 "x": {"title": "x", "description": "required argument x"},
-                "y": {"title": "y", "description": "required argument y"},
+                "y": {
+                    "title": "y",
+                    "description": "required typed argument y\nwith second line",
+                },
             },
             "required": ["x", "y"],
         }
