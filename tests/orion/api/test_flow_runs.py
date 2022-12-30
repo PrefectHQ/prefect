@@ -322,8 +322,11 @@ class TestReadFlowRuns:
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
-        response = pydantic.parse_obj_as(
-            List[schemas.responses.FlowRunResponse], response.json()
+        response = sorted(
+            pydantic.parse_obj_as(
+                List[schemas.responses.FlowRunResponse], response.json()
+            ),
+            key=lambda fr: fr.name,
         )
         assert response[2].worker_pool_name == worker_pool.name
         assert response[2].worker_pool_queue_name == worker_pool_queue.name
