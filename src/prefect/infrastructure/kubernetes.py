@@ -22,6 +22,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
+    import kubernetes.client.exceptions
     import kubernetes.config
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
@@ -530,7 +531,7 @@ class KubernetesJob(Infrastructure):
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
             except kubernetes.client.exceptions.ApiException:
-                self.logger.error(f"Job{job_id!r} was removed.", exc_info=True)
+                self.logger.error(f"Job {job_id!r} was removed.", exc_info=True)
                 return None
             return job
 
