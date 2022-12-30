@@ -1939,17 +1939,29 @@ class OrionClient:
         base_job_template: Optional[Dict[str, Any]] = None,
         concurrency_limit: Optional[int] = None,
     ):
-        worker_pool_update = WorkerPoolUpdate(
-            description=description
-            if description is not None
-            else worker_pool.description,
-            is_paused=is_paused if is_paused is not None else worker_pool.is_paused,
-            base_job_template=base_job_template
+        description = (
+            description if description is not None else worker_pool.description
+        )
+
+        is_paused = is_paused if is_paused is not None else worker_pool.is_paused
+
+        base_job_template = (
+            base_job_template
             if base_job_template is not None
-            else worker_pool.base_job_template,
-            concurrency_limit=concurrency_limit
+            else worker_pool.base_job_template
+        )
+
+        concurrency_limit = (
+            concurrency_limit
             if concurrency_limit is not None
-            else worker_pool.concurrency_limit,
+            else worker_pool.concurrency_limit
+        )
+
+        worker_pool_update = WorkerPoolUpdate(
+            description=description,
+            is_paused=is_paused,
+            base_job_template=base_job_template,
+            concurrency_limit=concurrency_limit,
         )
 
         await self._client.patch(
