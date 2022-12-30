@@ -38,7 +38,7 @@ async def create_flow_run(
         orchestration_dependencies.provide_flow_orchestration_parameters
     ),
     api_version=Depends(dependencies.provide_request_api_version),
-) -> schemas.core.FlowRun:
+) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run. If a flow run with the same flow_id and
     idempotency key already exists, the existing flow run will be returned.
@@ -65,7 +65,7 @@ async def create_flow_run(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
 
-    return model
+    return await schemas.responses.FlowRunResponse.from_orm_model(model, session)
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -148,7 +148,7 @@ async def flow_run_history(
 async def read_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.FlowRun:
+) -> schemas.responses.FlowRunResponse:
     """
     Get a flow run by id.
     """
@@ -158,7 +158,7 @@ async def read_flow_run(
         )
     if not flow_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-    return flow_run
+    return await schemas.responses.FlowRunResponse.from_orm_model(flow_run, session)
 
 
 @router.get("/{id}/graph")
@@ -249,7 +249,7 @@ async def read_flow_runs(
     worker_pools: schemas.filters.WorkerPoolFilter = None,
     worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.FlowRun]:
+) -> List[schemas.responses.FlowRunResponse]:
     """
     Query for flow runs.
     """
@@ -267,17 +267,17 @@ async def read_flow_runs(
             sort=sort,
         )
 
-    # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
-    # response to JSON, we do so more efficiently ourselves.
-    # In particular, the FastAPI encoder is very slow for large, nested objects.
-    # See: https://github.com/tiangolo/fastapi/issues/1224
-    encoded = [
-        schemas.responses.FlowRunResponse.from_orm_model(session, fr).dict(
-            json_compatible=True
-        )
-        for fr in db_flow_runs
-    ]
-    return ORJSONResponse(content=encoded)
+        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+        # response to JSON, we do so more efficiently ourselves.
+        # In particular, the FastAPI encoder is very slow for large, nested objects.
+        # See: https://github.com/tiangolo/fastapi/issues/1224
+        encoded = [
+            (await schemas.responses.FlowRunResponse.from_orm_model(session, fr)).dict(
+                json_compatible=True
+            )
+            for fr in db_flow_runs
+        ]
+        return ORJSONResponse(content=encoded)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
