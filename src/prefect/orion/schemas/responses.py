@@ -17,6 +17,7 @@ from prefect.orion.utilities.schemas import (
     FieldFrom,
     ORMBaseModel,
     PrefectBaseModel,
+    copy_model_fields,
 )
 from prefect.utilities.collections import AutoEnum
 
@@ -141,6 +142,7 @@ class WorkerFlowRunResponse(PrefectBaseModel):
     flow_run: schemas.core.FlowRun
 
 
+@copy_model_fields
 class FlowRunResponse(ORMBaseModel):
 
     name: str = FieldFrom(schemas.core.FlowRun)

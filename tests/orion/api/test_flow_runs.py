@@ -217,7 +217,9 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
@@ -238,7 +240,9 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
         assert updated_flow_run.flow_version == "1.0"
 
     async def test_update_flow_run_raises_error_if_flow_run_not_found(self, client):
@@ -328,7 +332,9 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
         # return type should be correct
-        assert pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
+        assert pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response.json()
+        )
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
