@@ -203,8 +203,10 @@ async def test_missing_job_returns_bad_status_code(
     k8s_job = KubernetesJob(command=["echo", "hello"])
     result = await k8s_job.run()
 
+    _, _, job_name = KubernetesJob._parse_infrastructure_pid(result.identifier)
+
     assert result.status_code == -1
-    assert f"Job {result.identifier!r} was removed" in caplog.text
+    assert f"Job {job_name!r} was removed" in caplog.text
 
 
 class TestKill:
