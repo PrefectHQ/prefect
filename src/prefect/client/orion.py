@@ -99,9 +99,9 @@ class OrionClient:
         if prefect.settings.PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
             msg = (
-                "SSL checking is disabled due to "
+                "SSL checking is disabled due to the "
                 "`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` "
-                "environment variable being set!"
+                "setting."
             )
             warnings.warn(msg, UserWarning)
 
