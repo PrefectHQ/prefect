@@ -37,6 +37,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -126,6 +127,18 @@ class TestFlow:
             f = Flow(
                 name="test", fn=lambda return_state: 42, version="A", description="B"
             )
+
+    def test_param_description_from_docstring(self):
+        def my_fn(x):
+            """
+            Hello
+
+            Args:
+                x: description
+            """
+
+        f = Flow(fn=my_fn)
+        assert parameter_schema(f).properties["x"]["description"] == "description"
 
 
 class TestDecorator:
