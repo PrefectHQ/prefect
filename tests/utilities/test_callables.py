@@ -7,7 +7,6 @@ import pydantic.version
 import pytest
 from packaging.version import Version
 
-from prefect import flow
 from prefect.exceptions import ParameterBindError
 from prefect.utilities import callables
 
@@ -361,7 +360,6 @@ class TestMethodToSchema:
 
 class TestParseFlowDescriptionToSchema:
     def test_flow_with_args_docstring(self):
-        @flow()
         def f(x):
             """Function f.
 
@@ -378,7 +376,6 @@ class TestParseFlowDescriptionToSchema:
         }
 
     def test_flow_without_docstring(self):
-        @flow()
         def f(x):
             pass
 
@@ -391,7 +388,6 @@ class TestParseFlowDescriptionToSchema:
         }
 
     def test_flow_without_args_docstring(self):
-        @flow()
         def f(x):
             """Function f."""
 
@@ -404,7 +400,6 @@ class TestParseFlowDescriptionToSchema:
         }
 
     def test_flow_with_complex_args_docstring(self):
-        @flow()
         def f(x, y):
             """Function f.
 
