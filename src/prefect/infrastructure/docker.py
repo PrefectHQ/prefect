@@ -4,7 +4,7 @@ import sys
 import urllib.parse
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
@@ -226,6 +226,23 @@ class DockerContainer(Infrastructure):
         default=True,
         description="If set, the output will be streamed from the container to local standard output.",
     )
+    memswap_limit: Union[int, str] = Field(
+        default=None,
+        description="Total memory (memory + swap), -1 to disable swap",
+    )
+    mem_limit: Union[float, str] = Field(
+        default=None,
+        description="""
+            Memory limit. Accepts float values (which represent the memory limit of the created container in bytes) 
+            or a string with a units identification char (100000b, 1000k, 128m, 1g). 
+            If a string is specified without a units character, bytes are assumed as an
+        """,
+    )
+    privileged: bool = Field(
+        default=False,
+        description="Give extended privileges to this container.",
+    )
+    
 
     _block_type_name = "Docker Container"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
@@ -348,6 +365,11 @@ class DockerContainer(Infrastructure):
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(),
             volumes=self.volumes,
+            host_config=docker_client.api.create_host_config(
+                mem_limit=self.mem_limit,
+                memswap_limit=self.memswap_limit,
+                privileged=self.privileged,
+            )
         )
 
     def _create_and_start_container(self) -> "Container":
