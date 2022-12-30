@@ -29,7 +29,7 @@ flow_run_app = PrefectTyper(
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
 LOGS_PAGE_SIZE = 200
-LOGS_HEAD_AND_TAIL_DEFAULT_NUM_LINES = 50
+LOGS_HEAD_DEFAULT_NUM_LINES = 50
 
 
 @flow_run_app.command()
@@ -144,12 +144,18 @@ async def cancel(id: UUID):
 @flow_run_app.command()
 async def logs(
     id: UUID,
-    # Boolean head flag
     head: bool = typer.Option(
         False,
         "--head",
         "-h",
-        help="Show the first 10 lines of logs instead of the last 10 lines",
+        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of the last 10 lines",
+    ),
+    num_lines: int = typer.Option(
+        LOGS_HEAD_DEFAULT_NUM_LINES,
+        "--num-lines",
+        "-n",
+        help=f"Number of lines to show when using the --head flag",
+        min=1,
     ),
 ):
     """
@@ -161,7 +167,7 @@ async def logs(
     num_logs_returned = 0
 
     # If head is specified, we need to stop after we've retrieved enough lines
-    user_specified_num_logs = head
+    user_specified_num_logs = num_lines if head else None
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 

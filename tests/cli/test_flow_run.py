@@ -378,6 +378,7 @@ class TestFlowRunLogs:
                 "logs",
                 str(flow_run.id),
                 "--head",
+                "--num-lines",
                 "10",
             ],
             expected_code=0,
@@ -402,6 +403,7 @@ class TestFlowRunLogs:
                 "logs",
                 str(flow_run.id),
                 "--head",
+                "--num-lines",
                 self.PAGE_SIZE + 1,
             ],
             expected_code=0,
@@ -410,4 +412,94 @@ class TestFlowRunLogs:
                 for i in range(self.PAGE_SIZE + 1)
             ],
             expected_line_count=self.PAGE_SIZE + 1,
+        )
+
+    async def test_when_head_without_num_lines_then_return_50_lines(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(50)
+            ],
+            expected_line_count=50,
+        )
+
+    async def test_h_and_n_shortcuts_for_head_and_num_lines(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "-h",
+                "-n",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(10)
+            ],
+            expected_line_count=10,
+        )
+
+    async def test_when_num_lines_passed_without_head_then_ignore_num_lines(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-lines",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.PAGE_SIZE + 1)
+            ],
+            expected_line_count=self.PAGE_SIZE + 1,
+        )
+
+    async def test_when_num_lines_is_smaller_than_one_then_exit_with_error(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-lines",
+                "0",
+            ],
+            expected_code=2,
+            expected_output_contains="Invalid value for '--num-lines' / '-n': 0 is not in the range x>=1.",
         )
