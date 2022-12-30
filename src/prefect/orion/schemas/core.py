@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, HttpUrl, root_validator, validator
+from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
 
 import prefect.orion.database
@@ -257,6 +257,9 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="Optional information about the creator of this flow run.",
     )
+    worker_pool_queue_id: Optional[UUID] = Field(
+        default=None, description="The id of the run's worker pool queue."
+    )
 
     # relationships
     # flow: Flow = None
@@ -299,8 +302,12 @@ class TaskRunPolicy(PrefectBaseModel):
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
-    retry_delay: Optional[int] = Field(
-        default=None, description="The delay time between retries, in seconds."
+    retry_delay: Union[None, int, List[int]] = Field(
+        default=None,
+        description="A delay time or list of delay times between retries, in seconds.",
+    )
+    retry_jitter_factor: Optional[float] = Field(
+        default=None, description="Determines the amount a retry should jitter"
     )
 
     @root_validator
@@ -311,12 +318,26 @@ class TaskRunPolicy(PrefectBaseModel):
         """
         if not values.get("retries", None) and values.get("max_retries", 0) != 0:
             values["retries"] = values["max_retries"]
+
         if (
             not values.get("retry_delay", None)
             and values.get("retry_delay_seconds", 0) != 0
         ):
             values["retry_delay"] = values["retry_delay_seconds"]
+
         return values
+
+    @validator("retry_delay")
+    def validate_configured_retry_delays(cls, v):
+        if isinstance(v, list) and (len(v) > 50):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
+        return v
+
+    @validator("retry_jitter_factor")
+    def validate_jitter_factor(cls, v):
+        if v is not None and v < 0:
+            raise ValueError("`retry_jitter_factor` must be >= 0.")
+        return v
 
 
 class TaskRunInput(PrefectBaseModel):
@@ -514,6 +535,10 @@ class Deployment(ORMBaseModel):
     updated_by: Optional[UpdatedBy] = Field(
         default=None,
         description="Optional information about the updater of this deployment.",
+    )
+    worker_pool_queue_id: UUID = Field(
+        default=None,
+        description="The id of the worker pool queue to which this deployment is assigned.",
     )
 
     @validator("name", check_fields=False)
@@ -905,6 +930,100 @@ class Agent(ORMBaseModel):
     last_activity_time: Optional[DateTimeTZ] = Field(
         default=None, description="The last time this agent polled for work."
     )
+
+
+class WorkerPool(ORMBaseModel):
+    """An ORM representation of a worker pool"""
+
+    name: str = Field(
+        description="The name of the worker pool.",
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the worker pool."
+    )
+    type: Optional[str] = Field(None, description="The worker pool type.")
+    base_job_template: Dict[str, Any] = Field(
+        default_factory=dict, description="The worker pool's base job template."
+    )
+    is_paused: bool = Field(
+        default=False,
+        description="Pausing the worker pool stops the delivery of all work.",
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the worker pool."
+    )
+
+    # this required field has a default of None so that the custom validator
+    # below will be called and produce a more helpful error message
+    default_queue_id: UUID = Field(
+        None, description="The id of the pool's default queue."
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
+
+    @validator("default_queue_id", always=True)
+    def helpful_error_for_missing_default_queue_id(cls, v):
+        """
+        Default queue ID is required because all pools must have a default queue
+        ID, but it represents a circular foreign key relationship to a
+        WorkerPoolQueue (which can't be created until the worker pool exists).
+        Therefore, while this field can *technically* be null, it shouldn't be.
+        This should only be an issue when creating new pools, as reading
+        existing ones will always have this field populated. This custom error
+        message will help users understand that they should use the
+        `actions.WorkerPoolCreate` model in that case.
+        """
+        if v is None:
+            raise ValueError(
+                "`default_queue_id` is a required field. If you are "
+                "creating a new WorkerPool and don't have a queue "
+                "ID yet, use the `actions.WorkerPoolCreate` model instead."
+            )
+        return v
+
+
+class Worker(ORMBaseModel):
+    """An ORM representation of a worker"""
+
+    name: str = Field(description="The name of the worker.")
+    worker_pool_id: UUID = Field(
+        description="The worker pool with which the queue is associated."
+    )
+    last_heartbeat_time: datetime.datetime = Field(
+        None, description="The last time the worker process sent a heartbeat."
+    )
+
+
+class WorkerPoolQueue(ORMBaseModel):
+    """An ORM representation of a worker pool queue"""
+
+    worker_pool_id: UUID = Field(
+        description="The worker pool with which the queue is associated."
+    )
+    name: str = Field(
+        description="The name of the queue.",
+    )
+    description: Optional[str] = Field(
+        default=None, description="A description of the queue."
+    )
+    is_paused: bool = Field(
+        default=False, description="Pausing the queue stops the delivery of all work."
+    )
+    concurrency_limit: Optional[conint(ge=0)] = Field(
+        default=None, description="A concurrency limit for the queue."
+    )
+    priority: conint(ge=1) = Field(
+        ...,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
+
+    @validator("name", check_fields=False)
+    def validate_name_characters(cls, v):
+        raise_on_invalid_name(v)
+        return v
 
 
 Flow.update_forward_refs()
