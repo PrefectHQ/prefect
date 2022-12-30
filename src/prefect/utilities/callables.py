@@ -176,7 +176,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    for param in signature.parameters.values():
+    for position, param in enumerate(signature.parameters.values()):
         # Pydantic model creation will fail if names collide with the BaseModel type
         if hasattr(pydantic.BaseModel, param.name):
             name = param.name + "__"
@@ -191,6 +191,7 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
                 title=param.name,
                 description=docstrings.get(param.name, None),
                 alias=aliases.get(name),
+                position=position,
             ),
         )
 
