@@ -1940,20 +1940,22 @@ class OrionClient:
         concurrency_limit: Optional[int] = None,
     ):
         worker_pool_update = WorkerPoolUpdate(
-            description if description is not None else worker_pool.description,
-            is_paused if is_paused is not None else worker_pool.is_paused,
-            base_job_template
+            description=description
+            if description is not None
+            else worker_pool.description,
+            is_paused=is_paused if is_paused is not None else worker_pool.is_paused,
+            base_job_template=base_job_template
             if base_job_template is not None
             else worker_pool.base_job_template,
-            concurrency_limit
+            concurrency_limit=concurrency_limit
             if concurrency_limit is not None
             else worker_pool.concurrency_limit,
         )
-        response = await self._client.post(
+
+        await self._client.patch(
             f"/experimental/worker_pools/{worker_pool.name}",
             json=worker_pool_update.dict(json_compatible=True),
         )
-        return pydantic.parse_obj_as(WorkerPool, response.json())
 
     async def get_scheduled_flow_runs_for_worker(
         self,
