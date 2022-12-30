@@ -2,22 +2,15 @@ import asyncio
 import contextvars
 import functools
 import inspect
-import threading
 from concurrent.futures import Executor as BaseExecutor
 from concurrent.futures import Future, ProcessPoolExecutor, ThreadPoolExecutor
-from typing import Callable, Optional, TypeVar
+from typing import Any, Callable, TypeVar
 
 from typing_extensions import Literal, ParamSpec
 
 T = TypeVar("T")
 P = ParamSpec("P")
 WorkerType = Literal["thread", "process"]
-
-threadlocals = threading.local()
-
-
-def _initialize_worker():
-    threadlocals.is_worker = True
 
 
 def _run(__fn, *args, **kwargs):
@@ -43,16 +36,14 @@ class Executor(BaseExecutor):
     def __init__(
         self,
         worker_type: WorkerType = "thread",
-        max_workers: Optional[int] = None,
+        **worker_pool_kwargs: Any,
     ) -> None:
         super().__init__()
 
         if worker_type == "thread":
             worker_pool_cls = ThreadPoolExecutor
-            worker_pool_kwargs = {"thread_name_prefix": "PrefectWorkerThread-"}
         elif worker_type == "process":
             worker_pool_cls = ProcessPoolExecutor
-            worker_pool_kwargs = {}
         else:
             raise ValueError(
                 f"Unknown worker type {worker_type}; "
@@ -60,11 +51,7 @@ class Executor(BaseExecutor):
             )
 
         self._worker_type = worker_type
-        self._worker_pool = worker_pool_cls(
-            max_workers=max_workers,
-            initializer=_initialize_worker,
-            **worker_pool_kwargs,
-        )
+        self._worker_pool = worker_pool_cls(**worker_pool_kwargs)
 
     def submit(
         self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
@@ -100,6 +87,6 @@ class Executor(BaseExecutor):
         return self
 
     async def __aexit__(self, *_):
-        with ThreadPoolExecutor(1) as executor:
+        with ThreadPoolExecutor(1, thread_name_prefix="ExecutorShutdown-") as executor:
             future = executor.submit(self.shutdown)
             await asyncio.wrap_future(future)
