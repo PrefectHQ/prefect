@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
@@ -96,14 +97,8 @@ class OrionClient:
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
-        if prefect.settings.PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
-            msg = (
-                "SSL checking is disabled due to the "
-                "`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` "
-                "setting."
-            )
-            warnings.warn(msg, UserWarning)
 
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
@@ -687,6 +682,7 @@ class OrionClient:
             UUID: The UUID of the newly created workflow
         """
         if tags:
+            breakpoint()
             warnings.warn(
                 "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
                 DeprecationWarning,
