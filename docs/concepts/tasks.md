@@ -224,7 +224,7 @@ A real-world example might include the flow run ID from the context in the cache
 
 ```python
 def cache_within_flow_run(context, parameters):
-    return f"{context.flow_run_id}-{task_input_hash(context, parameters)}"
+    return f"{context.task_run.flow_run_id}-{task_input_hash(context, parameters)}"
 
 @task(cache_key_fn=cache_within_flow_run)
 def cached_task():
@@ -234,6 +234,24 @@ def cached_task():
 
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+## Timeouts
+
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+
+Timeout durations are specified using the `timeout_seconds` keyword argument. 
+
+```python
+from prefect import task, get_run_logger
+import time
+
+@task(timeout_seconds=1)
+def show_timeouts():
+    logger = get_run_logger()
+    logger.info("I will execute")
+    time.sleep(5)
+    logger.info("I will not execute")
+```
 
 ## Task results
 
@@ -251,6 +269,26 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
 
 !!! tip "Task runners are optional"
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+## Wait for
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
+
+```python
+@task
+def task_1():
+    pass
+
+@task
+def task_2():
+    pass
+
+@flow
+def my_flow():
+    x = task_1()
+
+    # task 2 will wait for task_1 to complete
+    y = task_2(wait_for=[x])
+```
 
 ## Map
 
@@ -367,7 +405,11 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 
@@ -381,8 +423,8 @@ $ prefect concurrency-limit [command] [arguments]
 | --- | --- |
 | create | Create a concurrency limit by specifying a tag and limit. |
 | delete | Delete the concurrency limit set on the specified tag. |
+| inspect | View details about a concurrency limit set on the specified tag. |
 | ls     | View all defined concurrency limits. |
-| read   | View details about a concurrency limit. `active_slots` shows a list of IDs for task runs that are currently using a concurrency slot. |
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
@@ -394,6 +436,12 @@ To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
 $ prefect concurrency-limit delete small_instance
+```
+
+To view details about the concurrency limit on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency-limit inspect small_instance
 ```
 
 #### Python client

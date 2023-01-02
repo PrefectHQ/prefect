@@ -1,13 +1,8 @@
 import abc
-import glob
 import io
 import json
-import os
-import shutil
-import sys
 import urllib.parse
-from distutils.dir_util import copy_tree
-from pathlib import Path, PurePath
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -18,6 +13,7 @@ from pydantic import Field, SecretStr, validator
 from prefect.blocks.core import Block
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
+from prefect.utilities.compat import copytree
 from prefect.utilities.filesystem import filter_files
 from prefect.utilities.processutils import run_process
 
@@ -104,7 +100,11 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
+        if path is None:
+            return basepath
+
         path: Path = Path(path).expanduser()
+
         if not path.is_absolute():
             path = basepath / path
         else:
@@ -125,12 +125,12 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         Defaults to copying the entire contents of the block's basepath to the current working directory.
         """
-        if from_path is None:
+        if not from_path:
             from_path = Path(self.basepath).expanduser().resolve()
         else:
             from_path = Path(from_path).resolve()
 
-        if local_path is None:
+        if not local_path:
             local_path = Path(".").resolve()
         else:
             local_path = Path(local_path).resolve()
@@ -140,20 +140,20 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # and we avoid shutil.copytree raising an error
             return
 
-        if sys.version_info < (3, 8):
-            shutil.copytree(from_path, local_path)
-        else:
-            shutil.copytree(from_path, local_path, dirs_exist_ok=True)
+        copytree(from_path, local_path, dirs_exist_ok=True)
 
     async def _get_ignore_func(self, local_path: str, ignore_file: str):
         with open(ignore_file, "r") as f:
             ignore_patterns = f.readlines()
-
-        included_files = filter_files(local_path, ignore_patterns)
+        included_files = filter_files(root=local_path, ignore_patterns=ignore_patterns)
 
         def ignore_func(directory, files):
-            return_val = [f for f in files if f not in included_files]
-            return return_val
+            relative_path = Path(directory).relative_to(local_path)
+
+            files_to_ignore = [
+                f for f in files if str(relative_path / f) not in included_files
+            ]
+            return files_to_ignore
 
         return ignore_func
 
@@ -165,28 +165,29 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
-
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        if to_path is None:
-            to_path = Path(self.basepath).expanduser()
+        destination_path = self._resolve_path(to_path)
 
-        if local_path is None:
+        if not local_path:
             local_path = Path(".").absolute()
 
         if ignore_file:
-            ignore_func = await self._get_ignore_func(local_path, ignore_file)
+            ignore_func = await self._get_ignore_func(
+                local_path=local_path, ignore_file=ignore_file
+            )
         else:
             ignore_func = None
-        if local_path == to_path:
+
+        if local_path == destination_path:
             pass
         else:
-            if sys.version_info < (3, 8):
-                shutil.copytree(local_path, to_path, ignore=ignore_func)
-            else:
-                shutil.copytree(
-                    local_path, to_path, dirs_exist_ok=True, ignore=ignore_func
-                )
+            copytree(
+                src=local_path,
+                dst=destination_path,
+                ignore=ignore_func,
+                dirs_exist_ok=True,
+            )
 
     @sync_compatible
     async def read_path(self, path: str) -> bytes:
@@ -342,8 +343,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             )
 
         counter = 0
-        for f in glob.glob(os.path.join(local_path, "**"), recursive=True):
-            relative_path = PurePath(f).relative_to(local_path)
+        for f in Path(local_path).rglob("*"):
+            relative_path = f.relative_to(local_path)
             if included_files and str(relative_path) not in included_files:
                 continue
 
@@ -352,9 +353,10 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             else:
                 fpath = to_path + "/" + relative_path.as_posix()
 
-            if Path(f).is_dir():
+            if f.is_dir():
                 pass
             else:
+                f = f.as_posix()
                 if overwrite:
                     self.filesystem.put_file(f, fpath, overwrite=True)
                 else:
@@ -895,16 +897,16 @@ class GitHub(ReadableDeploymentStorage):
             local_path: A local path to clone to; defaults to present working directory.
         """
         # CONSTRUCT COMMAND
-        cmd = f"git clone {self._create_repo_url()}"
+        cmd = ["git", "clone", self._create_repo_url()]
         if self.reference:
-            cmd += f" -b {self.reference}"
+            cmd += ["-b", self.reference]
 
         # Limit git history
-        cmd += " --depth 1"
+        cmd += ["--depth", "1"]
 
         # Clone to a temporary directory and move the subdirectory over
         with TemporaryDirectory(suffix="prefect") as tmp_dir:
-            cmd += f" {tmp_dir}"
+            cmd.append(tmp_dir)
 
             err_stream = io.StringIO()
             out_stream = io.StringIO()
@@ -917,4 +919,4 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copy_tree(src=content_source, dst=content_destination)
+            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)

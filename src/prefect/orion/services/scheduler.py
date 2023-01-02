@@ -12,6 +12,7 @@ import sqlalchemy as sa
 import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.schemas.states import StateType
 from prefect.orion.services.loop_service import LoopService, run_multiple_services
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
@@ -19,6 +20,8 @@ from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 from prefect.utilities.collections import batched_iterable
 
@@ -49,8 +52,12 @@ class Scheduler(LoopService):
             PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
         )
         self.max_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        self.min_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
         self.max_scheduled_time: datetime.timedelta = (
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+        )
+        self.min_scheduled_time: datetime.timedelta = (
+            PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         )
         self.insert_batch_size = (
             PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
@@ -70,56 +77,87 @@ class Scheduler(LoopService):
         """
         total_inserted_runs = 0
 
-        session = await db.session()
-        async with session:
-            last_id = None
-            while True:
-                async with session.begin():
-                    query = self._get_select_deployments_to_schedule_query()
+        last_id = None
+        while True:
+            async with db.session_context(begin_transaction=False) as session:
+                query = self._get_select_deployments_to_schedule_query()
 
-                    # use cursor based pagination
-                    if last_id:
-                        query = query.where(db.Deployment.id > last_id)
+                # use cursor based pagination
+                if last_id:
+                    query = query.where(db.Deployment.id > last_id)
 
-                    result = await session.execute(query)
-                    deployment_ids = result.scalars().unique().all()
+                result = await session.execute(query)
+                deployment_ids = result.scalars().unique().all()
 
-                    # collect runs across all deployments
-                    try:
-                        runs_to_insert = await self._collect_flow_runs(
-                            session=session, deployment_ids=deployment_ids
-                        )
-                    except TryAgain:
-                        continue
+                # collect runs across all deployments
+                try:
+                    runs_to_insert = await self._collect_flow_runs(
+                        session=session, deployment_ids=deployment_ids
+                    )
+                except TryAgain:
+                    continue
 
-                    # bulk insert the runs based on batch size setting
-                    for batch in batched_iterable(
-                        runs_to_insert, self.insert_batch_size
-                    ):
-                        inserted_runs = await self._insert_scheduled_flow_runs(
-                            session=session, runs=batch
-                        )
-                        total_inserted_runs += len(inserted_runs)
+            # bulk insert the runs based on batch size setting
+            for batch in batched_iterable(runs_to_insert, self.insert_batch_size):
+                async with db.session_context(begin_transaction=True) as session:
+                    inserted_runs = await self._insert_scheduled_flow_runs(
+                        session=session, runs=batch
+                    )
+                    total_inserted_runs += len(inserted_runs)
 
-                # if this is the last page of deployments, exit the loop
-                if len(deployment_ids) < self.deployment_batch_size:
-                    break
-                else:
-                    # record the last deployment ID
-                    last_id = deployment_ids[-1]
+            # if this is the last page of deployments, exit the loop
+            if len(deployment_ids) < self.deployment_batch_size:
+                break
+            else:
+                # record the last deployment ID
+                last_id = deployment_ids[-1]
 
-            self.logger.info(f"Scheduled {total_inserted_runs} runs.")
+        self.logger.info(f"Scheduled {total_inserted_runs} runs.")
 
     @inject_db
     def _get_select_deployments_to_schedule_query(self, db: OrionDBInterface):
         """
-        Returns a sqlalchemy query for selecting deployments to schedule
+        Returns a sqlalchemy query for selecting deployments to schedule.
+
+        The query gets the IDs of any deployments with:
+
+            - an active schedule
+            - EITHER:
+                - fewer than `min_runs` auto-scheduled runs
+                - OR the max scheduled time is less than `max_scheduled_time` in the future
         """
+        now = pendulum.now("UTC")
         query = (
             sa.select(db.Deployment.id)
+            .select_from(db.Deployment)
+            # TODO: on Postgres, this could be replaced with a lateral join that
+            # sorts by `next_scheduled_start_time desc` and limits by
+            # `self.min_runs` for a ~ 50% speedup. At the time of writing,
+            # performance of this universal query appears to be fast enough that
+            # this optimization is not worth maintaining db-specific queries
+            .join(
+                db.FlowRun,
+                # join on matching deployments, only picking up future scheduled runs
+                sa.and_(
+                    db.Deployment.id == db.FlowRun.deployment_id,
+                    db.FlowRun.state_type == StateType.SCHEDULED,
+                    db.FlowRun.next_scheduled_start_time >= now,
+                    db.FlowRun.auto_scheduled.is_(True),
+                ),
+                isouter=True,
+            )
             .where(
                 db.Deployment.is_schedule_active.is_(True),
                 db.Deployment.schedule.is_not(None),
+            )
+            .group_by(db.Deployment.id)
+            # having EITHER fewer than three runs OR runs not scheduled far enough out
+            .having(
+                sa.or_(
+                    sa.func.count(db.FlowRun.next_scheduled_start_time) < self.min_runs,
+                    sa.func.max(db.FlowRun.next_scheduled_start_time)
+                    < now + self.min_scheduled_time,
+                )
             )
             .order_by(db.Deployment.id)
             .limit(self.deployment_batch_size)
@@ -142,6 +180,8 @@ class Scheduler(LoopService):
                         deployment_id=deployment_id,
                         start_time=now,
                         end_time=now + self.max_scheduled_time,
+                        min_time=self.min_scheduled_time,
+                        min_runs=self.min_runs,
                         max_runs=self.max_runs,
                     )
                 )
@@ -178,6 +218,8 @@ class Scheduler(LoopService):
         deployment_id: UUID,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
+        min_time: datetime.timedelta,
+        min_runs: int,
         max_runs: int,
         db: OrionDBInterface,
     ) -> List[Dict]:
@@ -186,12 +228,35 @@ class Scheduler(LoopService):
         objects and associated scheduled states that represent scheduled flow runs.
 
         Pass-through method for overrides.
+
+
+        Args:
+            session: a database session
+            deployment_id: the id of the deployment to schedule
+            start_time: the time from which to start scheduling runs
+            end_time: runs will be scheduled until at most this time
+            min_time: runs will be scheduled until at least this far in the future
+            min_runs: a minimum amount of runs to schedule
+            max_runs: a maximum amount of runs to schedule
+
+        This function will generate the minimum number of runs that satisfy the min
+        and max times, and the min and max counts. Specifically, the following order
+        will be respected:
+
+            - Runs will be generated starting on or after the `start_time`
+            - No more than `max_runs` runs will be generated
+            - No runs will be generated after `end_time` is reached
+            - At least `min_runs` runs will be generated
+            - Runs will be generated until at least `start_time + min_time` is reached
+
         """
         return await models.deployments._generate_scheduled_flow_runs(
             session=session,
             deployment_id=deployment_id,
             start_time=start_time,
             end_time=end_time,
+            min_time=min_time,
+            min_runs=min_runs,
             max_runs=max_runs,
         )
 

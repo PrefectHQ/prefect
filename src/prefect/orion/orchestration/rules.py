@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.models import flow_runs
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
@@ -100,6 +101,7 @@ class OrchestrationContext(PrefectBaseModel):
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
     orchestration_error: Optional[Exception] = Field(default=None)
+    parameters: Dict[Any, Any] = Field(default_factory=dict)
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -143,6 +145,7 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.validated_state = (
             self.validated_state.copy() if self.validated_state else None
         )
+        safe_copy.parameters = self.parameters.copy()
         return safe_copy
 
     def entry_context(self):
@@ -222,8 +225,10 @@ class FlowOrchestrationContext(OrchestrationContext):
         After the `FlowOrchestrationContext` is governed by orchestration rules, the
         proposed state can be validated: the proposed state is added to the current
         SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
-        state. The state on the run is set to the validated state as well. If the
-        proposed state is `None` when this method is called, nothing happens.
+        state. The state on the run is set to the validated state as well.
+
+        If the proposed state is `None` when this method is called, no state will be
+        written and `self.validated_state` will be set to the run's current state.
 
         Returns:
             None
@@ -261,20 +266,20 @@ class FlowOrchestrationContext(OrchestrationContext):
         self,
         db: OrionDBInterface,
     ):
-        if self.proposed_state is not None:
+        if self.proposed_state is None:
+            validated_orm_state = self.run.state
+        else:
             validated_orm_state = db.FlowRunState(
                 flow_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
             self.run.set_state(validated_orm_state)
-        else:
-            validated_orm_state = None
-        validated_state = (
+
+        await self.session.flush()
+        self.validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-        await self.session.flush()
-        self.validated_state = validated_state
 
     def safe_copy(self):
         """
@@ -358,13 +363,14 @@ class TaskOrchestrationContext(OrchestrationContext):
         After the `TaskOrchestrationContext` is governed by orchestration rules, the
         proposed state can be validated: the proposed state is added to the current
         SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
-        state. The state on the run is set to the validated state as well. If the
-        proposed state is `None` when this method is called, nothing happens.
+        state. The state on the run is set to the validated state as well.
+
+        If the proposed state is `None` when this method is called, no state will be
+        written and `self.validated_state` will be set to the run's current state.
 
         Returns:
             None
         """
-
         for validation_attempt in range(2):
             validation_errors = []
             try:
@@ -397,20 +403,20 @@ class TaskOrchestrationContext(OrchestrationContext):
         self,
         db: OrionDBInterface,
     ):
-        if self.proposed_state is not None:
+        if self.proposed_state is None:
+            validated_orm_state = self.run.state
+        else:
             validated_orm_state = db.TaskRunState(
                 task_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
             self.run.set_state(validated_orm_state)
-        else:
-            validated_orm_state = None
-        validated_state = (
+
+        await self.session.flush()
+        self.validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-        await self.session.flush()
-        self.validated_state = validated_state
 
     def safe_copy(self):
         """
@@ -517,7 +523,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         TO_STATES: list of valid proposed state types this rule governs
         context: the orchestration context
         from_state_type: the state type a run is currently in
-        to_state_type: the proposed state type a run is transitioning into
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -732,7 +738,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             self.to_state_type != proposed_state_type
         )
 
-    async def reject_transition(self, state: states.State, reason: str):
+    async def reject_transition(self, state: Optional[states.State], reason: str):
         """
         Rejects a proposed transition before the transition is validated.
 
@@ -742,7 +748,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         despite the proposed state type changing.
 
         Args:
-            state: The new proposed state
+            state: The new proposed state. If `None`, the current run state will be
+                returned in the result instead.
             reason: The reason for rejecting the transition
         """
 
@@ -750,9 +757,20 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # a rule that mutates state should not fizzle itself
-        self.to_state_type = state.type
-        self.context.proposed_state = state
+        # the current state will be used if a new one is not provided
+        if state is None:
+            if self.from_state_type is None:
+                raise OrchestrationError(
+                    "The current run has no state; this transition cannot be "
+                    "rejected without providing a new state."
+                )
+            self.to_state_type = None
+            self.context.proposed_state = None
+        else:
+            # a rule that mutates state should not fizzle itself
+            self.to_state_type = state.type
+            self.context.proposed_state = state
+
         self.context.response_status = SetStateStatus.REJECT
         self.context.response_details = StateRejectDetails(reason=reason)
 
@@ -821,8 +839,22 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         the canonical state TYPE, and will not fizzle or invalidate any other rules
         that might govern this state transition.
         """
+        if self.context.proposed_state is not None:
+            self.context.proposed_state.name = state_name
 
-        self.context.proposed_state.name = state_name
+    async def update_context_parameters(self, key, value):
+        """
+        Updates the "parameters" dictionary attribute with the specified key-value pair.
+
+        This mechanism streamlines the process of passing messages and information
+        between orchestration rules if necessary and is simpler and more ephemeral than
+        message-passing via the database or some other side-effect. This mechanism can
+        be used to break up large rules for ease of testing or comprehension, but note
+        that any rules coupled this way (or any other way) are no longer independent and
+        the order in which they appear in the orchestration policy priority will matter.
+        """
+
+        self.context.parameters.update({key: value})
 
 
 class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
@@ -843,6 +875,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         FROM_STATES: for compatibility with `BaseOrchestrationPolicy`
         TO_STATES: for compatibility with `BaseOrchestrationPolicy`
         context: the orchestration context
+        from_state_type: the state type a run is currently in
+        to_state_type: the intended proposed state type prior to any orchestration
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
@@ -856,8 +890,12 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
 
     async def __aenter__(self):
         """
@@ -870,9 +908,8 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         `self.before_transition` will fire.
         """
 
-        if not self.nullified_transition():
-            await self.before_transition(self.context)
-            self.context.rule_signature.append(str(self.__class__))
+        await self.before_transition(self.context)
+        self.context.rule_signature.append(str(self.__class__))
         return self.context
 
     async def __aexit__(
@@ -889,7 +926,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
         proposed state.
         """
 
-        if not self.nullified_transition() and not self.exception_in_transition():
+        if not self.exception_in_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 

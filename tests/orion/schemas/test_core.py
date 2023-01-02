@@ -172,37 +172,6 @@ class TestTaskRunPolicy:
         assert new_policy.retry_delay == 2
 
 
-class TestWorkQueueHealthPolicy:
-    def test_health_policy_enforces_max_late_runs(self):
-        policy = schemas.core.WorkQueueHealthPolicy(
-            maximum_late_runs=1, maximum_seconds_since_last_polled=None
-        )
-
-        assert policy.evaluate_health_status(late_runs_count=0) is True
-        assert policy.evaluate_health_status(late_runs_count=2) is False
-
-    def test_health_policy_enforces_seconds_since_last_polled(self):
-        policy = schemas.core.WorkQueueHealthPolicy(
-            maximum_late_runs=None, maximum_seconds_since_last_polled=30
-        )
-
-        assert (
-            policy.evaluate_health_status(
-                late_runs_count=0, last_polled=pendulum.now("UTC")
-            )
-            is True
-        )
-        assert (
-            policy.evaluate_health_status(
-                late_runs_count=2, last_polled=pendulum.now("UTC").subtract(seconds=60)
-            )
-            is False
-        )
-        assert (
-            policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
-        )
-
-
 class TestTaskRun:
     def test_task_run_cache_key_greater_than_user_configured_max_length(self):
         with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 5}):
@@ -280,3 +249,47 @@ class TestTaskRun:
             dynamic_key="0",
             cache_key=cache_key_valid_length,
         )
+
+
+class TestWorkQueueHealthPolicy:
+    def test_health_policy_enforces_max_late_runs(self):
+        policy = schemas.core.WorkQueueHealthPolicy(
+            maximum_late_runs=1, maximum_seconds_since_last_polled=None
+        )
+
+        assert policy.evaluate_health_status(late_runs_count=0) is True
+        assert policy.evaluate_health_status(late_runs_count=2) is False
+
+    def test_health_policy_enforces_seconds_since_last_polled(self):
+        policy = schemas.core.WorkQueueHealthPolicy(
+            maximum_late_runs=None, maximum_seconds_since_last_polled=30
+        )
+
+        assert (
+            policy.evaluate_health_status(
+                late_runs_count=0, last_polled=pendulum.now("UTC")
+            )
+            is True
+        )
+        assert (
+            policy.evaluate_health_status(
+                late_runs_count=2, last_polled=pendulum.now("UTC").subtract(seconds=60)
+            )
+            is False
+        )
+        assert (
+            policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
+        )
+
+
+class TestWorkerPool:
+    def test_more_helpful_validation_message_for_worker_pools(self):
+        with pytest.raises(
+            pydantic.ValidationError, match="`default_queue_id` is a required field."
+        ):
+            schemas.core.WorkerPool(name="test")
+
+    async def test_valid_worker_pool_default_queue_id(self):
+        qid = uuid4()
+        wp = schemas.core.WorkerPool(name="test", default_queue_id=qid)
+        assert wp.default_queue_id == qid

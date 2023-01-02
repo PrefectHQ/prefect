@@ -23,6 +23,7 @@ import prefect
 import prefect.orion.api as api
 import prefect.orion.services as services
 import prefect.settings
+from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -31,6 +32,7 @@ from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.hashing import hash_objects
 
@@ -38,7 +40,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.2"
+ORION_API_VERSION = "0.8.4"
 
 logger = get_logger("orion")
 
@@ -63,6 +65,7 @@ API_ROUTERS = (
     api.concurrency_limits.router,
     api.block_types.router,
     api.block_documents.router,
+    api.workers.router,
     api.work_queues.router,
     api.block_schemas.router,
     api.block_capabilities.router,
@@ -159,7 +162,7 @@ def create_orion_api(
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
 
-    @api_app.get(health_check_path)
+    @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
         return True
 
@@ -224,6 +227,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "flags": enabled_experiments(),
         }
 
     if (
@@ -263,7 +267,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         blocks_registry = get_registry_for_type(Block)
         collection_blocks_data = await _load_collection_blocks_data()
         current_blocks_loading_hash = hash_objects(
-            blocks_registry, collection_blocks_data, hash_algo=sha256
+            blocks_registry,
+            collection_blocks_data,
+            PREFECT_ORION_DATABASE_CONNECTION_URL.value(),
+            hash_algo=sha256,
         )
 
         memo_store_path = PREFECT_MEMO_STORE_PATH.value()
@@ -373,6 +380,9 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+            service_instances.append(services.pause_expirations.FailExpiredPauses())
 
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())

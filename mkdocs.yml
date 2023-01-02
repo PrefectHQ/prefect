@@ -31,6 +31,10 @@ markdown_extensions:
     - toc:
         permalink: true
     - pymdownx.snippets
+    - pymdownx.emoji:
+        emoji_index: !!python/name:materialx.emoji.twemoji
+        emoji_generator: !!python/name:materialx.emoji.to_svg
+
 theme:
     name: material
     custom_dir: docs/overrides
@@ -50,8 +54,24 @@ theme:
         repo: fontawesome/brands/github
     logo: img/logos/prefect-logo-mark-solid-white-500.png
     palette:
-        primary: blue
+      - media: "(prefers-color-scheme)"
+        toggle:
+            icon: material/brightness-auto
+            name: Switch to light mode
+      - media: "(prefers-color-scheme: light)"
         accent: blue
+        primary: blue
+        scheme: default
+        toggle:
+            icon: material/weather-sunny
+            name: Switch to dark mode
+      - media: "(prefers-color-scheme: dark)"
+        accent: blue
+        primary: blue
+        scheme: slate
+        toggle:
+            icon: material/weather-night
+            name: Switch to light mode
 plugins:
     autorefs: {}
     mkdocstrings:
@@ -64,14 +84,17 @@ plugins:
                     show_category_heading: False
                     show_bases: False
                     heading_level: 1
-        watch:
-            - src/prefect/
+
     render_swagger: {}
     search: {}
     gen-files:
         scripts:
             - docs/collections/generate_catalog.py
             - docs/recipes/generate_catalog.py
+watch:
+    - mkdocs.yml
+    - mkdocs.insiders.yml
+    - src/prefect/
 nav:
     # - Prefect 2: index.md
     - Getting Started:
@@ -111,23 +134,28 @@ nav:
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - Prefect UI & Prefect Cloud:
-        - Overview: ui/overview.md
+        - Orion UI Overview: ui/overview.md
         - ui/flow-runs.md
         - ui/flows.md
         - ui/deployments.md
         - ui/work-queues.md
         - ui/blocks.md
         - ui/notifications.md
-        - Prefect Cloud:
-            - Prefect Cloud Overview: ui/cloud.md
-            - Prefect Cloud Quickstart: ui/cloud-getting-started.md
-            - Workspaces: ui/workspaces.md
-            - Organizations: ui/organizations.md
-            - Service Accounts: ui/service-accounts.md
-            - Roles (RBAC): ui/roles.md
-    - Collections:
-        - Overview: collections/overview.md
+        - ui/task-concurrency.md
+        - Prefect Cloud Overview: ui/cloud.md
+        - Prefect Cloud Quickstart: ui/cloud-getting-started.md
+        - Workspaces: ui/workspaces.md
+        - Automations: ui/automations.md
+        - Organizations: ui/organizations.md
+        - Service Accounts: ui/service-accounts.md
+        - Roles (RBAC): ui/roles.md
+        - Single Sign-on (SSO): ui/sso.md
+        - Audit Log: ui/audit-log.md
+        - Troubleshooting: ui/troubleshooting.md
+    - Integrations:
         - Collections Catalog: collections/catalog.md
+        - Using Collections: collections/usage.md
+        - Contributing Collections: collections/contribute.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md
@@ -203,7 +231,6 @@ nav:
             - 'Schemas':
                 - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
-                - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
                 - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
                 - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
@@ -221,6 +248,7 @@ nav:
     - Contributing:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
+        - Versioning: contributing/versioning.md
         - Troubleshooting: contributing/common-mistakes.md
 
 extra:

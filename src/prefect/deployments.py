@@ -7,7 +7,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
 
 import anyio
@@ -19,9 +19,13 @@ from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
-from prefect.exceptions import BlockMissingCapabilities, ObjectNotFound
+from prefect.exceptions import (
+    BlockMissingCapabilities,
+    ObjectAlreadyExists,
+    ObjectNotFound,
+)
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
@@ -31,7 +35,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
-from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
 
@@ -45,6 +48,8 @@ async def run_deployment(
     flow_run_name: str = None,
     timeout: float = None,
     poll_interval: float = 5,
+    tags: Optional[Iterable[str]] = None,
+    idempotency_key: str = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -111,9 +116,11 @@ async def run_deployment(
 
     flow_run = await client.create_flow_run_from_deployment(
         deployment.id,
-        state=Scheduled(scheduled_time=scheduled_time),
         parameters=parameters,
+        state=Scheduled(scheduled_time=scheduled_time),
         name=flow_run_name,
+        tags=tags,
+        idempotency_key=idempotency_key,
         parent_task_run_id=parent_task_run_id,
     )
 
@@ -171,7 +178,7 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
-    flow = await run_sync_in_worker_thread(import_object, str(import_path))
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
     return flow
 
 
@@ -649,6 +656,7 @@ class Deployment(BaseModel):
         name: str,
         output: str = None,
         skip_upload: bool = False,
+        ignore_file: str = ".prefectignore",
         apply: bool = False,
         load_existing: bool = True,
         **kwargs,
@@ -662,6 +670,9 @@ class Deployment(BaseModel):
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
+            ignore_file: an optional path to a `.prefectignore` file that specifies filename patterns
+                to ignore when uploading to remote storage; if not provided, looks for `.prefectignore`
+                in the current working directory
             apply: if True, the deployment is automatically registered with the API
             load_existing: if True, load any settings that may already be configured for the named deployment
                 server-side (e.g., schedules, default parameter values, etc.)
@@ -717,7 +728,7 @@ class Deployment(BaseModel):
                 deployment.storage
                 and "put-directory" in deployment.storage.get_block_capabilities()
             ):
-                await deployment.upload_to_storage()
+                await deployment.upload_to_storage(ignore_file=ignore_file)
 
         if output:
             await deployment.to_yaml(output)

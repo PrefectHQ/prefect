@@ -32,7 +32,10 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 
 @inject_db
 async def create_flow_run(
-    session: AsyncSession, flow_run: schemas.core.FlowRun, db: OrionDBInterface
+    session: AsyncSession,
+    flow_run: schemas.core.FlowRun,
+    db: OrionDBInterface,
+    orchestration_parameters: dict = None,
 ):
     """Creates a new flow run.
 
@@ -101,6 +104,7 @@ async def create_flow_run(
             flow_run_id=model.id,
             state=flow_run.state,
             force=True,
+            orchestration_parameters=orchestration_parameters,
         )
     return model
 
@@ -157,6 +161,8 @@ async def _apply_flow_run_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
 ):
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
@@ -169,6 +175,22 @@ async def _apply_flow_run_filters(
         exists_clause = select(db.Deployment).where(
             db.Deployment.id == db.FlowRun.deployment_id,
             deployment_filter.as_sql_filter(db),
+        )
+        query = query.where(exists_clause.exists())
+
+    if worker_pool_filter:
+        exists_clause = select(db.WorkerPool).where(
+            db.WorkerPoolQueue.id == db.FlowRun.worker_pool_queue_id,
+            db.WorkerPool.id == db.WorkerPoolQueue.worker_pool_id,
+            worker_pool_filter.as_sql_filter(db),
+        )
+
+        query = query.where(exists_clause.exists())
+
+    if worker_pool_queue_filter:
+        exists_clause = select(db.WorkerPoolQueue).where(
+            db.WorkerPoolQueue.id == db.FlowRun.worker_pool_queue_id,
+            worker_pool_queue_filter.as_sql_filter(db),
         )
         query = query.where(exists_clause.exists())
 
@@ -209,6 +231,8 @@ async def read_flow_runs(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
@@ -241,6 +265,8 @@ async def read_flow_runs(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        worker_pool_filter=worker_pool_filter,
+        worker_pool_queue_filter=worker_pool_queue_filter,
         db=db,
     )
 
@@ -256,6 +282,7 @@ async def read_flow_runs(
 
 class DependencyResult(PrefectBaseModel):
     id: UUID
+    name: str
     upstream_dependencies: List[TaskRunResult]
     state: State
     expected_start_time: Optional[datetime.datetime]
@@ -301,6 +328,7 @@ async def read_task_run_dependencies(
                 "upstream_dependencies": inputs,
                 "state": task_run.state,
                 "expected_start_time": task_run.expected_start_time,
+                "name": task_run.name,
                 "start_time": task_run.start_time,
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
@@ -377,6 +405,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
+    orchestration_parameters: dict = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
@@ -426,6 +455,9 @@ async def set_flow_run_state(
         proposed_state=state,
     )
 
+    if orchestration_parameters is not None:
+        context.parameters = orchestration_parameters
+
     # apply orchestration rules and create the new flow run state
     async with contextlib.AsyncExitStack() as stack:
         for rule in orchestration_rules:
@@ -434,7 +466,9 @@ async def set_flow_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(rule(context))
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
         await context.validate_proposed_state()
 

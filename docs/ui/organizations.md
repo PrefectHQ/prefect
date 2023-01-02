@@ -1,5 +1,6 @@
 ---
 description: Manage teams and organizations in Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -16,9 +17,10 @@ tags:
 For larger teams or companies with more complex needs around user and access management, organizations in Prefect Cloud provide several features that enable you to collaborate securely at scale, including:
 
 - [Organizational accounts and membership](#organization-members) management.
-- [Role Based Access Controls (RBAC)](/ui/roles/) to configure user permissions at organization and workspace levels.
+- [Role Based Access Controls (RBAC)](#organization-and-workspace-roles) to configure user permissions at organization and workspace levels.
 - [Service accounts](#service-accounts) to generate credentials for specific workloads.
 - Expanded and customizable [Flow Run Retention Policy](/ui/flow-runs/#flow-run-retention-policy).
+- [Single Sign-on (SSO)](/ui/sso/) authentication using your identity provider (Enterprise plans).
 
 See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting more users, service accounts, and workspaces.
 
@@ -131,3 +133,9 @@ Select **Roles** within an organziation to see the configured workspace roles fo
 Prefect Cloud provides default workspace roles that cover most use cases. You may also create custom workspace roles to suit your specific organization needs.
 
 See the [Roles (RBAC)](/ui/roles/) documentation for more information on default and custom role permissions.
+
+## Single Sign-on (SSO) <span class="badge enterprise"></span>
+
+Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [single sign-on (SSO)](/ui/sso/) authentication integration with your team’s identity provider. SSO integration can bet set up with identity providers that support OIDC and SAML.
+
+See the [Single Sign-on (SSO)](/ui/sso/) documentation for more information on default and custom role permissions.

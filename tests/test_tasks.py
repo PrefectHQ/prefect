@@ -1,6 +1,8 @@
 import datetime
 import inspect
+import time
 import warnings
+from asyncio import Event, sleep
 from typing import Any, Dict, List
 from unittest.mock import MagicMock
 from uuid import UUID
@@ -32,6 +34,31 @@ from prefect.utilities.collections import quote
 
 def comparable_inputs(d):
     return {k: set(v) for k, v in d.items()}
+
+
+@pytest.fixture
+def timeout_test_flow():
+    @task(timeout_seconds=0.1)
+    def times_out(x):
+        time.sleep(1)
+        return x
+
+    @task
+    def depends(x):
+        return x
+
+    @task
+    def independent():
+        return 42
+
+    @flow
+    def test_flow():
+        ax = times_out.submit(1)
+        bx = depends.submit(ax)
+        cx = independent.submit()
+        return ax, bx, cx
+
+    return test_flow
 
 
 class TestTaskName:
@@ -291,6 +318,18 @@ class TestTaskRun:
         task_state = bar()
         assert isinstance(task_state, State)
         assert task_state.result() == 1
+
+    def test_task_returns_generator_implicit_list(self):
+        @task
+        def my_generator(n):
+            for i in range(n):
+                yield i
+
+        @flow
+        def my_flow():
+            return my_generator(5)
+
+        assert my_flow() == [0, 1, 2, 3, 4]
 
 
 class TestTaskSubmit:
@@ -1157,6 +1196,45 @@ class TestCacheFunctionBuiltins:
         )
 
 
+class TestTaskTimeouts:
+    async def test_task_timeouts_actually_timeout(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+
+    async def test_task_timeouts_are_not_task_crashes(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+        assert timed_out.is_crashed() is False
+
+    async def test_task_timeouts_do_not_crash_flow_runs(self, timeout_test_flow):
+        flow_state = timeout_test_flow._run()
+        timed_out, _, _ = await flow_state.result(raise_on_failure=False)
+
+        assert timed_out.name == "TimedOut"
+        assert timed_out.is_failed()
+        assert flow_state.is_failed()
+        assert flow_state.is_crashed() is False
+
+    async def test_task_timeouts_do_not_timeout_prematurely(self):
+        @task(timeout_seconds=100)
+        def my_task():
+            time.sleep(1)
+            return 42
+
+        @flow
+        def my_flow():
+            x = my_task.submit()
+            return x
+
+        flow_state = my_flow._run()
+        assert flow_state.type == StateType.COMPLETED
+
+        task_res = await flow_state.result()
+        assert task_res.type == StateType.COMPLETED
+
+
 class TestTaskRunTags:
     async def test_task_run_tags_added_at_submission(self, orion_client):
         @flow
@@ -1819,6 +1897,157 @@ class TestTaskInputs:
         )
 
 
+class TestSubflowWaitForTasks:
+    def test_downstream_does_not_run_if_upstream_fails(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar._run(2, wait_for=[f])
+            return b
+
+        flow_state = test_flow._run()
+        subflow_state = flow_state.result(raise_on_failure=False)
+        assert subflow_state.is_pending()
+        assert subflow_state.name == "NotReady"
+
+    def test_downstream_runs_if_upstream_succeeds(self):
+        @flow
+        def foo(x):
+            return x
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = foo(1)
+            b = bar(2, wait_for=[f])
+            return b
+
+        assert test_flow() == 2
+
+    async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def flow_foo(x):
+            return x
+
+        @flow
+        def test_flow():
+            a, b = foo.submit(1), foo.submit(2)
+            c = foo.submit(3)
+            d = flow_foo(c, wait_for=[a, b], return_state=True)
+            return (a, b, c, d)
+
+        a, b, c, d = test_flow()
+        d_subflow_run = await orion_client.read_flow_run(d.state_details.flow_run_id)
+        d_virtual_task_run = await orion_client.read_task_run(
+            d_subflow_run.parent_task_run_id
+        )
+
+        assert d_virtual_task_run.task_inputs["x"] == [
+            TaskRunResult(id=c.state_details.task_run_id)
+        ], "Data passing inputs are preserved"
+
+        assert set(d_virtual_task_run.task_inputs["wait_for"]) == {
+            TaskRunResult(id=a.state_details.task_run_id),
+            TaskRunResult(id=b.state_details.task_run_id),
+        }, "'wait_for' included as a key with upstreams"
+
+        assert set(d_virtual_task_run.task_inputs.keys()) == {
+            "x",
+            "wait_for",
+        }, "No extra keys around"
+
+    async def test_subflows_run_concurrently_with_tasks(self):
+        @task
+        async def waiter_task(event, delay):
+            await sleep(delay)
+            if event.is_set():
+                pass
+            else:
+                raise RuntimeError("The event hasn't been set!")
+
+        @flow
+        async def setter_flow(event):
+            event.set()
+            return 42
+
+        @flow
+        async def test_flow():
+            e = Event()
+            f = await waiter_task.submit(e, 1)
+            b = await setter_flow(e)
+            return b
+
+        assert (await test_flow()) == 42
+
+    async def test_subflows_waiting_for_tasks_can_deadlock(self):
+        @task
+        async def waiter_task(event, delay):
+            await sleep(delay)
+            if event.is_set():
+                pass
+            else:
+                raise RuntimeError("The event hasn't been set!")
+
+        @flow
+        async def setter_flow(event):
+            event.set()
+            return 42
+
+        @flow
+        async def test_flow():
+            e = Event()
+            f = await waiter_task.submit(e, 1)
+            b = await setter_flow(e, wait_for=[f])
+            return b
+
+        flow_state = await test_flow._run()
+        assert flow_state.is_failed()
+        assert "MissingResult: State data is missing" in flow_state.message
+
+    def test_using_wait_for_in_task_definition_raises_reserved(self):
+        with pytest.raises(
+            ReservedArgumentError, match="'wait_for' is a reserved argument name"
+        ):
+
+            @flow
+            def foo(wait_for):
+                pass
+
+    def test_downstream_runs_if_upstream_fails_with_allow_failure_annotation(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @flow
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar(2, wait_for=[allow_failure(f)], return_state=True)
+            return b
+
+        flow_state = test_flow(return_state=True)
+        subflow_state = flow_state.result(raise_on_failure=False)
+        assert subflow_state.result() == 2
+
+
 class TestTaskWaitFor:
     def test_downstream_does_not_run_if_upstream_fails(self):
         @task
@@ -2009,6 +2238,7 @@ class TestTaskWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
+            timeout_seconds=None,
         )
         def initial_task():
             pass
@@ -2025,6 +2255,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
+            timeout_seconds=42,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2038,6 +2269,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2055,6 +2287,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
+            timeout_seconds=42,
         )
         def initial_task():
             pass
@@ -2076,6 +2309,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_serializer == "json"
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
+        assert task_with_options.timeout_seconds == 42
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
@@ -2121,6 +2355,15 @@ class TestTaskWithOptions:
         # `self` isn't in task decorator
         with_options_params.remove("self")
         assert task_params == with_options_params
+
+    def test_with_options_allows_override_of_0_retries(self):
+        @task(retries=3, retry_delay_seconds=10)
+        def initial_task():
+            pass
+
+        task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
+        assert task_with_options.retries == 0
+        assert task_with_options.retry_delay_seconds == 0
 
 
 class TestTaskRegistration:
@@ -2540,3 +2783,19 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+
+class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_too_many_custom_retry_delays(self):
+        with pytest.raises(ValueError, match="Can not configure more"):
+
+            @task(retries=42, retry_delay_seconds=list(range(51)))
+            async def insanity():
+                raise RuntimeError("try again!")
+
+    async def test_task_cannot_configure_negative_relative_jitter(self):
+        with pytest.raises(ValueError, match="`retry_jitter_factor` must be >= 0"):
+
+            @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
+            async def insanity():
+                raise RuntimeError("try again!")

@@ -8,6 +8,8 @@ tags:
     - Kubernetes
     - Docker
     - ECS
+    - Cloud Run
+    - Container Instances
 ---
 
 # Infrastructure
@@ -32,7 +34,9 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
 - [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
 - [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
-- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an ECS Task.
+- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an Amazon ECS Task.
+- [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
+- [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
 
 !!! question "What about tasks?"
     Flows and tasks can both use configuration objects to manage the environment in which code runs. 
@@ -56,6 +60,8 @@ For example, when creating your deployment files, the supported Prefect infrastr
 - `docker-container`
 - `kubernetes-job`
 - `ecs-task`
+- `cloud-run-job`
+- `container-instance-job`
 
 <div class="terminal">
 ```bash
@@ -227,12 +233,9 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
 
-### ECSTask <span class="badge experimental"></span>
+### ECSTask
 
 [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
-
-!!! note "Experimental block"
-    This infrastructure block is experimental. The interfaces of this block may change without notice.
 
 Requirements for `ECSTask`:
 
@@ -244,11 +247,16 @@ Requirements for `ECSTask`:
 ```Dockerfile
 FROM prefecthq/prefect:2-python3.9  # example base image 
 RUN pip install s3fs prefect-aws
-RUN prefect block register -m prefect_aws.ecs
 ```
 
 To get started using Prefect with ECS, check out the repository template [dataflow-ops](https://github.com/anna-geller/dataflow-ops) demonstrating ECS agent setup and various deployment configurations for using `ECSTask` block. 
 
+
+!!! tip "Make sure to allocate enough CPU and memory to your agent, and consider adding retries"
+    When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
+
+    Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block. 
+    
 
 ## Docker images
 
@@ -273,7 +281,7 @@ Additionally, we have "convenience" tags which are updated with each release to 
 
 For example, when release `2.1.1` is published:
 
-1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10) with both standard Python and Conda.
+1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10, 3.11) with both standard Python and Conda.
 2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.7` and `prefect:2.1.1-python3.7-conda`.
 3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.7`
 4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.7`.
@@ -287,14 +295,17 @@ Standard Python images are based on the official Python `slim` images, e.g. `pyt
 | Tag                   |       Prefect Version       | Python Version  |
 | --------------------- | :-------------------------: | -------------:  |
 | 2-latest              | most recent v2 PyPi version |            3.10 |
+| 2-python3.11          | most recent v2 PyPi version |            3.11 |
 | 2-python3.10          | most recent v2 PyPi version |            3.10 |
 | 2-python3.9           | most recent v2 PyPi version |            3.9  |
 | 2-python3.8           | most recent v2 PyPi version |            3.8  |
 | 2-python3.7           | most recent v2 PyPi version |            3.7  |
+| 2.X-python3.11        |             2.X             |            3.11 |
 | 2.X-python3.10        |             2.X             |            3.10 |
 | 2.X-python3.9         |             2.X             |            3.9  |
 | 2.X-python3.8         |             2.X             |            3.8  |
 | 2.X-python3.7         |             2.X             |            3.7  |
+| sha-&lt;hash&gt;-python3.11 |            &lt;hash&gt;           |            3.11 |
 | sha-&lt;hash&gt;-python3.10 |            &lt;hash&gt;           |            3.10 |
 | sha-&lt;hash&gt;-python3.9  |            &lt;hash&gt;           |            3.9  |
 | sha-&lt;hash&gt;-python3.8  |            &lt;hash&gt;           |            3.8  |
@@ -304,6 +315,8 @@ Standard Python images are based on the official Python `slim` images, e.g. `pyt
 #### Conda-flavored Python
 
 Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
+
+Note, Conda support for Python 3.11 is not available so we cannot build an image yet.
 
 | Tag                         |       Prefect Version       | Python Version  |
 | --------------------------- | :-------------------------: | -------------:  |

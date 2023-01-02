@@ -1,7 +1,6 @@
 """
 Routes for admin-level interactions with the Orion API.
 """
-
 from fastapi import Body, Depends, Response, status
 
 import prefect
@@ -15,8 +14,12 @@ router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
-    """Get the current Orion settings"""
-    return prefect.settings.get_current_settings()
+    """
+    Get the current Orion settings.
+
+    Secret setting values will be obfuscated.
+    """
+    return prefect.settings.get_current_settings().with_obfuscated_secrets()
 
 
 @router.get("/version")
@@ -40,6 +43,8 @@ async def clear_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
     async with db.session_context(begin_transaction=True) as session:
+        # worker pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkerPool.__table__.delete())
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
 

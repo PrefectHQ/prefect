@@ -4,26 +4,24 @@ Command line interface for working with deployments.
 import json
 import sys
 import textwrap
-from datetime import timedelta
+import warnings
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import dateparser
 import pendulum
 import typer
 import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
-import prefect
-from prefect import Flow
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
-from prefect.cli.orion_utils import check_orion_connection, ui_base_url
 from prefect.cli.root import app
-from prefect.client import get_client
-from prefect.client.orion import OrionClient
+from prefect.client.orion import OrionClient, get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
@@ -33,6 +31,7 @@ from prefect.exceptions import (
     ScriptError,
     exception_traceback,
 )
+from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.orion.schemas.schedules import (
@@ -40,6 +39,9 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
+from prefect.settings import PREFECT_UI_URL
+from prefect.states import Scheduled
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
 from prefect.utilities.filesystem import set_default_ignore_file
@@ -238,6 +240,9 @@ async def set_schedule(
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
     if rrule_string is not None:
         rrule_schedule = json.loads(rrule_string)
+        if timezone:
+            # override timezone if specified via CLI argument
+            rrule_schedule.update({"timezone": timezone})
     else:
         # fall back to empty schedule dictionary
         rrule_schedule = {"rrule": None}
@@ -366,14 +371,23 @@ async def run(
             "parameters passed with `--param` will take precedence over these values."
         ),
     ),
+    start_in: Optional[str] = typer.Option(
+        None,
+        "--start-in",
+    ),
+    start_at: Optional[str] = typer.Option(
+        None,
+        "--start-at",
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now and an agent must execute it.
-
+    The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until an agent starts.
     """
+    now = pendulum.now("UTC")
+
     multi_params = {}
     if multiparams:
         if multiparams == "-":
@@ -394,6 +408,47 @@ async def run(
             f"`--param` value will be used: {conflicting_keys}"
         )
     parameters = {**multi_params, **cli_params}
+
+    if start_in and start_at:
+        exit_with_error(
+            "Only one of `--start-in` or `--start-at` can be set, not both."
+        )
+
+    elif start_in is None and start_at is None:
+        scheduled_start_time = now
+        human_dt_diff = " (now)"
+    else:
+        if start_in:
+            start_time_raw = "in " + start_in
+        else:
+            start_time_raw = "at " + start_at
+        with warnings.catch_warnings():
+            # PyTZ throws a warning based on dateparser usage of the library
+            # See https://github.com/scrapinghub/dateparser/issues/1089
+            warnings.filterwarnings("ignore", module="dateparser")
+
+            try:
+
+                start_time_parsed = dateparser.parse(
+                    start_time_raw,
+                    settings={
+                        "TO_TIMEZONE": "UTC",
+                        "RETURN_AS_TIMEZONE_AWARE": False,
+                        "PREFER_DATES_FROM": "future",
+                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                    },
+                )
+
+            except Exception as exc:
+                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
+
+        if start_time_parsed is None:
+            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+
+        scheduled_start_time = pendulum.instance(start_time_parsed)
+        human_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -422,16 +477,23 @@ async def run(
         )
 
         flow_run = await client.create_flow_run_from_deployment(
-            deployment.id, parameters=parameters
+            deployment.id,
+            parameters=parameters,
+            state=Scheduled(scheduled_time=scheduled_start_time),
         )
 
-    connection_status = await check_orion_connection()
-    ui_url = ui_base_url(connection_status)
-
-    if ui_url:
-        run_url = f"{ui_url}/flow-runs/flow-run/{flow_run.id}"
+    if PREFECT_UI_URL:
+        run_url = f"{PREFECT_UI_URL.value()}/flow-runs/flow-run/{flow_run.id}"
     else:
         run_url = "<no dashboard available>"
+
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        datetime_local_tz.to_datetime_string()
+        + " "
+        + datetime_local_tz.tzname()
+        + human_dt_diff
+    )
 
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
@@ -439,6 +501,7 @@ async def run(
             f"""
         └── UUID: {flow_run.id}
         └── Parameters: {flow_run.parameters}
+        └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """
         ).strip()
@@ -534,11 +597,10 @@ async def apply(
             style="green",
         )
 
-        connection_status = await check_orion_connection()
-        ui = ui_base_url(connection_status)
-
-        if ui:
-            app.console.print(f"View Deployment in UI: {ui}/deployment/{deployment_id}")
+        if PREFECT_UI_URL:
+            app.console.print(
+                f"View Deployment in UI: {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+            )
 
         if deployment.work_queue_name is not None:
             app.console.print(
@@ -658,7 +720,7 @@ async def build(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb'",
+        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb', 'gitlab-repository'",
     ),
     skip_upload: bool = typer.Option(
         False,
@@ -675,10 +737,18 @@ async def build(
         "--interval",
         help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
     ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
     rrule: str = typer.Option(
         None,
         "--rrule",
         help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    timezone: str = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
     ),
     path: str = typer.Option(
         None,
@@ -711,7 +781,6 @@ async def build(
     """
     Generate a deployment YAML from /path/to/file.py:flow_function
     """
-
     # validate inputs
     if not name:
         exit_with_error(
@@ -744,18 +813,10 @@ async def build(
         else:
             raise exc
     try:
-        flow = prefect.utilities.importtools.import_object(entrypoint)
-        if isinstance(flow, Flow):
-            app.console.print(f"Found flow {flow.name!r}", style="green")
-        else:
-            exit_with_error(
-                f"Found object of unexpected type {type(flow).__name__!r}. Expected 'Flow'."
-            )
-    except AttributeError:
-        exit_with_error(f"{obj_name!r} not found in {fpath!r}.")
-    except FileNotFoundError:
-        exit_with_error(f"{fpath!r} not found.")
-
+        flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+    except Exception as exc:
+        exit_with_error(exc)
+    app.console.print(f"Found flow {flow.name!r}", style="green")
     infra_overrides = {}
     for override in overrides or []:
         key, value = override.split("=", 1)
@@ -771,16 +832,32 @@ async def build(
         # server-side definition of this deployment
         infrastructure = None
 
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
     schedule = None
     if cron:
-        schedule = CronSchedule(cron=cron)
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
     elif interval:
-        schedule = IntervalSchedule(interval=timedelta(seconds=interval))
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
     elif rrule:
         try:
             schedule = RRuleSchedule(**json.loads(rrule))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
         except json.JSONDecodeError:
-            schedule = RRuleSchedule(rrule=rrule)
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
 
     # parse storage_block
     if storage_block:
@@ -854,7 +931,7 @@ async def build(
         flow=flow,
         name=name,
         output=deployment_loc,
-        skip_upload=False,
+        skip_upload=skip_upload,
         apply=False,
         **init_kwargs,
     )
