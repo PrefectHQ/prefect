@@ -464,17 +464,17 @@ class TaskRun(ORMBaseModel):
         default=None, description="The current task run state."
     )
 
-    @validator("cache_key", pre=True)
+    @validator("name", pre=True)
+    def set_name(cls, name):
+        return name or generate_slug(2)
+
+    @validator("cache_key")
     def validate_cache_key_length(cls, cache_key):
         if len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value():
             raise ValueError(
                 f"Invalid cache_key length. Task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting."
             )
         return cache_key
-
-    @validator("name", pre=True)
-    def set_name(cls, name):
-        return name or generate_slug(2)
 
 
 class Deployment(ORMBaseModel):
