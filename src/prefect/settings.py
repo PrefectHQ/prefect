@@ -424,6 +424,9 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 )
 """The maximum size in bytes for a single log."""
 
+PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+"""Limit size of task run cache keys."""
+
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
     default=5,
