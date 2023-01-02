@@ -390,7 +390,6 @@ class TaskRun(ORMBaseModel):
         description="A dynamic key used to differentiate between multiple runs of the same task within the same flow run.",
     )
     cache_key: Optional[str] = Field(
-        default=None,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
     cache_expiration: Optional[DateTimeTZ] = Field(
