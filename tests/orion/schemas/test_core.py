@@ -6,6 +6,7 @@ import pytest
 
 from prefect.orion import schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
 
 
 @pytest.mark.parametrize(
@@ -203,15 +204,55 @@ class TestWorkQueueHealthPolicy:
 
 
 class TestTaskRun:
-    def test_task_run_cache_key_length_is_limited(self):
-        really_large_cache_key = "X" * 5_000
+    def test_task_run_cache_key_greater_than_user_configured_max_length(self):
+        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 5}):
+
+            cache_key_invalid_length = "X" * 6
+            with pytest.raises(pydantic.ValidationError):
+                schemas.core.TaskRun(
+                    id=uuid4(),
+                    flow_run_id=uuid4(),
+                    task_key="foo",
+                    dynamic_key="0",
+                    cache_key=cache_key_invalid_length,
+                )
+
+            with pytest.raises(pydantic.ValidationError):
+                schemas.actions.TaskRunCreate(
+                    flow_run_id=uuid4(),
+                    task_key="foo",
+                    dynamic_key="0",
+                    cache_key=cache_key_invalid_length,
+                )
+
+    def test_task_run_cache_key_within_user_configured_max_length(self):
+        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 1000}):
+            cache_key_valid_length = "X" * 1000
+            schemas.core.TaskRun(
+                id=uuid4(),
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_valid_length,
+            )
+
+            schemas.actions.TaskRunCreate(
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_valid_length,
+            )
+
+    def test_task_run_cache_key_greater_than_default_max_length(self):
+
+        cache_key_invalid_length = "X" * 2001
         with pytest.raises(pydantic.ValidationError):
             schemas.core.TaskRun(
                 id=uuid4(),
                 flow_run_id=uuid4(),
                 task_key="foo",
                 dynamic_key="0",
-                cache_key=really_large_cache_key,
+                cache_key=cache_key_invalid_length,
             )
 
         with pytest.raises(pydantic.ValidationError):
@@ -219,5 +260,23 @@ class TestTaskRun:
                 flow_run_id=uuid4(),
                 task_key="foo",
                 dynamic_key="0",
-                cache_key=really_large_cache_key,
+                cache_key=cache_key_invalid_length,
             )
+
+    def test_task_run_cache_key_length_within_default_max_length(self):
+
+        cache_key_valid_length = "X" * 2000
+        schemas.core.TaskRun(
+            id=uuid4(),
+            flow_run_id=uuid4(),
+            task_key="foo",
+            dynamic_key="0",
+            cache_key=cache_key_valid_length,
+        )
+
+        schemas.actions.TaskRunCreate(
+            flow_run_id=uuid4(),
+            task_key="foo",
+            dynamic_key="0",
+            cache_key=cache_key_valid_length,
+        )
