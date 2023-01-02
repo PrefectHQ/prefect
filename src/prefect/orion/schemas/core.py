@@ -14,6 +14,7 @@ import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.names import generate_slug, obfuscate_string
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
@@ -364,7 +365,6 @@ class TaskRun(ORMBaseModel):
     )
     cache_key: Optional[str] = Field(
         default=None,
-        max_length=2_000,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
     cache_expiration: Optional[DateTimeTZ] = Field(
@@ -435,6 +435,14 @@ class TaskRun(ORMBaseModel):
     state: Optional[schemas.states.State] = Field(
         default=None, description="The current task run state."
     )
+
+    @validator("cache_key", pre=True)
+    def validate_cache_key_length(cls, cache_key):
+        if len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value():
+            raise ValueError(
+                f"Invalid cache_key length. Task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting."
+            )
+        return cache_key
 
     @validator("name", pre=True)
     def set_name(cls, name):
