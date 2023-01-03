@@ -399,7 +399,10 @@ class TestVisitCollection:
         foo = quote([1, 2, [3]])
 
         def visit(expr, context):
-            assert isinstance(context.get("annotation"), quote)
+            # If we're not visiting the first expression...
+            if not isinstance(expr, quote):
+                assert isinstance(context.get("annotation"), quote)
+            return expr
 
         result = visit_collection(foo, visit, context={}, return_data=True)
         assert result == quote([1, 2, [3]])

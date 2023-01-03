@@ -293,6 +293,12 @@ def visit_collection(
         # Do not attempt to recurse into mock objects
         result = expr
 
+    elif isinstance(expr, BaseAnnotation):
+        if context is not None:
+            context["annotation"] = expr
+        value = visit_nested(expr.unwrap())
+        result = expr.rewrap(value) if return_data else None
+
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
         result = typ(items) if return_data else None
@@ -339,12 +345,6 @@ def visit_collection(
             result = model_instance
         else:
             result = None
-
-    elif isinstance(expr, BaseAnnotation):
-        if context is not None:
-            context["annotation"] = expr
-        value = visit_nested(expr.unwrap())
-        result = expr.rewrap(value) if return_data else None
 
     else:
         result = result if return_data else None
