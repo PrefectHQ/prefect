@@ -976,9 +976,14 @@ class OrionClient:
         self,
         block_document_id: UUID,
         block_document: schemas.actions.BlockDocumentUpdate,
+        block_schema_id: Optional[UUID] = None,
     ):
         """
         Update a block document in Orion.
+
+        If the block_schema_id is provided, the block document referenced by
+        block_document_id will be updated to use the block schema referenced by
+        block_schema_id.
         """
         try:
             await self._client.patch(
