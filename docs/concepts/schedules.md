@@ -190,7 +190,16 @@ See the Python [RRuleSchedule class docs](/api-ref/orion/schemas/schedules/#pref
 
 The `Scheduler` service is started automatically when `prefect orion start` is run and it is a built-in service of Prefect Cloud. 
 
-By default, the `Scheduler` service visits deployments on a 60-second loop and attempts to create up to 100 scheduled flow runs up to 100 days in the future. These defaults can be shown with the terminal command `prefect config view --show-defaults`:
+By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments will be visited more frequently. The `Scheduler` evaluates each deployment's schedule and creates new runs appropriately. For typical deployments, it will create the next three runs, though more runs will be scheduled if the next 3 would all start in the next hour. 
+
+More specifically, the `Scheduler` tries to create the smallest number of runs that satisfy the following constraints, in order:
+
+- No more than 100 runs will be scheduled.
+- Runs will not be scheduled more than 100 days in the future.
+- At least 3 runs will be scheduled.
+- Runs will be scheduled until at least one hour in the future.
+
+These behaviors can all be adjusted through the relevant settings that can be viewed with the terminal command `prefect config view --show-defaults`:
 
 <div class='terminal'>
 ```bash
@@ -198,7 +207,9 @@ PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE='100'
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED='True' 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE='500' 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' 
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS='3' 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS='100' 
+PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME='1:00:00' 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00' 
 ```
 </div>
@@ -212,4 +223,4 @@ These settings mean that if a deployment has an hourly schedule, the default set
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 
-To remove all scheduled runs for a flow deployment, update the deployment YAML with no `schedule` value. Alternatively, remote the schedule via the UI.
+To remove all scheduled runs for a flow deployment, update the deployment YAML with no `schedule` value. Alternatively, remove the schedule via the UI.

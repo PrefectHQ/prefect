@@ -7,7 +7,7 @@ jinja2
 mkdocs
 mkdocs-gen-files
 mkdocs-material
-mkdocstrings-python-legacy
+mkdocstrings-python
 mock; python_version < '3.8'
 moto
 mypy
@@ -16,6 +16,7 @@ pre-commit
 pytest > 7
 pytest-asyncio >= 0.18.2
 pytest-cov
+pytest-benchmark
 pytest-env
 pytest-timeout
 pytest-xdist

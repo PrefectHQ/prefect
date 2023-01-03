@@ -34,7 +34,11 @@ def test_register_blocks_from_module():
     invoke_and_assert(
         ["block", "register", "-m", "prefect.blocks.core"],
         expected_code=0,
-        expected_output_contains=["Successfully registered", "blocks"],
+        expected_output_contains=[
+            "Successfully registered",
+            "blocks",
+            "blocks/catalog",
+        ],
     )
 
 
@@ -69,7 +73,7 @@ def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
     invoke_and_assert(
         ["block", "register", "-f", str(test_file_path)],
         expected_code=0,
-        expected_output_contains="Successfully registered 1 block",
+        expected_output_contains=["Successfully registered 1 block", "blocks/catalog"],
     )
 
     block_type = asyncio.run(
@@ -140,37 +144,33 @@ def test_register_fails_on_multiple_options():
 
 
 def test_listing_blocks_when_none_are_registered():
-    expected_output = (
-        "ID",
-        "Type",
-        "Name",
-        "Slug",
-    )
-
     invoke_and_assert(
         ["block", "ls"],
-        expected_code=0,
-        expected_output_contains=expected_output,
-        expected_line_count=6,
+        expected_output_contains=(
+            f"""                           
+           ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
+           ┃ ID ┃ Type ┃ Name ┃ Slug ┃
+           ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
+           └────┴──────┴──────┴──────┘
+            """
+        ),
     )
 
 
 def test_listing_blocks_after_saving_a_block():
-    system.JSON(value="a casual test block").save("wildblock")
-
-    expected_output = (
-        "ID",
-        "Type",
-        "Name",
-        "Slug",
-        "wildblock",
-    )
+    block_id = system.JSON(value="a casual test block").save("wildblock")
 
     invoke_and_assert(
         ["block", "ls"],
-        expected_code=0,
-        expected_output_contains=expected_output,
-        expected_line_count=7,
+        expected_output_contains=(
+            f"""                           
+            ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
+            ┃ ID                                   ┃ Type ┃ Name      ┃ Slug           ┃
+            ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
+            │ {block_id} │ JSON │ wildblock │ json/wildblock │
+            └──────────────────────────────────────┴──────┴───────────┴────────────────┘  
+            """
+        ),
     )
 
 

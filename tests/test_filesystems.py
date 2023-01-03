@@ -9,8 +9,38 @@ import prefect
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+
+
+def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str]:
+    """Add files and directories to a temporary directory. Returns a tuple with the
+    expected parent-level contents and the expected child-level contents.
+    """
+    # add file to tmp_src
+    f1_name = "dog.text"
+    f1_path = Path(tmp_src) / f1_name
+    f1 = open(f1_path, "w")
+    f1.close()
+
+    # add sub-directory to tmp_src
+    sub_dir_path = Path(tmp_src) / sub_dir
+    os.mkdir(sub_dir_path)
+
+    # add file to sub-directory
+    f2_name = "cat.txt"
+    f2_path = sub_dir_path / f2_name
+    f2 = open(f2_path, "w")
+    f2.close()
+
+    parent_contents = {f1_name, sub_dir}
+    child_contents = {f2_name}
+
+    assert set(os.listdir(tmp_src)) == parent_contents
+    assert set(os.listdir(sub_dir_path)) == child_contents
+
+    return parent_contents, child_contents
 
 
 class TestLocalFileSystem:
@@ -51,6 +81,137 @@ class TestLocalFileSystem:
     async def test_get_directory_duplicate_directory(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
         await fs.get_directory(".", ".")
+
+    async def test_dir_contents_copied_correctly_with_get_directory(self, tmp_path):
+
+        sub_dir_name = "puppy"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+
+            f = LocalFileSystem()
+
+            await f.get_directory(from_path=tmp_path, local_path=tmp_dst)
+            assert set(os.listdir(tmp_dst)) == set(parent_contents)
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
+    async def test_dir_contents_copied_correctly_with_put_directory(self, tmp_path):
+
+        sub_dir_name = "puppy"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+            await f.put_directory(
+                local_path=tmp_path,
+                to_path=tmp_dst,
+            )
+
+            assert set(os.listdir(tmp_dst)) == set(parent_contents)
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
+    async def test_to_path_modifies_base_path_correctly(self, tmp_path):
+
+        sub_dir_name = "puppy"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            # Do not include final destination dir in the basepath
+            f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+            # add final destination_dir
+            await f.put_directory(
+                local_path=tmp_path,
+                to_path=Path(tmp_dst).name,
+            )
+
+            # Make sure that correct destination was reached at <basepath>/<to_path>
+            assert set(os.listdir(tmp_dst)) == set(parent_contents)
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
+    async def test_to_path_raises_error_when_not_in_basepath(self, tmp_path):
+
+        f = LocalFileSystem(basepath=tmp_path)
+        outside_path = "~/puppy"
+        with pytest.raises(
+            ValueError, match="Provided path .* is outside of the base path.*"
+        ):
+            await f.put_directory(to_path=outside_path)
+
+    async def test_dir_contents_copied_correctly_with_put_directory_and_file_pattern(
+        self, tmp_path
+    ):
+        """Make sure that ignore file behaves properly."""
+
+        sub_dir_name = "puppy"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+
+        # ignore .py files
+        ignore_fpath = Path(tmp_path) / ".ignore"
+        with open(ignore_fpath, "w") as f:
+            f.write("*.py")
+
+        # contents without .py files
+        expected_contents = os.listdir(tmp_path)
+
+        # add .py files
+        with open(Path(tmp_path) / "dog.py", "w") as f:
+            f.write("pass")
+
+        with open(Path(tmp_path) / sub_dir_name / "cat.py", "w") as f:
+            f.write("pass")
+
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+
+            f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+            await f.put_directory(
+                local_path=tmp_path, to_path=tmp_dst, ignore_file=ignore_fpath
+            )
+            assert set(os.listdir(tmp_dst)) == set(expected_contents)
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
+
+    async def test_dir_contents_copied_correctly_with_put_directory_and_directory_pattern(
+        self, tmp_path
+    ):
+        """Make sure that ignore file behaves properly."""
+
+        sub_dir_name = "puppy"
+        skip_sub_dir = "kitty"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+
+        # ignore .py files
+        ignore_fpath = Path(tmp_path) / ".ignore"
+        with open(ignore_fpath, "w") as f:
+            f.write(f"**/{skip_sub_dir}/*")
+
+        skip_sub_dir_path = Path(tmp_path) / skip_sub_dir
+        os.mkdir(skip_sub_dir_path)
+
+        # add file to sub-directory
+        f2_name = "kitty-cat.txt"
+        f2_path = skip_sub_dir_path / f2_name
+        f2 = open(f2_path, "w")
+        f2.close()
+
+        expected_parent_contents = os.listdir(tmp_path)
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+
+            f = LocalFileSystem(basepath=Path(tmp_dst).parent)
+
+            await f.put_directory(
+                local_path=tmp_path, to_path=tmp_dst, ignore_file=ignore_fpath
+            )
+            assert set(os.listdir(tmp_dst)) == set(expected_parent_contents)
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
 
 class TestRemoteFileSystem:
@@ -167,38 +328,92 @@ class TestRemoteFileSystem:
 
         assert num_files_put == num_files_expected
 
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_get_directory_empty_local_path_uses_cwd(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that contents are copied to the CWD when no `local_path` is provided."""
+
+        # Construct the `from` directory
+        from_path = tmp_path / "from"
+        from_path.mkdir()
+        (from_path / "test").touch()
+
+        # Construct a clean working directory
+        cwd = tmp_path / "working"
+        cwd.mkdir()
+
+        fs = LocalFileSystem()
+        with tmpchdir(cwd):
+            await fs.get_directory(from_path=str(from_path), local_path=null_value)
+
+        assert (cwd / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_get_directory_empty_from_path_uses_basepath(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that directory contents are copied from the basepath when no `from_path`
+        is provided.
+        """
+        # Construct a clean directory to copy to
+        local_path = tmp_path / "local"
+        local_path.mkdir()
+
+        # Construct a working directory with contents to copy
+        base_path = tmp_path / "base"
+        base_path.mkdir()
+        (base_path / "test").touch()
+
+        with tmpchdir(tmp_path):
+            fs = LocalFileSystem(basepath=base_path)
+            await fs.get_directory(from_path=null_value, local_path=local_path)
+        assert (local_path / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_put_directory_empty_local_path_uses_cwd(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that CWD is used as the source when no `local_path` is provided."""
+
+        # Construct a clean directory to copy to
+        to_path = tmp_path / "to"
+        to_path.mkdir()
+
+        # Construct a working directory with contents to copy
+        cwd = tmp_path / "working"
+        cwd.mkdir()
+        (cwd / "test").touch()
+
+        fs = LocalFileSystem(basepath=tmp_path)
+        with tmpchdir(cwd):
+            await fs.put_directory(to_path=str(to_path), local_path=null_value)
+
+        assert (to_path / "test").exists()
+
+    @pytest.mark.parametrize("null_value", {None, ""})
+    async def test_put_directory_empty_from_path_uses_basepath(
+        self, tmp_path: Path, null_value
+    ):
+        """Check that directory contents are copied to the basepath when no `to_path` is
+        provided.
+        """
+        # Construct a local path with contents to copy
+        local_path = tmp_path / "local"
+        local_path.mkdir()
+        (local_path / "test").touch()
+
+        # Construct a clean basepath directory
+        base_path = tmp_path / "base"
+        base_path.mkdir()
+
+        with tmpchdir(tmp_path):
+            fs = LocalFileSystem(basepath=base_path)
+            await fs.put_directory(to_path=null_value, local_path=local_path)
+        assert (local_path / "test").exists()
+
 
 class TestGitHub:
-    def setup_test_directory(
-        self, tmp_src: str, sub_dir: str = "puppy"
-    ) -> Tuple[str, str]:
-        """Add files and directories to a temporary directory. Returns a tuple with the
-        expected parent-level contents and the expected child-level contents.
-        """
-        # add file to tmp_src
-        f1_name = "dog.text"
-        f1_path = Path(tmp_src) / f1_name
-        f1 = open(f1_path, "w")
-        f1.close()
-
-        # add sub-directory to tmp_src
-        sub_dir_path = Path(tmp_src) / sub_dir
-        os.mkdir(sub_dir_path)
-
-        # add file to sub-directory
-        f2_name = "cat.txt"
-        f2_path = sub_dir_path / f2_name
-        f2 = open(f2_path, "w")
-        f2.close()
-
-        parent_contents = {f1_name, sub_dir}
-        child_contents = {f2_name}
-
-        assert set(os.listdir(tmp_src)) == parent_contents
-        assert set(os.listdir(sub_dir_path)) == child_contents
-
-        return parent_contents, child_contents
-
     class MockTmpDir:
         """Utility for having `TemporaryDirectory` return a known location."""
 
@@ -290,7 +505,7 @@ class TestGitHub:
             )
 
     async def test_dir_contents_copied_correctly_with_get_directory(
-        self, monkeypatch
+        self, monkeypatch, tmp_path
     ):  # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst"""  # noqa
 
@@ -302,30 +517,27 @@ class TestGitHub:
 
         sub_dir_name = "puppy"
 
-        with TemporaryDirectory() as tmp_src:
-            parent_contents, child_contents = self.setup_test_directory(
-                tmp_src, sub_dir_name
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        self.MockTmpDir.dir = tmp_path
+
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            monkeypatch.setattr(
+                prefect.filesystems,
+                "TemporaryDirectory",
+                self.MockTmpDir,
             )
-            self.MockTmpDir.dir = tmp_src
 
-            # move file contents to tmp_dst
-            with TemporaryDirectory() as tmp_dst:
-                monkeypatch.setattr(
-                    prefect.filesystems,
-                    "TemporaryDirectory",
-                    self.MockTmpDir,
-                )
+            g = GitHub(
+                repository="https://github.com/PrefectHQ/prefect.git",
+            )
+            await g.get_directory(local_path=tmp_dst)
 
-                g = GitHub(
-                    repository="https://github.com/PrefectHQ/prefect.git",
-                )
-                await g.get_directory(local_path=tmp_dst)
-
-                assert set(os.listdir(tmp_dst)) == parent_contents
-                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+            assert set(os.listdir(tmp_dst)) == parent_contents
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
 
     async def test_dir_contents_copied_correctly_with_get_directory_and_from_path(
-        self, monkeypatch
+        self, monkeypatch, tmp_path
     ):  # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst
         when `from_path` is included.
@@ -342,24 +554,21 @@ class TestGitHub:
 
         sub_dir_name = "puppy"
 
-        with TemporaryDirectory() as tmp_src:
-            parent_contents, child_contents = self.setup_test_directory(
-                tmp_src, sub_dir_name
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        self.MockTmpDir.dir = tmp_path
+
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            monkeypatch.setattr(
+                prefect.filesystems,
+                "TemporaryDirectory",
+                self.MockTmpDir,
             )
-            self.MockTmpDir.dir = tmp_src
 
-            # move file contents to tmp_dst
-            with TemporaryDirectory() as tmp_dst:
-                monkeypatch.setattr(
-                    prefect.filesystems,
-                    "TemporaryDirectory",
-                    self.MockTmpDir,
-                )
+            g = GitHub(
+                repository="https://github.com/PrefectHQ/prefect.git",
+            )
+            await g.get_directory(local_path=tmp_dst, from_path=sub_dir_name)
 
-                g = GitHub(
-                    repository="https://github.com/PrefectHQ/prefect.git",
-                )
-                await g.get_directory(local_path=tmp_dst, from_path=sub_dir_name)
-
-                assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
-                assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+            assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
+            assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents

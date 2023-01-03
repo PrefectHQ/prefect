@@ -19,6 +19,8 @@ from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 
 
@@ -215,6 +217,8 @@ async def _apply_deployment_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
 ):
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
@@ -246,6 +250,23 @@ async def _apply_deployment_filters(
 
         query = query.where(exists_clause.exists())
 
+    if worker_pool_filter or worker_pool_queue_filter:
+        exists_clause = select(db.WorkerPoolQueue).where(
+            db.Deployment.worker_pool_queue_id == db.WorkerPoolQueue.id
+        )
+
+        if worker_pool_queue_filter:
+            exists_clause = exists_clause.where(
+                worker_pool_queue_filter.as_sql_filter(db)
+            )
+
+        if worker_pool_filter:
+            exists_clause = exists_clause.join(
+                db.WorkerPool, db.WorkerPool.id == db.WorkerPoolQueue.worker_pool_id
+            ).where(worker_pool_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
     return query
 
 
@@ -259,6 +280,8 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
@@ -272,6 +295,8 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
+        worker_pool_filter: only select deployments whose worker pools match these criteria
+        worker_pool_queue_filter: only select deployments whose worker pool queues match these criteria
         sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
@@ -286,6 +311,8 @@ async def read_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        worker_pool_filter=worker_pool_filter,
+        worker_pool_queue_filter=worker_pool_queue_filter,
         db=db,
     )
 
@@ -306,6 +333,8 @@ async def count_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
 ) -> int:
     """
     Count deployments.
@@ -316,6 +345,8 @@ async def count_deployments(
         flow_run_filter: only count deployments whose flow runs match these criteria
         task_run_filter: only count deployments whose task runs match these criteria
         deployment_filter: only count deployment that match these filters
+        worker_pool_filter: only count deployments that match these worker pool filters
+        worker_pool_queue_filter: only count deployments that match these worker pool queue filters
 
     Returns:
         int: the number of deployments matching filters
@@ -329,6 +360,8 @@ async def count_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        worker_pool_filter=worker_pool_filter,
+        worker_pool_queue_filter=worker_pool_queue_filter,
         db=db,
     )
 
@@ -367,6 +400,8 @@ async def schedule_runs(
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
+    min_time: datetime.timedelta = None,
+    min_runs: int = None,
     max_runs: int = None,
     auto_scheduled: bool = True,
 ) -> List[UUID]:
@@ -377,21 +412,38 @@ async def schedule_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected:
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time` + `min_time` is reached
 
     Returns:
         a list of flow run ids scheduled for the deployment
     """
+    if min_runs is None:
+        min_runs = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
     if max_runs is None:
         max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
         start_time = pendulum.now("UTC")
-    start_time = pendulum.instance(start_time)
     if end_time is None:
         end_time = start_time + (
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
+    if min_time is None:
+        min_time = PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+
+    start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
 
     runs = await _generate_scheduled_flow_runs(
@@ -399,6 +451,8 @@ async def schedule_runs(
         deployment_id=deployment_id,
         start_time=start_time,
         end_time=end_time,
+        min_time=min_time,
+        min_runs=min_runs,
         max_runs=max_runs,
         auto_scheduled=auto_scheduled,
     )
@@ -411,6 +465,8 @@ async def _generate_scheduled_flow_runs(
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
+    min_time: datetime.timedelta,
+    min_runs: int,
     max_runs: int,
     db: OrionDBInterface,
     auto_scheduled: bool = True,
@@ -428,8 +484,20 @@ async def _generate_scheduled_flow_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected:
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time + min_time` is reached
 
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule
@@ -442,9 +510,17 @@ async def _generate_scheduled_flow_runs(
     if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
 
-    dates = await deployment.schedule.get_dates(
+    dates = []
+
+    # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
+    for dt in deployment.schedule._get_dates_generator(
         n=max_runs, start=start_time, end=end_time
-    )
+    ):
+        dates.append(dt)
+
+        # at any point, if we satisfy both of the minimums, we can stop
+        if len(dates) >= min_runs and dt >= (start_time + min_time):
+            break
 
     tags = deployment.tags
     if auto_scheduled:
@@ -457,6 +533,7 @@ async def _generate_scheduled_flow_runs(
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
                 "work_queue_name": deployment.work_queue_name,
+                "worker_pool_queue_id": deployment.worker_pool_queue_id,
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",

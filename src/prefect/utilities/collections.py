@@ -1,6 +1,7 @@
 """
 Utilities for extensions of and operations on Python collections.
 """
+import io
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
@@ -135,13 +136,14 @@ def isiterable(obj: Any) -> bool:
     Excludes types that are iterable but typically used as singletons:
     - str
     - bytes
+    - IO objects
     """
     try:
         iter(obj)
     except TypeError:
         return False
     else:
-        return not isinstance(obj, (str, bytes))
+        return not isinstance(obj, (str, bytes, io.IOBase))
 
 
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
@@ -289,7 +291,7 @@ def visit_collection(
         return result if return_data else None
 
     # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = list if isinstance(expr, IteratorABC) and isiterable(expr) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
     # Then visit every item in the expression if it is a collection
@@ -367,11 +369,11 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
 
     Args:
         keys_to_remove: A list of keys to remove from obj obj: The object to remove keys
-        from.
+            from.
 
     Returns:
         `obj` without keys matching an entry in `keys_to_remove` if `obj` is a
-        dictionary. `obj` if `obj` is not a dictionary.
+            dictionary. `obj` if `obj` is not a dictionary.
     """
     if not isinstance(obj, dict):
         return obj
