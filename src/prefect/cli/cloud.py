@@ -426,7 +426,14 @@ async def login(
                 [(workspace, workspace.handle) for workspace in workspaces],
             )
         else:
-            workspace = current_workspace or workspaces[0]
+            if current_workspace:
+                workspace = current_workspace
+            elif len(workspaces) > 0:
+                workspace = workspaces[0]
+            else:
+                exit_with_error(
+                    f"No workspaces found! Create a workspace at {PREFECT_CLOUD_UI_URL.value()} and try again."
+                )
 
     update_current_profile(
         {
