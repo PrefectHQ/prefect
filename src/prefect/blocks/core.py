@@ -1,5 +1,6 @@
 import hashlib
 import inspect
+import logging
 import sys
 import warnings
 from abc import ABC
@@ -699,7 +700,7 @@ class Block(BaseModel, ABC):
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type {cls.__name__!r} - "
+                    f"Could not fully load {block_document_name!r} of block type {cls._block_type_slug!r} - "
                     "this is likely because one or more required fields were added to the schema "
                     f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
                     f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
@@ -707,6 +708,11 @@ class Block(BaseModel, ABC):
                     "load this block again before attempting to use it."
                 )
                 return cls.construct(**block_document.data, **missing_block_data)
+            logging.exception(
+                f"Unable to load {block_document_name!r} of block type {cls.block_type_slug!r} "
+                "due to failed validation. To load without validation, try loading again "
+                "with `validate=False`."
+            )
             raise
 
     @staticmethod
