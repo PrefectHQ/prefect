@@ -17,6 +17,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_CLOUD_UI_URL,
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
@@ -134,12 +135,18 @@ def test_login_with_key_and_missing_workspace(respx_mock):
 
 def test_login_with_key_and_no_workspaces(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(status.HTTP_200_OK, json=[])
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[],
+        )
     )
     invoke_and_assert(
-        ["cloud", "login", "--key", "foo", "--workspace", "bar"],
+        ["cloud", "login", "--key", "foo"],
         expected_code=1,
-        expected_output="Workspace 'bar' not found.",
+        user_input=readchar.key.ENTER,
+        expected_output_contains=[
+            f"No workspaces found! Create a workspace at {PREFECT_CLOUD_UI_URL.value()} and try again."
+        ],
     )
 
 
