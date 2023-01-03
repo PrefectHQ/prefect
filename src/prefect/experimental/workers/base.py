@@ -43,8 +43,8 @@ class BaseWorkerResult(BaseModel, abc.ABC):
         return self.status_code == 0
 
 
-class BaseConfiguration(BaseModel):
-    command: List[str]
+class BaseJobConfiguration(BaseModel):
+    command: Optional[List[str]] = None
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
@@ -57,7 +57,7 @@ class BaseConfiguration(BaseModel):
         return defaults
 
     @staticmethod
-    def _create_job_config_template(job_config: dict) -> jinja2.Template:
+    def _jinja_template(job_config: dict) -> jinja2.Template:
         """Create jinja template for job configuration."""
         job_config_str = str(job_config)
         template = jinja2.Environment().from_string(job_config_str)
@@ -74,12 +74,29 @@ class BaseConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(variables_schema)
         variables.update(deployment_overrides)
 
-        job_config_template = cls._create_job_config_template(job_config)
+        job_config_template = cls._jinja_template(job_config)
 
         populated_configuration_str = job_config_template.render(**variables)
         populated_configuration = yaml.safe_load(populated_configuration_str)
 
         return cls(**populated_configuration)
+
+    @classmethod
+    def json_template(cls):
+        configuration = {}
+        properties = cls.schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template"):
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
+
+
+class BaseVariables(BaseModel):
+    command: Optional[List[str]] = None
 
 
 @register_base_type
@@ -91,7 +108,8 @@ class BaseWorker(LoopService, abc.ABC):
     workflow_storage_scan_seconds = PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
     workflow_storage_path = PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
     default_pool_name = "Default Pool"
-    base_template: dict
+    job_configuration: Optional[BaseJobConfiguration] = None
+    job_configuration_variables: Optional[BaseVariables] = None
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -215,7 +233,7 @@ class BaseWorker(LoopService, abc.ABC):
     async def _add_base_template(self, worker_pool):
         await self._client.update_worker_pool(
             worker_pool=worker_pool,
-            base_job_template=self.base_template,
+            base_job_template=self._create_job_template(),
         )
 
     async def _on_start(self):
@@ -462,6 +480,17 @@ class BaseWorker(LoopService, abc.ABC):
                     )
 
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+
+    async def _create_job_template(self) -> dict:
+        if self.variables is None:
+            variables = self.job_configuration.schema()
+        else:
+            variables = self.variables.schema()
+        return {
+            "job_configuration": self.job_configuration.json_template(),
+            "variables": variables["properties"],
+            "required": variables["required"],
+        }
 
     async def _submit_run_and_capture_errors(
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None

@@ -9,11 +9,13 @@ from typing import Dict, Optional, Tuple, Union
 import anyio
 import anyio.abc
 import sniffio
+from pydantic import Field
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.experimental.workers.base import (
-    BaseConfiguration,
+    BaseJobConfiguration,
+    BaseVariables,
     BaseWorker,
     BaseWorkerResult,
 )
@@ -70,14 +72,20 @@ class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
-class ProcessWorkerConfiguration(BaseConfiguration):
+class ProcessJobConfiguration(BaseJobConfiguration):
+    stream_output: bool = Field(template="{{ stream_output }}")
+    working_dir: Union[str, Path, None] = Field(template="{{ working_dir }}")
+
+
+class ProcessVariables(BaseVariables):
     stream_output: bool
     working_dir: Union[str, Path, None]
 
 
 class ProcessWorker(BaseWorker):
     type = "process"
-    base_template = PROCESS_WORKER_BASE_TEMPLATE
+    job_configuration = ProcessJobConfiguration
+    job_configuration_variables = ProcessVariables
 
     async def verify_submitted_deployment(self, deployment: Deployment):
         return True
@@ -87,7 +95,7 @@ class ProcessWorker(BaseWorker):
     ):
 
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = ProcessWorkerConfiguration.from_configuration(
+        configuration = ProcessJobConfiguration.from_configuration(
             base_template=self.worker_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
