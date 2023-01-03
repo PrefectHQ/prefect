@@ -548,17 +548,6 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        if (
-            block_document.block_schema.checksum
-            != block_cls._calculate_schema_checksum()
-        ):
-            warnings.warn(
-                f"Block document has schema checksum {block_document.block_schema.checksum} "
-                f"which does not match the schema checksum for class {block_cls.__name__!r}. "
-                "This indicates the schema has changed and this block may not load.",
-                stacklevel=2,
-            )
-
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -668,11 +657,13 @@ class Block(BaseModel, ABC):
 
             Migrate a block document to a new schema:
             ```python
+            # original class
             class Custom(Block):
                 message: str
 
             Custom(message="Hello!").save("my-custom-message")
 
+            # Updated class with new required field
             class Custom(Block):
                 message: str
                 number_of_ducks: int
@@ -704,7 +695,7 @@ class Block(BaseModel, ABC):
         try:
             return cls._from_block_document(block_document)
         except ValidationError as e:
-            if validate == False:
+            if not validate:
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
