@@ -20,7 +20,7 @@
         </template>
 
         <template #runs>
-          Runs
+          <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
         </template>
       </p-tabs>
 
@@ -32,7 +32,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkerPoolQueue, CodeBanner, WorkerPoolQueueDetails, WorkerPoolQueueUpcomingFlowRunsList } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkerPoolQueue, CodeBanner, WorkerPoolQueueDetails, WorkerPoolQueueUpcomingFlowRunsList, useFlowRunFilter, FlowRunFilteredList } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -46,9 +46,11 @@
   }
 
   const workerPoolQueuesSubscription = useSubscription(api.workerPoolQueues.getWorkerPoolQueueByName, [workerPoolName.value, workerPoolQueueName.value], subscriptionOptions)
-  const workerPoolQueue = computed(() => workerPoolQueuesSubscription.response ?? {})
+  const workerPoolQueue = computed(() => workerPoolQueuesSubscription.response)
 
   const workerPoolQueueCliCommand = computed(() => 'code snippet for worker pool queue')
+
+  const flowRunFilter = useFlowRunFilter({ workerPoolQueueName: [workerPoolQueueName.value] })
 
   const tabs = computed(() => {
     const values = ['Upcoming Runs', 'Runs']

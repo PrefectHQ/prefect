@@ -34,7 +34,6 @@
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import { routes } from '@/router'
 
   const api = useWorkspaceApi()
   const workerPoolName = useRouteParam('workerPoolName')
@@ -54,11 +53,9 @@
   }
   const workerPoolSubscription = useSubscription(api.workerPools.getWorkerPoolByName, [workerPoolName.value], subscriptionOptions)
   const workerPool = computed(() => workerPoolSubscription.response)
+  const workerPoolId = computed(() => workerPool.value ? [workerPool.value.id] : [])
 
-  const workerPoolQueuesSubscription = useSubscription(api.workerPoolQueues.getWorkerPoolQueues, [workerPoolName.value], subscriptionOptions)
-  const workerPoolQueues = computed(() => workerPoolQueuesSubscription.response ?? [])
-
-  const flowRunFilter = useRecentFlowRunFilter({ })
+  const flowRunFilter = useRecentFlowRunFilter({ workerPools: workerPoolId })
 
   const title = computed(() => {
     if (!workerPool.value) {
