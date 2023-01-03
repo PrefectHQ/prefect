@@ -133,6 +133,17 @@ def test_login_with_key_and_missing_workspace(respx_mock):
     )
 
 
+def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(status.HTTP_200_OK, json=[])
+    )
+    invoke_and_assert(
+        ["cloud", "login", "--key", "foo", "--workspace", "bar"],
+        expected_code=1,
+        expected_output="Workspace 'bar' not found.",
+    )
+
+
 def test_login_with_key_and_no_workspaces(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
