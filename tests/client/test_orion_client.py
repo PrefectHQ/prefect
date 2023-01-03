@@ -35,6 +35,7 @@ from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
@@ -1142,6 +1143,19 @@ async def test_read_filtered_logs(session, orion_client, deployment):
     for log in logs:
         assert log.flow_run_id in flow_runs[:3]
         assert log.flow_run_id not in flow_runs[3:]
+
+
+async def test_default_prefect_api_tls_insecure_skip_verify_setting():
+
+    async with get_client() as client:
+        assert "verify" not in client.httpx_settings
+
+
+async def test_user_configured_prefect_api_tls_insecure_skip_verify_settingis_false():
+
+    with temporary_settings(set_defaults={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+        async with get_client() as client:
+            assert client.httpx_settings["verify"] == False
 
 
 class TestResolveDataDoc:

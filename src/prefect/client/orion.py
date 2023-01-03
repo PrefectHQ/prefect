@@ -97,6 +97,7 @@ class OrionClient:
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
+
         if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
             httpx_settings.setdefault("verify", False)
 
@@ -198,6 +199,8 @@ class OrionClient:
                         pool._retries = 3
 
         self.logger = get_logger("client")
+
+        self.httpx_settings = httpx_settings
 
     @property
     def api_url(self) -> httpx.URL:
