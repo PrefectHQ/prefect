@@ -709,7 +709,7 @@ class Block(BaseModel, ABC):
                 )
                 return cls.construct(**block_document.data, **missing_block_data)
             logging.exception(
-                f"Unable to load {block_document_name!r} of block type {cls.block_type_slug!r} "
+                f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
                 "due to failed validation. To load without validation, try loading again "
                 "with `validate=False`."
             )
