@@ -19,6 +19,9 @@ def get_cloud_client(
     httpx_settings: dict = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
+    """
+    Needs a docstring.
+    """
     if httpx_settings is not None:
         httpx_settings = httpx_settings.copy()
 
