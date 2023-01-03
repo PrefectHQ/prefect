@@ -44,13 +44,13 @@ Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect w
 
 **Concepts**
 
-Learn more about Prefect 2's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
+Learn more about Prefect 2's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 **Prefect UI & Prefect Cloud**
 
 See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make coordinating dataflows a joy.
 
-**Collections**
+**Integrations**
 
 Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/catalog/) learn about our pre-built integrations and see how to add your own.
 
