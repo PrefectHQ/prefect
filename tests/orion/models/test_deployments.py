@@ -9,6 +9,7 @@ import sqlalchemy as sa
 from prefect.orion import models, schemas
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS
 
 
 class TestCreateDeployment:
@@ -74,6 +75,20 @@ class TestCreateDeployment:
             ),
         )
         await session.commit()
+
+    async def test_create_deployment_with_worker_pool(
+        self, session, flow, worker_pool_queue
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                worker_pool_queue_id=worker_pool_queue.id,
+            ),
+        )
+
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id
 
     async def test_create_deployment_updates_existing_deployment(
         self,
@@ -584,7 +599,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
@@ -595,7 +610,8 @@ class TestScheduledRuns:
         assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100)
+            pendulum.now("UTC").start_of("day").add(days=i + 1)
+            for i in range(PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value())
         }
 
         actual_times = set()
@@ -610,7 +626,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         second_scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
@@ -618,7 +634,7 @@ class TestScheduledRuns:
 
         assert len(second_scheduled_runs) == 0
 
-        # only 100 runs were inserted
+        # only max runs runs were inserted
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.flow_id == flow.id,
@@ -627,13 +643,15 @@ class TestScheduledRuns:
         )
 
         db_scheduled_runs = query_result.scalars().all()
-        assert len(db_scheduled_runs) == 100
+        assert (
+            len(db_scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        )
 
     async def test_schedule_n_runs(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
-            session, deployment_id=deployment.id, max_runs=3
+            session, deployment_id=deployment.id, min_runs=5
         )
-        assert len(scheduled_runs) == 3
+        assert len(scheduled_runs) == 5
 
     async def test_schedule_does_not_error_if_theres_no_schedule(
         self, flow, flow_function, session
@@ -783,20 +801,45 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             end_time=pendulum.now("UTC").add(days=17),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
         assert len(scheduled_runs) == 17
+
+    async def test_schedule_runs_with_end_time_but_no_min_runs(
+        self, flow, deployment, session
+    ):
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            end_time=pendulum.now("UTC").add(days=17),
+        )
+        # because min_runs is 3, we should only get 3 runs because it satisfies the constraints
+        assert len(scheduled_runs) == 3
+
+    async def test_schedule_runs_with_min_time(self, flow, deployment, session):
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            min_time=datetime.timedelta(days=17),
+        )
+        assert len(scheduled_runs) == 18
 
     async def test_schedule_runs_with_start_time(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").add(days=100),
-            end_time=pendulum.now("UTC").add(days=150),
+            end_time=pendulum.now("UTC").add(days=110),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 150)
+            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 110)
         }
         actual_times = set()
         for run_id in scheduled_runs:
@@ -835,13 +878,16 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").subtract(days=1000),
-            end_time=pendulum.now("UTC").subtract(days=950),
+            end_time=pendulum.now("UTC").subtract(days=990),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
             pendulum.now("UTC").start_of("day").subtract(days=i)
-            for i in range(950, 1000)
+            for i in range(990, 1000)
         }
 
         actual_times = set()

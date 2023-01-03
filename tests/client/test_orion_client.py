@@ -804,6 +804,19 @@ async def test_set_then_read_flow_run_state(orion_client):
     assert states[1].message == "Test!"
 
 
+async def test_set_flow_run_state_404_is_object_not_found(orion_client):
+    @flow
+    def foo():
+        pass
+
+    await orion_client.create_flow_run(foo)
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        response = await orion_client.set_flow_run_state(
+            uuid4(),
+            state=Completed(message="Test!"),
+        )
+
+
 async def test_read_flow_runs_without_filter(orion_client):
     @flow
     def foo():
@@ -980,6 +993,7 @@ async def test_update_flow_run(orion_client):
             retries=1,
             retry_delay=2,
         ),
+        infrastructure_pid="infrastructure-123:1029",
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
@@ -990,6 +1004,7 @@ async def test_update_flow_run(orion_client):
         retries=1,
         retry_delay=2,
     )
+    assert updated_flow_run.infrastructure_pid == "infrastructure-123:1029"
 
 
 async def test_update_flow_run_overrides_tags(orion_client):
