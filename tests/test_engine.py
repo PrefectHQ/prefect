@@ -1130,7 +1130,7 @@ class TestOrchestrateTaskRun:
         assert await state.result() == 1
 
         # Check expected state transitions
-        states = await orion_client.read_task_run_states(task_run.id)
+        states = await orion_client.read_task_run_states(str(task_run.id))
         state_names = [state.type for state in states]
         assert state_names == [
             StateType.PENDING,
@@ -1599,7 +1599,7 @@ class TestOrchestrateFlowRun:
         assert await state.result() == 1
 
         # Check expected state transitions
-        states = await orion_client.read_flow_run_states(flow_run.id)
+        states = await orion_client.read_flow_run_states(str(flow_run.id))
         state_names = [state.type for state in states]
         assert state_names == [
             StateType.PENDING,
