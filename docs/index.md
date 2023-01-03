@@ -70,6 +70,10 @@ Prefect 2 is made possible by the fastest-growing community of data practitioner
 
 The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. 
 
+**Recipes**
+
+[Prefect Recipes](./recipes/recipes/) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
+
 ## Prefect highlights
 
 **Graceful failures**
