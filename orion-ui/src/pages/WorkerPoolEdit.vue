@@ -12,7 +12,6 @@
   import { useWorkspaceApi, PageHeadingWorkerPoolEdit, WorkerPoolEditForm } from '@prefecthq/orion-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import router from '@/router'
 
   const api = useWorkspaceApi()
   const workerPoolName = useRouteParam('workerPoolName')
