@@ -230,10 +230,9 @@ class BaseWorker(LoopService, abc.ABC):
         self._runs_task_group = None
         self._client = None
 
-    async def _add_base_template(self, worker_pool):
+    async def _set_worker_pool_template(self, worker_pool, job_template):
         await self._client.update_worker_pool(
-            worker_pool=worker_pool,
-            base_job_template=self._create_job_template(),
+            worker_pool=worker_pool, base_job_template=job_template
         )
 
     async def _on_start(self):
@@ -321,9 +320,10 @@ class BaseWorker(LoopService, abc.ABC):
                 )
 
         if not worker_pool.base_job_template:
-            worker_pool = await self._add_base_template(worker_pool)
+            job_template = self._create_job_template()
+            await self._set_worker_pool_template(worker_pool, job_template)
+            worker_pool.base_job_template = job_template
 
-        worker_pool.base_job_template = self.base_template
         self.worker_pool = worker_pool
 
         # ----------------------------------------------
@@ -481,11 +481,11 @@ class BaseWorker(LoopService, abc.ABC):
 
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
-    async def _create_job_template(self) -> dict:
-        if self.variables is None:
+    def _create_job_template(self) -> dict:
+        if self.job_configuration_variables is None:
             variables = self.job_configuration.schema()
         else:
-            variables = self.variables.schema()
+            variables = self.job_configuration_variables.schema()
         return {
             "job_configuration": self.job_configuration.json_template(),
             "variables": variables["properties"],
