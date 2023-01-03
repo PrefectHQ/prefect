@@ -62,12 +62,10 @@ async def create_flow_run(
             flow_run=flow_run,
             orchestration_parameters=orchestration_parameters,
         )
-        if model.created >= now:
-            response.status_code = status.HTTP_201_CREATED
+    if model.created >= now:
+        response.status_code = status.HTTP_201_CREATED
 
-        return await schemas.responses.FlowRunResponse.from_orm_model(
-            session=session, orm_flow_run=model
-        )
+    return model
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
