@@ -1151,7 +1151,7 @@ async def test_default_prefect_api_tls_insecure_skip_verify_setting():
         assert "verify" not in client.httpx_settings
 
 
-async def test_user_configured_prefect_api_tls_insecure_skip_verify_settingis_false():
+async def test_user_configured_prefect_api_tls_insecure_skip_verify_setting_is_false():
 
     with temporary_settings(set_defaults={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         async with get_client() as client:
