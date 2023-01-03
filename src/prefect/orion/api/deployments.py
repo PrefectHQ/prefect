@@ -26,7 +26,7 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.Deployment:
+) -> schemas.responses.DeploymentResponse:
     """
     Gracefully creates a new deployment from the provided schema. If a deployment with
     the same name and flow_id already exists, the deployment is updated.
@@ -72,10 +72,12 @@ async def create_deployment(
             session=session, deployment=deployment
         )
 
-    if model.created >= now:
-        response.status_code = status.HTTP_201_CREATED
+        if model.created >= now:
+            response.status_code = status.HTTP_201_CREATED
 
-    return model
+        return await schemas.responses.DeploymentResponse.from_orm_model(
+            session=session, orm_deployment=model
+        )
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,7 +99,7 @@ async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.Deployment:
+) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment using the name of the flow and the deployment.
     """
@@ -105,16 +107,20 @@ async def read_deployment_by_name(
         deployment = await models.deployments.read_deployment_by_name(
             session=session, name=deployment_name, flow_name=flow_name
         )
-    if not deployment:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found")
-    return deployment
+        if not deployment:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+        return await schemas.responses.DeploymentResponse.from_orm_model(
+            session=session, orm_deployment=deployment
+        )
 
 
 @router.get("/{id}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.Deployment:
+) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment by id.
     """
@@ -122,11 +128,13 @@ async def read_deployment(
         deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment_id
         )
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        if not deployment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+            )
+        return await schemas.responses.DeploymentResponse.from_orm_model(
+            session=session, orm_deployment=deployment
         )
-    return deployment
 
 
 @router.post("/filter")
@@ -143,12 +151,12 @@ async def read_deployments(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.Deployment]:
+) -> List[schemas.responses.DeploymentResponse]:
     """
     Query for deployments.
     """
     async with db.session_context() as session:
-        return await models.deployments.read_deployments(
+        response = await models.deployments.read_deployments(
             session=session,
             offset=offset,
             sort=sort,
@@ -160,6 +168,12 @@ async def read_deployments(
             worker_pool_filter=worker_pools,
             worker_pool_queue_filter=worker_pool_queues,
         )
+        return [
+            await schemas.responses.DeploymentResponse.from_orm_model(
+                session=session, orm_deployment=deployment
+            )
+            for deployment in response
+        ]
 
 
 @router.post("/count")
