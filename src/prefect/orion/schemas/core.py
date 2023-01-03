@@ -472,7 +472,8 @@ class TaskRun(ORMBaseModel):
         if cache_key:
             if len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value():
                 raise ValueError(
-                    f"Invalid cache_key length. Task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting."
+                    "Invalid cache_key length. The task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting, "
+                    "which means that you can change the maximum length of the cache_key by modifying the value of this setting on the server."
                 )
             return cache_key
 
