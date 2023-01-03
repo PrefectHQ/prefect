@@ -190,6 +190,25 @@ async def test_task_group_start_returns_job_pid(
         assert result == expected_value
 
 
+async def test_missing_job_returns_bad_status_code(
+    mock_k8s_batch_client,
+    mock_k8s_client,
+    mock_watch,
+    caplog,
+):
+    mock_k8s_batch_client.read_namespaced_job.side_effect = ApiException(
+        status=404, reason="Job not found"
+    )
+
+    k8s_job = KubernetesJob(command=["echo", "hello"])
+    result = await k8s_job.run()
+
+    _, _, job_name = k8s_job._parse_infrastructure_pid(result.identifier)
+
+    assert result.status_code == -1
+    assert f"Job {job_name!r} was removed" in caplog.text
+
+
 class TestKill:
     async def test_kill_calls_delete_namespaced_job(
         self,
