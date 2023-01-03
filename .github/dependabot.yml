@@ -25,7 +25,7 @@ updates:
       interval: "daily"
     labels: ["maintenance"]
 
-  # Check for Python updates 
+  # Check for Python updates in v1
   - package-ecosystem: "pip"
     target-branch: "1.x"
     directory: "/"
