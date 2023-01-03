@@ -407,6 +407,19 @@ class TestVisitCollection:
         result = visit_collection(foo, visit, context={}, return_data=True)
         assert result == quote([1, 2, [3]])
 
+    def test_visit_collection_remove_annotations(self):
+        foo = quote([1, 2, quote([3])])
+
+        def visit(expr, context):
+            if isinstance(expr, int):
+                return expr + 1
+            return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        assert result == [2, 3, [4]]
+
 
 class TestRemoveKeys:
     def test_remove_single_key(self):

@@ -459,7 +459,7 @@ class TestTaskSubmit:
             return b.result()
 
         result = test_flow()
-        assert isinstance(result, list)
+        assert isinstance(result, list), f"Expected list; got {type(result)}"
         assert isinstance(result[0], ValueError)
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)

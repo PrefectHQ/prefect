@@ -1402,10 +1402,6 @@ async def resolve_inputs(
         if isinstance(context.get("annotation"), quote):
             return expr
 
-        # Quotes are automatically unwrapped
-        if isinstance(expr, quote):
-            return expr.unquote()
-
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
@@ -1431,6 +1427,7 @@ async def resolve_inputs(
         visit_fn=resolve_input,
         return_data=return_data,
         max_depth=max_depth,
+        remove_annotations=True,
         context={},
     )
 

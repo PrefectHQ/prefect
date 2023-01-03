@@ -212,6 +212,7 @@ def visit_collection(
     return_data: bool = False,
     max_depth: int = -1,
     context: Optional[dict] = None,
+    remove_annotations: bool = False,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -252,6 +253,8 @@ def visit_collection(
             The context will be automatically populated with an 'annotation' key when
             visiting collections within a `BaseAnnotation` type. This requires the
             caller to pass `context={}` and will not be activated by default.
+        remove_annotations: If set, annotations will be replaced by their contents. By
+            default, annotations are preserved but their contents are visited.
     """
 
     def visit_nested(expr):
@@ -260,6 +263,7 @@ def visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
+            remove_annotations=remove_annotations,
             max_depth=max_depth - 1,
             # Copy the context on nested calls so it does not "propagate up"
             context=context.copy() if context is not None else None,
@@ -297,7 +301,11 @@ def visit_collection(
         if context is not None:
             context["annotation"] = expr
         value = visit_nested(expr.unwrap())
-        result = expr.rewrap(value) if return_data else None
+
+        if remove_annotations:
+            result = value if return_data else None
+        else:
+            result = expr.rewrap(value) if return_data else None
 
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
