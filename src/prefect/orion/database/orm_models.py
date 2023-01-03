@@ -768,7 +768,7 @@ class ORMDeployment:
     @declared_attr
     def worker_pool_queue(cls):
         return sa.orm.relationship(
-            "WorkerPoolQueue", lazy="raise", foreign_keys=[cls.worker_pool_queue_id]
+            "WorkerPoolQueue", lazy="joined", foreign_keys=[cls.worker_pool_queue_id]
         )
 
     @declared_attr
