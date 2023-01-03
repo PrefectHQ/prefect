@@ -10,7 +10,7 @@
       </template>
 
       <template v-else>
-        <WorkerPools />
+        <WorkerPools @update="workerPoolsSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
