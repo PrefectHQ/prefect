@@ -60,7 +60,7 @@ Prefect 2 represents a fundamentally new way of building and orchestrating dataf
 
 **API reference**
 
-Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works or see the expected payload for a REST endpoint.
 
 **Contributing**
 
@@ -82,7 +82,7 @@ Inevitably dataflows will fail. Prefect helps your code automatically retry on f
 
 **Notifications**
 
-You can easily set up e-mail or Slack notifications so that the right people are notified when something doesn't go as planned. 
+Easily set up e-mail, Slack, or PagerDuty notifications so that the right people are notified when something doesn't go as planned. 
 
 **Designed for performance**
 
@@ -103,6 +103,10 @@ Prefect makes it easy to send tasks to remote clusters for distributed parallel 
 **Works well with containers**
 
 Prefect is often used with [Docker and Kubernetes](/concepts/deployments/). 
+
+**Automations**
+
+Configure all sorts of actions to run in response to triggers via [automations](./io/ui/automations/).
 
 **Security first**
 

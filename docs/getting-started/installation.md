@@ -106,17 +106,16 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.3.2
-API version:         0.8.0
-Python version:      3.9.10
-Git commit:          ef452c04
-Built:               Thu, Sep 8, 2022 2:07 PM
-OS/Arch:             darwin/x86_64
+API version:         0.8.4
+Python version:      3.11.0
+Git commit:          d0f14f17
+Built:               Tue, Jan 3, 2023 8:46 AM
+OS/Arch:             darwin/arm64
 Profile:             default
 Server type:         ephemeral
 Server:
   Database:          sqlite
-  SQLite version:    3.32.3
+  SQLite version:    3.40.0
 ```
 </div>
 
@@ -154,6 +153,7 @@ When installing Prefect 2 and using a SQLite backend on Linux, make sure your en
 
 Known compatible releases include:
 
+- Ubuntu 22.04 LTS
 - Ubuntu 20.04 LTS
 
 You can also:
@@ -189,17 +189,18 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.*
-API version:         0.8.0
-Python version:      3.9.10
-Git commit:          ef452c04
-Built:               Thu, Sep 8, 2022 2:07 PM
-OS/Arch:             darwin/x86_64
+Version:             2.7.5
+API version:         0.8.4
+Python version:      3.11.0
+Git commit:          d0f14f17
+Built:               Tue, Jan 3, 2023 
+8:46 AM
+OS/Arch:             darwin/arm64
 Profile:             default
 Server type:         ephemeral
 Server:
   Database:          sqlite
-  SQLite version:    3.32.3
+  SQLite version:    3.40.0
 ```
 </div>
 
