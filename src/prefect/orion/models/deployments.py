@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 
 from prefect.orion import models, schemas
+from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -140,7 +141,19 @@ async def update_deployment(
 
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = deployment.dict(shallow=True, exclude_unset=True)
+    update_data = deployment.dict(
+        shallow=True,
+        exclude_unset=True,
+        exclude={"worker_pool_name", "worker_pool_queue_name"},
+    )
+    if deployment.worker_pool_name and deployment.worker_pool_queue_name:
+        update_data[
+            "worker_pool_queue_id"
+        ] = await WorkerLookups()._get_worker_pool_queue_id_from_name(
+            session=session,
+            worker_pool_name=deployment.worker_pool_name,
+            worker_pool_queue_name=deployment.worker_pool_queue_name,
+        )
 
     update_stmt = (
         sa.update(db.Deployment)

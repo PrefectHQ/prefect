@@ -12,6 +12,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
+from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -25,6 +26,7 @@ router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
+    worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
@@ -35,10 +37,20 @@ async def create_deployment(
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
 
-    # hydrate the input model into a full model
-    deployment = schemas.core.Deployment(**deployment.dict())
-
     async with db.session_context(begin_transaction=True) as session:
+        # hydrate the input model into a full model
+        deployment_dict = deployment.dict(
+            exclude={"worker_pool_name", "worker_pool_queue_name"}
+        )
+        if deployment.worker_pool_name and deployment.worker_pool_queue_name:
+            deployment_dict[
+                "worker_pool_queue_id"
+            ] = await worker_lookups._get_worker_pool_queue_id_from_name(
+                session=session,
+                worker_pool_name=deployment.worker_pool_name,
+                worker_pool_queue_name=deployment.worker_pool_queue_name,
+            )
+        deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:

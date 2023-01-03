@@ -974,3 +974,20 @@ class TestUpdateDeployment:
             session=session, name="wq-1"
         )
         assert wq is not None
+
+    async def test_update_worker_pool_deployment(
+        self, session, deployment, worker_pool, worker_pool_queue
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                worker_pool_name=worker_pool.name,
+                worker_pool_queue_name=worker_pool_queue.name,
+            ),
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.worker_pool_queue_id == worker_pool_queue.id
