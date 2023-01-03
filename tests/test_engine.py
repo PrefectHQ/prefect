@@ -1,5 +1,6 @@
 import asyncio
 import statistics
+import os
 import signal
 import time
 from contextlib import contextmanager
@@ -1434,23 +1435,16 @@ class TestFlowRunCrashes:
     async def test_report_flow_run_crashes_handles_sigterm(
         self, flow_run, orion_client, monkeypatch
     ):
-        original_handler = lambda args: args
-        signal_receiver = Mock(return_value=original_handler)
-        monkeypatch.setattr("signal.signal", signal_receiver)
+        original_handler = Mock()
+        signal.signal(signal.SIGTERM, original_handler)
 
-        async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
-            assert signal_receiver.call_args_list[0][0][0] == signal.SIGTERM
-            signal_handler = signal_receiver.call_args_list[0][0][1]
+        with pytest.raises(TerminationSignal):
+            async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
+                assert signal.getsignal(signal.SIGTERM) != original_handler
+                os.kill(os.getpid(), signal.SIGTERM)
 
-            # Call the signal handler and expect that it raises a
-            # `TerminationSignal` exception.
-            with pytest.raises(TerminationSignal):
-                signal_handler()
-
-        # The original handler should be restorted when the context manager
-        # exits.
-        assert signal_receiver.call_args_list[1][0][0] == signal.SIGTERM
-        assert signal_receiver.call_args_list[1][0][1] == original_handler
+        original_handler.assert_called_once()
+        assert signal.getsignal(signal.SIGTERM) == original_handler
 
 
 class TestTaskRunCrashes:
