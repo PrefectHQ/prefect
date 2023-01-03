@@ -132,22 +132,17 @@ async def read_work_queue_runs(
             limit=limit,
         )
 
-        # The Prefect UI often calls this route to see which runs are enqueued.
-        # We do not want to record this as an actual poll event.
-        if not x_prefect_ui:
-            background_tasks.add_task(
-                _record_work_queue_polls,
-                db=db,
-                work_queue_id=work_queue_id,
-                agent_id=agent_id,
-            )
+    # The Prefect UI often calls this route to see which runs are enqueued.
+    # We do not want to record this as an actual poll event.
+    if not x_prefect_ui:
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_queue_id=work_queue_id,
+            agent_id=agent_id,
+        )
 
-        return [
-            await schemas.responses.FlowRunResponse.from_orm_model(
-                session=session, orm_flow_run=fr
-            )
-            for fr in flow_runs
-        ]
+    return flow_runs
 
 
 async def _record_work_queue_polls(

@@ -353,9 +353,7 @@ async def create_flow_run_from_deployment(
         )
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
-        return await schemas.responses.FlowRunResponse.from_orm_model(
-            session=session, orm_flow_run=model
-        )
+        return model
 
 
 # DEPRECATED

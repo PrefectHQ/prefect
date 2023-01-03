@@ -183,10 +183,8 @@ class FlowRunResponse(ORMBaseModel):
     state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
 
     @classmethod
-    async def from_orm_model(
-        cls, session, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"
-    ):
-        response = cls.from_orm(orm_flow_run)
+    def from_orm(cls, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"):
+        response = super().from_orm(orm_flow_run)
         if orm_flow_run.worker_pool_queue:
             response.worker_pool_queue_name = orm_flow_run.worker_pool_queue.name
             response.worker_pool_name = orm_flow_run.worker_pool_queue.worker_pool.name
