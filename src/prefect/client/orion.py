@@ -1594,7 +1594,7 @@ class OrionClient:
                 of the flow run states
         """
         response = await self._client.get(
-            "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
+            "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
         )
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
@@ -1760,7 +1760,7 @@ class OrionClient:
             a list of State model representations of the task run states
         """
         response = await self._client.get(
-            "/task_run_states/", params=dict(task_run_id=task_run_id)
+            "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 

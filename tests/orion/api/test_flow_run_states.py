@@ -35,7 +35,7 @@ class TestReadFlowRunStateByFlowRunId:
         session,
     ):
         response = await client.get(
-            "/flow_run_states/", params=dict(flow_run_id=flow_run.id)
+            "/flow_run_states/", params=dict(flow_run_id=str(flow_run.id))
         )
         assert response.status_code == status.HTTP_200_OK
         response_state_ids = {state["id"] for state in response.json()}
