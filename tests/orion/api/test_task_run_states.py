@@ -29,7 +29,7 @@ class TestReadTaskRunStateById:
 class TestReadTaskRunStateByTaskRunId:
     async def test_read_task_run_state(self, task_run, task_run_states, client):
         response = await client.get(
-            "/task_run_states/", params=dict(task_run_id=task_run.id)
+            "/task_run_states/", params=dict(task_run_id=str(task_run.id))
         )
         assert response.status_code == status.HTTP_200_OK
         response_state_ids = {state["id"] for state in response.json()}
