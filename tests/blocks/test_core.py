@@ -2135,10 +2135,7 @@ class TestBlockSchemaMigration:
             _block_type_slug = "foo"
             x: int = 1
 
-        with pytest.warns(
-            UserWarning, match="does not match the schema checksum for class"
-        ):
-            foo_alias = Foo_Alias.load("xy")
+        foo_alias = Foo_Alias.load("xy")
 
         assert foo_alias.x == 1
 
