@@ -87,9 +87,7 @@ async def create_deployment(
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
 
-        return await schemas.responses.DeploymentResponse.from_orm_model(
-            session=session, orm_deployment=model
-        )
+        return schemas.responses.DeploymentResponse.from_orm(model)
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -123,9 +121,7 @@ async def read_deployment_by_name(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return await schemas.responses.DeploymentResponse.from_orm_model(
-            session=session, orm_deployment=deployment
-        )
+        return schemas.responses.DeploymentResponse.from_orm(deployment)
 
 
 @router.get("/{id}")
@@ -144,9 +140,7 @@ async def read_deployment(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
             )
-        return await schemas.responses.DeploymentResponse.from_orm_model(
-            session=session, orm_deployment=deployment
-        )
+        return schemas.responses.DeploymentResponse.from_orm(deployment)
 
 
 @router.post("/filter")
@@ -181,9 +175,7 @@ async def read_deployments(
             worker_pool_queue_filter=worker_pool_queues,
         )
         return [
-            await schemas.responses.DeploymentResponse.from_orm_model(
-                session=session, orm_deployment=deployment
-            )
+            schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
             for deployment in response
         ]
 

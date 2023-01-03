@@ -766,6 +766,12 @@ class ORMDeployment:
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
 
     @declared_attr
+    def worker_pool_queue(cls):
+        return sa.orm.relationship(
+            "WorkerPoolQueue", lazy="raise", foreign_keys=[cls.worker_pool_queue_id]
+        )
+
+    @declared_attr
     def __table_args__(cls):
         return (
             sa.Index(

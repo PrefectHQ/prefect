@@ -9,7 +9,6 @@ from uuid import UUID
 from pydantic import Field
 from typing_extensions import TYPE_CHECKING, Literal
 
-import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
 from prefect.orion.utilities.schemas import (
@@ -240,19 +239,14 @@ class DeploymentResponse(ORMBaseModel):
     )
 
     @classmethod
-    async def from_orm_model(
-        cls, session, orm_deployment: "prefect.orion.database.orm_models.ORMDeployment"
+    def from_orm(
+        cls, orm_deployment: "prefect.orion.database.orm_models.ORMDeployment"
     ):
-        response = cls.from_orm(orm_deployment)
-        if orm_deployment.worker_pool_queue_id:
-            worker_pool_queue = await models.workers.read_worker_pool_queue(
-                session=session,
-                worker_pool_queue_id=orm_deployment.worker_pool_queue_id,
+        response = super().from_orm(orm_deployment)
+        if orm_deployment.worker_pool_queue:
+            response.worker_pool_queue_name = orm_deployment.worker_pool_queue.name
+            response.worker_pool_name = (
+                orm_deployment.worker_pool_queue.worker_pool.name
             )
-            response.worker_pool_queue_name = worker_pool_queue.name
-            worker_pool = await models.workers.read_worker_pool(
-                session=session, worker_pool_id=worker_pool_queue.worker_pool_id
-            )
-            response.worker_pool_name = worker_pool.name
 
         return response
