@@ -62,10 +62,10 @@ async def create_flow_run(
             flow_run=flow_run,
             orchestration_parameters=orchestration_parameters,
         )
-    if model.created >= now:
-        response.status_code = status.HTTP_201_CREATED
+        if model.created >= now:
+            response.status_code = status.HTTP_201_CREATED
 
-    return model
+        return schemas.responses.FlowRunResponse.from_orm(model)
 
 
 @router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -156,9 +156,9 @@ async def read_flow_run(
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=flow_run_id
         )
-    if not flow_run:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-    return flow_run
+        if not flow_run:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+        return schemas.responses.FlowRunResponse.from_orm(flow_run)
 
 
 @router.get("/{id}/graph")
@@ -267,15 +267,15 @@ async def read_flow_runs(
             sort=sort,
         )
 
-    # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
-    # response to JSON, we do so more efficiently ourselves.
-    # In particular, the FastAPI encoder is very slow for large, nested objects.
-    # See: https://github.com/tiangolo/fastapi/issues/1224
-    encoded = [
-        schemas.responses.FlowRunResponse.from_orm(fr).dict(json_compatible=True)
-        for fr in db_flow_runs
-    ]
-    return ORJSONResponse(content=encoded)
+        # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
+        # response to JSON, we do so more efficiently ourselves.
+        # In particular, the FastAPI encoder is very slow for large, nested objects.
+        # See: https://github.com/tiangolo/fastapi/issues/1224
+        encoded = [
+            schemas.responses.FlowRunResponse.from_orm(fr).dict(json_compatible=True)
+            for fr in db_flow_runs
+        ]
+        return ORJSONResponse(content=encoded)
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
