@@ -49,6 +49,9 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 
 def get_client(httpx_settings: dict = None) -> "OrionClient":
+    """
+    Needs a docstring.
+    """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
     if not api:
@@ -79,11 +82,15 @@ class OrionClient:
 
         Say hello to an Orion server
 
+        <div class="terminal">
+        ```
         >>> async with get_client() as client:
         >>>     response = await client.hello()
         >>>
         >>> print(response.json())
         👋
+        ```
+        </div>
     """
 
     def __init__(
@@ -1587,7 +1594,7 @@ class OrionClient:
                 of the flow run states
         """
         response = await self._client.get(
-            "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
+            "/flow_run_states/", params=dict(flow_run_id=str(flow_run_id))
         )
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
@@ -1753,7 +1760,7 @@ class OrionClient:
             a list of State model representations of the task run states
         """
         response = await self._client.get(
-            "/task_run_states/", params=dict(task_run_id=task_run_id)
+            "/task_run_states/", params=dict(task_run_id=str(task_run_id))
         )
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
