@@ -62,7 +62,7 @@ Use the [Prefect Collection template](https://github.com/PrefectHQ/prefect-colle
 
 To list your collection in the Prefect Collections Catalog, submit a PR to the Prefect repository adding a file to the `docs/collections/catalog` directory with details about your collection. Please use `TEMPLATE.yaml` in that folder as a guide.
 
-## Contributing features or bug fixes to Collections
+## Contribute fixes or enhancements to Collections
 
 If you'd like to help contribute to fix an issue or add a feature to any of our Collections, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
 
