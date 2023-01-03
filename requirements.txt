@@ -9,6 +9,7 @@ cloudpickle >= 2.0
 coolname >= 1.0.4
 croniter >= 1.0.12
 cryptography >= 36.0.1
+dateparser >= 1.1.1
 docker >= 4.0
 fastapi >= 0.70
 fsspec >= 2022.5.0
