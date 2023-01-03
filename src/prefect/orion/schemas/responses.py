@@ -9,7 +9,6 @@ from uuid import UUID
 from pydantic import Field
 from typing_extensions import TYPE_CHECKING, Literal
 
-import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy
 from prefect.orion.utilities.schemas import (
@@ -188,15 +187,9 @@ class FlowRunResponse(ORMBaseModel):
         cls, session, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"
     ):
         response = cls.from_orm(orm_flow_run)
-        if orm_flow_run.worker_pool_queue_id:
-            worker_pool_queue = await models.workers.read_worker_pool_queue(
-                session=session, worker_pool_queue_id=orm_flow_run.worker_pool_queue_id
-            )
-            response.worker_pool_queue_name = worker_pool_queue.name
-            worker_pool = await models.workers.read_worker_pool(
-                session=session, worker_pool_id=worker_pool_queue.worker_pool_id
-            )
-            response.worker_pool_name = worker_pool.name
+        if orm_flow_run.worker_pool_queue:
+            response.worker_pool_queue_name = orm_flow_run.worker_pool_queue.name
+            response.worker_pool_name = orm_flow_run.worker_pool_queue.worker_pool.name
 
         return response
 
