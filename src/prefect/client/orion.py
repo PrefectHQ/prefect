@@ -975,8 +975,12 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            else:
-                raise
+            elif e.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+                for detail in e.response.json().get("exception_detail", []):
+                    message = detail.get("msg", "")
+                    if "name must only contain" in message:
+                        raise prefect.exceptions.InvalidNameError(message) from e
+            raise
         return BlockDocument.parse_obj(response.json())
 
     async def update_block_document(

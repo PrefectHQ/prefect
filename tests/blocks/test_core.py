@@ -14,7 +14,7 @@ from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import OrionClient
-from prefect.exceptions import PrefectHTTPStatusError
+from prefect.exceptions import InvalidNameError, PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
@@ -503,6 +503,16 @@ class TestAPICompatibility:
         assert "real_field" in api_block.data
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
+
+    @pytest.mark.parametrize("block_name", ["a_block", "a.block", "a/block"])
+    def test_create_block_document_invalid_characters(self, block_name):
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(InvalidNameError, match="must only contain"):
+            a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
