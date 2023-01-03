@@ -144,23 +144,6 @@ def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
     )
 
 
-def test_login_with_key_and_no_workspaces(respx_mock):
-    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
-        return_value=httpx.Response(
-            status.HTTP_200_OK,
-            json=[],
-        )
-    )
-    invoke_and_assert(
-        ["cloud", "login", "--key", "foo"],
-        expected_code=1,
-        user_input=readchar.key.ENTER,
-        expected_output_contains=[
-            f"No workspaces found! Create a workspace at {PREFECT_CLOUD_UI_URL.value()} and try again."
-        ],
-    )
-
-
 def test_login_with_key_and_workspace(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
@@ -192,6 +175,24 @@ def test_login_with_non_interactive_missing_args(args):
         ["cloud", "login", *args],
         expected_code=1,
         expected_output="When not using an interactive terminal, you must supply a `--key` and `--workspace`.",
+    )
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_login_with_key_and_no_workspaces(respx_mock):
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[],
+        )
+    )
+    invoke_and_assert(
+        ["cloud", "login", "--key", "foo"],
+        expected_code=1,
+        user_input=readchar.key.ENTER,
+        expected_output_contains=[
+            f"No workspaces found! Create a workspace at {PREFECT_CLOUD_UI_URL.value()} and try again."
+        ],
     )
 
 
