@@ -108,7 +108,7 @@ async def run_deployment(
             flow = await client.read_flow(deployment.flow_id)
             deployment_name = f"{flow.name}/{deployment.name}"
         else:
-            deployment_name = name_or_id
+            deployment_name = name
 
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
