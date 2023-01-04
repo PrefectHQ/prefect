@@ -5,8 +5,7 @@ Objects for specifying deployments and utilities for loading flows from deployme
 import importlib
 import json
 import sys
-from datetime import datetime, timezone
-from functools import partial
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
@@ -405,7 +404,7 @@ class Deployment(BaseModel):
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
-    timestamp: datetime = Field(default_factory=partial(datetime.now, tz=timezone.utc))
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):

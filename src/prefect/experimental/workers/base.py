@@ -1,13 +1,12 @@
 import abc
 from functools import partial
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
 import pendulum
-from fastapi import FastAPI
 from pydantic import BaseModel, ValidationError
 
 from prefect._internal.compatibility.experimental import experimental
@@ -20,11 +19,8 @@ from prefect.logging.loggers import get_logger
 from prefect.orion import schemas
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
-    PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_QUERY_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
-    PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS,
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
@@ -42,17 +38,13 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
-    default_pool_name = "Default Pool"
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
         name: str,
         worker_pool_name: str,
-        query_seconds: Optional[float] = None,
         prefetch_seconds: Optional[float] = None,
-        heartbeat_seconds: Optional[float] = None,
-        workflow_storage_scan_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
@@ -68,12 +60,7 @@ class BaseWorker(abc.ABC):
                 worker.
             worker_pool_name: The name of the worker pool to use. If not
                 provided, the default will be used.
-            query_seconds: The number of seconds to wait between each query for
-                scheduled flow runs.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            heartbeat_seconds: The number of seconds between each heartbeat.
-            workflow_storage_scan_seconds: The number of seconds between each
-                workflow storage scan for deployments.
             workflow_storage_path: The filesystem path to workflow storage for
                 this worker.
             create_pool_if_not_found: Whether to create the worker pool
@@ -87,38 +74,19 @@ class BaseWorker(abc.ABC):
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
         self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
 
-        self._query_seconds: float = (
-            query_seconds or PREFECT_WORKER_QUERY_SECONDS.value()
-        )
-
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
-        self._worker_pool_name = worker_pool_name or self.default_pool_name
+        self._worker_pool_name = worker_pool_name
 
-        self._heartbeat_seconds: float = (
-            heartbeat_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
-        )
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
-        )
-        self._workflow_storage_scan_seconds: float = (
-            workflow_storage_scan_seconds
-            or PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
         )
         self._workflow_storage_path: Path = (
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
-        if self._prefetch_seconds < self._query_seconds:
-            self._logger.warning(
-                "Prefetch seconds is less than loop seconds, "
-                "which could lead to unexpected delays scheduling flow runs."
-            )
-
         self._worker_pool: Optional[schemas.core.WorkerPool] = None
-        self._worker_pool_queues: List[schemas.core.WorkerPoolQueue] = []
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
-        self._loop_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[OrionClient] = None
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
@@ -159,13 +127,11 @@ class BaseWorker(abc.ABC):
         """Prepares the worker to run."""
         self._logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
-        self._loop_task_group = anyio.create_task_group()
         self.limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
         self._client = get_client()
         await self._client.__aenter__()
-        await self._loop_task_group.__aenter__()
         await self._runs_task_group.__aenter__()
         # Setup workflows directory
         self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
@@ -179,19 +145,16 @@ class BaseWorker(abc.ABC):
         if self._runs_task_group:
             self._runs_task_group.cancel_scope.cancel()
             await self._runs_task_group.__aexit__(*exc_info)
-        if self._loop_task_group:
-            self._loop_task_group.cancel_scope.cancel()
-            await self._loop_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
 
-    async def start(self):
+    async def start(self, task_group: anyio.abc.TaskGroup):
         """
         Starts the heartbeat and storage scan loops when the worker starts.
         """
-        if not self.is_setup or not self._loop_task_group:
+        if not self.is_setup:
             raise RuntimeError(
                 f"Worker has not been setup. Use `async with {self.__class__.__name__}()...`"
             )
@@ -200,7 +163,7 @@ class BaseWorker(abc.ABC):
         # perform initial scan of storage
         await self.scan_storage_for_deployments()
         # schedule the scheduled flow run polling loop to run every `query_seconds`
-        self._loop_task_group.start_soon(
+        task_group.start_soon(
             partial(
                 critical_service_loop,
                 workload=self._get_and_submit_flow_runs,
@@ -209,7 +172,7 @@ class BaseWorker(abc.ABC):
             )
         )
         # schedule the sync loop to run every `heartbeat_seconds`
-        self._loop_task_group.start_soon(
+        task_group.start_soon(
             partial(
                 critical_service_loop,
                 workload=self.sync_worker,
@@ -217,8 +180,8 @@ class BaseWorker(abc.ABC):
                 printer=self._logger.debug,
             )
         )
-        # schedule the storage scan loop to run
-        self._loop_task_group.start_soon(
+        # schedule the storage scan loop to run every `_workflow_storage_scan_seconds`
+        task_group.start_soon(
             partial(
                 critical_service_loop,
                 workload=self.scan_storage_for_deployments,
@@ -227,13 +190,7 @@ class BaseWorker(abc.ABC):
             )
         )
 
-    async def _get_and_submit_flow_runs(self):
-        # if the pool is paused or has a 0 concurrency limit, don't bother polling
-        if self._worker_pool and (
-            self._worker_pool.is_paused or self._worker_pool.concurrency_limit == 0
-        ):
-            return
-
+    async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
         await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
@@ -267,18 +224,6 @@ class BaseWorker(abc.ABC):
                 )
         self._worker_pool = worker_pool
 
-    async def _update_local_queue_list(self):
-        if self._worker_pool:
-            worker_pool_queues = await self._client.read_worker_pool_queues(
-                worker_pool_name=self._worker_pool_name
-            )
-            for new_queue in set(q.name for q in worker_pool_queues).difference(
-                q.name for q in self._worker_pool_queues
-            ):
-                self._logger.info(f"Found new queue {new_queue!r}")
-
-            self._worker_pool_queues = worker_pool_queues
-
     async def _send_worker_heartbeat(self):
         if self._worker_pool:
             await self._client.send_worker_heartbeat(
@@ -292,11 +237,9 @@ class BaseWorker(abc.ABC):
         """
         await self._update_local_worker_pool_info()
 
-        await self._update_local_queue_list()
-
         await self._send_worker_heartbeat()
 
-        self._logger.debug(f"Worker synchronized with Orion server.")
+        self._logger.debug("Worker synchronized with Orion server.")
 
     async def scan_storage_for_deployments(self):
         """
@@ -312,25 +255,24 @@ class BaseWorker(abc.ABC):
 
     async def _attempt_to_apply_deployment(self, deployment_manifest_path: Path):
         """
-        Attempts to apply a deployment frm a discovered .yaml file. Will not apply
+        Attempts to apply a deployment from a discovered .yaml file. Will not apply
         if validation fails when loading the deployment from the discovered .yaml file.
         """
         try:
             deployment = await Deployment.load_from_yaml(str(deployment_manifest_path))
             # Update path to match worker's file system instead of submitters so that
             # deployment will run successfully when scheduled
+            # TODO: Revisit once deployment experience is created
             deployment.path = str(deployment_manifest_path.parent)
 
             await self.verify_submitted_deployment(deployment)
-
-            async with get_client() as client:
-                try:
-                    api_deployment = await client.read_deployment_by_name(
-                        f"{deployment.flow_name}/{deployment.name}"
-                    )
-                    updated = api_deployment.updated
-                except ObjectNotFound:
-                    updated = None
+            try:
+                api_deployment = await self._client.read_deployment_by_name(
+                    f"{deployment.flow_name}/{deployment.name}"
+                )
+                updated = api_deployment.updated
+            except ObjectNotFound:
+                updated = None
             if updated is None:
                 await deployment.apply()
                 self._logger.info(
@@ -369,7 +311,6 @@ class BaseWorker(abc.ABC):
             scheduled_flow_runs = (
                 await self._client.get_scheduled_flow_runs_for_worker_pool_queues(
                     worker_pool_name=self._worker_pool_name,
-                    worker_pool_queue_names=[q.name for q in self._worker_pool_queues],
                     scheduled_before=scheduled_before,
                 )
             )
@@ -497,10 +438,6 @@ class BaseWorker(abc.ABC):
             "worker_pool": self._worker_pool.dict(json_compatible=True)
             if self._worker_pool is not None
             else None,
-            "worker_pool_queues": [
-                worker_pool_queue.dict(json_compatible=True)
-                for worker_pool_queue in self._worker_pool_queues
-            ],
             "settings": {
                 "query_seconds": self._query_seconds,
                 "prefetch_seconds": self._prefetch_seconds,
@@ -573,32 +510,6 @@ class BaseWorker(abc.ABC):
                 self._logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
-
-    def create_app(self) -> FastAPI:
-        """
-        Creates a FastAPI app that allows a worker to expose an API.
-        """
-        app = FastAPI()
-
-        @app.on_event("startup")
-        async def start_worker():
-            self._logger.debug("Triggering startup action...")
-            if not self.is_setup or not self._loop_task_group:
-                raise RuntimeError(
-                    "Worker has not been setup. "
-                    f"Use `async with {self.__class__.__name__}()...`"
-                )
-            self._loop_task_group.start_soon(self.start)
-
-        @app.get("/health")
-        async def health() -> bool:
-            return True
-
-        @app.get("/status")
-        async def get_status() -> Dict:
-            return self.get_status()
-
-        return app
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

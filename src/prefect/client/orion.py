@@ -1915,7 +1915,39 @@ class OrionClient:
             json={"name": worker_name},
         )
 
-    async def read_worker_pool(self, worker_pool_name: str) -> WorkerPool:
+    async def read_workers_for_worker_pool(
+        self,
+        worker_pool_name: str,
+        worker_filter: Optional[schemas.filters.WorkerFilter] = None,
+        offset: Optional[int] = None,
+        limit: Optional[int] = None,
+    ) -> List[schemas.core.Worker]:
+        """
+        Reads workers for a given worker pool.
+
+        Args:
+            worker_pool_name: The name of the worker pool for which to get
+                member workers.
+            worker_filter: Criteria by which to filter workers.
+            limit: Limit for the worker query.
+            offset: Limit for the worker query.
+        """
+        response = await self._client.post(
+            f"/experimental/worker_pools/{worker_pool_name}/workers/filter",
+            json={
+                "worker_filter": (
+                    worker_filter.dict(json_compatible=True, exclude_unset=True)
+                    if worker_filter
+                    else None
+                ),
+                "offset": offset,
+                "limit": limit,
+            },
+        )
+
+        return pydantic.parse_obj_as(List[schemas.core.Worker], response.json())
+
+    async def read_worker_pool(self, worker_pool_name: str) -> schemas.core.WorkerPool:
         """
         Reads information for a given worker pool
 
@@ -1940,7 +1972,7 @@ class OrionClient:
     async def create_worker_pool(
         self,
         worker_pool: schemas.actions.WorkerPoolCreate,
-    ) -> WorkerPool:
+    ) -> schemas.core.WorkerPool:
         """
         Creates a worker pool with the provided configuration.
 
@@ -1957,18 +1989,71 @@ class OrionClient:
 
         return pydantic.parse_obj_as(WorkerPool, response.json())
 
-    async def read_worker_pool_queues(self, worker_pool_name: str):
+    async def read_worker_pool_queues(
+        self, worker_pool_name: str
+    ) -> List[schemas.core.WorkerPoolQueue]:
+        """
+        Retrieves queues for a worker pool.
+
+        Args:
+            worker_pool_name: Name of the worker pool for which to get queues.
+
+        Returns:
+            List of queues for the specified worker pool.
+        """
         response = await self._client.get(
             f"/experimental/worker_pools/{worker_pool_name}/queues"
         )
 
         return pydantic.parse_obj_as(List[WorkerPoolQueue], response.json())
 
+    async def create_worker_pool_queue(
+        self,
+        worker_pool_name: str,
+        worker_pool_queue: schemas.actions.WorkerPoolQueueCreate,
+    ) -> schemas.core.WorkerPoolQueue:
+        """
+        Creates a queue for a given worker pool
+
+        Args:
+            worker_pool_name: Name of the worker pool to create the queue under.
+            worker_pool_queue: Desired configuration for the new queue.
+
+        Returns:
+            Information about the newly created queue.
+        """
+        response = await self._client.post(
+            f"/experimental/worker_pools/{worker_pool_name}/queues",
+            json=worker_pool_queue.dict(json_compatible=True, exclude_unset=True),
+        )
+
+        return pydantic.parse_obj_as(WorkerPoolQueue, response.json())
+
+    async def update_worker_pool_queue(
+        self,
+        worker_pool_name: str,
+        worker_pool_queue_name: str,
+        worker_pool_queue: schemas.actions.WorkerPoolQueueUpdate,
+    ):
+        """
+        Creates a queue for a given worker pool
+
+        Args:
+            worker_pool_name: Name of the worker pool in which the queue resides.
+            worker_pool_queue_name: Name of the worker pool queue to update
+            worker_pool_queue: Desired updates for the queue.
+
+        """
+        await self._client.patch(
+            f"/experimental/worker_pools/{worker_pool_name}/queues/{worker_pool_queue_name}",
+            json=worker_pool_queue.dict(json_compatible=True, exclude_unset=True),
+        )
+
     async def get_scheduled_flow_runs_for_worker_pool_queues(
         self,
         worker_pool_name: str,
-        worker_pool_queue_names: List[str],
-        scheduled_before: datetime.datetime,
+        worker_pool_queue_names: Optional[List[str]] = None,
+        scheduled_before: Optional[datetime.datetime] = None,
     ) -> List[WorkerFlowRunResponse]:
         """
         Retrieves scheduled flow runs for the provided set of worker pool queues.
@@ -1985,10 +2070,11 @@ class OrionClient:
             A list of worker flow run responses containing information about the
             retrieved flow runs.
         """
-        body = {
+        body: Dict[str, Any] = {
             "worker_pool_queue_names": worker_pool_queue_names,
-            "scheduled_before": str(scheduled_before),
         }
+        if scheduled_before:
+            body["scheduled_before"] = str(scheduled_before)
 
         response = await self._client.post(
             f"/experimental/worker_pools/{worker_pool_name}/get_scheduled_flow_runs",
