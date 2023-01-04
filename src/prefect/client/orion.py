@@ -1400,8 +1400,6 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
@@ -1415,8 +1413,6 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
-            worker_pool_filter: filter criteria for worker pools
-            worker_pool_queue_filter: filter criteria for worker pool queues
             limit: a limit for the deployment query
             offset: an offset for the deployment query
 
@@ -1435,16 +1431,6 @@ class OrionClient:
             "deployments": (
                 deployment_filter.dict(json_compatible=True)
                 if deployment_filter
-                else None
-            ),
-            "worker_pools": (
-                worker_pool_filter.dict(json_compatible=True)
-                if worker_pool_filter
-                else None
-            ),
-            "worker_pool_queues": (
-                worker_pool_queue_filter.dict(json_compatible=True)
-                if worker_pool_queue_filter
                 else None
             ),
             "limit": limit,
@@ -1519,6 +1505,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
         limit: int = None,
         offset: int = 0,
@@ -1532,6 +1520,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             sort: sort criteria for the flow runs
             limit: limit for the flow run query
             offset: offset for the flow run query
@@ -1551,6 +1541,16 @@ class OrionClient:
             "deployments": (
                 deployment_filter.dict(json_compatible=True)
                 if deployment_filter
+                else None
+            ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
                 else None
             ),
             "sort": sort,
