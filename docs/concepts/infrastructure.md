@@ -223,11 +223,11 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
 | job	| The base manifest for the Kubernetes Job. |
-| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (default 5). |
+| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (defaults to None). |
 | labels | Dictionary of labels to add to the Job. |
 | name | An optional name for the job. |
 | namespace | String signifying the Kubernetes namespace to use. |
-| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 5). |
+| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 60). |
 | restart_policy | The Kubernetes restart policy to use for Jobs. |
 | service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
