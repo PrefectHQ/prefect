@@ -67,7 +67,7 @@ class KubernetesJob(Infrastructure):
         labels: An optional dictionary of labels to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
-        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
         finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
