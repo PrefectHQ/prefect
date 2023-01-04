@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import BaseModel, Field, SecretBytes, SecretStr
 from pydantic.fields import ModelField
 
 import prefect
@@ -2098,7 +2098,9 @@ class TestBlockSchemaMigration:
 
         A.__fields__.update(new_field)  # simulate a schema change
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(
+            RuntimeError, match="try loading again with `validate=False`"
+        ):
             A.load("test")
 
     def test_add_field_to_schema_with_skip_validation(self, new_field):
