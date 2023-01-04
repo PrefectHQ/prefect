@@ -1,7 +1,7 @@
 import asyncio
-import statistics
 import os
 import signal
+import statistics
 import time
 from contextlib import contextmanager
 from functools import partial
