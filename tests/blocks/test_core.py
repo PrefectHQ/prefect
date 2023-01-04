@@ -7,14 +7,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import OrionClient
-from prefect.exceptions import InvalidNameError, PrefectHTTPStatusError
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
@@ -504,14 +504,31 @@ class TestAPICompatibility:
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
 
-    @pytest.mark.parametrize("block_name", ["a_block", "a.block", "a/block"])
-    def test_create_block_document_invalid_characters(self, block_name):
+    @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
+    def test_create_block_document_create_invalid_characters(self, block_name):
+        """This gets raised on instantiation of BlockDocumentCreate"""
+
         @register_type
         class ABlock(Block):
             a_field: str
 
         a_block = ABlock(a_field="my_field")
-        with pytest.raises(InvalidNameError, match="must only contain"):
+        with pytest.raises(ValidationError, match="name must only contain"):
+            a_block.save(block_name)
+
+    @pytest.mark.parametrize("block_name", ["a/block", "a\\\block"])
+    def test_create_block_document_invalid_characters_slash(self, block_name):
+        """
+        This gets raised on instantiation of BlockDocument which shares
+        INVALID_CHARACTERS with Flow, Deployment, etc.
+        """
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="Must not contain any of"):
             a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(

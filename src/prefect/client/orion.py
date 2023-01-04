@@ -962,6 +962,16 @@ class OrionClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        if isinstance(block_document, BlockDocument):
+            block_document_kwargs = block_document.dict(
+                json_compatible=True,
+                include_secrets=include_secrets,
+                exclude_unset=True,
+                exclude={"id", "block_schema", "block_type"},
+            )
+            block_document = schemas.actions.BlockDocumentCreate(
+                **block_document_kwargs
+            )
         try:
             response = await self._client.post(
                 "/block_documents/",
@@ -975,12 +985,6 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
-            elif e.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
-                for detail in e.response.json().get("exception_detail", []):
-                    message = detail.get("msg", "")
-                    if "name must only contain" in message:
-                        raise prefect.exceptions.InvalidNameError(message) from e
-            raise
         return BlockDocument.parse_obj(response.json())
 
     async def update_block_document(
