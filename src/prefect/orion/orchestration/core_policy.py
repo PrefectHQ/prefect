@@ -30,6 +30,7 @@ from prefect.orion.orchestration.rules import (
 )
 from prefect.orion.schemas import core, filters, states
 from prefect.orion.schemas.states import StateType
+from prefect.utilities.math import clamped_poisson_interval
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -353,11 +354,24 @@ class RetryFailedTasks(BaseOrchestrationRule):
     ) -> None:
         run_settings = context.run_settings
         run_count = context.run.run_count
+        delay = run_settings.retry_delay
+
+        if isinstance(delay, list):
+            base_delay = delay[min(run_count - 1, len(delay) - 1)]
+        else:
+            base_delay = run_settings.retry_delay or 0
+
+        # guard against negative relative jitter inputs
+        if run_settings.retry_jitter_factor:
+            delay = clamped_poisson_interval(
+                base_delay, clamping_factor=run_settings.retry_jitter_factor
+            )
+        else:
+            delay = base_delay
+
         if run_settings.retries is not None and run_count <= run_settings.retries:
             retry_state = states.AwaitingRetry(
-                scheduled_time=pendulum.now("UTC").add(
-                    seconds=run_settings.retry_delay or 0
-                ),
+                scheduled_time=pendulum.now("UTC").add(seconds=delay),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
@@ -436,9 +450,11 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if not scheduled_time:
             return
 
-        # At this moment, we take the floor of the actual delay as the API schema
+        # At this moment, we round delay to the nearest second as the API schema
         # specifies an integer return value.
-        delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
+        delay = scheduled_time - pendulum.now()
+        delay_seconds = delay.in_seconds()
+        delay_seconds += round(delay.microseconds / 1e6)
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"

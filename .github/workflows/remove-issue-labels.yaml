@@ -1,0 +1,12 @@
+name: Remove Labels
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  remove_label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove label
+        run: gh issue edit ${{ github.event.issue.number }} --remove-label "status:triage"
