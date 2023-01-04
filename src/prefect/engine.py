@@ -119,14 +119,6 @@ def enter_flow_run_engine_from_flow_call(
     This function does the heavy lifting of ensuring we can get into an async context
     for flow run execution with minimal overhead.
     """
-    if experiment_enabled("engine_v2"):
-
-        from prefect._internal.engine.flows import enter_engine_from_flow_call
-
-        return enter_engine_from_flow_call(
-            flow=flow, parameters=parameters, wait_for=wait_for, return_type=return_type
-        )
-
     setup_logging()
 
     registry = PrefectObjectRegistry.get()
@@ -147,6 +139,8 @@ def enter_flow_run_engine_from_flow_call(
     parent_flow_run_context = FlowRunContext.get()
     is_subflow_run = parent_flow_run_context is not None
 
+    print(parent_flow_run_context)
+
     if wait_for is not None and not is_subflow_run:
         raise ValueError("Only flows run as subflows can wait for dependencies.")
 
@@ -158,6 +152,15 @@ def enter_flow_run_engine_from_flow_call(
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
+
+    if experiment_enabled("engine_v2"):
+        from prefect._internal.engine.flows import enter_engine_with_runtime
+
+        return enter_engine_with_runtime(
+            call=begin_run,
+            flow=flow,
+            parent_flow_run_context=parent_flow_run_context,
+        )
 
     if not is_subflow_run:
         # Async flow run
@@ -430,6 +433,7 @@ async def create_and_begin_subflow_run(
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
     client: OrionClient,
+    runtime: Optional["Runtime"] = None,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -545,7 +549,7 @@ async def create_and_begin_subflow_run(
                     result_factory=result_factory,
                     log_prints=log_prints,
                 ),
-                runtime=parent_flow_run_context.runtime,
+                runtime=runtime,
             )
 
     # Display the full state (including the result) if debugging
@@ -917,14 +921,6 @@ def enter_task_run_engine(
     Sync entrypoint for task calls
     """
 
-    if experiment_enabled("engine_v2"):
-
-        from prefect._internal.engine.tasks import enter_engine_from_task_call
-
-        return enter_engine_from_task_call(
-            task=task, parameters=parameters, wait_for=wait_for, return_type=return_type
-        )
-
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
@@ -949,6 +945,15 @@ def enter_task_run_engine(
         return_type=return_type,
         task_runner=task_runner,
     )
+
+    if experiment_enabled("engine_v2"):
+        from prefect._internal.engine.tasks import enter_engine_with_runtime
+
+        return enter_engine_with_runtime(
+            call=begin_run,
+            task=task,
+            parent_flow_run_context=flow_run_context,
+        )
 
     # Async task run in async flow run
     if task.isasync and flow_run_context.flow.isasync:

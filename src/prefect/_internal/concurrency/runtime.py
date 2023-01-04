@@ -162,7 +162,11 @@ class Runtime:
         return self._is_async
 
     def run_in_thread(
-        self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+        self,
+        __fn: Callable[P, T],
+        *args: P.args,
+        __sync__: bool = None,
+        **kwargs: P.kwargs,
     ) -> T:
         """
         Run a function in a worker thread.
@@ -175,7 +179,7 @@ class Runtime:
 
         Returns the result of the function call.
         """
-        queue = self._get_callback_queue()
+        queue = self._get_callback_queue(sync=__sync__)
         with _FutureContext(callback_queue=queue):
             future = self._loop_thread.submit_to_worker_thread(__fn, *args, **kwargs)
         return self._wait_for_future(future, queue)
@@ -201,6 +205,7 @@ class Runtime:
         self,
         __fn: Callable[P, Awaitable[T]],
         *args: P.args,
+        __sync__: bool = None,
         **kwargs: P.kwargs,
     ) -> T:
         """
@@ -215,16 +220,25 @@ class Runtime:
             The result of the function call.
         """
 
-        queue = self._get_callback_queue()
+        queue = self._get_callback_queue(sync=__sync__)
         with _FutureContext(callback_queue=queue):
             future = self._loop_thread.submit_to_loop(__fn, *args, **kwargs)
         return self._wait_for_future(future, queue)
 
-    def _get_callback_queue(self) -> Union[Queue, asyncio.Queue]:
-        return Queue() if not self.is_async else asyncio.Queue()
+    def _get_callback_queue(
+        self,
+        sync: Optional[bool] = None,
+    ) -> Union[Queue, asyncio.Queue]:
+        return (
+            Queue()
+            if (not self.is_async if sync is None else sync)
+            else asyncio.Queue()
+        )
 
     def _put_in_callback_queue(
-        self, queue: Union[Queue, asyncio.Queue], item: Any
+        self,
+        queue: Union[Queue, asyncio.Queue],
+        item: Any,
     ) -> None:
         """
         Put an item in the given callback queue.
@@ -232,20 +246,22 @@ class Runtime:
         Ensures async queues are used in a threadsafe manner.
         """
         if isinstance(queue, asyncio.Queue):
-            self._owner_loop.call_soon_threadsafe(queue.put_nowait, item)
+            if self._owner_loop:
+                self._owner_loop.call_soon_threadsafe(queue.put_nowait, item)
+            else:
+                self._loop_thread._loop.call_soon_threadsafe(queue.put_nowait, item)
         else:
             queue.put_nowait(item)
 
     def _wait_for_future(
         self,
         future: "concurrent.futures.Future[T]",
-        queue: Queue,
-        sync: Optional[bool] = None,
+        queue: Union[asyncio.Queue, Queue],
     ) -> T:
         # Select the correct watcher for this context
         watcher = (
             self._wait_for_future_async
-            if (self.is_async if sync is None else sync)
+            if isinstance(queue, asyncio.Queue)
             else self._wait_for_future_sync
         )
 
