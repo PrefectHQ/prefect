@@ -539,8 +539,7 @@ class KubernetesJob(Infrastructure):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
-        # if `
-        ` is None, no timeout will be enforced
+        # if `pod_watch_timeout_seconds` is None, no timeout will be enforced
         watch = kubernetes.watch.Watch()
         self.logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
