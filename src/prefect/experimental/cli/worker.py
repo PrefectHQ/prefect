@@ -51,7 +51,7 @@ async def start(
     ) as worker:
         async with anyio.create_task_group() as tg:
             # wait for an initial heartbeat to configure the worker
-            await worker.sync_worker()
+            await worker.sync_with_backend()
             # perform initial scan of storage
             await worker.scan_storage_for_deployments()
             # schedule the scheduled flow run polling loop
@@ -67,7 +67,7 @@ async def start(
             tg.start_soon(
                 partial(
                     critical_service_loop,
-                    workload=worker.sync_worker,
+                    workload=worker.sync_with_backend,
                     interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
                     printer=worker._logger.debug,
                 )

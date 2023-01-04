@@ -159,7 +159,7 @@ class BaseWorker(abc.ABC):
                 f"Worker has not been setup. Use `async with {self.__class__.__name__}()...`"
             )
         # wait for an initial heartbeat to configure the worker
-        await self.sync_worker()
+        await self.sync_with_backend()
         # perform initial scan of storage
         await self.scan_storage_for_deployments()
         # schedule the scheduled flow run polling loop to run every `query_seconds`
@@ -175,7 +175,7 @@ class BaseWorker(abc.ABC):
         task_group.start_soon(
             partial(
                 critical_service_loop,
-                workload=self.sync_worker,
+                workload=self.sync_with_backend,
                 interval=self._heartbeat_seconds,
                 printer=self._logger.debug,
             )
@@ -230,7 +230,7 @@ class BaseWorker(abc.ABC):
                 worker_pool_name=self._worker_pool_name, worker_name=self.name
             )
 
-    async def sync_worker(self):
+    async def sync_with_backend(self):
         """
         Updates the worker's local information about it's current worker pool and
         queues. Sends a worker heartbeat to the API.
@@ -439,10 +439,7 @@ class BaseWorker(abc.ABC):
             if self._worker_pool is not None
             else None,
             "settings": {
-                "query_seconds": self._query_seconds,
                 "prefetch_seconds": self._prefetch_seconds,
-                "heartbeat_seconds": self._heartbeat_seconds,
-                "workflow_storage_scan_seconds": self._workflow_storage_scan_seconds,
                 "workflow_storage_path": self._workflow_storage_path,
             },
         }

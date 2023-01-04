@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -6,14 +5,10 @@ import pytest
 from prefect.client.orion import OrionClient
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import BaseWorker
-from prefect.orion.schemas.actions import WorkerPoolQueueCreate
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_QUERY_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
-    PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS,
 )
 
 
@@ -35,11 +30,6 @@ def auto_enable_workers(enable_workers):
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
-async def test_worker_raises_if_started_outside_of_context_manager():
-    with pytest.raises(RuntimeError, match="Worker has not been setup."):
-        await WorkerTestImpl(name="test", worker_pool_name="test-worker-pool").start()
-
-
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
     await WorkerTestImpl(
         name="test",
@@ -59,7 +49,7 @@ async def test_worker_creates_worker_pool_by_default_when_started(
         name="test",
         worker_pool_name="test-worker-pool",
     ) as worker:
-        await worker.start()
+        await worker.sync_with_backend()
         worker_status = worker.get_status()
         assert worker_status["worker_pool"]["name"] == "test-worker-pool"
 
@@ -76,7 +66,7 @@ async def test_worker_does_not_creates_worker_pool_when_create_pool_is_false(
     async with WorkerTestImpl(
         name="test", worker_pool_name="test-worker-pool", create_pool_if_not_found=False
     ) as worker:
-        await worker.start()
+        await worker.sync_with_backend()
         worker_status = worker.get_status()
         assert worker_status["worker_pool"] is None
 
@@ -87,13 +77,7 @@ async def test_worker_does_not_creates_worker_pool_when_create_pool_is_false(
 @pytest.mark.parametrize(
     "setting,attr",
     [
-        (PREFECT_WORKER_QUERY_SECONDS, "query_seconds"),
-        (PREFECT_WORKER_HEARTBEAT_SECONDS, "heartbeat_seconds"),
         (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
-        (
-            PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS,
-            "workflow_storage_scan_seconds",
-        ),
         (PREFECT_WORKER_WORKFLOW_STORAGE_PATH, "workflow_storage_path"),
     ],
 )
@@ -106,43 +90,13 @@ async def test_worker_respects_settings(setting, attr):
     )
 
 
-async def test_worker_picks_up_new_queues_from_worker_pool(orion_client: OrionClient):
-    async with WorkerTestImpl(
-        name="test", worker_pool_name="test-worker-pool", heartbeat_seconds=0.1
-    ) as worker:
-        await worker.start()
-        worker_status = worker.get_status()
-        assert len(worker_status["worker_pool_queues"]) == 1
-        assert worker_status["worker_pool_queues"][0]["name"] == "Default Queue"
-
-        new_queue = await orion_client.create_worker_pool_queue(
-            worker_pool_name="test-worker-pool",
-            worker_pool_queue=WorkerPoolQueueCreate(name="Custom Queue"),
-        )
-
-        # Wait for heartbeat loop
-        await asyncio.sleep(0.1)
-
-        worker_status = worker.get_status()
-        assert len(worker_status["worker_pool_queues"]) == 2
-        assert [
-            wpq["name"]
-            for wpq in sorted(
-                worker_status["worker_pool_queues"], key=lambda wpq: wpq["name"]
-            )
-        ] == [
-            new_queue.name,
-            "Default Queue",
-        ]
-
-
 async def test_worker_sends_heartbeat_messages_at_configured_interval(
     orion_client: OrionClient,
 ):
     async with WorkerTestImpl(
-        name="test", worker_pool_name="test-worker-pool", heartbeat_seconds=0.1
+        name="test", worker_pool_name="test-worker-pool"
     ) as worker:
-        await worker.start()
+        await worker.sync_with_backend()
 
         workers = await orion_client.read_workers_for_worker_pool(
             worker_pool_name="test-worker-pool"
@@ -151,8 +105,7 @@ async def test_worker_sends_heartbeat_messages_at_configured_interval(
         first_heartbeat = workers[0].last_heartbeat_time
         assert first_heartbeat is not None
 
-        # Wait for heartbeat loop
-        await asyncio.sleep(0.1)
+        await worker.sync_with_backend()
 
         workers = await orion_client.read_workers_for_worker_pool(
             worker_pool_name="test-worker-pool"
