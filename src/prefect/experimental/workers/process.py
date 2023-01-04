@@ -55,9 +55,9 @@ class ProcessWorker(BaseWorker):
         command = [sys.executable, "-m", "prefect.engine"]
 
         _use_threaded_child_watcher()
-        self.logger.info("Opening process...")
+        self._logger.info("Opening process...")
         with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
-            self.logger.debug(
+            self._logger.debug(
                 f"Process running command: {' '.join(command)} in {working_dir}"
             )
 
@@ -107,12 +107,12 @@ class ProcessWorker(BaseWorker):
                     "Typically, this is caused by manual cancellation."
                 )
 
-            self.logger.error(
+            self._logger.error(
                 f"Process{display_name} exited with status code: "
                 f"{process.returncode}" + (f"; {help_message}" if help_message else "")
             )
         else:
-            self.logger.info(f"Process{display_name} exited cleanly.")
+            self._logger.info(f"Process{display_name} exited cleanly.")
 
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)

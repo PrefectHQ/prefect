@@ -85,42 +85,42 @@ class BaseWorker(abc.ABC):
         if name and ("/" in name or "%" in name):
             raise ValueError("Worker name cannot contain '/' or '%'")
         self.name = name or f"{self.__class__.__name__} {uuid4()}"
-        self.logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
+        self._logger = get_logger(f"worker.{self.__class__.type}.{self.name.lower()}")
 
-        self.query_seconds: float = (
+        self._query_seconds: float = (
             query_seconds or PREFECT_WORKER_QUERY_SECONDS.value()
         )
 
         self.is_setup = False
-        self.create_pool_if_not_found = create_pool_if_not_found
-        self.worker_pool_name = worker_pool_name or self.default_pool_name
+        self._create_pool_if_not_found = create_pool_if_not_found
+        self._worker_pool_name = worker_pool_name or self.default_pool_name
 
-        self.heartbeat_seconds: float = (
+        self._heartbeat_seconds: float = (
             heartbeat_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
         )
-        self.prefetch_seconds: float = (
+        self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
-        self.workflow_storage_scan_seconds: float = (
+        self._workflow_storage_scan_seconds: float = (
             workflow_storage_scan_seconds
             or PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value()
         )
-        self.workflow_storage_path: Path = (
+        self._workflow_storage_path: Path = (
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
-        if self.prefetch_seconds < self.query_seconds:
-            self.logger.warning(
+        if self._prefetch_seconds < self._query_seconds:
+            self._logger.warning(
                 "Prefetch seconds is less than loop seconds, "
                 "which could lead to unexpected delays scheduling flow runs."
             )
 
-        self.worker_pool: Optional[schemas.core.WorkerPool] = None
-        self.worker_pool_queues: List[schemas.core.WorkerPoolQueue] = []
+        self._worker_pool: Optional[schemas.core.WorkerPool] = None
+        self._worker_pool_queues: List[schemas.core.WorkerPoolQueue] = []
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._loop_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[OrionClient] = None
-        self.limit = limit
+        self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
 
@@ -157,24 +157,24 @@ class BaseWorker(abc.ABC):
 
     async def setup(self):
         """Prepares the worker to run."""
-        self.logger.debug("Setting up worker...")
+        self._logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
         self._loop_task_group = anyio.create_task_group()
         self.limiter = (
-            anyio.CapacityLimiter(self.limit) if self.limit is not None else None
+            anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
         self._client = get_client()
         await self._client.__aenter__()
         await self._loop_task_group.__aenter__()
         await self._runs_task_group.__aenter__()
         # Setup workflows directory
-        self.workflow_storage_path.mkdir(parents=True, exist_ok=True)
+        self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
         self.is_setup = True
 
     async def teardown(self, *exc_info):
         """Cleans up resources after the worker is stopped."""
-        self.logger.debug("Tearing down worker...")
+        self._logger.debug("Tearing down worker...")
         self.is_setup = False
         if self._runs_task_group:
             self._runs_task_group.cancel_scope.cancel()
@@ -204,8 +204,8 @@ class BaseWorker(abc.ABC):
             partial(
                 critical_service_loop,
                 workload=self._get_and_submit_flow_runs,
-                interval=self.query_seconds,
-                printer=self.logger.debug,
+                interval=self._query_seconds,
+                printer=self._logger.debug,
             )
         )
         # schedule the sync loop to run every `heartbeat_seconds`
@@ -213,8 +213,8 @@ class BaseWorker(abc.ABC):
             partial(
                 critical_service_loop,
                 workload=self.sync_worker,
-                interval=self.heartbeat_seconds,
-                printer=self.logger.debug,
+                interval=self._heartbeat_seconds,
+                printer=self._logger.debug,
             )
         )
         # schedule the storage scan loop to run
@@ -222,15 +222,15 @@ class BaseWorker(abc.ABC):
             partial(
                 critical_service_loop,
                 workload=self.scan_storage_for_deployments,
-                interval=self.workflow_storage_scan_seconds,
-                printer=self.logger.debug,
+                interval=self._workflow_storage_scan_seconds,
+                printer=self._logger.debug,
             )
         )
 
     async def _get_and_submit_flow_runs(self):
         # if the pool is paused or has a 0 concurrency limit, don't bother polling
-        if self.worker_pool and (
-            self.worker_pool.is_paused or self.worker_pool.concurrency_limit == 0
+        if self._worker_pool and (
+            self._worker_pool.is_paused or self._worker_pool.concurrency_limit == 0
         ):
             return
 
@@ -240,46 +240,50 @@ class BaseWorker(abc.ABC):
     async def _update_local_worker_pool_info(self):
         try:
             worker_pool = await self._client.read_worker_pool(
-                worker_pool_name=self.worker_pool_name
+                worker_pool_name=self._worker_pool_name
             )
         except ObjectNotFound:
-            if self.create_pool_if_not_found:
+            if self._create_pool_if_not_found:
                 worker_pool = await self._client.create_worker_pool(
                     worker_pool=schemas.actions.WorkerPoolCreate(
-                        name=self.worker_pool_name, type=self.type
+                        name=self._worker_pool_name, type=self.type
                     )
                 )
-                self.logger.info(f"Worker pool {self.worker_pool_name!r} created.")
+                self._logger.info(f"Worker pool {self._worker_pool_name!r} created.")
             else:
-                self.logger.warning(f"Worker pool {self.worker_pool_name!r} not found!")
+                self._logger.warning(
+                    f"Worker pool {self._worker_pool_name!r} not found!"
+                )
                 return
 
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
-        if getattr(self.worker_pool, "type", 0) != worker_pool.type:
+        if getattr(self._worker_pool, "type", 0) != worker_pool.type:
             if worker_pool.type != self.__class__.type:
-                self.logger.warning(
+                self._logger.warning(
                     f"Worker type mismatch! This worker process expects type "
                     f"{self.type!r} but received {worker_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
-        self.worker_pool = worker_pool
+        self._worker_pool = worker_pool
 
     async def _update_local_queue_list(self):
-        worker_pool_queues = await self._client.read_worker_pool_queues(
-            worker_pool_name=self.worker_pool_name
-        )
-        for new_queue in set(q.name for q in worker_pool_queues).difference(
-            q.name for q in self.worker_pool_queues
-        ):
-            self.logger.info(f"Found new queue {new_queue!r}")
+        if self._worker_pool:
+            worker_pool_queues = await self._client.read_worker_pool_queues(
+                worker_pool_name=self._worker_pool_name
+            )
+            for new_queue in set(q.name for q in worker_pool_queues).difference(
+                q.name for q in self._worker_pool_queues
+            ):
+                self._logger.info(f"Found new queue {new_queue!r}")
 
-        self.worker_pool_queues = worker_pool_queues
+            self._worker_pool_queues = worker_pool_queues
 
     async def _send_worker_heartbeat(self):
-        await self._client.send_worker_heartbeat(
-            worker_pool_name=self.worker_pool_name, worker_name=self.name
-        )
+        if self._worker_pool:
+            await self._client.send_worker_heartbeat(
+                worker_pool_name=self._worker_pool_name, worker_name=self.name
+            )
 
     async def sync_worker(self):
         """
@@ -292,7 +296,7 @@ class BaseWorker(abc.ABC):
 
         await self._send_worker_heartbeat()
 
-        self.logger.debug(f"Worker synchronized with Orion server.")
+        self._logger.debug(f"Worker synchronized with Orion server.")
 
     async def scan_storage_for_deployments(self):
         """
@@ -300,8 +304,8 @@ class BaseWorker(abc.ABC):
         .yaml files are found in the workflow storage location, the worker will attempt
         to apply the deployments defined in the discovered manifests.
         """
-        self.logger.debug("Scanning %s for deployments", self.workflow_storage_path)
-        possible_deployment_files = self.workflow_storage_path.glob("*.yaml")
+        self._logger.debug("Scanning %s for deployments", self._workflow_storage_path)
+        possible_deployment_files = self._workflow_storage_path.glob("*.yaml")
         for possible_deployment_file in possible_deployment_files:
             if possible_deployment_file.is_file:
                 await self._attempt_to_apply_deployment(possible_deployment_file)
@@ -329,25 +333,25 @@ class BaseWorker(abc.ABC):
                     updated = None
             if updated is None:
                 await deployment.apply()
-                self.logger.info(
+                self._logger.info(
                     "Created new deployment %s/%s",
                     deployment.flow_name,
                     deployment.name,
                 )
             elif deployment.timestamp > updated:
                 await deployment.apply()
-                self.logger.info(
+                self._logger.info(
                     "Applied update to deployment %s/%s",
                     deployment.flow_name,
                     deployment.name,
                 )
         except ValidationError:
-            self.logger.exception(
+            self._logger.exception(
                 "Validation of deployment manifest %s failed.",
                 deployment_manifest_path,
             )
         except Exception:
-            self.logger.exception(
+            self._logger.exception(
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
 
@@ -357,17 +361,19 @@ class BaseWorker(abc.ABC):
         """
         Retrieve scheduled flow runs from the worker pool's queues.
         """
-        scheduled_before = pendulum.now("utc").add(seconds=int(self.prefetch_seconds))
-        self.logger.debug(f"Querying for flow runs scheduled before {scheduled_before}")
+        scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
+        self._logger.debug(
+            f"Querying for flow runs scheduled before {scheduled_before}"
+        )
         try:
             scheduled_flow_runs = (
                 await self._client.get_scheduled_flow_runs_for_worker_pool_queues(
-                    worker_pool_name=self.worker_pool_name,
-                    worker_pool_queue_names=[q.name for q in self.worker_pool_queues],
+                    worker_pool_name=self._worker_pool_name,
+                    worker_pool_queue_names=[q.name for q in self._worker_pool_queues],
                     scheduled_before=scheduled_before,
                 )
             )
-            self.logger.debug(
+            self._logger.debug(
                 f"Discovered {len(scheduled_flow_runs)} scheduled_flow_runs"
             )
             return scheduled_flow_runs
@@ -391,12 +397,12 @@ class BaseWorker(abc.ABC):
                 if self.limiter:
                     self.limiter.acquire_on_behalf_of_nowait(entry.flow_run.id)
             except anyio.WouldBlock:
-                self.logger.info(
+                self._logger.info(
                     f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
                 )
                 break
             else:
-                self.logger.info(f"Submitting flow run '{entry.flow_run.id}'")
+                self._logger.info(f"Submitting flow run '{entry.flow_run.id}'")
                 self._submitting_flow_run_ids.add(entry.flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
@@ -421,13 +427,13 @@ class BaseWorker(abc.ABC):
                         infrastructure_pid=str(readiness_result),
                     )
                 except Exception:
-                    self.logger.exception(
+                    self._logger.exception(
                         "An error occurred while setting the `infrastructure_pid` on "
                         f"flow run {flow_run.id!r}. The flow run will "
                         "not be cancellable."
                     )
 
-            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+            self._logger.info(f"Completed submission of flow run '{flow_run.id}'")
 
         else:
             # If the run is not ready to submit, release the concurrency slot
@@ -446,14 +452,14 @@ class BaseWorker(abc.ABC):
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
-                self.logger.exception(
+                self._logger.exception(
                     f"Failed to submit flow run '{flow_run.id}' to infrastructure."
                 )
                 # Mark the task as started to prevent agent crash
                 task_status.started(exc)
                 await self._propose_failed_state(flow_run, exc)
             else:
-                self.logger.exception(
+                self._logger.exception(
                     f"An error occurred while monitoring flow run '{flow_run.id}'. "
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
@@ -464,7 +470,7 @@ class BaseWorker(abc.ABC):
                 self.limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
-            self.logger.error(
+            self._logger.error(
                 f"Infrastructure returned without reporting flow run '{flow_run.id}' "
                 "as started or raising an error. This behavior is not expected and "
                 "generally indicates improper implementation of infrastructure. The "
@@ -488,19 +494,19 @@ class BaseWorker(abc.ABC):
         """
         return {
             "name": self.name,
-            "worker_pool": self.worker_pool.dict(json_compatible=True)
-            if self.worker_pool is not None
+            "worker_pool": self._worker_pool.dict(json_compatible=True)
+            if self._worker_pool is not None
             else None,
             "worker_pool_queues": [
                 worker_pool_queue.dict(json_compatible=True)
-                for worker_pool_queue in self.worker_pool_queues
+                for worker_pool_queue in self._worker_pool_queues
             ],
             "settings": {
-                "loop_seconds": self.query_seconds,
-                "prefetch_seconds": self.prefetch_seconds,
-                "heartbeat_seconds": self.heartbeat_seconds,
-                "storage_scan_seconds": self.workflow_storage_scan_seconds,
-                "workflow_storage_path": self.workflow_storage_path,
+                "loop_seconds": self._query_seconds,
+                "prefetch_seconds": self._prefetch_seconds,
+                "heartbeat_seconds": self._heartbeat_seconds,
+                "storage_scan_seconds": self._workflow_storage_scan_seconds,
+                "workflow_storage_path": self._workflow_storage_path,
             },
         }
 
@@ -511,19 +517,19 @@ class BaseWorker(abc.ABC):
                 self._client, Pending(), flow_run_id=flow_run.id
             )
         except Abort as exc:
-            self.logger.info(
+            self._logger.info(
                 f"Aborted submission of flow run '{flow_run.id}'. "
                 f"Server sent an abort signal: {exc}",
             )
             return False
         except Exception:
-            self.logger.exception(
+            self._logger.exception(
                 f"Failed to update state of flow run '{flow_run.id}'",
             )
             return False
 
         if not state.is_pending():
-            self.logger.info(
+            self._logger.info(
                 f"Aborted submission of flow run '{flow_run.id}': "
                 f"Server returned a non-pending state {state.type.value!r}",
             )
@@ -543,7 +549,7 @@ class BaseWorker(abc.ABC):
             # raise in the agent process
             pass
         except Exception:
-            self.logger.error(
+            self._logger.error(
                 f"Failed to update state of flow run '{flow_run.id}'",
                 exc_info=True,
             )
@@ -559,10 +565,12 @@ class BaseWorker(abc.ABC):
             # Flow run already marked as failed
             pass
         except Exception:
-            self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
+            self._logger.exception(
+                f"Failed to update state of flow run '{flow_run.id}'"
+            )
         else:
             if state.is_crashed():
-                self.logger.info(
+                self._logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
 
@@ -574,7 +582,7 @@ class BaseWorker(abc.ABC):
 
         @app.on_event("startup")
         async def start_worker():
-            self.logger.debug("Triggering startup action...")
+            self._logger.debug("Triggering startup action...")
             if not self.is_setup or not self._loop_task_group:
                 raise RuntimeError(
                     "Worker has not been setup. "
@@ -593,13 +601,13 @@ class BaseWorker(abc.ABC):
         return app
 
     async def __aenter__(self):
-        self.logger.debug("Entering worker context...")
+        self._logger.debug("Entering worker context...")
         await self.setup()
         return self
 
     async def __aexit__(self, *exc_info):
-        self.logger.debug("Exiting worker context...")
+        self._logger.debug("Exiting worker context...")
         await self.teardown(*exc_info)
 
     def __repr__(self):
-        return f"Worker(pool={self.worker_pool_name!r}, name={self.name!r})"
+        return f"Worker(pool={self._worker_pool_name!r}, name={self.name!r})"
