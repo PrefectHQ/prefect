@@ -3,6 +3,8 @@ query-filters:
       # this creates many false positives with our code
       id: py/unsafe-cyclic-import
   - exclude:
+      id: py/cyclic-import
+  - exclude:
       id: py/unreachable-statement
   - exclude:
       # catching base exceptions is required

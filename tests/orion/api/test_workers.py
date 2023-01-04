@@ -280,6 +280,57 @@ class TestCreateWorkerPoolQueue:
         assert result.description == "test queue"
 
 
+class TestReadWorkerPoolQueue:
+    async def test_read_worker_pool_queue(self, client, worker_pool):
+        # Create worker pool queue
+        create_response = await client.post(
+            f"/experimental/worker_pools/{worker_pool.name}/queues",
+            json=dict(name="test-queue", description="test queue"),
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+
+        read_response = await client.get(
+            f"/experimental/worker_pools/{worker_pool.name}/queues/test-queue"
+        )
+        assert read_response.status_code == status.HTTP_200_OK
+        result = pydantic.parse_obj_as(WorkerPoolQueue, read_response.json())
+        assert result.name == "test-queue"
+        assert result.description == "test queue"
+
+
+class TestUpdateWorkerPoolQueue:
+    async def test_update_worker_pool_queue(self, client, worker_pool):
+        # Create worker pool queue
+        create_response = await client.post(
+            f"/experimental/worker_pools/{worker_pool.name}/queues",
+            json=dict(name="test-queue", description="test queue"),
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+        create_result = pydantic.parse_obj_as(WorkerPoolQueue, create_response.json())
+        assert not create_result.is_paused
+
+        # Update worker pool queue
+        update_response = await client.patch(
+            f"/experimental/worker_pools/{worker_pool.name}/queues/test-queue",
+            json=dict(
+                name="updated-test-queue",
+                description="updated test queue",
+                is_paused=True,
+            ),
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT
+
+        # Read updated worker pool queue
+        read_response = await client.get(
+            f"/experimental/worker_pools/{worker_pool.name}/queues/updated-test-queue"
+        )
+        assert read_response.status_code == status.HTTP_200_OK
+        result = pydantic.parse_obj_as(WorkerPoolQueue, read_response.json())
+        assert result.name == "updated-test-queue"
+        assert result.description == "updated test queue"
+        assert result.is_paused
+
+
 class TestWorkerProcess:
     async def test_heartbeat_worker(self, client, worker_pool):
         workers_response = await client.post(
