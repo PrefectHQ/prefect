@@ -949,7 +949,7 @@ class OrionClient:
 
     async def create_block_document(
         self,
-        block_document: schemas.actions.BlockDocumentCreate,
+        block_document: Union[BlockDocument, schemas.actions.BlockDocumentCreate],
         include_secrets: bool = True,
     ) -> BlockDocument:
         """
@@ -969,9 +969,10 @@ class OrionClient:
                 exclude_unset=True,
                 exclude={"id", "block_schema", "block_type"},
             )
-            block_document = schemas.actions.BlockDocumentCreate(
-                **block_document_kwargs
+            block_document = schemas.actions.BlockDocumentCreate.parse_obj(
+                block_document_kwargs
             )
+
         try:
             response = await self._client.post(
                 "/block_documents/",
@@ -985,6 +986,8 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            else:
+                raise
         return BlockDocument.parse_obj(response.json())
 
     async def update_block_document(
