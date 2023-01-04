@@ -2,7 +2,7 @@
 
 ## Release 2.7.6
 
-This release fixes a critical bug in the SQLite database migrations in 2.7.5.
+This release fixes a critical bug in the SQLite database migrations in 2.7.4 and 2.7.5.
 
 See https://github.com/PrefectHQ/prefect/issues/8058 for details.
 
