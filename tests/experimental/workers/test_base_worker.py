@@ -85,18 +85,30 @@ async def test_worker_does_not_creates_worker_pool_when_create_pool_is_false(
 @pytest.mark.parametrize(
     "setting,attr",
     [
-        (PREFECT_WORKER_QUERY_SECONDS, "_query_seconds"),
-        (PREFECT_WORKER_HEARTBEAT_SECONDS, "_heartbeat_seconds"),
-        (PREFECT_WORKER_PREFETCH_SECONDS, "_prefetch_seconds"),
+        (PREFECT_WORKER_QUERY_SECONDS, "query_seconds"),
+        (PREFECT_WORKER_HEARTBEAT_SECONDS, "heartbeat_seconds"),
+        (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
         (
             PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS,
-            "_workflow_storage_scan_seconds",
+            "workflow_storage_scan_seconds",
         ),
-        (PREFECT_WORKER_WORKFLOW_STORAGE_PATH, "_workflow_storage_path"),
+        (PREFECT_WORKER_WORKFLOW_STORAGE_PATH, "workflow_storage_path"),
     ],
 )
 async def test_worker_respects_settings(setting, attr):
     assert (
-        getattr(WorkerTestImpl(name="test", worker_pool_name="test-worker-pool"), attr)
+        WorkerTestImpl(name="test", worker_pool_name="test-worker-pool").get_status()[
+            "settings"
+        ][attr]
         == setting.value()
     )
+
+
+async def test_worker_picks_up_new_queues_from_worker_pool(orion_client: OrionClient):
+    async with WorkerTestImpl(
+        name="test", worker_pool_name="test-worker-pool"
+    ) as worker:
+        await worker.start()
+        worker_status = worker.get_status()
+        assert len(worker_status["worker_pool_queues"]) == 1
+        assert worker_status["worker_pool_queues"][0]["name"] == "Default Queue"

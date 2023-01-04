@@ -502,10 +502,10 @@ class BaseWorker(abc.ABC):
                 for worker_pool_queue in self._worker_pool_queues
             ],
             "settings": {
-                "loop_seconds": self._query_seconds,
+                "query_seconds": self._query_seconds,
                 "prefetch_seconds": self._prefetch_seconds,
                 "heartbeat_seconds": self._heartbeat_seconds,
-                "storage_scan_seconds": self._workflow_storage_scan_seconds,
+                "workflow_storage_scan_seconds": self._workflow_storage_scan_seconds,
                 "workflow_storage_path": self._workflow_storage_path,
             },
         }
