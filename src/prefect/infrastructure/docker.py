@@ -233,7 +233,7 @@ class DockerContainer(Infrastructure):
     )
     memswap_limit: Union[int, str] = Field(
         default=None,
-        description="Total memory (memory + swap), -1 to disable swap",
+        description="Total memory (memory + swap), -1 to disable swap.",
     )
     mem_limit: Union[float, str] = Field(
         default=None,
