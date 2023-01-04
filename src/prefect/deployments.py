@@ -41,7 +41,7 @@ from prefect.utilities.slugify import slugify
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name_or_id: str,
+    name: str,
     client: OrionClient = None,
     parameters: dict = None,
     scheduled_time: datetime = None,
@@ -60,7 +60,7 @@ async def run_deployment(
     checking the state of the flow run if completion is important moving forward.
 
     Args:
-        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        name: The deployment id or deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
@@ -82,10 +82,14 @@ async def run_deployment(
 
     deployment_id = None
     try:
-        deployment_id = UUID(name_or_id)
-        deployment = await client.read_deployment(deployment_id=deployment_id)
+        deployment_id = UUID(name)
     except ValueError:
-        deployment = await client.read_deployment_by_name(name_or_id)
+        pass
+
+    if deployment_id:
+        deployment = await client.read_deployment(deployment_id=deployment_id)
+    else:
+        deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
