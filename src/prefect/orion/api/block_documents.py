@@ -113,7 +113,7 @@ async def delete_block_document(
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_block_document_data(
-    block_document: schemas.actions.BlockDocumentUpdate,
+    block_document: schemas.actions.BlockDocumentUpdate = Body(),
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
     ),
@@ -126,8 +126,11 @@ async def update_block_document_data(
                 block_document_id=block_document_id,
                 block_document=block_document,
             )
-    except ValueError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
     if not result:
         raise HTTPException(

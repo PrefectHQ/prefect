@@ -770,19 +770,9 @@ class Block(BaseModel, ABC):
                         name=name, block_type_slug=self.get_block_type_slug()
                     )
                     block_document_id = existing_block_document.id
-
-                block_schema_id = self._block_schema_id
-                if block_schema_id is None:
-                    existing_block_schema = await client.read_block_schema_by_checksum(
-                        checksum=self._calculate_schema_checksum(),
-                        version=self.get_block_schema_version(),
-                    )
-                    block_schema_id = existing_block_schema.id
-
                 await client.update_block_document(
                     block_document_id=block_document_id,
                     block_document=self._to_block_document(name=name),
-                    block_schema_id=block_schema_id,
                 )
                 block_document = await client.read_block_document(
                     block_document_id=block_document_id

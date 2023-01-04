@@ -492,10 +492,35 @@ async def update_block_document(
             new_block_document_references,
         ) = _separate_block_references_from_data(update_values["data"])
 
-        # encrypt the data
+        # encrypt the data and write updated data to the block document
         await current_block_document.encrypt_data(
             session=session, data=block_document_data_without_refs
         )
+
+        # `proposed_block_schema` is always the same as the schema on the client-side
+        # Block class that is calling `save`, which may or may not be the same schema
+        # as the one on the saved block document
+        proposed_block_schema_id = block_document.block_schema_id
+
+        # if a new schema is proposed, update the block schema id for the block document
+        if proposed_block_schema_id != current_block_document.block_schema_id:
+            proposed_block_schema = await session.get(
+                db.BlockSchema, proposed_block_schema_id
+            )
+
+            # make sure the proposed schema is of the same block type as the current document
+            if (
+                proposed_block_schema.block_type_id
+                != current_block_document.block_type_id
+            ):
+                raise ValueError(
+                    "Must migrate block document to a block schema of the same block type."
+                )
+            await session.execute(
+                sa.update(db.BlockDocument)
+                .where(db.BlockDocument.id == block_document_id)
+                .values(block_schema_id=proposed_block_schema_id)
+            )
 
         unchanged_block_document_references = []
         for secret_key, reference_block_document_id in new_block_document_references:
