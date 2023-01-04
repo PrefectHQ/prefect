@@ -1,5 +1,11 @@
 # Prefect Release Notes
 
+## Release 2.7.6
+
+This release fixes a critical bug in the SQLite database migrations in 2.7.5.
+
+See https://github.com/PrefectHQ/prefect/issues/8058 for details.
+
 ## Release 2.7.5
 
 ### Schedule flow runs and read logs from the CLI
