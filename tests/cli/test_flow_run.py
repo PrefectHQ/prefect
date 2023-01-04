@@ -461,7 +461,7 @@ class TestFlowRunLogs:
             expected_line_count=10,
         )
 
-    async def test_when_num_lines_passed_without_head_then_ignore_num_lines(
+    async def test_when_num_lines_passed_without_head_then_return_n_num_lines(
         self, flow_run_factory
     ):
         # Given
@@ -480,9 +480,9 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE + 1)
+                for i in range(10)
             ],
-            expected_line_count=self.PAGE_SIZE + 1,
+            expected_line_count=10,
         )
 
     async def test_when_num_lines_is_smaller_than_one_then_exit_with_error(

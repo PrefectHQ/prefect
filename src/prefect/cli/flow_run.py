@@ -148,26 +148,29 @@ async def logs(
         False,
         "--head",
         "-h",
-        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of the last 10 lines",
+        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of all logs",
     ),
     num_lines: int = typer.Option(
-        LOGS_HEAD_DEFAULT_NUM_LINES,
+        None,
         "--num-lines",
         "-n",
-        help=f"Number of lines to show when using the --head flag",
+        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_HEAD_DEFAULT_NUM_LINES}",
         min=1,
     ),
 ):
     """
     View logs for a flow run.
     """
-    # Pagination - API returns max 200 lines at a time
+    # Pagination - API returns max 200 (LOGS_PAGE_SIZE) lines at a time
     offset = 0
     more_logs = True
     num_logs_returned = 0
 
     # If head is specified, we need to stop after we've retrieved enough lines
-    user_specified_num_logs = num_lines if head else None
+    if head or num_lines:
+        user_specified_num_logs = num_lines or LOGS_HEAD_DEFAULT_NUM_LINES
+    else:
+        user_specified_num_logs = None
 
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
