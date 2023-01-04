@@ -1,6 +1,5 @@
 import hashlib
 import inspect
-import logging
 import sys
 import warnings
 from abc import ABC
@@ -708,12 +707,11 @@ class Block(BaseModel, ABC):
                     "load this block again before attempting to use it."
                 )
                 return cls.construct(**block_document.data, **missing_block_data)
-            logging.exception(
+            raise RuntimeError(
                 f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
                 "due to failed validation. To load without validation, try loading again "
                 "with `validate=False`."
-            )
-            raise
+            ) from e
 
     @staticmethod
     def is_block_class(block) -> bool:
