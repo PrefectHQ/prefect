@@ -12,6 +12,7 @@ import jinja2
 import pendulum
 import yaml
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, status
+from httpx import HTTPStatusError
 from pydantic import BaseModel, ValidationError
 
 from prefect._internal.compatibility.experimental import experimental
@@ -384,17 +385,28 @@ class BaseWorker(LoopService, abc.ABC):
                     updated = api_deployment.updated
                 except ObjectNotFound:
                     pass
-            if updated is None:
+
+            try:
                 await deployment.apply()
-                self.logger.info(
-                    "Created new deployment %s/%s",
-                    deployment.flow_name,
-                    deployment.name,
+            except HTTPStatusError as exc:
+                action = "update" if updated else "create"
+                details = exc.response.json().get(
+                    "detail", "No additional details provided"
                 )
-            elif deployment.timestamp > updated:
-                await deployment.apply()
+
+                self.logger.error(
+                    f"Prefect encountered an exception when trying to {action} deployment {deployment.name!r}: "
+                    f"{exc!r}. "
+                    f"Error details: {details}"
+                )
+            else:
+                success_message = (
+                    "Applied update to deployment %s/%s"
+                    if updated
+                    else "Created new deployment %s/%s"
+                )
                 self.logger.info(
-                    "Applied update to deployment %s/%s",
+                    success_message,
                     deployment.flow_name,
                     deployment.name,
                 )
@@ -489,7 +501,7 @@ class BaseWorker(LoopService, abc.ABC):
         return {
             "job_configuration": self.job_configuration.json_template(),
             "variables": variables["properties"],
-            "required": variables["required"],
+            "required": variables.get("required", []),
         }
 
     async def _submit_run_and_capture_errors(
