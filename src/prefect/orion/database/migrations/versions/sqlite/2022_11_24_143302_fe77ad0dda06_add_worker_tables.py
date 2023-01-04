@@ -265,4 +265,4 @@ def downgrade():
     op.drop_table("worker_pool")
     # ### end Alembic commands ###
 
-    op.execute("PRAGMA foreign_keys=OFF")
+    op.execute("PRAGMA foreign_keys=ON")
