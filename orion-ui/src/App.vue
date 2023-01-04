@@ -12,107 +12,17 @@
     </template>
     <ContextSidebar v-if="showMenu" class="app__sidebar" @click="close" />
     <suspense>
-      <AppRouterView />
+      <AppRouterView class="app__router-view" />
     </suspense>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import {
-    blockCapabilitiesApiKey,
-    blockCatalogViewRouteKey,
-    blockCatalogCreateRouteKey,
-    blockCatalogRouteKey,
-    blockDocumentsApiKey,
-    blockEditRouteKey,
-    blockRouteKey,
-    blockSchemasApiKey,
-    blocksRouteKey,
-    blockTypesApiKey,
-    canKey,
-    deploymentRouteKey,
-    deploymentsApiKey,
-    deploymentsRouteKey,
-    editDeploymentRouteKey,
-    editNotificationRouteKey,
-    editQueueRouteKey,
-    flowRouteKey,
-    flowRunCreateRouteKey,
-    flowRunRouteKey,
-    flowRunsApiKey,
-    flowRunsRouteKey,
-    flowsApiKey,
-    flowsRouteKey,
-    logsApiKey,
-    notificationCreateRouteKey,
-    notificationsApiKey,
-    notificationsRouteKey,
-    taskRunRouteKey,
-    settingsRouteKey,
-    taskRunsApiKey,
-    workQueueCreateRouteKey,
-    workQueueRouteKey,
-    workQueuesApiKey,
-    workQueuesRouteKey
-  } from '@prefecthq/orion-design'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
-  import { computed, provide, ref, watchEffect } from 'vue'
-  import { blockDocumentsApi } from './services/blockDocumentsApi'
-  import { blockSchemasApi } from './services/blockSchemasApi'
-  import { blockTypesApi } from './services/blockTypesApi'
-  import { notificationsApi } from './services/notificationsApi'
+  import { computed, ref, watchEffect } from 'vue'
   import ContextSidebar from '@/components/ContextSidebar.vue'
   import AppRouterView from '@/pages/AppRouterView.vue'
-  import { routes } from '@/router/routes'
-  import { blockCapabilitiesApi } from '@/services/blockCapabilitiesApi'
-  import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowRunsApi } from '@/services/flowRunsApi'
-  import { flowsApi } from '@/services/flowsApi'
-  import { logsApi } from '@/services/logsApi'
-  import { taskRunsApi } from '@/services/taskRunsApi'
-  import { workQueuesApi } from '@/services/workQueuesApi'
   import { healthCheck } from '@/utilities/api'
-  import { can } from '@/utilities/permissions'
-
-  provide(blockCapabilitiesApiKey, blockCapabilitiesApi)
-  provide(blockDocumentsApiKey, blockDocumentsApi)
-  provide(blockSchemasApiKey, blockSchemasApi)
-  provide(blockTypesApiKey, blockTypesApi)
-  provide(deploymentsApiKey, deploymentsApi)
-  provide(flowRunsApiKey, flowRunsApi)
-  provide(flowsApiKey, flowsApi)
-  provide(logsApiKey, logsApi)
-  provide(taskRunsApiKey, taskRunsApi)
-  provide(workQueuesApiKey, workQueuesApi)
-
-  provide(canKey, can)
-
-  provide(blockCatalogViewRouteKey, routes.blocksCatalogView)
-  provide(blockCatalogCreateRouteKey, routes.blocksCatalogCreate)
-  provide(blockCatalogRouteKey, routes.blocksCatalog)
-  provide(blockEditRouteKey, routes.blockEdit)
-  provide(blockRouteKey, routes.block)
-  provide(blocksRouteKey, routes.blocks)
-  provide(deploymentRouteKey, routes.deployment)
-  provide(editDeploymentRouteKey, routes.deploymentEdit)
-  provide(deploymentsRouteKey, routes.deployments)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(flowRouteKey, routes.flow)
-  provide(flowRunCreateRouteKey, routes.flowRunCreate)
-  provide(flowRunRouteKey, routes.flowRun)
-  provide(flowRunsRouteKey, routes.flowRuns)
-  provide(flowsRouteKey, routes.flows)
-  provide(settingsRouteKey, routes.settings)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(workQueueRouteKey, routes.workQueue)
-  provide(workQueueCreateRouteKey, routes.workQueueCreate)
-  provide(editQueueRouteKey, routes.workQueueEdit)
-  provide(notificationsApiKey, notificationsApi)
-  provide(notificationCreateRouteKey, routes.notificationCreate)
-  provide(editNotificationRouteKey, routes.notificationEdit)
-  provide(notificationsRouteKey, routes.notifications)
-  provide(taskRunRouteKey, routes.taskRun)
-  provide(workQueuesRouteKey, routes.workQueues)
 
   const mobileMenuOpen = ref(false)
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
@@ -137,10 +47,13 @@
 
 .app { @apply
   text-slate-900
+  flex
+  flex-col
 }
 
 .app {
   --prefect-scroll-margin: theme('spacing.20');
+  min-height: 100vh;
 }
 
 .app__prefect-icon { @apply
@@ -158,9 +71,14 @@
 @screen lg {
   .app {
     --prefect-scroll-margin: theme('spacing.2');
-
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
   }
+}
+
+.app__router-view {
+  /* The 1px flex-basis is important because it allows us to use height: 100% without additional flexing */
+  flex: 1 0 1px;
+  height: 100%;
 }
 </style>

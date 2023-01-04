@@ -20,6 +20,7 @@ from prefect.orion.schemas.filters import BlockSchemaFilter
 from prefect.orion.utilities.database import UUID as UUIDTypeDecorator
 from prefect.orion.utilities.names import obfuscate_string
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
+from prefect.utilities.names import obfuscate
 
 
 @inject_db
@@ -425,11 +426,16 @@ async def update_block_document(
     db: OrionDBInterface,
 ) -> bool:
 
+    merge_existing_data = block_document.merge_existing_data
     current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:
         return False
 
-    update_values = block_document.dict(shallow=True, exclude_unset=True)
+    update_values = block_document.dict(
+        shallow=True,
+        exclude_unset=merge_existing_data,
+        exclude={"merge_existing_data"},
+    )
 
     if "data" in update_values and update_values["data"] is not None:
         current_data = await current_block_document.decrypt_data(session=session)
@@ -440,19 +446,35 @@ async def update_block_document(
         # realizing they are posting back obfuscated data, so we disregard the update
         flat_update_data = dict_to_flatdict(update_values["data"])
         flat_current_data = dict_to_flatdict(current_data)
-        for field in current_block_document.block_schema.fields.get(
+        for secret_field in current_block_document.block_schema.fields.get(
             "secret_fields", []
         ):
-            key = tuple(field.split("."))
-            current_secret = flat_current_data.get(key)
+            secret_key = tuple(secret_field.split("."))
+            current_secret = flat_current_data.get(secret_key)
             if current_secret is not None:
-                if flat_update_data.get(key) == obfuscate_string(current_secret):
-                    del flat_update_data[key]
+                if flat_update_data.get(secret_key) == obfuscate_string(current_secret):
+                    del flat_update_data[secret_key]
+            # Looks for obfuscated values nested under a secret field with a wildcard.
+            # If any obfuscated values are found, we assume that it shouldn't be update,
+            # and they are replaced with the current value for that key to avoid losing
+            # data during update.
+            elif "*" in secret_key:
+                wildcard_index = secret_key.index("*")
+                for data_key in flat_update_data.keys():
+                    if (
+                        secret_key[0:wildcard_index] == data_key[0:wildcard_index]
+                    ) and (
+                        flat_update_data[data_key]
+                        == obfuscate(flat_update_data[data_key])
+                    ):
+                        flat_update_data[data_key] = flat_current_data[data_key]
+
         update_values["data"] = flatdict_to_dict(flat_update_data)
 
-        # merge the existing data and the new data for partial updates
-        current_data.update(update_values["data"])
-        update_values["data"] = current_data
+        if merge_existing_data:
+            # merge the existing data and the new data for partial updates
+            current_data.update(update_values["data"])
+            update_values["data"] = current_data
 
         current_block_document_references = (
             (
@@ -476,9 +498,11 @@ async def update_block_document(
         )
 
         unchanged_block_document_references = []
-        for key, reference_block_document_id in new_block_document_references:
+        for secret_key, reference_block_document_id in new_block_document_references:
             matching_current_block_document_reference = _find_block_document_reference(
-                current_block_document_references, key, reference_block_document_id
+                current_block_document_references,
+                secret_key,
+                reference_block_document_id,
             )
             if matching_current_block_document_reference is None:
                 await create_block_document_reference(
@@ -486,7 +510,7 @@ async def update_block_document(
                     block_document_reference=BlockDocumentReferenceCreate(
                         parent_block_document_id=block_document_id,
                         reference_block_document_id=reference_block_document_id,
-                        name=key,
+                        name=secret_key,
                     ),
                 )
             else:
@@ -526,10 +550,6 @@ async def create_block_document_reference(
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
     db: OrionDBInterface,
 ):
-    values = block_document_reference.dict(
-        shallow=True, exclude_unset=True, exclude={"created", "updated"}
-    )
-
     insert_stmt = (await db.insert(db.BlockDocumentReference)).values(
         **block_document_reference.dict(
             shallow=True, exclude_unset=True, exclude={"created", "updated"}

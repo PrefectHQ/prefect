@@ -4,7 +4,7 @@ Interface and implementations of various task runners.
 [Task Runners](/concepts/task-runners/) in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
 
 Example:
-
+    ```
     >>> from prefect import flow, task
     >>> from prefect.task_runners import SequentialTaskRunner
     >>> from typing import List
@@ -32,8 +32,10 @@ Example:
     goodbye ford
     hello marvin
     goodbye marvin
+    ```
 
     Switching to a `DaskTaskRunner`:
+    ```
     >>> from prefect_dask.task_runners import DaskTaskRunner
     >>> flow.task_runner = DaskTaskRunner()
     >>> greetings(["arthur", "trillian", "ford", "marvin"])
@@ -45,6 +47,7 @@ Example:
     hello marvin
     goodbye ford
     goodbye trillian
+    ```
 
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
@@ -216,14 +219,15 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     A concurrent task runner that allows tasks to switch when blocking on IO.
     Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 
-    Examples:
-
+    Example:
+        ```
         Using a thread for concurrency:
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
         >>> def my_flow():
         >>>     ...
+        ```
     """
 
     def __init__(self):
@@ -301,6 +305,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         Block until the run result has been populated.
         """
         result = None  # Return value on timeout
+        result_event = self._result_events.get(key)
 
         with anyio.move_on_after(timeout):
 
@@ -308,7 +313,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
             # than the spin-lock that follows but does not work if the wait call
             # happens from an event loop in a different thread than the one from which
             # the event was created
-            result_event = self._result_events[key]
+
+            while not result_event:
+                await anyio.sleep(0)  # yield to other tasks
+                result_event = self._result_events.get(key)
+
             if result_event._event._loop == asyncio.get_running_loop():
                 await result_event.wait()
 

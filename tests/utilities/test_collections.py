@@ -1,3 +1,4 @@
+import io
 import json
 import uuid
 from dataclasses import dataclass
@@ -259,6 +260,30 @@ class TestVisitCollection:
         assert result is None
         assert VISITED == expected
 
+    @pytest.mark.parametrize(
+        "inp,expected",
+        [
+            (sorted([1, 2, 3]), [1, -2, 3]),
+            # Not treated as iterators:
+            ("test", "test"),
+            (b"test", b"test"),
+        ],
+    )
+    def test_visit_collection_iterators(self, inp, expected):
+        result = visit_collection(inp, visit_fn=negative_even_numbers, return_data=True)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        "inp",
+        [
+            io.StringIO("test"),
+            io.BytesIO(b"test"),
+        ],
+    )
+    def test_visit_collection_io_iterators(self, inp):
+        result = visit_collection(inp, visit_fn=lambda x: x, return_data=True)
+        assert result is inp
+
     def test_visit_collection_allows_mutation_of_nodes(self):
         def collect_and_drop_x_from_dicts(node):
             add_to_visited_list(node)
@@ -399,10 +424,26 @@ class TestVisitCollection:
         foo = quote([1, 2, [3]])
 
         def visit(expr, context):
-            assert isinstance(context.get("annotation"), quote)
+            # If we're not visiting the first expression...
+            if not isinstance(expr, quote):
+                assert isinstance(context.get("annotation"), quote)
+            return expr
 
         result = visit_collection(foo, visit, context={}, return_data=True)
         assert result == quote([1, 2, [3]])
+
+    def test_visit_collection_remove_annotations(self):
+        foo = quote([1, 2, quote([3])])
+
+        def visit(expr, context):
+            if isinstance(expr, int):
+                return expr + 1
+            return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        assert result == [2, 3, [4]]
 
 
 class TestRemoveKeys:

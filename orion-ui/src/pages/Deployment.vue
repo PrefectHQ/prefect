@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -55,10 +55,10 @@
   import { useToast } from '@/compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { deploymentsApi } from '@/services/deploymentsApi'
 
-  const deploymentId = useRouteParam('id')
+  const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
+  const api = useWorkspaceApi()
   const showToast = useToast()
 
   const subscriptionOptions = {
@@ -73,7 +73,7 @@
   ])
   const tabs = useTabs(computedTabs)
 
-  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
   function routeToDeployments(): void {
