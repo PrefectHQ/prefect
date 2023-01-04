@@ -32,6 +32,7 @@ from typing_extensions import Literal, ParamSpec
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.settings import PREFECT_TASKS_REFRESH_CACHE
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -97,6 +98,13 @@ def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
         return [backoff_factor * max(0, 2**r) for r in range(retries)]
 
     return retry_backoff_callable
+
+
+def get_tasks_refresh_cache_setting() -> bool:
+    """
+    Return the setting for refreshing the cache (False).
+    """
+    return PREFECT_TASKS_REFRESH_CACHE.value()
 
 
 @PrefectObjectRegistry.register_instances
@@ -185,7 +193,7 @@ class Task(Generic[P, R]):
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
-        refresh_cache: Optional[bool] = False,
+        refresh_cache: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -217,7 +225,11 @@ class Task(Generic[P, R]):
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
-        self.refresh_cache = refresh_cache
+        self.refresh_cache = (
+            refresh_cache
+            if refresh_cache is not None
+            else get_tasks_refresh_cache_setting()
+        )
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -317,7 +329,7 @@ class Task(Generic[P, R]):
             result_serializer: A new serializer to use for results.
             timeout_seconds: A new maximum number of runtime in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
-            refresh_cache: A new option for enabling or disabling cache bypassing.
+            refresh_cache: A new option for enabling or disabling cache refresh.
 
         Returns:
             A new `Task` instance.

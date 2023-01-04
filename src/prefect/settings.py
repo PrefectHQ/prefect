@@ -470,6 +470,14 @@ The default setting for persisting results when not otherwise specified. If enab
 flow and task results will be persisted unless they opt out.
 """
 
+PREFECT_TASKS_REFRESH_CACHE = Setting(
+    bool,
+    default=False,
+)
+"""
+The task setting enables a refresh of cached results. If enabled, a re-execution of the
+tasks will refresh the cached results for all tasks unless a task overwrites the setting.
+"""
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,

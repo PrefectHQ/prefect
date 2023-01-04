@@ -25,6 +25,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
@@ -1022,6 +1023,36 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.result() == first_state.result()
+
+    def test_tasks_refresh_cache_setting(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
+        def refresh_task(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
+        def not_refresh_task(x):
+            return x
+
+        @flow
+        def bar():
+            foo.submit(0).wait
+            return (
+                foo.submit(1).wait(),
+                refresh_task.submit(2).wait(),
+                not_refresh_task.submit(3).wait(),
+            )
+
+        with temporary_settings({PREFECT_TASKS_REFRESH_CACHE: True}):
+            first_state, second_state, third_state = bar()
+            assert first_state.name == "Completed"
+            assert second_state.name == "Completed"
+            assert third_state.name == "Cached"
+            assert second_state.result() != first_state.result()
+            assert third_state.result() == second_state.result()
 
 
 class TestCacheFunctionBuiltins:
@@ -2363,7 +2394,7 @@ class TestTaskWithOptions:
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
-        assert task_with_options.refresh_cache is None
+        assert task_with_options.refresh_cache == PREFECT_TASKS_REFRESH_CACHE.value()
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
