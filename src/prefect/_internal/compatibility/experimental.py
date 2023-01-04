@@ -12,7 +12,7 @@ Some experimental features require opt-in to enable any usage. These require the
 """
 import functools
 import warnings
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Set, TypeVar
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters
@@ -177,3 +177,14 @@ def experimental_parameter(
         return wrapper
 
     return decorator
+
+
+def enabled_experiments() -> Set[str]:
+    """
+    Return the set of all enabled experiments.
+    """
+    return {
+        name[len("PREFECT_EXPERIMENTAL_ENABLE_") :].lower()
+        for name, setting in SETTING_VARIABLES.items()
+        if name.startswith("PREFECT_EXPERIMENTAL_ENABLE_") and setting.value()
+    }

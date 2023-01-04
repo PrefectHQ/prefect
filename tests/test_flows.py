@@ -37,6 +37,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -126,6 +127,18 @@ class TestFlow:
             f = Flow(
                 name="test", fn=lambda return_state: 42, version="A", description="B"
             )
+
+    def test_param_description_from_docstring(self):
+        def my_fn(x):
+            """
+            Hello
+
+            Args:
+                x: description
+            """
+
+        f = Flow(fn=my_fn)
+        assert parameter_schema(f).properties["x"]["description"] == "description"
 
 
 class TestDecorator:
@@ -990,6 +1003,38 @@ class TestFlowTimeouts:
 
         assert not canary_file.exists()
         assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
+
+    async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
+        """
+        Subflow with a timeout shouldn't start their timeout before the subflow is started.
+        Fixes: https://github.com/PrefectHQ/prefect/issues/7903.
+        """
+
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=1)
+        def downstream_flow():
+            canary_file.touch()
+
+        @task
+        def sleep_task(n):
+            time.sleep(n)
+
+        @flow
+        async def my_flow():
+            upstream_sleepers = sleep_task.map(list(range(3)))
+            downstream_flow(wait_for=upstream_sleepers)
+
+        t0 = anyio.current_time()
+        state = await my_flow._run()
+        t1 = anyio.current_time()
+
+        assert state.is_completed()
+
+        # Validate the sleep tasks have ran.
+        # Note: t1 - t0 can be less than exactly 3 (i.e., around 2.9). By comparing with 2.7 we have some leeway.
+        assert t1 - t0 >= 2.7
+        assert canary_file.exists()  # Validate subflow has ran
 
 
 class ParameterTestModel(pydantic.BaseModel):

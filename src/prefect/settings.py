@@ -876,6 +876,11 @@ application. If disabled, paused flows that have timed out will remain in a Paus
 until a resume attempt.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers. 
+"""
+
 # Collect all defined settings
 
 SETTING_VARIABLES = {

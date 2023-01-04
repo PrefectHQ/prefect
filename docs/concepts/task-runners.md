@@ -307,7 +307,7 @@ def my_flow():
 ```
 
 
-You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
+You may also use the [`wait_for=[]`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) parameter when calling a task, specifying upstream task dependencies. This enables you to control task execution order for tasks that do not share data dependencies.
 
 ```python
 @task
@@ -423,9 +423,9 @@ Note that `.result()` also limits Prefect's ability to track task dependencies. 
     When calling `.result()`, be mindful your flow function will have to wait until the task run is completed before continuing.
 
 ```python
-@task
 from prefect import flow, task
 
+@task
 def say_hello(name):
     return f"Hello {name}!"
 

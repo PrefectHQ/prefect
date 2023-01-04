@@ -277,7 +277,27 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, session):
+    async def worker_pool(self, session):
+        worker_pool = await models.workers.create_worker_pool(
+            session=session,
+            worker_pool=schemas.actions.WorkerPoolCreate(name="worker-pool"),
+        )
+        await session.commit()
+        return worker_pool
+
+    async def worker_pool_queue(self, worker_pool, session):
+        worker_pool_queue = await models.workers.create_worker_pool_queue(
+            session=session,
+            worker_pool_id=worker_pool.id,
+            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(
+                name="worker-pool-queue"
+            ),
+        )
+        await session.commit()
+        return worker_pool_queue
+
+    @pytest.fixture
+    async def flow_runs(self, flow, worker_pool_queue, session):
         flow_2 = await models.flows.create_flow(
             session=session,
             flow=actions.FlowCreate(name="another-test"),
@@ -293,8 +313,11 @@ class TestReadFlowRuns:
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(
-                flow_id=flow_2.id, name="fr3", tags=["blue", "red"]
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_2.id,
+                name="fr3",
+                tags=["blue", "red"],
+                worker_pool_queue_id=worker_pool_queue.id,
             ),
         )
         await session.commit()
@@ -350,6 +373,37 @@ class TestReadFlowRuns:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
+
+    async def test_read_flow_runs_applies_worker_pool_name_filter(
+        self,
+        flow_runs,
+        client,
+    ):
+        worker_pool_filter = dict(
+            worker_pools=schemas.filters.WorkerPoolFilter(
+                name=schemas.filters.WorkerPoolFilterName(any_=["worker-pool"])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flow_runs/filter", json=worker_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_applies_worker_pool_queue_id_filter(
+        self,
+        flow_runs,
+        worker_pool_queue,
+        client,
+    ):
+        worker_pool_filter = dict(
+            worker_pool_queues=schemas.filters.WorkerPoolQueueFilter(
+                id=schemas.filters.WorkerPoolQueueFilterId(any_=[worker_pool_queue.id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flow_runs/filter", json=worker_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
 
     async def test_read_flow_runs_multi_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
@@ -799,7 +853,7 @@ class TestSetFlowRunState:
         assert api_response.status == responses.SetStateStatus.WAIT
         assert (
             0
-            < (
+            <= (
                 # Fuzzy comparison
                 pendulum.duration(days=1).total_seconds()
                 - api_response.details.delay_seconds
