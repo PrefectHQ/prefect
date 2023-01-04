@@ -190,9 +190,6 @@ jobs:
           echo "PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/orion" >> $GITHUB_ENV
 
       - name: Run tests
-        # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
-        env: 
-          SQLALCHEMY_SILENCE_UBER_WARNING: 1
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
