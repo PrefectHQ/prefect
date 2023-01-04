@@ -1,8 +1,8 @@
 import { Can, workspacePermissions } from '@prefecthq/orion-design'
 import { InjectionKey } from 'vue'
 
-const featureFlags = [] as const
-// 'access:magic',
+const featureFlags = ['access:workers'] as const
+
 export type FeatureFlag = typeof featureFlags[number]
 
 export const permissions = [
