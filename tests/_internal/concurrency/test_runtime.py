@@ -131,6 +131,36 @@ async def test_runtime_submit_from_runtime_loop_thread(sync):
         assert result == 1
 
 
+@pytest.mark.parametrize("sync", [True, False], ids=["sync", "async"])
+async def test_runtime_submit_from_thread_captures_context_variables(sync):
+    def _get_value():
+        return TEST_CONTEXTVAR.get()
+
+    if sync:
+
+        def get_value():
+            return _get_value()
+
+    else:
+
+        async def get_value():
+            return _get_value()
+
+    async def work():
+        token = TEST_CONTEXTVAR.set("test")
+        try:
+            future = runtime.submit_from_thread(get_value)
+        finally:
+            TEST_CONTEXTVAR.reset(token)
+        return await asyncio.wrap_future(future)
+
+    with Runtime(sync=sync) as runtime:
+        result = runtime.run_in_loop(work)
+        if not sync:
+            result = await result
+        assert result == "test"
+
+
 def test_sync_runtime_submit_thread_requires_sync_function():
     async def work():
         with pytest.raises(
