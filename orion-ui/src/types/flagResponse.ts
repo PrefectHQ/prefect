@@ -1,3 +1,2 @@
 export type FlagResponse =
-//  | 'magic'
-  never
+| 'workers'
