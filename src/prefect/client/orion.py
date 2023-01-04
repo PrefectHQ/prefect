@@ -963,14 +963,8 @@ class OrionClient:
                 this is set to `False`.
         """
         if isinstance(block_document, BlockDocument):
-            block_document_kwargs = block_document.dict(
-                json_compatible=True,
-                include_secrets=include_secrets,
-                exclude_unset=True,
-                exclude={"id", "block_schema", "block_type"},
-            )
             block_document = schemas.actions.BlockDocumentCreate.parse_obj(
-                block_document_kwargs
+                block_document
             )
 
         try:
