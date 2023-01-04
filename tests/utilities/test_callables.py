@@ -390,6 +390,84 @@ class TestMethodToSchema:
             }
 
 
+class TestParseFlowDescriptionToSchema:
+    def test_flow_with_args_docstring(self):
+        def f(x):
+            """Function f.
+
+            Args:
+                x: required argument x
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {"title": "x", "description": "required argument x", "position": 0}
+            },
+            "required": ["x"],
+        }
+
+    def test_flow_without_docstring(self):
+        def f(x):
+            pass
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "position": 0}},
+            "required": ["x"],
+        }
+
+    def test_flow_without_args_docstring(self):
+        def f(x):
+            """Function f."""
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {"x": {"title": "x", "position": 0}},
+            "required": ["x"],
+        }
+
+    def test_flow_with_complex_args_docstring(self):
+        def f(x, y):
+            """Function f.
+
+            Second line of docstring.
+
+            Args:
+                x: required argument x
+                y (str): required typed argument y
+                  with second line
+
+            Returns:
+                None: nothing
+            """
+
+        schema = callables.parameter_schema(f)
+        assert schema.dict() == {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "x": {
+                    "title": "x",
+                    "description": "required argument x",
+                    "position": 0,
+                },
+                "y": {
+                    "title": "y",
+                    "description": "required typed argument y\nwith second line",
+                    "position": 1,
+                },
+            },
+            "required": ["x", "y"],
+        }
+
+
 class TestGetCallParameters:
     def test_raises_parameter_bind_with_no_kwargs(self):
         def dog(x):
