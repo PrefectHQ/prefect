@@ -67,7 +67,7 @@ class KubernetesJob(Infrastructure):
         labels: An optional dictionary of labels to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
-        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
         finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
@@ -539,7 +539,8 @@ class KubernetesJob(Infrastructure):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
-        # if `pod_watch_timeout_seconds` is None, no timeout will be enforced
+        # if `
+        ` is None, no timeout will be enforced
         watch = kubernetes.watch.Watch()
         self.logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
