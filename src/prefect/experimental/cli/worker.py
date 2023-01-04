@@ -2,6 +2,7 @@ import typer
 import uvicorn
 
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.experimental.workers.base import BaseWorker
 from prefect.utilities.dispatch import lookup_type
@@ -31,7 +32,13 @@ async def start(
     ),
     port: int = typer.Option(5000, "--port"),
 ):
-    Worker = lookup_type(BaseWorker, worker_type)
+    try:
+        Worker = lookup_type(BaseWorker, worker_type)
+    except KeyError:
+        exit_with_error(
+            f"Unable to start worker of type {worker_type}. "
+            "Please ensure that you have installed this worker type on this machine."
+        )
     async with Worker(
         name=worker_name, worker_pool_name=worker_pool_name, limit=limit
     ) as worker:

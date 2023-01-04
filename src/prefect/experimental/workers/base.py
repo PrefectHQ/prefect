@@ -108,8 +108,6 @@ class BaseWorker(abc.ABC):
         self.workflow_storage_path: Path = (
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
-        # Setup workflows directory
-        self.workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
         if self.prefetch_seconds < self.query_seconds:
             self.logger.warning(
@@ -133,7 +131,9 @@ class BaseWorker(abc.ABC):
         """
         Runs a given flow run on the current worker.
         """
-        raise NotImplementedError("Workers must implement a run command")
+        raise NotImplementedError(
+            "Workers must implement a method for running submitted flow runs"
+        )
 
     @abc.abstractclassmethod
     async def verify_submitted_deployment(self, deployment: Deployment):
@@ -167,6 +167,9 @@ class BaseWorker(abc.ABC):
         await self._client.__aenter__()
         await self._loop_task_group.__aenter__()
         await self._runs_task_group.__aenter__()
+        # Setup workflows directory
+        self.workflow_storage_path.mkdir(parents=True, exist_ok=True)
+
         self.is_setup = True
 
     async def teardown(self, *exc_info):
@@ -200,7 +203,7 @@ class BaseWorker(abc.ABC):
         self._loop_task_group.start_soon(
             partial(
                 critical_service_loop,
-                workload=self.get_and_submit_flow_runs,
+                workload=self._get_and_submit_flow_runs,
                 interval=self.query_seconds,
                 printer=self.logger.debug,
             )
@@ -224,14 +227,14 @@ class BaseWorker(abc.ABC):
             )
         )
 
-    async def get_and_submit_flow_runs(self):
+    async def _get_and_submit_flow_runs(self):
         # if the pool is paused or has a 0 concurrency limit, don't bother polling
         if self.worker_pool and (
             self.worker_pool.is_paused or self.worker_pool.concurrency_limit == 0
         ):
             return
 
-        runs_response = await self.get_scheduled_flow_runs()
+        runs_response = await self._get_scheduled_flow_runs()
         await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _update_local_worker_pool_info(self):
@@ -289,7 +292,7 @@ class BaseWorker(abc.ABC):
 
         await self._send_worker_heartbeat()
 
-        self.logger.debug(f"{self} refreshed")
+        self.logger.debug(f"Worker synchronized with Orion server.")
 
     async def scan_storage_for_deployments(self):
         """
@@ -348,7 +351,7 @@ class BaseWorker(abc.ABC):
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
 
-    async def get_scheduled_flow_runs(
+    async def _get_scheduled_flow_runs(
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
         """
