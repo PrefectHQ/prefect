@@ -16,6 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import os
 import signal
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
@@ -1575,9 +1576,9 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     def cancel_flow_run(*args):
         raise TerminationSignal(signal=signal.SIGTERM)
 
-    original_sigterm_handler = None
+    original_term_handler = None
     try:
-        original_sigterm_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+        original_term_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
     except ValueError:
         # Signals only work in the main thread
         pass
@@ -1601,11 +1602,19 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
+        if isinstance(exc, TerminationSignal):
+            # Termination signals are swapped out during a flow run to perform
+            # a graceful shutdown and raise this exception. This `os.kill` call
+            # ensures that the previous handler, likely the Python default,
+            # gets called as well.
+            signal.signal(exc.signal, original_term_handler)
+            os.kill(os.getpid(), exc.signal)
+
         # Reraise the exception
         raise exc from None
     finally:
-        if original_sigterm_handler is not None:
-            signal.signal(signal.SIGTERM, original_sigterm_handler)
+        if original_term_handler is not None:
+            signal.signal(signal.SIGTERM, original_term_handler)
 
 
 @asynccontextmanager
