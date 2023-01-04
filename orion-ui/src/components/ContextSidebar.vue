@@ -3,6 +3,7 @@
     <p-context-nav-item title="Flow Runs" icon="FlowRun" :to="routes.flowRuns()" />
     <p-context-nav-item title="Flows" icon="Flow" :to="routes.flows()" />
     <p-context-nav-item title="Deployments" icon="LocationMarkerIcon" :to="routes.deployments()" />
+    <p-context-nav-item v-if="canSeeWorkers" title="Workers" icon="DatabaseIcon" :to="routes.workerPools()" />
     <p-context-nav-item title="Work Queues" icon="DatabaseIcon" :to="routes.workQueues()" />
     <p-context-nav-item title="Blocks" icon="CubeIcon" :to="routes.blocks()" />
     <p-context-nav-item title="Notifications" icon="BellIcon" :to="routes.notifications()" />
@@ -16,5 +17,10 @@
 
 <script lang="ts" setup>
   import { PContextSidebar, PContextNavItem } from '@prefecthq/prefect-design'
+  import { computed } from 'vue'
+  import { useCan } from '@/compositions/useCan'
   import { routes } from '@/router'
+
+  const can = useCan()
+  const canSeeWorkers = computed(() => can.access.workers && can.read.worker_pool)
 </script>
