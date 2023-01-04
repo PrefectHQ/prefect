@@ -207,8 +207,6 @@ class OrionClient:
 
         self.logger = get_logger("client")
 
-        self.httpx_settings = httpx_settings
-
     @property
     def api_url(self) -> httpx.URL:
         """

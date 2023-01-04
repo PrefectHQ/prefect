@@ -4,7 +4,7 @@ import random
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -1145,17 +1145,45 @@ async def test_read_filtered_logs(session, orion_client, deployment):
         assert log.flow_run_id not in flow_runs[3:]
 
 
-async def test_default_prefect_api_tls_insecure_skip_verify_setting():
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        get_client()
 
-    async with get_client() as client:
-        assert "verify" not in client.httpx_settings
+    mock.assert_called_once_with(
+        headers={"X-PREFECT-API-VERSION": ANY},
+        verify=False,
+        app=ANY,
+        base_url=ANY,
+        timeout=httpx.Timeout(timeout=ANY),
+    )
 
 
-async def test_user_configured_prefect_api_tls_insecure_skip_verify_setting_is_false():
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        get_client()
 
-    with temporary_settings(set_defaults={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
-        async with get_client() as client:
-            assert client.httpx_settings["verify"] == False
+    mock.assert_called_once_with(
+        headers={"X-PREFECT-API-VERSION": ANY},
+        app=ANY,
+        base_url=ANY,
+        timeout=httpx.Timeout(timeout=ANY),
+    )
+
+
+async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
+    mock = Mock()
+    monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+    get_client()
+    mock.assert_called_once_with(
+        headers={"X-PREFECT-API-VERSION": ANY},
+        app=ANY,
+        base_url=ANY,
+        timeout=httpx.Timeout(timeout=ANY),
+    )
 
 
 class TestResolveDataDoc:
