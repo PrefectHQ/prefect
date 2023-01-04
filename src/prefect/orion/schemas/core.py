@@ -549,7 +549,7 @@ class Deployment(ORMBaseModel):
     def check_valid_configuration(self, base_job_template: dict):
         """Return the combined configuration values."""
         variables_schema = base_job_template["variables"]
-        required_variables = base_job_template["required_variables"]
+        required_variables = base_job_template["required"]
 
         missing_variables = set(required_variables).difference(self.infra_overrides)
         if missing_variables:

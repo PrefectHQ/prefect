@@ -78,8 +78,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
 
 class ProcessVariables(BaseVariables):
-    stream_output: bool
-    working_dir: Union[str, Path, None]
+    stream_output: Optional[bool] = True
+    working_dir: Optional[Union[str, Path, None]]
 
 
 class ProcessWorker(BaseWorker):

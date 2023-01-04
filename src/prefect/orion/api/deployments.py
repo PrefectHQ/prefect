@@ -37,7 +37,7 @@ async def create_deployment(
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
-    TEMPORARY_NAME = "test-worker-pool2"
+    TEMPORARY_NAME = "dog"
     async with db.session_context(begin_transaction=True) as session:
         worker_pool = await models.workers.read_worker_pool_by_name(
             session=session, worker_pool_name=TEMPORARY_NAME  # TODO
