@@ -475,7 +475,7 @@ class TaskRun(ORMBaseModel):
                     "Invalid cache_key length. The task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting, "
                     "which means that you can change the maximum length of the cache_key by modifying the value of this setting on the server."
                 )
-            return cache_key
+        return cache_key
 
 
 class Deployment(ORMBaseModel):
