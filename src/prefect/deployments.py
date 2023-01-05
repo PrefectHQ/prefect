@@ -16,6 +16,7 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
@@ -265,6 +266,7 @@ class Deployment(BaseModel):
     """
 
     class Config:
+        json_encoders = {SecretDict: lambda v: v.dict()}
         validate_assignment = True
         extra = "forbid"
 
