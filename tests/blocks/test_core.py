@@ -2087,7 +2087,7 @@ class TestBlockSchemaMigration:
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
-            class A(Block):
+            class A_Alias(Block):
                 _block_type_name = "a"
                 _block_type_slug = "a"
                 x: int = 1
@@ -2096,7 +2096,7 @@ class TestBlockSchemaMigration:
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
-            A.load("test")
+            A_Alias.load("test")
 
     def test_add_field_to_schema_partial_load_with_skip_validation(self):
         class A(Block):
@@ -2108,14 +2108,14 @@ class TestBlockSchemaMigration:
 
         with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
 
-            class A(Block):
+            class A_Alias(Block):
                 _block_type_name = "a"
                 _block_type_slug = "a"
                 x: int = 1
                 y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
-            a = A.load("test", validate=False)
+            a = A_Alias.load("test", validate=False)
 
         assert a.x == 1
         assert a.y == None
