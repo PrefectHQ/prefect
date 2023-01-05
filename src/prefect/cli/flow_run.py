@@ -154,7 +154,7 @@ async def logs(
         None,
         "--num-lines",
         "-n",
-        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_HEAD_DEFAULT_NUM_LINES}",
+        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_HEAD_DEFAULT_NUM_LINES}.",
         min=1,
     ),
 ):
