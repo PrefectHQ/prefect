@@ -6,8 +6,7 @@
 
     <p-layout-well class="worker-pool-queue__body">
       <template #header>
-        <!-- Update banner with correct information -->
-        <CodeBanner :command="workerPoolQueueCliCommand" title="Worker pool queue is ready to go!" subtitle="Worker Pool Queue description" />
+        <CodeBanner :command="workerPoolQueueCliCommand" title="Worker pool queue is ready to go!" subtitle="Work queues are scoped to a specific work pool to ensure that the work put into a queue will only be picked up by a specific type of worker." />
       </template>
 
       <p-tabs :tabs="tabs">
@@ -48,7 +47,11 @@
   const workerPoolQueuesSubscription = useSubscription(api.workerPoolQueues.getWorkerPoolQueueByName, [workerPoolName.value, workerPoolQueueName.value], subscriptionOptions)
   const workerPoolQueue = computed(() => workerPoolQueuesSubscription.response)
 
-  const workerPoolQueueCliCommand = computed(() => 'code snippet for worker pool queue')
+  const workerPoolWorkersSubscription = useSubscription(api.workerPoolWorkers.getWorkers, [workerPoolName.value], subscriptionOptions)
+  const workerPoolWorkers = computed(() => workerPoolWorkersSubscription.response ?? [])
+  const workerPoolWorkerName = computed(() => workerPoolWorkers.value[0]?.name ?? '<worker name>')
+
+  const workerPoolQueueCliCommand = computed(() => `prefect worker start --pool ${workerPoolName.value} --name ${workerPoolWorkerName.value} *--queue ${workerPoolQueueName.value}`)
 
   const flowRunFilter = useFlowRunFilter({ workerPoolQueueName: [workerPoolQueueName.value] })
 
