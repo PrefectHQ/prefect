@@ -75,8 +75,12 @@ class _WorkItem:
     async def _run_async(self):
         loop = asyncio.get_running_loop()
         try:
+            # Call the function in the context; this is necessary for most use cases but
+            # if the function performs synchronous work before returning a coroutine
+            # the context should be correct
             coro = self.context.run(self.fn, *self.args, **self.kwargs)
-            # Put the coroutine in a new task to ensure it runs in the context
+
+            # Run the coroutine in a new task to run with the correct async context
             task = self.context.run(loop.create_task, coro)
             result = await task
         except BaseException as exc:
