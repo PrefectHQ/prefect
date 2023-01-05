@@ -2070,9 +2070,9 @@ class OrionClient:
             A list of worker flow run responses containing information about the
             retrieved flow runs.
         """
-        body: Dict[str, Any] = {
-            "worker_pool_queue_names": worker_pool_queue_names,
-        }
+        body: Dict[str, Any] = {}
+        if worker_pool_queue_names is not None:
+            body["worker_pool_queue_names"] = worker_pool_queue_names
         if scheduled_before:
             body["scheduled_before"] = str(scheduled_before)
 
