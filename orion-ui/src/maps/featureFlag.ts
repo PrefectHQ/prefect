@@ -4,8 +4,8 @@ import { FeatureFlag } from '@/utilities/permissions'
 
 export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag | null> = (source) => {
   switch (source) {
-    // case 'magic':
-    //   return 'access:magic'
+    case 'workers':
+      return 'access:workers'
     default:
       return null
   }
