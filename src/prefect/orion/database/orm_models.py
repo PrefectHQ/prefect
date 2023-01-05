@@ -479,6 +479,14 @@ class ORMFlowRun(ORMRun):
         )
 
     @declared_attr
+    def worker_pool_queue(cls):
+        return sa.orm.relationship(
+            "WorkerPoolQueue",
+            lazy="joined",
+            foreign_keys=[cls.worker_pool_queue_id],
+        )
+
+    @declared_attr
     def __table_args__(cls):
         return (
             sa.Index(
@@ -1061,6 +1069,14 @@ class ORMWorkerPoolQueue:
     @declared_attr
     def __table_args__(cls):
         return (sa.UniqueConstraint("worker_pool_id", "name"),)
+
+    @declared_attr
+    def worker_pool(cls):
+        return sa.orm.relationship(
+            "WorkerPool",
+            lazy="joined",
+            foreign_keys=[cls.worker_pool_id],
+        )
 
 
 @declarative_mixin

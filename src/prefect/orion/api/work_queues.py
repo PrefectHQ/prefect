@@ -120,7 +120,7 @@ async def read_work_queue_runs(
         description="A header to indicate this request came from the Prefect UI.",
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.FlowRun]:
+) -> List[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
     """
