@@ -991,3 +991,22 @@ class TestUpdateDeployment:
             session=session, deployment_id=deployment.id
         )
         assert updated_deployment.worker_pool_queue_id == worker_pool_queue.id
+
+    async def test_update_worker_pool_deployment_with_only_pool(
+        self, session, deployment, worker_pool, worker_pool_queue
+    ):
+        default_queue = await models.workers.read_worker_pool_queue(
+            session=session, worker_pool_queue_id=worker_pool.default_queue_id
+        )
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                worker_pool_name=worker_pool.name,
+            ),
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.worker_pool_queue_id == default_queue.id

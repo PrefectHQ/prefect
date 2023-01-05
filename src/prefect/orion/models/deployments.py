@@ -147,12 +147,23 @@ async def update_deployment(
         exclude={"worker_pool_name", "worker_pool_queue_name"},
     )
     if deployment.worker_pool_name and deployment.worker_pool_queue_name:
+        # If a specific pool name/queue name combination was provided, get the
+        # ID for that worker pool queue.
         update_data[
             "worker_pool_queue_id"
         ] = await WorkerLookups()._get_worker_pool_queue_id_from_name(
             session=session,
             worker_pool_name=deployment.worker_pool_name,
             worker_pool_queue_name=deployment.worker_pool_queue_name,
+        )
+    elif deployment.worker_pool_name:
+        # If just a pool name was provided, get the ID for its default
+        # worker pool queue.
+        update_data[
+            "worker_pool_queue_id"
+        ] = await WorkerLookups()._get_default_worker_pool_queue_id_from_worker_pool_name(
+            session=session,
+            worker_pool_name=deployment.worker_pool_name,
         )
 
     update_stmt = (
