@@ -1,5 +1,138 @@
 # Prefect Release Notes
 
+## Release 2.7.6
+
+This release fixes a critical bug in the SQLite database migrations in 2.7.4 and 2.7.5.
+
+See https://github.com/PrefectHQ/prefect/issues/8058 for details.
+
+## Release 2.7.5
+
+### Schedule flow runs and read logs from the CLI
+
+You can now specify either `--start-in` or `--start-at` when running deployments from the CLI.
+```
+❯ prefect deployment run foo/test --start-at "3pm tomorrow"
+Creating flow run for deployment 'foo/test'...
+Created flow run 'pompous-porpoise'.
+└── UUID: 0ce7930e-8ec0-40cb-8a0e-65bccb7a9605
+└── Parameters: {}
+└── Scheduled start time: 2022-12-06 15:00:00
+└── URL: <no dashboard available>
+```
+
+You can also get the logs for a flow run using `prefect flow-run logs <flow run UUID>`
+```
+❯ prefect flow-run logs 7aec7a60-a0ab-4f3e-9f2a-479cd85a2aaf 
+2022-12-29 20:00:40.651 | INFO    | Flow run 'optimal-pegasus' - meow
+2022-12-29 20:00:40.652 | INFO    | Flow run 'optimal-pegasus' - that food in my bowl is gross
+2022-12-29 20:00:40.652 | WARNING | Flow run 'optimal-pegasus' - seriously, it needs to be replaced ASAP
+2022-12-29 20:00:40.662 | INFO    | Flow run 'optimal-pegasus' - Finished in state Completed()
+```
+
+### Enhancements
+- Add `--start-in` and `--start-at` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7772
+- Add `flow-run logs` to get logs using the CLI — https://github.com/PrefectHQ/prefect/pull/7982
+
+### Documentation
+- Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
+- Add instructions for building custom blocks — https://github.com/PrefectHQ/prefect/pull/7979
+
+### Collections
+- Added `BigQueryWarehouse` block in `prefect-gcp` v0.2.1
+- Added `AirbyteConnection` block in `prefect-airbyte` v0.2.0
+- Added dbt Cloud metadata API client to `DbtCloudCredentials` in `prefect-dbt` v0.2.7
+
+### Experimental 
+- Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
+- Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
+- Add filtering to flow runs by worker pool and worker pool queue attributes — https://github.com/PrefectHQ/prefect/pull/8006
+
+### Contributors
+* @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
+* @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
+
+
+## Release 2.7.4
+
+### Improvements to retry delays: multiple delays, exponential backoff, and jitter
+
+When configuring task retries, you can now configure a delay for each retry! The `retry_delay_seconds` option accepts a list of delays for custom retry behavior. For example, the following task will wait for successively increasing intervals before the next attempt starts:
+
+```python
+from prefect import task, flow
+import random
+
+@task(retries=3, retry_delay_seconds=[1, 10, 100])
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an `exponential_backoff` utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+import random
+
+@task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+Many users that configure exponential backoff also wish to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of `10` seconds with a `retry_jitter_factor` of `0.5` will be allowed to delay up to `15` seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+import random
+
+@task(
+    retries=3,
+    retry_delay_seconds=exponential_backoff(backoff_factor=10),
+    retry_jitter_factor=1,
+)
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+See https://github.com/PrefectHQ/prefect/pull/7961 for implementation details.
+
+### Enhancements
+- Add task run names to the `/graph`  API route — https://github.com/PrefectHQ/prefect/pull/7951
+- Add vcs directories `.git` and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
+- Increase the default thread limit from 40 to 250 — https://github.com/PrefectHQ/prefect/pull/7961
+
+### Deprecations
+- Add removal date to tag-based work queue deprecation messages — https://github.com/PrefectHQ/prefect/pull/7930
+
+### Documentation
+- Fix `prefect deployment` command listing — https://github.com/PrefectHQ/prefect/pull/7949
+- Add workspace transfer documentation — https://github.com/PrefectHQ/prefect/pull/7941
+- Fix docstring examples in `PrefectFuture` — https://github.com/PrefectHQ/prefect/pull/7877
+- Update `setup.py` metadata to link to correct repo — https://github.com/PrefectHQ/prefect/pull/7933
+
+### Experimental
+- Add experimental workers API routes — https://github.com/PrefectHQ/prefect/pull/7896
+
+### Collections
+- New [`prefect-google-sheets` collection](https://stefanocascavilla.github.io/prefect-google-sheets/)
+
+### Contributors
+* @devanshdoshi9 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7949
+* @stefanocascavilla made their first contribution in https://github.com/PrefectHQ/prefect/pull/7960
+* @quassy made their first contribution in https://github.com/PrefectHQ/prefect/pull/7919
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.3...2.7.4
+
 ## Release 2.7.3
 
 ### Fixes

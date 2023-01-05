@@ -6,12 +6,12 @@ import shutil
 import sys
 import tempfile
 import textwrap
-from datetime import timedelta
+import warnings
+from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-import httpx
 import pendulum
 import typer
 import yaml
@@ -22,9 +22,8 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
-from prefect.client.orion import OrionClient
-from prefect.context import PrefectObjectRegistry
+from prefect.client.orion import OrionClient, get_client
+from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
     ObjectAlreadyExists,
@@ -41,7 +40,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.settings import PREFECT_UI_URL, PREFECT_WORKER_WORKFLOW_STORAGE_PATH
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
@@ -372,14 +371,23 @@ async def run(
             "parameters passed with `--param` will take precedence over these values."
         ),
     ),
+    start_in: Optional[str] = typer.Option(
+        None,
+        "--start-in",
+    ),
+    start_at: Optional[str] = typer.Option(
+        None,
+        "--start-at",
+    ),
 ):
     """
     Create a flow run for the given flow and deployment.
 
-    The flow run will be scheduled for now and an agent must execute it.
-
+    The flow run will be scheduled to run immediately unless `--start-in` or `--start-at` is specified.
     The flow run will not execute until an agent starts.
     """
+    now = pendulum.now("UTC")
+
     multi_params = {}
     if multiparams:
         if multiparams == "-":
@@ -400,6 +408,47 @@ async def run(
             f"`--param` value will be used: {conflicting_keys}"
         )
     parameters = {**multi_params, **cli_params}
+
+    if start_in and start_at:
+        exit_with_error(
+            "Only one of `--start-in` or `--start-at` can be set, not both."
+        )
+
+    elif start_in is None and start_at is None:
+        scheduled_start_time = now
+        human_dt_diff = " (now)"
+    else:
+        if start_in:
+            start_time_raw = "in " + start_in
+        else:
+            start_time_raw = "at " + start_at
+        with warnings.catch_warnings():
+            # PyTZ throws a warning based on dateparser usage of the library
+            # See https://github.com/scrapinghub/dateparser/issues/1089
+            warnings.filterwarnings("ignore", module="dateparser")
+
+            try:
+
+                start_time_parsed = dateparser.parse(
+                    start_time_raw,
+                    settings={
+                        "TO_TIMEZONE": "UTC",
+                        "RETURN_AS_TIMEZONE_AWARE": False,
+                        "PREFER_DATES_FROM": "future",
+                        "RELATIVE_BASE": datetime.fromtimestamp(now.timestamp()),
+                    },
+                )
+
+            except Exception as exc:
+                exit_with_error(f"Failed to parse '{start_time_raw!r}': {exc!s}")
+
+        if start_time_parsed is None:
+            exit_with_error(f"Unable to parse scheduled start time {start_time_raw!r}.")
+
+        scheduled_start_time = pendulum.instance(start_time_parsed)
+        human_dt_diff = (
+            " (" + pendulum.format_diff(scheduled_start_time.diff(now)) + ")"
+        )
 
     async with get_client() as client:
         deployment = await get_deployment(client, name, deployment_id)
@@ -428,7 +477,9 @@ async def run(
         )
 
         flow_run = await client.create_flow_run_from_deployment(
-            deployment.id, parameters=parameters
+            deployment.id,
+            parameters=parameters,
+            state=Scheduled(scheduled_time=scheduled_start_time),
         )
 
     if PREFECT_UI_URL:
@@ -436,12 +487,21 @@ async def run(
     else:
         run_url = "<no dashboard available>"
 
+    datetime_local_tz = scheduled_start_time.in_tz(pendulum.tz.local_timezone())
+    scheduled_display = (
+        datetime_local_tz.to_datetime_string()
+        + " "
+        + datetime_local_tz.tzname()
+        + human_dt_diff
+    )
+
     app.console.print(f"Created flow run {flow_run.name!r}.")
     app.console.print(
         textwrap.dedent(
             f"""
         └── UUID: {flow_run.id}
         └── Parameters: {flow_run.parameters}
+        └── Scheduled start time: {scheduled_display}
         └── URL: {run_url}
         """
         ).strip()
