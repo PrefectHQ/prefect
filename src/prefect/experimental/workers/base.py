@@ -10,10 +10,9 @@ import anyio
 import anyio.abc
 import jinja2
 import pendulum
-import yaml
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, status
 from httpx import HTTPStatusError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orion import OrionClient, get_client
@@ -45,7 +44,14 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 
 
 class BaseJobConfiguration(BaseModel):
-    command: Optional[List[str]] = None
+    command: Optional[List[str]] = Field(template="{{ command }}")
+
+    @validator("command")
+    def validate_command(cls, v):
+        """Make sure that empty strings are treated as None"""
+        if not v:
+            return None
+        return v
 
     @staticmethod
     def _get_base_config_defaults(variables: dict) -> dict:
@@ -65,21 +71,18 @@ class BaseJobConfiguration(BaseModel):
         return template
 
     @classmethod
-    def from_configurations(cls, base_job_template: dict, deployment_overrides: dict):
+    def from_template_and_overrides(
+        cls, base_job_template: dict, deployment_overrides: dict
+    ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
         """
         job_config = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-
-        variables = cls._get_base_config_defaults(variables_schema)
+        variables = cls._base_variables_from_schema(variables_schema)
         variables.update(deployment_overrides)
 
-        job_config_template = cls._jinja_template(job_config)
-
-        populated_configuration_str = job_config_template.render(**variables)
-        populated_configuration = yaml.safe_load(populated_configuration_str)
-
+        populated_configuration = cls._apply_variables(job_config, variables)
         return cls(**populated_configuration)
 
     @classmethod
@@ -94,6 +97,20 @@ class BaseJobConfiguration(BaseModel):
             configuration[k] = template
 
         return configuration
+
+    @staticmethod
+    def _apply_variables(job_config, variables):
+        """Apply variables to configuration template."""
+        job_config.update(variables)
+        return job_config
+
+    @classmethod
+    def _base_variables_from_schema(cls, variables_schema):
+        """Get base template variables."""
+        default_variables = cls._get_base_config_defaults(variables_schema)
+        variables = {key: None for key in variables_schema.keys()}
+        variables.update(default_variables)
+        return variables
 
 
 class BaseVariables(BaseModel):
@@ -191,9 +208,8 @@ class BaseWorker(LoopService, abc.ABC):
     ):
         raise NotImplementedError("Workers must implement a run command")
 
-    @classmethod
     @abc.abstractmethod
-    async def verify_submitted_deployment(cls, deployment: Deployment):
+    async def verify_submitted_deployment(self, deployment: Deployment):
         raise NotImplementedError(
             "Workers must implement a method for verifying submitted deployments"
         )
@@ -503,6 +519,9 @@ class BaseWorker(LoopService, abc.ABC):
             "variables": variables["properties"],
             "required": variables.get("required", []),
         }
+
+    def _validate_template_combination(self):
+        pass
 
     async def _submit_run_and_capture_errors(
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
