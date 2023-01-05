@@ -946,9 +946,7 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=2),
-            ),
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -998,9 +996,7 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(y=99),
-            ),
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(y=99)),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -1023,9 +1019,7 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=2),
-            ),
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -1081,9 +1075,7 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=inner_block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=4),
-            ),
+            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=4)),
         )
 
         block_document_after_update = (
@@ -1169,7 +1161,7 @@ class TestUpdateBlockDocument:
                 data={
                     "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
                     "z": "zzzzz",
-                },
+                }
             ),
         )
 
@@ -1229,7 +1221,7 @@ class TestUpdateBlockDocument:
                     data={
                         "b": {"$ref": {"block_document_id": uuid4()}},
                         "z": "zzzzz",
-                    },
+                    }
                 ),
             )
 
@@ -1269,7 +1261,7 @@ class TestUpdateBlockDocument:
                     data={
                         "b": {"$ref": {}},
                         "z": "zzzzz",
-                    },
+                    }
                 ),
             )
 
@@ -1384,7 +1376,7 @@ class TestUpdateBlockDocument:
                         "$ref": {"block_document_id": new_middle_block_document_1.id}
                     },
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
-                },
+                }
             ),
         )
 
@@ -1599,7 +1591,7 @@ class TestSecretBlockDocuments:
             session=session,
             block_document_id=secret_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=obfuscate_string(X)),
+                data=dict(x=obfuscate_string(X))
             ),
         )
 
