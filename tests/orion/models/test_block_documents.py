@@ -948,7 +948,6 @@ class TestUpdateBlockDocument:
             block_document_id=block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=dict(x=2),
-                block_schema_id=block_schemas[1].id,
             ),
         )
 
@@ -977,7 +976,6 @@ class TestUpdateBlockDocument:
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=new_data,
                 merge_existing_data=False,
-                block_schema_id=block_schemas[1].id,
             ),
         )
 
@@ -1002,7 +1000,6 @@ class TestUpdateBlockDocument:
             block_document_id=block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=dict(y=99),
-                block_schema_id=block_schemas[1].id,
             ),
         )
 
@@ -1028,7 +1025,6 @@ class TestUpdateBlockDocument:
             block_document_id=block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=dict(x=2),
-                block_schema_id=block_schemas[1].id,
             ),
         )
 
@@ -1087,7 +1083,6 @@ class TestUpdateBlockDocument:
             block_document_id=inner_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=dict(x=4),
-                block_schema_id=inner_block_document.block_schema_id,
             ),
         )
 
@@ -1175,7 +1170,6 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
                     "z": "zzzzz",
                 },
-                block_schema_id=outer_block_document.block_schema_id,
             ),
         )
 
@@ -1236,7 +1230,6 @@ class TestUpdateBlockDocument:
                         "b": {"$ref": {"block_document_id": uuid4()}},
                         "z": "zzzzz",
                     },
-                    block_schema_id=outer_block_document.block_schema_id,
                 ),
             )
 
@@ -1277,7 +1270,6 @@ class TestUpdateBlockDocument:
                         "b": {"$ref": {}},
                         "z": "zzzzz",
                     },
-                    block_schema_id=outer_block_document.block_schema_id,
                 ),
             )
 
@@ -1393,7 +1385,6 @@ class TestUpdateBlockDocument:
                     },
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
                 },
-                block_schema_id=outer_block_document.block_schema_id,
             ),
         )
 
@@ -1609,7 +1600,6 @@ class TestSecretBlockDocuments:
             block_document_id=secret_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
                 data=dict(x=obfuscate_string(X)),
-                block_schema_id=secret_block_document.block_schema_id,
             ),
         )
 
