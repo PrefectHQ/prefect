@@ -946,7 +946,10 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=dict(x=2),
+                block_schema_id=block_schemas[1].id,
+            ),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -972,7 +975,9 @@ class TestUpdateBlockDocument:
             session,
             block_document_id=block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=new_data, merge_existing_data=False
+                data=new_data,
+                merge_existing_data=False,
+                block_schema_id=block_schemas[1].id,
             ),
         )
 
@@ -995,7 +1000,10 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(y=99)),
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=dict(y=99),
+                block_schema_id=block_schemas[1].id,
+            ),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -1018,7 +1026,10 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=2)),
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=dict(x=2),
+                block_schema_id=block_schemas[1].id,
+            ),
         )
 
         updated_block_document = await models.block_documents.read_block_document_by_id(
@@ -1074,7 +1085,10 @@ class TestUpdateBlockDocument:
         await models.block_documents.update_block_document(
             session,
             block_document_id=inner_block_document.id,
-            block_document=schemas.actions.BlockDocumentUpdate(data=dict(x=4)),
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=dict(x=4),
+                block_schema_id=inner_block_document.block_schema_id,
+            ),
         )
 
         block_document_after_update = (
@@ -1160,7 +1174,8 @@ class TestUpdateBlockDocument:
                 data={
                     "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
                     "z": "zzzzz",
-                }
+                },
+                block_schema_id=outer_block_document.block_schema_id,
             ),
         )
 
@@ -1220,7 +1235,8 @@ class TestUpdateBlockDocument:
                     data={
                         "b": {"$ref": {"block_document_id": uuid4()}},
                         "z": "zzzzz",
-                    }
+                    },
+                    block_schema_id=outer_block_document.block_schema_id,
                 ),
             )
 
@@ -1260,7 +1276,8 @@ class TestUpdateBlockDocument:
                     data={
                         "b": {"$ref": {}},
                         "z": "zzzzz",
-                    }
+                    },
+                    block_schema_id=outer_block_document.block_schema_id,
                 ),
             )
 
@@ -1375,7 +1392,8 @@ class TestUpdateBlockDocument:
                         "$ref": {"block_document_id": new_middle_block_document_1.id}
                     },
                     "d": {"$ref": {"block_document_id": middle_block_document_2.id}},
-                }
+                },
+                block_schema_id=outer_block_document.block_schema_id,
             ),
         )
 
@@ -1590,7 +1608,8 @@ class TestSecretBlockDocuments:
             session=session,
             block_document_id=secret_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=obfuscate_string(X))
+                data=dict(x=obfuscate_string(X)),
+                block_schema_id=secret_block_document.block_schema_id,
             ),
         )
 
