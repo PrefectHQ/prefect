@@ -254,7 +254,9 @@ class ResultFactory(pydantic.BaseModel):
                 storage_block._block_document_id
                 # TODO: Overwrite is true to avoid issues where the save collides with
                 #       a previously saved document with a matching hash
-                or await storage_block._save(is_anonymous=True, overwrite=True)
+                or await storage_block._save(
+                    is_anonymous=True, overwrite=True, client=client
+                )
             )
         elif isinstance(result_storage, str):
             storage_block = await Block.load(result_storage, client=client)
