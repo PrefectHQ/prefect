@@ -27,7 +27,7 @@ from prefect.orion import schemas
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
-from prefect.utilities.annotations import quote
+from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
@@ -392,8 +392,11 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
     # We do not check for arbitary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
-
-    if not isinstance(obj, quote) and isinstance(obj, (list, set, tuple)) and obj:
+    if (
+        not isinstance(obj, BaseAnnotation)
+        and isinstance(obj, (list, set, tuple))
+        and obj
+    ):
         return all([is_state(o) for o in obj])
     else:
         return False
