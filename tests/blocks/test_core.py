@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 import pytest
 from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
-from pydantic.fields import ModelField
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -19,7 +18,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
-from prefect.utilities.dispatch import get_registry_for_type, lookup_type, register_type
+from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
 
@@ -2076,34 +2075,30 @@ class TestTypeDispatch:
 
 
 class TestBlockSchemaMigration:
-    @pytest.fixture
-    def new_field(self):
-        return {
-            "y": ModelField.infer(
-                name="y",
-                value=...,
-                annotation=int,
-                class_validators=None,
-                config=Block.__config__,
-            )
-        }
-
-    def test_schema_mismatch_with_validation_raises(self, new_field):
+    def test_schema_mismatch_with_validation_raises(self):
         class A(Block):
+            _block_type_name = "a"
+            _block_type_slug = "a"
             x: int = 1
 
         a = A()
 
         a.save("test")
 
-        A.__fields__.update(new_field)  # simulate a schema change
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
 
         with pytest.raises(
             RuntimeError, match="try loading again with `validate=False`"
         ):
             A.load("test")
 
-    def test_add_field_to_schema_with_skip_validation(self, new_field):
+    def test_add_field_to_schema_partial_load_with_skip_validation(self):
         class A(Block):
             x: int = 1
 
@@ -2111,7 +2106,13 @@ class TestBlockSchemaMigration:
 
         a.save("test")
 
-        A.__fields__.update(new_field)  # simulate a schema change
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
 
         with pytest.warns(UserWarning, match="Could not fully load"):
             a = A.load("test", validate=False)
@@ -2119,7 +2120,7 @@ class TestBlockSchemaMigration:
         assert a.x == 1
         assert a.y == None
 
-    def test_rm_field_from_schema_loads_with_validation(self, new_field):
+    def test_rm_field_from_schema_loads_with_validation(self):
         class Foo(Block):
             _block_type_name = "foo"
             _block_type_slug = "foo"
@@ -2130,12 +2131,12 @@ class TestBlockSchemaMigration:
 
         foo.save("xy")
 
-        get_registry_for_type(Block).pop("foo")
+        with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
 
-        class Foo_Alias(Block):
-            _block_type_name = "foo"
-            _block_type_slug = "foo"
-            x: int = 1
+            class Foo_Alias(Block):
+                _block_type_name = "foo"
+                _block_type_slug = "foo"
+                x: int = 1
 
         foo_alias = Foo_Alias.load("xy")
 
@@ -2146,7 +2147,7 @@ class TestBlockSchemaMigration:
         # with pytest.raises(AttributeError):
         #     foo_alias.y
 
-    def test_load_with_skip_validation_keeps_metadata(self, new_field):
+    def test_load_with_skip_validation_keeps_metadata(self):
         class Bar(Block):
             x: int = 1
 
@@ -2157,3 +2158,43 @@ class TestBlockSchemaMigration:
         bar_new = Bar.load("test", validate=False)
 
         assert bar.dict() == bar_new.dict()
+
+    async def test_save_new_schema_with_overwrite(self, orion_client):
+        class Baz(Block):
+            _block_type_name = "baz"
+            _block_type_slug = "baz"
+            x: int = 1
+
+        baz = Baz()
+
+        await baz.save("test")
+
+        block_document = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        old_schema_id = block_document.block_schema_id
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'Baz'"):
+
+            class Baz_Alias(Block):
+                _block_type_name = "baz"
+                _block_type_slug = "baz"
+                x: int = 1
+                y: int = 2
+
+        baz_alias = await Baz_Alias.load("test", validate=False)
+
+        await baz_alias.save("test", overwrite=True)
+
+        new_schema_id = baz_alias._block_schema_id
+
+        # new local schema ID should be different because field added
+        assert old_schema_id != new_schema_id
+
+        updated_schema = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        updated_schema_id = updated_schema.block_schema_id
+
+        # new local schema ID should now be saved to Orion
+        assert updated_schema_id == new_schema_id
