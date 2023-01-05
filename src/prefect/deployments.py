@@ -169,7 +169,7 @@ async def load_flow_from_flow_run(
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
-    logger.debug(f"Importing flow code from {import_path!r}")
+    logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
     if deployment.manifest_path:
