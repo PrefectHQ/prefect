@@ -1031,10 +1031,13 @@ class WorkerPool(ORMBaseModel):
                 # {{ var }} -> var
                 template.strip("{} ")
             )
-        provided_variables = variables.keys()
+        provided_variables = set(variables.keys())
         if not template_variables.issubset(provided_variables):
             raise ValueError(
-                "The variables specified in the job configuration template must be present as attributes in the variables class."
+                "The variables specified in the job configuration template must be "
+                "present as attributes in the variables class. "
+                f"Your job expects the following variables: {template_variables!r}, "
+                f"but your template provides: {provided_variables!r}"
             )
         return v
 

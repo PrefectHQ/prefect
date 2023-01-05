@@ -213,3 +213,45 @@ class TestWorkerPool:
         qid = uuid4()
         wp = schemas.core.WorkerPool(name="test", default_queue_id=qid)
         assert wp.default_queue_id == qid
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {"wrong_variable": {}},
+            }
+        ],
+    )
+    async def test_validate_base_job_template_fails(self, template):
+        """Test that error is raised if base_job_template does not include
+        necessary variables.
+        """
+        qid = uuid4()
+        with pytest.raises(
+            ValueError,
+            match=".*Your job expects the following variables: {'expected_variable'}, but your template provides: {'wrong_variable'}",
+        ):
+            wp = schemas.core.WorkerPool(
+                name="test", default_queue_id=qid, base_job_template=template
+            )
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            dict(),
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {"expected_variable": {}},
+            },
+        ],
+    )
+    async def test_validate_base_job_template_succeeds(self, template):
+        """Test that error is raised if base_job_template does not include
+        necessary variables.
+        """
+        qid = uuid4()
+        wp = schemas.core.WorkerPool(
+            name="test", default_queue_id=qid, base_job_template=template
+        )
+        assert wp
