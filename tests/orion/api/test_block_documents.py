@@ -644,7 +644,6 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
-                block_schema_id=block_schemas[1].id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -676,7 +675,6 @@ class TestUpdateBlockDocument:
             json=BlockDocumentUpdate(
                 data=new_data,
                 merge_existing_data=False,
-                block_schema_id=block_schemas[1].id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -706,7 +704,6 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(y=99),
-                block_schema_id=block_schemas[1].id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -736,7 +733,6 @@ class TestUpdateBlockDocument:
             f"/block_documents/{block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=2),
-                block_schema_id=block_schemas[1].id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -800,7 +796,6 @@ class TestUpdateBlockDocument:
             f"/block_documents/{inner_block_document.id}",
             json=BlockDocumentUpdate(
                 data=dict(x=4),
-                block_schema_id=inner_block_document.block_schema_id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -895,7 +890,6 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {"block_document_id": new_inner_block_document.id}},
                     "z": "zzzzz",
                 },
-                block_schema_id=outer_block_document.block_schema_id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -959,7 +953,6 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {"block_document_id": uuid4()}},
                     "z": "zzzzz",
                 },
-                block_schema_id=outer_block_document.block_schema_id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -1000,7 +993,6 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {}},
                     "z": "zzzzz",
                 },
-                block_schema_id=outer_block_document.block_schema_id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -1016,7 +1008,6 @@ class TestUpdateBlockDocument:
                     "b": {"$ref": {}},
                     "z": "zzzzz",
                 },
-                block_schema_id=uuid4(),
             ).dict(json_compatible=True, exclude_unset=True),
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -1078,7 +1069,6 @@ class TestUpdateBlockDocument:
                     "z": "zzzzz",
                 },
                 merge_existing_data=False,
-                block_schema_id=outer_block_document.block_schema_id,
             ).dict(json_compatible=True, exclude_unset=True),
         )
 

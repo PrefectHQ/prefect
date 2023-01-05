@@ -503,7 +503,10 @@ async def update_block_document(
         proposed_block_schema_id = block_document.block_schema_id
 
         # if a new schema is proposed, update the block schema id for the block document
-        if proposed_block_schema_id != current_block_document.block_schema_id:
+        if (
+            proposed_block_schema_id != current_block_document.block_schema_id
+            and proposed_block_schema_id is not None
+        ):
             proposed_block_schema = await session.get(
                 db.BlockSchema, proposed_block_schema_id
             )
