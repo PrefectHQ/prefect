@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic.fields import ModelField
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -18,7 +19,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.orion import models
 from prefect.orion.schemas.actions import BlockDocumentCreate
 from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
-from prefect.utilities.dispatch import lookup_type, register_type
+from prefect.utilities.dispatch import get_registry_for_type, lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
 
@@ -2072,3 +2073,87 @@ class TestTypeDispatch:
         model.block = BChildBlock(b=4).dict()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
+
+
+class TestBlockSchemaMigration:
+    @pytest.fixture
+    def new_field(self):
+        return {
+            "y": ModelField.infer(
+                name="y",
+                value=...,
+                annotation=int,
+                class_validators=None,
+                config=Block.__config__,
+            )
+        }
+
+    def test_schema_mismatch_with_validation_raises(self, new_field):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        A.__fields__.update(new_field)  # simulate a schema change
+
+        with pytest.raises(
+            RuntimeError, match="try loading again with `validate=False`"
+        ):
+            A.load("test")
+
+    def test_add_field_to_schema_with_skip_validation(self, new_field):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        A.__fields__.update(new_field)  # simulate a schema change
+
+        with pytest.warns(UserWarning, match="Could not fully load"):
+            a = A.load("test", validate=False)
+
+        assert a.x == 1
+        assert a.y == None
+
+    def test_rm_field_from_schema_loads_with_validation(self, new_field):
+        class Foo(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
+            x: int = 1
+            y: int = 2
+
+        foo = Foo()
+
+        foo.save("xy")
+
+        get_registry_for_type(Block).pop("foo")
+
+        class Foo_Alias(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
+            x: int = 1
+
+        foo_alias = Foo_Alias.load("xy")
+
+        assert foo_alias.x == 1
+
+        # TODO: This should raise an AttributeError, but it doesn't
+        # because `Config.extra = "allow"`
+        # with pytest.raises(AttributeError):
+        #     foo_alias.y
+
+    def test_load_with_skip_validation_keeps_metadata(self, new_field):
+        class Bar(Block):
+            x: int = 1
+
+        bar = Bar()
+
+        bar.save("test")
+
+        bar_new = Bar.load("test", validate=False)
+
+        assert bar.dict() == bar_new.dict()
