@@ -152,7 +152,7 @@ async def logs(
     ),
     num_lines: int = typer.Option(
         None,
-        "--num-lines",
+        "--num-logs",
         "-n",
         help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_DEFAULT_HEAD_NUM_LINES}.",
         min=1,
