@@ -40,8 +40,8 @@ class BaseWorker(abc.ABC):
     @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
-        name: str,
         worker_pool_name: str,
+        name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
         create_pool_if_not_found: bool = True,
@@ -125,7 +125,7 @@ class BaseWorker(abc.ABC):
         """Prepares the worker to run."""
         self._logger.debug("Setting up worker...")
         self._runs_task_group = anyio.create_task_group()
-        self.limiter = (
+        self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
         )
         self._client = get_client()
@@ -150,7 +150,7 @@ class BaseWorker(abc.ABC):
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()
-        await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
+        return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     async def _update_local_worker_pool_info(self):
         try:
@@ -283,30 +283,39 @@ class BaseWorker(abc.ABC):
 
     async def _submit_scheduled_flow_runs(
         self, flow_run_response: List[WorkerFlowRunResponse]
-    ):
+    ) -> List[FlowRun]:
         """
         Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
         for execution by the worker.
         """
-        for entry in flow_run_response:
-            if entry.flow_run.id in self._submitting_flow_run_ids:
+        submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
+        submittable_flow_runs.sort(key=lambda run: run.next_scheduled_start_time)
+        for flow_run in submittable_flow_runs:
+            if flow_run.id in self._submitting_flow_run_ids:
                 continue
 
             try:
-                if self.limiter:
-                    self.limiter.acquire_on_behalf_of_nowait(entry.flow_run.id)
+                if self._limiter:
+                    self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self._logger.info(
-                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs in progress."
                 )
                 break
             else:
-                self._logger.info(f"Submitting flow run '{entry.flow_run.id}'")
-                self._submitting_flow_run_ids.add(entry.flow_run.id)
+                self._logger.info(f"Submitting flow run '{flow_run.id}'")
+                self._submitting_flow_run_ids.add(flow_run.id)
                 self._runs_task_group.start_soon(
                     self._submit_run,
-                    entry.flow_run,
+                    flow_run,
                 )
+
+        return list(
+            filter(
+                lambda run: run.id in self._submitting_flow_run_ids,
+                submittable_flow_runs,
+            )
+        )
 
     async def _submit_run(self, flow_run: FlowRun) -> None:
         """
@@ -336,8 +345,8 @@ class BaseWorker(abc.ABC):
 
         else:
             # If the run is not ready to submit, release the concurrency slot
-            if self.limiter:
-                self.limiter.release_on_behalf_of(flow_run.id)
+            if self._limiter:
+                self._limiter.release_on_behalf_of(flow_run.id)
 
         self._submitting_flow_run_ids.remove(flow_run.id)
 
@@ -365,8 +374,8 @@ class BaseWorker(abc.ABC):
                 )
             return exc
         finally:
-            if self.limiter:
-                self.limiter.release_on_behalf_of(flow_run.id)
+            if self._limiter:
+                self._limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
             self._logger.error(
