@@ -8,7 +8,6 @@ from uuid import UUID, uuid4
 import pytest
 from packaging.version import Version
 from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
-from pydantic.fields import ModelField
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
