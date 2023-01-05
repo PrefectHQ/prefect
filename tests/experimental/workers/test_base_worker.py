@@ -1,8 +1,10 @@
 from pathlib import Path
 
+import pendulum
 import pytest
 
 from prefect.client.orion import OrionClient
+from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import BaseWorker
 from prefect.settings import (
@@ -15,10 +17,10 @@ from prefect.settings import (
 class WorkerTestImpl(BaseWorker):
     type = "test"
 
-    def run(self):
+    async def run(self):
         pass
 
-    def verify_submitted_deployment(self):
+    async def verify_submitted_deployment(self, deployment):
         pass
 
 
@@ -39,7 +41,7 @@ async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
     assert (tmp_path / "workflows").exists()
 
 
-async def test_worker_creates_worker_pool_by_default_when_started(
+async def test_worker_creates_worker_pool_by_default_during_sync(
     orion_client: OrionClient,
 ):
     with pytest.raises(ObjectNotFound):
@@ -90,7 +92,7 @@ async def test_worker_respects_settings(setting, attr):
     )
 
 
-async def test_worker_sends_heartbeat_messages_at_configured_interval(
+async def test_worker_sends_heartbeat_messages(
     orion_client: OrionClient,
 ):
     async with WorkerTestImpl(
@@ -112,3 +114,119 @@ async def test_worker_sends_heartbeat_messages_at_configured_interval(
         )
         second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
+
+
+async def test_worker_applies_discovered_deployments(
+    orion_client: OrionClient, flow_function, tmp_path: Path
+):
+    workflows_path = tmp_path / "workflows"
+    workflows_path.mkdir()
+    deployment = await Deployment.build_from_flow(
+        name="test-deployment", flow=flow_function
+    )
+    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
+    async with WorkerTestImpl(
+        name="test",
+        worker_pool_name="test-worker-pool",
+        workflow_storage_path=workflows_path,
+    ) as worker:
+
+        await worker.scan_storage_for_deployments()
+
+    read_deployment = await orion_client.read_deployment_by_name(
+        "client-test-flow/test-deployment"
+    )
+    assert read_deployment is not None
+
+
+async def test_worker_applies_updates_to_deployments(
+    orion_client: OrionClient, flow_function, tmp_path: Path
+):
+    # create initial deployment manifest
+    workflows_path = tmp_path / "workflows"
+    workflows_path.mkdir()
+    deployment = await Deployment.build_from_flow(
+        name="test-deployment", flow=flow_function
+    )
+    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
+    async with WorkerTestImpl(
+        name="test",
+        worker_pool_name="test-worker-pool",
+        workflow_storage_path=workflows_path,
+    ) as worker:
+
+        await worker.scan_storage_for_deployments()
+
+        read_deployment = await orion_client.read_deployment_by_name(
+            "client-test-flow/test-deployment"
+        )
+        assert read_deployment is not None
+
+        # update deployment
+        deployment.tags = ["new-tag"]
+        deployment.timestamp = pendulum.now("UTC")
+        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
+
+        await worker.scan_storage_for_deployments()
+
+        read_deployment = await orion_client.read_deployment_by_name(
+            "client-test-flow/test-deployment"
+        )
+        assert read_deployment is not None
+        assert read_deployment.tags == ["new-tag"]
+
+
+async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
+    orion_client: OrionClient, flow_function, tmp_path: Path
+):
+    # create initial deployment manifest
+    workflows_path = tmp_path / "workflows"
+    workflows_path.mkdir()
+    deployment = await Deployment.build_from_flow(
+        name="test-deployment", flow=flow_function
+    )
+    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
+    async with WorkerTestImpl(
+        name="test",
+        worker_pool_name="test-worker-pool",
+        workflow_storage_path=workflows_path,
+    ) as worker:
+
+        await worker.scan_storage_for_deployments()
+
+        read_deployment = await orion_client.read_deployment_by_name(
+            "client-test-flow/test-deployment"
+        )
+        assert read_deployment is not None
+
+        # update deployment don't update timestamp
+        deployment.tags = ["new-tag"]
+        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
+
+        await worker.scan_storage_for_deployments()
+
+        read_deployment = await orion_client.read_deployment_by_name(
+            "client-test-flow/test-deployment"
+        )
+        assert read_deployment is not None
+        assert read_deployment.tags == []
+
+
+async def test_worker_does_not_raise_on_malformed_manifests(
+    orion_client: OrionClient, tmp_path: Path
+):
+    workflows_path = tmp_path / "workflows"
+    workflows_path.mkdir()
+    (workflows_path / "test-deployment.yaml").write_text(
+        "Ceci n'est pas un déploiement"
+    )
+
+    async with WorkerTestImpl(
+        name="test",
+        worker_pool_name="test-worker-pool",
+        workflow_storage_path=workflows_path,
+    ) as worker:
+
+        await worker.scan_storage_for_deployments()
+
+        assert len(await orion_client.read_deployments()) == 0

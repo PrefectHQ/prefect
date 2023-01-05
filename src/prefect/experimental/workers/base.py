@@ -1,5 +1,4 @@
 import abc
-from functools import partial
 from pathlib import Path
 from typing import List, Optional, Union
 from uuid import uuid4
@@ -24,7 +23,6 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
-from prefect.utilities.services import critical_service_loop
 
 
 class BaseWorkerResult(BaseModel, abc.ABC):
@@ -149,46 +147,6 @@ class BaseWorker(abc.ABC):
             await self._client.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
-
-    async def start(self, task_group: anyio.abc.TaskGroup):
-        """
-        Starts the heartbeat and storage scan loops when the worker starts.
-        """
-        if not self.is_setup:
-            raise RuntimeError(
-                f"Worker has not been setup. Use `async with {self.__class__.__name__}()...`"
-            )
-        # wait for an initial heartbeat to configure the worker
-        await self.sync_with_backend()
-        # perform initial scan of storage
-        await self.scan_storage_for_deployments()
-        # schedule the scheduled flow run polling loop to run every `query_seconds`
-        task_group.start_soon(
-            partial(
-                critical_service_loop,
-                workload=self._get_and_submit_flow_runs,
-                interval=self._query_seconds,
-                printer=self._logger.debug,
-            )
-        )
-        # schedule the sync loop to run every `heartbeat_seconds`
-        task_group.start_soon(
-            partial(
-                critical_service_loop,
-                workload=self.sync_with_backend,
-                interval=self._heartbeat_seconds,
-                printer=self._logger.debug,
-            )
-        )
-        # schedule the storage scan loop to run every `_workflow_storage_scan_seconds`
-        task_group.start_soon(
-            partial(
-                critical_service_loop,
-                workload=self.scan_storage_for_deployments,
-                interval=self._workflow_storage_scan_seconds,
-                printer=self._logger.debug,
-            )
-        )
 
     async def get_and_submit_flow_runs(self):
         runs_response = await self._get_scheduled_flow_runs()

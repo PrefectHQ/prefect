@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
@@ -404,7 +405,7 @@ class Deployment(BaseModel):
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
