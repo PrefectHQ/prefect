@@ -182,6 +182,7 @@ async def data(flow_function, db):
                 tags=[],
                 state=states.Completed(),
                 deployment_id=d_3_1.id,
+                worker_pool_queue_id=wp.default_queue_id,
             )
         )
 
@@ -570,6 +571,55 @@ class TestCountFlowRunModels:
                 flow_run_filter=filters.FlowRunFilter(),
             ),
             12,
+        ],
+        [
+            dict(
+                worker_pool_filter=filters.WorkerPoolFilter(
+                    name=dict(any_=["Test Pool"])
+                )
+            ),
+            1,
+        ],
+        [
+            dict(
+                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                    name=dict(any_=["Default Queue"])
+                )
+            ),
+            1,
+        ],
+        [
+            dict(
+                worker_pool_filter=filters.WorkerPoolFilter(
+                    name=dict(any_=["Test Pool"])
+                ),
+                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                    name=dict(any_=["Default Queue"])
+                ),
+            ),
+            1,
+        ],
+        [
+            dict(
+                worker_pool_filter=filters.WorkerPoolFilter(
+                    name=dict(any_=["A pool that doesn't exist"])
+                ),
+                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                    name=dict(any_=["Default Queue"])
+                ),
+            ),
+            0,
+        ],
+        [
+            dict(
+                worker_pool_filter=filters.WorkerPoolFilter(
+                    name=dict(any_=["Test Pool"])
+                ),
+                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                    name=dict(any_=["a queue that doesn't exist"])
+                ),
+            ),
+            0,
         ],
     ]
 
