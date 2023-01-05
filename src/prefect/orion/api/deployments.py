@@ -300,7 +300,7 @@ async def create_flow_run_from_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
-) -> schemas.core.FlowRun:
+) -> schemas.responses.FlowRunResponse:
     """
     Create a flow run from a deployment.
 
@@ -353,7 +353,7 @@ async def create_flow_run_from_deployment(
         )
         if model.created >= now:
             response.status_code = status.HTTP_201_CREATED
-        return model
+        return schemas.responses.FlowRunResponse.from_orm(model)
 
 
 # DEPRECATED
