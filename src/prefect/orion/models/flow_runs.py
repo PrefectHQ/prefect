@@ -348,6 +348,8 @@ async def count_flow_runs(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
 ) -> int:
     """
     Count flow runs.
@@ -371,6 +373,8 @@ async def count_flow_runs(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        worker_pool_filter=worker_pool_filter,
+        worker_pool_queue_filter=worker_pool_queue_filter,
         db=db,
     )
 
