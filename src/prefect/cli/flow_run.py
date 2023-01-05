@@ -28,8 +28,8 @@ flow_run_app = PrefectTyper(
 )
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
-LOGS_PAGE_SIZE = 200
-LOGS_HEAD_DEFAULT_NUM_LINES = 20
+LOGS_DEFAULT_PAGE_SIZE = 200
+LOGS_DEFAULT_HEAD_NUM_LINES = 20
 
 
 @flow_run_app.command()
@@ -148,27 +148,27 @@ async def logs(
         False,
         "--head",
         "-h",
-        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of all logs.",
+        help=f"Show the first {LOGS_DEFAULT_HEAD_NUM_LINES} lines of logs instead of all logs.",
     ),
     num_lines: int = typer.Option(
         None,
         "--num-lines",
         "-n",
-        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_HEAD_DEFAULT_NUM_LINES}.",
+        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_DEFAULT_HEAD_NUM_LINES}.",
         min=1,
     ),
 ):
     """
     View logs for a flow run.
     """
-    # Pagination - API returns max 200 (LOGS_PAGE_SIZE) lines at a time
+    # Pagination - API returns max 200 (LOGS_DEFAULT_PAGE_SIZE) lines at a time
     offset = 0
     more_logs = True
     num_logs_returned = 0
 
     # If head is specified, we need to stop after we've retrieved enough lines
     if head or num_lines:
-        user_specified_num_logs = num_lines or LOGS_HEAD_DEFAULT_NUM_LINES
+        user_specified_num_logs = num_lines or LOGS_DEFAULT_HEAD_NUM_LINES
     else:
         user_specified_num_logs = None
 
@@ -183,9 +183,9 @@ async def logs(
 
         while more_logs:
             num_logs_to_return_from_page = (
-                LOGS_PAGE_SIZE
+                LOGS_DEFAULT_PAGE_SIZE
                 if user_specified_num_logs is None
-                else min(LOGS_PAGE_SIZE, user_specified_num_logs)
+                else min(LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs)
             )
 
             # Get the next page of logs
@@ -204,8 +204,8 @@ async def logs(
             # Update the number of logs retrieved
             num_logs_returned += num_logs_to_return_from_page
 
-            if len(page_logs) == LOGS_PAGE_SIZE:
-                offset += LOGS_PAGE_SIZE
+            if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
+                offset += LOGS_DEFAULT_PAGE_SIZE
             else:
                 # No more logs to show, exit
                 more_logs = False
