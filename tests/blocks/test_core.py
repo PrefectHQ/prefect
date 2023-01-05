@@ -2186,6 +2186,11 @@ class TestBlockSchemaMigration:
 
         await baz_alias.save("test", overwrite=True)
 
+        baz_alias_RELOADED = await Baz_Alias.load("test")
+
+        assert baz_alias_RELOADED.x == 1
+        assert baz_alias_RELOADED.y == 2
+
         new_schema_id = baz_alias._block_schema_id
 
         # new local schema ID should be different because field added
