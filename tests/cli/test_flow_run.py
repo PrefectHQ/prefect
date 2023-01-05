@@ -415,7 +415,7 @@ class TestFlowRunLogs:
             expected_line_count=self.PAGE_SIZE + 1,
         )
 
-    async def test_when_head_without_num_lines_then_return_the_default_number_of_lines(
+    async def test_default_head_returns_default_num_logs(
         self, flow_run_factory
     ):
         # Given
