@@ -1018,6 +1018,26 @@ class WorkerPool(ORMBaseModel):
             )
         return v
 
+    @validator("base_job_template")
+    def validate_base_job_template(cls, v):
+        if v == dict():
+            return v
+
+        job_config = v["job_configuration"]
+        variables = v["variables"]
+        template_variables = set()
+        for template in job_config.values():
+            template_variables.add(
+                # {{ var }} -> var
+                template.strip("{} ")
+            )
+        provided_variables = variables.keys()
+        if not template_variables.issubset(provided_variables):
+            raise ValueError(
+                "The variables specified in the job configuration template must be present as attributes in the variables class."
+            )
+        return v
+
 
 class Worker(ORMBaseModel):
     """An ORM representation of a worker"""

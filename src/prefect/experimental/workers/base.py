@@ -8,7 +8,6 @@ from zipfile import ZipFile
 
 import anyio
 import anyio.abc
-import jinja2
 import pendulum
 from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, status
 from httpx import HTTPStatusError
@@ -62,13 +61,6 @@ class BaseJobConfiguration(BaseModel):
                 defaults[variable_name] = attrs["default"]
 
         return defaults
-
-    @staticmethod
-    def _jinja_template(job_config: dict) -> jinja2.Template:
-        """Create jinja template for job configuration."""
-        job_config_str = str(job_config)
-        template = jinja2.Environment().from_string(job_config_str)
-        return template
 
     @classmethod
     def from_template_and_overrides(
@@ -519,9 +511,6 @@ class BaseWorker(LoopService, abc.ABC):
             "variables": variables["properties"],
             "required": variables.get("required", []),
         }
-
-    def _validate_template_combination(self):
-        pass
 
     async def _submit_run_and_capture_errors(
         self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
