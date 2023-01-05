@@ -461,7 +461,7 @@ class TestFlowRunLogs:
             expected_line_count=10,
         )
 
-    async def test_when_num_lines_passed_without_head_then_return_n_num_lines(
+    async def test_num_logs_passed_standalone_returns_num_logs(
         self, flow_run_factory
     ):
         # Given
