@@ -260,8 +260,12 @@ class TestGetRunsInWorkQueue:
         response2 = await client.post(f"/work_queues/{work_queue_2.id}/get_runs")
         assert response2.status_code == status.HTTP_200_OK
 
-        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
-        runs_wq2 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response2.json())
+        runs_wq1 = pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response1.json()
+        )
+        runs_wq2 = pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response2.json()
+        )
 
         assert len(runs_wq1) == len(runs_wq2) == 3
         assert all(r.work_queue_name == work_queue.name for r in runs_wq1)
@@ -280,7 +284,9 @@ class TestGetRunsInWorkQueue:
         response1 = await client.post(
             f"/work_queues/{work_queue.id}/get_runs", json=dict(limit=limit)
         )
-        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
+        runs_wq1 = pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response1.json()
+        )
         assert len(runs_wq1) == limit
 
     async def test_get_runs_in_queue_scheduled_before(
@@ -290,7 +296,9 @@ class TestGetRunsInWorkQueue:
             f"/work_queues/{work_queue.id}/get_runs",
             json=dict(scheduled_before=pendulum.now().isoformat()),
         )
-        runs_wq1 = pydantic.parse_obj_as(List[schemas.core.FlowRun], response1.json())
+        runs_wq1 = pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response1.json()
+        )
         assert len(runs_wq1) == 1
 
     async def test_get_runs_in_queue_nonexistant(

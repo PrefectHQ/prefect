@@ -125,7 +125,7 @@ class State(schemas.states.State.subclass(exclude_fields=["data"]), Generic[R]):
         )
 
 
-class FlowRun(schemas.core.FlowRun.subclass()):
+class FlowRun(schemas.responses.FlowRunResponse.subclass()):
     state: Optional[State] = Field(default=None)
 
 
