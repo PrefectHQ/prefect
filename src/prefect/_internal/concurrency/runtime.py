@@ -73,8 +73,12 @@ class _WorkItem:
             self.future.set_result(result)
 
     async def _run_async(self):
+        loop = asyncio.get_running_loop()
         try:
-            result = await self.context.run(self.fn, *self.args, **self.kwargs)
+            coro = self.context.run(self.fn, *self.args, **self.kwargs)
+            # Put the coroutine in a new task to ensure it runs in the context
+            task = self.context.run(loop.create_task, coro)
+            result = await task
         except BaseException as exc:
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
