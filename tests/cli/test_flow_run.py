@@ -305,13 +305,13 @@ def flow_run_factory(orion_client):
 
 
 class TestFlowRunLogs:
-    PAGE_SIZE = 200
+    LOGS_DEFAULT_PAGE_SIZE = 200
 
     async def test_when_num_logs_smaller_than_page_size_then_no_pagination(
         self, flow_run_factory
     ):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE - 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE - 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -324,7 +324,7 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE - 1)
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE - 1)
             ],
         )
 
@@ -332,7 +332,7 @@ class TestFlowRunLogs:
         self, flow_run_factory
     ):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -345,7 +345,7 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE + 1)
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 1)
             ],
         )
 
@@ -369,7 +369,7 @@ class TestFlowRunLogs:
         self, flow_run_factory
     ):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -394,7 +394,7 @@ class TestFlowRunLogs:
         self, flow_run_factory
     ):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -405,21 +405,19 @@ class TestFlowRunLogs:
                 str(flow_run.id),
                 "--head",
                 "--num-lines",
-                self.PAGE_SIZE + 1,
+                self.LOGS_DEFAULT_PAGE_SIZE + 1,
             ],
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE + 1)
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 1)
             ],
-            expected_line_count=self.PAGE_SIZE + 1,
+            expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 1,
         )
 
-    async def test_default_head_returns_default_num_logs(
-        self, flow_run_factory
-    ):
+    async def test_default_head_returns_default_num_logs(self, flow_run_factory):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -440,7 +438,7 @@ class TestFlowRunLogs:
 
     async def test_h_and_n_shortcuts_for_head_and_num_lines(self, flow_run_factory):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -461,11 +459,9 @@ class TestFlowRunLogs:
             expected_line_count=10,
         )
 
-    async def test_num_logs_passed_standalone_returns_num_logs(
-        self, flow_run_factory
-    ):
+    async def test_num_logs_passed_standalone_returns_num_logs(self, flow_run_factory):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -489,7 +485,7 @@ class TestFlowRunLogs:
         self, flow_run_factory
     ):
         # Given
-        flow_run = await flow_run_factory(num_logs=self.PAGE_SIZE + 1)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
