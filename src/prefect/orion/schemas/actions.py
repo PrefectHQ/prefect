@@ -314,6 +314,9 @@ class BlockDocumentCreate(ActionBaseModel):
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a block document."""
 
+    block_schema_id: Optional[UUID] = Field(
+        default=None, description="A block schema ID"
+    )
     data: dict = FieldFrom(schemas.core.BlockDocument)
     merge_existing_data: bool = True
 

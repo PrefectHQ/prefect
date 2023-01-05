@@ -126,8 +126,11 @@ async def update_block_document_data(
                 block_document_id=block_document_id,
                 block_document=block_document,
             )
-    except ValueError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
     if not result:
         raise HTTPException(
