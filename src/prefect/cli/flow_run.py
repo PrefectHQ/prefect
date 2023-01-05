@@ -148,7 +148,7 @@ async def logs(
         False,
         "--head",
         "-h",
-        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of all logs",
+        help=f"Show the first {LOGS_HEAD_DEFAULT_NUM_LINES} lines of logs instead of all logs.",
     ),
     num_lines: int = typer.Option(
         None,
