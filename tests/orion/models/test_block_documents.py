@@ -972,8 +972,7 @@ class TestUpdateBlockDocument:
             session,
             block_document_id=block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=new_data,
-                merge_existing_data=False,
+                data=new_data, merge_existing_data=False
             ),
         )
 
