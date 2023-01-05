@@ -50,24 +50,6 @@ def _parse_infrastructure_pid(infrastructure_pid: str) -> Tuple[str, int]:
     return hostname, int(pid)
 
 
-PROCESS_WORKER_BASE_TEMPLATE = {
-    "job_configuration": {
-        "command": "{{ command }}",
-        "steam_output": "{{ steam_output }}",
-        "working_dir": "{{ working_dir }}",
-    },
-    "variables": {
-        "command": {"type": "array", "items": {"type": "string"}, "default": []},
-        "steam_output": {"type": "boolean", "default": True},
-        "working_dir": {
-            "type": "string",
-            "default": "",
-        },
-    },
-    "required_variables": [],
-}
-
-
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
