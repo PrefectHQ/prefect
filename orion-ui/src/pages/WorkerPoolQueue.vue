@@ -6,7 +6,7 @@
 
     <p-layout-well class="worker-pool-queue__body">
       <template #header>
-        <CodeBanner :command="workerPoolQueueCliCommand" title="Worker pool queue is ready to go!" subtitle="Work queues are scoped to a specific work pool to ensure that the work put into a  queue will only be picked up by a specific type of worker." />
+        <CodeBanner :command="workerPoolQueueCliCommand" title="Worker pool queue is ready to go!" subtitle="Work queues are scoped to a specific work pool to ensure that the work put into a queue will only be picked up by a specific type of worker." />
       </template>
 
       <p-tabs :tabs="tabs">
