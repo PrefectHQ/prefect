@@ -262,6 +262,9 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # recommends using 'normal' mode which is much faster
         conn.execute(sa.text("PRAGMA synchronous = NORMAL;"))
 
+        # a higher cache size (default of 2000) for more aggressive performance
+        conn.execute(sa.text("PRAGMA cache_size = 20000;"))
+
         # wait for this amount of time while a table is locked
         # before returning and rasing an error
         # setting the value very high allows for more 'concurrency'
