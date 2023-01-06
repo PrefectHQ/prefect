@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC
 from typing import Generic, TypeVar
 
@@ -15,10 +16,16 @@ class BaseAnnotation(ABC, Generic[T]):
     def unwrap(self) -> T:
         return self.value
 
+    def rewrap(self, value: T) -> "BaseAnnotation[T]":
+        return type(self)(value)
+
     def __eq__(self, other: object) -> bool:
         if not type(self) == type(other):
             return False
         return self.unwrap() == other.unwrap()
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.value!r})"
 
 
 class unmapped(BaseAnnotation[T]):
@@ -49,7 +56,7 @@ class allow_failure(BaseAnnotation[T]):
     """
 
 
-class Quote(BaseAnnotation[T]):
+class quote(BaseAnnotation[T]):
     """
     Simple wrapper to mark an expression as a different type so it will not be coerced
     by Prefect. For example, if you want to return a state from a flow without having
@@ -60,17 +67,14 @@ class Quote(BaseAnnotation[T]):
         return self.unwrap()
 
 
-def quote(expr: T) -> Quote[T]:
-    """
-    Create a `Quote` object
-
-    Examples:
-        >>> from prefect.utilities.collections import quote
-        >>> x = quote(1)
-        >>> x.unquote()
-        1
-    """
-    return Quote(expr)
+# Backwards compatibility stub for `Quote` class
+class Quote(quote):
+    def __init__(self, expr):
+        warnings.warn(
+            DeprecationWarning,
+            "Use of `Quote` is deprecated. Use `quote` instead.",
+            stacklevel=2,
+        )
 
 
 class NotSet:
