@@ -295,7 +295,7 @@ def visit_collection(
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
         model_fields = expr.__fields_set__.union(expr.__fields__)
-        items = [visit_nested(getattr(expr, key)) for key in model_fields]
+        items = [visit_nested(getattr(expr, key)) for key in model_fields if hasattr(expr, key)]
 
         if return_data:
             # Collect fields with aliases so reconstruction can use the correct field name
