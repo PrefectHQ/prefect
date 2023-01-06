@@ -234,6 +234,7 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
+            (ExtraPydantic(x=1, y=2, z=4).copy(exclude={"z"}), {2}),
         ],
     )
     def test_visit_collection(self, inp, expected):
