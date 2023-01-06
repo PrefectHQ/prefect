@@ -286,6 +286,35 @@ my_s3_bucket.save("my_s3_bucket")
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
+### Handling updates to custom `Block` types
+Let's say that you now want to add a field `bucket_folder` to your custom `S3Bucket` block that represents the default path to read and write objects from (this fields exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
+
+We can add the new field to the class definition:
+
+
+```python hl_lines="4"
+class S3Bucket(Block):
+    bucket_name: str
+    credentials: AWSCredentials
+    bucket_folder: str = None
+    ...
+```
+...and [register the updated block type with your Prefect Orion server](#registering-blocks-for-use-in-the-prefect-ui) (whether cloud or self-hosted).
+
+
+If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
+
+```python
+# Bypass Pydantic validation to allow your local Block class to load the old block version
+my_s3_bucket_block = S3Bucket.load("my-s3-bucket", validate=False)
+
+# Set the new field to an appropriate value
+my_s3_bucket_block.bucket_path = "my-default-bucket-path"
+
+# Overwrite the old block values and update the expected fields on the block
+my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
+```
+
 ## Registering blocks for use in the Prefect UI
 
 Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
