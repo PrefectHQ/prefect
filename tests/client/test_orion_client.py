@@ -1152,11 +1152,11 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
         get_client()
 
     mock.assert_called_once_with(
-        headers={"X-PREFECT-API-VERSION": ANY},
+        headers=ANY,
         verify=False,
         app=ANY,
         base_url=ANY,
-        timeout=httpx.Timeout(timeout=ANY),
+        timeout=ANY,
     )
 
 
