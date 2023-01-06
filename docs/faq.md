@@ -16,6 +16,10 @@ tags:
 
 Prefect 2 is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0), an [OSI approved](https://opensource.org/licenses/Apache-2.0) open-source license. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
 
+### Is the Prefect v2 Cloud URL different than the Prefect v1 Cloud URL?  
+
+Yes. Prefect Cloud for v2 is at [app.prefect.cloud/](https://app.prefect.cloud) while Prefect Cloud for v1 is at [cloud.prefect.io](https://cloud.prefect.io/).
+
 ## The Orion Engine
 
 ### Why "Orion"?
@@ -77,7 +81,7 @@ Note that when tasks are called on constant values, they cannot detect their ups
 
 ### Can I enforce ordering between tasks that don't share data?
 
-Yes! For more information, see the [`Tasks` section][/concepts/tasks/#wait-for].
+Yes! For more information, see the [`Tasks` section](/concepts/tasks/#wait-for).
 
 ### Does Prefect support proxies?
 
@@ -101,20 +105,22 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use PostgreSQL, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
+Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Orion server, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 
-Prefect works with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/orion.db`.
+A self-hosted Prefect Orion server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/orion.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
 
 ### How do I choose between SQLite and Postgres?
 
-SQLite is appropriate for getting started and exploring Prefect. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency may prefer to start with PostgreSQL.
-
-This answer will be updated with more concrete guidelines in the future.
+SQLite generally works well for getting started and exploring Prefect. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, for production uses, Prefect Cloud or self-hosted PostgreSQL is highly recommended. Under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency should use PostgreSQL.
 
 ## Relationship with other Prefect products
 
 ### Can a flow written with Prefect 1 be orchestrated with Prefect 2 and vice versa?
 
 No. Flows written with the Prefect 1 client must be rewritten with the Prefect 2 client. For most flows, this should take just a few minutes. See our [migration guide](/migration-guide/) and our [Upgrade to Prefect 2](https://www.prefect.io/guide/blog/upgrade-to-prefect-2/) post for more information.
+
+### Can a use Prefect 1 and Prefect 2 at the same time on my local machine?
+
+Yes. Just use different virtual environments.
