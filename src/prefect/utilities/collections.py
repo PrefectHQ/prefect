@@ -328,7 +328,9 @@ def visit_collection(
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
         # Check for presence of attrs even if they're in the field set due to pydantic#4916
-        model_fields = {f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)}
+        model_fields = {
+            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
+        }
         items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
         if return_data:
