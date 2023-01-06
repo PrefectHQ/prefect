@@ -3,14 +3,14 @@ Schemas for special responses from the Orion API.
 """
 
 import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from pydantic import Field
 from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.orion.schemas as schemas
-from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy
+from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy, UpdatedBy
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -204,3 +204,50 @@ class FlowRunResponse(ORMBaseModel):
                 exclude=exclude_fields
             )
         return super().__eq__(other)
+
+
+@copy_model_fields
+class DeploymentResponse(ORMBaseModel):
+    name: str = FieldFrom(schemas.core.Deployment)
+    version: Optional[str] = FieldFrom(schemas.core.Deployment)
+    description: Optional[str] = FieldFrom(schemas.core.Deployment)
+    flow_id: UUID = FieldFrom(schemas.core.Deployment)
+    schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
+        schemas.core.Deployment
+    )
+    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    infra_overrides: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
+    parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
+    tags: List[str] = FieldFrom(schemas.core.Deployment)
+    work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
+    parameter_openapi_schema: Optional[Dict[str, Any]] = FieldFrom(
+        schemas.core.Deployment
+    )
+    path: Optional[str] = FieldFrom(schemas.core.Deployment)
+    entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
+    manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
+    storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    created_by: Optional[CreatedBy] = FieldFrom(schemas.core.Deployment)
+    updated_by: Optional[UpdatedBy] = FieldFrom(schemas.core.Deployment)
+    worker_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool.",
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool queue.",
+    )
+
+    @classmethod
+    def from_orm(
+        cls, orm_deployment: "prefect.orion.database.orm_models.ORMDeployment"
+    ):
+        response = super().from_orm(orm_deployment)
+        if orm_deployment.worker_pool_queue:
+            response.worker_pool_queue_name = orm_deployment.worker_pool_queue.name
+            response.worker_pool_name = (
+                orm_deployment.worker_pool_queue.worker_pool.name
+            )
+
+        return response
