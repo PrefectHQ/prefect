@@ -408,13 +408,6 @@ class TestVisitCollection:
         assert result == expected
 
     def test_visit_collection_context(self):
-        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
-
-        def visit(expr, context):
-            if isinstance(expr, list):
-                context["depth"] += 1
-                return expr
-
         # Create a list of integers with various levels of nesting
         foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
 
