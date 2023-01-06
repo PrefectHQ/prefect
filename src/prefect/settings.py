@@ -876,6 +876,15 @@ application. If disabled, paused flows that have timed out will remain in a Paus
 until a resume attempt.
 """
 
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the cancellation cleanup service in the Orion
+application. If disabled, task runs and subflow runs belonging to cancelled flows may
+remain in non-terminal states.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers. 
