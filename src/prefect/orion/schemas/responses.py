@@ -206,6 +206,7 @@ class FlowRunResponse(ORMBaseModel):
         return super().__eq__(other)
 
 
+@copy_model_fields
 class DeploymentResponse(ORMBaseModel):
     name: str = FieldFrom(schemas.core.Deployment)
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
