@@ -678,7 +678,7 @@ class TaskRunnerStandardTestSuite(ABC):
         def test_flow():
             ft = failing_task.submit()
             dt = depdendent_task.submit(wait_for=[allow_failure(ft)])
-            adt = another_dependent_task.submit(wait_for=[dt])
+            another_dependent_task.submit(wait_for=[dt])
 
         with pytest.raises(ValueError, match="This is expected"):
             test_flow()
