@@ -373,6 +373,14 @@ This variable only exists to faciliate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
+PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disables SSL checking to allow insecure requests. 
+This is recommended only during development, e.g. when using self-signed certificates.
+"""
+
 PREFECT_API_URL = Setting(
     str,
     default=None,

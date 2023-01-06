@@ -157,6 +157,21 @@ You can also:
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
 
+
+## Using Self-Signed SSL Certificates
+
+If you're using a self-signed SSL certificate, you need to configure your
+environment to trust the certificate. This is usually done by adding the
+certificate to your system bundle and pointing your tools to use that bundle
+by configuring the `SSL_CERT_FILE` environment variable.
+
+If the certificate is not part of your system bundle you can set the
+`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate
+verification altogether.
+
+***Note:*** This is not secure and so is recommended only for testing!
+
+
 ## Proxies
 
 Prefect supports communicating via proxies through environment variables. Simply set `HTTPS_PROXY` and `SSL_CERT_FILE` in your environment, and the underlying network libraries will route Prefect’s requests appropriately. You can read more about this in the article [Using Prefect Cloud with proxies](https://discourse.prefect.io/t/using-prefect-cloud-with-proxies/1696).
