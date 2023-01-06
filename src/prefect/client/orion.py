@@ -963,7 +963,7 @@ class OrionClient:
 
     async def create_block_document(
         self,
-        block_document: schemas.actions.BlockDocumentCreate,
+        block_document: Union[BlockDocument, schemas.actions.BlockDocumentCreate],
         include_secrets: bool = True,
     ) -> BlockDocument:
         """
@@ -976,6 +976,16 @@ class OrionClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        if isinstance(block_document, BlockDocument):
+            block_document = schemas.actions.BlockDocumentCreate.parse_obj(
+                block_document.dict(
+                    json_compatible=True,
+                    include_secrets=include_secrets,
+                    exclude_unset=True,
+                    exclude={"id", "block_schema", "block_type"},
+                ),
+            )
+
         try:
             response = await self._client.post(
                 "/block_documents/",
@@ -1007,7 +1017,7 @@ class OrionClient:
                 json=block_document.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"data", "merge_existing_data"},
+                    include={"data", "merge_existing_data", "block_schema_id"},
                     include_secrets=True,
                 ),
             )
