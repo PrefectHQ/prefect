@@ -162,7 +162,6 @@ class BaseWorker(LoopService, abc.ABC):
         name = name or f"{self.__class__.__name__} {uuid4()}"
 
         super().__init__(loop_seconds=loop_seconds or self.__class__.loop_seconds)
-
         self.is_setup = False
         self.create_pool_if_not_found = create_pool_if_not_found
         self.worker_pool_name = worker_pool_name or self.default_pool_name
