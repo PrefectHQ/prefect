@@ -618,7 +618,7 @@ async def test_create_then_read_deployment(
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
@@ -684,7 +684,7 @@ async def test_read_deployment_by_name(orion_client):
     )
 
     lookup = await orion_client.read_deployment_by_name("foo/test-deployment")
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
     assert lookup.manifest_path == "file.json"
