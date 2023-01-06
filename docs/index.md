@@ -144,7 +144,7 @@ This code fetches data about GitHub stars for a few repositories. Add the three 
 from prefect import flow, task
 import httpx
 
-@task(retries=3)
+@task(retries=3, log_prints=True)
 def get_stars(repo):
     url = f"https://api.github.com/repos/{repo}"
     count = httpx.get(url).json()["stargazers_count"]
@@ -156,10 +156,18 @@ def github_stars(repos):
         get_stars(repo)
 
 # call the flow!
-github_stars(["PrefectHQ/Prefect", "PrefectHQ/prefect-aws",  "PrefectHQ/prefect-dbt"])
+github_stars([
+    "PrefectHQ/Prefect",
+    "PrefectHQ/prefect-aws",
+    "PrefectHQ/prefect-dbt"
+])
 ```
 
-Run the code:
+Run the code interactively in a sandbox:
+
+<iframe src="https://pythonsandbox.dev/embed/jlxcrlibf975?file=main.py" width="800px" height="547px" allow="clipboard-read; clipboard-write" ></iframe>
+
+Or run it on your local machine:
 
 <div class="terminal">
 ```bash
@@ -187,7 +195,7 @@ PrefectHQ/prefect-dbt has 12 stars!
 ```
 </div>
 
-By adding `retries=3 ` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
+By adding `log_prints=True`, all `print` statements get converted into `logger.info`, while `retries=3` to the `@task` decorator, the `get_stars` function automatically reruns up to three times on failure!
 
 **Observe your flow runs in the Prefect UI**
 
