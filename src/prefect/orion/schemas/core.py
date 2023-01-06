@@ -390,6 +390,7 @@ class TaskRun(ORMBaseModel):
         description="A dynamic key used to differentiate between multiple runs of the same task within the same flow run.",
     )
     cache_key: Optional[str] = Field(
+        default=None,
         description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
     )
     cache_expiration: Optional[DateTimeTZ] = Field(
@@ -469,12 +470,13 @@ class TaskRun(ORMBaseModel):
 
     @validator("cache_key")
     def validate_cache_key_length(cls, cache_key):
-        if cache_key:
-            if len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value():
-                raise ValueError(
-                    "Invalid cache_key length. The task cache key length can be modified using the PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH setting, "
-                    "which means that you can change the maximum length of the cache_key by modifying the value of this setting on the server."
-                )
+        if (
+            cache_key
+            and len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()
+        ):
+            raise ValueError(
+                "Cache key exceeded maximum allowed length of {PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH} characters."
+            )
         return cache_key
 
 
