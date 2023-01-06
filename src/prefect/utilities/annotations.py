@@ -37,6 +37,9 @@ class BaseAnnotation(
     def rewrap(self, value: T) -> "BaseAnnotation[T]":
         return type(self)(value)
 
+    def rewrap(self, value: T) -> "BaseAnnotation[T]":
+        return type(self)(value)
+
     def __eq__(self, other: object) -> bool:
         if not type(self) == type(other):
             return False
