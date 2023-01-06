@@ -44,6 +44,9 @@ We've also improved the parsing and rendering of reference documentation for our
 - Update API reference documentation to use new parser and renderer — https://github.com/PrefectHQ/prefect/pull/7855
 - Add new REST API reference using Redoc — https://github.com/PrefectHQ/prefect/pull/7503
 
+### Collections
+- [`prefect-aws` 0.2.2](https://github.com/PrefectHQ/prefect-aws/releases/tag/v0.2.2) released with many improvements to `S3Bucket`
+
 ### Contributors
 * @j-tr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8013
 * @toby-coleman made their first contribution in https://github.com/PrefectHQ/prefect/pull/8083
