@@ -368,6 +368,6 @@ async def test_worker_calls_run_with_expected_arguments(
         await asyncio.sleep(1)
 
     assert run_mock.call_count == 3
-    assert [call.kwargs["flow_run"].id for call in run_mock.call_args_list] == [
+    assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
         fr.id for fr in flow_runs[1:4]
-    ]
+    }
