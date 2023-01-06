@@ -60,7 +60,7 @@ This release fixes a critical bug in the SQLite database migrations in 2.7.4 and
 
 See https://github.com/PrefectHQ/prefect/issues/8058 for details.
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.6
 
 ## Release 2.7.5
 
