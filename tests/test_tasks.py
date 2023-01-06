@@ -2394,7 +2394,7 @@ class TestTaskWithOptions:
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
-        assert task_with_options.refresh_cache == PREFECT_TASKS_REFRESH_CACHE.value()
+        assert task_with_options.refresh_cache is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
