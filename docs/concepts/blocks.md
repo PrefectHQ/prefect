@@ -287,7 +287,7 @@ my_s3_bucket.save("my_s3_bucket")
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
 
 ### Handling updates to custom `Block` types
-Let's say that you now want to add a field `bucket_folder` to your custom `S3Bucket` block that represents the default path to read and write objects from (this fields exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
+Let's say that you now want to add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
 
 We can add the new field to the class definition:
 
