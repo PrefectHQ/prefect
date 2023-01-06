@@ -414,10 +414,24 @@ class TestVisitCollection:
             if isinstance(expr, list):
                 context["depth"] += 1
                 return expr
+
+        # Create a list of integers with various levels of nesting
+        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
+
+        def visit(expr, context):
+            # When visiting a list, add one to the depth and return the list
+            if isinstance(expr, list):
+                context["depth"] += 1
+                return expr
+            # When visiting an integer, return it plus the depth
             else:
                 return expr + context["depth"]
 
         result = visit_collection(foo, visit, context={"depth": 0}, return_data=True)
+        # Seeded with a depth of 0, we expect all of the items in the root list to be
+        # incremented by one, items in a nested list to be incremented by one, etc.
+        # We confirm that integers in the root list visited after the nested lists see
+        # the depth of one
         assert result == [2, 3, [5, 6], [7, [9, 10]], 9, 10]
 
     def test_visit_collection_context_from_annotation(self):
