@@ -14,7 +14,7 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import filters, states
 from prefect.orion.services.loop_service import LoopService
-from prefect.settings import PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
+from prefect.settings import PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
@@ -28,7 +28,7 @@ class CancellationCleanup(LoopService):
     def __init__(self, loop_seconds: float = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
-            or PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS.value(),
+            or PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),
             **kwargs,
         )
 
@@ -48,10 +48,9 @@ class CancellationCleanup(LoopService):
                     sa.select(db.FlowRun)
                     .where(
                         db.FlowRun.state_type == states.StateType.CANCELLED,
-                    )
-                    .where(
+                        db.FlowRun.end_time != None,
                         db.FlowRun.end_time
-                        > (pendulum.now("UTC") - pendulum.Duration(days=1))
+                        >= (pendulum.now("UTC").subtract(days=1))
                     )
                     .limit(self.batch_size)
                 )
@@ -67,7 +66,7 @@ class CancellationCleanup(LoopService):
                     break
 
             while True:
-                # cancels any active subflow that belongs to a cancelled flow
+                # cancels any active subflow run that belongs to a cancelled flow run
                 subflow_query = (
                     sa.select(db.FlowRun)
                     .where(
@@ -76,9 +75,8 @@ class CancellationCleanup(LoopService):
                             db.FlowRun.state_type == states.StateType.SCHEDULED,
                             db.FlowRun.state_type == states.StateType.RUNNING,
                             db.FlowRun.state_type == states.StateType.PAUSED,
-                        )
-                    )
-                    .where(
+                            db.FlowRun.state_type == states.StateType.CANCELLING,
+                        ),
                         db.FlowRun.parent_task_run_id != None,
                     )
                     .limit(self.batch_size)

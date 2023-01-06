@@ -799,6 +799,14 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
 this often. Defaults to `5`.
 """
 
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
+    float,
+    default=20,
+)
+"""The cancellation cleanup service will look non-terminal tasks and subflows
+this often. Defaults to `20`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
