@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
@@ -106,6 +107,10 @@ class OrionClient:
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
+
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+            httpx_settings.setdefault("verify", False)
+
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
             from prefect.orion.api.server import ORION_API_VERSION
@@ -1368,7 +1373,7 @@ class OrionClient:
     async def read_deployment(
         self,
         deployment_id: UUID,
-    ) -> schemas.core.Deployment:
+    ) -> schemas.responses.DeploymentResponse:
         """
         Query Orion for a deployment by id.
 
@@ -1379,12 +1384,12 @@ class OrionClient:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
         response = await self._client.get(f"/deployments/{deployment_id}")
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.responses.DeploymentResponse.parse_obj(response.json())
 
     async def read_deployment_by_name(
         self,
         name: str,
-    ) -> schemas.core.Deployment:
+    ) -> schemas.responses.DeploymentResponse:
         """
         Query Orion for a deployment by name.
 
@@ -1406,7 +1411,7 @@ class OrionClient:
             else:
                 raise
 
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.responses.DeploymentResponse.parse_obj(response.json())
 
     async def read_deployments(
         self,
@@ -1420,7 +1425,7 @@ class OrionClient:
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
-    ) -> schemas.core.Deployment:
+    ) -> List[schemas.responses.DeploymentResponse]:
         """
         Query Orion for deployments. Only deployments matching all
         the provided criteria will be returned.
@@ -1467,8 +1472,10 @@ class OrionClient:
             "sort": sort,
         }
 
-        response = await self._client.post(f"/deployments/filter", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
+        response = await self._client.post("/deployments/filter", json=body)
+        return pydantic.parse_obj_as(
+            List[schemas.responses.DeploymentResponse], response.json()
+        )
 
     async def delete_deployment(
         self,
