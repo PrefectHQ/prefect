@@ -22,6 +22,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
+    import kubernetes.client.exceptions
     import kubernetes.config
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
@@ -66,7 +67,7 @@ class KubernetesJob(Infrastructure):
         labels: An optional dictionary of labels to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
-        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
         finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
@@ -119,7 +120,7 @@ class KubernetesJob(Infrastructure):
     )
 
     # controls the behavior of execution
-    job_watch_timeout_seconds: int = Field(
+    job_watch_timeout_seconds: Optional[int] = Field(
         default=None,
         description=(
             "Number of seconds to wait for each event emitted by the job before "
@@ -529,8 +530,8 @@ class KubernetesJob(Infrastructure):
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except kubernetes.ApiException:
-                self.logger.error(f"Job{job_id!r} was removed.", exc_info=True)
+            except kubernetes.client.exceptions.ApiException:
+                self.logger.error(f"Job {job_id!r} was removed.", exc_info=True)
                 return None
             return job
 
