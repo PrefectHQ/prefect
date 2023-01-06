@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -503,6 +503,33 @@ class TestAPICompatibility:
         assert "real_field" in api_block.data
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
+
+    @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
+    def test_create_block_document_create_invalid_characters(self, block_name):
+        """This gets raised on instantiation of BlockDocumentCreate"""
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name must only contain"):
+            a_block.save(block_name)
+
+    @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
+    def test_create_block_document_invalid_characters(self, block_name):
+        """
+        This gets raised on instantiation of BlockDocument which shares
+        INVALID_CHARACTERS with Flow, Deployment, etc.
+        """
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name"):
+            a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
@@ -2072,3 +2099,134 @@ class TestTypeDispatch:
         model.block = BChildBlock(b=4).dict()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
+
+
+class TestBlockSchemaMigration:
+    def test_schema_mismatch_with_validation_raises(self):
+        class A(Block):
+            _block_type_name = "a"
+            _block_type_slug = "a"
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A_Alias(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
+
+        with pytest.raises(
+            RuntimeError, match="try loading again with `validate=False`"
+        ):
+            A_Alias.load("test")
+
+    def test_add_field_to_schema_partial_load_with_skip_validation(self):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A_Alias(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
+
+        with pytest.warns(UserWarning, match="Could not fully load"):
+            a = A_Alias.load("test", validate=False)
+
+        assert a.x == 1
+        assert a.y == None
+
+    def test_rm_field_from_schema_loads_with_validation(self):
+        class Foo(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
+            x: int = 1
+            y: int = 2
+
+        foo = Foo()
+
+        foo.save("xy")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
+
+            class Foo_Alias(Block):
+                _block_type_name = "foo"
+                _block_type_slug = "foo"
+                x: int = 1
+
+        foo_alias = Foo_Alias.load("xy")
+
+        assert foo_alias.x == 1
+
+        # TODO: This should raise an AttributeError, but it doesn't
+        # because `Config.extra = "allow"`
+        # with pytest.raises(AttributeError):
+        #     foo_alias.y
+
+    def test_load_with_skip_validation_keeps_metadata(self):
+        class Bar(Block):
+            x: int = 1
+
+        bar = Bar()
+
+        bar.save("test")
+
+        bar_new = Bar.load("test", validate=False)
+
+        assert bar.dict() == bar_new.dict()
+
+    async def test_save_new_schema_with_overwrite(self, orion_client):
+        class Baz(Block):
+            _block_type_name = "baz"
+            _block_type_slug = "baz"
+            x: int = 1
+
+        baz = Baz()
+
+        await baz.save("test")
+
+        block_document = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        old_schema_id = block_document.block_schema_id
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'Baz'"):
+
+            class Baz_Alias(Block):
+                _block_type_name = "baz"
+                _block_type_slug = "baz"
+                x: int = 1
+                y: int = 2
+
+        baz_alias = await Baz_Alias.load("test", validate=False)
+
+        await baz_alias.save("test", overwrite=True)
+
+        baz_alias_RELOADED = await Baz_Alias.load("test")
+
+        assert baz_alias_RELOADED.x == 1
+        assert baz_alias_RELOADED.y == 2
+
+        new_schema_id = baz_alias._block_schema_id
+
+        # new local schema ID should be different because field added
+        assert old_schema_id != new_schema_id
+
+        updated_schema = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        updated_schema_id = updated_schema.block_schema_id
+
+        # new local schema ID should now be saved to Orion
+        assert updated_schema_id == new_schema_id

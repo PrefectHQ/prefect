@@ -479,6 +479,29 @@ class TestTaskSubmit:
         assert isinstance(result, ValueError)
         assert "Fail task!" in str(result)
 
+    def test_downstream_receives_exception_in_collection_if_upstream_fails_and_allow_failure(
+        self,
+    ):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar.submit(allow_failure([f, 1, 2]))
+            return b.result()
+
+        result = test_flow()
+        assert isinstance(result, list), f"Expected list; got {type(result)}"
+        assert isinstance(result[0], ValueError)
+        assert result[1:] == [1, 2]
+        assert "Fail task!" in str(result)
+
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
@@ -2783,3 +2806,19 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+
+class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_too_many_custom_retry_delays(self):
+        with pytest.raises(ValueError, match="Can not configure more"):
+
+            @task(retries=42, retry_delay_seconds=list(range(51)))
+            async def insanity():
+                raise RuntimeError("try again!")
+
+    async def test_task_cannot_configure_negative_relative_jitter(self):
+        with pytest.raises(ValueError, match="`retry_jitter_factor` must be >= 0"):
+
+            @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
+            async def insanity():
+                raise RuntimeError("try again!")
