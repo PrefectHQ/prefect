@@ -1039,7 +1039,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo(0, return_state=True)
+            foo(0)
             return (
                 foo(1, return_state=True),
                 refresh_task(2, return_state=True),
@@ -2440,10 +2440,10 @@ class TestTaskWithOptions:
         @flow
         def bar():
             return (
-                foo._run(1),
-                foo._run(2),
-                foo.with_options(refresh_cache=True)._run(3),
-                foo._run(4),
+                foo(1, return_state=True),
+                foo(2, return_state=True),
+                foo.with_options(refresh_cache=True)(3, return_state=True),
+                foo(4, return_state=True),
             )
 
         first, second, third, fourth = bar()
