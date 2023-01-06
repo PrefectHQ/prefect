@@ -83,7 +83,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import Quote, allow_failure, unmapped
+from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -1015,9 +1015,6 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     inputs = set()
 
     def add_futures_and_states_to_inputs(obj):
-        if isinstance(obj, allow_failure):
-            obj = obj.unwrap()
-
         if isinstance(obj, PrefectFuture):
             run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(TaskRunResult(id=obj.task_run.id))
@@ -1639,17 +1636,14 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    def resolve_input(expr):
+    def resolve_input(expr, context):
         state = None
-        should_allow_failure = False
 
-        if isinstance(expr, allow_failure):
-            expr = expr.unwrap()
-            should_allow_failure = True
+        # Expressions inside quotes should not be modified
+        if isinstance(context.get("annotation"), quote):
+            return expr
 
-        if isinstance(expr, Quote):
-            return expr.unquote()
-        elif isinstance(expr, PrefectFuture):
+        if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
@@ -1659,7 +1653,13 @@ async def resolve_inputs(
         # Do not allow uncompleted upstreams except failures when `allow_failure` has
         # been used
         if not state.is_completed() and not (
-            should_allow_failure and state.is_failed()
+            # TODO: Note that the contextual annotation here is only at the current level
+            #       if `allow_failure` is used then another annotation is used, this will
+            #       incorrectly evaulate to false — to resolve this, we must track all
+            #       annotations wrapping the current expression but this is not yet
+            #       implemented.
+            isinstance(context.get("annotation"), allow_failure)
+            and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
@@ -1674,6 +1674,8 @@ async def resolve_inputs(
         visit_fn=resolve_input,
         return_data=return_data,
         max_depth=max_depth,
+        remove_annotations=True,
+        context={},
     )
 
 
