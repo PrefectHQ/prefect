@@ -28,6 +28,7 @@ We've also improved the parsing and rendering of reference documentation for our
 - Improve error message when saving a block with an invalid name — https://github.com/PrefectHQ/prefect/pull/8038
 - Add limit to task run cache key size — https://github.com/PrefectHQ/prefect/pull/7275
 - Add limit to RRule length — https://github.com/PrefectHQ/prefect/pull/7762
+- Add flow run history inside the date range picker - https://github.com/PrefectHQ/orion-design/issues/994
 
 ### Fixes
 - Fix bug where flow timeouts started before waiting for upstreams — https://github.com/PrefectHQ/prefect/pull/7993
