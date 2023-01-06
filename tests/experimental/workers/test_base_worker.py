@@ -1,6 +1,5 @@
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pendulum
 import pytest
@@ -16,6 +15,7 @@ from prefect.settings import (
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
 )
 from prefect.states import Completed, Pending, Running, Scheduled
+from prefect.testing.utilities import AsyncMock
 
 
 class WorkerTestImpl(BaseWorker):

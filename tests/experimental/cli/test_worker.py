@@ -19,6 +19,7 @@ def auto_enable_workers(enable_workers):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+    # Import to register worker CLI
 
 
 def test_start_worker_run_once_with_name():
