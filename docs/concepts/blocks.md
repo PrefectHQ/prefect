@@ -299,7 +299,8 @@ class S3Bucket(Block):
     bucket_folder: str = None
     ...
 ```
-...and [register the updated block type with your Prefect Orion server](#registering-blocks-for-use-in-the-prefect-ui) (whether cloud or self-hosted).
+
+Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect Orion server.
 
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
