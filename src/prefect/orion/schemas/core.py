@@ -475,7 +475,7 @@ class TaskRun(ORMBaseModel):
             and len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()
         ):
             raise ValueError(
-                "Cache key exceeded maximum allowed length of {PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH} characters."
+                f"Cache key exceeded maximum allowed length of {PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
             )
         return cache_key
 
