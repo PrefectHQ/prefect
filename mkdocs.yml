@@ -272,13 +272,15 @@ extra:
           link: https://discourse.prefect.io/
         - icon: fontawesome/brands/youtube
           link: https://www.youtube.com/c/PrefectIO/videos
-        - icon: fontawesome/brands/github
-          link: https://github.com/PrefectHQ/prefect
-        - icon: fontawesome/brands/docker
-          link: https://hub.docker.com/r/prefecthq/prefect
-        - icon: fontawesome/brands/medium
-          link: https://medium.com/the-prefect-blog
+        - icon: fontawesome/regular/newspaper
+          link: https://prefect.io/guide/
         - icon: fontawesome/brands/twitter
           link: https://twitter.com/PrefectIO
         - icon: fontawesome/brands/linkedin
           link: https://www.linkedin.com/company/prefect/
+        - icon: fontawesome/brands/github
+          link: https://github.com/PrefectHQ/prefect
+        - icon: fontawesome/brands/docker
+          link: https://hub.docker.com/r/prefecthq/prefect/
+        - icon: fontawesome/brands/python
+          link: https://pypi.org/project/prefect/
