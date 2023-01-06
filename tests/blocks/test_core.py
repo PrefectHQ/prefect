@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
@@ -503,6 +503,33 @@ class TestAPICompatibility:
         assert "real_field" in api_block.data
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
+
+    @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
+    def test_create_block_document_create_invalid_characters(self, block_name):
+        """This gets raised on instantiation of BlockDocumentCreate"""
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name must only contain"):
+            a_block.save(block_name)
+
+    @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
+    def test_create_block_document_invalid_characters(self, block_name):
+        """
+        This gets raised on instantiation of BlockDocument which shares
+        INVALID_CHARACTERS with Flow, Deployment, etc.
+        """
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name"):
+            a_block.save(block_name)
 
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
