@@ -177,7 +177,10 @@ class TestTaskRun:
         with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 5}):
 
             cache_key_invalid_length = "X" * 6
-            with pytest.raises(pydantic.ValidationError):
+            with pytest.raises(
+                pydantic.ValidationError,
+                match="Cache key exceeded maximum allowed length",
+            ):
                 schemas.core.TaskRun(
                     id=uuid4(),
                     flow_run_id=uuid4(),
@@ -186,7 +189,10 @@ class TestTaskRun:
                     cache_key=cache_key_invalid_length,
                 )
 
-            with pytest.raises(pydantic.ValidationError):
+            with pytest.raises(
+                pydantic.ValidationError,
+                match="Cache key exceeded maximum allowed length",
+            ):
                 schemas.actions.TaskRunCreate(
                     flow_run_id=uuid4(),
                     task_key="foo",
@@ -215,7 +221,9 @@ class TestTaskRun:
     def test_task_run_cache_key_greater_than_default_max_length(self):
 
         cache_key_invalid_length = "X" * 2001
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+        ):
             schemas.core.TaskRun(
                 id=uuid4(),
                 flow_run_id=uuid4(),
@@ -224,7 +232,9 @@ class TestTaskRun:
                 cache_key=cache_key_invalid_length,
             )
 
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+        ):
             schemas.actions.TaskRunCreate(
                 flow_run_id=uuid4(),
                 task_key="foo",
