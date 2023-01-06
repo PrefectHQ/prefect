@@ -31,7 +31,7 @@ class unmapped(BaseAnnotation[T]):
 
     def __getitem__(self, _) -> T:
         # Internally, this acts as an infinite array where all items are the same value
-        return self.unwrap()
+        return super().__getitem__(_)
 
 
 class allow_failure(BaseAnnotation[T]):
