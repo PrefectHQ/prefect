@@ -17,7 +17,10 @@ class BaseAnnotation(
     """
 
     def unwrap(self) -> T:
-        return self.value
+        # cannot simply return self.value due to recursion error in Python 3.7
+        # also _asdict does not follow convention; it's not an internal method
+        # https://stackoverflow.com/a/26180604
+        return self._asdict()["value"]
 
     def rewrap(self, value: T) -> "BaseAnnotation[T]":
         return type(self)(value)
@@ -41,7 +44,7 @@ class unmapped(BaseAnnotation[T]):
 
     def __getitem__(self, _) -> T:
         # Internally, this acts as an infinite array where all items are the same value
-        return super().__getitem__(_)
+        return self.unwrap()
 
 
 class allow_failure(BaseAnnotation[T]):
