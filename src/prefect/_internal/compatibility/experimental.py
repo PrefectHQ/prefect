@@ -216,16 +216,21 @@ def experimental_field(
         stacklevel=stacklevel + 2,
     )
     def experimental_check():
-        pass
+        """Utility function for performing a warning check for the specified group"""
 
+    # Replaces the model's __init__ method with one that performs an additional warning check
     def decorator(model_cls: Type[M]) -> Type[M]:
         cls_init = model_cls.__init__
 
+        @functools.wraps(model_cls.__init__)
         def __init__(__pydantic_self__, **data: Any) -> None:
+            # Call the original init
             cls_init(__pydantic_self__, **data)
+            # Perform warning check
             if name in data.keys() and when(data[name]):
                 experimental_check()
 
+        # Patch the model's init method
         model_cls.__init__ = __init__
 
         return model_cls
