@@ -16,6 +16,7 @@ import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient, get_client
@@ -207,6 +208,13 @@ def load_deployments_from_yaml(
     return registry
 
 
+@experimental_field("worker_pool_name", group="workers", when=lambda x: x is not None)
+@experimental_field(
+    "worker_pool_queue_name",
+    group="workers",
+    when=lambda x: x is not None,
+    stacklevel=4,
+)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
@@ -379,7 +387,12 @@ class Deployment(BaseModel):
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-    worker_pool_queue_id: Optional[UUID] = Field(default=None)
+    worker_pool_name: Optional[str] = Field(
+        default=None, description="The worker pool for the deployment"
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None, description="The worker pool queue for the deployment."
+    )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
