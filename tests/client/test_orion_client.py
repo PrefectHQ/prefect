@@ -1168,10 +1168,10 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
         get_client()
 
     mock.assert_called_once_with(
-        headers={"X-PREFECT-API-VERSION": ANY},
+        headers=ANY,
         app=ANY,
         base_url=ANY,
-        timeout=httpx.Timeout(timeout=ANY),
+        timeout=ANY,
     )
 
 
@@ -1180,10 +1180,10 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
     monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
     get_client()
     mock.assert_called_once_with(
-        headers={"X-PREFECT-API-VERSION": ANY},
+        headers=ANY,
         app=ANY,
         base_url=ANY,
-        timeout=httpx.Timeout(timeout=ANY),
+        timeout=ANY,
     )
 
 
