@@ -25,6 +25,9 @@ include src/prefect/orion/database/migrations/*
 include src/prefect/orion/database/migrations/versions/*
 include src/prefect/orion/database/migrations/versions/*/*
 
+# SQL templates
+graft src/prefect/orion/database/sql
+
 # Package files and data
 graft src/prefect/orion/ui
 graft src/prefect/orion/api/static

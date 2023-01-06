@@ -76,6 +76,20 @@ class TestCreateDeployment:
         )
         await session.commit()
 
+    async def test_create_deployment_with_worker_pool(
+        self, session, flow, worker_pool_queue
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                worker_pool_queue_id=worker_pool_queue.id,
+            ),
+        )
+
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id
+
     async def test_create_deployment_updates_existing_deployment(
         self,
         session,

@@ -3,14 +3,25 @@ Schemas for special responses from the Orion API.
 """
 
 import datetime
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
+from uuid import UUID
 
 from pydantic import Field
-from typing_extensions import Literal
+from typing_extensions import TYPE_CHECKING, Literal
 
 import prefect.orion.schemas as schemas
-from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.orion.schemas.core import CreatedBy, FlowRunPolicy
+from prefect.orion.utilities.schemas import (
+    DateTimeTZ,
+    FieldFrom,
+    ORMBaseModel,
+    PrefectBaseModel,
+    copy_model_fields,
+)
 from prefect.utilities.collections import AutoEnum
+
+if TYPE_CHECKING:
+    import prefect.orion.database.orm_models
 
 
 class SetStateStatus(AutoEnum):
@@ -119,3 +130,77 @@ class OrchestrationResult(PrefectBaseModel):
     state: Optional[schemas.states.State]
     status: SetStateStatus
     details: StateResponseDetails
+
+
+class WorkerFlowRunResponse(PrefectBaseModel):
+    class Config:
+        arbitrary_types_allowed = True
+
+    worker_pool_id: UUID
+    worker_pool_queue_id: UUID
+    flow_run: schemas.core.FlowRun
+
+
+@copy_model_fields
+class FlowRunResponse(ORMBaseModel):
+
+    name: str = FieldFrom(schemas.core.FlowRun)
+    flow_id: UUID = FieldFrom(schemas.core.FlowRun)
+    state_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    deployment_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    work_queue_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    parameters: dict = FieldFrom(schemas.core.FlowRun)
+    idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    context: dict = FieldFrom(schemas.core.FlowRun)
+    empirical_policy: FlowRunPolicy = FieldFrom(schemas.core.FlowRun)
+    tags: List[str] = FieldFrom(schemas.core.FlowRun)
+    parent_task_run_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    state_type: Optional[schemas.states.StateType] = FieldFrom(schemas.core.FlowRun)
+    state_name: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    run_count: int = FieldFrom(schemas.core.FlowRun)
+    expected_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    next_scheduled_start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    start_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    end_time: Optional[DateTimeTZ] = FieldFrom(schemas.core.FlowRun)
+    total_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    estimated_run_time: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    estimated_start_time_delta: datetime.timedelta = FieldFrom(schemas.core.FlowRun)
+    auto_scheduled: bool = FieldFrom(schemas.core.FlowRun)
+    infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
+    infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
+    created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
+    worker_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the flow run's worker pool.",
+        example="my-worker-pool",
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the flow run's worker pool queue.",
+        example="my-worker-pool-queue",
+    )
+    state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
+
+    @classmethod
+    def from_orm(cls, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"):
+        response = super().from_orm(orm_flow_run)
+        if orm_flow_run.worker_pool_queue:
+            response.worker_pool_queue_name = orm_flow_run.worker_pool_queue.name
+            response.worker_pool_name = orm_flow_run.worker_pool_queue.worker_pool.name
+
+        return response
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Check for "equality" to another flow run schema
+
+        Estimates times are rolling and will always change with repeated queries for
+        a flow run so we ignore them during equality checks.
+        """
+        if isinstance(other, FlowRunResponse):
+            exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
+            return self.dict(exclude=exclude_fields) == other.dict(
+                exclude=exclude_fields
+            )
+        return super().__eq__(other)
