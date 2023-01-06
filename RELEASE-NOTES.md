@@ -1,10 +1,53 @@
 # Prefect Release Notes
 
+## Release 2.7.7
+
+### Enhancements
+- Add link to blocks catalog after registering blocks in CLI — https://github.com/PrefectHQ/prefect/pull/8017
+- Add schema migration of block documents during `Block.save` — https://github.com/PrefectHQ/prefect/pull/8056
+- Update result factory creation to avoid creating an extra client instance — https://github.com/PrefectHQ/prefect/pull/8072
+- Add logs for deployment flow code loading — https://github.com/PrefectHQ/prefect/pull/8075
+- Update `visit_collection` to support annotations e.g. `allow_failure` — https://github.com/PrefectHQ/prefect/pull/7263
+- Update annotations to inherit from `namedtuple` for serialization support in Dask — https://github.com/PrefectHQ/prefect/pull/8037
+- Add `PREFECT_API_TLS_INSECURE_SKIP_VERIFY` setting to disable client SSL verification — https://github.com/PrefectHQ/prefect/pull/7850
+- Update OpenAPI schema for flow parameters to include positions for display — https://github.com/PrefectHQ/prefect/pull/8013
+- Add parsing of flow docstrings to populate parameter descriptions in the OpenAPI schema — https://github.com/PrefectHQ/prefect/pull/8004
+- Add `validate` to `Block.load` allowing validation to be disabled — https://github.com/PrefectHQ/prefect/pull/7862
+- Improve error message when saving a block with an invalid name — https://github.com/PrefectHQ/prefect/pull/8038
+- Add limit to task run cache key size — https://github.com/PrefectHQ/prefect/pull/7275
+- Add limit to RRule length — https://github.com/PrefectHQ/prefect/pull/7762
+
+### Fixes
+- Fix bug where flow timeouts started before waiting for upstreams — https://github.com/PrefectHQ/prefect/pull/7993
+- Fix captured Kubernetes error type in `get_job` — https://github.com/PrefectHQ/prefect/pull/8018
+- Fix `prefect cloud login` error when no workspaces exist — https://github.com/PrefectHQ/prefect/pull/8034
+- Fix serialization of `SecretDict` when used in deployments — https://github.com/PrefectHQ/prefect/pull/8074
+- Fix bug where `visit_collection` could fail when accessing extra Pydantic fields — https://github.com/PrefectHQ/prefect/pull/8083
+
+### Experimental
+- Add pages and routers for workers — https://github.com/PrefectHQ/prefect/pull/7973
+
+### Documentation
+- Update API reference documentation to use new parser and renderer — https://github.com/PrefectHQ/prefect/pull/7855
+- Add new REST API reference using Redoc — https://github.com/PrefectHQ/prefect/pull/7503
+
+### Contributors
+* @j-tr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8013
+* @toby-coleman made their first contribution in https://github.com/PrefectHQ/prefect/pull/8083
+* @riquelmev made their first contribution in https://github.com/PrefectHQ/prefect/pull/7768
+* @joelluijmes
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.7
+
+
 ## Release 2.7.6
 
 This release fixes a critical bug in the SQLite database migrations in 2.7.4 and 2.7.5.
 
 See https://github.com/PrefectHQ/prefect/issues/8058 for details.
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
 
 ## Release 2.7.5
 
