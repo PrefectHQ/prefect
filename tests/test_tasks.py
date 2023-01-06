@@ -1003,7 +1003,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2)
+            return foo(1, return_state=True), foo(2, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
@@ -1017,7 +1017,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo._run(1), foo._run(2)
+            return foo(1, return_state=True), foo(2, return_state=True)
 
         first_state, second_state = bar()
         assert first_state.name == "Completed"
@@ -1039,11 +1039,11 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            foo.submit(0).wait
+            foo(0, return_state=True)
             return (
-                foo.submit(1).wait(),
-                refresh_task.submit(2).wait(),
-                not_refresh_task.submit(3).wait(),
+                foo(1, return_state=True),
+                refresh_task(2, return_state=True),
+                not_refresh_task(3, return_state=True),
             )
 
         with temporary_settings({PREFECT_TASKS_REFRESH_CACHE: True}):
