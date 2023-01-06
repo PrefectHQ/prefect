@@ -877,7 +877,10 @@ until a resume attempt.
 """
 
 PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
-"""Limit size of task run cache keys."""
+"""
+The maximum number of characters allowed for a task run cache key.
+This setting cannot be changed client-side, it must be set on the server.
+"""
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
