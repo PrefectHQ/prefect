@@ -150,7 +150,7 @@ async def test_worker_applies_updates_to_deployments(
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
     deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function
+        name="test-deployment", flow=flow_function, worker_pool_name="test-worker-pool"
     )
     await deployment.to_yaml(workflows_path / "test-deployment.yaml")
     async with WorkerTestImpl(
