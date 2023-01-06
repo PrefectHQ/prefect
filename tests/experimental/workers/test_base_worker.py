@@ -144,18 +144,18 @@ async def test_worker_applies_discovered_deployments(
 
 
 async def test_worker_applies_updates_to_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path
+    orion_client: OrionClient, flow_function, tmp_path: Path, worker_pool
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
     deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function, worker_pool_name="test-worker-pool"
+        name="test-deployment", flow=flow_function, worker_pool_name=worker_pool.name
     )
     await deployment.to_yaml(workflows_path / "test-deployment.yaml")
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        worker_pool_name=worker_pool.name,
         workflow_storage_path=workflows_path,
     ) as worker:
 
