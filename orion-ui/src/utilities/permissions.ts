@@ -1,5 +1,10 @@
-import { getAppPermissions } from '@prefecthq/orion-design'
+import { Can, WorkspacePermission, WorkspaceFeatureFlag } from '@prefecthq/orion-design'
+import { InjectionKey } from 'vue'
 
-export const can = getAppPermissions(
-  () => true,
-)
+const featureFlags = ['access:workers'] as const
+
+export type FeatureFlag = typeof featureFlags[number]
+
+export type Permission = FeatureFlag | WorkspacePermission | WorkspaceFeatureFlag
+
+export const canKey: InjectionKey<Can<Permission>> = Symbol('canInjectionKey')

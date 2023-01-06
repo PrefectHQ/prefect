@@ -1,5 +1,6 @@
 ---
 description: Get started using Prefect Cloud, including creating a workspace and running a flow deployment.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -107,7 +108,7 @@ Now you're ready to run flows locally and have the results displayed in the Pref
 
 You can log out of Prefect Cloud by switching to a different profile.
 
-!!! tip "Interactive login"
+!!! cloud-ad "Interactive login to Prefect Cloud"
     The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you may log in with either an API key or through a browser.
 
     <div class="terminal">

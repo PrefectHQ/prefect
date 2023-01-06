@@ -55,22 +55,19 @@ async def setup_db(database_engine, db):
             f"Failed to set up the database at {database_engine.url!r}"
         ) from exc
 
-    finally:
-        # tear down the database
-        await db.drop_db()
-
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db):
-    """Clear the database by
-
-    Args:
-        database_engine ([type]): [description]
+async def clear_db(db):
+    """
+    Delete all data from all tables after running each test.
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # worker pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkerPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 @pytest.fixture
@@ -369,6 +366,27 @@ async def work_queue(session):
 
 
 @pytest.fixture
+async def worker_pool(session):
+    model = await models.workers.create_worker_pool(
+        session=session,
+        worker_pool=schemas.actions.WorkerPoolCreate(name="Test Worker Pool"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def worker_pool_queue(session, worker_pool):
+    model = await models.workers.create_worker_pool_queue(
+        session=session,
+        worker_pool_id=worker_pool.id,
+        worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="Test Queue"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def block_type_x(session):
     block_type = await models.block_types.create_block_type(
         session=session,
@@ -522,6 +540,7 @@ def initialize_orchestration(flow):
         run_type,
         initial_state_type,
         proposed_state_type,
+        initial_flow_run_state_type=None,
         run_override=None,
         run_tags=None,
         initial_details=None,
@@ -560,6 +579,13 @@ def initialize_orchestration(flow):
             context = FlowOrchestrationContext
             state_constructor = commit_flow_run_state
         elif run_type == "task":
+            if initial_flow_run_state_type:
+                flow_state_constructor = commit_flow_run_state
+                await flow_state_constructor(
+                    session,
+                    flow_run,
+                    initial_flow_run_state_type,
+                )
             task_run = await models.task_runs.create_task_run(
                 session=session,
                 task_run=schemas.actions.TaskRunCreate(

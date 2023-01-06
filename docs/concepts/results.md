@@ -32,7 +32,7 @@ result = my_flow()
 assert result == 2
 ```
 
-When working with flow and task states, the result can be retreived with the `State.result()` method:
+When working with flow and task states, the result can be retrieved with the `State.result()` method:
 
 ```python
 from prefect import flow, task
@@ -50,7 +50,7 @@ state = my_flow(return_state=True)
 assert state.result() == 2
 ```
 
-When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+When submitting tasks to a runner, the result can be retrieved with the `Future.result()` method:
 
 ```python
 from prefect import flow, task
@@ -215,7 +215,7 @@ result = asyncio.run(my_flow())
 assert result == 2
 ```
 
-When working with flow and task states, the result can be retreived with the `State.result()` method:
+When working with flow and task states, the result can be retrieved with the `State.result()` method:
 
 ```python
 import asyncio
@@ -250,7 +250,7 @@ asyncio.run(main())
     You may also opt-out by setting `fetch=False`.
     This will silence the warning, but you will need to retrieve your result manually from the result type.
 
-When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+When submitting tasks to a runner, the result can be retrieved with the `Future.result()` method:
 
 ```python
 import asyncio

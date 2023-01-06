@@ -76,6 +76,20 @@ class TestCreateDeployment:
         )
         await session.commit()
 
+    async def test_create_deployment_with_worker_pool(
+        self, session, flow, worker_pool_queue
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                worker_pool_queue_id=worker_pool_queue.id,
+            ),
+        )
+
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id
+
     async def test_create_deployment_updates_existing_deployment(
         self,
         session,
@@ -960,3 +974,39 @@ class TestUpdateDeployment:
             session=session, name="wq-1"
         )
         assert wq is not None
+
+    async def test_update_worker_pool_deployment(
+        self, session, deployment, worker_pool, worker_pool_queue
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                worker_pool_name=worker_pool.name,
+                worker_pool_queue_name=worker_pool_queue.name,
+            ),
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.worker_pool_queue_id == worker_pool_queue.id
+
+    async def test_update_worker_pool_deployment_with_only_pool(
+        self, session, deployment, worker_pool, worker_pool_queue
+    ):
+        default_queue = await models.workers.read_worker_pool_queue(
+            session=session, worker_pool_queue_id=worker_pool.default_queue_id
+        )
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                worker_pool_name=worker_pool.name,
+            ),
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.worker_pool_queue_id == default_queue.id

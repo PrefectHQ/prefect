@@ -28,7 +28,7 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs) to capture details about task runs such as runtime, tags, and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state. 
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
@@ -268,7 +268,7 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
 
 ## Wait for
-To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) keyword argument:
 
 ```python
 @task
@@ -393,7 +393,7 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states). 
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states/). 
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
@@ -402,7 +402,11 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 

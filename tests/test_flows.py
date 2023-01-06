@@ -2,6 +2,7 @@ import enum
 import inspect
 import sys
 import time
+from textwrap import dedent
 from typing import List
 from unittest.mock import MagicMock
 
@@ -22,11 +23,10 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType
 from prefect.results import PersistedResult
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
@@ -37,6 +37,7 @@ from prefect.testing.utilities import (
     get_most_recent_flow_run,
 )
 from prefect.utilities.annotations import allow_failure, quote
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.collections import flatdict_to_dict
 from prefect.utilities.hashing import file_hash
 
@@ -126,6 +127,18 @@ class TestFlow:
             f = Flow(
                 name="test", fn=lambda return_state: 42, version="A", description="B"
             )
+
+    def test_param_description_from_docstring(self):
+        def my_fn(x):
+            """
+            Hello
+
+            Args:
+                x: description
+            """
+
+        f = Flow(fn=my_fn)
+        assert parameter_schema(f).properties["x"]["description"] == "description"
 
 
 class TestDecorator:
@@ -990,6 +1003,38 @@ class TestFlowTimeouts:
 
         assert not canary_file.exists()
         assert runtime < 5, f"The engine returns without waiting; took {runtime}s"
+
+    async def test_subflow_timeout_waits_until_execution_starts(self, tmp_path):
+        """
+        Subflow with a timeout shouldn't start their timeout before the subflow is started.
+        Fixes: https://github.com/PrefectHQ/prefect/issues/7903.
+        """
+
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=1)
+        def downstream_flow():
+            canary_file.touch()
+
+        @task
+        def sleep_task(n):
+            time.sleep(n)
+
+        @flow
+        async def my_flow():
+            upstream_sleepers = sleep_task.map(list(range(3)))
+            downstream_flow(wait_for=upstream_sleepers)
+
+        t0 = anyio.current_time()
+        state = await my_flow._run()
+        t1 = anyio.current_time()
+
+        assert state.is_completed()
+
+        # Validate the sleep tasks have ran.
+        # Note: t1 - t0 can be less than exactly 3 (i.e., around 2.9). By comparing with 2.7 we have some leeway.
+        assert t1 - t0 >= 2.7
+        assert canary_file.exists()  # Validate subflow has ran
 
 
 class ParameterTestModel(pydantic.BaseModel):
@@ -1906,3 +1951,54 @@ class TestFlowRetries:
         assert (
             child_flow_run_count == 4
         ), "Child flow should run 2 times for each parent run"
+
+
+def test_load_flow_from_entrypoint(tmp_path):
+    flow_code = """
+    from prefect import flow
+
+    @flow
+    def dog():
+        return "woof!"
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code))
+
+    flow = load_flow_from_entrypoint(f"{fpath}:dog")
+    assert flow.fn() == "woof!"
+
+
+async def test_handling_script_with_unprotected_call_in_flow_script(
+    tmp_path,
+    caplog,
+    orion_client,
+):
+    flow_code_with_call = """
+    from prefect import flow, get_run_logger
+
+    @flow
+    def dog():
+        get_run_logger().warning("meow!")
+        return "woof!"
+
+    dog()
+    """
+    fpath = tmp_path / "f.py"
+    fpath.write_text(dedent(flow_code_with_call))
+    with caplog.at_level("WARNING"):
+        flow = load_flow_from_entrypoint(f"{fpath}:dog")
+
+        # Make sure that warning is raised
+        assert (
+            "Script loading is in progress, flow 'dog' will not be executed. "
+            "Consider updating the script to only call the flow"
+        ) in caplog.text
+
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 0
+
+    # Make sure that flow runs when called
+    res = flow()
+    assert res == "woof!"
+    flow_runs = await orion_client.read_flows()
+    assert len(flow_runs) == 1
