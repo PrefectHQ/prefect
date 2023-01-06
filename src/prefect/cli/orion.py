@@ -31,7 +31,7 @@ from prefect.settings import (
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import setup_signal_handlers, run_process
+from prefect.utilities.processutils import run_process, setup_signal_handlers
 
 orion_app = PrefectTyper(
     name="orion",

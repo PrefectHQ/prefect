@@ -1,10 +1,10 @@
-import pytest
-
-import subprocess
-import signal
-import time
-import sys
 import re
+import signal
+import subprocess
+import sys
+import time
+
+import pytest
 
 ORION_START_ARGS = [
     "prefect",
