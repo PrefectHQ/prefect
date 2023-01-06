@@ -884,6 +884,12 @@ application. If disabled, paused flows that have timed out will remain in a Paus
 until a resume attempt.
 """
 
+PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+"""
+The maximum number of characters allowed for a task run cache key.
+This setting cannot be changed client-side, it must be set on the server.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers. 
