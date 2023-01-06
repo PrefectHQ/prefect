@@ -16,6 +16,7 @@ import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
@@ -151,6 +152,7 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
+    logger = flow_run_logger(flow_run)
 
     if not ignore_storage:
         if deployment.storage_document_id:
@@ -163,13 +165,12 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
+
+        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
-
     import_path = relative_path_to_current_platform(deployment.entrypoint)
+    logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
     if deployment.manifest_path:
@@ -265,6 +266,7 @@ class Deployment(BaseModel):
     """
 
     class Config:
+        json_encoders = {SecretDict: lambda v: v.dict()}
         validate_assignment = True
         extra = "forbid"
 
