@@ -265,3 +265,14 @@ extra:
     analytics:
         provider: google
         property: G-3M31G9B0QJ
+    social:
+        - icon: fontawesome/brands/docker
+          link: https://hub.docker.com/r/prefecthq/prefect
+        - icon: fontawesome/brands/slack
+          link: https://www.prefect.io/slack/
+        - icon: fontawesome/brands/github
+          link: https://github.com/PrefectHQ/prefect
+        - icon: fontawesome/brands/twitter 
+          link: https://twitter.com/PrefectIO
+        - icon: fontawesome/brands/medium
+          link: https://medium.com/the-prefect-blog
