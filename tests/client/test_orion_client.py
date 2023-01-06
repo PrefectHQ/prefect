@@ -15,6 +15,7 @@ import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
 
+import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
@@ -618,7 +619,7 @@ async def test_create_then_read_deployment(
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
@@ -684,7 +685,7 @@ async def test_read_deployment_by_name(orion_client):
     )
 
     lookup = await orion_client.read_deployment_by_name("foo/test-deployment")
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
     assert lookup.manifest_path == "file.json"
@@ -751,7 +752,7 @@ async def test_create_then_read_flow_run(orion_client):
         foo,
         name="zachs-flow-run",
     )
-    assert isinstance(flow_run, schemas.core.FlowRun)
+    assert isinstance(flow_run, client_schemas.FlowRun)
 
     lookup = await orion_client.read_flow_run(flow_run.id)
     # Estimates will not be equal since time has passed
@@ -828,7 +829,7 @@ async def test_read_flow_runs_without_filter(orion_client):
 
     flow_runs = await orion_client.read_flow_runs()
     assert len(flow_runs) == 2
-    assert all(isinstance(flow_run, schemas.core.FlowRun) for flow_run in flow_runs)
+    assert all(isinstance(flow_run, client_schemas.FlowRun) for flow_run in flow_runs)
     assert {flow_run.id for flow_run in flow_runs} == {fr_id_1, fr_id_2}
 
 
@@ -862,7 +863,7 @@ async def test_read_flow_runs_with_filtering(orion_client):
         ),
     )
     assert len(flow_runs) == 2
-    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flow_runs)
+    assert all(isinstance(flow, client_schemas.FlowRun) for flow in flow_runs)
     assert {flow_run.id for flow_run in flow_runs} == {fr_id_4, fr_id_5}
 
 
@@ -1450,7 +1451,7 @@ async def test_delete_flow_run(orion_client, flow_run):
 
     # Make sure our flow exists (the read flow is of type `s.c.FlowRun`)
     lookup = await orion_client.read_flow_run(flow_run.id)
-    assert isinstance(lookup, schemas.core.FlowRun)
+    assert isinstance(lookup, client_schemas.FlowRun)
 
     # Check delete works
     await orion_client.delete_flow_run(flow_run.id)
