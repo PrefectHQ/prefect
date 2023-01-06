@@ -398,7 +398,7 @@ class RRuleSchedule(PrefectBaseModel):
             raise ValueError(f'Invalid RRule string "{v}": {exc}')
         if len(v) > MAX_RRULE_LENGTH:
             raise ValueError(
-                f'Invalid RRule string "{v[:40] + "..." if len(v) > 40 else v}"\n'
+                f'Invalid RRule string "{v[:40]}..."\n'
                 f"Max length is {MAX_RRULE_LENGTH}, got {len(v)}"
             )
         return v
