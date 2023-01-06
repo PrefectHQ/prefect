@@ -436,7 +436,7 @@ class TestFlowRunLogs:
             expected_line_count=LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
         )
 
-    async def test_h_and_n_shortcuts_for_head_and_num_lines(self, flow_run_factory):
+    async def test_h_and_n_shortcuts_for_head_and_num_logs(self, flow_run_factory):
         # Given
         flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
@@ -481,7 +481,7 @@ class TestFlowRunLogs:
             expected_line_count=10,
         )
 
-    async def test_when_num_lines_is_smaller_than_one_then_exit_with_error(
+    async def test_when_num_logs_is_smaller_than_one_then_exit_with_error(
         self, flow_run_factory
     ):
         # Given

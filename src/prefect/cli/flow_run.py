@@ -148,27 +148,27 @@ async def logs(
         False,
         "--head",
         "-h",
-        help=f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} lines of logs instead of all logs.",
+        help=f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.",
     ),
-    num_lines: int = typer.Option(
+    num_logs: int = typer.Option(
         None,
         "--num-logs",
         "-n",
-        help=f"Number of lines to show when using the --head flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.",
+        help=f"Number of logs to show when using the --head flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.",
         min=1,
     ),
 ):
     """
     View logs for a flow run.
     """
-    # Pagination - API returns max 200 (LOGS_DEFAULT_PAGE_SIZE) lines at a time
+    # Pagination - API returns max 200 (LOGS_DEFAULT_PAGE_SIZE) logs at a time
     offset = 0
     more_logs = True
     num_logs_returned = 0
 
-    # If head is specified, we need to stop after we've retrieved enough lines
-    if head or num_lines:
-        user_specified_num_logs = num_lines or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+    # If head is specified, we need to stop after we've retrieved enough logs
+    if head or num_logs:
+        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
     else:
         user_specified_num_logs = None
 
