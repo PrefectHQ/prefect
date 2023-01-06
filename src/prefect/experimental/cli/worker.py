@@ -43,6 +43,7 @@ async def start(
     ),
 ):
     try:
+        # TODO: Add ability to discover worker type from existing pool
         Worker = lookup_type(BaseWorker, worker_type)
     except KeyError:
         exit_with_error(
