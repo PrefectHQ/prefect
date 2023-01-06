@@ -2,6 +2,18 @@
 
 ## Release 2.7.7
 
+### Improved reference documentation
+
+The API reference documentation has been completely rehauled with improved navigation and samples.
+
+The best place to view the REST API documentation is on [Prefect Cloud](https://app.prefect.cloud/api/docs).
+
+<img width="1659" alt="Cloud API Reference Documentation" src="https://user-images.githubusercontent.com/2586601/211107172-cbded5a4-e50c-452f-8525-e36b5988f82e.png">
+
+Note: you can also view the REST API documentation [embedded in our open source documentation](https://docs.prefect.io/api-ref/rest-api-reference/).
+
+We've also improved the parsing and rendering of reference documentation for our Python API. See the [@flow decorator reference](https://docs.prefect.io/api-ref/prefect/flows/#prefect.flows.flow) for example.
+
 ### Enhancements
 - Add link to blocks catalog after registering blocks in CLI — https://github.com/PrefectHQ/prefect/pull/8017
 - Add schema migration of block documents during `Block.save` — https://github.com/PrefectHQ/prefect/pull/8056
