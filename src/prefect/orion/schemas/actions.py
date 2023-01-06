@@ -85,7 +85,16 @@ class DeploymentCreate(ActionBaseModel):
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    worker_pool_queue_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    worker_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool.",
+        example="my-worker-pool",
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool queue.",
+        example="my-worker-pool-queue",
+    )
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
@@ -114,7 +123,16 @@ class DeploymentUpdate(ActionBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    worker_pool_queue_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+    worker_pool_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool.",
+        example="my-worker-pool",
+    )
+    worker_pool_queue_name: Optional[str] = Field(
+        default=None,
+        description="The name of the deployment's worker pool queue.",
+        example="my-worker-pool-queue",
+    )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -314,6 +332,9 @@ class BlockDocumentCreate(ActionBaseModel):
 class BlockDocumentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a block document."""
 
+    block_schema_id: Optional[UUID] = Field(
+        default=None, description="A block schema ID"
+    )
     data: dict = FieldFrom(schemas.core.BlockDocument)
     merge_existing_data: bool = True
 

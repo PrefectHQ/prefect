@@ -37,6 +37,7 @@ from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
@@ -103,6 +104,10 @@ class OrionClient:
     ) -> None:
         httpx_settings = httpx_settings.copy() if httpx_settings else {}
         httpx_settings.setdefault("headers", {})
+
+        if PREFECT_API_TLS_INSECURE_SKIP_VERIFY:
+            httpx_settings.setdefault("verify", False)
+
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
             from prefect.orion.api.server import ORION_API_VERSION
@@ -293,6 +298,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         sort: schemas.sorting.FlowSort = None,
         limit: int = None,
         offset: int = 0,
@@ -306,6 +313,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             sort: sort criteria for the flows
             limit: limit for the flow query
             offset: offset for the flow query
@@ -324,6 +333,16 @@ class OrionClient:
             "deployments": (
                 deployment_filter.dict(json_compatible=True)
                 if deployment_filter
+                else None
+            ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
                 else None
             ),
             "sort": sort,
@@ -949,7 +968,7 @@ class OrionClient:
 
     async def create_block_document(
         self,
-        block_document: schemas.actions.BlockDocumentCreate,
+        block_document: Union[BlockDocument, schemas.actions.BlockDocumentCreate],
         include_secrets: bool = True,
     ) -> BlockDocument:
         """
@@ -962,6 +981,16 @@ class OrionClient:
                 `SecretBytes` fields. Note Blocks may not work as expected if
                 this is set to `False`.
         """
+        if isinstance(block_document, BlockDocument):
+            block_document = schemas.actions.BlockDocumentCreate.parse_obj(
+                block_document.dict(
+                    json_compatible=True,
+                    include_secrets=include_secrets,
+                    exclude_unset=True,
+                    exclude={"id", "block_schema", "block_type"},
+                ),
+            )
+
         try:
             response = await self._client.post(
                 "/block_documents/",
@@ -993,7 +1022,7 @@ class OrionClient:
                 json=block_document.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={"data", "merge_existing_data"},
+                    include={"data", "merge_existing_data", "block_schema_id"},
                     include_secrets=True,
                 ),
             )
@@ -1339,7 +1368,7 @@ class OrionClient:
     async def read_deployment(
         self,
         deployment_id: UUID,
-    ) -> schemas.core.Deployment:
+    ) -> schemas.responses.DeploymentResponse:
         """
         Query Orion for a deployment by id.
 
@@ -1350,12 +1379,12 @@ class OrionClient:
             a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
         """
         response = await self._client.get(f"/deployments/{deployment_id}")
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.responses.DeploymentResponse.parse_obj(response.json())
 
     async def read_deployment_by_name(
         self,
         name: str,
-    ) -> schemas.core.Deployment:
+    ) -> schemas.responses.DeploymentResponse:
         """
         Query Orion for a deployment by name.
 
@@ -1377,7 +1406,7 @@ class OrionClient:
             else:
                 raise
 
-        return schemas.core.Deployment.parse_obj(response.json())
+        return schemas.responses.DeploymentResponse.parse_obj(response.json())
 
     async def read_deployments(
         self,
@@ -1391,7 +1420,7 @@ class OrionClient:
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
-    ) -> schemas.core.Deployment:
+    ) -> List[schemas.responses.DeploymentResponse]:
         """
         Query Orion for deployments. Only deployments matching all
         the provided criteria will be returned.
@@ -1438,8 +1467,10 @@ class OrionClient:
             "sort": sort,
         }
 
-        response = await self._client.post(f"/deployments/filter", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
+        response = await self._client.post("/deployments/filter", json=body)
+        return pydantic.parse_obj_as(
+            List[schemas.responses.DeploymentResponse], response.json()
+        )
 
     async def delete_deployment(
         self,
@@ -1505,6 +1536,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
         limit: int = None,
         offset: int = 0,
@@ -1518,6 +1551,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             sort: sort criteria for the flow runs
             limit: limit for the flow run query
             offset: offset for the flow run query
@@ -1537,6 +1572,16 @@ class OrionClient:
             "deployments": (
                 deployment_filter.dict(json_compatible=True)
                 if deployment_filter
+                else None
+            ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
                 else None
             ),
             "sort": sort,
