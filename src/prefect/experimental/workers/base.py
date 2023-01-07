@@ -25,7 +25,7 @@ from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
 
 
-class BaseWorkerConfiguration(BaseModel):
+class BaseJobConfiguration(BaseModel):
     command: Optional[List[str]] = Field(template="{{ command }}")
 
     @validator("command")
@@ -103,7 +103,7 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
-    job_configuration: Optional[BaseWorkerConfiguration] = None
+    job_configuration: Optional[BaseJobConfiguration] = None
     job_configuration_variables: Optional[BaseVariables] = None
 
     @experimental(feature="The workers feature", group="workers")

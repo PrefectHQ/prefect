@@ -15,9 +15,9 @@ from pydantic import Field
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.experimental.workers.base import (
+    BaseJobConfiguration,
     BaseVariables,
     BaseWorker,
-    BaseWorkerConfiguration,
     BaseWorkerResult,
 )
 from prefect.utilities.processutils import run_process
@@ -46,7 +46,7 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
-class ProcessWorkerConfiguration(BaseWorkerConfiguration):
+class ProcessJobConfiguration(BaseJobConfiguration):
     steam_output: bool = Field(template="{{ stream_output }}")
     working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
 
@@ -62,7 +62,7 @@ class ProcessWorkerResult(BaseWorkerResult):
 
 class ProcessWorker(BaseWorker):
     type = "process"
-    job_configuration = ProcessWorkerConfiguration
+    job_configuration = ProcessJobConfiguration
     job_configuration_variables = ProcessVariables
 
     async def verify_submitted_deployment(self, deployment: Deployment):
@@ -74,7 +74,7 @@ class ProcessWorker(BaseWorker):
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
     ):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = ProcessWorkerConfiguration.from_template_and_overrides(
+        configuration = ProcessJobConfiguration.from_template_and_overrides(
             base_job_template=self.worker_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
