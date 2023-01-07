@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 import prefect
@@ -10,6 +8,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.cli import invoke_and_assert
+from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
