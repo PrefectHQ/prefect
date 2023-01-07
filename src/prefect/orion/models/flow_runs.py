@@ -13,7 +13,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only
+from sqlalchemy.orm import joinedload, load_only
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -92,6 +92,11 @@ async def create_flow_run(
             )
             .limit(1)
             .execution_options(populate_existing=True)
+            .options(
+                joinedload(db.FlowRun.worker_pool_queue).joinedload(
+                    db.WorkerPoolQueue.worker_pool
+                )
+            )
         )
         result = await session.execute(query)
         model = result.scalar()
@@ -150,7 +155,16 @@ async def read_flow_run(session: AsyncSession, flow_run_id: UUID, db: OrionDBInt
         db.FlowRun: the flow run
     """
 
-    return await session.get(db.FlowRun, flow_run_id)
+    result = await session.execute(
+        sa.select(db.FlowRun)
+        .where(db.FlowRun.id == flow_run_id)
+        .options(
+            joinedload(db.FlowRun.worker_pool_queue).joinedload(
+                db.WorkerPoolQueue.worker_pool
+            )
+        )
+    )
+    return result.scalar()
 
 
 @inject_db
@@ -254,7 +268,15 @@ async def read_flow_runs(
     Returns:
         List[db.FlowRun]: flow runs
     """
-    query = select(db.FlowRun).order_by(sort.as_sql_sort(db))
+    query = (
+        select(db.FlowRun)
+        .order_by(sort.as_sql_sort(db))
+        .options(
+            joinedload(db.FlowRun.worker_pool_queue).joinedload(
+                db.WorkerPoolQueue.worker_pool
+            )
+        )
+    )
 
     if columns:
         query = query.options(load_only(*columns))
