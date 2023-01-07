@@ -3,15 +3,23 @@ import socket
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Optional
+from functools import partial
+from pathlib import Path
+from typing import Dict, Optional, Union
 
 import anyio
 import anyio.abc
 import sniffio
+from pydantic import Field
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
-from prefect.experimental.workers.base import BaseWorker, BaseWorkerResult
+from prefect.experimental.workers.base import (
+    BaseVariables,
+    BaseWorker,
+    BaseWorkerConfiguration,
+    BaseWorkerResult,
+)
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -38,12 +46,24 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
+class ProcessWorkerConfiguration(BaseWorkerConfiguration):
+    steam_output: bool = Field(template="{{ stream_output }}")
+    working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
+
+
+class ProcessVariables(BaseVariables):
+    stream_output: Optional[bool] = True
+    working_dir: Optional[Union[str, Path]] = None
+
+
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
 class ProcessWorker(BaseWorker):
     type = "process"
+    job_configuration = ProcessWorkerConfiguration
+    job_configuration_variables = ProcessVariables
 
     async def verify_submitted_deployment(self, deployment: Deployment):
         # TODO: Implement deployment verification for `ProcessWorker`
@@ -53,31 +73,48 @@ class ProcessWorker(BaseWorker):
     async def run(
         self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
     ):
-        command = [sys.executable, "-m", "prefect.engine"]
+        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        configuration = ProcessWorkerConfiguration.from_template_and_overrides(
+            base_job_template=self.worker_pool.base_job_template,
+            deployment_overrides=deployment.infra_overrides,
+        )
+
+        command = configuration.command
+        if not command:
+            command = [sys.executable, "-m", "prefect.engine"]
+
+        # We must add creationflags to a dict so it is only passed as a function
+        # parameter on Windows, because the presence of creationflags causes
+        # errors on Unix even if set to None
+        kwargs: Dict[str, object] = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+        run_from_dir = partial(
+            run_process,
+            command,
+            stream_output=configuration.stream_output,
+            task_status=task_status,
+            task_status_handler=_infrastructure_pid_from_process,
+            env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+            **kwargs,
+        )
 
         _use_threaded_child_watcher()
         self._logger.info("Opening process...")
-        with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
+
+        if configuration.working_dir:
             self._logger.debug(
-                f"Process running command: {' '.join(command)} in {working_dir}"
+                f"Process running command: {' '.join(command)} in {configuration.working_dir}"
             )
+            process = await run_from_dir(cwd=configuration.working_dir)
+        else:
+            with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
+                self._logger.debug(
+                    f"Process running command: {' '.join(command)} in {working_dir}"
+                )
+                process = await run_from_dir(cwd=working_dir)
 
-            # We must add creationflags to a dict so it is only passed as a function
-            # parameter on Windows, because the presence of creationflags causes
-            # errors on Unix even if set to None
-            kwargs: Dict[str, object] = {}
-            if sys.platform == "win32":
-                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-
-            process = await run_process(
-                command,
-                stream_output=True,
-                task_status=task_status,
-                task_status_handler=_infrastructure_pid_from_process,
-                env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
-                cwd=working_dir,
-                **kwargs,
-            )
         # Use the pid for display if no name was given
         display_name = f" {process.pid}"
 
