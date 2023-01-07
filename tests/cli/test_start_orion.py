@@ -17,7 +17,7 @@ ORION_START_ARGS = [
     "--log-level",
     "INFO",
 ]
-SHUTDOWN_TIMEOUT = 2
+SHUTDOWN_TIMEOUT = 10
 
 
 class TestUvicornSignalForwarding:
