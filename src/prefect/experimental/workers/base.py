@@ -6,7 +6,7 @@ from uuid import uuid4
 import anyio
 import anyio.abc
 import pendulum
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orion import OrionClient, get_client
@@ -25,6 +25,73 @@ from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
 
 
+class BaseJobConfiguration(BaseModel):
+    command: Optional[List[str]] = Field(template="{{ command }}")
+
+    @validator("command")
+    def validate_command(cls, v):
+        """Make sure that empty strings are treated as None"""
+        if not v:
+            return None
+        return v
+
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @classmethod
+    def from_template_and_overrides(
+        cls, base_job_template: dict, deployment_overrides: dict
+    ):
+        """Creates a valid worker configuration object from the provided base
+        configuration and overrides.
+        """
+        job_config = base_job_template["job_configuration"]
+        variables_schema = base_job_template["variables"]
+        variables = cls._base_variables_from_schema(variables_schema)
+        variables.update(deployment_overrides)
+
+        populated_configuration = cls._apply_variables(job_config, variables)
+        return cls(**populated_configuration)
+
+    @classmethod
+    def json_template(cls):
+        configuration = {}
+        properties = cls.schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template"):
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
+
+    @staticmethod
+    def _apply_variables(job_config, variables):
+        """Apply variables to configuration template."""
+        job_config.update(variables)
+        return job_config
+
+    @classmethod
+    def _base_variables_from_schema(cls, variables_schema):
+        """Get base template variables."""
+        default_variables = cls._get_base_config_defaults(variables_schema)
+        variables = {key: None for key in variables_schema.keys()}
+        variables.update(default_variables)
+        return variables
+
+
+class BaseVariables(BaseModel):
+    command: Optional[List[str]] = None
+
+
 class BaseWorkerResult(BaseModel, abc.ABC):
     identifier: str
     status_code: int
@@ -36,6 +103,8 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
+    job_configuration: Optional[BaseJobConfiguration] = None
+    job_configuration_variables: Optional[BaseVariables] = None
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -180,6 +249,13 @@ class BaseWorker(abc.ABC):
                     f"{self.type!r} but received {worker_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
+
+        # once the work pool is loaded, verify that it has a `base_job_template` and
+        # set it if not
+        if not worker_pool.base_job_template:
+            job_template = self._create_job_template()
+            await self._set_worker_pool_template(worker_pool, job_template)
+
         self._worker_pool = worker_pool
 
     async def _send_worker_heartbeat(self):
@@ -474,6 +550,30 @@ class BaseWorker(abc.ABC):
                 self._logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
+
+    async def _set_worker_pool_template(self, worker_pool, job_template):
+        """Updates the `base_job_template` for the worker's workerpool both server side and locally."""
+        await self._client.update_worker_pool(
+            worker_pool=worker_pool, base_job_template=job_template
+        )
+        worker_pool.base_job_template = job_template
+
+    def _create_job_template(self) -> dict:
+        """Create a job template from a worker's configuration components."""
+        if self.job_configuration is None:
+            raise AttributeError(
+                "The class attribute `job_configuration` is required to be set on the worker to "
+                "create a job template."
+            )
+        if self.job_configuration_variables is None:
+            variables = self.job_configuration.schema()
+        else:
+            variables = self.job_configuration_variables.schema()
+        return {
+            "job_configuration": self.job_configuration.json_template(),
+            "variables": variables["properties"],
+            "required": variables.get("required", []),
+        }
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
