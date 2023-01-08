@@ -13,6 +13,7 @@ jobs:
   publish-docker-images:
     name: Build Docker images
     runs-on: ubuntu-latest
+    environment: ${{ ( github.event_name == 'release' && 'prod' ) || 'dev' }}
     strategy:
       matrix:
         flavor:
