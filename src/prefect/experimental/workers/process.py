@@ -47,7 +47,7 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
-    steam_output: bool = Field(template="{{ stream_output }}")
+    stream_output: bool = Field(template="{{ stream_output }}")
     working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
 
 
@@ -75,7 +75,7 @@ class ProcessWorker(BaseWorker):
     ):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         configuration = ProcessJobConfiguration.from_template_and_overrides(
-            base_job_template=self.worker_pool.base_job_template,
+            base_job_template=self._worker_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
 
