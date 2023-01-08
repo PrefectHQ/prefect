@@ -80,6 +80,8 @@ def mock_open_process(monkeypatch):
 
 
 def patch_read_deployment(monkeypatch, overrides: dict = None):
+    """Patches client._read_deployment to return a mock deployment with the specified overrides"""
+
     class MockDeployment(BaseModel):
         infra_overrides: dict = overrides or {}
 
@@ -239,12 +241,62 @@ async def test_unix_process_worker_run_does_not_set_creation_flag(
     assert kwargs.get("creationflags") is None
 
 
-async def test_process_worker_working_dir_override():
-    pass
+async def test_process_worker_working_dir_override(
+    flow_run, patch_run_process, worker_pool, monkeypatch
+):
+    mock: AsyncMock = patch_run_process()
+    path_override_value = "/tmp/test"
+
+    # Check default is not the mock_path
+    read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
+    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
+        worker._worker_pool = worker_pool
+        result = await worker.run(flow_run)
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+        assert mock.call_args.kwargs["cwd"] != path_override_value
+
+    # Check mock_path is used after setting the override
+    read_deployment_mock = patch_read_deployment(
+        monkeypatch, overrides={"working_dir": path_override_value}
+    )
+    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
+        worker._worker_pool = worker_pool
+        result = await worker.run(flow_run)
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+        assert mock.call_args.kwargs["cwd"] == path_override_value
 
 
-async def test_process_worker_stream_output_override():
-    pass
+async def test_process_worker_stream_output_override(
+    flow_run, patch_run_process, worker_pool, monkeypatch
+):
+    mock: AsyncMock = patch_run_process()
+
+    # Check default is True
+    read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
+    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
+        worker._worker_pool = worker_pool
+        result = await worker.run(flow_run)
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+        assert mock.call_args.kwargs["stream_output"] == True
+
+    # Check False is used after setting the override
+    read_deployment_mock = patch_read_deployment(
+        monkeypatch, overrides={"stream_output": False}
+    )
+
+    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
+        worker._worker_pool = worker_pool
+        result = await worker.run(flow_run)
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+        assert mock.call_args.kwargs["stream_output"] == False
 
 
 async def test_process_worker_uses_correct_default_command(
