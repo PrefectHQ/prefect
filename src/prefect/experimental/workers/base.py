@@ -51,6 +51,9 @@ class BaseJobConfiguration(BaseModel):
     ):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
+
+        Important: this method expects that the base_job_template was already
+        validated server-side.
         """
         job_config = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
@@ -170,7 +173,7 @@ class BaseWorker(abc.ABC):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     async def verify_submitted_deployment(self, deployment: Deployment):
         """
         Checks that scheduled flow runs for a submitted deployment can be run by the
