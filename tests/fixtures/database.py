@@ -325,7 +325,12 @@ async def infrastructure_document_id_2(orion_client):
 
 @pytest.fixture
 async def deployment(
-    session, flow, flow_function, infrastructure_document_id, storage_document_id
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    worker_pool_queue,
 ):
     def hello(name: str):
         pass
@@ -346,6 +351,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
+            worker_pool_queue_id=worker_pool_queue.id,
         ),
     )
     await session.commit()

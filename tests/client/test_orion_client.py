@@ -4,7 +4,7 @@ import random
 import threading
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock, Mock
 from uuid import UUID, uuid4
 
 import anyio
@@ -36,6 +36,7 @@ from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_KEY,
+    PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
@@ -618,7 +619,7 @@ async def test_create_then_read_deployment(
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.name == "test-deployment"
     assert lookup.version == "git-commit-hash"
     assert lookup.manifest_path == "path/file.json"
@@ -684,7 +685,7 @@ async def test_read_deployment_by_name(orion_client):
     )
 
     lookup = await orion_client.read_deployment_by_name("foo/test-deployment")
-    assert isinstance(lookup, schemas.core.Deployment)
+    assert isinstance(lookup, schemas.responses.DeploymentResponse)
     assert lookup.id == deployment_id
     assert lookup.name == "test-deployment"
     assert lookup.manifest_path == "file.json"
@@ -1143,6 +1144,47 @@ async def test_read_filtered_logs(session, orion_client, deployment):
     for log in logs:
         assert log.flow_run_id in flow_runs[:3]
         assert log.flow_run_id not in flow_runs[3:]
+
+
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        verify=False,
+        app=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
+
+
+async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
+    with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
+        mock = Mock()
+        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        get_client()
+
+    mock.assert_called_once_with(
+        headers=ANY,
+        app=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
+
+
+async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
+    mock = Mock()
+    monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+    get_client()
+    mock.assert_called_once_with(
+        headers=ANY,
+        app=ANY,
+        base_url=ANY,
+        timeout=ANY,
+    )
 
 
 class TestResolveDataDoc:
