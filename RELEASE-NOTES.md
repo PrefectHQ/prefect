@@ -1,5 +1,285 @@
 # Prefect Release Notes
 
+## Release 2.7.7
+
+### Improved reference documentation
+
+The API reference documentation has been completely rehauled with improved navigation and samples.
+
+The best place to view the REST API documentation is on [Prefect Cloud](https://app.prefect.cloud/api/docs).
+
+<img width="1659" alt="Cloud API Reference Documentation" src="https://user-images.githubusercontent.com/2586601/211107172-cbded5a4-e50c-452f-8525-e36b5988f82e.png">
+
+Note: you can also view the REST API documentation [embedded in our open source documentation](https://docs.prefect.io/api-ref/rest-api-reference/).
+
+We've also improved the parsing and rendering of reference documentation for our Python API. See the [@flow decorator reference](https://docs.prefect.io/api-ref/prefect/flows/#prefect.flows.flow) for example.
+
+### Enhancements
+- Add link to blocks catalog after registering blocks in CLI — https://github.com/PrefectHQ/prefect/pull/8017
+- Add schema migration of block documents during `Block.save` — https://github.com/PrefectHQ/prefect/pull/8056
+- Update result factory creation to avoid creating an extra client instance — https://github.com/PrefectHQ/prefect/pull/8072
+- Add logs for deployment flow code loading — https://github.com/PrefectHQ/prefect/pull/8075
+- Update `visit_collection` to support annotations e.g. `allow_failure` — https://github.com/PrefectHQ/prefect/pull/7263
+- Update annotations to inherit from `namedtuple` for serialization support in Dask — https://github.com/PrefectHQ/prefect/pull/8037
+- Add `PREFECT_API_TLS_INSECURE_SKIP_VERIFY` setting to disable client SSL verification — https://github.com/PrefectHQ/prefect/pull/7850
+- Update OpenAPI schema for flow parameters to include positions for display — https://github.com/PrefectHQ/prefect/pull/8013
+- Add parsing of flow docstrings to populate parameter descriptions in the OpenAPI schema — https://github.com/PrefectHQ/prefect/pull/8004
+- Add `validate` to `Block.load` allowing validation to be disabled — https://github.com/PrefectHQ/prefect/pull/7862
+- Improve error message when saving a block with an invalid name — https://github.com/PrefectHQ/prefect/pull/8038
+- Add limit to task run cache key size — https://github.com/PrefectHQ/prefect/pull/7275
+- Add limit to RRule length — https://github.com/PrefectHQ/prefect/pull/7762
+- Add flow run history inside the date range picker - https://github.com/PrefectHQ/orion-design/issues/994
+
+### Fixes
+- Fix bug where flow timeouts started before waiting for upstreams — https://github.com/PrefectHQ/prefect/pull/7993
+- Fix captured Kubernetes error type in `get_job` — https://github.com/PrefectHQ/prefect/pull/8018
+- Fix `prefect cloud login` error when no workspaces exist — https://github.com/PrefectHQ/prefect/pull/8034
+- Fix serialization of `SecretDict` when used in deployments — https://github.com/PrefectHQ/prefect/pull/8074
+- Fix bug where `visit_collection` could fail when accessing extra Pydantic fields — https://github.com/PrefectHQ/prefect/pull/8083
+
+### Experimental
+- Add pages and routers for workers — https://github.com/PrefectHQ/prefect/pull/7973
+
+### Documentation
+- Update API reference documentation to use new parser and renderer — https://github.com/PrefectHQ/prefect/pull/7855
+- Add new REST API reference using Redoc — https://github.com/PrefectHQ/prefect/pull/7503
+
+### Collections
+- [`prefect-aws` 0.2.2](https://github.com/PrefectHQ/prefect-aws/releases/tag/v0.2.2) released with many improvements to `S3Bucket`
+
+### Contributors
+* @j-tr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8013
+* @toby-coleman made their first contribution in https://github.com/PrefectHQ/prefect/pull/8083
+* @riquelmev made their first contribution in https://github.com/PrefectHQ/prefect/pull/7768
+* @joelluijmes
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.7
+
+
+## Release 2.7.6
+
+This release fixes a critical bug in the SQLite database migrations in 2.7.4 and 2.7.5.
+
+See https://github.com/PrefectHQ/prefect/issues/8058 for details.
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.6
+
+## Release 2.7.5
+
+### Schedule flow runs and read logs from the CLI
+
+You can now specify either `--start-in` or `--start-at` when running deployments from the CLI.
+```
+❯ prefect deployment run foo/test --start-at "3pm tomorrow"
+Creating flow run for deployment 'foo/test'...
+Created flow run 'pompous-porpoise'.
+└── UUID: 0ce7930e-8ec0-40cb-8a0e-65bccb7a9605
+└── Parameters: {}
+└── Scheduled start time: 2022-12-06 15:00:00
+└── URL: <no dashboard available>
+```
+
+You can also get the logs for a flow run using `prefect flow-run logs <flow run UUID>`
+```
+❯ prefect flow-run logs 7aec7a60-a0ab-4f3e-9f2a-479cd85a2aaf 
+2022-12-29 20:00:40.651 | INFO    | Flow run 'optimal-pegasus' - meow
+2022-12-29 20:00:40.652 | INFO    | Flow run 'optimal-pegasus' - that food in my bowl is gross
+2022-12-29 20:00:40.652 | WARNING | Flow run 'optimal-pegasus' - seriously, it needs to be replaced ASAP
+2022-12-29 20:00:40.662 | INFO    | Flow run 'optimal-pegasus' - Finished in state Completed()
+```
+
+### Enhancements
+- Add `--start-in` and `--start-at` to `prefect deployment run` — https://github.com/PrefectHQ/prefect/pull/7772
+- Add `flow-run logs` to get logs using the CLI — https://github.com/PrefectHQ/prefect/pull/7982
+
+### Documentation
+- Fix task annotation in task runner docs — https://github.com/PrefectHQ/prefect/pull/7977
+- Add instructions for building custom blocks — https://github.com/PrefectHQ/prefect/pull/7979
+
+### Collections
+- Added `BigQueryWarehouse` block in `prefect-gcp` v0.2.1
+- Added `AirbyteConnection` block in `prefect-airbyte` v0.2.0
+- Added dbt Cloud metadata API client to `DbtCloudCredentials` in `prefect-dbt` v0.2.7
+
+### Experimental 
+- Fix read worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7995
+- Fix error in worker pool queue endpoint — https://github.com/PrefectHQ/prefect/pull/7997
+- Add filtering to flow runs by worker pool and worker pool queue attributes — https://github.com/PrefectHQ/prefect/pull/8006
+
+### Contributors
+* @ohadch made their first contribution in https://github.com/PrefectHQ/prefect/pull/7982
+* @mohitsaxenaknoldus made their first contribution in https://github.com/PrefectHQ/prefect/pull/7980
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.4...2.7.5
+
+
+## Release 2.7.4
+
+### Improvements to retry delays: multiple delays, exponential backoff, and jitter
+
+When configuring task retries, you can now configure a delay for each retry! The `retry_delay_seconds` option accepts a list of delays for custom retry behavior. For example, the following task will wait for successively increasing intervals before the next attempt starts:
+
+```python
+from prefect import task, flow
+import random
+
+@task(retries=3, retry_delay_seconds=[1, 10, 100])
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an `exponential_backoff` utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+import random
+
+@task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+Many users that configure exponential backoff also wish to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of `10` seconds with a `retry_jitter_factor` of `0.5` will be allowed to delay up to `15` seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+import random
+
+@task(
+    retries=3,
+    retry_delay_seconds=exponential_backoff(backoff_factor=10),
+    retry_jitter_factor=1,
+)
+def flaky_function():
+    if random.choice([True, False]):
+        raise RuntimeError("not this time!")
+    return 42
+```
+
+See https://github.com/PrefectHQ/prefect/pull/7961 for implementation details.
+
+### Enhancements
+- Add task run names to the `/graph`  API route — https://github.com/PrefectHQ/prefect/pull/7951
+- Add vcs directories `.git` and `.hg` (mercurial) to default `.prefectignore` — https://github.com/PrefectHQ/prefect/pull/7919
+- Increase the default thread limit from 40 to 250 — https://github.com/PrefectHQ/prefect/pull/7961
+
+### Deprecations
+- Add removal date to tag-based work queue deprecation messages — https://github.com/PrefectHQ/prefect/pull/7930
+
+### Documentation
+- Fix `prefect deployment` command listing — https://github.com/PrefectHQ/prefect/pull/7949
+- Add workspace transfer documentation — https://github.com/PrefectHQ/prefect/pull/7941
+- Fix docstring examples in `PrefectFuture` — https://github.com/PrefectHQ/prefect/pull/7877
+- Update `setup.py` metadata to link to correct repo — https://github.com/PrefectHQ/prefect/pull/7933
+
+### Experimental
+- Add experimental workers API routes — https://github.com/PrefectHQ/prefect/pull/7896
+
+### Collections
+- New [`prefect-google-sheets` collection](https://stefanocascavilla.github.io/prefect-google-sheets/)
+
+### Contributors
+* @devanshdoshi9 made their first contribution in https://github.com/PrefectHQ/prefect/pull/7949
+* @stefanocascavilla made their first contribution in https://github.com/PrefectHQ/prefect/pull/7960
+* @quassy made their first contribution in https://github.com/PrefectHQ/prefect/pull/7919
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.3...2.7.4
+
+## Release 2.7.3
+
+### Fixes
+- Fix bug where flows with names that do not match the function name could not be loaded — https://github.com/PrefectHQ/prefect/pull/7920
+- Fix type annotation for `KubernetesJob.job_watch_timeout_seconds` — https://github.com/PrefectHQ/prefect/pull/7914
+- Keep data from being lost when assigning a generator to `State.data` — https://github.com/PrefectHQ/prefect/pull/7714
+
+## Release 2.7.2
+
+### Rescheduling paused flow runs
+
+When pausing a flow run, you can ask that Prefect reschedule the run for you instead of blocking until resume. This allows infrastructure to tear down, saving costs if the flow run is going to be pasued for significant amount of time.
+
+You can request that a flow run be rescheduled by setting the `reschedule` option when calling `pause_flow_run`.
+
+```python
+from prefect import task, flow, pause_flow_run
+
+@task(persist_result=True)
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+
+@task(persist_result=True)
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+
+@flow(persist_result=True)
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600, reschedule=True)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+If set up as a deployment, running this flow will set up a joke, then pause and leave execution until it is resumed. Once resumed either with the `resume_flow_run` utility or the Prefect UI, the flow will be rescheduled and deliver the punchline.
+
+In order to use this feature pauses, the flow run must be associated with a deployment and results must be enabled.
+
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7738) for details.
+
+### Pausing flow runs from the outside
+
+Flow runs from deployments can now be paused outside of the flow itself!
+
+The UI features a **Pause** button for flow runs that will stop execution at the beginning of the _next_ task that runs. Any currently running tasks will be allowed to complete. Resuming this flow will schedule it to start again.
+
+You can also pause a flow run from code: the `pause_flow_run` utility now accepts an optional `flow_run_id` argument. For example, you can pause a flow run from another flow run!
+
+Read the [pause documentation](https://docs.prefect.io/concepts/flows/#pause-a-flow-run) or see the [pull request](https://github.com/PrefectHQ/prefect/pull/7863) for details.
+
+### Pages for individual task run concurrency limits
+
+When viewing task run concurrency in the UI, each limit has its own page. Included in the details for each limit is the tasks that are actively part of that limit.
+
+<img width="1245" alt="image" src="https://user-images.githubusercontent.com/6200442/207954852-60e7a185-0f9d-4a3d-b9f7-2b393ef12726.png">
+
+
+### Enhancements
+- Improve Prefect import time by deferring imports — https://github.com/PrefectHQ/prefect/pull/7836
+- Add Opsgenie notification block — https://github.com/PrefectHQ/prefect/pull/7778
+- Add individual concurrency limit page with active runs list — https://github.com/PrefectHQ/prefect/pull/7848
+- Add `PREFECT_KUBERNETES_CLUSTER_UID` to allow bypass of `kube-system` namespace read — https://github.com/PrefectHQ/prefect/pull/7864
+- Refactor `pause_flow_run` for consistency with engine state handling — https://github.com/PrefectHQ/prefect/pull/7857
+- API: Allow `reject_transition` to return current state — https://github.com/PrefectHQ/prefect/pull/7830
+- Add `SecretDict` block field that obfuscates nested values in a dictionary — https://github.com/PrefectHQ/prefect/pull/7885
+
+### Fixes
+- Fix bug where agent concurrency slots may not be released — https://github.com/PrefectHQ/prefect/pull/7845
+- Fix circular imports in the `orchestration` module — https://github.com/PrefectHQ/prefect/pull/7883
+- Fix deployment builds with scripts that contain flow calls - https://github.com/PrefectHQ/prefect/pull/7817
+- Fix path argument behavior in `LocalFileSystem` block - https://github.com/PrefectHQ/prefect/pull/7891
+- Fix flow cancellation in `Process` block on Windows - https://github.com/PrefectHQ/prefect/pull/7799
+
+### Documentation
+- Add documentation for Automations UI — https://github.com/PrefectHQ/prefect/pull/7833
+- Mention recipes and tutorials under Recipes and Collections pages — https://github.com/PrefectHQ/prefect/pull/7876
+- Add documentation for Task Run Concurrency UI — https://github.com/PrefectHQ/prefect/pull/7840
+- Add `with_options` example to collections usage docs — https://github.com/PrefectHQ/prefect/pull/7894
+- Add a link to orion design and better title to UI readme — https://github.com/PrefectHQ/prefect/pull/7484
+
+### Collections
+- New [`prefect-kubernetes`](https://prefecthq.github.io/prefect-kubernetes/) collection for [Kubernetes](https://kubernetes.io/) — https://github.com/PrefectHQ/prefect/pull/7907
+- New [`prefect-bitbucket`](https://prefecthq.github.io/prefect-bitbucket/) collection for [Bitbucket](https://bitbucket.org/product) — https://github.com/PrefectHQ/prefect/pull/7907
+
+## Contributors
+- @jlutran
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.1...2.7.2
+
 ## Release 2.7.1
 
 ### Task concurrency limits page

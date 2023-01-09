@@ -57,16 +57,17 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db):
-    """Clear the database by
-
-    Args:
-        database_engine ([type]): [description]
+async def clear_db(db):
+    """
+    Delete all data from all tables after running each test.
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 @pytest.fixture
@@ -324,7 +325,12 @@ async def infrastructure_document_id_2(orion_client):
 
 @pytest.fixture
 async def deployment(
-    session, flow, flow_function, infrastructure_document_id, storage_document_id
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_pool_queue,
 ):
     def hello(name: str):
         pass
@@ -345,6 +351,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
+            work_pool_queue_id=work_pool_queue.id,
         ),
     )
     await session.commit()
@@ -362,6 +369,27 @@ async def work_queue(session):
     )
     await session.commit()
     return work_queue
+
+
+@pytest.fixture
+async def work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(name="Test Worker Pool"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_queue(session, work_pool):
+    model = await models.workers.create_work_pool_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="Test Queue"),
+    )
+    await session.commit()
+    return model
 
 
 @pytest.fixture
