@@ -1321,7 +1321,8 @@ class OrionClient:
             deployment_create.work_pool_queue_name = work_pool_queue_name
 
         response = await self._client.post(
-            "/deployments/", json=deployment_create.dict(json_compatible=True)
+            "/deployments/",
+            json=deployment_create.dict(json_compatible=True, exclude_unset=True),
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
