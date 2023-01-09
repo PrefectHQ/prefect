@@ -224,75 +224,75 @@ class TestGetRunsInQueueQuery:
         assert len(result2) == 0
 
 
-class TestGetRunsFromWorkerPoolQueueQuery:
+class TestGetRunsFromWorkPoolQueueQuery:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):
         """
         Creates:
-        - Three different worker pools ("A", "B", "C")
+        - Three different work pools ("A", "B", "C")
         - Three different queues in each pool ("AA", "AB", "AC", "BA", "BB", "BC", "CA", "CB", "CC")
         - One pending run, one running run, and 5 scheduled runs in each queue
         """
 
-        # create three different worker pools
-        wp_a = await models.workers.create_worker_pool(
+        # create three different work pools
+        wp_a = await models.workers.create_work_pool(
             session=session,
-            worker_pool=schemas.actions.WorkerPoolCreate(name="A"),
+            work_pool=schemas.actions.WorkPoolCreate(name="A"),
         )
-        wp_b = await models.workers.create_worker_pool(
+        wp_b = await models.workers.create_work_pool(
             session=session,
-            worker_pool=schemas.actions.WorkerPoolCreate(name="B"),
+            work_pool=schemas.actions.WorkPoolCreate(name="B"),
         )
-        wp_c = await models.workers.create_worker_pool(
+        wp_c = await models.workers.create_work_pool(
             session=session,
-            worker_pool=schemas.actions.WorkerPoolCreate(name="C"),
+            work_pool=schemas.actions.WorkPoolCreate(name="C"),
         )
 
         # create three different work queues for each config
-        wq_aa = await models.workers.create_worker_pool_queue(
+        wq_aa = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_a.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="AA"),
+            work_pool_id=wp_a.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AA"),
         )
-        wq_ab = await models.workers.create_worker_pool_queue(
+        wq_ab = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_a.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="AB"),
+            work_pool_id=wp_a.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AB"),
         )
-        wq_ac = await models.workers.create_worker_pool_queue(
+        wq_ac = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_a.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="AC"),
+            work_pool_id=wp_a.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AC"),
         )
-        wq_ba = await models.workers.create_worker_pool_queue(
+        wq_ba = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_b.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="BA"),
+            work_pool_id=wp_b.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BA"),
         )
-        wq_bb = await models.workers.create_worker_pool_queue(
+        wq_bb = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_b.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="BB"),
+            work_pool_id=wp_b.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BB"),
         )
-        wq_bc = await models.workers.create_worker_pool_queue(
+        wq_bc = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_b.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="BC"),
+            work_pool_id=wp_b.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BC"),
         )
-        wq_ca = await models.workers.create_worker_pool_queue(
+        wq_ca = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_c.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="CA"),
+            work_pool_id=wp_c.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CA"),
         )
-        wq_cb = await models.workers.create_worker_pool_queue(
+        wq_cb = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_c.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="CB"),
+            work_pool_id=wp_c.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CB"),
         )
-        wq_cc = await models.workers.create_worker_pool_queue(
+        wq_cc = await models.workers.create_work_pool_queue(
             session=session,
-            worker_pool_id=wp_c.id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="CC"),
+            work_pool_id=wp_c.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CC"),
         )
 
         # create flow runs
@@ -303,7 +303,7 @@ class TestGetRunsFromWorkerPoolQueueQuery:
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
                     state=prefect.states.Running(),
-                    worker_pool_queue_id=wq.id,
+                    work_pool_queue_id=wq.id,
                 ),
             )
 
@@ -313,7 +313,7 @@ class TestGetRunsFromWorkerPoolQueueQuery:
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
                     state=prefect.states.Pending(),
-                    worker_pool_queue_id=wq.id,
+                    work_pool_queue_id=wq.id,
                 ),
             )
 
@@ -328,14 +328,14 @@ class TestGetRunsFromWorkerPoolQueueQuery:
                         state=prefect.states.Scheduled(
                             scheduled_time=pendulum.now().add(hours=i)
                         ),
-                        worker_pool_queue_id=wq.id,
+                        work_pool_queue_id=wq.id,
                     ),
                 )
         await session.commit()
 
         return dict(
-            worker_pools=dict(wp_a=wp_a, wp_b=wp_b, wp_c=wp_c),
-            worker_pool_queues=dict(
+            work_pools=dict(wp_a=wp_a, wp_b=wp_b, wp_c=wp_c),
+            work_pool_queues=dict(
                 wq_aa=wq_aa,
                 wq_ab=wq_ab,
                 wq_ac=wq_ac,
@@ -349,17 +349,17 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         )
 
     @pytest.fixture
-    def worker_pools(self, setup):
-        return setup["worker_pools"]
+    def work_pools(self, setup):
+        return setup["work_pools"]
 
     @pytest.fixture
-    def worker_pool_queues(self, setup):
-        return setup["worker_pool_queues"]
+    def work_pool_queues(self, setup):
+        return setup["work_pool_queues"]
 
     async def test_get_all_runs(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db
         )
         assert len(runs) == 45
@@ -369,12 +369,12 @@ class TestGetRunsFromWorkerPoolQueueQuery:
 
     @pytest.mark.parametrize("limit", [100, 10, 0])
     async def test_get_all_runs_with_limit(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues, limit
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues, limit
     ):
-        all_runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        all_runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, limit=min(limit, 45)
         )
         assert len(runs) == min(limit, 45)
@@ -385,85 +385,81 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         ]
 
     async def test_get_wc_a_runs(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
-            session=session, db=db, worker_pool_ids=[worker_pools["wp_a"].id]
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
+            session=session, db=db, work_pool_ids=[work_pools["wp_a"].id]
         )
         assert len(runs) == 15
 
     async def test_get_wc_a_b_and_c_runs(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[
-                worker_pools["wp_a"].id,
-                worker_pools["wp_b"].id,
-                worker_pools["wp_c"].id,
+            work_pool_ids=[
+                work_pools["wp_a"].id,
+                work_pools["wp_b"].id,
+                work_pools["wp_c"].id,
             ],
         )
         assert len(runs) == 45
 
     async def test_get_wq_aa_runs(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 5
-        assert all(
-            r.worker_pool_queue_id == worker_pool_queues["wq_aa"].id for r in runs
-        )
+        assert all(r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_with_all_wc_also_provided(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[
-                worker_pools["wp_a"].id,
-                worker_pools["wp_b"].id,
-                worker_pools["wp_c"].id,
+            work_pool_ids=[
+                work_pools["wp_a"].id,
+                work_pools["wp_b"].id,
+                work_pools["wp_c"].id,
             ],
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 5
-        assert all(
-            r.worker_pool_queue_id == worker_pool_queues["wq_aa"].id for r in runs
-        )
+        assert all(r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_when_queue_is_paused(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        assert await models.workers.update_worker_pool_queue(
+        assert await models.workers.update_work_pool_queue(
             session=session,
-            worker_pool_queue_id=worker_pool_queues["wq_aa"].id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueUpdate(is_paused=True),
+            work_pool_queue_id=work_pool_queues["wq_aa"].id,
+            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(is_paused=True),
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 0
 
     async def test_get_wq_aa_runs_when_worker_is_paused(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        assert await models.workers.update_worker_pool(
+        assert await models.workers.update_work_pool(
             session=session,
-            worker_pool_id=worker_pools["wp_a"].id,
-            worker_pool=schemas.actions.WorkerPoolUpdate(is_paused=True),
+            work_pool_id=work_pools["wp_a"].id,
+            work_pool=schemas.actions.WorkPoolUpdate(is_paused=True),
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 0
 
@@ -472,23 +468,23 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         self,
         session,
         db: OrionDBInterface,
-        worker_pools,
-        worker_pool_queues,
+        work_pools,
+        work_pool_queues,
         concurrency_limit,
         expected,
     ):
-        assert await models.workers.update_worker_pool_queue(
+        assert await models.workers.update_work_pool_queue(
             session=session,
-            worker_pool_queue_id=worker_pool_queues["wq_aa"].id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueUpdate(
+            work_pool_queue_id=work_pool_queues["wq_aa"].id,
+            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(
                 concurrency_limit=concurrency_limit
             ),
         )
         await session.commit()
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == expected
 
@@ -499,22 +495,22 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         self,
         session,
         db: OrionDBInterface,
-        worker_pools,
-        worker_pool_queues,
+        work_pools,
+        work_pool_queues,
         concurrency_limit,
         expected,
     ):
-        assert await models.workers.update_worker_pool(
+        assert await models.workers.update_work_pool(
             session=session,
-            worker_pool_id=worker_pools["wp_a"].id,
-            worker_pool=schemas.actions.WorkerPoolUpdate(
+            work_pool_id=work_pools["wp_a"].id,
+            work_pool=schemas.actions.WorkPoolUpdate(
                 concurrency_limit=concurrency_limit
             ),
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_queue_ids=[worker_pool_queues["wq_aa"].id],
+            work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == expected
 
@@ -525,85 +521,81 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         self,
         session,
         db: OrionDBInterface,
-        worker_pools,
-        worker_pool_queues,
+        work_pools,
+        work_pool_queues,
         concurrency_limit,
         expected,
     ):
-        assert await models.workers.update_worker_pool(
+        assert await models.workers.update_work_pool(
             session=session,
-            worker_pool_id=worker_pools["wp_a"].id,
-            worker_pool=schemas.actions.WorkerPoolUpdate(
+            work_pool_id=work_pools["wp_a"].id,
+            work_pool=schemas.actions.WorkPoolUpdate(
                 concurrency_limit=concurrency_limit
             ),
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[worker_pools["wp_a"].id],
+            work_pool_ids=[work_pools["wp_a"].id],
         )
         assert len(runs) == expected
 
     @pytest.mark.parametrize("limit", [100, 7, 0])
     async def test_worker_limit(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues, limit
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues, limit
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, worker_limit=limit
         )
         assert len(runs) == min(15, limit) * 3
-        for wc in worker_pools.values():
-            assert sum(1 for r in runs if r.worker_pool_id == wc.id) == min(15, limit)
+        for wc in work_pools.values():
+            assert sum(1 for r in runs if r.work_pool_id == wc.id) == min(15, limit)
 
     async def test_worker_limit_with_pause(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        assert await models.workers.update_worker_pool(
+        assert await models.workers.update_work_pool(
             session=session,
-            worker_pool_id=worker_pools["wp_a"].id,
-            worker_pool=schemas.actions.WorkerPoolUpdate(is_paused=True),
+            work_pool_id=work_pools["wp_a"].id,
+            work_pool=schemas.actions.WorkPoolUpdate(is_paused=True),
         )
 
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, worker_limit=7
         )
 
         assert len(runs) == 14
-        assert sum(1 for r in runs if r.worker_pool_id == worker_pools["wp_a"].id) == 0
-        assert sum(1 for r in runs if r.worker_pool_id == worker_pools["wp_b"].id) == 7
-        assert sum(1 for r in runs if r.worker_pool_id == worker_pools["wp_c"].id) == 7
+        assert sum(1 for r in runs if r.work_pool_id == work_pools["wp_a"].id) == 0
+        assert sum(1 for r in runs if r.work_pool_id == work_pools["wp_b"].id) == 7
+        assert sum(1 for r in runs if r.work_pool_id == work_pools["wp_c"].id) == 7
 
     @pytest.mark.parametrize("limit", [100, 3, 0])
     async def test_queue_limit(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues, limit
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues, limit
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, queue_limit=limit
         )
         assert len(runs) == min(5, limit) * 9
-        for wq in worker_pool_queues.values():
-            assert sum(1 for r in runs if r.worker_pool_queue_id == wq.id) == min(
+        for wq in work_pool_queues.values():
+            assert sum(1 for r in runs if r.work_pool_queue_id == wq.id) == min(
                 5, limit
             )
 
     async def test_queue_limit_with_pause(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
-        assert await models.workers.update_worker_pool_queue(
+        assert await models.workers.update_work_pool_queue(
             session=session,
-            worker_pool_queue_id=worker_pool_queues["wq_aa"].id,
-            worker_pool_queue=schemas.actions.WorkerPoolQueueUpdate(is_paused=True),
+            work_pool_queue_id=work_pool_queues["wq_aa"].id,
+            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(is_paused=True),
         )
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, queue_limit=3
         )
         assert len(runs) == 24
         assert (
-            sum(
-                1
-                for r in runs
-                if r.worker_pool_queue_id == worker_pool_queues["wq_aa"].id
-            )
+            sum(1 for r in runs if r.work_pool_queue_id == work_pool_queues["wq_aa"].id)
             == 0
         )
 
@@ -613,20 +605,20 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         self,
         session,
         db: OrionDBInterface,
-        worker_pools,
-        worker_pool_queues,
+        work_pools,
+        work_pool_queues,
         respect_priorities,
     ):
         wq_aa, wq_ab, wq_ac = (
-            worker_pool_queues["wq_aa"],
-            worker_pool_queues["wq_ab"],
-            worker_pool_queues["wq_ac"],
+            work_pool_queues["wq_aa"],
+            work_pool_queues["wq_ab"],
+            work_pool_queues["wq_ac"],
         )
 
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[worker_pools["wp_a"].id],
+            work_pool_ids=[work_pools["wp_a"].id],
             respect_queue_priorities=respect_priorities,
         )
 
@@ -634,70 +626,66 @@ class TestGetRunsFromWorkerPoolQueueQuery:
 
         # first 3 runs are from all three queues
         assert all(
-            [r.worker_pool_queue_id in (wq_aa.id, wq_ab.id, wq_ac.id) for r in runs[:3]]
+            [r.work_pool_queue_id in (wq_aa.id, wq_ab.id, wq_ac.id) for r in runs[:3]]
         )
         # runs are in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) == runs
 
     async def test_runs_are_returned_from_queues_according_to_priority(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
         wq_aa, wq_ab, wq_ac = (
-            worker_pool_queues["wq_aa"],
-            worker_pool_queues["wq_ab"],
-            worker_pool_queues["wq_ac"],
+            work_pool_queues["wq_aa"],
+            work_pool_queues["wq_ab"],
+            work_pool_queues["wq_ac"],
         )
 
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[worker_pools["wp_a"].id],
+            work_pool_ids=[work_pools["wp_a"].id],
             respect_queue_priorities=True,
         )
 
         assert len(runs) == 15
 
         # first 5 runs are from wq_aa
-        assert all([r.worker_pool_queue_id == wq_aa.id for r in runs[:5]])
+        assert all([r.work_pool_queue_id == wq_aa.id for r in runs[:5]])
         # next 5 runs are from wq_ab
-        assert all([r.worker_pool_queue_id == wq_ab.id for r in runs[5:10]])
+        assert all([r.work_pool_queue_id == wq_ab.id for r in runs[5:10]])
         # next 5 runs are from wq_ac
-        assert all([r.worker_pool_queue_id == wq_ac.id for r in runs[10:15]])
+        assert all([r.work_pool_queue_id == wq_ac.id for r in runs[10:15]])
 
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs
 
     async def test_runs_are_returned_from_queues_according_to_priority_across_multiple_pools(
-        self, session, db: OrionDBInterface, worker_pools, worker_pool_queues
+        self, session, db: OrionDBInterface, work_pools, work_pool_queues
     ):
         wq_aa, wq_ab, wq_ac, wq_ba, wq_bb, wq_bc = (
-            worker_pool_queues["wq_aa"],
-            worker_pool_queues["wq_ab"],
-            worker_pool_queues["wq_ac"],
-            worker_pool_queues["wq_ba"],
-            worker_pool_queues["wq_bb"],
-            worker_pool_queues["wq_bc"],
+            work_pool_queues["wq_aa"],
+            work_pool_queues["wq_ab"],
+            work_pool_queues["wq_ac"],
+            work_pool_queues["wq_ba"],
+            work_pool_queues["wq_bb"],
+            work_pool_queues["wq_bc"],
         )
 
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
-            worker_pool_ids=[worker_pools["wp_a"].id, worker_pools["wp_b"].id],
+            work_pool_ids=[work_pools["wp_a"].id, work_pools["wp_b"].id],
             respect_queue_priorities=True,
         )
 
         assert len(runs) == 30
 
         # first 10 runs are from wq_aa or wq_ba
-        assert all([r.worker_pool_queue_id in (wq_aa.id, wq_ba.id) for r in runs[:10]])
+        assert all([r.work_pool_queue_id in (wq_aa.id, wq_ba.id) for r in runs[:10]])
         # next 10 runs are from wq_ab or wq_bb
-        assert all(
-            [r.worker_pool_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20]]
-        )
+        assert all([r.work_pool_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20]])
         # next 10 runs are from wq_ac or wq_bc
-        assert all(
-            [r.worker_pool_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30]]
-        )
+        assert all([r.work_pool_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30]])
 
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs
@@ -715,10 +703,10 @@ class TestGetRunsFromWorkerPoolQueueQuery:
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:
-                runs1 = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+                runs1 = await db.queries.get_scheduled_flow_runs_from_work_pool(
                     session=session1, db=db, limit=35
                 )
-                runs2 = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+                runs2 = await db.queries.get_scheduled_flow_runs_from_work_pool(
                     session=session2, db=db
                 )
 
@@ -738,10 +726,10 @@ class TestGetRunsFromWorkerPoolQueueQuery:
 
         async with db.session_context(begin_transaction=True) as session1:
             async with db.session_context(begin_transaction=True) as session2:
-                runs1 = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+                runs1 = await db.queries.get_scheduled_flow_runs_from_work_pool(
                     session=session1, db=db, queue_limit=2
                 )
-                runs2 = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+                runs2 = await db.queries.get_scheduled_flow_runs_from_work_pool(
                     session=session2, db=db
                 )
 
@@ -754,7 +742,7 @@ class TestGetRunsFromWorkerPoolQueueQuery:
     async def test_scheduled_before(
         self, session, db: OrionDBInterface, hours, expected
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
             scheduled_before=pendulum.now("UTC").add(hours=hours),
@@ -767,7 +755,7 @@ class TestGetRunsFromWorkerPoolQueueQuery:
     async def test_scheduled_after(
         self, session, db: OrionDBInterface, hours, expected
     ):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
             scheduled_after=pendulum.now("UTC").add(hours=hours),
@@ -775,7 +763,7 @@ class TestGetRunsFromWorkerPoolQueueQuery:
         assert len(runs) == expected
 
     async def test_scheduled_before_and_after(self, session, db: OrionDBInterface):
-        runs = await db.queries.get_scheduled_flow_runs_from_worker_pool(
+        runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,
             # criteria should match no runs

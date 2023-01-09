@@ -40,26 +40,26 @@ async def create_deployment(
     async with db.session_context(begin_transaction=True) as session:
         # hydrate the input model into a full model
         deployment_dict = deployment.dict(
-            exclude={"worker_pool_name", "worker_pool_queue_name"}
+            exclude={"work_pool_name", "work_pool_queue_name"}
         )
-        if deployment.worker_pool_name and deployment.worker_pool_queue_name:
+        if deployment.work_pool_name and deployment.work_pool_queue_name:
             # If a specific pool name/queue name combination was provided, get the
-            # ID for that worker pool queue.
+            # ID for that work pool queue.
             deployment_dict[
-                "worker_pool_queue_id"
-            ] = await worker_lookups._get_worker_pool_queue_id_from_name(
+                "work_pool_queue_id"
+            ] = await worker_lookups._get_work_pool_queue_id_from_name(
                 session=session,
-                worker_pool_name=deployment.worker_pool_name,
-                worker_pool_queue_name=deployment.worker_pool_queue_name,
+                work_pool_name=deployment.work_pool_name,
+                work_pool_queue_name=deployment.work_pool_queue_name,
             )
-        elif deployment.worker_pool_name:
+        elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
-            # worker pool queue.
+            # work pool queue.
             deployment_dict[
-                "worker_pool_queue_id"
-            ] = await worker_lookups._get_default_worker_pool_queue_id_from_worker_pool_name(
+                "work_pool_queue_id"
+            ] = await worker_lookups._get_default_work_pool_queue_id_from_work_pool_name(
                 session=session,
-                worker_pool_name=deployment.worker_pool_name,
+                work_pool_name=deployment.work_pool_name,
             )
 
         deployment = schemas.core.Deployment(**deployment_dict)
@@ -163,8 +163,8 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    worker_pools: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -183,8 +183,8 @@ async def read_deployments(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
-            worker_pool_filter=worker_pools,
-            worker_pool_queue_filter=worker_pool_queues,
+            work_pool_filter=work_pools,
+            work_pool_queue_filter=work_pool_queues,
         )
         return [
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
@@ -198,8 +198,8 @@ async def count_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    worker_pools: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -212,8 +212,8 @@ async def count_deployments(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
-            worker_pool_filter=worker_pools,
-            worker_pool_queue_filter=worker_pool_queues,
+            work_pool_filter=work_pools,
+            work_pool_queue_filter=work_pool_queues,
         )
 
 
@@ -371,7 +371,7 @@ async def create_flow_run_from_deployment(
                 or deployment.infrastructure_document_id
             ),
             work_queue_name=deployment.work_queue_name,
-            worker_pool_queue_id=deployment.worker_pool_queue_id,
+            work_pool_queue_id=deployment.work_pool_queue_id,
         )
 
         if not flow_run.state:

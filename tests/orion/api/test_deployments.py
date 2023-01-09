@@ -353,15 +353,15 @@ class TestCreateDeployment:
             in response.json()["detail"]
         ), "Error message identifies storage block could not be found."
 
-    # TODO: update this test as more changes are made to worker pool deployments
+    # TODO: update this test as more changes are made to work pool deployments
     async def test_create_deployment_with_pool_and_queue(
         self,
         client,
         flow,
         session,
         infrastructure_document_id,
-        worker_pool,
-        worker_pool_queue,
+        work_pool,
+        work_pool_queue,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -373,8 +373,8 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
-            worker_pool_name=worker_pool.name,
-            worker_pool_queue_name=worker_pool_queue.name,
+            work_pool_name=work_pool.name,
+            work_pool_queue_name=work_pool_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -386,8 +386,8 @@ class TestCreateDeployment:
             infrastructure_document_id
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
-        assert response.json()["worker_pool_name"] == worker_pool.name
-        assert response.json()["worker_pool_queue_name"] == worker_pool_queue.name
+        assert response.json()["work_pool_name"] == work_pool.name
+        assert response.json()["work_pool_queue_name"] == work_pool_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -399,18 +399,18 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
-        assert deployment.worker_pool_queue_id == worker_pool_queue.id
+        assert deployment.work_pool_queue_id == work_pool_queue.id
 
-    async def test_create_deployment_with_only_worker_pool(
+    async def test_create_deployment_with_only_work_pool(
         self,
         client,
         flow,
         session,
         infrastructure_document_id,
-        worker_pool,
+        work_pool,
     ):
-        default_queue = await models.workers.read_worker_pool_queue(
-            session=session, worker_pool_queue_id=worker_pool.default_queue_id
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
         )
         data = DeploymentCreate(
             name="My Deployment",
@@ -422,7 +422,7 @@ class TestCreateDeployment:
             parameters={"foo": "bar"},
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
-            worker_pool_name=worker_pool.name,
+            work_pool_name=work_pool.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -434,8 +434,8 @@ class TestCreateDeployment:
             infrastructure_document_id
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
-        assert response.json()["worker_pool_name"] == worker_pool.name
-        assert response.json()["worker_pool_queue_name"] == default_queue.name
+        assert response.json()["work_pool_name"] == work_pool.name
+        assert response.json()["work_pool_queue_name"] == default_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -447,7 +447,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
-        assert deployment.worker_pool_queue_id == worker_pool.default_queue_id
+        assert deployment.work_pool_queue_id == work_pool.default_queue_id
 
 
 class TestReadDeployment:

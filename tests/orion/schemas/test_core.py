@@ -292,14 +292,14 @@ class TestWorkQueueHealthPolicy:
         )
 
 
-class TestWorkerPool:
-    def test_more_helpful_validation_message_for_worker_pools(self):
+class TestWorkPool:
+    def test_more_helpful_validation_message_for_work_pools(self):
         with pytest.raises(
             pydantic.ValidationError, match="`default_queue_id` is a required field."
         ):
-            schemas.core.WorkerPool(name="test")
+            schemas.core.WorkPool(name="test")
 
-    async def test_valid_worker_pool_default_queue_id(self):
+    async def test_valid_work_pool_default_queue_id(self):
         qid = uuid4()
-        wp = schemas.core.WorkerPool(name="test", default_queue_id=qid)
+        wp = schemas.core.WorkPool(name="test", default_queue_id=qid)
         assert wp.default_queue_id == qid
