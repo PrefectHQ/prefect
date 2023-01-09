@@ -1101,11 +1101,11 @@ class ORMWorkPoolQueue:
         )
 
     @declared_attr
-    def worker_pool(cls):
+    def work_pool(cls):
         return sa.orm.relationship(
-            "WorkerPool",
+            "WorkPool",
             lazy="joined",
-            foreign_keys=[cls.worker_pool_id],
+            foreign_keys=[cls.work_pool_id],
         )
 
 
