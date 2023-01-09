@@ -32,7 +32,7 @@ async def create_work_pool(
     db: OrionDBInterface,
 ) -> ORMWorkPool:
     """
-    Creates a worker pool.
+    Creates a work pool.
 
     If a WorkPool with the same name exists, an error will be thrown.
 
@@ -53,7 +53,7 @@ async def create_work_pool(
         session=session,
         work_pool_id=pool.id,
         work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-            name="Default Queue", description="The worker pool's default queue."
+            name="Default Queue", description="The work pool's default queue."
         ),
     )
 
@@ -173,7 +173,7 @@ async def delete_work_pool(
 
     Args:
         session (AsyncSession): A database session
-        work_pool_id (UUID): a worker pool id
+        work_pool_id (UUID): a work pool id
 
     Returns:
         bool: whether or not the WorkPool was deleted
@@ -197,12 +197,12 @@ async def get_scheduled_flow_runs(
     db: OrionDBInterface = None,
 ) -> List[schemas.responses.WorkerFlowRunResponse]:
     """
-    Get runs from queues in a specific worker pool.
+    Get runs from queues in a specific work pool.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_ids (List[UUID]): a list of worker pool ids
-        work_pool_queue_ids (List[UUID]): a list of worker pool queue ids
+        work_pool_ids (List[UUID]): a list of work pool ids
+        work_pool_queue_ids (List[UUID]): a list of work pool queue ids
         scheduled_before (datetime.datetime): a datetime to filter runs scheduled before
         scheduled_after (datetime.datetime): a datetime to filter runs scheduled after
         respect_queue_priorities (bool): whether or not to respect queue priorities
@@ -210,7 +210,7 @@ async def get_scheduled_flow_runs(
         db (OrionDBInterface): a database interface
 
     Returns:
-        List[WorkerFlowRunResponse]: the runs, as well as related worker pool details
+        List[WorkerFlowRunResponse]: the runs, as well as related work pool details
 
     """
 
@@ -232,7 +232,7 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 # --
 # --
-# -- worker pool queues
+# -- work pool queues
 # --
 # --
 # -----------------------------------------------------
@@ -246,11 +246,11 @@ async def create_work_pool_queue(
     db: OrionDBInterface,
 ) -> ORMWorkPoolQueue:
     """
-    Creates a worker pool queue.
+    Creates a work pool queue.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_id (UUID): a worker pool id
+        work_pool_id (UUID): a work pool id
         work_pool_queue (schemas.actions.WorkPoolQueueCreate): a WorkPoolQueue action model
 
     Returns:
@@ -291,7 +291,7 @@ async def bulk_update_work_pool_queue_priorities(
     db: OrionDBInterface,
 ):
     """
-    This is a brute force update of all worker pool queue priorities for a given worker
+    This is a brute force update of all work pool queue priorities for a given worker
     pool.
 
     It loads all queues fully into memory, sorts them, and flushes the update to
@@ -335,11 +335,11 @@ async def read_work_pool_queues(
     db: OrionDBInterface,
 ) -> List[ORMWorkPoolQueue]:
     """
-    Read all worker pool queues for a worker pool. Results are ordered by ascending priority.
+    Read all work pool queues for a work pool. Results are ordered by ascending priority.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_id (UUID): a worker pool id
+        work_pool_id (UUID): a work pool id
 
     Returns:
         List[db.WorkPoolQueue]: the WorkPoolQueues
@@ -361,11 +361,11 @@ async def read_work_pool_queue(
     db: OrionDBInterface,
 ) -> ORMWorkPoolQueue:
     """
-    Read a specific worker pool queue.
+    Read a specific work pool queue.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a worker pool queue id
+        work_pool_queue_id (UUID): a work pool queue id
 
     Returns:
         db.WorkPoolQueue: the WorkPoolQueue
@@ -413,11 +413,11 @@ async def update_work_pool_queue(
     db: OrionDBInterface,
 ) -> bool:
     """
-    Update a worker pool queue.
+    Update a work pool queue.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a worker pool queue ID
+        work_pool_queue_id (UUID): a work pool queue ID
         work_pool_queue (schemas.actions.WorkPoolQueueUpdate): a WorkPoolQueue model
 
     Returns:
@@ -449,11 +449,11 @@ async def delete_work_pool_queue(
     db: OrionDBInterface,
 ) -> bool:
     """
-    Delete a worker pool queue.
+    Delete a work pool queue.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a worker pool queue ID
+        work_pool_queue_id (UUID): a work pool queue ID
 
     Returns:
         bool: whether or not the WorkPoolQueue was deleted
@@ -532,7 +532,7 @@ async def worker_heartbeat(
 
     Args:
         session (AsyncSession): a database session
-        work_pool_id (UUID): a worker pool ID
+        work_pool_id (UUID): a work pool ID
         worker_name (str): a worker name
 
     Returns:

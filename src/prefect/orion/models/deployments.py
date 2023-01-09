@@ -148,7 +148,7 @@ async def update_deployment(
     )
     if deployment.work_pool_name and deployment.work_pool_queue_name:
         # If a specific pool name/queue name combination was provided, get the
-        # ID for that worker pool queue.
+        # ID for that work pool queue.
         update_data[
             "work_pool_queue_id"
         ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
@@ -158,7 +158,7 @@ async def update_deployment(
         )
     elif deployment.work_pool_name:
         # If just a pool name was provided, get the ID for its default
-        # worker pool queue.
+        # work pool queue.
         update_data[
             "work_pool_queue_id"
         ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
@@ -319,8 +319,8 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
-        work_pool_filter: only select deployments whose worker pools match these criteria
-        work_pool_queue_filter: only select deployments whose worker pool queues match these criteria
+        work_pool_filter: only select deployments whose work pools match these criteria
+        work_pool_queue_filter: only select deployments whose work pool queues match these criteria
         sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
@@ -369,8 +369,8 @@ async def count_deployments(
         flow_run_filter: only count deployments whose flow runs match these criteria
         task_run_filter: only count deployments whose task runs match these criteria
         deployment_filter: only count deployment that match these filters
-        work_pool_filter: only count deployments that match these worker pool filters
-        work_pool_queue_filter: only count deployments that match these worker pool queue filters
+        work_pool_filter: only count deployments that match these work pool filters
+        work_pool_queue_filter: only count deployments that match these work pool queue filters
 
     Returns:
         int: the number of deployments matching filters

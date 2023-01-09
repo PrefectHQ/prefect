@@ -44,7 +44,7 @@ class WorkerLookups:
         self, session: AsyncSession, work_pool_name: str
     ) -> UUID:
         """
-        Given a worker pool name, return its ID. Used for translating
+        Given a work pool name, return its ID. Used for translating
         user-facing APIs (which are name-based) to internal ones (which are
         id-based).
         """
@@ -64,7 +64,7 @@ class WorkerLookups:
         self, session: AsyncSession, work_pool_name: str
     ):
         """
-        Given a worker pool name, return the ID of its default queue.
+        Given a work pool name, return the ID of its default queue.
         Used for translating user-facing APIs (which are name-based)
         to internal ones (which are id-based).
         """
@@ -84,7 +84,7 @@ class WorkerLookups:
         self, session: AsyncSession, work_pool_name: str, work_pool_queue_name: str
     ) -> UUID:
         """
-        Given a worker pool name and worker pool queue name, return the ID of the
+        Given a work pool name and work pool queue name, return the ID of the
         queue. Used for translating user-facing APIs (which are name-based) to
         internal ones (which are id-based).
         """
@@ -117,7 +117,7 @@ async def create_work_pool(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPool:
     """
-    Creates a new worker pool. If a worker pool with the same
+    Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
     """
 
@@ -143,7 +143,7 @@ async def create_work_pool(
 
 @router.get("/{name}")
 async def read_work_pool(
-    work_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPool:
@@ -183,12 +183,12 @@ async def read_work_pools(
 @router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
-    work_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Update a worker pool
+    Update a work pool
     """
 
     # Reserved pools can only updated pause / concurrency
@@ -216,12 +216,12 @@ async def update_work_pool(
 
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_pool(
-    work_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Delete a worker pool
+    Delete a work pool
     """
 
     if work_pool_name.lower().startswith("prefect"):
@@ -242,9 +242,9 @@ async def delete_work_pool(
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
-    work_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     work_pool_queue_names: List[str] = Body(
-        None, description="The names of worker pool queues"
+        None, description="The names of work pool queues"
     ),
     scheduled_before: DateTimeTZ = Body(
         None, description="The maximum time to look for scheduled flow runs"
@@ -302,12 +302,12 @@ async def get_scheduled_flow_runs(
 @router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
 async def create_work_pool_queue(
     work_pool_queue: schemas.actions.WorkPoolQueueCreate,
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPoolQueue:
     """
-    Creates a new worker pool queue. If a worker pool queue with the same
+    Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
     """
 
@@ -335,15 +335,15 @@ async def create_work_pool_queue(
 
 @router.get("/{work_pool_name}/queues/{name}")
 async def read_work_pool_queue(
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     work_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPoolQueue:
     """
-    Read a worker pool queue
+    Read a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
@@ -360,12 +360,12 @@ async def read_work_pool_queue(
 
 @router.get("/{work_pool_name}/queues")
 async def read_work_pool_queues(
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkPoolQueue]:
     """
-    Read all worker pool queues
+    Read all work pool queues
     """
     async with db.session_context() as session:
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
@@ -380,15 +380,15 @@ async def read_work_pool_queues(
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_work_pool_queue(
     work_pool_queue: schemas.actions.WorkPoolQueueUpdate,
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     work_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Update a worker pool queue
+    Update a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
@@ -410,15 +410,15 @@ async def update_work_pool_queue(
     "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
 )
 async def delete_work_pool_queue(
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     work_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Delete a worker pool queue
+    Delete a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
@@ -447,7 +447,7 @@ async def delete_work_pool_queue(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def worker_heartbeat(
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     name: str = Body(..., description="The worker process name", embed=True),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
@@ -467,7 +467,7 @@ async def worker_heartbeat(
 
 @router.post("/{work_pool_name}/workers/filter")
 async def read_workers(
-    work_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     workers: schemas.filters.WorkerFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),

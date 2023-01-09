@@ -56,14 +56,14 @@ class BaseWorker(abc.ABC):
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            work_pool_name: The name of the worker pool to use. If not
+            work_pool_name: The name of the work pool to use. If not
                 provided, the default will be used.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             workflow_storage_path: The filesystem path to workflow storage for
                 this worker.
-            create_pool_if_not_found: Whether to create the worker pool
+            create_pool_if_not_found: Whether to create the work pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
-                ensure that worker pools are not created accidentally.
+                ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
         """
@@ -188,7 +188,7 @@ class BaseWorker(abc.ABC):
 
     async def sync_with_backend(self):
         """
-        Updates the worker's local information about it's current worker pool and
+        Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
@@ -257,7 +257,7 @@ class BaseWorker(abc.ABC):
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
         """
-        Retrieve scheduled flow runs from the worker pool's queues.
+        Retrieve scheduled flow runs from the work pool's queues.
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
@@ -396,7 +396,7 @@ class BaseWorker(abc.ABC):
     def get_status(self):
         """
         Retrieves the status of the current worker including its name, current worker
-        pool, the worker pool queues it is polling, and its local settings.
+        pool, the work pool queues it is polling, and its local settings.
         """
         return {
             "name": self.name,

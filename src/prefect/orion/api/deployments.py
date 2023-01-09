@@ -44,7 +44,7 @@ async def create_deployment(
         )
         if deployment.work_pool_name and deployment.work_pool_queue_name:
             # If a specific pool name/queue name combination was provided, get the
-            # ID for that worker pool queue.
+            # ID for that work pool queue.
             deployment_dict[
                 "work_pool_queue_id"
             ] = await worker_lookups._get_work_pool_queue_id_from_name(
@@ -54,7 +54,7 @@ async def create_deployment(
             )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
-            # worker pool queue.
+            # work pool queue.
             deployment_dict[
                 "work_pool_queue_id"
             ] = await worker_lookups._get_default_work_pool_queue_id_from_work_pool_name(

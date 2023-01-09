@@ -229,12 +229,12 @@ class TestGetRunsFromWorkPoolQueueQuery:
     async def setup(self, session, flow):
         """
         Creates:
-        - Three different worker pools ("A", "B", "C")
+        - Three different work pools ("A", "B", "C")
         - Three different queues in each pool ("AA", "AB", "AC", "BA", "BB", "BC", "CA", "CB", "CC")
         - One pending run, one running run, and 5 scheduled runs in each queue
         """
 
-        # create three different worker pools
+        # create three different work pools
         wp_a = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="A"),

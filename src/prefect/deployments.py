@@ -391,10 +391,10 @@ class Deployment(BaseModel):
         yaml_comment="The work queue that will handle this deployment's runs",
     )
     work_pool_name: Optional[str] = Field(
-        default=None, description="The worker pool for the deployment"
+        default=None, description="The work pool for the deployment"
     )
     work_pool_queue_name: Optional[str] = Field(
-        default=None, description="The worker pool queue for the deployment."
+        default=None, description="The work pool queue for the deployment."
     )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)

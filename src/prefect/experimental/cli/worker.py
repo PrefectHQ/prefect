@@ -28,7 +28,7 @@ async def start(
         None, "-n", "--name", help="The name to give to the started worker."
     ),
     work_pool_name: str = typer.Option(
-        ..., "-p", "--pool", help="The worker pool the started worker should join."
+        ..., "-p", "--pool", help="The work pool the started worker should join."
     ),
     worker_type: str = typer.Option(
         "process", "-t", "--type", help="The type of worker to start."

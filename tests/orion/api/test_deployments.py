@@ -353,7 +353,7 @@ class TestCreateDeployment:
             in response.json()["detail"]
         ), "Error message identifies storage block could not be found."
 
-    # TODO: update this test as more changes are made to worker pool deployments
+    # TODO: update this test as more changes are made to work pool deployments
     async def test_create_deployment_with_pool_and_queue(
         self,
         client,

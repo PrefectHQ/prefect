@@ -87,12 +87,12 @@ class DeploymentCreate(ActionBaseModel):
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool.",
+        description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
     work_pool_queue_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool queue.",
+        description="The name of the deployment's work pool queue.",
         example="my-work-pool-queue",
     )
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
@@ -125,12 +125,12 @@ class DeploymentUpdate(ActionBaseModel):
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool.",
+        description="The name of the deployment's work pool.",
         example="my-work-pool",
     )
     work_pool_queue_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool queue.",
+        description="The name of the deployment's work pool queue.",
         example="my-work-pool-queue",
     )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
@@ -363,7 +363,7 @@ class LogCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
-    """Data used by the Orion API to create a worker pool."""
+    """Data used by the Orion API to create a work pool."""
 
     name: str = FieldFrom(schemas.core.WorkPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
@@ -375,7 +375,7 @@ class WorkPoolCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a worker pool."""
+    """Data used by the Orion API to update a work pool."""
 
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
     is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
@@ -385,7 +385,7 @@ class WorkPoolUpdate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolQueueCreate(ActionBaseModel):
-    """Data used by the Orion API to create a worker pool queue."""
+    """Data used by the Orion API to create a work pool queue."""
 
     name: str = FieldFrom(schemas.core.WorkPoolQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)
@@ -396,7 +396,7 @@ class WorkPoolQueueCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolQueueUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a worker pool queue."""
+    """Data used by the Orion API to update a work pool queue."""
 
     name: str = FieldFrom(schemas.core.WorkPoolQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)

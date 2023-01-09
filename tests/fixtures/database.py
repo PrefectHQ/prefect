@@ -63,7 +63,7 @@ async def clear_db(db):
     """
     yield
     async with db.session_context(begin_transaction=True) as session:
-        # worker pool has a circular dependency on pool queue; delete it first
+        # work pool has a circular dependency on pool queue; delete it first
         await session.execute(db.WorkPool.__table__.delete())
 
         for table in reversed(db.Base.metadata.sorted_tables):

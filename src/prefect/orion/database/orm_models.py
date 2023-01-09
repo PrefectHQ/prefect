@@ -1191,8 +1191,8 @@ class BaseORMConfiguration(ABC):
         deployment_mixin: deployment orm mixin, combined with Base orm class
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
-        work_pool_mixin: worker pool orm mixin, combined with Base orm class
-        work_pool_queue_mixin: worker pool queue orm mixin, combined with Base orm class
+        work_pool_mixin: work pool orm mixin, combined with Base orm class
+        work_pool_queue_mixin: work pool queue orm mixin, combined with Base orm class
         worker_mixin: worker orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_type_mixin: block_type orm mixin, combined with Base orm class

@@ -274,7 +274,7 @@ class BaseQueryComponents(ABC):
     @abstractproperty
     def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
 
     async def get_scheduled_flow_runs_from_work_pool(
@@ -317,7 +317,7 @@ class BaseQueryComponents(ABC):
                 sa.bindparam("scheduled_after", scheduled_after, type_=Timestamp)
             )
 
-        # if worker pool IDs were provided, bind them
+        # if work pool IDs were provided, bind them
         if work_pool_ids:
             assert all(isinstance(i, UUID) for i in work_pool_ids)
             bindparams.append(
@@ -329,7 +329,7 @@ class BaseQueryComponents(ABC):
                 )
             )
 
-        # if worker pool queue IDs were provided, bind them
+        # if work pool queue IDs were provided, bind them
         if work_pool_queue_ids:
             assert all(isinstance(i, UUID) for i in work_pool_queue_ids)
             bindparams.append(
@@ -663,7 +663,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     @property
     def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
         return "postgres/get-runs-from-worker-queues.sql.jinja"
 
@@ -913,6 +913,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
     @property
     def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
         return "sqlite/get-runs-from-worker-queues.sql.jinja"

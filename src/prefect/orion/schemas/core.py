@@ -259,7 +259,7 @@ class FlowRun(ORMBaseModel):
         description="Optional information about the creator of this flow run.",
     )
     work_pool_queue_id: Optional[UUID] = Field(
-        default=None, description="The id of the run's worker pool queue."
+        default=None, description="The id of the run's work pool queue."
     )
 
     # relationships
@@ -550,7 +550,7 @@ class Deployment(ORMBaseModel):
     )
     work_pool_queue_id: UUID = Field(
         default=None,
-        description="The id of the worker pool queue to which this deployment is assigned.",
+        description="The id of the work pool queue to which this deployment is assigned.",
     )
 
     @validator("name", check_fields=False)
@@ -945,24 +945,24 @@ class Agent(ORMBaseModel):
 
 
 class WorkPool(ORMBaseModel):
-    """An ORM representation of a worker pool"""
+    """An ORM representation of a work pool"""
 
     name: str = Field(
-        description="The name of the worker pool.",
+        description="The name of the work pool.",
     )
     description: Optional[str] = Field(
-        default=None, description="A description of the worker pool."
+        default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The worker pool type.")
+    type: Optional[str] = Field(None, description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
-        default_factory=dict, description="The worker pool's base job template."
+        default_factory=dict, description="The work pool's base job template."
     )
     is_paused: bool = Field(
         default=False,
-        description="Pausing the worker pool stops the delivery of all work.",
+        description="Pausing the work pool stops the delivery of all work.",
     )
     concurrency_limit: Optional[conint(ge=0)] = Field(
-        default=None, description="A concurrency limit for the worker pool."
+        default=None, description="A concurrency limit for the work pool."
     )
 
     # this required field has a default of None so that the custom validator
@@ -981,7 +981,7 @@ class WorkPool(ORMBaseModel):
         """
         Default queue ID is required because all pools must have a default queue
         ID, but it represents a circular foreign key relationship to a
-        WorkPoolQueue (which can't be created until the worker pool exists).
+        WorkPoolQueue (which can't be created until the work pool exists).
         Therefore, while this field can *technically* be null, it shouldn't be.
         This should only be an issue when creating new pools, as reading
         existing ones will always have this field populated. This custom error
@@ -1002,7 +1002,7 @@ class Worker(ORMBaseModel):
 
     name: str = Field(description="The name of the worker.")
     work_pool_id: UUID = Field(
-        description="The worker pool with which the queue is associated."
+        description="The work pool with which the queue is associated."
     )
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
@@ -1010,10 +1010,10 @@ class Worker(ORMBaseModel):
 
 
 class WorkPoolQueue(ORMBaseModel):
-    """An ORM representation of a worker pool queue"""
+    """An ORM representation of a work pool queue"""
 
     work_pool_id: UUID = Field(
-        description="The worker pool with which the queue is associated."
+        description="The work pool with which the queue is associated."
     )
     name: str = Field(
         description="The name of the queue.",

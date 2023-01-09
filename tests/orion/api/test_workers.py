@@ -278,7 +278,7 @@ class TestCreateWorkPoolQueue:
 
 class TestReadWorkPoolQueue:
     async def test_read_work_pool_queue(self, client, work_pool):
-        # Create worker pool queue
+        # Create work pool queue
         create_response = await client.post(
             f"/experimental/work_pools/{work_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
@@ -296,7 +296,7 @@ class TestReadWorkPoolQueue:
 
 class TestUpdateWorkPoolQueue:
     async def test_update_work_pool_queue(self, client, work_pool):
-        # Create worker pool queue
+        # Create work pool queue
         create_response = await client.post(
             f"/experimental/work_pools/{work_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
@@ -305,7 +305,7 @@ class TestUpdateWorkPoolQueue:
         create_result = pydantic.parse_obj_as(WorkPoolQueue, create_response.json())
         assert not create_result.is_paused
 
-        # Update worker pool queue
+        # Update work pool queue
         update_response = await client.patch(
             f"/experimental/work_pools/{work_pool.name}/queues/test-queue",
             json=dict(
@@ -316,7 +316,7 @@ class TestUpdateWorkPoolQueue:
         )
         assert update_response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Read updated worker pool queue
+        # Read updated work pool queue
         read_response = await client.get(
             f"/experimental/work_pools/{work_pool.name}/queues/updated-test-queue"
         )
@@ -391,12 +391,12 @@ class TestGetScheduledRuns:
     async def setup(self, session, flow):
         """
         Creates:
-        - Three different worker pools ("A", "B", "C")
+        - Three different work pools ("A", "B", "C")
         - Three different queues in each pool ("AA", "AB", "AC", "BA", "BB", "BC", "CA", "CB", "CC")
         - One pending run, one running run, and 5 scheduled runs in each queue
         """
 
-        # create three different worker pools
+        # create three different work pools
         wp_a = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="A"),

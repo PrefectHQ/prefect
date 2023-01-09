@@ -172,12 +172,12 @@ class FlowRunResponse(ORMBaseModel):
     created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
     work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the flow run's worker pool.",
+        description="The name of the flow run's work pool.",
         example="my-work-pool",
     )
     work_pool_queue_name: Optional[str] = Field(
         default=None,
-        description="The name of the flow run's worker pool queue.",
+        description="The name of the flow run's work pool queue.",
         example="my-work-pool-queue",
     )
     state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
@@ -232,11 +232,11 @@ class DeploymentResponse(ORMBaseModel):
     updated_by: Optional[UpdatedBy] = FieldFrom(schemas.core.Deployment)
     work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool.",
+        description="The name of the deployment's work pool.",
     )
     work_pool_queue_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool queue.",
+        description="The name of the deployment's work pool queue.",
     )
 
     @classmethod
