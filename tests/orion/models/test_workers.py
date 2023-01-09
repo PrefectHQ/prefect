@@ -68,7 +68,7 @@ class TestDefaultQueues:
             session=session, work_pool_queue_id=result.default_queue_id
         )
 
-        assert queue.name == "default-queue"
+        assert queue.name == "default"
         assert queue.priority == 1
 
         # check that it is the only queue for the pool
@@ -97,7 +97,7 @@ class TestDefaultQueues:
         queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
         )
-        assert queue.name == "default-queue"
+        assert queue.name == "default"
 
         assert await models.workers.update_work_pool_queue(
             session=session,
@@ -305,7 +305,7 @@ class TestReadWorkPoolQueues:
             session=session, work_pool_id=work_pool.id
         )
         assert len(result) == 4
-        assert (result[0].name, result[0].priority) == ("default-queue", 1)
+        assert (result[0].name, result[0].priority) == ("default", 1)
         assert (result[1].name, result[1].priority) == ("C", 2)
         assert (result[2].name, result[2].priority) == ("A", 3)
         assert (result[3].name, result[3].priority) == ("B", 4)
@@ -336,7 +336,7 @@ class TestReadWorkPoolQueues:
             session=session, work_pool_id=work_pool.id
         )
         assert len(result) == 4
-        assert (result[0].name, result[0].priority) == ("default-queue", 1)
+        assert (result[0].name, result[0].priority) == ("default", 1)
         assert (result[1].name, result[1].priority) == ("C", 2)
         assert (result[2].name, result[2].priority) == ("B", 3)
         assert (result[3].name, result[3].priority) == ("A", 4)
@@ -576,7 +576,7 @@ class TestDeleteWorkPoolQueue:
         )
 
         assert len(result) == 3
-        assert (result[0].name, result[0].priority) == ("default-queue", 1)
+        assert (result[0].name, result[0].priority) == ("default", 1)
         assert (result[1].name, result[1].priority) == ("A", 2)
         assert (result[2].name, result[2].priority) == ("C", 3)
 
