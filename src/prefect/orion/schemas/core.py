@@ -258,7 +258,7 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="Optional information about the creator of this flow run.",
     )
-    worker_pool_queue_id: Optional[UUID] = Field(
+    work_pool_queue_id: Optional[UUID] = Field(
         default=None, description="The id of the run's worker pool queue."
     )
 
@@ -548,7 +548,7 @@ class Deployment(ORMBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    worker_pool_queue_id: UUID = Field(
+    work_pool_queue_id: UUID = Field(
         default=None,
         description="The id of the worker pool queue to which this deployment is assigned.",
     )
@@ -944,7 +944,7 @@ class Agent(ORMBaseModel):
     )
 
 
-class WorkerPool(ORMBaseModel):
+class WorkPool(ORMBaseModel):
     """An ORM representation of a worker pool"""
 
     name: str = Field(
@@ -981,18 +981,18 @@ class WorkerPool(ORMBaseModel):
         """
         Default queue ID is required because all pools must have a default queue
         ID, but it represents a circular foreign key relationship to a
-        WorkerPoolQueue (which can't be created until the worker pool exists).
+        WorkPoolQueue (which can't be created until the worker pool exists).
         Therefore, while this field can *technically* be null, it shouldn't be.
         This should only be an issue when creating new pools, as reading
         existing ones will always have this field populated. This custom error
         message will help users understand that they should use the
-        `actions.WorkerPoolCreate` model in that case.
+        `actions.WorkPoolCreate` model in that case.
         """
         if v is None:
             raise ValueError(
                 "`default_queue_id` is a required field. If you are "
-                "creating a new WorkerPool and don't have a queue "
-                "ID yet, use the `actions.WorkerPoolCreate` model instead."
+                "creating a new WorkPool and don't have a queue "
+                "ID yet, use the `actions.WorkPoolCreate` model instead."
             )
         return v
 
@@ -1001,7 +1001,7 @@ class Worker(ORMBaseModel):
     """An ORM representation of a worker"""
 
     name: str = Field(description="The name of the worker.")
-    worker_pool_id: UUID = Field(
+    work_pool_id: UUID = Field(
         description="The worker pool with which the queue is associated."
     )
     last_heartbeat_time: datetime.datetime = Field(
@@ -1009,10 +1009,10 @@ class Worker(ORMBaseModel):
     )
 
 
-class WorkerPoolQueue(ORMBaseModel):
+class WorkPoolQueue(ORMBaseModel):
     """An ORM representation of a worker pool queue"""
 
-    worker_pool_id: UUID = Field(
+    work_pool_id: UUID = Field(
         description="The worker pool with which the queue is associated."
     )
     name: str = Field(

@@ -149,14 +149,14 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.SavedSearch
 
     @property
-    def WorkerPool(self):
+    def WorkPool(self):
         """A worker pool orm model"""
-        return self.orm.WorkerPool
+        return self.orm.WorkPool
 
     @property
-    def WorkerPoolQueue(self):
+    def WorkPoolQueue(self):
         """A worker pool queue orm model"""
-        return self.orm.WorkerPoolQueue
+        return self.orm.WorkPoolQueue
 
     @property
     def Worker(self):

@@ -36,14 +36,14 @@ class Executor(BaseExecutor):
     def __init__(
         self,
         worker_type: WorkerType = "thread",
-        **worker_pool_kwargs: Any,
+        **work_pool_kwargs: Any,
     ) -> None:
         super().__init__()
 
         if worker_type == "thread":
-            worker_pool_cls = ThreadPoolExecutor
+            work_pool_cls = ThreadPoolExecutor
         elif worker_type == "process":
-            worker_pool_cls = ProcessPoolExecutor
+            work_pool_cls = ProcessPoolExecutor
         else:
             raise ValueError(
                 f"Unknown worker type {worker_type}; "
@@ -51,15 +51,15 @@ class Executor(BaseExecutor):
             )
 
         self._worker_type = worker_type
-        self._worker_pool = worker_pool_cls(**worker_pool_kwargs)
+        self._work_pool = work_pool_cls(**work_pool_kwargs)
 
     def submit(
         self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
     ) -> "Future[T]":
-        return self._worker_pool.submit(self._wrap_submitted_call(fn, *args, **kwargs))
+        return self._work_pool.submit(self._wrap_submitted_call(fn, *args, **kwargs))
 
     def shutdown(self, wait=True) -> None:
-        self._worker_pool.shutdown(wait=wait)
+        self._work_pool.shutdown(wait=wait)
 
     def _wrap_submitted_call(
         self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs

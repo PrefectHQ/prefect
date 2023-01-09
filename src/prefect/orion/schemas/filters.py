@@ -1285,8 +1285,8 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
-class WorkerPoolFilterId(PrefectFilterBaseModel):
-    """Filter by `WorkerPool.id`."""
+class WorkPoolFilterId(PrefectFilterBaseModel):
+    """Filter by `WorkPool.id`."""
 
     any_: Optional[List[UUID]] = Field(
         default=None, description="A list of worker pool ids to include"
@@ -1295,12 +1295,12 @@ class WorkerPoolFilterId(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.WorkerPool.id.in_(self.any_))
+            filters.append(db.WorkPool.id.in_(self.any_))
         return filters
 
 
-class WorkerPoolFilterName(PrefectFilterBaseModel):
-    """Filter by `WorkerPool.name`."""
+class WorkPoolFilterName(PrefectFilterBaseModel):
+    """Filter by `WorkPool.name`."""
 
     any_: Optional[List[str]] = Field(
         default=None, description="A list of worker pool names to include"
@@ -1309,12 +1309,12 @@ class WorkerPoolFilterName(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.WorkerPool.name.in_(self.any_))
+            filters.append(db.WorkPool.name.in_(self.any_))
         return filters
 
 
-class WorkerPoolFilterType(PrefectFilterBaseModel):
-    """Filter by `WorkerPool.type`."""
+class WorkPoolFilterType(PrefectFilterBaseModel):
+    """Filter by `WorkPool.type`."""
 
     any_: Optional[List[str]] = Field(
         default=None, description="A list of worker pool types to include"
@@ -1323,20 +1323,20 @@ class WorkerPoolFilterType(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.WorkerPool.type.in_(self.any_))
+            filters.append(db.WorkPool.type.in_(self.any_))
         return filters
 
 
-class WorkerPoolFilter(PrefectOperatorFilterBaseModel):
+class WorkPoolFilter(PrefectOperatorFilterBaseModel):
 
-    id: Optional[WorkerPoolFilterId] = Field(
-        default=None, description="Filter criteria for `WorkerPool.id`"
+    id: Optional[WorkPoolFilterId] = Field(
+        default=None, description="Filter criteria for `WorkPool.id`"
     )
-    name: Optional[WorkerPoolFilterName] = Field(
-        default=None, description="Filter criteria for `WorkerPool.name`"
+    name: Optional[WorkPoolFilterName] = Field(
+        default=None, description="Filter criteria for `WorkPool.name`"
     )
-    type: Optional[WorkerPoolFilterType] = Field(
-        default=None, description="Filter criteria for `WorkerPool.type`"
+    type: Optional[WorkPoolFilterType] = Field(
+        default=None, description="Filter criteria for `WorkPool.type`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1352,8 +1352,8 @@ class WorkerPoolFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
-class WorkerPoolQueueFilterId(PrefectFilterBaseModel):
-    """Filter by `WorkerPoolQueue.id`."""
+class WorkPoolQueueFilterId(PrefectFilterBaseModel):
+    """Filter by `WorkPoolQueue.id`."""
 
     any_: Optional[List[UUID]] = Field(
         default=None, description="A list of worker pool queue ids to include"
@@ -1362,12 +1362,12 @@ class WorkerPoolQueueFilterId(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.WorkerPoolQueue.id.in_(self.any_))
+            filters.append(db.WorkPoolQueue.id.in_(self.any_))
         return filters
 
 
-class WorkerPoolQueueFilterName(PrefectFilterBaseModel):
-    """Filter by `WorkerPoolQueue.name`."""
+class WorkPoolQueueFilterName(PrefectFilterBaseModel):
+    """Filter by `WorkPoolQueue.name`."""
 
     any_: Optional[List[str]] = Field(
         default=None, description="A list of worker pool queue names to include"
@@ -1376,17 +1376,17 @@ class WorkerPoolQueueFilterName(PrefectFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.WorkerPoolQueue.name.in_(self.any_))
+            filters.append(db.WorkPoolQueue.name.in_(self.any_))
         return filters
 
 
-class WorkerPoolQueueFilter(PrefectOperatorFilterBaseModel):
+class WorkPoolQueueFilter(PrefectOperatorFilterBaseModel):
 
-    id: Optional[WorkerPoolQueueFilterId] = Field(
-        default=None, description="Filter criteria for `WorkerPoolQueue.id`"
+    id: Optional[WorkPoolQueueFilterId] = Field(
+        default=None, description="Filter criteria for `WorkPoolQueue.id`"
     )
-    name: Optional[WorkerPoolQueueFilterName] = Field(
-        default=None, description="Filter criteria for `WorkerPoolQueue.name`"
+    name: Optional[WorkPoolQueueFilterName] = Field(
+        default=None, description="Filter criteria for `WorkPoolQueue.name`"
     )
 
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
@@ -1400,7 +1400,7 @@ class WorkerPoolQueueFilter(PrefectOperatorFilterBaseModel):
         return filters
 
 
-class WorkerFilterWorkerPoolId(PrefectFilterBaseModel):
+class WorkerFilterWorkPoolId(PrefectFilterBaseModel):
     """Filter by `Worker.worker_config_id`."""
 
     any_: Optional[List[UUID]] = Field(
@@ -1437,7 +1437,7 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
 
 class WorkerFilter(PrefectOperatorFilterBaseModel):
 
-    # worker_config_id: Optional[WorkerFilterWorkerPoolId] = Field(
+    # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
     # )
 

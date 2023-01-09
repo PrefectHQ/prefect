@@ -40,7 +40,7 @@ class BaseWorker(abc.ABC):
     @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
-        worker_pool_name: str,
+        work_pool_name: str,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
@@ -56,7 +56,7 @@ class BaseWorker(abc.ABC):
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            worker_pool_name: The name of the worker pool to use. If not
+            work_pool_name: The name of the worker pool to use. If not
                 provided, the default will be used.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             workflow_storage_path: The filesystem path to workflow storage for
@@ -74,7 +74,7 @@ class BaseWorker(abc.ABC):
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
-        self._worker_pool_name = worker_pool_name
+        self._work_pool_name = work_pool_name
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -83,7 +83,7 @@ class BaseWorker(abc.ABC):
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
-        self._worker_pool: Optional[schemas.core.WorkerPool] = None
+        self._work_pool: Optional[schemas.core.WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[OrionClient] = None
         self._limit = limit
@@ -152,40 +152,40 @@ class BaseWorker(abc.ABC):
         runs_response = await self._get_scheduled_flow_runs()
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def _update_local_worker_pool_info(self):
+    async def _update_local_work_pool_info(self):
         try:
-            worker_pool = await self._client.read_worker_pool(
-                worker_pool_name=self._worker_pool_name
+            work_pool = await self._client.read_work_pool(
+                work_pool_name=self._work_pool_name
             )
         except ObjectNotFound:
             if self._create_pool_if_not_found:
-                worker_pool = await self._client.create_worker_pool(
-                    worker_pool=schemas.actions.WorkerPoolCreate(
-                        name=self._worker_pool_name, type=self.type
+                work_pool = await self._client.create_work_pool(
+                    work_pool=schemas.actions.WorkPoolCreate(
+                        name=self._work_pool_name, type=self.type
                     )
                 )
-                self._logger.info(f"Worker pool {self._worker_pool_name!r} created.")
+                self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
             else:
                 self._logger.warning(
-                    f"Worker pool {self._worker_pool_name!r} not found!"
+                    f"Worker pool {self._work_pool_name!r} not found!"
                 )
                 return
 
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
-        if getattr(self._worker_pool, "type", 0) != worker_pool.type:
-            if worker_pool.type != self.__class__.type:
+        if getattr(self._work_pool, "type", 0) != work_pool.type:
+            if work_pool.type != self.__class__.type:
                 self._logger.warning(
                     f"Worker type mismatch! This worker process expects type "
-                    f"{self.type!r} but received {worker_pool.type!r}"
+                    f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
-        self._worker_pool = worker_pool
+        self._work_pool = work_pool
 
     async def _send_worker_heartbeat(self):
-        if self._worker_pool:
+        if self._work_pool:
             await self._client.send_worker_heartbeat(
-                worker_pool_name=self._worker_pool_name, worker_name=self.name
+                work_pool_name=self._work_pool_name, worker_name=self.name
             )
 
     async def sync_with_backend(self):
@@ -193,7 +193,7 @@ class BaseWorker(abc.ABC):
         Updates the worker's local information about it's current worker pool and
         queues. Sends a worker heartbeat to the API.
         """
-        await self._update_local_worker_pool_info()
+        await self._update_local_work_pool_info()
 
         await self._send_worker_heartbeat()
 
@@ -267,8 +267,8 @@ class BaseWorker(abc.ABC):
         )
         try:
             scheduled_flow_runs = (
-                await self._client.get_scheduled_flow_runs_for_worker_pool_queues(
-                    worker_pool_name=self._worker_pool_name,
+                await self._client.get_scheduled_flow_runs_for_work_pool_queues(
+                    work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
                 )
             )
@@ -402,8 +402,8 @@ class BaseWorker(abc.ABC):
         """
         return {
             "name": self.name,
-            "worker_pool": self._worker_pool.dict(json_compatible=True)
-            if self._worker_pool is not None
+            "work_pool": self._work_pool.dict(json_compatible=True)
+            if self._work_pool is not None
             else None,
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
@@ -485,4 +485,4 @@ class BaseWorker(abc.ABC):
         await self.teardown(*exc_info)
 
     def __repr__(self):
-        return f"Worker(pool={self._worker_pool_name!r}, name={self.name!r})"
+        return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"

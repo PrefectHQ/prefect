@@ -136,8 +136,8 @@ class WorkerFlowRunResponse(PrefectBaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    worker_pool_id: UUID
-    worker_pool_queue_id: UUID
+    work_pool_id: UUID
+    work_pool_queue_id: UUID
     flow_run: schemas.core.FlowRun
 
 
@@ -170,24 +170,24 @@ class FlowRunResponse(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)
     infrastructure_pid: Optional[str] = FieldFrom(schemas.core.FlowRun)
     created_by: Optional[CreatedBy] = FieldFrom(schemas.core.FlowRun)
-    worker_pool_name: Optional[str] = Field(
+    work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's worker pool.",
-        example="my-worker-pool",
+        example="my-work-pool",
     )
-    worker_pool_queue_name: Optional[str] = Field(
+    work_pool_queue_name: Optional[str] = Field(
         default=None,
         description="The name of the flow run's worker pool queue.",
-        example="my-worker-pool-queue",
+        example="my-work-pool-queue",
     )
     state: Optional[schemas.states.State] = FieldFrom(schemas.core.FlowRun)
 
     @classmethod
     def from_orm(cls, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
-        if orm_flow_run.worker_pool_queue:
-            response.worker_pool_queue_name = orm_flow_run.worker_pool_queue.name
-            response.worker_pool_name = orm_flow_run.worker_pool_queue.worker_pool.name
+        if orm_flow_run.work_pool_queue:
+            response.work_pool_queue_name = orm_flow_run.work_pool_queue.name
+            response.work_pool_name = orm_flow_run.work_pool_queue.work_pool.name
 
         return response
 
@@ -230,11 +230,11 @@ class DeploymentResponse(ORMBaseModel):
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     created_by: Optional[CreatedBy] = FieldFrom(schemas.core.Deployment)
     updated_by: Optional[UpdatedBy] = FieldFrom(schemas.core.Deployment)
-    worker_pool_name: Optional[str] = Field(
+    work_pool_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's worker pool.",
     )
-    worker_pool_queue_name: Optional[str] = Field(
+    work_pool_queue_name: Optional[str] = Field(
         default=None,
         description="The name of the deployment's worker pool queue.",
     )
@@ -244,10 +244,10 @@ class DeploymentResponse(ORMBaseModel):
         cls, orm_deployment: "prefect.orion.database.orm_models.ORMDeployment"
     ):
         response = super().from_orm(orm_deployment)
-        if orm_deployment.worker_pool_queue:
-            response.worker_pool_queue_name = orm_deployment.worker_pool_queue.name
-            response.worker_pool_name = (
-                orm_deployment.worker_pool_queue.worker_pool.name
+        if orm_deployment.work_pool_queue:
+            response.work_pool_queue_name = orm_deployment.work_pool_queue.name
+            response.work_pool_name = (
+                orm_deployment.work_pool_queue.work_pool.name
             )
 
         return response
