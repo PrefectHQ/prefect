@@ -11,4 +11,4 @@ jobs:
       - name: Remove label
         run: gh issue edit ${{ github.event.issue.number }} --remove-label "status:triage"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
