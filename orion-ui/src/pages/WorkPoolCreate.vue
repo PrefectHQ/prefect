@@ -1,16 +1,16 @@
 <template>
   <p-layout-default>
     <template #header>
-      <PageHeadingWorkerPoolCreate />
+      <PageHeadingWorkPoolCreate />
     </template>
 
-    <WorkerPoolCreateForm />
+    <WorkPoolCreateForm />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingWorkerPoolCreate, WorkerPoolCreateForm } from '@prefecthq/orion-design'
+  import { PageHeadingWorkPoolCreate, WorkPoolCreateForm } from '@prefecthq/orion-design'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
-  usePageTitle('Create Worker Pool')
+  usePageTitle('Create Work Pool')
 </script>
