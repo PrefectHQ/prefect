@@ -375,7 +375,20 @@ async def work_queue(session):
 async def worker_pool(session):
     model = await models.workers.create_worker_pool(
         session=session,
-        worker_pool=schemas.actions.WorkerPoolCreate(name="Test Worker Pool"),
+        worker_pool=schemas.actions.WorkerPoolCreate(
+            name="Test Worker Pool",
+            base_job_template={
+                "job_configuration": {"command": "{{ command }}"},
+                "variables": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        ),
     )
     await session.commit()
     return model
