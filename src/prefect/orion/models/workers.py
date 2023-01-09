@@ -53,7 +53,7 @@ async def create_work_pool(
         session=session,
         work_pool_id=pool.id,
         work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-            name="Default Queue", description="The work pool's default queue."
+            name="default", description="The work pool's default queue."
         ),
     )
 
