@@ -63,8 +63,8 @@ async def clear_db(db):
     """
     yield
     async with db.session_context(begin_transaction=True) as session:
-        # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkerPool.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
 
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
@@ -330,7 +330,7 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    worker_pool_queue,
+    work_pool_queue,
 ):
     def hello(name: str):
         pass
@@ -351,7 +351,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
-            worker_pool_queue_id=worker_pool_queue.id,
+            work_pool_queue_id=work_pool_queue.id,
         ),
     )
     await session.commit()
@@ -372,8 +372,8 @@ async def work_queue(session):
 
 
 @pytest.fixture
-async def worker_pool(session):
-    model = await models.workers.create_worker_pool(
+async def work_pool(session):
+    model = await models.workers.create_work_pool(
         session=session,
         worker_pool=schemas.actions.WorkerPoolCreate(
             name="Test Worker Pool",
@@ -395,11 +395,11 @@ async def worker_pool(session):
 
 
 @pytest.fixture
-async def worker_pool_queue(session, worker_pool):
-    model = await models.workers.create_worker_pool_queue(
+async def work_pool_queue(session, work_pool):
+    model = await models.workers.create_work_pool_queue(
         session=session,
-        worker_pool_id=worker_pool.id,
-        worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="Test Queue"),
+        work_pool_id=work_pool.id,
+        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="Test Queue"),
     )
     await session.commit()
     return model

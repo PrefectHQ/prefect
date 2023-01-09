@@ -132,15 +132,15 @@ def worker_pool():
 
 
 async def test_worker_process_run_flow_run(
-    flow_run, patch_run_process, worker_pool, monkeypatch
+    flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
     async with ProcessWorker(
-        worker_pool_name=worker_pool.name,
+        work_pool_name=work_pool.name,
     ) as worker:
-        worker._worker_pool = worker_pool
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -162,7 +162,7 @@ async def test_process_created_then_marked_as_started(
 
     with pytest.raises(RuntimeError, match="Started called!"):
         async with ProcessWorker(
-            worker_pool_name=worker_pool.name,
+            work_pool_name=worker_pool.name,
         ) as worker:
             worker._worker_pool = worker_pool
             await worker.run(flow_run=flow_run, task_status=fake_status)
@@ -193,8 +193,8 @@ async def test_process_worker_logs_exit_code_help_message(
 
     read_deployment_mock = patch_read_deployment(monkeypatch)
     patch_run_process(returncode=exit_code)
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run=flow_run)
 
         assert result.status_code == exit_code
@@ -209,13 +209,13 @@ async def test_process_worker_logs_exit_code_help_message(
     reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
 )
 async def test_windows_process_worker_run_sets_process_group_creation_flag(
-    patch_run_process, flow_run, worker_pool, monkeypatch
+    patch_run_process, flow_run, work_pool, monkeypatch
 ):
     mock = patch_run_process()
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         await worker.run(flow_run=flow_run)
 
     mock.assert_awaited_once()
@@ -228,12 +228,12 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
     reason="The asyncio.open_process_*.creationflags argument is only supported on Windows",
 )
 async def test_unix_process_worker_run_does_not_set_creation_flag(
-    patch_run_process, flow_run, worker_pool, monkeypatch
+    patch_run_process, flow_run, work_pool, monkeypatch
 ):
     mock = patch_run_process()
     read_deployment_mock = patch_read_deployment(monkeypatch)
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._worker_pool = work_pool
         await worker.run(flow_run=flow_run)
 
     mock.assert_awaited_once()

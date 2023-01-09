@@ -49,45 +49,45 @@ def auto_enable_workers(enable_workers):
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
     await WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        work_pool_name="test-work-pool",
         workflow_storage_path=tmp_path / "workflows",
     ).setup()
     assert (tmp_path / "workflows").exists()
 
 
-async def test_worker_creates_worker_pool_by_default_during_sync(
+async def test_worker_creates_work_pool_by_default_during_sync(
     orion_client: OrionClient,
 ):
     with pytest.raises(ObjectNotFound):
-        await orion_client.read_worker_pool("test-worker-pool")
+        await orion_client.read_work_pool("test-work-pool")
 
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        work_pool_name="test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
         worker_status = worker.get_status()
-        assert worker_status["worker_pool"]["name"] == "test-worker-pool"
+        assert worker_status["work_pool"]["name"] == "test-work-pool"
 
-        worker_pool = await orion_client.read_worker_pool("test-worker-pool")
-        assert str(worker_pool.id) == worker_status["worker_pool"]["id"]
+        work_pool = await orion_client.read_work_pool("test-work-pool")
+        assert str(work_pool.id) == worker_status["work_pool"]["id"]
 
 
-async def test_worker_does_not_creates_worker_pool_when_create_pool_is_false(
+async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
     orion_client: OrionClient,
 ):
     with pytest.raises(ObjectNotFound):
-        await orion_client.read_worker_pool("test-worker-pool")
+        await orion_client.read_work_pool("test-work-pool")
 
     async with WorkerTestImpl(
-        name="test", worker_pool_name="test-worker-pool", create_pool_if_not_found=False
+        name="test", work_pool_name="test-work-pool", create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
         worker_status = worker.get_status()
-        assert worker_status["worker_pool"] is None
+        assert worker_status["work_pool"] is None
 
     with pytest.raises(ObjectNotFound):
-        await orion_client.read_worker_pool("test-worker-pool")
+        await orion_client.read_work_pool("test-work-pool")
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,7 @@ async def test_worker_does_not_creates_worker_pool_when_create_pool_is_false(
 )
 async def test_worker_respects_settings(setting, attr):
     assert (
-        WorkerTestImpl(name="test", worker_pool_name="test-worker-pool").get_status()[
+        WorkerTestImpl(name="test", work_pool_name="test-work-pool").get_status()[
             "settings"
         ][attr]
         == setting.value()
@@ -109,13 +109,11 @@ async def test_worker_respects_settings(setting, attr):
 async def test_worker_sends_heartbeat_messages(
     orion_client: OrionClient,
 ):
-    async with WorkerTestImpl(
-        name="test", worker_pool_name="test-worker-pool"
-    ) as worker:
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
 
-        workers = await orion_client.read_workers_for_worker_pool(
-            worker_pool_name="test-worker-pool"
+        workers = await orion_client.read_workers_for_work_pool(
+            work_pool_name="test-work-pool"
         )
         assert len(workers) == 1
         first_heartbeat = workers[0].last_heartbeat_time
@@ -123,8 +121,8 @@ async def test_worker_sends_heartbeat_messages(
 
         await worker.sync_with_backend()
 
-        workers = await orion_client.read_workers_for_worker_pool(
-            worker_pool_name="test-worker-pool"
+        workers = await orion_client.read_workers_for_work_pool(
+            work_pool_name="test-work-pool"
         )
         second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
@@ -141,7 +139,7 @@ async def test_worker_applies_discovered_deployments(
     await deployment.to_yaml(workflows_path / "test-deployment.yaml")
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
 
@@ -154,18 +152,18 @@ async def test_worker_applies_discovered_deployments(
 
 
 async def test_worker_applies_updates_to_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path, worker_pool
+    orion_client: OrionClient, flow_function, tmp_path: Path, work_pool
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
     deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function, worker_pool_name=worker_pool.name
+        name="test-deployment", flow=flow_function, work_pool_name=work_pool.name
     )
     await deployment.to_yaml(workflows_path / "test-deployment.yaml")
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name=worker_pool.name,
+        work_pool_name=work_pool.name,
         workflow_storage_path=workflows_path,
     ) as worker:
 
@@ -202,7 +200,7 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
     await deployment.to_yaml(workflows_path / "test-deployment.yaml")
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
 
@@ -237,7 +235,7 @@ async def test_worker_does_not_raise_on_malformed_manifests(
 
     async with WorkerTestImpl(
         name="test",
-        worker_pool_name="test-worker-pool",
+        work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
 
@@ -246,8 +244,8 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         assert len(await orion_client.read_deployments()) == 0
 
 
-async def test_worker_with_worker_pool_queue(
-    orion_client: OrionClient, deployment, worker_pool
+async def test_worker_with_work_pool_queue(
+    orion_client: OrionClient, deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -278,7 +276,7 @@ async def test_worker_with_worker_pool_queue(
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    async with WorkerTestImpl(worker_pool_name=worker_pool.name) as worker:
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     # Should only include scheduled runs in the past or next prefetch seconds
@@ -286,8 +284,8 @@ async def test_worker_with_worker_pool_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
 
 
-async def test_worker_with_worker_pool_queue_and_limit(
-    orion_client: OrionClient, deployment, worker_pool
+async def test_worker_with_work_pool_queue_and_limit(
+    orion_client: OrionClient, deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -318,7 +316,7 @@ async def test_worker_with_worker_pool_queue_and_limit(
     ]
     flow_run_ids = [run.id for run in flow_runs]
 
-    async with WorkerTestImpl(worker_pool_name=worker_pool.name, limit=2) as worker:
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=2) as worker:
         worker._submit_run = AsyncMock()  # don't run anything
 
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
@@ -340,7 +338,7 @@ async def test_worker_with_worker_pool_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: OrionClient, deployment, worker_pool
+    orion_client: OrionClient, deployment, work_pool
 ):
     run_mock = AsyncMock()
 
@@ -372,7 +370,7 @@ async def test_worker_calls_run_with_expected_arguments(
         await orion_client.create_flow_run(test_flow, state=Scheduled()),
     ]
 
-    async with WorkerTestImpl(worker_pool_name=worker_pool.name) as worker:
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         worker.run = run_mock  # don't run anything
         await worker.get_and_submit_flow_runs()
         await asyncio.sleep(1)
@@ -424,7 +422,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     # Create a worker with the new pool and sync with the backend
     worker = WorkerTestImpl(
         name="test",
-        worker_pool_name=pool_name,
+        work_pool_name=pool_name,
     )
     async with get_client() as client:
         worker._client = client
@@ -478,7 +476,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     # Create a worker with the new pool and sync with the backend
     worker = WorkerTestImpl(
         name="test",
-        worker_pool_name=pool_name,
+        work_pool_name=pool_name,
     )
     async with get_client() as client:
         worker._client = client

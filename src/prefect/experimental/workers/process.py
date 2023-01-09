@@ -75,7 +75,7 @@ class ProcessWorker(BaseWorker):
     ):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         configuration = ProcessJobConfiguration.from_template_and_overrides(
-            base_job_template=self._worker_pool.base_job_template,
+            base_job_template=self._work_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
 
