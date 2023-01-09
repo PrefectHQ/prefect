@@ -21,7 +21,7 @@
     "vue-router": "4.1.6"
   },
   "devDependencies": {
-    "@playwright/test": "1.29.1",
+    "@playwright/test": "1.29.2",
     "@prefecthq/eslint-config": "1.0.22",
     "@vitejs/plugin-vue": "4.0.0",
     "autoprefixer": "10.4.13",
