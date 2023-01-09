@@ -560,12 +560,12 @@ class BaseWorker(abc.ABC):
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
 
-    async def _set_work_pool_template(self, worker_pool, job_template):
+    async def _set_work_pool_template(self, work_pool, job_template):
         """Updates the `base_job_template` for the worker's workerpool both server side and locally."""
-        await self._client.update_worker_pool(
-            worker_pool=worker_pool, base_job_template=job_template
+        await self._client.update_work_pool(
+            work_pool=work_pool, base_job_template=job_template
         )
-        worker_pool.base_job_template = job_template
+        work_pool.base_job_template = job_template
 
     def _create_job_template(self) -> dict:
         """Create a job template from a worker's configuration components."""

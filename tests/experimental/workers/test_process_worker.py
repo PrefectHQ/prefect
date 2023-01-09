@@ -250,7 +250,7 @@ async def test_process_worker_working_dir_override(
     # Check default is not the mock_path
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._work_pool = worker_pool
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -261,8 +261,8 @@ async def test_process_worker_working_dir_override(
     read_deployment_mock = patch_read_deployment(
         monkeypatch, overrides={"working_dir": path_override_value}
     )
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -271,14 +271,14 @@ async def test_process_worker_working_dir_override(
 
 
 async def test_process_worker_stream_output_override(
-    flow_run, patch_run_process, worker_pool, monkeypatch
+    flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
 
     # Check default is True
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -290,8 +290,8 @@ async def test_process_worker_stream_output_override(
         monkeypatch, overrides={"stream_output": False}
     )
 
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -300,14 +300,14 @@ async def test_process_worker_stream_output_override(
 
 
 async def test_process_worker_uses_correct_default_command(
-    flow_run, patch_run_process, worker_pool, monkeypatch
+    flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     correct_default = [sys.executable, "-m", "prefect.engine"]
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)
@@ -316,15 +316,15 @@ async def test_process_worker_uses_correct_default_command(
 
 
 async def test_process_worker_command_override(
-    flow_run, patch_run_process, worker_pool, monkeypatch
+    flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     override_command = ["echo", "hello", "world"]
     override = {"command": override_command}
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides=override)
 
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)

@@ -2037,33 +2037,31 @@ class OrionClient:
 
         return pydantic.parse_obj_as(WorkPool, response.json())
 
-    async def update_worker_pool(
+    async def update_work_pool(
         self,
-        worker_pool: schemas.core.WorkPool,
+        work_pool: schemas.core.WorkPool,
         description: Optional[str] = None,
         is_paused: Optional[bool] = None,
         base_job_template: Optional[Dict[str, Any]] = None,
         concurrency_limit: Optional[int] = None,
     ):
-        description = (
-            description if description is not None else worker_pool.description
-        )
+        description = description if description is not None else work_pool.description
 
-        is_paused = is_paused if is_paused is not None else worker_pool.is_paused
+        is_paused = is_paused if is_paused is not None else work_pool.is_paused
 
         base_job_template = (
             base_job_template
             if base_job_template is not None
-            else worker_pool.base_job_template
+            else work_pool.base_job_template
         )
 
         concurrency_limit = (
             concurrency_limit
             if concurrency_limit is not None
-            else worker_pool.concurrency_limit
+            else work_pool.concurrency_limit
         )
 
-        worker_pool_update = WorkPoolUpdate(
+        work_pool_update = WorkPoolUpdate(
             description=description,
             is_paused=is_paused,
             base_job_template=base_job_template,
@@ -2071,8 +2069,8 @@ class OrionClient:
         )
 
         await self._client.patch(
-            f"/experimental/worker_pools/{worker_pool.name}",
-            json=worker_pool_update.dict(json_compatible=True),
+            f"/experimental/work_pools/{work_pool.name}",
+            json=work_pool_update.dict(json_compatible=True),
         )
 
     async def read_work_pool_queues(
