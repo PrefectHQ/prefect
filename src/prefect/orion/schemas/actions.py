@@ -3,7 +3,7 @@ Reduced schemas for accepting API actions.
 """
 import re
 import warnings
-from copy import deepcopy
+from copy import copy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -85,7 +85,7 @@ class DeploymentCreate(ActionBaseModel):
         # worker_pool_queue_name. Those fields were later renamed to work_pool_name
         # and work_pool_queue_name. This validator removes old fields provided
         # by older clients to avoid 422 errors.
-        values_copy = deepcopy(values)
+        values_copy = copy(values)
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
         worker_pool_name = values_copy.pop("worker_pool_name", None)
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
@@ -149,7 +149,7 @@ class DeploymentUpdate(ActionBaseModel):
         # worker_pool_queue_name. Those fields were later renamed to work_pool_name
         # and work_pool_queue_name. This validator removes old fields provided
         # by older clients to avoid 422 errors.
-        values_copy = deepcopy(values)
+        values_copy = copy(values)
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
         worker_pool_name = values_copy.pop("worker_pool_name", None)
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
