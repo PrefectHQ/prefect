@@ -1,4 +1,5 @@
 import anyio
+from httpx import HTTPError
 from packaging.version import Version
 
 import prefect
@@ -18,27 +19,24 @@ async def apply_deployment(deployment):
         await client.create_deployment(flow_id=flow_id, name=deployment.name)
 
 
-async def update_deployment(deployment):
-    async with get_client() as client:
-        await client.update_deployment(deployment=deployment)
-
-
 if __name__ == "__main__":
-    # Create deployment
-    if Version(prefect.__version__) < Version("2.1.0"):
-        deployment = Deployment(
-            name="test-deployment",
-            flow_name=hello.name,
-            parameter_openapi_schema=parameter_schema(hello),
-        )
-        anyio.run(apply_deployment, deployment)
-    else:
-        deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
-        deployment.apply()
+    try:
+        # Create deployment
+        if Version(prefect.__version__) < Version("2.1.0"):
+            deployment = Deployment(
+                name="test-deployment",
+                flow_name=hello.name,
+                parameter_openapi_schema=parameter_schema(hello),
+            )
+            anyio.run(apply_deployment, deployment)
+        else:
+            deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
+            deployment.apply()
 
-    # Update deployment
-    deployment.tags = ["test"]
-    if Version(prefect.__version__) < Version("2.1.0"):
-        anyio.run(update_deployment, deployment)
-    else:
-        deployment.apply()
+        # Update deployment
+        deployment.tags = ["test"]
+        if Version(prefect.__version__) >= Version("2.1.0"):
+            deployment.apply()
+    except HTTPError as e:
+        print(e.response.json())
+        raise
