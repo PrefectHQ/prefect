@@ -49,8 +49,7 @@ class CancellationCleanup(LoopService):
                     .where(
                         db.FlowRun.state_type == states.StateType.CANCELLED,
                         db.FlowRun.end_time != None,
-                        db.FlowRun.end_time
-                        >= (pendulum.now("UTC").subtract(days=1))
+                        db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
                     )
                     .limit(self.batch_size)
                 )
