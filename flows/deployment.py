@@ -2,8 +2,7 @@ import anyio
 from packaging.version import Version
 
 import prefect
-from prefect import flow, get_run_logger
-from prefect.client.orion import get_client
+from prefect import flow, get_client, get_run_logger
 from prefect.deployments import Deployment
 from prefect.utilities.callables import parameter_schema
 
