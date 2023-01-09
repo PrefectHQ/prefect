@@ -9,7 +9,7 @@ def hello(name: str = "world"):
 
 if __name__ == "__main__":
     # Create deployment
-    deployment = Deployment.build_from_flow(flow=flow, name="test-deployment")
+    deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
     deployment.apply()
 
     # Update deployment
