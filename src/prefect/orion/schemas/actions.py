@@ -83,7 +83,7 @@ class DeploymentCreate(ActionBaseModel):
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
-        # 2.7.7 removed worker_pool_queue_id in lieu of work_pool_name and
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
         # worker_pool_queue_name. Those fields were later renamed to work_pool_name
         # and work_pool_queue_name. This validator removes old fields provided
         # by older clients to avoid 422 errors.
