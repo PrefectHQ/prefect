@@ -2,6 +2,8 @@
 Reduced schemas for accepting API actions.
 """
 import re
+import warnings
+from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -77,6 +79,33 @@ class FlowUpdate(ActionBaseModel):
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Orion API to create a deployment."""
 
+    @root_validator(pre=True)
+    def remove_old_fields(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
+        # and work_pool_queue_name. This validator removes old fields provided
+        # by older clients to avoid 422 errors.
+        values_copy = deepcopy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        worker_pool_name = values_copy.pop("worker_pool_name", None)
+        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_pool_queue_name` instead.",
+                UserWarning,
+            )
+        if worker_pool_name or worker_pool_queue_name:
+            warnings.warn(
+                "`worker_pool_name` and `worker_pool_queue_name` are "
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_pool_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
+
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
     is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
@@ -113,6 +142,33 @@ class DeploymentCreate(ActionBaseModel):
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a deployment."""
+
+    @root_validator(pre=True)
+    def remove_old_fields(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
+        # and work_pool_queue_name. This validator removes old fields provided
+        # by older clients to avoid 422 errors.
+        values_copy = deepcopy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        worker_pool_name = values_copy.pop("worker_pool_name", None)
+        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for updating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_pool_queue_name` instead.",
+                UserWarning,
+            )
+        if worker_pool_name or worker_pool_queue_name:
+            warnings.warn(
+                "`worker_pool_name` and `worker_pool_queue_name` are "
+                "no longer supported for updating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_pool_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
 
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
