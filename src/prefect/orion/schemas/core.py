@@ -1001,8 +1001,13 @@ class WorkerPool(ORMBaseModel):
         if v == dict():
             return v
 
-        job_config = v["job_configuration"]
-        variables = v["variables"]
+        job_config = v.get("job_configuration")
+        variables = v.get("variables")
+        if not (job_config and variables):
+            raise ValueError(
+                "The `base_job_template` must contain both a `job_configuration` key"
+                " and a `variables` key."
+            )
         template_variables = set()
         for template in job_config.values():
             template_variables.add(
