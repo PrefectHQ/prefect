@@ -17,7 +17,7 @@ from prefect.experimental.workers.base import (
 )
 from prefect.flows import flow
 from prefect.orion import models
-from prefect.orion.schemas.core import WorkerPool
+from prefect.orion.schemas.core import WorkPool
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -411,12 +411,10 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/worker_pools/", json=dict(name=pool_name, type="test-type")
+        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkerPool, response.json())
-    model = await models.workers.read_worker_pool(
-        session=session, worker_pool_id=result.id
-    )
+    result = pydantic.parse_obj_as(WorkPool, response.json())
+    model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
     # Create a worker with the new pool and sync with the backend
@@ -428,7 +426,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         worker._client = client
         await worker.sync_with_backend()
 
-    assert worker._worker_pool.base_job_template == expected_job_template
+    assert worker._work_pool.base_job_template == expected_job_template
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_job_config_and_variables(
@@ -465,12 +463,10 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/worker_pools/", json=dict(name=pool_name, type="test-type")
+        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkerPool, response.json())
-    model = await models.workers.read_worker_pool(
-        session=session, worker_pool_id=result.id
-    )
+    result = pydantic.parse_obj_as(WorkPool, response.json())
+    model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
     # Create a worker with the new pool and sync with the backend
@@ -482,7 +478,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         worker._client = client
         await worker.sync_with_backend()
 
-    assert worker._worker_pool.base_job_template == worker_job_template
+    assert worker._work_pool.base_job_template == worker_job_template
 
 
 @pytest.mark.parametrize(

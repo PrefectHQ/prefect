@@ -12,7 +12,7 @@ from prefect import flow
 from prefect.client.orion import OrionClient
 from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
-from prefect.orion.schemas.core import WorkerPool
+from prefect.orion.schemas.core import WorkPool
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock
@@ -98,7 +98,7 @@ def patch_read_deployment(monkeypatch, overrides: dict = None):
 
 
 @pytest.fixture
-def worker_pool():
+def work_pool():
     job_template = {
         "job_configuration": {
             "command": "{{ command }}",
@@ -125,10 +125,10 @@ def worker_pool():
         "required": [],
     }
 
-    worker_pool = MagicMock(spec=WorkerPool)
-    worker_pool.name = "test-worker-pool"
-    worker_pool.base_job_template = job_template
-    return worker_pool
+    work_pool = MagicMock(spec=WorkPool)
+    work_pool.name = "test-worker-pool"
+    work_pool.base_job_template = job_template
+    return work_pool
 
 
 async def test_worker_process_run_flow_run(
@@ -152,7 +152,7 @@ async def test_worker_process_run_flow_run(
 
 
 async def test_process_created_then_marked_as_started(
-    flow_run, mock_open_process, worker_pool, monkeypatch
+    flow_run, mock_open_process, work_pool, monkeypatch
 ):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     # By raising an exception when started is called we can assert the process
@@ -162,9 +162,9 @@ async def test_process_created_then_marked_as_started(
 
     with pytest.raises(RuntimeError, match="Started called!"):
         async with ProcessWorker(
-            work_pool_name=worker_pool.name,
+            work_pool_name=work_pool.name,
         ) as worker:
-            worker._worker_pool = worker_pool
+            worker._work_pool = work_pool
             await worker.run(flow_run=flow_run, task_status=fake_status)
 
     fake_status.started.assert_called_once()
@@ -187,7 +187,7 @@ async def test_process_worker_logs_exit_code_help_message(
     caplog,
     patch_run_process,
     flow_run,
-    worker_pool,
+    work_pool,
     monkeypatch,
 ):
 
@@ -233,7 +233,7 @@ async def test_unix_process_worker_run_does_not_set_creation_flag(
     mock = patch_run_process()
     read_deployment_mock = patch_read_deployment(monkeypatch)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
-        worker._worker_pool = work_pool
+        worker._work_pool = work_pool
         await worker.run(flow_run=flow_run)
 
     mock.assert_awaited_once()
@@ -242,15 +242,15 @@ async def test_unix_process_worker_run_does_not_set_creation_flag(
 
 
 async def test_process_worker_working_dir_override(
-    flow_run, patch_run_process, worker_pool, monkeypatch
+    flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
     path_override_value = "/tmp/test"
 
     # Check default is not the mock_path
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
-    async with ProcessWorker(worker_pool_name=worker_pool.name) as worker:
-        worker._worker_pool = worker_pool
+    async with ProcessWorker(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = worker_pool
         result = await worker.run(flow_run)
 
         assert isinstance(result, ProcessWorkerResult)

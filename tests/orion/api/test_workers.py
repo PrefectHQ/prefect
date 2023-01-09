@@ -150,7 +150,7 @@ class TestCreateWorkPool:
             "required": [],
         }
         response = await client.post(
-            "/experimental/worker_pools/",
+            "/experimental/work_pools/",
             json=dict(name="Pool 1", base_job_template=missing_variable_template),
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -272,9 +272,7 @@ class TestUpdateWorkPool:
         }
         pool = await models.workers.create_work_pool(
             session=session,
-            worker_pool=WorkerPoolCreate(
-                name=name, base_job_template=base_job_template
-            ),
+            work_pool=WorkPoolCreate(name=name, base_job_template=base_job_template),
         )
         await session.commit()
 
@@ -291,21 +289,21 @@ class TestUpdateWorkPool:
         )
         assert result.base_job_template["variables"]["command"]["default"] == ["woof!"]
 
-    async def test_update_worker_pool_template_validation_missing_keys(
+    async def test_update_work_pool_template_validation_missing_keys(
         self, client, session
     ):
         name = "Pool 1"
 
         pool = await models.workers.create_work_pool(
             session=session,
-            worker_pool=WorkPoolCreate(name=name),
+            work_pool=WorkPoolCreate(name=name),
         )
         await session.commit()
 
         session.expunge_all()
 
         response = await client.patch(
-            f"/experimental/worker_pools/{name}",
+            f"/experimental/work_pools/{name}",
             json=dict(name=name, base_job_template={"foo": "bar", "x": ["y"]}),
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -314,7 +312,7 @@ class TestUpdateWorkPool:
             in response.json()["exception_detail"][0]["msg"]
         )
 
-    async def test_create_worker_pool_template_validation_missing_variables(
+    async def test_create_work_pool_template_validation_missing_variables(
         self, client, session
     ):
         name = "Pool 1"
@@ -334,14 +332,14 @@ class TestUpdateWorkPool:
         }
         pool = await models.workers.create_work_pool(
             session=session,
-            worker_pool=WorkerPoolCreate(name=name),
+            work_pool=WorkPoolCreate(name=name),
         )
         await session.commit()
 
         session.expunge_all()
 
         response = await client.patch(
-            f"/experimental/worker_pools/{name}",
+            f"/experimental/work_pools/{name}",
             json=dict(name=name, base_job_template=missing_variable_template),
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

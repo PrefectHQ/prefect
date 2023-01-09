@@ -321,7 +321,7 @@ class TestWorkPool:
             ValueError,
             match=".*Your job expects the following variables: {'expected_variable'}, but your template provides: {'wrong_variable'}",
         ):
-            wp = schemas.core.WorkerPool(
+            wp = schemas.core.WorkPool(
                 name="test", default_queue_id=qid, base_job_template=template
             )
 
@@ -339,7 +339,7 @@ class TestWorkPool:
         """Test that no error is raised if all variables expected by job_configuration
         are provided in variables."""
         qid = uuid4()
-        wp = schemas.core.WorkerPool(
+        wp = schemas.core.WorkPool(
             name="test", default_queue_id=qid, base_job_template=template
         )
         assert wp
