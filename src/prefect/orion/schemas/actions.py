@@ -88,7 +88,7 @@ class DeploymentCreate(ActionBaseModel):
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
         if worker_pool_queue_id:
             warnings.warn(
-                "`worker_pool_queue_id` is no longer supported for creating. "
+                "`worker_pool_queue_id` is no longer supported for creating "
                 "deployments. Please use `worker_pool_name` and "
                 "`worker_pool_queue_name` instead.",
                 UserWarning,
@@ -131,6 +131,22 @@ class DeploymentCreate(ActionBaseModel):
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a deployment."""
+
+    @root_validator(pre=True)
+    def remove_worker_pool_queue_id(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. This validator removes worker_pool_queue_id
+        # to avoid 422 errors when it is provided by older clients.
+        values_copy = deepcopy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for updating "
+                "deployments. Please use `worker_pool_name` and "
+                "`worker_pool_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
 
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
