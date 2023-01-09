@@ -272,33 +272,33 @@ class BaseQueryComponents(ABC):
     # -------------------------------------------------------
 
     @abstractproperty
-    def _get_scheduled_flow_runs_from_worker_pool_template_path(self):
+    def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
 
-    async def get_scheduled_flow_runs_from_worker_pool(
+    async def get_scheduled_flow_runs_from_work_pool(
         self,
         session,
         db: "OrionDBInterface",
         limit: Optional[int] = None,
         worker_limit: Optional[int] = None,
         queue_limit: Optional[int] = None,
-        worker_pool_ids: Optional[List[UUID]] = None,
-        worker_pool_queue_ids: Optional[List[UUID]] = None,
+        work_pool_ids: Optional[List[UUID]] = None,
+        work_pool_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
         scheduled_after: Optional[datetime.datetime] = None,
         respect_queue_priorities: bool = False,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
 
         template = jinja_env.get_template(
-            self._get_scheduled_flow_runs_from_worker_pool_template_path
+            self._get_scheduled_flow_runs_from_work_pool_template_path
         )
 
         raw_query = sa.text(
             template.render(
-                worker_pool_ids=worker_pool_ids,
-                worker_pool_queue_ids=worker_pool_queue_ids,
+                work_pool_ids=work_pool_ids,
+                work_pool_queue_ids=work_pool_queue_ids,
                 respect_queue_priorities=respect_queue_priorities,
                 scheduled_before=scheduled_before,
                 scheduled_after=scheduled_after,
@@ -317,25 +317,25 @@ class BaseQueryComponents(ABC):
                 sa.bindparam("scheduled_after", scheduled_after, type_=Timestamp)
             )
 
-        # if worker pool IDs were provided, bind them
-        if worker_pool_ids:
-            assert all(isinstance(i, UUID) for i in worker_pool_ids)
+        # if work pool IDs were provided, bind them
+        if work_pool_ids:
+            assert all(isinstance(i, UUID) for i in work_pool_ids)
             bindparams.append(
                 sa.bindparam(
-                    "worker_pool_ids",
-                    worker_pool_ids,
+                    "work_pool_ids",
+                    work_pool_ids,
                     expanding=True,
                     type_=UUIDTypeDecorator,
                 )
             )
 
-        # if worker pool queue IDs were provided, bind them
-        if worker_pool_queue_ids:
-            assert all(isinstance(i, UUID) for i in worker_pool_queue_ids)
+        # if work pool queue IDs were provided, bind them
+        if work_pool_queue_ids:
+            assert all(isinstance(i, UUID) for i in work_pool_queue_ids)
             bindparams.append(
                 sa.bindparam(
-                    "worker_pool_queue_ids",
-                    worker_pool_queue_ids,
+                    "work_pool_queue_ids",
+                    work_pool_queue_ids,
                     expanding=True,
                     type_=UUIDTypeDecorator,
                 )
@@ -350,8 +350,8 @@ class BaseQueryComponents(ABC):
 
         orm_query = (
             sa.select(
-                sa.column("run_worker_pool_id"),
-                sa.column("run_worker_pool_queue_id"),
+                sa.column("run_work_pool_id"),
+                sa.column("run_work_pool_queue_id"),
                 db.FlowRun,
             ).from_statement(query)
             # indicate that the state relationship isn't being loaded
@@ -362,8 +362,8 @@ class BaseQueryComponents(ABC):
 
         return [
             schemas.responses.WorkerFlowRunResponse(
-                worker_pool_id=r.run_worker_pool_id,
-                worker_pool_queue_id=r.run_worker_pool_queue_id,
+                work_pool_id=r.run_work_pool_id,
+                work_pool_queue_id=r.run_work_pool_queue_id,
                 flow_run=schemas.core.FlowRun.from_orm(r.FlowRun),
             )
             for r in result
@@ -661,9 +661,9 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         return result.fetchall()
 
     @property
-    def _get_scheduled_flow_runs_from_worker_pool_template_path(self):
+    def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
         return "postgres/get-runs-from-worker-queues.sql.jinja"
 
@@ -911,8 +911,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
     # -------------------------------------------------------
 
     @property
-    def _get_scheduled_flow_runs_from_worker_pool_template_path(self):
+    def _get_scheduled_flow_runs_from_work_pool_template_path(self):
         """
-        Template for the query to get scheduled flow runs from a worker pool
+        Template for the query to get scheduled flow runs from a work pool
         """
         return "sqlite/get-runs-from-worker-queues.sql.jinja"
