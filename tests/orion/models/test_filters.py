@@ -581,7 +581,7 @@ class TestCountFlowRunModels:
         [
             dict(
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 )
             ),
             1,
@@ -590,7 +590,7 @@ class TestCountFlowRunModels:
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 ),
             ),
             1,
@@ -601,7 +601,7 @@ class TestCountFlowRunModels:
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 ),
             ),
             0,
@@ -920,7 +920,7 @@ class TestCountDeploymentModels:
         [
             dict(
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 )
             ),
             1,
@@ -929,7 +929,7 @@ class TestCountDeploymentModels:
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 ),
             ),
             1,
@@ -940,7 +940,7 @@ class TestCountDeploymentModels:
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
+                    name=dict(any_=["default"])
                 ),
             ),
             0,
