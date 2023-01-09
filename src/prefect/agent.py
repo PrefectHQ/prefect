@@ -219,11 +219,10 @@ class OrionAgent:
         async for work_queue in self.get_work_queues():
             work_queue_names.add(work_queue.name)
 
-        cancelling_flow_runs = await self.client.read_flow_runs(
+        named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
-                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
-                    name=FlowRunFilterStateName(any_=["Cancelling"]),
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
                 ),
                 work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
                 # Avoid duplicate cancellation calls
