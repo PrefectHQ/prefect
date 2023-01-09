@@ -373,6 +373,14 @@ This variable only exists to faciliate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
+PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disables SSL checking to allow insecure requests. 
+This is recommended only during development, e.g. when using self-signed certificates.
+"""
+
 PREFECT_API_URL = Setting(
     str,
     default=None,
@@ -874,6 +882,49 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
 """Whether or not to start the paused flow run expiration service in the Orion
 application. If disabled, paused flows that have timed out will remain in a Paused state
 until a resume attempt.
+"""
+
+PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+"""
+The maximum number of characters allowed for a task run cache key.
+This setting cannot be changed client-side, it must be set on the server.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers.
+"""
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
+"""
+Number of seconds a worker should wait between sending a heartbeat.
+"""
+PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
+"""
+Number of seconds a worker should wait between queries for scheduled flow runs.
+"""
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
+"""
+The number of seconds into the future a worker should query for scheduled flow runs.
+Can be used to compensate for infrastructure start up time for a worker.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
+"""
+The number of seconds a worker should wait between scanning its workflow storage
+location for submitted deployments.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "workflows",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+"""
+The location where workers will scan for newly submitted deployments and store
+flow code for submitted deployments.
 """
 
 # Collect all defined settings

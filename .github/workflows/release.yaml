@@ -75,6 +75,9 @@ jobs:
       - name: Merge with main
         run: git merge origin/main --no-ff -m "Merge branch 'main' into temporary docs branch"
 
+      - name: Rebase onto docs-deploy
+        run: git rebase docs-deploy -Xours
+
       - name: Push and open PR
         run: |
           git push --set-upstream origin HEAD

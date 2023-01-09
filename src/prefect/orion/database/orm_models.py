@@ -408,6 +408,15 @@ class ORMFlowRun(ORMRun):
             index=True,
         )
 
+    @declared_attr
+    def work_pool_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool_queue.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        )
+
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
@@ -467,6 +476,14 @@ class ORMFlowRun(ORMRun):
             back_populates="subflow_run",
             lazy="raise",
             foreign_keys=lambda: [cls.parent_task_run_id],
+        )
+
+    @declared_attr
+    def work_pool_queue(cls):
+        return sa.orm.relationship(
+            "WorkPoolQueue",
+            lazy="joined",
+            foreign_keys=[cls.work_pool_queue_id],
         )
 
     @declared_attr
@@ -697,6 +714,15 @@ class ORMDeployment:
             index=True,
         )
 
+    @declared_attr
+    def work_pool_queue_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool_queue.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        )
+
     schedule = sa.Column(Pydantic(schemas.schedules.SCHEDULE_TYPES))
     is_schedule_active = sa.Column(
         sa.Boolean, nullable=False, server_default="1", default=True
@@ -738,6 +764,12 @@ class ORMDeployment:
     @declared_attr
     def flow(cls):
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
+
+    @declared_attr
+    def work_pool_queue(cls):
+        return sa.orm.relationship(
+            "WorkPoolQueue", lazy="joined", foreign_keys=[cls.work_pool_queue_id]
+        )
 
     @declared_attr
     def __table_args__(cls):
@@ -998,6 +1030,89 @@ class ORMWorkQueue:
 
 
 @declarative_mixin
+class ORMWorkPool:
+    """SQLAlchemy model of an worker"""
+
+    name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.String)
+    type = sa.Column(sa.String)
+    base_job_template = sa.Column(JSON, nullable=False, server_default="{}", default={})
+    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
+    default_queue_id = sa.Column(UUID, nullable=True)
+    concurrency_limit = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
+
+
+@declarative_mixin
+class ORMWorkPoolQueue:
+    """SQLAlchemy model of a Worker Queue"""
+
+    name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.String)
+
+    @declared_attr
+    def work_pool_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
+
+    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
+    concurrency_limit = sa.Column(
+        sa.Integer,
+        nullable=True,
+    )
+    priority = sa.Column(sa.Integer, index=True, nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("work_pool_id", "name"),)
+
+    @declared_attr
+    def work_pool(cls):
+        return sa.orm.relationship(
+            "WorkPool",
+            lazy="joined",
+            foreign_keys=[cls.work_pool_id],
+        )
+
+
+@declarative_mixin
+class ORMWorker:
+    """SQLAlchemy model of an worker"""
+
+    @declared_attr
+    def work_pool_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
+
+    name = sa.Column(sa.String, nullable=False)
+    last_heartbeat_time = sa.Column(
+        Timestamp(),
+        nullable=False,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
+        index=True,
+    )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("work_pool_id", "name"),)
+
+
+@declarative_mixin
 class ORMAgent:
     """SQLAlchemy model of an agent"""
 
@@ -1076,6 +1191,9 @@ class BaseORMConfiguration(ABC):
         deployment_mixin: deployment orm mixin, combined with Base orm class
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
+        work_pool_mixin: work pool orm mixin, combined with Base orm class
+        work_pool_queue_mixin: work pool queue orm mixin, combined with Base orm class
+        worker_mixin: worker orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_type_mixin: block_type orm mixin, combined with Base orm class
         block_schema_mixin: block_schema orm mixin, combined with Base orm class
@@ -1100,13 +1218,16 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
-        work_queue_mixin=ORMWorkQueue,
-        agent_mixin=ORMAgent,
+        work_pool_mixin=ORMWorkPool,
+        work_pool_queue_mixin=ORMWorkPoolQueue,
+        worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_schema_reference_mixin=ORMBlockSchemaReference,
         block_document_mixin=ORMBlockDocument,
         block_document_reference_mixin=ORMBlockDocumentReference,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
@@ -1147,6 +1268,9 @@ class BaseORMConfiguration(ABC):
             saved_search_mixin=saved_search_mixin,
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
+            work_pool_mixin=work_pool_mixin,
+            work_pool_queue_mixin=work_pool_queue_mixin,
+            worker_mixin=worker_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
             block_type_mixin=block_type_mixin,
@@ -1188,8 +1312,9 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
-        work_queue_mixin=ORMWorkQueue,
-        agent_mixin=ORMAgent,
+        work_pool_mixin=ORMWorkPool,
+        work_pool_queue_mixin=ORMWorkPoolQueue,
+        worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
         block_schema_reference_mixin=ORMBlockSchemaReference,
@@ -1197,6 +1322,8 @@ class BaseORMConfiguration(ABC):
         block_document_reference_mixin=ORMBlockDocumentReference,
         flow_run_notification_policy_mixin=ORMFlowRunNotificationPolicy,
         flow_run_notification_queue_mixin=ORMFlowRunNotificationQueue,
+        work_queue_mixin=ORMWorkQueue,
+        agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
     ):
         """
@@ -1232,6 +1359,15 @@ class BaseORMConfiguration(ABC):
             pass
 
         class ConcurrencyLimit(concurrency_limit_mixin, self.Base):
+            pass
+
+        class WorkPool(work_pool_mixin, self.Base):
+            pass
+
+        class WorkPoolQueue(work_pool_queue_mixin, self.Base):
+            pass
+
+        class Worker(worker_mixin, self.Base):
             pass
 
         class WorkQueue(work_queue_mixin, self.Base):
@@ -1274,6 +1410,9 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
+        self.WorkPool = WorkPool
+        self.WorkPoolQueue = WorkPoolQueue
+        self.Worker = Worker
         self.WorkQueue = WorkQueue
         self.Agent = Agent
         self.BlockType = BlockType

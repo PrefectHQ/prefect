@@ -6,6 +6,7 @@ import pytest
 
 from prefect.orion import schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
 
 
 @pytest.mark.parametrize(
@@ -171,6 +172,95 @@ class TestTaskRunPolicy:
         assert new_policy.retry_delay == 2
 
 
+class TestTaskRun:
+    def test_task_run_cache_key_greater_than_user_configured_max_length(self):
+        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 5}):
+
+            cache_key_invalid_length = "X" * 6
+            with pytest.raises(
+                pydantic.ValidationError,
+                match="Cache key exceeded maximum allowed length",
+            ):
+                schemas.core.TaskRun(
+                    id=uuid4(),
+                    flow_run_id=uuid4(),
+                    task_key="foo",
+                    dynamic_key="0",
+                    cache_key=cache_key_invalid_length,
+                )
+
+            with pytest.raises(
+                pydantic.ValidationError,
+                match="Cache key exceeded maximum allowed length",
+            ):
+                schemas.actions.TaskRunCreate(
+                    flow_run_id=uuid4(),
+                    task_key="foo",
+                    dynamic_key="0",
+                    cache_key=cache_key_invalid_length,
+                )
+
+    def test_task_run_cache_key_within_user_configured_max_length(self):
+        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 1000}):
+            cache_key_valid_length = "X" * 1000
+            schemas.core.TaskRun(
+                id=uuid4(),
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_valid_length,
+            )
+
+            schemas.actions.TaskRunCreate(
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_valid_length,
+            )
+
+    def test_task_run_cache_key_greater_than_default_max_length(self):
+
+        cache_key_invalid_length = "X" * 2001
+        with pytest.raises(
+            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+        ):
+            schemas.core.TaskRun(
+                id=uuid4(),
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_invalid_length,
+            )
+
+        with pytest.raises(
+            pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
+        ):
+            schemas.actions.TaskRunCreate(
+                flow_run_id=uuid4(),
+                task_key="foo",
+                dynamic_key="0",
+                cache_key=cache_key_invalid_length,
+            )
+
+    def test_task_run_cache_key_length_within_default_max_length(self):
+
+        cache_key_valid_length = "X" * 2000
+        schemas.core.TaskRun(
+            id=uuid4(),
+            flow_run_id=uuid4(),
+            task_key="foo",
+            dynamic_key="0",
+            cache_key=cache_key_valid_length,
+        )
+
+        schemas.actions.TaskRunCreate(
+            flow_run_id=uuid4(),
+            task_key="foo",
+            dynamic_key="0",
+            cache_key=cache_key_valid_length,
+        )
+
+
 class TestWorkQueueHealthPolicy:
     def test_health_policy_enforces_max_late_runs(self):
         policy = schemas.core.WorkQueueHealthPolicy(
@@ -200,3 +290,16 @@ class TestWorkQueueHealthPolicy:
         assert (
             policy.evaluate_health_status(late_runs_count=2, last_polled=None) is False
         )
+
+
+class TestWorkPool:
+    def test_more_helpful_validation_message_for_work_pools(self):
+        with pytest.raises(
+            pydantic.ValidationError, match="`default_queue_id` is a required field."
+        ):
+            schemas.core.WorkPool(name="test")
+
+    async def test_valid_work_pool_default_queue_id(self):
+        qid = uuid4()
+        wp = schemas.core.WorkPool(name="test", default_queue_id=qid)
+        assert wp.default_queue_id == qid
