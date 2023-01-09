@@ -9,8 +9,15 @@ def hello(name: str = "world"):
 
 if __name__ == "__main__":
     # Create deployment
-    deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
-    deployment.apply()
+    if hasattr(Deployment, "build_from_flow"):
+        deployment = Deployment.build_from_flow(
+            flow=hello, name="test-deployment", apply=True
+        )
+    else:
+        deployment = Deployment(
+            name="test-deployment",
+            flow_name=hello.name,
+        )
 
     # Update deployment
     deployment.tags = ["test"]
