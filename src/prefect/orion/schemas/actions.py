@@ -195,7 +195,7 @@ class DeploymentUpdate(ActionBaseModel):
             )
         if worker_pool_name or worker_pool_queue_name:
             warnings.warn(
-                "`work_pool_name` and `worker_pool_queue_name` are "
+                "`worker_pool_name` and `worker_pool_queue_name` are "
                 "no longer supported for updating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_pool_queue_name` instead.",
