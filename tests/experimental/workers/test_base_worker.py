@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from typing import Optional
 
 import pendulum
 import pydantic
@@ -9,7 +10,11 @@ from pydantic import Field
 from prefect.client.orion import OrionClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import BaseJobConfiguration, BaseWorker
+from prefect.experimental.workers.base import (
+    BaseJobConfiguration,
+    BaseVariables,
+    BaseWorker,
+)
 from prefect.flows import flow
 from prefect.orion import models
 from prefect.orion.schemas.core import WorkerPool
@@ -24,6 +29,7 @@ from prefect.testing.utilities import AsyncMock
 
 class WorkerTestImpl(BaseWorker):
     type = "test"
+    job_configuration = BaseJobConfiguration
 
     async def run(self):
         pass
@@ -377,20 +383,28 @@ async def test_worker_calls_run_with_expected_arguments(
     }
 
 
-async def test_base_worker_gets_job_configuration_when_syncing_with_backend(
+async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
     session, client
 ):
     """We don't really care how this happens as long as the worker winds up with a worker pool
-    with a base_job_template when creating a new work pool"""
+    with a correct base_job_template when creating a new work pool"""
 
-    base_job_template = {
-        "job_configuration": {"command": "{{ command }}"},
+    class WorkerJobConfig(BaseJobConfiguration):
+        other: Optional[str] = Field(template="{{other}}")
+
+    # Add a job configuration for the worker (currently used to create template
+    # if not found on the worker pool)
+    WorkerTestImpl.job_configuration = WorkerJobConfig
+
+    expected_job_template = {
+        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
         "variables": {
             "command": {
                 "type": "array",
                 "title": "Command",
                 "items": {"type": "string"},
-            }
+            },
+            "other": {"type": "string", "title": "Other"},
         },
         "required": [],
     }
@@ -407,9 +421,6 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend(
     )
     assert model.name == pool_name
 
-    # Add a job configuration for the worker (currently used to create template
-    # if not foun on the worker pool)
-    WorkerTestImpl.job_configuration = BaseJobConfiguration
     # Create a worker with the new pool and sync with the backend
     worker = WorkerTestImpl(
         name="test",
@@ -417,10 +428,63 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend(
     )
     async with get_client() as client:
         worker._client = client
-        worker.job_configuration = BaseJobConfiguration
         await worker.sync_with_backend()
 
-    assert worker._worker_pool.base_job_template == base_job_template
+    assert worker._worker_pool.base_job_template == expected_job_template
+
+
+async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_job_config_and_variables(
+    session, client
+):
+    """We don't really care how this happens as long as the worker winds up with a worker pool
+    with a correct base_job_template when creating a new work pool"""
+
+    class WorkerJobConfig(BaseJobConfiguration):
+        other: Optional[str] = Field(template="{{ other }}")
+
+    class WorkerVariables(BaseVariables):
+        other: Optional[str] = Field(default="woof")
+
+    # Add a job configuration and variables for the worker (currently used to create template
+    # if not found on the worker pool)
+    WorkerTestImpl.job_configuration = WorkerJobConfig
+    WorkerTestImpl.job_configuration_variables = WorkerVariables
+
+    worker_job_template = {
+        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
+        "variables": {
+            "command": {
+                "type": "array",
+                "title": "Command",
+                "items": {"type": "string"},
+            },
+            "other": {"type": "string", "title": "Other", "default": "woof"},
+        },
+        "required": [],
+    }
+
+    pool_name = "test-pool"
+
+    # Create a new worker pool
+    response = await client.post(
+        "/experimental/worker_pools/", json=dict(name=pool_name, type="test-type")
+    )
+    result = pydantic.parse_obj_as(WorkerPool, response.json())
+    model = await models.workers.read_worker_pool(
+        session=session, worker_pool_id=result.id
+    )
+    assert model.name == pool_name
+
+    # Create a worker with the new pool and sync with the backend
+    worker = WorkerTestImpl(
+        name="test",
+        worker_pool_name=pool_name,
+    )
+    async with get_client() as client:
+        worker._client = client
+        await worker.sync_with_backend()
+
+    assert worker._worker_pool.base_job_template == worker_job_template
 
 
 @pytest.mark.parametrize(

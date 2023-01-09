@@ -569,7 +569,13 @@ class BaseWorker(abc.ABC):
                 "create a job template."
             )
         if self.job_configuration_variables is None:
-            variables = self.job_configuration.schema()
+            schema = self.job_configuration.schema()
+            # remove "template" key from all dicts in schema['properties'] because it is not a
+            # relevant field
+            for key, value in schema["properties"].items():
+                if isinstance(value, dict):
+                    schema["properties"][key].pop("template", None)
+            variables = schema
         else:
             variables = self.job_configuration_variables.schema()
         return {
