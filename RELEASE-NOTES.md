@@ -1,5 +1,70 @@
 # Prefect Release Notes
 
+## Release 2.7.7
+
+### Improved reference documentation
+
+The API reference documentation has been completely rehauled with improved navigation and samples.
+
+The best place to view the REST API documentation is on [Prefect Cloud](https://app.prefect.cloud/api/docs).
+
+<img width="1659" alt="Cloud API Reference Documentation" src="https://user-images.githubusercontent.com/2586601/211107172-cbded5a4-e50c-452f-8525-e36b5988f82e.png">
+
+Note: you can also view the REST API documentation [embedded in our open source documentation](https://docs.prefect.io/api-ref/rest-api-reference/).
+
+We've also improved the parsing and rendering of reference documentation for our Python API. See the [@flow decorator reference](https://docs.prefect.io/api-ref/prefect/flows/#prefect.flows.flow) for example.
+
+### Enhancements
+- Add link to blocks catalog after registering blocks in CLI — https://github.com/PrefectHQ/prefect/pull/8017
+- Add schema migration of block documents during `Block.save` — https://github.com/PrefectHQ/prefect/pull/8056
+- Update result factory creation to avoid creating an extra client instance — https://github.com/PrefectHQ/prefect/pull/8072
+- Add logs for deployment flow code loading — https://github.com/PrefectHQ/prefect/pull/8075
+- Update `visit_collection` to support annotations e.g. `allow_failure` — https://github.com/PrefectHQ/prefect/pull/7263
+- Update annotations to inherit from `namedtuple` for serialization support in Dask — https://github.com/PrefectHQ/prefect/pull/8037
+- Add `PREFECT_API_TLS_INSECURE_SKIP_VERIFY` setting to disable client SSL verification — https://github.com/PrefectHQ/prefect/pull/7850
+- Update OpenAPI schema for flow parameters to include positions for display — https://github.com/PrefectHQ/prefect/pull/8013
+- Add parsing of flow docstrings to populate parameter descriptions in the OpenAPI schema — https://github.com/PrefectHQ/prefect/pull/8004
+- Add `validate` to `Block.load` allowing validation to be disabled — https://github.com/PrefectHQ/prefect/pull/7862
+- Improve error message when saving a block with an invalid name — https://github.com/PrefectHQ/prefect/pull/8038
+- Add limit to task run cache key size — https://github.com/PrefectHQ/prefect/pull/7275
+- Add limit to RRule length — https://github.com/PrefectHQ/prefect/pull/7762
+- Add flow run history inside the date range picker - https://github.com/PrefectHQ/orion-design/issues/994
+
+### Fixes
+- Fix bug where flow timeouts started before waiting for upstreams — https://github.com/PrefectHQ/prefect/pull/7993
+- Fix captured Kubernetes error type in `get_job` — https://github.com/PrefectHQ/prefect/pull/8018
+- Fix `prefect cloud login` error when no workspaces exist — https://github.com/PrefectHQ/prefect/pull/8034
+- Fix serialization of `SecretDict` when used in deployments — https://github.com/PrefectHQ/prefect/pull/8074
+- Fix bug where `visit_collection` could fail when accessing extra Pydantic fields — https://github.com/PrefectHQ/prefect/pull/8083
+
+### Experimental
+- Add pages and routers for workers — https://github.com/PrefectHQ/prefect/pull/7973
+
+### Documentation
+- Update API reference documentation to use new parser and renderer — https://github.com/PrefectHQ/prefect/pull/7855
+- Add new REST API reference using Redoc — https://github.com/PrefectHQ/prefect/pull/7503
+
+### Collections
+- [`prefect-aws` 0.2.2](https://github.com/PrefectHQ/prefect-aws/releases/tag/v0.2.2) released with many improvements to `S3Bucket`
+
+### Contributors
+* @j-tr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8013
+* @toby-coleman made their first contribution in https://github.com/PrefectHQ/prefect/pull/8083
+* @riquelmev made their first contribution in https://github.com/PrefectHQ/prefect/pull/7768
+* @joelluijmes
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.7
+
+
+## Release 2.7.6
+
+This release fixes a critical bug in the SQLite database migrations in 2.7.4 and 2.7.5.
+
+See https://github.com/PrefectHQ/prefect/issues/8058 for details.
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.5...2.7.6
+
 ## Release 2.7.5
 
 ### Schedule flow runs and read logs from the CLI

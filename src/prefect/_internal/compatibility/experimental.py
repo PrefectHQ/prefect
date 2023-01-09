@@ -12,12 +12,15 @@ Some experimental features require opt-in to enable any usage. These require the
 """
 import functools
 import warnings
-from typing import Any, Callable, Optional, Set, TypeVar
+from typing import Any, Callable, Optional, Set, Type, TypeVar
+
+import pydantic
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters
 
 T = TypeVar("T", bound=Callable)
+M = TypeVar("M", bound=pydantic.BaseModel)
 
 
 EXPERIMENTAL_WARNING = (
@@ -175,6 +178,62 @@ def experimental_parameter(
             return fn(*args, **kwargs)
 
         return wrapper
+
+    return decorator
+
+
+def experimental_field(
+    name: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
+    when: Optional[Callable[[Any], bool]] = None,
+):
+    """
+    Mark a field in a Pydantic model as experimental.
+
+    Raises warning only if the field is specified during init.
+
+    Example:
+
+        ```python
+
+        @experimental_parameter("y", group="example", when=lambda y: y is not None)
+        def foo(x, y = None):
+            return x + 1 + (y or 0)
+        ```
+    """
+
+    when = when or (lambda _: True)
+
+    @experimental(
+        group=group,
+        feature=f"The field {name!r}",
+        help=help,
+        opt_in=opt_in,
+        stacklevel=stacklevel + 2,
+    )
+    def experimental_check():
+        """Utility function for performing a warning check for the specified group"""
+
+    # Replaces the model's __init__ method with one that performs an additional warning check
+    def decorator(model_cls: Type[M]) -> Type[M]:
+        cls_init = model_cls.__init__
+
+        @functools.wraps(model_cls.__init__)
+        def __init__(__pydantic_self__, **data: Any) -> None:
+            # Call the original init
+            cls_init(__pydantic_self__, **data)
+            # Perform warning check
+            if name in data.keys() and when(data[name]):
+                experimental_check()
+
+        # Patch the model's init method
+        model_cls.__init__ = __init__
+
+        return model_cls
 
     return decorator
 
