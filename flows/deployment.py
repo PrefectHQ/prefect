@@ -1,5 +1,6 @@
 from prefect import flow, get_run_logger
 from prefect.deployments import Deployment
+from prefect.utilities.callables import parameter_schema
 
 
 @flow
@@ -15,6 +16,7 @@ if __name__ == "__main__":
         deployment = Deployment(
             name="test-deployment",
             flow_name=hello.name,
+            parameter_openapi_schema=parameter_schema(hello),
         )
     deployment.apply()
 
