@@ -1,5 +1,4 @@
 import anyio
-from httpx import HTTPError
 from packaging.version import Version
 
 import prefect
@@ -19,23 +18,19 @@ async def apply_deployment(deployment):
 
 
 if __name__ == "__main__":
-    try:
-        # Create deployment
-        if Version(prefect.__version__) < Version("2.1.0"):
-            deployment = Deployment(
-                name="test-deployment",
-                flow_name=hello.name,
-                parameter_openapi_schema=parameter_schema(hello),
-            )
-            anyio.run(apply_deployment, deployment)
-        else:
-            deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
-            deployment.apply()
+    # Create deployment
+    if Version(prefect.__version__) < Version("2.1.0"):
+        deployment = Deployment(
+            name="test-deployment",
+            flow_name=hello.name,
+            parameter_openapi_schema=parameter_schema(hello),
+        )
+        anyio.run(apply_deployment, deployment)
+    else:
+        deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
+        deployment.apply()
 
-        # Update deployment
-        deployment.tags = ["test"]
-        if Version(prefect.__version__) >= Version("2.1.0"):
-            deployment.apply()
-    except HTTPError as e:
-        print(e.response.json())
-        raise
+    # Update deployment
+    deployment.tags = ["test"]
+    if Version(prefect.__version__) >= Version("2.1.0"):
+        deployment.apply()
