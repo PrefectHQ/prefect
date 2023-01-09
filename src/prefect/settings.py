@@ -475,8 +475,8 @@ PREFECT_TASKS_REFRESH_CACHE = Setting(
     default=False,
 )
 """
-The task setting enables a refresh of cached results. If enabled, a re-execution of the
-tasks will refresh the cached results for all tasks unless a task overwrites the setting.
+If `True`, enables a refresh of cached results: re-executing the
+task will refresh the cached results. Defaults to `False`.
 """
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(

@@ -153,7 +153,7 @@ class Task(Generic[P, R]):
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
-        refresh_cache: If set, eventually cached results for the cache key are not used.
+        refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
     """
@@ -315,7 +315,7 @@ class Task(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
-            timeout_seconds: A new maximum number of runtime in seconds.
+            timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
 
@@ -924,7 +924,7 @@ def task(
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
-        refresh_cache: If set, eventually cached results for the cache key are not used.
+        refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
 
