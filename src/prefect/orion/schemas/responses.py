@@ -246,8 +246,6 @@ class DeploymentResponse(ORMBaseModel):
         response = super().from_orm(orm_deployment)
         if orm_deployment.work_pool_queue:
             response.work_pool_queue_name = orm_deployment.work_pool_queue.name
-            response.work_pool_name = (
-                orm_deployment.work_pool_queue.work_pool.name
-            )
+            response.work_pool_name = orm_deployment.work_pool_queue.work_pool.name
 
         return response

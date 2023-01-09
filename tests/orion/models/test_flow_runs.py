@@ -1024,9 +1024,7 @@ class TestReadFlowRuns:
         work_pool_queue = await models.workers.create_work_pool_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                name="work-pool-queue"
-            ),
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -1055,9 +1053,7 @@ class TestReadFlowRuns:
         work_pool_queue = await models.workers.create_work_pool_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                name="work-pool-queue"
-            ),
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,

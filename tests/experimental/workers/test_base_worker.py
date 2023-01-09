@@ -99,9 +99,7 @@ async def test_worker_respects_settings(setting, attr):
 async def test_worker_sends_heartbeat_messages(
     orion_client: OrionClient,
 ):
-    async with WorkerTestImpl(
-        name="test", work_pool_name="test-work-pool"
-    ) as worker:
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
 
         workers = await orion_client.read_workers_for_work_pool(

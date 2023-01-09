@@ -236,9 +236,7 @@ class TestCreateWorkPoolQueue:
         result = await models.workers.create_work_pool_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                name="A", priority=1
-            ),
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="A", priority=1),
         )
 
         assert result.priority == 1
@@ -312,9 +310,7 @@ class TestReadWorkPoolQueues:
         assert (result[2].name, result[2].priority) == ("A", 3)
         assert (result[3].name, result[3].priority) == ("B", 4)
 
-    async def test_read_work_pool_queues_sorts_by_priority(
-        self, session, work_pool
-    ):
+    async def test_read_work_pool_queues_sorts_by_priority(self, session, work_pool):
         await models.workers.create_work_pool_queue(
             session=session,
             work_pool_id=work_pool.id,
@@ -380,9 +376,7 @@ class TestUpdateWorkPoolQueue:
         assert await models.workers.update_work_pool_queue(
             session=session,
             work_pool_queue_id=work_pool_queue.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(
-                concurrency_limit=0
-            ),
+            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(concurrency_limit=0),
         )
         result = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool_queue.id
@@ -836,9 +830,7 @@ class TestGetScheduledRuns:
         )
         assert len(runs) == 15
 
-    async def test_get_all_runs_wp_a_wp_b(
-        self, session, work_pools, work_pool_queues
-    ):
+    async def test_get_all_runs_wp_a_wp_b(self, session, work_pools, work_pool_queues):
         runs = await models.workers.get_scheduled_flow_runs(
             session=session,
             work_pool_ids=[work_pools["wp_a"].id, work_pools["wp_b"].id],

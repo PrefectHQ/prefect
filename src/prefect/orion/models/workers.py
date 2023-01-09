@@ -14,11 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.database.orm_models import (
-    ORMWorker,
-    ORMWorkPool,
-    ORMWorkPoolQueue,
-)
+from prefect.orion.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkPoolQueue
 
 # -----------------------------------------------------
 # --
@@ -100,9 +96,7 @@ async def read_work_pool_by_name(
     Returns:
         db.WorkPool: the WorkPool
     """
-    query = (
-        sa.select(db.WorkPool).where(db.WorkPool.name == work_pool_name).limit(1)
-    )
+    query = sa.select(db.WorkPool).where(db.WorkPool.name == work_pool_name).limit(1)
     result = await session.execute(query)
     return result.scalar()
 
