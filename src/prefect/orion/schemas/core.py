@@ -5,7 +5,6 @@ import datetime
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-import jsonschema
 import pendulum
 from pydantic import Field, HttpUrl, conint, root_validator, validator
 from typing_extensions import Literal
@@ -13,7 +12,6 @@ from typing_extensions import Literal
 import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
-from prefect.orion.exceptions import MissingVariableError
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
 from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
@@ -559,38 +557,6 @@ class Deployment(ORMBaseModel):
     def validate_name_characters(cls, v):
         raise_on_invalid_name(v)
         return v
-
-    @staticmethod
-    def _get_base_config_defaults(variables: dict) -> dict:
-        """Get default values from base config for all variables that have them."""
-        defaults = dict()
-        for variable_name, attrs in variables.items():
-            if "default" in attrs:
-                defaults[variable_name] = attrs["default"]
-
-        return defaults
-
-    @staticmethod
-    def _validate_variables(variables_schema: dict, variables: dict):
-        """Check that variables conform to specified constraints."""
-        schema = {"type": "object", "properties": variables_schema}
-        jsonschema.validate(variables, schema)
-
-    def check_valid_configuration(self, base_job_template: dict):
-        """Return the combined configuration values."""
-        variables_schema = base_job_template["variables"]
-        required_variables = base_job_template["required"]
-
-        missing_variables = set(required_variables).difference(self.infra_overrides)
-        if missing_variables:
-            raise MissingVariableError(
-                f"The following required parameters are missing: {missing_variables!r}"
-            )
-
-        variables = self._get_base_config_defaults(variables_schema)
-        variables.update(self.infra_overrides)
-
-        self._validate_variables(variables_schema, variables)
 
 
 class ConcurrencyLimit(ORMBaseModel):

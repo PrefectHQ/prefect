@@ -5,9 +5,11 @@ import re
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
+import jsonschema
 from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
+from prefect.orion.exceptions import MissingVariableError
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -109,6 +111,37 @@ class DeploymentCreate(ActionBaseModel):
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
 
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @staticmethod
+    def _validate_variables(variables_schema: dict, variables: dict):
+        """Check that variables conform to specified constraints."""
+        schema = {"type": "object", "properties": variables_schema}
+        jsonschema.validate(variables, schema)
+
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that configuration has all required variables"""
+        variables_schema = base_job_template.get("variables")
+        required_variables = base_job_template.get("required")
+        missing_variables = set(required_variables).difference(self.infra_overrides)
+        if missing_variables:
+            raise MissingVariableError(
+                f"The following required parameters are missing: {missing_variables!r}"
+            )
+
+        variables = self._get_base_config_defaults(variables_schema)
+        variables.update(self.infra_overrides)
+
+        self._validate_variables(variables_schema, variables)
+
 
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
@@ -139,6 +172,38 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @staticmethod
+    def _validate_variables(variables_schema: dict, variables: dict):
+        """Check that variables conform to specified constraints."""
+        schema = {"type": "object", "properties": variables_schema}
+        jsonschema.validate(variables, schema)
+
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that configuration has all required variables"""
+        variables_schema = base_job_template.get("variables")
+        required_variables = base_job_template.get("required")
+
+        missing_variables = set(required_variables).difference(self.infra_overrides)
+        if missing_variables:
+            raise MissingVariableError(
+                f"The following required parameters are missing: {missing_variables!r}"
+            )
+
+        variables = self._get_base_config_defaults(variables_schema)
+        variables.update(self.infra_overrides)
+
+        self._validate_variables(variables_schema, variables)
 
 
 @copy_model_fields
