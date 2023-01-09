@@ -35,8 +35,8 @@ class TestDeploymentCreate:
         with pytest.warns(
             UserWarning,
             match="`worker_pool_queue_id` is no longer supported for creating "
-            "deployments. Please use `worker_pool_name` and "
-            "`worker_pool_queue_name` instead.",
+            "deployments. Please use `work_pool_name` and "
+            "`work_pool_queue_name` instead.",
         ):
             deployment_create = DeploymentCreate(
                 **dict(name="test-deployment", worker_pool_queue_id=uuid4())
@@ -44,15 +44,45 @@ class TestDeploymentCreate:
 
         assert getattr(deployment_create, "worker_pool_queue_id", 0) == 0
 
+    def test_create_with_worker_pool_name_warns(self):
+        with pytest.warns(
+            UserWarning,
+            match="`worker_pool_name` and `worker_pool_queue_name` are "
+            "no longer supported for creating "
+            "deployments. Please use `work_pool_name` and "
+            "`work_pool_queue_name` instead.",
+        ):
+            deployment_create = DeploymentCreate(
+                **dict(
+                    name="test-deployment", worker_pool_queue_name="test-worker-pool"
+                )
+            )
+
+        assert getattr(deployment_create, "worker_pool_name", 0) == 0
+
 
 class TestDeploymentUpdate:
     def test_update_with_worker_pool_queue_id_warns(self):
         with pytest.warns(
             UserWarning,
             match="`worker_pool_queue_id` is no longer supported for updating "
-            "deployments. Please use `worker_pool_name` and "
-            "`worker_pool_queue_name` instead.",
+            "deployments. Please use `work_pool_name` and "
+            "`work_pool_queue_name` instead.",
         ):
             deployment_update = DeploymentUpdate(**dict(worker_pool_queue_id=uuid4()))
 
         assert getattr(deployment_update, "worker_pool_queue_id", 0) == 0
+
+    def test_update_with_worker_pool_name_warns(self):
+        with pytest.warns(
+            UserWarning,
+            match="`worker_pool_name` and `worker_pool_queue_name` are "
+            "no longer supported for creating "
+            "deployments. Please use `work_pool_name` and "
+            "`work_pool_queue_name` instead.",
+        ):
+            deployment_update = DeploymentCreate(
+                **dict(worker_pool_queue_name="test-worker-pool")
+            )
+
+        assert getattr(deployment_update, "worker_pool_name", 0) == 0
