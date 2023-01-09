@@ -90,9 +90,7 @@ class TestCreateWorkPool:
 
     @pytest.mark.parametrize("name", ["hi/there", "hi%there"])
     async def test_create_work_pool_with_invalid_name(self, client, name):
-        response = await client.post(
-            "/experimental/work_pools/", json=dict(name=name)
-        )
+        response = await client.post("/experimental/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
@@ -106,9 +104,7 @@ class TestCreateWorkPool:
 
     @pytest.mark.parametrize("name", RESERVED_POOL_NAMES)
     async def test_create_reserved_pool_fails(self, session, client, name):
-        response = await client.post(
-            "/experimental/work_pools/", json=dict(name=name)
-        )
+        response = await client.post("/experimental/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "reserved for internal use" in response.json()["detail"]
 
@@ -558,9 +554,7 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 5
 
-    async def test_get_all_runs_wq_aa_wq_ab(
-        self, client, work_pools, work_pool_queues
-    ):
+    async def test_get_all_runs_wq_aa_wq_ab(self, client, work_pools, work_pool_queues):
         response = await client.post(
             f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(

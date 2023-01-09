@@ -166,9 +166,7 @@ class BaseWorker(abc.ABC):
                 )
                 self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
             else:
-                self._logger.warning(
-                    f"Worker pool {self._work_pool_name!r} not found!"
-                )
+                self._logger.warning(f"Worker pool {self._work_pool_name!r} not found!")
                 return
 
         # if the remote config type changes (or if it's being loaded for the

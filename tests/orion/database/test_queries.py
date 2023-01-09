@@ -415,9 +415,7 @@ class TestGetRunsFromWorkPoolQueueQuery:
             work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 5
-        assert all(
-            r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs
-        )
+        assert all(r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_with_all_wc_also_provided(
         self, session, db: OrionDBInterface, work_pools, work_pool_queues
@@ -433,9 +431,7 @@ class TestGetRunsFromWorkPoolQueueQuery:
             work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 5
-        assert all(
-            r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs
-        )
+        assert all(r.work_pool_queue_id == work_pool_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_when_queue_is_paused(
         self, session, db: OrionDBInterface, work_pools, work_pool_queues
@@ -599,11 +595,7 @@ class TestGetRunsFromWorkPoolQueueQuery:
         )
         assert len(runs) == 24
         assert (
-            sum(
-                1
-                for r in runs
-                if r.work_pool_queue_id == work_pool_queues["wq_aa"].id
-            )
+            sum(1 for r in runs if r.work_pool_queue_id == work_pool_queues["wq_aa"].id)
             == 0
         )
 
@@ -691,13 +683,9 @@ class TestGetRunsFromWorkPoolQueueQuery:
         # first 10 runs are from wq_aa or wq_ba
         assert all([r.work_pool_queue_id in (wq_aa.id, wq_ba.id) for r in runs[:10]])
         # next 10 runs are from wq_ab or wq_bb
-        assert all(
-            [r.work_pool_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20]]
-        )
+        assert all([r.work_pool_queue_id in (wq_ab.id, wq_bb.id) for r in runs[10:20]])
         # next 10 runs are from wq_ac or wq_bc
-        assert all(
-            [r.work_pool_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30]]
-        )
+        assert all([r.work_pool_queue_id in (wq_ac.id, wq_bc.id) for r in runs[20:30]])
 
         # runs are not in time order
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs

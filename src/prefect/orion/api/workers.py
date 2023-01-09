@@ -377,9 +377,7 @@ async def read_work_pool_queues(
         )
 
 
-@router.patch(
-    "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_work_pool_queue(
     work_pool_queue: schemas.actions.WorkPoolQueueUpdate,
     work_pool_name: str = Path(..., description="The worker pool name"),

@@ -574,9 +574,7 @@ class TestCountFlowRunModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                )
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
             ),
             1,
         ],
@@ -590,9 +588,7 @@ class TestCountFlowRunModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
                     name=dict(any_=["default-queue"])
                 ),
@@ -612,9 +608,7 @@ class TestCountFlowRunModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
@@ -919,9 +913,7 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                )
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
             ),
             1,
         ],
@@ -935,9 +927,7 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
                     name=dict(any_=["default-queue"])
                 ),
@@ -957,9 +947,7 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                work_pool_filter=filters.WorkPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
                 work_pool_queue_filter=filters.WorkPoolQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
