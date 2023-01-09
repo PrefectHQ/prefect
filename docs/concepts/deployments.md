@@ -388,7 +388,11 @@ deployment = Deployment.build_from_flow(
     version=2,
     work_queue_name="aws",
     storage=storage,
-    infra_overrides=["env.SOME_IMPORTANT_CONFIG=true"],
+    infra_overrides={
+        "env": {
+            "ENV_VAR": "value"
+        }
+    },
 )
 
 deployment.apply()
