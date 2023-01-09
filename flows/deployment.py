@@ -3,18 +3,17 @@ from httpx import HTTPError
 from packaging.version import Version
 
 import prefect
-from prefect import flow, get_client, get_run_logger
 from prefect.deployments import Deployment
 from prefect.utilities.callables import parameter_schema
 
 
-@flow
+@prefect.flow
 def hello(name: str = "world"):
-    get_run_logger().info(f"Hello {name}!")
+    prefect.get_run_logger().info(f"Hello {name}!")
 
 
 async def apply_deployment(deployment):
-    async with get_client() as client:
+    async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(deployment.flow_name)
         await client.create_deployment(flow_id=flow_id, name=deployment.name)
 
