@@ -2,6 +2,8 @@
 Reduced schemas for accepting API actions.
 """
 import re
+import warnings
+from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
@@ -76,6 +78,22 @@ class FlowUpdate(ActionBaseModel):
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Orion API to create a deployment."""
+
+    @root_validator(pre=True)
+    def remove_worker_pool_queue_id(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. This validator removes worker_pool_queue_id
+        # to avoid 422 errors when it is provided by older clients.
+        values_copy = deepcopy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for creating. "
+                "deployments. Please use `worker_pool_name` and "
+                "`worker_pool_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
 
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
