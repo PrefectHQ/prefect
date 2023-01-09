@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
 from pydantic import BaseModel, Field, ValidationError, validator
 
@@ -329,7 +330,14 @@ class BaseWorker(abc.ABC):
                 "Validation of deployment manifest %s failed.",
                 deployment_manifest_path,
             )
-        except Exception:
+        except httpx.HTTPStatusError as exc:
+            self._logger.exception(
+                "Failed to apply deployment %s/%s: %s",
+                deployment.flow_name,
+                deployment.name,
+                exc.response.json().get("detail"),
+            )
+        except Exception as exc:
             self._logger.exception(
                 "Unexpected error occurred while attempting to register discovered deployment."
             )

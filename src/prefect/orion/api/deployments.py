@@ -6,6 +6,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -45,7 +46,7 @@ async def create_deployment(
             )
             try:
                 deployment.check_valid_configuration(worker_pool.base_job_template)
-            except MissingVariableError as exc:
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Error creating deployment: {exc!r}",
@@ -130,7 +131,7 @@ async def update_deployment(
             )
             try:
                 deployment.check_valid_configuration(worker_pool.base_job_template)
-            except MissingVariableError as exc:
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Error creating deployment: {exc!r}",
