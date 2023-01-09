@@ -89,7 +89,7 @@ class DeploymentCreate(ActionBaseModel):
         # by older clients to avoid 422 errors.
         values_copy = deepcopy(values)
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
-        work_pool_name = values_copy.pop("work_pool_name", None)
+        worker_pool_name = values_copy.pop("worker_pool_name", None)
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
@@ -98,9 +98,9 @@ class DeploymentCreate(ActionBaseModel):
                 "`work_pool_queue_name` instead.",
                 UserWarning,
             )
-        if work_pool_name or worker_pool_queue_name:
+        if worker_pool_name or worker_pool_queue_name:
             warnings.warn(
-                "`work_pool_name` and `worker_pool_queue_name` are "
+                "`worker_pool_name` and `worker_pool_queue_name` are "
                 "no longer supported for creating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_pool_queue_name` instead.",
