@@ -2044,7 +2044,7 @@ class OrionClient:
 
         await self._client.patch(
             f"/experimental/work_pools/{work_pool_name}",
-            json=work_pool.dict(json_compatible=True),
+            json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
     async def read_work_pool_queues(
