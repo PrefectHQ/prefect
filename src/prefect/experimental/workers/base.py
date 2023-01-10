@@ -270,6 +270,7 @@ class BaseWorker(abc.ABC):
         if not work_pool.base_job_template:
             job_template = self._create_job_template()
             await self._set_work_pool_template(work_pool, job_template)
+            work_pool.base_job_template = job_template
 
         self._work_pool = work_pool
 
@@ -574,14 +575,13 @@ class BaseWorker(abc.ABC):
                 )
 
     async def _set_work_pool_template(self, work_pool, job_template):
-        """Updates the `base_job_template` for the worker's workerpool both server side and locally."""
+        """Updates the `base_job_template` for the worker's workerpool server side."""
         await self._client.update_work_pool(
             work_pool_name=work_pool.name,
             work_pool=WorkPoolUpdate(
                 base_job_template=job_template,
             ),
         )
-        work_pool.base_job_template = job_template
 
     def _create_job_template(self) -> dict:
         """Create a job template from a worker's configuration components."""
