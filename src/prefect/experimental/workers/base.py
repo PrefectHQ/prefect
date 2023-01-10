@@ -230,7 +230,6 @@ class BaseWorker(abc.ABC):
         self._logger.debug("Tearing down worker...")
         self.is_setup = False
         if self._runs_task_group:
-            self._runs_task_group.cancel_scope.cancel()
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)

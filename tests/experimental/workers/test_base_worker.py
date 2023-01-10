@@ -1,4 +1,3 @@
-import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -374,7 +373,6 @@ async def test_worker_calls_run_with_expected_arguments(
         worker._work_pool = work_pool
         worker.run = run_mock  # don't run anything
         await worker.get_and_submit_flow_runs()
-        await asyncio.sleep(1)
 
     assert run_mock.call_count == 3
     assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
