@@ -957,7 +957,13 @@ async def begin_task_map(
 
     iterable_parameters = {}
     static_parameters = {}
+    annotated_parameters = {}
     for key, val in parameters.items():
+        if isinstance(val, allow_failure):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
         if isinstance(val, unmapped):
             static_parameters[key] = val.value
         elif isiterable(val):
@@ -987,6 +993,11 @@ async def begin_task_map(
     for i in range(map_length):
         call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
         call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
         task_runs.append(
             partial(
                 get_task_call_return_value,
