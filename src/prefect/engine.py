@@ -1326,9 +1326,10 @@ async def begin_task_run(
                 )
             else:
                 # TODO: This is a concerning case; we should determine when this occurs
+                #       1. This can occur when the flow run is not in a running state
                 task_run_logger(task_run).warning(
                     f"Task run '{task_run.id}' received abort during orchestration: "
-                    f"{abort}. Task run is in {task_run.state.type.value} state."
+                    f"{abort} Task run is in {task_run.state.type.value} state."
                 )
             state = task_run.state
 
