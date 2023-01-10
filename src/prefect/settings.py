@@ -815,6 +815,14 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
 this often. Defaults to `5`.
 """
 
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
+    float,
+    default=20,
+)
+"""The cancellation cleanup service will look non-terminal tasks and subflows
+this often. Defaults to `20`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -896,6 +904,15 @@ PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
 """
 The maximum number of characters allowed for a task run cache key.
 This setting cannot be changed client-side, it must be set on the server.
+"""
+
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the cancellation cleanup service in the Orion
+application. If disabled, task runs and subflow runs belonging to cancelled flows may
+remain in non-terminal states.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
