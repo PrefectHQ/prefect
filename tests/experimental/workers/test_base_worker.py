@@ -396,7 +396,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     expected_job_template = {
         "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
         "variables": {
-            "variables": {
+            "properties": {
                 "command": {
                     "type": "array",
                     "title": "Command",
@@ -450,7 +450,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     worker_job_template = {
         "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
         "variables": {
-            "variables": {
+            "properties": {
                 "command": {
                     "type": "array",
                     "title": "Command",
@@ -493,7 +493,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "command": "{{ command }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "command": {
                             "type": "array",
                             "title": "Command",
@@ -531,7 +531,7 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "var1": {
                             "type": "string",
                             "title": "Var1",
@@ -560,7 +560,7 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "var1": {
                             "type": "string",
                             "title": "Var1",
@@ -594,7 +594,7 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "var1": {
                             "type": "string",
                             "title": "Var1",
@@ -629,7 +629,7 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "var1": {
                             "type": "string",
                             "title": "Var1",
@@ -658,7 +658,7 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "variables": {
+                    "properties": {
                         "var1": {
                             "type": "string",
                             "title": "Var1",
@@ -709,7 +709,7 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
                 "command": "{{ command }}",
             },
             "variables": {
-                "variables": {
+                "properties": {
                     "command": {
                         "type": "array",
                         "title": "Command",

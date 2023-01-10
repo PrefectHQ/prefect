@@ -180,7 +180,7 @@ class BaseWorker(abc.ABC):
     async def run(
         self,
         flow_run: FlowRun,
-        configuration: Type[BaseJobConfiguration],
+        configuration: BaseJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
         """
@@ -516,7 +516,7 @@ class BaseWorker(abc.ABC):
             },
         }
 
-    async def _get_configuration(self, flow_run: FlowRun) -> Type[BaseJobConfiguration]:
+    async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         configuration = self.job_configuration.from_template_and_overrides(
             base_job_template=self._work_pool.base_job_template,
@@ -612,7 +612,7 @@ class BaseWorker(abc.ABC):
         return {
             "job_configuration": self.job_configuration.json_template(),
             "variables": {
-                "variables": variables["properties"],
+                "properties": variables["properties"],
                 "required": variables.get("required", []),
             },
         }

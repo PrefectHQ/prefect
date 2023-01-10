@@ -310,7 +310,7 @@ class TestWorkPool:
             {
                 "job_configuration": {"thing_one": "{{ expected_variable }}"},
                 "variables": {
-                    "variables": {"wrong_variable": {}},
+                    "properties": {"wrong_variable": {}},
                     "required": [],
                 },
             }
@@ -335,7 +335,7 @@ class TestWorkPool:
             {
                 "job_configuration": {"thing_one": "{{ expected_variable }}"},
                 "variables": {
-                    "variables": {"expected_variable": {}},
+                    "properties": {"expected_variable": {}},
                     "required": [],
                 },
             },
