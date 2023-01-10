@@ -634,7 +634,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_pool_queue_name="new-work-queue",
+            work_pool_queue_name="new-work-pool-queue",
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
