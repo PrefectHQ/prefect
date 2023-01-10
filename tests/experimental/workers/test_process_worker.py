@@ -1,5 +1,4 @@
 import sys
-from unittest.mock import MagicMock
 
 import anyio
 import anyio.abc
@@ -15,7 +14,7 @@ from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerRes
 from prefect.orion.schemas.core import WorkPool
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
-from prefect.testing.utilities import AsyncMock
+from prefect.testing.utilities import AsyncMock, MagicMock
 
 
 @pytest.fixture(autouse=True)
