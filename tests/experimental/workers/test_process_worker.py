@@ -105,7 +105,7 @@ def work_pool():
             "stream_output": "{{ stream_output }}",
         },
         "variables": {
-            "variables": {
+            "properties": {
                 "command": {
                     "type": "array",
                     "title": "Command",

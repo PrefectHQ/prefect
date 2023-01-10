@@ -78,7 +78,7 @@ class TestCreateWorkPool:
                 "command": "{{ command }}",
             },
             "variables": {
-                "variables": {
+                "properties": {
                     "command": {
                         "type": "array",
                         "title": "Command",
@@ -142,7 +142,7 @@ class TestCreateWorkPool:
                 "command": "{{ other_variable }}",
             },
             "variables": {
-                "variables": {
+                "properties": {
                     "command": {
                         "type": "array",
                         "title": "Command",
@@ -265,7 +265,7 @@ class TestUpdateWorkPool:
                 "command": "{{ command }}",
             },
             "variables": {
-                "variables": {
+                "properties": {
                     "command": {
                         "type": "array",
                         "title": "Command",
@@ -329,7 +329,7 @@ class TestUpdateWorkPool:
                 "command": "{{ other_variable }}",
             },
             "variables": {
-                "variables": {
+                "properties": {
                     "command": {
                         "type": "array",
                         "title": "Command",
