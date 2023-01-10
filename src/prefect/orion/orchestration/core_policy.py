@@ -41,6 +41,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             HandleFlowTerminalStateTransitions,
+            HandleCancellingStateTransitions,
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
@@ -786,3 +787,27 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
             await self.abort_transition(
                 reason=f"The enclosing flow must be running to begin task execution.",
             )
+
+
+class HandleCancellingStateTransitions(BaseOrchestrationRule):
+    """
+    Rejects transitions from Cancelling to any terminal state except for Cancelled.
+    """
+
+    FROM_STATES = {StateType.CANCELLED, StateType.CANCELLING}
+    TO_STATES = ALL_ORCHESTRATION_STATES - {StateType.CANCELLED}
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        await self.reject_transition(
+            state=None,
+            reason=(
+                "Cannot transition flows that are cancelling to a state other "
+                "than Cancelled."
+            ),
+        )
+        return
