@@ -371,6 +371,7 @@ async def test_worker_calls_run_with_expected_arguments(
     ]
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         worker.run = run_mock  # don't run anything
         await worker.get_and_submit_flow_runs()
         await asyncio.sleep(1)

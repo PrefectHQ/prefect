@@ -178,7 +178,10 @@ class BaseWorker(abc.ABC):
 
     @abc.abstractmethod
     async def run(
-        self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
+        self,
+        flow_run: FlowRun,
+        configuration: Type[BaseJobConfiguration],
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
         """
         Runs a given flow run on the current worker.
@@ -455,7 +458,11 @@ class BaseWorker(abc.ABC):
         try:
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
-            result = await self.run(flow_run=flow_run, task_status=task_status)
+            result = await self.run(
+                flow_run=flow_run,
+                task_status=task_status,
+                configuration=await self._get_configuration(flow_run),
+            )
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -509,6 +516,14 @@ class BaseWorker(abc.ABC):
                 "workflow_storage_path": self._workflow_storage_path,
             },
         }
+
+    async def _get_configuration(self, flow_run: FlowRun) -> Type[BaseJobConfiguration]:
+        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        configuration = self.job_configuration.from_template_and_overrides(
+            base_job_template=self._work_pool.base_job_template,
+            deployment_overrides=deployment.infra_overrides,
+        )
+        return configuration
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state

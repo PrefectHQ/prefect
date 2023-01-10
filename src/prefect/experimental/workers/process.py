@@ -5,7 +5,7 @@ import sys
 import tempfile
 from functools import partial
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Type, Union
 
 import anyio
 import anyio.abc
@@ -71,14 +71,11 @@ class ProcessWorker(BaseWorker):
 
     # TODO: Add additional parameters to allow for the customization of behavior
     async def run(
-        self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
+        self,
+        flow_run: FlowRun,
+        configuration: Type[BaseJobConfiguration],
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
-        deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = ProcessJobConfiguration.from_template_and_overrides(
-            base_job_template=self._work_pool.base_job_template,
-            deployment_overrides=deployment.infra_overrides,
-        )
-
         command = configuration.command
         if not command:
             command = [sys.executable, "-m", "prefect.engine"]
