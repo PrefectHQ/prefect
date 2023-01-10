@@ -654,6 +654,31 @@ class TestCreateDeployment:
 
         assert deployment.work_pool_queue_id == work_pool_queue.id
 
+    async def test_create_deployment_returns_404_for_non_existent_work_pool(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name="imaginary-work-pool",
+            work_pool_queue_name="default",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
+
 
 class TestReadDeployment:
     async def test_read_deployment(

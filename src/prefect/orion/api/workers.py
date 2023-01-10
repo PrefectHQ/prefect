@@ -55,7 +55,7 @@ class WorkerLookups:
         if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{work_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
         return work_pool.id
@@ -75,7 +75,7 @@ class WorkerLookups:
         if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{work_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
         return work_pool.default_queue_id
@@ -101,7 +101,7 @@ class WorkerLookups:
             if not create_queue_if_not_found:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+                    detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
                 )
             work_pool_id = await self._get_work_pool_id_from_name(
                 session=session, work_pool_name=work_pool_name
