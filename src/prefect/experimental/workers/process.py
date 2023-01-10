@@ -52,7 +52,7 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
 
 class ProcessVariables(BaseVariables):
-    stream_output: Optional[bool] = True
+    stream_output: bool = True
     working_dir: Optional[Union[str, Path]] = None
 
 
