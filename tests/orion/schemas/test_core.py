@@ -309,7 +309,10 @@ class TestWorkPool:
         [
             {
                 "job_configuration": {"thing_one": "{{ expected_variable }}"},
-                "variables": {"wrong_variable": {}},
+                "variables": {
+                    "variables": {"wrong_variable": {}},
+                    "required": [],
+                },
             }
         ],
     )
@@ -331,7 +334,10 @@ class TestWorkPool:
             dict(),
             {
                 "job_configuration": {"thing_one": "{{ expected_variable }}"},
-                "variables": {"expected_variable": {}},
+                "variables": {
+                    "variables": {"expected_variable": {}},
+                    "required": [],
+                },
             },
         ],
     )
