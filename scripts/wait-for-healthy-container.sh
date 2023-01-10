@@ -1,6 +1,7 @@
-
 #!/usr/bin/env bash
-# MIT License
+
+# Sourced from https://github.com/jordyv/wait-for-healthy-container
+# Licensed under the MIT License
 
 # Copyright (c) 2021 Jordy Versmissen
 
