@@ -2,6 +2,7 @@
 Full schemas of Orion API objects.
 """
 import datetime
+import re
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -1010,10 +1011,11 @@ class WorkPool(ORMBaseModel):
             )
         template_variables = set()
         for template in job_config.values():
-            template_variables.add(
-                # {{ var }} -> var
-                template.strip("{} ")
-            )
+            # find any variables inside of double curly braces, minus any whitespace
+            # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
+            found_variables = re.findall(r"{{\s*(.*?)\s*}}", template)
+            template_variables.update(found_variables)
+
         provided_variables = set(variables.keys())
         if not template_variables.issubset(provided_variables):
             raise ValueError(

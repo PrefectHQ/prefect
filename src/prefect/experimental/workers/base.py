@@ -1,6 +1,6 @@
 import abc
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -17,6 +17,7 @@ from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.orion import schemas
+from prefect.orion.schemas.actions import WorkPoolUpdate
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -107,8 +108,8 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
-    job_configuration: Optional[BaseJobConfiguration] = None
-    job_configuration_variables: Optional[BaseVariables] = None
+    job_configuration: Type[BaseJobConfiguration]
+    job_configuration_variables: Optional[Type[BaseVariables]] = None
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -563,7 +564,9 @@ class BaseWorker(abc.ABC):
     async def _set_work_pool_template(self, work_pool, job_template):
         """Updates the `base_job_template` for the worker's workerpool both server side and locally."""
         await self._client.update_work_pool(
-            work_pool=work_pool, base_job_template=job_template
+            WorkPoolUpdate(
+                base_job_template=job_template,
+            )
         )
         work_pool.base_job_template = job_template
 

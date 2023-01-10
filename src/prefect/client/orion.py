@@ -22,7 +22,6 @@ from prefect.logging import get_logger
 from prefect.orion.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
-    WorkPoolUpdate,
     WorkQueueCreate,
     WorkQueueUpdate,
 )
@@ -2039,38 +2038,13 @@ class OrionClient:
 
     async def update_work_pool(
         self,
-        work_pool: schemas.core.WorkPool,
-        description: Optional[str] = None,
-        is_paused: Optional[bool] = None,
-        base_job_template: Optional[Dict[str, Any]] = None,
-        concurrency_limit: Optional[int] = None,
+        work_pool_name: str,
+        work_pool: schemas.actions.WorkPoolUpdate,
     ):
-        description = description if description is not None else work_pool.description
-
-        is_paused = is_paused if is_paused is not None else work_pool.is_paused
-
-        base_job_template = (
-            base_job_template
-            if base_job_template is not None
-            else work_pool.base_job_template
-        )
-
-        concurrency_limit = (
-            concurrency_limit
-            if concurrency_limit is not None
-            else work_pool.concurrency_limit
-        )
-
-        work_pool_update = WorkPoolUpdate(
-            description=description,
-            is_paused=is_paused,
-            base_job_template=base_job_template,
-            concurrency_limit=concurrency_limit,
-        )
 
         await self._client.patch(
-            f"/experimental/work_pools/{work_pool.name}",
-            json=work_pool_update.dict(json_compatible=True),
+            f"/experimental/work_pools/{work_pool_name}",
+            json=work_pool.dict(json_compatible=True),
         )
 
     async def read_work_pool_queues(
