@@ -81,7 +81,11 @@ class WorkerLookups:
         return work_pool.default_queue_id
 
     async def _get_work_pool_queue_id_from_name(
-        self, session: AsyncSession, work_pool_name: str, work_pool_queue_name: str
+        self,
+        session: AsyncSession,
+        work_pool_name: str,
+        work_pool_queue_name: str,
+        create_queue_if_not_found: bool = False,
     ) -> UUID:
         """
         Given a work pool name and work pool queue name, return the ID of the
@@ -94,9 +98,20 @@ class WorkerLookups:
             work_pool_queue_name=work_pool_queue_name,
         )
         if not work_pool_queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+            if not create_queue_if_not_found:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+                )
+            work_pool_id = await self._get_work_pool_id_from_name(
+                session=session, work_pool_name=work_pool_name
+            )
+            work_pool_queue = await models.workers.create_work_pool_queue(
+                session=session,
+                work_pool_id=work_pool_id,
+                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                    name=work_pool_queue_name
+                ),
             )
 
         return work_pool_queue.id
