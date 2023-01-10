@@ -24,6 +24,7 @@ from prefect.orion.database.alembic_commands import (
 )
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.settings import (
+    PREFECT_API_URL,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
@@ -157,13 +158,24 @@ async def status(
     wait: bool = typer.Option(
         False,
         "--wait",
-        help="Runs health check loop until successful or optional timeout value is exceeded.",
+        help="When the wait command is specified the health check loop runs until successful or an optional timeout value is exceeded, otherwise the check is run only once.",
     ),
     timeout: int = typer.Option(
-        None, "--timeout", help="Optional Timeout value in seconds"
+        None,
+        "--timeout",
+        help="Optional Timeout value in seconds, must be used with the wait argument",
     ),
+    api: str = SettingsOption(PREFECT_API_URL),
 ):
     """Verify Connection status with Orion API"""
+
+    if not api:
+        exit_with_success(
+            "PREFECT_API_URL not set for the currently active profile. To check the status of an Orion instance or Cloud API connection the PREFECT_API_URL must be specified for the selected profile."
+        )
+
+    app.console.print(f"Attempting connection to server API URL: {api}")
+
     sleep_time = 1  # Initial sleep time when polling
     async with get_client() as client:
         with (
@@ -175,7 +187,9 @@ async def status(
                     break
                 else:
                     if not wait:
-                        exit_with_error(response)
+                        exit_with_error(
+                            f"Server connection failed with exception: '{response}'"
+                        )
 
                     app.console.print(f"{response} retrying in {sleep_time}s")
                     await anyio.sleep(sleep_time)
@@ -183,8 +197,8 @@ async def status(
 
         if timeout and timeout_scope.cancel_called:
             exit_with_error(f"Server did not respond within timeout of {timeout}s.")
-
-        exit_with_success("Server is healthy!")
+        else:
+            exit_with_success("Server is healthy!")
 
 
 @database_app.command()
