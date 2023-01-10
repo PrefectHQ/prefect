@@ -585,11 +585,6 @@ class BaseWorker(abc.ABC):
 
     def _create_job_template(self) -> dict:
         """Create a job template from a worker's configuration components."""
-        if self.job_configuration is None:
-            raise AttributeError(
-                "The class attribute `job_configuration` is required to be set on the worker to "
-                "create a job template."
-            )
         if self.job_configuration_variables is None:
             schema = self.job_configuration.schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
