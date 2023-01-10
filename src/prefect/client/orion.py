@@ -1321,7 +1321,17 @@ class OrionClient:
             deployment_create.work_pool_queue_name = work_pool_queue_name
 
         json = deployment_create.dict(json_compatible=True, exclude_unset=True)
-        if schedule is not None:
+        # exclude_unset causes the anchor date to be regenerated. Producing a dict
+        # for the schedule individually prevents the anchor date from being regenerated
+        # when the schedule is a pydantic model.
+        if isinstance(
+            schedule,
+            (
+                schemas.schedules.CronSchedule,
+                schemas.schedules.IntervalSchedule,
+                schemas.schedules.RRuleSchedule,
+            ),
+        ):
             json["schedule"] = schedule.dict(json_compatible=True)
 
         response = await self._client.post(
