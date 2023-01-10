@@ -54,15 +54,17 @@ class Executor(BaseExecutor):
         self._worker_pool = worker_pool_cls(**worker_pool_kwargs)
 
     def submit(
-        self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+        self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
     ) -> "Future[T]":
-        return self._worker_pool.submit(self._wrap_submitted_call(fn, *args, **kwargs))
+        return self._worker_pool.submit(
+            self._wrap_submitted_call(__fn, *args, **kwargs)
+        )
 
     def shutdown(self, wait=True) -> None:
         self._worker_pool.shutdown(wait=wait)
 
     def _wrap_submitted_call(
-        self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+        self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
     ) -> Callable[[], T]:
         """
         Extends execution of submitted work items.
@@ -70,7 +72,7 @@ class Executor(BaseExecutor):
         - Run returned coroutines to completion in a new event loop
         - Run functions with the context from submission (threads only)
         """
-        wrapped = functools.partial(_run, fn, *args, **kwargs)
+        wrapped = functools.partial(_run, __fn, *args, **kwargs)
 
         if self._worker_type == "thread":
             context = contextvars.copy_context()
