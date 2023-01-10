@@ -42,13 +42,13 @@ from prefect.context import (
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
-    Cancel,
     FlowPauseTimeout,
     MappingLengthMismatch,
     MappingMissingIterable,
     NotPausedError,
     Pause,
     PausedRun,
+    TerminationSignal,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -74,8 +74,8 @@ from prefect.states import (
     Pending,
     Running,
     State,
+    exception_to_crashed_state,
     exception_to_failed_state,
-    exception_to_final_state,
     get_state_exception,
     return_value_to_state,
 )
@@ -1570,9 +1570,14 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
 
     def cancel_flow_run(*args):
-        raise Cancel(cause="SIGTERM")
+        raise TerminationSignal(signal=signal.SIGTERM)
 
-    original_sigterm_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+    original_sigterm_handler = None
+    try:
+        original_sigterm_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+    except ValueError:
+        # Signals only work in the main thread
+        pass
 
     try:
         yield
@@ -1580,7 +1585,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
-        state = await exception_to_final_state(exc)
+        state = await exception_to_crashed_state(exc)
         logger = flow_run_logger(flow_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
@@ -1588,7 +1593,6 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
             await client.set_flow_run_state(
                 state=state,
                 flow_run_id=flow_run.id,
-                force=True,
             )
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
@@ -1597,7 +1601,8 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
         # Reraise the exception
         raise exc from None
     finally:
-        signal.signal(signal.SIGTERM, original_sigterm_handler)
+        if original_sigterm_handler is not None:
+            signal.signal(signal.SIGTERM, original_sigterm_handler)
 
 
 @asynccontextmanager
@@ -1613,11 +1618,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     except (Abort, Pause):
         # Do not capture internal signals as crashes
         raise
-    except Cancel:
-        # Do not capture cancellations as crashes
-        raise
     except BaseException as exc:
-        state = await exception_to_final_state(exc)
+        state = await exception_to_crashed_state(exc)
         logger = task_run_logger(task_run)
         with anyio.CancelScope(shield=True):
             logger.error(f"Crash detected! {state.message}")
@@ -1920,18 +1922,16 @@ if __name__ == "__main__":
             f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
-    except Cancel as exc:
+    except TerminationSignal as exc:
         engine_logger.info(
-            f"Engine execution of flow run '{flow_run_id}' cancelled by orchestrator: {exc}"
+            f"Engine execution of flow run '{flow_run_id}' cancelled by external signal: {exc}"
         )
-        if exc.cause == "SIGTERM":
-            # The default SIGTERM handler is swapped out during a flow run to
-            # raise this `Cancel` exception. This `os.kill` call ensures that
-            # the previous handler (likely the Python default) gets called as
-            # well.
-            os.kill(os.getpid(), signal.SIGTERM)
-        else:
-            exit(0)
+
+        # Termination signals are swapped out during a flow run to perform a
+        # graceful shutdown and raise this exception. This `os.kill` call
+        # ensures that the previous handler, likely the Python default, gets
+        # called as well.
+        os.kill(os.getpid(), exc.signal)
     except Exception:
         engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' exited with unexpected "

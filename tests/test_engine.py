@@ -30,13 +30,13 @@ from prefect.engine import (
 )
 from prefect.exceptions import (
     Abort,
-    Cancel,
     CrashedRun,
     FailedRun,
     ParameterTypeError,
     Pause,
     PausedRun,
     SignatureMismatchError,
+    TerminationSignal,
 )
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.actions import FlowRunCreate
@@ -1442,9 +1442,9 @@ class TestFlowRunCrashes:
             assert signal_receiver.call_args_list[0][0][0] == signal.SIGTERM
             signal_handler = signal_receiver.call_args_list[0][0][1]
 
-            # Call the signal handler and expect that it raises a `Cancel`
-            # exception.
-            with pytest.raises(Cancel):
+            # Call the signal handler and expect that it raises a
+            # `TerminationSignal` exception.
+            with pytest.raises(TerminationSignal):
                 signal_handler()
 
         # The original handler should be restorted when the context manager
