@@ -199,7 +199,7 @@ jobs:
           --env LC_CTYPE="C.UTF-8"
           postgres:${{ matrix.postgres-version }}
 
-          ./scripts/wait-for-healthy-container postgres 30
+          ./scripts/wait-for-healthy-container.sh postgres 30
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
