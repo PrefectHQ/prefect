@@ -153,6 +153,9 @@ class Task(Generic[P, R]):
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
+        refresh_cache: If set, cached results for the cache key are not used.
+            Defaults to `None`, which indicates that a cached result from a previous
+            execution with matching cache key is used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -182,6 +185,7 @@ class Task(Generic[P, R]):
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
+        refresh_cache: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -213,6 +217,7 @@ class Task(Generic[P, R]):
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
+        self.refresh_cache = refresh_cache
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
@@ -284,6 +289,7 @@ class Task(Generic[P, R]):
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
+        refresh_cache: Optional[bool] = NotSet,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -309,6 +315,9 @@ class Task(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            timeout_seconds: A new maximum time for the task to complete in seconds.
+            log_prints: A new option for enabling or disabling redirection of `print` statements.
+            refresh_cache: A new option for enabling or disabling cache refresh.
 
         Returns:
             A new `Task` instance.
@@ -385,6 +394,9 @@ class Task(Generic[P, R]):
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
             log_prints=(log_prints if log_prints is not NotSet else self.log_prints),
+            refresh_cache=(
+                refresh_cache if refresh_cache is not NotSet else self.refresh_cache
+            ),
         )
 
     @overload
@@ -838,6 +850,7 @@ def task(
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
+    refresh_cache: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -865,6 +878,7 @@ def task(
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
+    refresh_cache: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -910,6 +924,9 @@ def task(
         log_prints: If set, `print` statements in the task will be redirected to the
             Prefect logger for the task run. Defaults to `None`, which indicates
             that the value from the flow should be used.
+        refresh_cache: If set, cached results for the cache key are not used.
+            Defaults to `None`, which indicates that a cached result from a previous
+            execution with matching cache key is used.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -979,6 +996,7 @@ def task(
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
+                refresh_cache=refresh_cache,
             ),
         )
     else:
@@ -1001,5 +1019,6 @@ def task(
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
+                refresh_cache=refresh_cache,
             ),
         )
