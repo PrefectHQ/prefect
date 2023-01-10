@@ -503,6 +503,33 @@ class TestTaskSubmit:
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)
 
+    def test_allow_failure_passed_to_mapped_items(
+        self,
+    ):
+        @task
+        def fails_on_two(x):
+            if x == 2:
+                raise ValueError("Fail task")
+            return x
+
+        @task
+        def identity(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails_on_two.map([1, 2, 3])
+            b = identity.map(allow_failure(f))
+            return b
+
+        states = test_flow()
+        assert isinstance(states, list), f"Expected list; got {type(states)}"
+
+        assert states[0].result(), states[2].result() == [1, 3]
+
+        assert states[1].is_completed()
+        assert exceptions_equal(states[1].result(), ValueError("Fail task"))
+
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
