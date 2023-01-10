@@ -78,14 +78,16 @@ class TestCreateWorkPool:
                 "command": "{{ command }}",
             },
             "variables": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
-                    "default": ["echo", "hello"],
-                }
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    }
+                },
+                "required": [],
             },
-            "required": [],
         }
 
         response = await client.post(

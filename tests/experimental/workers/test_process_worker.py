@@ -106,23 +106,25 @@ def work_pool():
             "stream_output": "{{ stream_output }}",
         },
         "variables": {
-            "command": {
-                "type": "array",
-                "title": "Command",
-                "items": {"type": "string"},
+            "variables": {
+                "command": {
+                    "type": "array",
+                    "title": "Command",
+                    "items": {"type": "string"},
+                },
+                "working_dir": {
+                    "type": "string",
+                    "title": "Working Directory",
+                    "default": None,
+                },
+                "stream_output": {
+                    "type": "boolean",
+                    "title": "Stream Output",
+                    "default": True,
+                },
             },
-            "working_dir": {
-                "type": "string",
-                "title": "Working Directory",
-                "default": None,
-            },
-            "stream_output": {
-                "type": "boolean",
-                "title": "Stream Output",
-                "default": True,
-            },
+            "required": [],
         },
-        "required": [],
     }
 
     work_pool = MagicMock(spec=WorkPool)

@@ -380,13 +380,15 @@ async def work_pool(session):
             base_job_template={
                 "job_configuration": {"command": "{{ command }}"},
                 "variables": {
-                    "command": {
-                        "type": "array",
-                        "title": "Command",
-                        "items": {"type": "string"},
+                    "variables": {
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                        },
                     },
+                    "required": [],
                 },
-                "required": [],
             },
         ),
     )

@@ -397,14 +397,16 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     expected_job_template = {
         "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
         "variables": {
-            "command": {
-                "type": "array",
-                "title": "Command",
-                "items": {"type": "string"},
+            "variables": {
+                "command": {
+                    "type": "array",
+                    "title": "Command",
+                    "items": {"type": "string"},
+                },
+                "other": {"type": "string", "title": "Other"},
             },
-            "other": {"type": "string", "title": "Other"},
+            "required": [],
         },
-        "required": [],
     }
 
     pool_name = "test-pool"
@@ -449,14 +451,16 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     worker_job_template = {
         "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
         "variables": {
-            "command": {
-                "type": "array",
-                "title": "Command",
-                "items": {"type": "string"},
+            "variables": {
+                "command": {
+                    "type": "array",
+                    "title": "Command",
+                    "items": {"type": "string"},
+                },
+                "other": {"type": "string", "title": "Other", "default": "woof"},
             },
-            "other": {"type": "string", "title": "Other", "default": "woof"},
+            "required": [],
         },
-        "required": [],
     }
 
     pool_name = "test-pool"
@@ -490,14 +494,16 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                     "command": "{{ command }}",
                 },
                 "variables": {
-                    "command": {
-                        "type": "array",
-                        "title": "Command",
-                        "items": {"type": "string"},
-                        "default": ["echo", "hello"],
-                    }
+                    "variables": {
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                            "default": ["echo", "hello"],
+                        }
+                    },
+                    "required": [],
                 },
-                "required": [],
             },
             {},  # No overrides
             {  # Expected result
@@ -526,18 +532,20 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "var1": {
-                        "type": "string",
-                        "title": "Var1",
-                        "default": "hello",
+                    "variables": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
                     },
-                    "var2": {
-                        "type": "integer",
-                        "title": "Var2",
-                        "default": 42,
-                    },
+                    "required": [],
                 },
-                "required": [],
             },
             {},  # No overrides
             {  # Expected result
@@ -553,23 +561,25 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "var1": {
-                        "type": "string",
-                        "title": "Var1",
-                        "default": "hello",
+                    "variables": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                        "var3": {
+                            "type": "integer",
+                            "title": "Var3",
+                            "default": 21,
+                        },
                     },
-                    "var2": {
-                        "type": "integer",
-                        "title": "Var2",
-                        "default": 42,
-                    },
-                    "var3": {
-                        "type": "integer",
-                        "title": "Var3",
-                        "default": 21,
-                    },
+                    "required": [],
                 },
-                "required": [],
             },
             {},  # No overrides
             {  # Expected result
@@ -585,22 +595,25 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "var1": {
-                        "type": "string",
-                        "title": "Var1",
-                        "default": "hello",
+                    "variables": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                            "default": ["echo", "hello"],
+                        },
                     },
-                    "var2": {
-                        "type": "integer",
-                        "title": "Var2",
-                        "default": 42,
-                    },
-                    "command": {
-                        "type": "array",
-                        "title": "Command",
-                        "items": {"type": "string"},
-                        "default": ["echo", "hello"],
-                    },
+                    "required": [],
                 },
             },
             {},  # No overrides
@@ -617,15 +630,17 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "var1": {
-                        "type": "string",
-                        "title": "Var1",
-                        "default": "hello",
-                    },
-                    "var2": {
-                        "type": "integer",
-                        "title": "Var2",
-                        "default": 42,
+                    "variables": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
                     },
                 },
                 "required": [],
@@ -644,14 +659,16 @@ def test_base_job_configuration_from_template_and_overrides(
                     "var2": "{{ var2 }}",
                 },
                 "variables": {
-                    "var1": {
-                        "type": "string",
-                        "title": "Var1",
-                    },
-                    "var2": {
-                        "type": "integer",
-                        "title": "Var2",
-                        "default": 42,
+                    "variables": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
                     },
                 },
                 "required": ["var1"],
@@ -693,11 +710,14 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
                 "command": "{{ command }}",
             },
             "variables": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
+                "variables": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                    },
                 },
+                "required": [],
             },
         },
         deployment_overrides={"command": falsey_value},

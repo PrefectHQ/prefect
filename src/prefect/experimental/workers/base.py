@@ -59,7 +59,9 @@ class BaseJobConfiguration(BaseModel):
         """
         job_config = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-        variables = cls._base_variables_from_schema(variables_schema)
+        variables = cls._base_variables_from_variable_properties(
+            variables_schema["variables"]
+        )
         variables.update(deployment_overrides)
 
         populated_configuration = cls._apply_variables(job_config, variables)
@@ -95,10 +97,10 @@ class BaseJobConfiguration(BaseModel):
         return job_config
 
     @classmethod
-    def _base_variables_from_schema(cls, variables_schema):
+    def _base_variables_from_variable_properties(cls, variable_properties):
         """Get base template variables."""
-        default_variables = cls._get_base_config_defaults(variables_schema)
-        variables = {key: None for key in variables_schema.keys()}
+        default_variables = cls._get_base_config_defaults(variable_properties)
+        variables = {key: None for key in variable_properties.keys()}
         variables.update(default_variables)
         return variables
 
@@ -574,9 +576,10 @@ class BaseWorker(abc.ABC):
     async def _set_work_pool_template(self, work_pool, job_template):
         """Updates the `base_job_template` for the worker's workerpool both server side and locally."""
         await self._client.update_work_pool(
-            WorkPoolUpdate(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
                 base_job_template=job_template,
-            )
+            ),
         )
         work_pool.base_job_template = job_template
 
@@ -599,8 +602,10 @@ class BaseWorker(abc.ABC):
             variables = self.job_configuration_variables.schema()
         return {
             "job_configuration": self.job_configuration.json_template(),
-            "variables": variables["properties"],
-            "required": variables.get("required", []),
+            "variables": {
+                "variables": variables["properties"],
+                "required": variables.get("required", []),
+            },
         }
 
     async def __aenter__(self):
