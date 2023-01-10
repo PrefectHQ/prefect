@@ -1665,7 +1665,9 @@ async def resolve_inputs(
             return expr
 
         # Do not allow uncompleted upstreams except failures when `allow_failure` has
-        # been used
+        # been used. Note we also allow pending because states are left in a pending
+        # state when their upstreams are failed. This allows `allow_failure` to be used
+        # downstream of chained failures.
         if not state.is_completed() and not (
             # TODO: Note that the contextual annotation here is only at the current level
             #       if `allow_failure` is used then another annotation is used, this will
@@ -1673,7 +1675,7 @@ async def resolve_inputs(
             #       annotations wrapping the current expression but this is not yet
             #       implemented.
             isinstance(context.get("annotation"), allow_failure)
-            and state.is_failed()
+            and (state.is_failed() or state.is_pending())
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
