@@ -223,7 +223,9 @@ def test_uses_privileged_setting(mock_docker_client):
 
 
 def test_uses_memswap_limit_setting(mock_docker_client):
-    DockerContainer(command=["echo", "hello"], memswap_limit="1g").run()
+    DockerContainer(
+        command=["echo", "hello"], mem_limit="500m", memswap_limit="1g"
+    ).run()
     mock_docker_client.containers.create.assert_called_once()
     assert (
         mock_docker_client.containers.create.call_args[1].get("memswap_limit") == "1g"
