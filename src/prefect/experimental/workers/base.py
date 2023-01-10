@@ -66,7 +66,17 @@ class BaseJobConfiguration(BaseModel):
         return cls(**populated_configuration)
 
     @classmethod
-    def json_template(cls):
+    def json_template(cls) -> dict:
+        """Returns a dict with job configuration as keys and the corresponding templates as values
+
+        Defaults to using the job configuration parameter name as the template variable name.
+
+        e.g.
+        {
+            key1: '{{ key1 }}',     # default variable template
+            key2: '{{ template2 }}', # `template2` specifically provide as template
+        }
+        """
         configuration = {}
         properties = cls.schema()["properties"]
         for k, v in properties.items():
