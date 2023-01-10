@@ -15,6 +15,7 @@ from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
+    HandleCancellingStateTransitions,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
@@ -2541,3 +2542,59 @@ class TestPreventRunningTasksFromStoppedFlows:
         else:
             assert ctx.response_status == SetStateStatus.ABORT
             assert ctx.validated_state.is_pending()
+
+
+class TestHandleCancellingStateTransitions:
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_rejects_cancelling_to_anything_but_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_rejects_cancelled_cancelling_to_anything_but_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
