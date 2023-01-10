@@ -158,12 +158,12 @@ async def status(
     wait: bool = typer.Option(
         False,
         "--wait",
-        help="When the wait command is specified the health check loop runs until successful or an optional timeout value is exceeded, otherwise the check is run only once.",
+        help="When the wait command is specified, the health check loop runs until successful or an optional timeout value is exceeded. Otherwise the check is run only once.",
     ),
     timeout: int = typer.Option(
         None,
         "--timeout",
-        help="Optional Timeout value in seconds, must be used with the wait argument",
+        help="Optional timeout value in seconds. Must be used with the wait argument",
     ),
     api: str = SettingsOption(PREFECT_API_URL),
 ):
@@ -171,7 +171,7 @@ async def status(
 
     if not api:
         exit_with_success(
-            "PREFECT_API_URL not set for the currently active profile. To check the status of an Orion instance or Cloud API connection the PREFECT_API_URL must be specified for the selected profile."
+            "PREFECT_API_URL not set for the currently active profile. To check the status of an Orion instance or Cloud API connection, the PREFECT_API_URL must be specified for the selected profile."
         )
 
     app.console.print(f"Attempting connection to server API URL: {api}")
