@@ -66,7 +66,11 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASKS_REFRESH_CACHE,
+)
 from prefect.states import (
     Paused,
     Pending,
@@ -1397,10 +1401,20 @@ async def orchestrate_task_run(
         else None
     )
 
+    # Ignore the cached results for a cache key, default = false
+    # Setting on task level overrules the Prefect setting (env var)
+    refresh_cache = (
+        task.refresh_cache
+        if task.refresh_cache is not None
+        else PREFECT_TASKS_REFRESH_CACHE.value()
+    )
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
-        Running(state_details=StateDetails(cache_key=cache_key)),
+        Running(
+            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        ),
         task_run_id=task_run.id,
     )
 

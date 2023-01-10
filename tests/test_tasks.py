@@ -25,6 +25,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion import models
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
@@ -1017,6 +1018,64 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.result() != first_state.result()
+
+    def test_cache_misses_w_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.result() != first_state.result()
+
+    def test_cache_hits_wo_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.result() == first_state.result()
+
+    def test_tasks_refresh_cache_setting(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
+        def refresh_task(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
+        def not_refresh_task(x):
+            return x
+
+        @flow
+        def bar():
+            foo(0)
+            return (
+                foo(1, return_state=True),
+                refresh_task(2, return_state=True),
+                not_refresh_task(3, return_state=True),
+            )
+
+        with temporary_settings({PREFECT_TASKS_REFRESH_CACHE: True}):
+            first_state, second_state, third_state = bar()
+            assert first_state.name == "Completed"
+            assert second_state.name == "Completed"
+            assert third_state.name == "Cached"
+            assert second_state.result() != first_state.result()
+            assert third_state.result() == second_state.result()
 
 
 class TestCacheFunctionBuiltins:
@@ -2262,6 +2321,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
             timeout_seconds=None,
+            refresh_cache=False,
         )
         def initial_task():
             pass
@@ -2279,6 +2339,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
             timeout_seconds=42,
+            refresh_cache=True,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2293,6 +2354,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.refresh_cache == True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2311,6 +2373,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
             timeout_seconds=42,
+            refresh_cache=True,
         )
         def initial_task():
             pass
@@ -2333,12 +2396,14 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.refresh_cache == True
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
             persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(),
+            refresh_cache=True,
         )
         def initial_task():
             pass
@@ -2347,10 +2412,12 @@ class TestTaskWithOptions:
             persist_result=None,
             result_serializer=None,
             result_storage=None,
+            refresh_cache=None,
         )
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
+        assert task_with_options.refresh_cache is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
@@ -2387,6 +2454,31 @@ class TestTaskWithOptions:
         task_with_options = initial_task.with_options(retries=0, retry_delay_seconds=0)
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
+
+    def test_with_options_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return (
+                foo(1, return_state=True),
+                foo(2, return_state=True),
+                foo.with_options(refresh_cache=True)(3, return_state=True),
+                foo(4, return_state=True),
+            )
+
+        first, second, third, fourth = bar()
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        assert first.result() == second.result()
+        assert second.result() != third.result()
+        assert third.result() == fourth.result()
+        assert fourth.result() != first.result()
 
 
 class TestTaskRegistration:
