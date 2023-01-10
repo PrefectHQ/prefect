@@ -38,11 +38,11 @@ class CancellationCleanup(LoopService):
     @inject_db
     async def run_once(self, db: OrionDBInterface):
         """
-        - cancels active tasks belonging to recently cancelled flow runs
-        - cancels any active subflow that belongs to a cancelled flow
+        - Cancels active tasks belonging to recently cancelled flow runs
+        - Cancels any active subflow that belongs to a cancelled flow
         """
         async with db.session_context(begin_transaction=True) as session:
-            # cancels active tasks belonging to recently cancelled flow runs
+            # Cancels active tasks belonging to recently cancelled flow runs
             while True:
                 cancelled_flow_query = (
                     sa.select(db.FlowRun)
@@ -60,7 +60,7 @@ class CancellationCleanup(LoopService):
                 for run in flow_runs:
                     await self._cancel_child_runs(session=session, flow_run=run)
 
-                # if no relevant flows were found, exit the loop
+                # if all relevant flows have been processed, exit the loop
                 if len(flow_runs) < self.batch_size:
                     break
 
@@ -88,7 +88,7 @@ class CancellationCleanup(LoopService):
                 for subflow_run in subflow_runs:
                     await self._cancel_subflows(session=session, flow_run=subflow_run)
 
-                # if no relevant flows were found, exit the loop
+                # if all relevant flows have been processed, exit the loop
                 if len(subflow_runs) < self.batch_size:
                     break
 

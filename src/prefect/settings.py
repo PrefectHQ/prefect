@@ -803,7 +803,7 @@ PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
     float,
     default=20,
 )
-"""The cancellation cleanup service will look non-terminal tasks and subflows
+"""The cancellation cleanup service will look for non-terminal tasks and subflows
 this often. Defaults to `20`.
 """
 
