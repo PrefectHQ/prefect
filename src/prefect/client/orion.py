@@ -1305,8 +1305,6 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
-            work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
             description=description,
             storage_document_id=storage_document_id,
             path=path,
@@ -1317,9 +1315,18 @@ class OrionClient:
             parameter_openapi_schema=parameter_openapi_schema,
         )
 
+        if work_pool_name is not None:
+            deployment_create.work_pool_name = work_pool_name
+        if work_pool_queue_name is not None:
+            deployment_create.work_pool_queue_name = work_pool_queue_name
+
+        json = deployment_create.dict(json_compatible=True, exclude_unset=True)
+        if schedule is not None:
+            json["schedule"] = schedule.dict(json_compatible=True)
+
         response = await self._client.post(
             "/deployments/",
-            json=deployment_create.dict(json_compatible=True, exclude_none=True),
+            json=json,
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
