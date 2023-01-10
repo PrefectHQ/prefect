@@ -78,7 +78,7 @@ class TestCreateWorkPool:
                 "command": "{{ command }}",
             },
             "variables": {
-                "properties": {
+                "variables": {
                     "command": {
                         "type": "array",
                         "title": "Command",
@@ -142,14 +142,16 @@ class TestCreateWorkPool:
                 "command": "{{ other_variable }}",
             },
             "variables": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
-                    "default": ["echo", "hello"],
-                }
+                "variables": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
             },
-            "required": [],
         }
         response = await client.post(
             "/experimental/work_pools/",
@@ -263,14 +265,16 @@ class TestUpdateWorkPool:
                 "command": "{{ command }}",
             },
             "variables": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
-                    "default": ["echo", "hello"],
-                }
+                "variables": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
             },
-            "required": [],
         }
         pool = await models.workers.create_work_pool(
             session=session,
@@ -278,7 +282,7 @@ class TestUpdateWorkPool:
         )
         await session.commit()
 
-        base_job_template["variables"]["command"]["default"] = ["woof!"]
+        base_job_template["variables"]["variables"]["command"]["default"] = ["woof!"]
         response = await client.patch(
             f"/experimental/work_pools/{name}",
             json=dict(base_job_template=base_job_template),
@@ -289,7 +293,9 @@ class TestUpdateWorkPool:
         result = await models.workers.read_work_pool(
             session=session, work_pool_id=pool.id
         )
-        assert result.base_job_template["variables"]["command"]["default"] == ["woof!"]
+        assert result.base_job_template["variables"]["variables"]["command"][
+            "default"
+        ] == ["woof!"]
 
     async def test_update_work_pool_template_validation_missing_keys(
         self, client, session
@@ -323,14 +329,16 @@ class TestUpdateWorkPool:
                 "command": "{{ other_variable }}",
             },
             "variables": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
-                    "default": ["echo", "hello"],
-                }
+                "variables": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
             },
-            "required": [],
         }
         pool = await models.workers.create_work_pool(
             session=session,
