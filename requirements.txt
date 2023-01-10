@@ -14,6 +14,7 @@ fastapi >= 0.70
 fsspec >= 2022.5.0
 griffe >= 0.20.0
 httpx[http2] >= 0.23, != 0.23.2
+httpcore >= 0.16.2
 importlib_metadata >= 4.4; python_version < '3.10'
 jsonpatch >= 1.32
 kubernetes >= 24.2.0
