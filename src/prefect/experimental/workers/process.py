@@ -1,11 +1,11 @@
 import asyncio
+import contextlib
 import socket
 import subprocess
 import sys
 import tempfile
-from functools import partial
 from pathlib import Path
-from typing import Dict, Optional, Type, Union
+from typing import Dict, Optional, Union
 
 import anyio
 import anyio.abc
@@ -73,7 +73,7 @@ class ProcessWorker(BaseWorker):
     async def run(
         self,
         flow_run: FlowRun,
-        configuration: Type[BaseJobConfiguration],
+        configuration: ProcessJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
         command = configuration.command
@@ -87,30 +87,27 @@ class ProcessWorker(BaseWorker):
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-        run_from_dir = partial(
-            run_process,
-            command,
-            stream_output=configuration.stream_output,
-            task_status=task_status,
-            task_status_handler=_infrastructure_pid_from_process,
-            env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
-            **kwargs,
-        )
-
         _use_threaded_child_watcher()
         self._logger.info("Opening process...")
 
-        if configuration.working_dir:
+        working_dir_ctx = (
+            tempfile.TemporaryDirectory(suffix="prefect")
+            if not configuration.working_dir
+            else contextlib.nullcontext(configuration.working_dir)
+        )
+        with working_dir_ctx as working_dir:
             self._logger.debug(
-                f"Process running command: {' '.join(command)} in {configuration.working_dir}"
+                f"Process running command: {' '.join(command)} in {working_dir}"
             )
-            process = await run_from_dir(cwd=configuration.working_dir)
-        else:
-            with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
-                self._logger.debug(
-                    f"Process running command: {' '.join(command)} in {working_dir}"
-                )
-                process = await run_from_dir(cwd=working_dir)
+            process = await run_process(
+                command,
+                stream_output=configuration.stream_output,
+                task_status=task_status,
+                task_status_handler=_infrastructure_pid_from_process,
+                env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
+                cwd=working_dir,
+                **kwargs,
+            )
 
         # Use the pid for display if no name was given
         display_name = f" {process.pid}"

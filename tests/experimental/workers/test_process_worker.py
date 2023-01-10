@@ -143,7 +143,10 @@ async def test_worker_process_run_flow_run(
         work_pool_name=work_pool.name,
     ) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -161,13 +164,18 @@ async def test_process_created_then_marked_as_started(
     # is opened before this time
     fake_status.started.side_effect = RuntimeError("Started called!")
     read_deployment_mock = patch_read_deployment(monkeypatch)
-
+    fake_configuration = MagicMock()
+    fake_configuration.command = ["echo", "hello"]
     with pytest.raises(RuntimeError, match="Started called!"):
         async with ProcessWorker(
             work_pool_name=work_pool.name,
         ) as worker:
             worker._work_pool = work_pool
-            await worker.run(flow_run=flow_run, task_status=fake_status)
+            await worker.run(
+                flow_run=flow_run,
+                configuration=fake_configuration,
+                task_status=fake_status,
+            )
 
     fake_status.started.assert_called_once()
     mock_open_process.assert_awaited_once()
@@ -197,7 +205,10 @@ async def test_process_worker_logs_exit_code_help_message(
     patch_run_process(returncode=exit_code)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run=flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert result.status_code == exit_code
 
@@ -218,7 +229,10 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        await worker.run(flow_run=flow_run)
+        await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
     mock.assert_awaited_once()
     (_, kwargs) = mock.call_args
@@ -236,7 +250,10 @@ async def test_unix_process_worker_run_does_not_set_creation_flag(
     read_deployment_mock = patch_read_deployment(monkeypatch)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        await worker.run(flow_run=flow_run)
+        await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
     mock.assert_awaited_once()
     (_, kwargs) = mock.call_args
@@ -253,7 +270,10 @@ async def test_process_worker_working_dir_override(
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -265,7 +285,10 @@ async def test_process_worker_working_dir_override(
     )
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -281,7 +304,10 @@ async def test_process_worker_stream_output_override(
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides={})
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -294,7 +320,10 @@ async def test_process_worker_stream_output_override(
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -310,7 +339,10 @@ async def test_process_worker_uses_correct_default_command(
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
@@ -327,7 +359,10 @@ async def test_process_worker_command_override(
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        result = await worker.run(flow_run)
+        result = await worker.run(
+            flow_run=flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
