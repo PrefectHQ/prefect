@@ -13,6 +13,7 @@ import prefect.orion.database
 import prefect.orion.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.orion.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
+from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -257,8 +258,8 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="Optional information about the creator of this flow run.",
     )
-    worker_pool_queue_id: Optional[UUID] = Field(
-        default=None, description="The id of the run's worker pool queue."
+    work_pool_queue_id: Optional[UUID] = Field(
+        default=None, description="The id of the run's work pool queue."
     )
 
     # relationships
@@ -467,6 +468,17 @@ class TaskRun(ORMBaseModel):
     def set_name(cls, name):
         return name or generate_slug(2)
 
+    @validator("cache_key")
+    def validate_cache_key_length(cls, cache_key):
+        if (
+            cache_key
+            and len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()
+        ):
+            raise ValueError(
+                f"Cache key exceeded maximum allowed length of {PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
+            )
+        return cache_key
+
 
 class Deployment(ORMBaseModel):
     """An ORM representation of deployment data."""
@@ -536,9 +548,9 @@ class Deployment(ORMBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    worker_pool_queue_id: UUID = Field(
+    work_pool_queue_id: UUID = Field(
         default=None,
-        description="The id of the worker pool queue to which this deployment is assigned.",
+        description="The id of the work pool queue to which this deployment is assigned.",
     )
 
     @validator("name", check_fields=False)
@@ -932,25 +944,25 @@ class Agent(ORMBaseModel):
     )
 
 
-class WorkerPool(ORMBaseModel):
-    """An ORM representation of a worker pool"""
+class WorkPool(ORMBaseModel):
+    """An ORM representation of a work pool"""
 
     name: str = Field(
-        description="The name of the worker pool.",
+        description="The name of the work pool.",
     )
     description: Optional[str] = Field(
-        default=None, description="A description of the worker pool."
+        default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The worker pool type.")
+    type: Optional[str] = Field(None, description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
-        default_factory=dict, description="The worker pool's base job template."
+        default_factory=dict, description="The work pool's base job template."
     )
     is_paused: bool = Field(
         default=False,
-        description="Pausing the worker pool stops the delivery of all work.",
+        description="Pausing the work pool stops the delivery of all work.",
     )
     concurrency_limit: Optional[conint(ge=0)] = Field(
-        default=None, description="A concurrency limit for the worker pool."
+        default=None, description="A concurrency limit for the work pool."
     )
 
     # this required field has a default of None so that the custom validator
@@ -969,18 +981,18 @@ class WorkerPool(ORMBaseModel):
         """
         Default queue ID is required because all pools must have a default queue
         ID, but it represents a circular foreign key relationship to a
-        WorkerPoolQueue (which can't be created until the worker pool exists).
+        WorkPoolQueue (which can't be created until the work pool exists).
         Therefore, while this field can *technically* be null, it shouldn't be.
         This should only be an issue when creating new pools, as reading
         existing ones will always have this field populated. This custom error
         message will help users understand that they should use the
-        `actions.WorkerPoolCreate` model in that case.
+        `actions.WorkPoolCreate` model in that case.
         """
         if v is None:
             raise ValueError(
                 "`default_queue_id` is a required field. If you are "
-                "creating a new WorkerPool and don't have a queue "
-                "ID yet, use the `actions.WorkerPoolCreate` model instead."
+                "creating a new WorkPool and don't have a queue "
+                "ID yet, use the `actions.WorkPoolCreate` model instead."
             )
         return v
 
@@ -989,19 +1001,19 @@ class Worker(ORMBaseModel):
     """An ORM representation of a worker"""
 
     name: str = Field(description="The name of the worker.")
-    worker_pool_id: UUID = Field(
-        description="The worker pool with which the queue is associated."
+    work_pool_id: UUID = Field(
+        description="The work pool with which the queue is associated."
     )
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
     )
 
 
-class WorkerPoolQueue(ORMBaseModel):
-    """An ORM representation of a worker pool queue"""
+class WorkPoolQueue(ORMBaseModel):
+    """An ORM representation of a work pool queue"""
 
-    worker_pool_id: UUID = Field(
-        description="The worker pool with which the queue is associated."
+    work_pool_id: UUID = Field(
+        description="The work pool with which the queue is associated."
     )
     name: str = Field(
         description="The name of the queue.",
