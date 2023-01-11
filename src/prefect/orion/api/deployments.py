@@ -6,6 +6,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -15,7 +16,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
@@ -38,6 +39,19 @@ async def create_deployment(
     """
 
     async with db.session_context(begin_transaction=True) as session:
+        if deployment.work_pool_name:
+            # Make sure that deployment is valid before beginning creation process
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session, work_pool_name=deployment.work_pool_name
+            )
+            try:
+                deployment.check_valid_configuration(work_pool.base_job_template)
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment: {exc!r}",
+                )
+
         # hydrate the input model into a full model
         deployment_dict = deployment.dict(
             exclude={"work_pool_name", "work_pool_queue_name"}
@@ -63,6 +77,7 @@ async def create_deployment(
             )
 
         deployment = schemas.core.Deployment(**deployment_dict)
+
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:
@@ -109,6 +124,19 @@ async def update_deployment(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
+        if deployment.work_pool_name:
+            # Make sure that deployment is valid before beginning creation process
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session, work_pool_name=deployment.work_pool_name
+            )
+            try:
+                deployment.check_valid_configuration(work_pool.base_job_template)
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment: {exc!r}",
+                )
+
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
