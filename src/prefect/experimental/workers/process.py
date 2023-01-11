@@ -1,17 +1,25 @@
 import asyncio
+import contextlib
 import socket
 import subprocess
 import sys
 import tempfile
-from typing import Dict, Optional
+from pathlib import Path
+from typing import Dict, Optional, Union
 
 import anyio
 import anyio.abc
 import sniffio
+from pydantic import Field
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
-from prefect.experimental.workers.base import BaseWorker, BaseWorkerResult
+from prefect.experimental.workers.base import (
+    BaseJobConfiguration,
+    BaseVariables,
+    BaseWorker,
+    BaseWorkerResult,
+)
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -38,12 +46,24 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
     return f"{hostname}:{process.pid}"
 
 
+class ProcessJobConfiguration(BaseJobConfiguration):
+    stream_output: bool = Field(template="{{ stream_output }}")
+    working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
+
+
+class ProcessVariables(BaseVariables):
+    stream_output: bool = True
+    working_dir: Optional[Union[str, Path]] = None
+
+
 class ProcessWorkerResult(BaseWorkerResult):
     """Contains information about the final state of a completed process"""
 
 
 class ProcessWorker(BaseWorker):
     type = "process"
+    job_configuration = ProcessJobConfiguration
+    job_configuration_variables = ProcessVariables
 
     async def verify_submitted_deployment(self, deployment: Deployment):
         # TODO: Implement deployment verification for `ProcessWorker`
@@ -51,33 +71,44 @@ class ProcessWorker(BaseWorker):
 
     # TODO: Add additional parameters to allow for the customization of behavior
     async def run(
-        self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
+        self,
+        flow_run: FlowRun,
+        configuration: ProcessJobConfiguration,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ):
-        command = [sys.executable, "-m", "prefect.engine"]
+        command = configuration.command
+        if not command:
+            command = [sys.executable, "-m", "prefect.engine"]
+
+        # We must add creationflags to a dict so it is only passed as a function
+        # parameter on Windows, because the presence of creationflags causes
+        # errors on Unix even if set to None
+        kwargs: Dict[str, object] = {}
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
         _use_threaded_child_watcher()
         self._logger.info("Opening process...")
-        with tempfile.TemporaryDirectory(suffix="prefect") as working_dir:
+
+        working_dir_ctx = (
+            tempfile.TemporaryDirectory(suffix="prefect")
+            if not configuration.working_dir
+            else contextlib.nullcontext(configuration.working_dir)
+        )
+        with working_dir_ctx as working_dir:
             self._logger.debug(
                 f"Process running command: {' '.join(command)} in {working_dir}"
             )
-
-            # We must add creationflags to a dict so it is only passed as a function
-            # parameter on Windows, because the presence of creationflags causes
-            # errors on Unix even if set to None
-            kwargs: Dict[str, object] = {}
-            if sys.platform == "win32":
-                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-
             process = await run_process(
                 command,
-                stream_output=True,
+                stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
                 cwd=working_dir,
                 **kwargs,
             )
+
         # Use the pid for display if no name was given
         display_name = f" {process.pid}"
 

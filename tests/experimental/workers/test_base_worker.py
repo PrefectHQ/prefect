@@ -1,13 +1,22 @@
 from pathlib import Path
+from typing import Optional
 
 import pendulum
+import pydantic
 import pytest
+from pydantic import Field
 
-from prefect.client.orion import OrionClient
+from prefect.client.orion import OrionClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import BaseWorker
+from prefect.experimental.workers.base import (
+    BaseJobConfiguration,
+    BaseVariables,
+    BaseWorker,
+)
 from prefect.flows import flow
+from prefect.orion import models
+from prefect.orion.schemas.core import WorkPool
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -19,6 +28,7 @@ from prefect.testing.utilities import AsyncMock
 
 class WorkerTestImpl(BaseWorker):
     type = "test"
+    job_configuration = BaseJobConfiguration
 
     async def run(self):
         pass
@@ -360,6 +370,7 @@ async def test_worker_calls_run_with_expected_arguments(
     ]
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
         worker.run = run_mock  # don't run anything
         await worker.get_and_submit_flow_runs()
 
@@ -367,3 +378,387 @@ async def test_worker_calls_run_with_expected_arguments(
     assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
         fr.id for fr in flow_runs[1:4]
     }
+
+
+async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
+    session, client
+):
+    """We don't really care how this happens as long as the worker winds up with a worker pool
+    with a correct base_job_template when creating a new work pool"""
+
+    class WorkerJobConfig(BaseJobConfiguration):
+        other: Optional[str] = Field(template="{{other}}")
+
+    # Add a job configuration for the worker (currently used to create template
+    # if not found on the worker pool)
+    WorkerTestImpl.job_configuration = WorkerJobConfig
+
+    expected_job_template = {
+        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
+        "variables": {
+            "properties": {
+                "command": {
+                    "type": "array",
+                    "title": "Command",
+                    "items": {"type": "string"},
+                },
+                "other": {"type": "string", "title": "Other"},
+            },
+            "required": [],
+        },
+    }
+
+    pool_name = "test-pool"
+
+    # Create a new worker pool
+    response = await client.post(
+        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+    )
+    result = pydantic.parse_obj_as(WorkPool, response.json())
+    model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
+    assert model.name == pool_name
+
+    # Create a worker with the new pool and sync with the backend
+    worker = WorkerTestImpl(
+        name="test",
+        work_pool_name=pool_name,
+    )
+    async with get_client() as client:
+        worker._client = client
+        await worker.sync_with_backend()
+
+    assert worker._work_pool.base_job_template == expected_job_template
+
+
+async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_job_config_and_variables(
+    session, client
+):
+    """We don't really care how this happens as long as the worker winds up with a worker pool
+    with a correct base_job_template when creating a new work pool"""
+
+    class WorkerJobConfig(BaseJobConfiguration):
+        other: Optional[str] = Field(template="{{ other }}")
+
+    class WorkerVariables(BaseVariables):
+        other: Optional[str] = Field(default="woof")
+
+    # Add a job configuration and variables for the worker (currently used to create template
+    # if not found on the worker pool)
+    WorkerTestImpl.job_configuration = WorkerJobConfig
+    WorkerTestImpl.job_configuration_variables = WorkerVariables
+
+    worker_job_template = {
+        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
+        "variables": {
+            "properties": {
+                "command": {
+                    "type": "array",
+                    "title": "Command",
+                    "items": {"type": "string"},
+                },
+                "other": {"type": "string", "title": "Other", "default": "woof"},
+            },
+            "required": [],
+        },
+    }
+
+    pool_name = "test-pool"
+
+    # Create a new worker pool
+    response = await client.post(
+        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+    )
+    result = pydantic.parse_obj_as(WorkPool, response.json())
+    model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
+    assert model.name == pool_name
+
+    # Create a worker with the new pool and sync with the backend
+    worker = WorkerTestImpl(
+        name="test",
+        work_pool_name=pool_name,
+    )
+    async with get_client() as client:
+        worker._client = client
+        await worker.sync_with_backend()
+
+    assert worker._work_pool.base_job_template == worker_job_template
+
+
+@pytest.mark.parametrize(
+    "template,overrides,expected",
+    [
+        (
+            {  # Base template with no overrides
+                "job_configuration": {
+                    "command": "{{ command }}",
+                },
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                            "default": ["echo", "hello"],
+                        }
+                    },
+                    "required": [],
+                },
+            },
+            {},  # No overrides
+            {  # Expected result
+                "command": ["echo", "hello"],
+            },
+        ),
+    ],
+)
+def test_base_job_configuration_from_template_and_overrides(
+    template, overrides, expected
+):
+    """Test that the job configuration is correctly built from the template and overrides"""
+    config = BaseJobConfiguration.from_template_and_overrides(
+        base_job_template=template, deployment_overrides=overrides
+    )
+    assert config.dict() == expected
+
+
+@pytest.mark.parametrize(
+    "template,overrides,expected",
+    [
+        (
+            {  # Base template with no overrides
+                "job_configuration": {
+                    "var1": "{{ var1 }}",
+                    "var2": "{{ var2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                    },
+                    "required": [],
+                },
+            },
+            {},  # No overrides
+            {  # Expected result
+                "command": None,
+                "var1": "hello",
+                "var2": 42,
+            },
+        ),
+        (
+            {  # Base template with no overrides, but unused variables
+                "job_configuration": {
+                    "var1": "{{ var1 }}",
+                    "var2": "{{ var2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                        "var3": {
+                            "type": "integer",
+                            "title": "Var3",
+                            "default": 21,
+                        },
+                    },
+                    "required": [],
+                },
+            },
+            {},  # No overrides
+            {  # Expected result
+                "command": None,
+                "var1": "hello",
+                "var2": 42,
+            },
+        ),
+        (
+            {  # Base template with command variables
+                "job_configuration": {
+                    "var1": "{{ var1 }}",
+                    "var2": "{{ var2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                            "default": ["echo", "hello"],
+                        },
+                    },
+                    "required": [],
+                },
+            },
+            {},  # No overrides
+            {  # Expected result
+                "command": ["echo", "hello"],
+                "var1": "hello",
+                "var2": 42,
+            },
+        ),
+        (
+            {  # Base template with var1 overridden
+                "job_configuration": {
+                    "var1": "{{ var1 }}",
+                    "var2": "{{ var2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                            "default": "hello",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                    },
+                },
+                "required": [],
+            },
+            {"var1": "woof!"},  # var1 overridden
+            {  # Expected result
+                "command": None,
+                "var1": "woof!",
+                "var2": 42,
+            },
+        ),
+        (
+            {  # Base template with var1 overridden and var1 required
+                "job_configuration": {
+                    "var1": "{{ var1 }}",
+                    "var2": "{{ var2 }}",
+                },
+                "variables": {
+                    "properties": {
+                        "var1": {
+                            "type": "string",
+                            "title": "Var1",
+                        },
+                        "var2": {
+                            "type": "integer",
+                            "title": "Var2",
+                            "default": 42,
+                        },
+                    },
+                },
+                "required": ["var1"],
+            },
+            {"var1": "woof!"},  # var1 overridden
+            {  # Expected result
+                "command": None,
+                "var1": "woof!",
+                "var2": 42,
+            },
+        ),
+    ],
+)
+def test_job_configuration_from_template_and_overrides(template, overrides, expected):
+    """Test that the job configuration is correctly built from the template and overrides"""
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str = Field(template="{{ var1 }}")
+        var2: int = Field(template="{{ var2 }}")
+
+    config = ArbitraryJobConfiguration.from_template_and_overrides(
+        base_job_template=template, deployment_overrides=overrides
+    )
+    assert config.dict() == expected
+
+
+@pytest.mark.parametrize(
+    "falsey_value",
+    [
+        None,
+        [],
+    ],
+)
+def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
+    """Test that valid falsey values are converted to None for `command`"""
+    template = BaseJobConfiguration.from_template_and_overrides(
+        base_job_template={
+            "job_configuration": {
+                "command": "{{ command }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                    },
+                },
+                "required": [],
+            },
+        },
+        deployment_overrides={"command": falsey_value},
+    )
+    assert template.command is None
+
+
+@pytest.mark.parametrize(
+    "field_template_value,expected_final_template",
+    [
+        (
+            "{{ var1 }}",
+            {
+                "command": "{{ command }}",
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            },
+        ),
+        (
+            None,
+            {
+                "command": "{{ command }}",
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            },
+        ),
+        (
+            "{{ dog }}",
+            {
+                "command": "{{ command }}",
+                "var1": "{{ dog }}",
+                "var2": "{{ var2 }}",
+            },
+        ),
+    ],
+)
+def test_job_configuration_produces_correct_json_template(
+    field_template_value, expected_final_template
+):
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str = Field(template=field_template_value)
+        var2: int = Field(template="{{ var2 }}")
+
+    template = ArbitraryJobConfiguration.json_template()
+    assert template == expected_final_template
