@@ -1361,13 +1361,28 @@ async def begin_task_run(
                 # loss if the process exits
                 OrionHandler.flush(block=True)
 
-        except (Abort, Pause):
-            # Task run already completed, just fetch its state
+        except Abort as abort:
+            # Task run probably already completed, fetch its state
             task_run = await client.read_task_run(task_run.id)
-            task_run_logger(task_run).info(
-                f"Task run '{task_run.id}' already finished."
-            )
+
+            if task_run.state.is_final():
+                task_run_logger(task_run).info(
+                    f"Task run '{task_run.id}' already finished."
+                )
+            else:
+                # TODO: This is a concerning case; we should determine when this occurs
+                #       1. This can occur when the flow run is not in a running state
+                task_run_logger(task_run).warning(
+                    f"Task run '{task_run.id}' received abort during orchestration: "
+                    f"{abort} Task run is in {task_run.state.type.value} state."
+                )
             state = task_run.state
+
+        except Pause:
+            task_run_logger(task_run).info(
+                "Task run encountered a pause signal during orchestration."
+            )
+            state = Paused()
 
         return state
 
