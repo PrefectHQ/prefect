@@ -1,4 +1,4 @@
-import sys
+import shutil
 from contextlib import nullcontext
 from textwrap import dedent
 from unittest.mock import MagicMock
@@ -184,9 +184,7 @@ class TestCurrentEnvironmentCondaRequirements:
         # Check that we actually parsed environment errors correctly on systems without
         # conda
         raises = (
-            pytest.raises(CondaError)
-            if "conda" not in sys.executable
-            else nullcontext()
+            pytest.raises(CondaError) if not shutil.which("conda") else nullcontext()
         )
         with raises as should_raise:
             result = current_environment_conda_requirements(**options)
