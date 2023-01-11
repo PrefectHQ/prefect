@@ -1016,7 +1016,7 @@ class WorkPool(ORMBaseModel):
             found_variables = re.findall(r"{{\s*(.*?)\s*}}", template)
             template_variables.update(found_variables)
 
-        provided_variables = set(variables["variables"].keys())
+        provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):
             raise ValueError(
                 "The variables specified in the job configuration template must be "
