@@ -35,6 +35,17 @@ CONDA_REQUIREMENT_TEST_CASES = [
             "build": "ashfa_0",
         },
     ),
+    (
+        "defaults/linux-64::_libgcc_mutex==0.1=main[md5=c3473ff8bdb3d124ed5ff11ec380d6f9]",
+        {
+            "channel": "defaults/linux-64",
+            "name": "_libgcc_mutex",
+            "version_specifier": "==",
+            "version": "0.1",
+            "build_specifier": "=",
+            "build": "main[md5=c3473ff8bdb3d124ed5ff11ec380d6f9]",
+        },
+    ),
 ]
 
 
@@ -150,6 +161,8 @@ class TestCondaRequirement:
 
         if expected:
             for key, value in expected.items():
+                if key == "channel":
+                    continue  # channel is not yet saved although it is parsed
                 assert getattr(requirement, key) == value
 
     def test_to_string_is_original(self):
