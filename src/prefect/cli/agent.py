@@ -1,9 +1,11 @@
 """
 Command line interface for working with agent services
 """
+from functools import partial
 from typing import List
 from uuid import UUID
 
+import anyio
 import typer
 
 import prefect
@@ -69,7 +71,13 @@ async def start(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags that will be used to create a work queue",
+        help="DEPRECATED: One or more optional tags that will be used to create a work queue. This option will be removed on 2023-02-23.",
+    ),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
     ),
 ):
     """
@@ -106,7 +114,8 @@ async def start(
         app.console.print(
             "`tags` are deprecated. For backwards-compatibility with old "
             f"versions of Prefect, this agent will create a work queue named `{work_queue_name}` "
-            "that uses legacy tag-based matching.",
+            "that uses legacy tag-based matching. "
+            "This option will be removed on 2023-02-23.",
             style="red",
         )
 
@@ -137,6 +146,7 @@ async def start(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         prefetch_seconds=prefetch_seconds,
+        limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
@@ -151,11 +161,27 @@ async def start(
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 
-        await critical_service_loop(
-            agent.get_and_submit_flow_runs,
-            PREFECT_AGENT_QUERY_INTERVAL.value(),
-            printer=app.console.print,
-            run_once=run_once,
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.get_and_submit_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
+
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.check_for_cancelled_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
 
     app.console.print("Agent stopped!")

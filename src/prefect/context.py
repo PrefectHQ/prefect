@@ -221,12 +221,16 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+
+    # Counter for flow pauses
+    observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
     # Tracking for objects created by this flow run
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
@@ -259,6 +263,7 @@ class TaskRunContext(RunContext):
     task: "Task"
     task_run: TaskRun
     timeout_scope: Optional[anyio.abc.CancelScope] = None
+    log_prints: bool = False
 
     # Result handling
     result_factory: ResultFactory

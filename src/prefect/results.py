@@ -254,7 +254,9 @@ class ResultFactory(pydantic.BaseModel):
                 storage_block._block_document_id
                 # TODO: Overwrite is true to avoid issues where the save collides with
                 #       a previously saved document with a matching hash
-                or await storage_block._save(is_anonymous=True, overwrite=True)
+                or await storage_block._save(
+                    is_anonymous=True, overwrite=True, client=client
+                )
             )
         elif isinstance(result_storage, str):
             storage_block = await Block.load(result_storage, client=client)
@@ -401,6 +403,8 @@ class PersistedResult(BaseResult):
     storage_block_id: uuid.UUID
     storage_key: str
 
+    _should_cache_object: bool = pydantic.PrivateAttr(default=True)
+
     @sync_compatible
     @inject_client
     async def get(self, client: "OrionClient") -> R:
@@ -412,7 +416,9 @@ class PersistedResult(BaseResult):
 
         blob = await self._read_blob(client=client)
         obj = blob.serializer.loads(blob.data)
-        self._cache_object(obj)
+
+        if self._should_cache_object:
+            self._cache_object(obj)
 
         return obj
 
@@ -455,6 +461,8 @@ class PersistedResult(BaseResult):
         if cache_object:
             # Attach the object to the result so it's available without deserialization
             result._cache_object(obj)
+
+        object.__setattr__(result, "_should_cache_object", cache_object)
 
         return result
 

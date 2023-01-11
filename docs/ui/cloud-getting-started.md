@@ -1,5 +1,6 @@
 ---
 description: Get started using Prefect Cloud, including creating a workspace and running a flow deployment.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -16,11 +17,11 @@ tags:
 The following sections will get you set up and using Prefect Cloud, using these steps:
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
-2. [Create workspaces](#create-a-workspace) for your account.
-3. [Create an API key](#create-an-api-key) to authorize a local execution environment.
-4. [Configure Orion settings](#configure-orion-for-cloud) to use Prefect Cloud.
-5. [Configure storage](#configure-storage).
-6. [Run a flow](#run-a-flow-with-cloud) and view flow results in Prefect Cloud.
+1. [Create workspaces](#create-a-workspace) for your account.
+1. [Create an API key](#create-an-api-key) to authorize a local execution environment.
+1. [Configure a local execution environment](#configure-a-local-execution-environment) to use Prefect Cloud.
+1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
+1. [Run a flow from a deployment](#run-a-flow-from-a-deployment), enabling remote execution of flow runs.
 
 ## Sign in or register
 
@@ -29,7 +30,7 @@ To sign in with an existing account or register an account, go to [https://app.p
 You can create an account with:
 
 - Google account
-- GitHub account
+- Microsoft (GitHub) account
 - Email and password
 
 ## Create a workspace
@@ -52,14 +53,6 @@ If you change your mind, you can select **Workspace Settings** to modify the wor
 
 ![Editing workspace settings in the Prefect Cloud UI](/img/ui/cloud-workspace-settings.png)
 
-**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with the workspace.
-
-<div class="terminal">
-```bash
-$ prefect cloud workspace set --workspace "prefect/workinonit"
-```
-</div>
-
 !!! warning "Deleting a workspace"
     Deleting a workspace removes any flows, deployments, and storage created on that workspace.
 
@@ -79,13 +72,13 @@ Select the **+** button to create a new API key. You're prompted to provide a na
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
-## Configure execution environment
+## Configure a local execution environment
 
-Now configure a local execution environment to use Prefect Cloud as the API server for flow runs.
+Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 
 First, [Install Prefect](/getting-started/installation/) in the environment in which you want to execute flow runs.
 
-Next, use the Prefect CLI `prefect cloud login` command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
+Next, use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment, using the [API key](#create-an-api-key) generated previously.
 
 <div class="terminal">
 ```bash
@@ -115,6 +108,23 @@ Now you're ready to run flows locally and have the results displayed in the Pref
 
 You can log out of Prefect Cloud by switching to a different profile.
 
+!!! cloud-ad "Interactive login to Prefect Cloud"
+    The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you may log in with either an API key or through a browser.
+
+    <div class="terminal">
+    ```bash
+    $ prefect cloud login
+    ? How would you like to authenticate? [Use arrows to move; enter to select]
+      Log in with a web browser
+    > Paste an authentication key
+    Paste your authentication key:
+    ? Which workspace would you like to use? [Use arrows to move; enter to select]
+    > prefect/workinonit
+      g-gadflow/g-workspace
+    Authenticated with Prefect Cloud! Using workspace 'prefect/workinonit'.
+    ```
+    </div>
+
 ### Changing workspaces
 
 If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
@@ -126,6 +136,16 @@ $ prefect cloud workspace set --workspace "prefect/workinonit"
 </div>
 
 If no workspace is provided, you will be prompted to select one.
+
+**Workspace Settings** also shows you the `prefect cloud workspace set` Prefect CLI command you can use to sync a local execution environment with a given workspace.
+
+You may also use the `prefect cloud login` command with the `--workspace` or `-w` option to set the current workspace.
+
+<div class="terminal">
+```bash
+$ prefect cloud login --workspace "prefect/workinonit"
+```
+</div>
 
 ### Manually configuring Cloud settings
 
@@ -142,11 +162,8 @@ When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` val
 
 In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect orion start`. See [Settings](/concepts/settings/) for details.
 
-## Configure storage 
-
-When using Prefect Cloud, we recommend configuring remote storage for persisting flow and task data. See [Storage](/concepts/storage/) for details.
-
-By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or running tasks with distributed computing tools like Dask and Ray.
+!!! note "Environment variables"
+    You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
 
 ## Run a flow with Prefect Cloud
 
@@ -194,6 +211,14 @@ To run a flow from a deployment with Prefect Cloud, you'll need to:
 - Create the deployment using the Prefect CLI
 - Start an agent in your execution environment
 - Run your deployment to create a flow run
+
+### Configure storage 
+
+For the Prefect Cloud quickstart, we'll use local storage. You don't need to set up any remote storage to complete this tutorial. 
+
+When using Prefect Cloud in production, we recommend configuring remote storage. Storage is used to make flow scripts available when creating flow runs via API in remote execution environments. Storage is also used for persisting flow and task data. See [Storage](/concepts/storage/) for details.
+
+By default, Prefect uses local file system storage to persist flow code and flow and task results. For local development and testing this may be adequate. Be aware, however, that local storage is not guaranteed to persist data reliably between flow or task runs, particularly when using container-based environments such as Docker or Kubernetes, or when executing tasks with distributed computing tools like Dask and Ray.
 
 ### Create a deployment
 

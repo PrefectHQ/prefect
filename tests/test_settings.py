@@ -202,6 +202,17 @@ class TestSettingsClass:
         with pytest.raises(pydantic.ValidationError, match="Unknown level"):
             Settings(**{log_level_setting.name: "FOOBAR"})
 
+    @pytest.mark.parametrize(
+        "log_level_setting",
+        [
+            PREFECT_LOGGING_LEVEL,
+            PREFECT_LOGGING_SERVER_LEVEL,
+        ],
+    )
+    def test_settings_uppercases_log_levels(self, log_level_setting):
+        with temporary_settings({log_level_setting: "debug"}):
+            assert log_level_setting.value() == "DEBUG"
+
     def test_equality_of_new_instances(self):
         assert Settings() == Settings()
 

@@ -14,7 +14,7 @@ import orjson
 import pendulum
 import pydantic
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretField
 from pydantic.json import custom_pydantic_encoder
 
 T = TypeVar("T")
@@ -124,15 +124,18 @@ def orjson_dumps(v: Any, *, default: Any) -> str:
     return orjson.dumps(v, default=default).decode()
 
 
-def orjson_dumps_non_str_keys(v: Any, *, default: Any) -> str:
+def orjson_dumps_extra_compatible(v: Any, *, default: Any) -> str:
     """
-    Utility for dumping a value to JSON using orjson, but allows for non-string keys.
-    This is helpful for situations like pandas dataframes, which can result in
-    non-string keys.
+    Utility for dumping a value to JSON using orjson, but allows for
+    1) non-string keys: this is helpful for situations like pandas dataframes,
+    which can result in non-string keys
+    2) numpy types: for serializing numpy arrays
 
     orjson.dumps returns bytes, to match standard json.dumps we need to decode.
     """
-    return orjson.dumps(v, default=default, option=orjson.OPT_NON_STR_KEYS).decode()
+    return orjson.dumps(
+        v, default=default, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
+    ).decode()
 
 
 class PrefectBaseModel(BaseModel):
@@ -156,6 +159,14 @@ class PrefectBaseModel(BaseModel):
             extra = "forbid"
         else:
             extra = "ignore"
+
+        json_encoders = {
+            # Uses secret fields and strange logic to avoid a circular import error
+            # for Secret dict in prefect.blocks.fields
+            SecretField: lambda v: v.dict()
+            if getattr(v, "dict", None)
+            else str(v)
+        }
 
         pydantic_version = getattr(pydantic, "__version__", None)
         if pydantic_version is not None and Version(pydantic_version) >= Version(
@@ -226,14 +237,11 @@ class PrefectBaseModel(BaseModel):
         if include_secrets:
             if "encoder" in kwargs:
                 raise ValueError(
-                    "Alternative encoder provided; can not set encoder for SecretStr and SecretBytes."
+                    "Alternative encoder provided; can not set encoder for SecretFields."
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,
-                {
-                    SecretStr: lambda v: v.get_secret_value() if v else None,
-                    SecretBytes: lambda v: v.get_secret_value() if v else None,
-                },
+                {SecretField: lambda v: v.get_secret_value() if v else None},
             )
         return super().json(*args, **kwargs)
 

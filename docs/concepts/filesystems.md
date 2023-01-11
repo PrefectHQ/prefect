@@ -12,10 +12,11 @@ tags:
 
 A filesystem block is an object that allows you to read and write data from paths. Prefect provides multiple built-in file system types that cover a wide range of use cases. 
 
-- [`LocalFileSystem`](#local-file-system)
+- [`LocalFileSystem`](#local-filesystem)
 - [`RemoteFileSystem`](#remote-file-system)
 - [`Azure`](#azure)
 - [`GitHub`](#github)
+- [`GitLab`](#gitlab)
 - [`GCS`](#gcs)
 - [`S3`](#s3)
 - [`SMB`](#smb)
@@ -154,9 +155,47 @@ To use it in a deployment:
 
 <div class="terminal">
 ```bash
-prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb github/dev
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb github/dev -a
 ```
 </div>
+
+
+## GitLabRepository
+
+The `GitLabRepository` block is read-only and works with private GitLab repositories.
+
+`GitLabRepository` properties include:
+
+| Property | Description |
+| --- | --- |
+| reference | An optional reference to pin to, such as a branch name or tag. |
+| repository | The URL of a GitLab repository to read from, in either HTTPS or SSH format. |
+| credentials | A `GitLabCredentials` block with Personal Access Token (PAT) with `read_repository` scope. |
+
+To create a block:
+
+```python
+from prefect_gitlab.credentials import GitLabCredentials
+from prefect_gitlab.repositories import GitLabRepository
+
+gitlab_creds = GitLabCredentials(token="YOUR_GITLAB_ACCESS_TOKEN")
+gitlab_repo = GitLabRepository(
+    repository="https://gitlab.com/yourorg/yourrepo.git",
+    reference="main",
+    credentials=gitlab_creds,
+)
+gitlab_repo.save("dev")
+```
+
+To use it in a deployment (and apply):
+
+<div class="terminal">
+```bash
+prefect deployment build path/to/flow.py:flow_name --name deployment_name --tag dev -sb gitlab-repository/dev -a
+```
+</div>
+
+Note that to use this block, you need to install the [`prefect-gitlab`](https://github.com/PrefectHQ/prefect-gitlab) collection.
 
 ## GCS
 

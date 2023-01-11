@@ -1,6 +1,5 @@
 ::: prefect.orion.orchestration.core_policy
-    selection:
+    options:
       inherited_members: false
       filters: ["!^_"]
-    rendering:
       members_order: source

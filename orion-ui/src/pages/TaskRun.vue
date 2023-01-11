@@ -1,7 +1,7 @@
 <template>
   <p-layout-well v-if="taskRun" class="task-run">
     <template #header>
-      <PageHeadingTaskRun :task-run="taskRun" @delete="goToFlowRun" />
+      <PageHeadingTaskRun :task-run-id="taskRun.id" @delete="goToFlowRun" />
     </template>
 
     <p-tabs :tabs="tabs">
@@ -33,7 +33,7 @@
   import { routes } from '@/router'
 
   const router = useRouter()
-  const taskRunId = useRouteParam('id')
+  const taskRunId = useRouteParam('taskRunId')
   const api = useWorkspaceApi()
 
   const tabs = computed(() => {
@@ -47,7 +47,7 @@
   })
 
   const taskRunIdArgs = computed<[string] | null>(() => taskRunId.value ? [taskRunId.value] : null)
-  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs)
+  const taskRunDetailsSubscription = useSubscriptionWithDependencies(api.taskRuns.getTaskRun, taskRunIdArgs, { interval: 30000 })
   const taskRun = computed(() => taskRunDetailsSubscription.response)
 
   const flowRunId = computed(() => taskRun.value?.flowRunId)

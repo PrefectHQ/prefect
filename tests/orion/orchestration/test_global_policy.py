@@ -5,8 +5,10 @@ import pytest
 
 from prefect.orion import models
 from prefect.orion.orchestration.global_policy import (
-    IncrementRunCount,
+    IncrementFlowRunCount,
     IncrementRunTime,
+    IncrementTaskRunCount,
+    RemoveResumingIndicator,
     SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
@@ -230,10 +232,15 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
+        if run_type == "task":
+            run_incrementer = IncrementTaskRunCount
+        else:
+            run_incrementer = IncrementFlowRunCount
+
         run = ctx.run
         assert run.run_count == 0
 
-        async with IncrementRunCount(ctx, *intended_transition) as ctx:
+        async with run_incrementer(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 1
@@ -253,10 +260,15 @@ class TestGlobalPolicyRules:
             *intended_transition,
         )
 
+        if run_type == "task":
+            run_incrementer = IncrementTaskRunCount
+        else:
+            run_incrementer = IncrementFlowRunCount
+
         run = ctx.run
         run.run_count = 41
 
-        async with IncrementRunCount(ctx, *intended_transition) as ctx:
+        async with run_incrementer(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert run.run_count == 42
@@ -492,3 +504,55 @@ async def test_child_flow_run_states_include_parent_task_run_id(
     assert ctx.run.state.type == proposed_state_type
     # the chld flow run points to the parent task run
     assert ctx.run.state.state_details.task_run_id == parent_task_run.id
+
+
+class TestPausingRules:
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.PAUSED, states.StateType.PENDING]
+    )
+    async def test_rule_unsets_resuming_indicator_on_running(
+        self,
+        session,
+        initial_state_type,
+        initialize_orchestration,
+    ):
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            resuming=True,
+        )
+
+        assert ctx.run.empirical_policy.resuming
+        async with RemoveResumingIndicator(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+        assert not ctx.run.empirical_policy.resuming
+
+    @pytest.mark.parametrize(
+        "initial_state_type", [states.StateType.PAUSED, states.StateType.PENDING]
+    )
+    async def test_running_resuming_flow_does_not_increment_run_count(
+        self,
+        session,
+        initial_state_type,
+        initialize_orchestration,
+    ):
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+            resuming=True,
+            flow_run_count=42,
+        )
+
+        assert ctx.run.empirical_policy.resuming
+        assert ctx.run.run_count == 42
+
+        async with IncrementFlowRunCount(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.run.run_count == 42

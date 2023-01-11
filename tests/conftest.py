@@ -41,6 +41,8 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
@@ -49,9 +51,9 @@ from prefect.settings import (
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
@@ -292,12 +294,11 @@ def pytest_sessionstart(session):
             PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
             PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
             PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+            PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
             PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
-            # Use more aggressive database timeouts during testing
-            PREFECT_ORION_DATABASE_TIMEOUT: 1,
         },
         source=__file__,
     )
@@ -451,3 +452,28 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """
+    Overrides caplog to apply to all of our loggers that do not propagate and
+    consequently would not be captured by caplog.
+    """
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+
+    for name, logger_config in PROCESS_LOGGING_CONFIG["loggers"].items():
+        if not logger_config.get("propagate", True):
+            logger = logging.getLogger(name)
+            if caplog.handler not in logger.handlers:
+                logger.handlers.append(caplog.handler)
+
+    yield caplog
+
+
+@pytest.fixture
+def enable_workers():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
+    ):
+        yield
