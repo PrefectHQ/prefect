@@ -60,7 +60,7 @@ class BaseJobConfiguration(BaseModel):
         job_config = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
         variables = cls._base_variables_from_variable_properties(
-            variables_schema["variables"]
+            variables_schema["properties"]
         )
         variables.update(deployment_overrides)
 
