@@ -133,7 +133,32 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+
+    @declared_attr
+    def result_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
+
+    @declared_attr
+    def _result(cls):
+        return sa.orm.relationship(
+            "Artifact.artifact_data",
+            lazy="joined",
+            foreign_keys=[cls.result_id],
+            primaryjoin="Artifact.id==%s.result_id" % cls.__name__,
+            back_populates="flow_run_state",
+        )
+
+    @hybrid_property
+    def result(self):
+        return self._result
 
     @declared_attr
     def flow_run(cls):
@@ -187,7 +212,32 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+
+    @declared_attr
+    def result_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
+
+    @declared_attr
+    def _result(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="joined",
+            foreign_keys=[cls.result_id],
+            primaryjoin="Artifact.id==%s.result_id" % cls.__name__,
+            back_populates="task_run_state",
+        )
+
+    @hybrid_property
+    def result(self):
+        return self._result
 
     @declared_attr
     def task_run(cls):
@@ -220,9 +270,9 @@ class ORMArtifact:
 
     key = sa.Column(
         sa.String,
-        default=uuid.uuid4,
         nullable=True,
         index=True,
+        unique=True,
     )
 
     @declared_attr
@@ -232,9 +282,25 @@ class ORMArtifact:
         )
 
     @declared_attr
+    def task_run(cls):
+        return sa.orm.relationship(
+            "TaskRun",
+            lazy="raise",
+            foreign_keys=[cls.task_run_id],
+        )
+
+    @declared_attr
     def flow_run_id(cls):
         return sa.Column(
             UUID(), sa.ForeignKey("flow_run.id"), nullable=True, index=True
+        )
+
+    @declared_attr
+    def flow_run(cls):
+        return sa.orm.relationship(
+            "FlowRun",
+            lazy="raise",
+            foreign_keys=[cls.flow_run_id],
         )
 
     type = sa.Column(sa.String, name="artifact_type")
