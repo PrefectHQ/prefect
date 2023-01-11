@@ -13,7 +13,14 @@ tags:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud allow for increased flexibility and control of your data stack by allowing you to configure [triggers](#triggers) and [actions](#actions). Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work queues. 
+
+Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+
+!!! cloud-ad "Automations are only available in Prefect Cloud"
+    [Notifications](/ui/notifications/) in the open-source Prefect Orion server provide a subset of the notification message-sending features avaiable in Automations.
+
+## Automations overview
 
 The **Automations** page provides an overview of all configured automations for your workspace.
 
@@ -23,13 +30,23 @@ Selecting the toggle next to an automation pauses execution of the automation.
 
 The button next to the toggle provides commands to copy the automation ID, edit the automation, or delete the automation.
 
+Select the name of an automation to view **Details** about it.
+
+![Viewing details of an automation in Prefect Cloud.](/img/ui/automations-detail-tab.png)
+
+The **Events** tab displays a list of triggers and actions related to the automation. You can filter the list on date or event type. Select the timestamp of an event to see further details.
+
+![Viewing events that triggered an automation in Prefect Cloud.](/img/ui/automations-event-tab.png)
+
+## Create an automation
+
 On the **Automations** page, select the **+** icon to create a new automation. You'll be prompted to configure:
 
 - A [trigger](#triggers) condition that causes the automation to execute.
 - One or more [actions](#actions) carried out by the automation.
 - [Details](#details) about the automation, such as a name and description.
 
-## Triggers
+### Triggers
 
 Triggers specify the conditions under which your action should be performed. Triggers can be of several types, including triggers based on: 
 
@@ -45,7 +62,7 @@ For example, in the case of flow run state change triggers, you might expect pro
 !!! note "Work queue health"
     A work queue is "unhealthy" if it has not been polled in over 60 seconds and has one or more late runs.
 
-## Actions
+### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
 
@@ -71,7 +88,7 @@ Similarly, if a trigger fires on work queue health and the action is to pause an
 
 Prefect tries to infer the relevant event whenever possible, but sometimes one does not exist.
 
-## Details
+### Details
 
 Specify a name and, optionally, a description for the automation.
 
@@ -100,6 +117,17 @@ The notification body can include templated variables using [Jinja](https://pall
 
 Jinja templated variable syntax wraps the variable name in double curly brackets, like `{{ variable }}`.
 
+You can access properties of the underlying flow run objects including:
+
+- [flow_run](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRun)
+- [flow](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Flow)
+- [deployment](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Deployment)
+- [work_queue](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.WorkQueue)
+
+In addition, each object includes an `id` UUID and `created` and `updated` timestamps. 
+
+The `flow_run|ui_url` token returns the URL for viewing the flow run in Prefect Cloud.
+
 Here’s an example for something that would be relevant to a flow run state-based notification:
 
 ```
@@ -114,6 +142,28 @@ Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 The resulting Slack webhook notification would look something like this:
 
 ![Configuring notifications for an automation in Prefect Cloud.](/img/ui/templated-notification.png)
+
+You could include flow and deployment details.
+
+```
+Flow run {{ flow_run.name }} for flow {{ flow.name }}
+entered state {{ flow_run.state.name }}
+with message {{ flow_run.state.message }}
+
+Flow tags: {{ flow.tags }}
+Deployment name: {{ deployment.name }}
+Deployment version: {{ deployment.version }}
+Deployment parameters: {{ deployment.parameters }}
+```
+
+An automation reporting on work queue health might include notifications using work queue details.
+
+```
+Work queue health alert!
+
+Name: {{ work_queue.name }}
+Last polled: {{ work_queue.last_polled }}
+```
 
 ## Automations API 
 
