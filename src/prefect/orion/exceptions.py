@@ -12,3 +12,9 @@ class ObjectNotFoundError(PrefectException):
 
 class OrchestrationError(PrefectException):
     """An error raised while orchestrating a state transition"""
+
+
+class MissingVariableError(PrefectException):
+    """An error raised by the Orion API when attempting to create or update a
+    deployment with missing required variables.
+    """
