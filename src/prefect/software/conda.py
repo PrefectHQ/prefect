@@ -43,9 +43,10 @@ from prefect.utilities.collections import listrepr
 #       unless grouped with a build specifier.
 
 CONDA_REQUIREMENT = re.compile(
-    r"^(?P<name>[0-9A-Za-z_\-\.]+)"
+    r"^((?P<channel>[0-9A-Za-z\_\-\/]+)::)?"
+    r"(?P<name>[0-9A-Za-z_\-\.]+)"
     r"((?P<version_specifier>[>=<]+)(?P<version>[0-9a-zA-Z\.]+))?"
-    r"((?P<build_specifier>=)(?P<build>[0-9A-Za-z\_]+))?$"
+    r"((?P<build_specifier>=)(?P<build>[0-9A-Za-z\_\[\]\=]+))?$"
 )
 
 
