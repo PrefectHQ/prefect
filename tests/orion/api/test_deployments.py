@@ -456,7 +456,7 @@ class TestCreateDeployment:
                 {
                     "job_configuration": {"thing_one": "{{ var1 }}"},
                     "variables": {
-                        "variables": {
+                        "properties": {
                             "var1": {
                                 "type": "string",
                             }
@@ -473,7 +473,7 @@ class TestCreateDeployment:
                         "thing_two": "{{ var2 }}",
                     },
                     "variables": {
-                        "variables": {
+                        "properties": {
                             "var1": {
                                 "type": "string",
                             },
@@ -536,7 +536,7 @@ class TestCreateDeployment:
                 {
                     "job_configuration": {"thing_one": "{{ var1 }}"},
                     "variables": {
-                        "variables": {"var1": {"type": "string", "default": "hello"}},
+                        "properties": {"var1": {"type": "string", "default": "hello"}},
                         "required": [],
                     },
                 },
@@ -548,7 +548,7 @@ class TestCreateDeployment:
                         "thing_one": "{{ var1 }}",
                     },
                     "variables": {
-                        "variables": {
+                        "properties": {
                             "var1": {
                                 "type": "string",
                             },
@@ -565,7 +565,7 @@ class TestCreateDeployment:
                         "thing_one": "{{ var2 }}",
                     },
                     "variables": {
-                        "variables": {
+                        "properties": {
                             "var1": {
                                 "type": "string",
                             },
