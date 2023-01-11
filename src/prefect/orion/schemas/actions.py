@@ -146,7 +146,7 @@ class DeploymentCreate(ActionBaseModel):
         variables_schema = base_job_template.get("variables")
         schema = {
             "type": "object",
-            "properties": variables_schema["variables"],
+            "properties": variables_schema["properties"],
             "required": variables_schema["required"],
         }
         jsonschema.validate(self.infra_overrides, schema)
