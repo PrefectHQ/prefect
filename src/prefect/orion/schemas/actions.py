@@ -16,7 +16,7 @@ from prefect.orion.utilities.schemas import (
     FieldFrom,
     PrefectBaseModel,
     copy_model_fields,
-    orjson_dumps_non_str_keys,
+    orjson_dumps_extra_compatible,
 )
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -313,7 +313,7 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_non_str_keys
+        json_dumps = orjson_dumps_extra_compatible
 
 
 @copy_model_fields

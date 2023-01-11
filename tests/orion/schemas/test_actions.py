@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import numpy as np
 import pytest
 
 from prefect.orion.schemas.actions import (
@@ -18,7 +19,11 @@ from prefect.orion.schemas.actions import (
         (
             {"df": {"col": {0: "1"}}},
             {"df": {"col": {"0": "1"}}},
-        ),  # Example of serialzied dataframe parameter with int key
+        ),  # Example of serialized dataframe parameter with int key
+        (
+            {"df": {"col": {0: np.float64(1.0)}}},
+            {"df": {"col": {"0": 1.0}}},
+        ),  # Example of serialized dataframe parameter with numpy value
     ],
 )
 class TestFlowRunCreate:
