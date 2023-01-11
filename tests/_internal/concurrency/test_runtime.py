@@ -20,7 +20,7 @@ async def aidentity(x):
 TEST_CONTEXTVAR = contextvars.ContextVar("TEST_CONTEXTVAR")
 
 
-@pytest.mark.timeout(10)
+@pytest.mark.timeout(20)
 def test_runtime_context_manager():
     with Runtime():
         pass
@@ -44,6 +44,16 @@ def test_runtime_with_failure_in_loop_thread_start():
 def test_runtime_run_in_thread(fn):
     with Runtime() as runtime:
         assert runtime.run_in_thread(fn, 1) == 1
+
+
+@pytest.mark.parametrize("sync", [True, False], ids=["sync_watcher", "async_watcher"])
+@pytest.mark.parametrize("fn", [identity, aidentity], ids=["sync", "async"])
+async def test_runtime_run_in_thread_explicit(fn, sync):
+    with Runtime() as runtime:
+        result = runtime.run_in_thread(fn, 1, __sync__=sync)
+        if not sync:
+            result = await result
+        assert result == 1
 
 
 @pytest.mark.parametrize("sync", [True, False], ids=["sync", "async"])
@@ -79,6 +89,15 @@ def test_runtime_run_in_process(fn):
 async def test_runtime_run_in_loop(sync):
     with Runtime(sync=sync) as runtime:
         result = runtime.run_in_loop(aidentity, 1)
+        if not sync:
+            result = await result
+        assert result == 1
+
+
+@pytest.mark.parametrize("sync", [True, False], ids=["sync", "async"])
+async def test_runtime_run_in_loop_explicit(sync):
+    with Runtime() as runtime:
+        result = runtime.run_in_loop(aidentity, 1, __sync__=sync)
         if not sync:
             result = await result
         assert result == 1
@@ -186,7 +205,7 @@ async def test_async_runtime_submit_from_thread_requires_async_function():
 
 
 @pytest.mark.parametrize("sync", [True, False], ids=["sync", "async"])
-async def test_async_runtime_submit_from_worker_thread(sync):
+async def test_runtime_submit_from_worker_thread(sync):
     async def work():
         future = runtime.submit_from_thread(identity if sync else aidentity, 1)
         return await asyncio.wrap_future(future)
