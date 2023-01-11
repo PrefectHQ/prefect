@@ -686,6 +686,172 @@ class TestCreateDeployment:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with wrong overrides
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_two": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1", "var2"],
+                    },
+                },
+                {"var2": "hello"},  # wrong override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_bad_template_override_combo_fails(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Worker Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 409
+        assert (
+            "<ValidationError: \"'var1' is a required property\">"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides, no required
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {"var1": {"type": "string", "default": "hello"}},
+                        "required": [],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with override
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+            (  # test with override and multiple variables
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_one": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {"type": "string", "default": "world"},
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_correct_template_override_combo_succeeds(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Worker Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
 
 class TestReadDeployment:
     async def test_read_deployment(
