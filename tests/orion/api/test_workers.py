@@ -282,7 +282,7 @@ class TestUpdateWorkPool:
         )
         await session.commit()
 
-        base_job_template["variables"]["variables"]["command"]["default"] = ["woof!"]
+        base_job_template["variables"]["properties"]["command"]["default"] = ["woof!"]
         response = await client.patch(
             f"/experimental/work_pools/{name}",
             json=dict(base_job_template=base_job_template),
@@ -293,7 +293,7 @@ class TestUpdateWorkPool:
         result = await models.workers.read_work_pool(
             session=session, work_pool_id=pool.id
         )
-        assert result.base_job_template["variables"]["variables"]["command"][
+        assert result.base_job_template["variables"]["properties"]["command"][
             "default"
         ] == ["woof!"]
 
