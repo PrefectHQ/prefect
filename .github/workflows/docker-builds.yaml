@@ -67,9 +67,10 @@ jobs:
         id: metadata-prod
         uses: docker/metadata-action@v4
         with:
+          # only generate the production tags on release events
           images: prefecthq/prefect,enable=${{ github.event_name == 'release' }}
           tags: |
-            type=raw,enable=${{ matrix.python-version == '3.10' }},value=2-latest
+            type=raw,enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false }},value=2-latest
             type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}
             type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}
             type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}
@@ -90,6 +91,7 @@ jobs:
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true
+          pull: true
           # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
           cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}
           cache-to: ${{ ( github.event_name == 'push' && env.CACHE_TO_STRING ) || '' }}
