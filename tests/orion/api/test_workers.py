@@ -73,13 +73,30 @@ class TestCreateWorkPool:
         assert result.concurrency_limit == 5
 
     async def test_create_work_pool_with_template(self, client):
+        base_job_template = {
+            "job_configuration": {
+                "command": "{{ command }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    }
+                },
+                "required": [],
+            },
+        }
+
         response = await client.post(
             "/experimental/work_pools/",
-            json=dict(name="Pool 1", base_job_template={"foo": "bar", "x": ["y"]}),
+            json=dict(name="Pool 1", base_job_template=base_job_template),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
-        assert result.base_job_template == {"foo": "bar", "x": ["y"]}
+        assert result.base_job_template == base_job_template
 
     async def test_create_duplicate_work_pool(self, client, work_pool):
         response = await client.post(
@@ -107,6 +124,45 @@ class TestCreateWorkPool:
         response = await client.post("/experimental/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert "reserved for internal use" in response.json()["detail"]
+
+    async def test_create_work_pool_template_validation_missing_keys(self, client):
+        response = await client.post(
+            "/experimental/work_pools/",
+            json=dict(name="Pool 1", base_job_template={"foo": "bar", "x": ["y"]}),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The `base_job_template` must contain both a `job_configuration` key and a `variables` key."
+            in response.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_create_work_pool_template_validation_missing_variables(self, client):
+        missing_variable_template = {
+            "job_configuration": {
+                "command": "{{ other_variable }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
+            },
+        }
+        response = await client.post(
+            "/experimental/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_variable_template),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The variables specified in the job configuration template must be present as "
+            "attributes in the variables class. Your job expects the following variables: "
+            "{'other_variable'}, but your template provides: {'command'}"
+        ) in response.json()["exception_detail"][0]["msg"]
 
 
 class TestDeleteWorkPool:
@@ -203,15 +259,33 @@ class TestUpdateWorkPool:
 
     async def test_update_work_pool_template(self, session, client):
         name = "Pool 1"
+
+        base_job_template = {
+            "job_configuration": {
+                "command": "{{ command }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
+            },
+        }
         pool = await models.workers.create_work_pool(
             session=session,
-            work_pool=WorkPoolCreate(name=name, base_job_template={"a": "b"}),
+            work_pool=WorkPoolCreate(name=name, base_job_template=base_job_template),
         )
         await session.commit()
 
+        base_job_template["variables"]["properties"]["command"]["default"] = ["woof!"]
         response = await client.patch(
             f"/experimental/work_pools/{name}",
-            json=dict(base_job_template={"c": "d"}),
+            json=dict(base_job_template=base_job_template),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -219,7 +293,71 @@ class TestUpdateWorkPool:
         result = await models.workers.read_work_pool(
             session=session, work_pool_id=pool.id
         )
-        assert result.base_job_template == {"c": "d"}
+        assert result.base_job_template["variables"]["properties"]["command"][
+            "default"
+        ] == ["woof!"]
+
+    async def test_update_work_pool_template_validation_missing_keys(
+        self, client, session
+    ):
+        name = "Pool 1"
+
+        pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=WorkPoolCreate(name=name),
+        )
+        await session.commit()
+
+        session.expunge_all()
+
+        response = await client.patch(
+            f"/experimental/work_pools/{name}",
+            json=dict(name=name, base_job_template={"foo": "bar", "x": ["y"]}),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The `base_job_template` must contain both a `job_configuration` key and a `variables` key."
+            in response.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_create_work_pool_template_validation_missing_variables(
+        self, client, session
+    ):
+        name = "Pool 1"
+        missing_variable_template = {
+            "job_configuration": {
+                "command": "{{ other_variable }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
+            },
+        }
+        pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=WorkPoolCreate(name=name),
+        )
+        await session.commit()
+
+        session.expunge_all()
+
+        response = await client.patch(
+            f"/experimental/work_pools/{name}",
+            json=dict(name=name, base_job_template=missing_variable_template),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The variables specified in the job configuration template must be present as "
+            "attributes in the variables class. Your job expects the following variables: "
+            "{'other_variable'}, but your template provides: {'command'}"
+        ) in response.json()["exception_detail"][0]["msg"]
 
 
 class TestReadWorkPool:
