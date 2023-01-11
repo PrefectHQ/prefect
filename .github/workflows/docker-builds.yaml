@@ -64,13 +64,14 @@ jobs:
             suffix=${{ matrix.flavor }}
 
       - name: Export LATEST_TAG
+        # https://stackoverflow.com/a/75079768/5511061
         run: |
           echo "LATEST_TAG=$(curl -qsSL \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "${{ github.api_url }}/repos/${{ github.repository }}/releases/latest" \
-          | jq .tag_name)" >> $GITHUB_ENV
+          | jq -r .tag_name)" >> $GITHUB_ENV
 
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
