@@ -115,3 +115,10 @@ Prefect Cloud automations enable you to configure triggers and actions that can 
 To create an account or sign in with an existing Prefect Cloud account, go to [http://app.prefect.cloud/](http://app.prefect.cloud/).
 
 Then see [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) to set up your profile and workspace, configure your workflow execution environment, and start running workflows with Prefect Cloud.
+
+## Prefect Cloud REST API
+
+The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Orion clients to Prefect Cloud or a local Prefect Orion server so that orchestration can be performed. This API is mainly consumed by Orion clients like the Prefect Python Client or the Orion Dashboard.
+
+!!! note "Prefect Cloud REST API interactive documentation"
+    Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
