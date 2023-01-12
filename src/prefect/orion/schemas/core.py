@@ -1040,3 +1040,16 @@ class WorkPoolQueue(ORMBaseModel):
 
 Flow.update_forward_refs()
 FlowRun.update_forward_refs()
+
+
+class Artifact(ORMBaseModel):
+    key: Optional[str] = Field(
+        default=None, description="An optional unique reference key for this artifact."
+    )
+    type: Optional[str] = Field(
+        default=None, description="An identifier for how this artifact is persisted."
+    )
+    artifact_data: dict = Field(description="The data contained by this artifact.")
+    artifact_metadata: Optional[dict] = Field(
+        default=None, description="Artifact metadata used for the UI."
+    )
