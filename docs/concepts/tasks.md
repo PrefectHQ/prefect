@@ -235,6 +235,38 @@ def cached_task():
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
+### Refreshing the cache
+
+Sometimes, you want a task to update the data associated with its cache key instead of using the cache. This is a cache "refresh".
+
+The `refresh_cache` option can be used to enable this behavior for a specific task:
+
+```python
+import random
+
+
+def static_cache_key(context, parameters):
+    # return a constant
+    return "static cache key"
+
+
+@task(cache_key_fn=static_cache_key, refresh_cache=True)
+def caching_task():
+    return random.random()
+```
+
+When this task runs, it will _always_ update the cache key instead of using the cached value. This is particularly useful when you have a flow that is responsible for updating the cache.
+
+If you want to refresh the cache for all tasks, you can use the `PREFECT_TASKS_REFRESH_CACHE` setting. Setting `PREFECT_TASKS_REFRESH_CACHE=true` will change the default behavior of all tasks to refresh. This is particularly useful if you want to rerun a flow without cached results.
+
+If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache &mdash; if a cache key exists it will be read, not updated. Note that, if a cache key does _not_ exist yet, these tasks can still write to the cache.
+
+```python
+@task(cache_key_fn=static_cache_key, refresh_cache=False)
+def caching_task():
+    return random.random()
+```
+
 ## Timeouts
 
 Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
