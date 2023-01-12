@@ -5,7 +5,7 @@
 ### Flow run timeline view
 
 We're excited to announce that a new timeline graph has been added to the flow run page. 
-This view helps visualize how execution of your flow run takes place in time, opposed to the radar view that focuses on the structure of dependencies between task runs.
+This view helps visualize how execution of your flow run takes place in time, an alternative to the radar view that focuses on the structure of dependencies between task runs.
 
 ![image](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
 
