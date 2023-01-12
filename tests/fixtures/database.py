@@ -237,7 +237,7 @@ async def task_run(session, flow_run):
 
 @pytest.fixture
 async def task_run_state(session, task_run, db):
-    task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
+    task_run.set_state(db.TaskRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return task_run.state
 
