@@ -267,9 +267,6 @@ def caching_task():
     return random.random()
 ```
 
-
-
-
 ## Timeouts
 
 Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
