@@ -218,7 +218,7 @@ async def nonblocking_paused_flow_run(session, flow, deployment):
 
 @pytest.fixture
 async def flow_run_state(session, flow_run, db):
-    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
+    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return flow_run.state
 
