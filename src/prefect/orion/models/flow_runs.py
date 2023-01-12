@@ -13,7 +13,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import load_only
+from sqlalchemy.orm import joinedload, load_only
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -92,6 +92,11 @@ async def create_flow_run(
             )
             .limit(1)
             .execution_options(populate_existing=True)
+            .options(
+                joinedload(db.FlowRun.work_pool_queue).joinedload(
+                    db.WorkPoolQueue.work_pool
+                )
+            )
         )
         result = await session.execute(query)
         model = result.scalar()
@@ -150,7 +155,16 @@ async def read_flow_run(session: AsyncSession, flow_run_id: UUID, db: OrionDBInt
         db.FlowRun: the flow run
     """
 
-    return await session.get(db.FlowRun, flow_run_id)
+    result = await session.execute(
+        sa.select(db.FlowRun)
+        .where(db.FlowRun.id == flow_run_id)
+        .options(
+            joinedload(db.FlowRun.work_pool_queue).joinedload(
+                db.WorkPoolQueue.work_pool
+            )
+        )
+    )
+    return result.scalar()
 
 
 @inject_db
@@ -161,8 +175,8 @@ async def _apply_flow_run_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ):
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
@@ -178,19 +192,19 @@ async def _apply_flow_run_filters(
         )
         query = query.where(exists_clause.exists())
 
-    if worker_pool_filter:
-        exists_clause = select(db.WorkerPool).where(
-            db.WorkerPoolQueue.id == db.FlowRun.worker_pool_queue_id,
-            db.WorkerPool.id == db.WorkerPoolQueue.worker_pool_id,
-            worker_pool_filter.as_sql_filter(db),
+    if work_pool_filter:
+        exists_clause = select(db.WorkPool).where(
+            db.WorkPoolQueue.id == db.FlowRun.work_pool_queue_id,
+            db.WorkPool.id == db.WorkPoolQueue.work_pool_id,
+            work_pool_filter.as_sql_filter(db),
         )
 
         query = query.where(exists_clause.exists())
 
-    if worker_pool_queue_filter:
-        exists_clause = select(db.WorkerPoolQueue).where(
-            db.WorkerPoolQueue.id == db.FlowRun.worker_pool_queue_id,
-            worker_pool_queue_filter.as_sql_filter(db),
+    if work_pool_queue_filter:
+        exists_clause = select(db.WorkPoolQueue).where(
+            db.WorkPoolQueue.id == db.FlowRun.work_pool_queue_id,
+            work_pool_queue_filter.as_sql_filter(db),
         )
         query = query.where(exists_clause.exists())
 
@@ -231,8 +245,8 @@ async def read_flow_runs(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
@@ -254,7 +268,15 @@ async def read_flow_runs(
     Returns:
         List[db.FlowRun]: flow runs
     """
-    query = select(db.FlowRun).order_by(sort.as_sql_sort(db))
+    query = (
+        select(db.FlowRun)
+        .order_by(sort.as_sql_sort(db))
+        .options(
+            joinedload(db.FlowRun.work_pool_queue).joinedload(
+                db.WorkPoolQueue.work_pool
+            )
+        )
+    )
 
     if columns:
         query = query.options(load_only(*columns))
@@ -265,8 +287,8 @@ async def read_flow_runs(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
-        worker_pool_filter=worker_pool_filter,
-        worker_pool_queue_filter=worker_pool_queue_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 
@@ -348,6 +370,8 @@ async def count_flow_runs(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ) -> int:
     """
     Count flow runs.
@@ -371,6 +395,8 @@ async def count_flow_runs(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 

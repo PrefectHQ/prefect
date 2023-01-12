@@ -43,8 +43,8 @@ async def clear_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
     async with db.session_context(begin_transaction=True) as session:
-        # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkerPool.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
 

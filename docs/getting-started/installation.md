@@ -106,17 +106,16 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.3.2
-API version:         0.8.0
-Python version:      3.9.10
-Git commit:          ef452c04
-Built:               Thu, Sep 8, 2022 2:07 PM
-OS/Arch:             darwin/x86_64
+API version:         0.8.4
+Python version:      3.11.0
+Git commit:          d0f14f17
+Built:               Tue, Jan 3, 2023 8:46 AM
+OS/Arch:             darwin/arm64
 Profile:             default
 Server type:         ephemeral
 Server:
   Database:          sqlite
-  SQLite version:    3.32.3
+  SQLite version:    3.40.0
 ```
 </div>
 
@@ -139,13 +138,6 @@ Watch the `pip install` installation output messages for the `Scripts` folder pa
 
 If using Windows Subsystem for Linux (WSL), see [Linux installation notes](#linux-installation-notes).
 
-!!! note "Windows support is under development"
-    Support for Prefect on Windows is a work in progress.
-
-    Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI.
-
-    If you encounter unexpected issues, please let us know via a [GitHub issue](https://github.com/PrefectHQ/prefect/issues), [Prefect Discourse](https://discourse.prefect.io/) discussion groups, or the [Prefect Community Slack](https://www.prefect.io/slack/).
-
 ## Linux installation notes
 
 Currently, Prefect 2 requires SQLite 3.24 or newer.
@@ -154,6 +146,7 @@ When installing Prefect 2 and using a SQLite backend on Linux, make sure your en
 
 Known compatible releases include:
 
+- Ubuntu 22.04 LTS
 - Ubuntu 20.04 LTS
 
 You can also:
@@ -163,6 +156,21 @@ You can also:
 - [Configure a PostgeSQL database](/concepts/database/#configuring_a_postgresql_database) as the Prefect backend database.
 - [Install SQLite on Red Hat Enterprise Linux (RHEL)](#install-sqlite-on-rhel).
 - Use [Prefect Cloud](/ui/cloud/) as your API server and orchestration engine.
+
+
+## Using Self-Signed SSL Certificates
+
+If you're using a self-signed SSL certificate, you need to configure your
+environment to trust the certificate. This is usually done by adding the
+certificate to your system bundle and pointing your tools to use that bundle
+by configuring the `SSL_CERT_FILE` environment variable.
+
+If the certificate is not part of your system bundle you can set the
+`PREFECT_API_TLS_INSECURE_SKIP_VERIFY` to `True` to disable certificate
+verification altogether.
+
+***Note:*** This is not secure and so is recommended only for testing!
+
 
 ## Proxies
 
@@ -189,17 +197,18 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.*
-API version:         0.8.0
-Python version:      3.9.10
-Git commit:          ef452c04
-Built:               Thu, Sep 8, 2022 2:07 PM
-OS/Arch:             darwin/x86_64
+Version:             2.7.5
+API version:         0.8.4
+Python version:      3.11.0
+Git commit:          d0f14f17
+Built:               Tue, Jan 3, 2023 
+8:46 AM
+OS/Arch:             darwin/arm64
 Profile:             default
 Server type:         ephemeral
 Server:
   Database:          sqlite
-  SQLite version:    3.32.3
+  SQLite version:    3.40.0
 ```
 </div>
 
