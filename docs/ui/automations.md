@@ -52,6 +52,7 @@ Triggers specify the conditions under which your action should be performed. Tri
 
 - Flow run state change
 - Work queue health
+- [Custom event](#automations-api) triggers
 
 Importantly, triggers can be configured not only in reaction to events, but also proactively: to trigger in the absence of an event you expect to see.
 
@@ -124,7 +125,7 @@ You can access properties of the underlying flow run objects including:
 - [deployment](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Deployment)
 - [work_queue](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.WorkQueue)
 
-In addition, each object includes an `id` UUID and `created` and `updated` timestamps. 
+In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 
 The `flow_run|ui_url` token returns the URL for viewing the flow run in Prefect Cloud.
 
@@ -143,7 +144,7 @@ The resulting Slack webhook notification would look something like this:
 
 ![Configuring notifications for an automation in Prefect Cloud.](/img/ui/templated-notification.png)
 
-You could include flow and deployment details.
+You could include `flow` and `deployment` properties.
 
 ```
 Flow run {{ flow_run.name }} for flow {{ flow.name }}
@@ -156,7 +157,7 @@ Deployment version: {{ deployment.version }}
 Deployment parameters: {{ deployment.parameters }}
 ```
 
-An automation reporting on work queue health might include notifications using work queue details.
+An automation that reports on work queue health might include notifications using `work_queue` properties.
 
 ```
 Work queue health alert!
@@ -164,6 +165,28 @@ Work queue health alert!
 Name: {{ work_queue.name }}
 Last polled: {{ work_queue.last_polled }}
 ```
+
+In addition to those shortcuts for flows, deployments, and work queues, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
+
+```
+Automation: {{ automation.name }}
+Description: {{ automation.description }}
+
+Event: {{ event.id }}
+Resource:
+{% for label, value in event.resource %}
+{{ label }}: {{ value }}
+{% endfor %}
+Related Resources:
+{% for related in event.related %}
+    Role: {{ related.role }}
+    {% for label, value in event.resource %}
+    {{ label }}: {{ value }}
+    {% endfor %}
+{% endfor %}
+```
+
+Note that this example also illustrates the ability to use Jinja features such as iterator and for loop [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when templating notifications.
 
 ## Automations API 
 
