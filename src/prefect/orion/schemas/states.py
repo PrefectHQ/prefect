@@ -52,7 +52,19 @@ class StateDetails(PrefectBaseModel):
     refresh_cache: bool = None
 
 
-class State(IDBaseModel, Generic[R]):
+class StateBaseModel(IDBaseModel):
+    def orm_dict(
+        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
+    ) -> dict:
+        schema_dict = self.dict(
+            *args, shallow=shallow, json_compatible=json_compatible, **kwargs
+        )
+        # remove the data field in order to construct a state ORM model
+        schema_dict.pop("data", None)
+        return schema_dict
+
+
+class State(StateBaseModel, Generic[R]):
     """Represents the state of a run."""
 
     class Config:
