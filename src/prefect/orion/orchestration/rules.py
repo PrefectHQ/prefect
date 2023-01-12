@@ -267,14 +267,19 @@ class FlowOrchestrationContext(OrchestrationContext):
         db: OrionDBInterface,
     ):
         if self.proposed_state is None:
-            validated_orm_state = self.run.state
+            validated_state = self.run.state
         else:
-            validated_orm_state = db.FlowRunState(
-                flow_run_id=self.run.id,
-                **self.proposed_state.dict(shallow=True),
-            )
-            self.session.add(validated_orm_state)
-            self.run.set_state(validated_orm_state)
+            validated_state = self.proposed_state
+
+        state_payload = validated_state.dict(shallow=True)
+        state_data = state_payload.pop("data", None)
+
+        validated_orm_state = db.FlowRunState(
+            flow_run_id=self.run.id,
+            **state_payload,
+        )
+        self.session.add(validated_orm_state)
+        self.run.set_state(validated_orm_state)
 
         await self.session.flush()
         self.validated_state = (
@@ -404,14 +409,19 @@ class TaskOrchestrationContext(OrchestrationContext):
         db: OrionDBInterface,
     ):
         if self.proposed_state is None:
-            validated_orm_state = self.run.state
+            validated_state = self.run.state
         else:
-            validated_orm_state = db.TaskRunState(
-                task_run_id=self.run.id,
-                **self.proposed_state.dict(shallow=True),
-            )
-            self.session.add(validated_orm_state)
-            self.run.set_state(validated_orm_state)
+            validated_state = self.proposed_state
+
+        state_payload = validated_state.dict(shallow=True)
+        state_data = state_payload.pop("data", None)
+
+        validated_orm_state = db.TaskRunState(
+            task_run_id=self.run.id,
+            **state_payload,
+        )
+        self.session.add(validated_orm_state)
+        self.run.set_state(validated_orm_state)
 
         await self.session.flush()
         self.validated_state = (
