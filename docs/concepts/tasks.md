@@ -259,7 +259,7 @@ When this task runs, it will _always_ update the cache key instead of using the 
 
 If you want to refresh the cache for all tasks, you can use the `PREFECT_TASKS_REFRESH_CACHE` setting. Setting `PREFECT_TASKS_REFRESH_CACHE=true` will change the default behavior of all tasks to refresh. This is particularly useful if you want to rerun a flow without cached results.
 
-If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache — if a cache key exists it will be read not updated. Note that if a cache key does _not_ exist yet, these tasks can still write to the cache.
+If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache &mdash; if a cache key exists it will be read, not updated. Note that, if a cache key does _not_ exist yet, these tasks can still write to the cache.
 
 ```python
 @task(cache_key_fn=static_cache_key, refresh_cache=False)
