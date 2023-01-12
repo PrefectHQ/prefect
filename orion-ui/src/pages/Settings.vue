@@ -8,6 +8,10 @@
       </PageHeading>
     </template>
 
+    <p-label label="Theme">
+      <p-theme-toggle />
+    </p-label>
+
     <p-label label="Color Mode" class="settings__color-mode">
       <ColorModeSelect v-model:selected="activeColorMode" />
     </p-label>
