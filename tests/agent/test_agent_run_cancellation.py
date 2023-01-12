@@ -29,7 +29,7 @@ async def _create_test_deployment_from_orm(
                     "is_schedule_active",
                     "created_by",
                     "updated_by",
-                    "worker_pool_queue_id",
+                    "work_pool_queue_id",
                 }
             )
         )
