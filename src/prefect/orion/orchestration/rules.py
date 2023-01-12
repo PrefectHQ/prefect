@@ -264,7 +264,9 @@ class FlowOrchestrationContext(OrchestrationContext):
 
             if state_data is not None:
                 state_result_artifact = core.Artifact(artifact_data=state_data)
-                await artifacts.create_artifact(self.session, state_result_artifact)
+                created_artifact = await artifacts.create_artifact(
+                    self.session, state_result_artifact
+                )
                 state_payload["result_artifact_id"] = state_result_artifact.id
 
             validated_orm_state = db.FlowRunState(

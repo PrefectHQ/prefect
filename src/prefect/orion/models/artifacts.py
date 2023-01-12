@@ -1,3 +1,4 @@
+import pendulum
 import sqlalchemy as sa
 
 from prefect.orion.database.dependencies import inject_db
@@ -9,14 +10,12 @@ from prefect.orion.schemas.core import Artifact
 async def create_artifact(
     session: sa.orm.Session, artifact: Artifact, db: OrionDBInterface, key: str = None
 ):
-    artifact_payload = {"artifact_data": data}
-    if key:
-        artifact_payload["key"] = key
-
+    now = pendulum.now("UTC")
     artifact_id = artifact.id
-
     insert_stmt = (await db.insert(db.Artifact)).values(
-        **artifact.dict(shallow=True, exclude_unset=True)
+        created=now,
+        updated=now,
+        **artifact.dict(exclude={"created", "updated"}, shallow=True)
     )
     await session.execute(insert_stmt)
 
