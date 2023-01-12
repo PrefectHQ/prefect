@@ -7,7 +7,7 @@
 We're excited to announce that a new timeline graph has been added to the flow run page. 
 This view helps visualize how execution of your flow run takes place in time, an alternative to the radar view that focuses on the structure of dependencies between task runs.
 
-![image](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
+![The timeline view visualizes execution of your flow run over time](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
 
 We've marked this as a beta feature for now and have lots of improvements planned in the near future! We're looking forward to your feedback.
 
