@@ -1,17 +1,15 @@
 # Prefect Release Notes
 
-## Release 2.8.0
+## Release 2.7.8
 
 ### Flow run timeline view
 
 We're excited to announce that a new timeline graph has been added to the flow run page. 
 This view helps visualize how execution of your flow run takes place in time, an alternative to the radar view that focuses on the structure of dependencies between task runs.
 
+This feature is currently in beta and we have lots of improvements planned in the near future! We're looking forward to your feedback.
+
 ![The timeline view visualizes execution of your flow run over time](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
-
-We've marked this as a beta feature for now and have lots of improvements planned in the near future! We're looking forward to your feedback.
-
-See https://github.com/PrefectHQ/prefect/pull/8153 for more details.
 
 ### Enhancements
 - Add [task option `refresh_cache`](https://docs.prefect.io/concepts/tasks/#refreshing-the-cache) to update the cached data for a task run — https://github.com/PrefectHQ/prefect/pull/7856
@@ -42,7 +40,7 @@ See https://github.com/PrefectHQ/prefect/pull/8153 for more details.
 * @Ewande made their first contribution in https://github.com/PrefectHQ/prefect/pull/7912
 * @brandonreid made their first contribution in https://github.com/PrefectHQ/prefect/pull/8153
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.7...2.8.0
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.7...2.7.8
 
 ## Release 2.7.7
 
