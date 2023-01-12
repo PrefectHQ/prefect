@@ -376,24 +376,14 @@ class TaskOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
-        for validation_attempt in range(2):
-            validation_errors = []
-            try:
-                await self._validate_proposed_state()
-            except Exception as exc:
-                # unset the run state in case it's been set
-                validation_errors.append(exc)
-                if self.initial_state is not None:
-                    initial_orm_state = db.TaskRunState(
-                        task_run_id=self.run.id,
-                        **self.initial_state.dict(shallow=True),
-                    )
-                    self.session.add(initial_orm_state)
-                    self.run.set_state(initial_orm_state)
-                else:
-                    self.run.set_state(None)
-                continue
-            return
+        validation_errors = []
+        try:
+            await self._validate_proposed_state()
+        except Exception as exc:
+            # unset the run state in case it's been set
+            validation_errors.append(exc)
+
+        return
 
         logger.error(
             f"Encountered errors during state validation: {validation_errors!r}"
