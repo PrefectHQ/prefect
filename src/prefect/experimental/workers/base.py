@@ -1,12 +1,13 @@
 import abc
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Type, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orion import OrionClient, get_client
@@ -16,6 +17,7 @@ from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.orion import schemas
+from prefect.orion.schemas.actions import WorkPoolUpdate
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -23,6 +25,88 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+
+
+class BaseJobConfiguration(BaseModel):
+    command: Optional[List[str]] = Field(template="{{ command }}")
+
+    @validator("command")
+    def validate_command(cls, v):
+        """Make sure that empty strings are treated as None"""
+        if not v:
+            return None
+        return v
+
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @classmethod
+    def from_template_and_overrides(
+        cls, base_job_template: dict, deployment_overrides: dict
+    ):
+        """Creates a valid worker configuration object from the provided base
+        configuration and overrides.
+
+        Important: this method expects that the base_job_template was already
+        validated server-side.
+        """
+        job_config = base_job_template["job_configuration"]
+        variables_schema = base_job_template["variables"]
+        variables = cls._base_variables_from_variable_properties(
+            variables_schema["properties"]
+        )
+        variables.update(deployment_overrides)
+
+        populated_configuration = cls._apply_variables(job_config, variables)
+        return cls(**populated_configuration)
+
+    @classmethod
+    def json_template(cls) -> dict:
+        """Returns a dict with job configuration as keys and the corresponding templates as values
+
+        Defaults to using the job configuration parameter name as the template variable name.
+
+        e.g.
+        {
+            key1: '{{ key1 }}',     # default variable template
+            key2: '{{ template2 }}', # `template2` specifically provide as template
+        }
+        """
+        configuration = {}
+        properties = cls.schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template"):
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
+
+    @staticmethod
+    def _apply_variables(job_config, variables):
+        """Apply variables to configuration template."""
+        job_config.update(variables)
+        return job_config
+
+    @classmethod
+    def _base_variables_from_variable_properties(cls, variable_properties):
+        """Get base template variables."""
+        default_variables = cls._get_base_config_defaults(variable_properties)
+        variables = {key: None for key in variable_properties.keys()}
+        variables.update(default_variables)
+        return variables
+
+
+class BaseVariables(BaseModel):
+    command: Optional[List[str]] = None
 
 
 class BaseWorkerResult(BaseModel, abc.ABC):
@@ -36,6 +120,8 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
+    job_configuration: Type[BaseJobConfiguration]
+    job_configuration_variables: Optional[Type[BaseVariables]] = None
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -92,7 +178,10 @@ class BaseWorker(abc.ABC):
 
     @abc.abstractmethod
     async def run(
-        self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
+        self,
+        flow_run: FlowRun,
+        configuration: BaseJobConfiguration,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
         """
         Runs a given flow run on the current worker.
@@ -101,7 +190,7 @@ class BaseWorker(abc.ABC):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     async def verify_submitted_deployment(self, deployment: Deployment):
         """
         Checks that scheduled flow runs for a submitted deployment can be run by the
@@ -141,7 +230,6 @@ class BaseWorker(abc.ABC):
         self._logger.debug("Tearing down worker...")
         self.is_setup = False
         if self._runs_task_group:
-            self._runs_task_group.cancel_scope.cancel()
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
@@ -178,6 +266,14 @@ class BaseWorker(abc.ABC):
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
+
+        # once the work pool is loaded, verify that it has a `base_job_template` and
+        # set it if not
+        if not work_pool.base_job_template:
+            job_template = self._create_job_template()
+            await self._set_work_pool_template(work_pool, job_template)
+            work_pool.base_job_template = job_template
+
         self._work_pool = work_pool
 
     async def _send_worker_heartbeat(self):
@@ -248,7 +344,14 @@ class BaseWorker(abc.ABC):
                 "Validation of deployment manifest %s failed.",
                 deployment_manifest_path,
             )
-        except Exception:
+        except httpx.HTTPStatusError as exc:
+            self._logger.exception(
+                "Failed to apply deployment %s/%s: %s",
+                deployment.flow_name,
+                deployment.name,
+                exc.response.json().get("detail"),
+            )
+        except Exception as exc:
             self._logger.exception(
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
@@ -354,7 +457,11 @@ class BaseWorker(abc.ABC):
         try:
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
-            result = await self.run(flow_run=flow_run, task_status=task_status)
+            result = await self.run(
+                flow_run=flow_run,
+                task_status=task_status,
+                configuration=await self._get_configuration(flow_run),
+            )
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -408,6 +515,14 @@ class BaseWorker(abc.ABC):
                 "workflow_storage_path": self._workflow_storage_path,
             },
         }
+
+    async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
+        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        configuration = self.job_configuration.from_template_and_overrides(
+            base_job_template=self._work_pool.base_job_template,
+            deployment_overrides=deployment.infra_overrides,
+        )
+        return configuration
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
@@ -472,6 +587,35 @@ class BaseWorker(abc.ABC):
                 self._logger.info(
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
+
+    async def _set_work_pool_template(self, work_pool, job_template):
+        """Updates the `base_job_template` for the worker's workerpool server side."""
+        await self._client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                base_job_template=job_template,
+            ),
+        )
+
+    def _create_job_template(self) -> dict:
+        """Create a job template from a worker's configuration components."""
+        if self.job_configuration_variables is None:
+            schema = self.job_configuration.schema()
+            # remove "template" key from all dicts in schema['properties'] because it is not a
+            # relevant field
+            for key, value in schema["properties"].items():
+                if isinstance(value, dict):
+                    schema["properties"][key].pop("template", None)
+            variables = schema
+        else:
+            variables = self.job_configuration_variables.schema()
+        return {
+            "job_configuration": self.job_configuration.json_template(),
+            "variables": {
+                "properties": variables["properties"],
+                "required": variables.get("required", []),
+            },
+        }
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
