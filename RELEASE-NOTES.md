@@ -1,5 +1,37 @@
 # Prefect Release Notes
 
+## Release 2.8.0
+
+### Flow run timeline view
+
+
+See https://github.com/PrefectHQ/prefect/pull/8153 for more details.
+
+### Enhancements
+- Add task option `refresh_cache` to update the cached data for a task run — https://github.com/PrefectHQ/prefect/pull/7856
+- Add logs when task run receives abort signal and is in non-final state — https://github.com/PrefectHQ/prefect/pull/8097
+- Add [publishing of multiarchitecture Docker images](https://hub.docker.com/r/prefecthq/prefect-dev) for development builds  — https://github.com/PrefectHQ/prefect/pull/7900
+
+### Fixes
+- Add support for `allow_failure` to mapped task arguments — https://github.com/PrefectHQ/prefect/pull/8135
+- Update conda requirement regex to support channel and build hashes — https://github.com/PrefectHQ/prefect/pull/8137
+- Add numpy array support to orjson serialization — https://github.com/PrefectHQ/prefect/pull/7912
+
+### Experimental
+- Rename "Worker pools" to "Work pools" — https://github.com/PrefectHQ/prefect/pull/8107
+- Rename default work pool queue — https://github.com/PrefectHQ/prefect/pull/8117
+- Add worker configuration — https://github.com/PrefectHQ/prefect/pull/8100
+- Add `BaseWorker` and `ProcessWorker` — https://github.com/PrefectHQ/prefect/pull/7996
+
+## New Contributors
+* @muddi900 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8101
+* @ddelange made their first contribution in https://github.com/PrefectHQ/prefect/pull/7900
+* @toro-berlin made their first contribution in https://github.com/PrefectHQ/prefect/pull/7856
+* @Ewande made their first contribution in https://github.com/PrefectHQ/prefect/pull/7912
+* @brandonreid made their first contribution in https://github.com/PrefectHQ/prefect/pull/8153
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.7...2.8.0
+
 ## Release 2.7.7
 
 ### Improved reference documentation
