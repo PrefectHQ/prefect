@@ -216,6 +216,28 @@ def test_uses_volumes_setting(mock_docker_client):
     assert "c:d" in call_volumes
 
 
+def test_uses_privileged_setting(mock_docker_client):
+    DockerContainer(command=["echo", "hello"], privileged=True).run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("privileged") is True
+
+
+def test_uses_memswap_limit_setting(mock_docker_client):
+    DockerContainer(
+        command=["echo", "hello"], mem_limit="500m", memswap_limit="1g"
+    ).run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert (
+        mock_docker_client.containers.create.call_args[1].get("memswap_limit") == "1g"
+    )
+
+
+def test_uses_mem_limit_setting(mock_docker_client):
+    DockerContainer(command=["echo", "hello"], mem_limit="1g").run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("mem_limit") == "1g"
+
+
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
 def test_uses_network_setting(mock_docker_client, networks):
     DockerContainer(command=["echo", "hello"], networks=networks).run()
