@@ -152,7 +152,7 @@ class ORMFlowRunState:
             "Artifact",
             lazy="joined",
             foreign_keys=[cls.result_artifact_id],
-            primaryjoin="Artifact.id==%s.result_id" % cls.__name__,
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
         )
 
     @hybrid_property
@@ -234,7 +234,7 @@ class ORMTaskRunState:
             "Artifact",
             lazy="joined",
             foreign_keys=[cls.result_artifact_id],
-            primaryjoin="Artifact.id==%s.result_id" % cls.__name__,
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
         )
 
     @hybrid_property
