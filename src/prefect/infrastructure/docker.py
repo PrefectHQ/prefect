@@ -4,7 +4,7 @@ import sys
 import urllib.parse
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
@@ -181,6 +181,15 @@ class DockerContainer(Infrastructure):
         stream_output: If set, stream output from the container to local standard output.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
+        memswap_limit: Total memory (memory + swap), -1 to disable swap. Should only be
+            set if `mem_limit` is also set. If `mem_limit` is set, this defaults to
+            allowing the container to use as much swap as memory. For example, if
+            `mem_limit` is 300m and `memswap_limit` is not set, the container can use
+            600m in total of memory and swap.
+        mem_limit: Memory limit of the created container. Accepts float values to enforce
+            a limit in bytes or a string with a unit e.g. 100000b, 1000k, 128m, 1g.
+            If a string is given without a unit, bytes are assumed.
+        privileged: Give extended privileges to this container.
 
     ## Connecting to a locally hosted Prefect API
 
@@ -225,6 +234,28 @@ class DockerContainer(Infrastructure):
     stream_output: bool = Field(
         default=True,
         description="If set, the output will be streamed from the container to local standard output.",
+    )
+    memswap_limit: Union[int, str] = Field(
+        default=None,
+        description=(
+            "Total memory (memory + swap), -1 to disable swap. Should only be "
+            "set if `mem_limit` is also set. If `mem_limit` is set, this defaults to"
+            "allowing the container to use as much swap as memory. For example, if "
+            "`mem_limit` is 300m and `memswap_limit` is not set, the container can use "
+            "600m in total of memory and swap."
+        ),
+    )
+    mem_limit: Union[float, str] = Field(
+        default=None,
+        description=(
+            "Memory limit of the created container. Accepts float values to enforce "
+            "a limit in bytes or a string with a unit e.g. 100000b, 1000k, 128m, 1g. "
+            "If a string is given without a unit, bytes are assumed."
+        ),
+    )
+    privileged: bool = Field(
+        default=False,
+        description="Give extended privileges to this container.",
     )
 
     _block_type_name = "Docker Container"
@@ -348,6 +379,9 @@ class DockerContainer(Infrastructure):
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(),
             volumes=self.volumes,
+            mem_limit=self.mem_limit,
+            memswap_limit=self.memswap_limit,
+            privileged=self.privileged,
         )
 
     def _create_and_start_container(self) -> "Container":
