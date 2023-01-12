@@ -15,6 +15,7 @@ fastapi >= 0.70
 fsspec >= 2022.5.0
 griffe >= 0.20.0
 httpx[http2] >= 0.23, != 0.23.2
+httpcore @ git+https://github.com/plietar/httpcore.git@54f2506387d568db1927a2803a62e52350ccdbe2
 importlib_metadata >= 4.4; python_version < '3.10'
 jinja2 >= 3.0.0
 jsonpatch >= 1.32
