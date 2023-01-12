@@ -372,21 +372,15 @@ class TaskOrchestrationContext(OrchestrationContext):
         Returns:
             None
         """
-        validation_errors = []
         try:
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            # unset the run state in case it's been set
-            validation_errors.append(exc)
-
-        logger.error(
-            f"Encountered errors during state validation: {validation_errors!r}"
-        )
-        self.proposed_state = None
-        reason = f"Error validating state: {validation_errors!r}"
-        self.response_status = SetStateStatus.ABORT
-        self.response_details = StateAbortDetails(reason=reason)
+            logger.exception("Encountered error during state validation")
+            self.proposed_state = None
+            reason = f"Error validating state: {exc!r}"
+            self.response_status = SetStateStatus.ABORT
+            self.response_details = StateAbortDetails(reason=reason)
 
     @inject_db
     async def _validate_proposed_state(
