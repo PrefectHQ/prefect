@@ -23,6 +23,11 @@ A timeline graph (beta) has been added to the Flow Run details page. This graph 
 - Add worker configuration — https://github.com/PrefectHQ/prefect/pull/8100
 - Add `BaseWorker` and `ProcessWorker` — https://github.com/PrefectHQ/prefect/pull/7996
 
+### Documentation
+- Add YouTube video to welcome page - https://github.com/PrefectHQ/prefect/pull/8090
+- Add social links - https://github.com/PrefectHQ/prefect/pull/8088
+- Increase visibility of Prefect Cloud and Orion REST API documentation - https://github.com/PrefectHQ/prefect/pull/8134
+
 ## New Contributors
 * @muddi900 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8101
 * @ddelange made their first contribution in https://github.com/PrefectHQ/prefect/pull/7900
