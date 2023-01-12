@@ -503,6 +503,59 @@ class TestTaskSubmit:
         assert result[1:] == [1, 2]
         assert "Fail task!" in str(result)
 
+    def test_allow_failure_chained_mapped_tasks(
+        self,
+    ):
+        @task
+        def fails_on_two(x):
+            if x == 2:
+                raise ValueError("Fail task")
+            return x
+
+        @task
+        def identity(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails_on_two.map([1, 2, 3])
+            b = identity.map(allow_failure(f))
+            return b
+
+        states = test_flow()
+        assert isinstance(states, list), f"Expected list; got {type(states)}"
+
+        assert states[0].result(), states[2].result() == [1, 3]
+
+        assert states[1].is_completed()
+        assert exceptions_equal(states[1].result(), ValueError("Fail task"))
+
+    def test_allow_failure_mapped_with_noniterable_upstream(
+        self,
+    ):
+        @task
+        def fails():
+            raise ValueError("Fail task")
+
+        @task
+        def identity(y, z):
+            return y, z
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = identity.map([1, 2, 3], allow_failure(f))
+            return b
+
+        states = test_flow()
+        assert isinstance(states, list), f"Expected list; got {type(states)}"
+
+        assert len(states) == 3
+        for i, state in enumerate(states):
+            y, z = state.result()
+            assert y == i + 1
+            assert exceptions_equal(z, ValueError("Fail task"))
+
 
 class TestTaskStates:
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
