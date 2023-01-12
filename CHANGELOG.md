@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.1 <Badge text="beta" type="success" />
+
+Released on December 5, 2022.
+
+### Fixes
+
+- Fix upper bound on Kubernetes requirement — [#7397](https://github.com/PrefectHQ/prefect/pull/7397)
+- Ensure that Dask callbacks are attached during concurrent usage — [#7669](https://github.com/PrefectHQ/prefect/pull/7669)
+
+### Task library
+
+- Add `CubePreAggregationsBuildTask` task — [#7168](https://github.com/PrefectHQ/prefect/pull/7168)
+- Add `upload_options` support to the `S3Upload1 task — [#7467](https://github.com/PrefectHQ/prefect/pull/7467)
+
 ## 1.4.0 <Badge text="beta" type="success" />
 
 Released on September 19, 2022.
