@@ -3,6 +3,7 @@
 ## Release 2.8.0
 
 ### Flow run timeline view
+![image](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
 
 
 See https://github.com/PrefectHQ/prefect/pull/8153 for more details.
