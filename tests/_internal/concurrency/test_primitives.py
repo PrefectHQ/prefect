@@ -1,4 +1,5 @@
 import anyio
+import pytest
 
 from prefect._internal.concurrency.primitives import Event
 
