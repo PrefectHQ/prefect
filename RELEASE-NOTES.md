@@ -10,6 +10,7 @@ A timeline graph (beta) has been added to the Flow Run details page. This graph 
 - Add [task option `refresh_cache`](https://docs.prefect.io/concepts/tasks/#refreshing-the-cache) to update the cached data for a task run — https://github.com/PrefectHQ/prefect/pull/7856
 - Add logs when a task run receives an abort signal and is in a non-final state — https://github.com/PrefectHQ/prefect/pull/8097
 - Add [publishing of multiarchitecture Docker images](https://hub.docker.com/r/prefecthq/prefect-dev) for development builds  — https://github.com/PrefectHQ/prefect/pull/7900
+- Add `httpx.WriteError` to client retryable exceptions — https://github.com/PrefectHQ/prefect/pull/8145
 
 ### Fixes
 - Add support for `allow_failure` to mapped task arguments — https://github.com/PrefectHQ/prefect/pull/8135
