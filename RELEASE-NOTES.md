@@ -16,6 +16,7 @@ This feature is currently in beta and we have lots of improvements planned in th
 - Add logs when a task run receives an abort signal and is in a non-final state — https://github.com/PrefectHQ/prefect/pull/8097
 - Add [publishing of multiarchitecture Docker images](https://hub.docker.com/r/prefecthq/prefect-dev) for development builds  — https://github.com/PrefectHQ/prefect/pull/7900
 - Add `httpx.WriteError` to client retryable exceptions — https://github.com/PrefectHQ/prefect/pull/8145
+- Add support for memory limits and privileged containers to `DockerContainer` — https://github.com/PrefectHQ/prefect/pull/8033
 
 ### Fixes
 - Add support for `allow_failure` to mapped task arguments — https://github.com/PrefectHQ/prefect/pull/8135
