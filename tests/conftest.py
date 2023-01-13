@@ -41,6 +41,8 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
@@ -51,6 +53,7 @@ from prefect.settings import (
     PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
@@ -291,6 +294,7 @@ def pytest_sessionstart(session):
             PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
             PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
             PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+            PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
@@ -465,3 +469,11 @@ def caplog(caplog):
                 logger.handlers.append(caplog.handler)
 
     yield caplog
+
+
+@pytest.fixture
+def enable_workers():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
+    ):
+        yield

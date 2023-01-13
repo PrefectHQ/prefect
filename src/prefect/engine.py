@@ -45,6 +45,8 @@ from prefect.exceptions import (
     MappingLengthMismatch,
     MappingMissingIterable,
     NotPausedError,
+    Pause,
+    PausedRun,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -64,7 +66,11 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASKS_REFRESH_CACHE,
+)
 from prefect.states import (
     Paused,
     Pending,
@@ -81,7 +87,7 @@ from prefect.task_runners import (
     TaskConcurrencyType,
 )
 from prefect.tasks import Task
-from prefect.utilities.annotations import Quote, allow_failure, unmapped
+from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
@@ -367,7 +373,7 @@ async def begin_flow_run(
         if log_prints:
             stack.enter_context(patch_print())
 
-        terminal_state = await orchestrate_flow_run(
+        terminal_or_paused_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
             parameters=parameters,
@@ -377,6 +383,17 @@ async def begin_flow_run(
             # Orchestration needs to be interruptible if it has a timeout
             interruptible=flow.timeout_seconds is not None,
         )
+
+    if terminal_or_paused_state.is_paused():
+        timeout = terminal_or_paused_state.state_details.pause_timeout
+        logger.log(
+            level=logging.INFO,
+            msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
+        )
+        OrionHandler.flush(block=True)
+        return terminal_or_paused_state
+    else:
+        terminal_state = terminal_or_paused_state
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(terminal_state) if PREFECT_DEBUG_MODE else str(terminal_state)
@@ -561,11 +578,6 @@ async def orchestrate_flow_run(
     """
     logger = flow_run_logger(flow_run, flow)
 
-    timeout_context = (
-        anyio.fail_after(flow.timeout_seconds)
-        if flow.timeout_seconds
-        else nullcontext()
-    )
     flow_run_context = None
 
     try:
@@ -591,6 +603,10 @@ async def orchestrate_flow_run(
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
+            timeout_context = anyio.fail_after(
+                flow.timeout_seconds if flow.timeout_seconds else None
+            )
+
             with timeout_context as timeout_scope:
                 with partial_flow_run_context.finalize(
                     flow=flow,
@@ -626,7 +642,10 @@ async def orchestrate_flow_run(
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
                 )
-
+        except PausedRun:
+            paused_flow_run = await client.read_flow_run(flow_run.id)
+            paused_flow_run_state = paused_flow_run.state
+            return paused_flow_run_state
         except Exception as exc:
             name = message = None
             if (
@@ -702,9 +721,15 @@ async def orchestrate_flow_run(
 
 
 @sync_compatible
-async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
+async def pause_flow_run(
+    flow_run_id: UUID = None,
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule: bool = False,
+    key: str = None,
+):
     """
-    Pauses a flow run by stopping execution until resumed.
+    Pauses the current flow run by stopping execution until resumed.
 
     When called within a flow run, execution will block and no downstream tasks will
     run until the flow is resumed. Task runs that have already started will continue
@@ -712,50 +737,128 @@ async def pause_flow_run(timeout: int = 300, poll_interval: int = 10):
     been resumed within the specified time.
 
     Args:
+        flow_run_id: a flow run id. If supplied, this function will attempt to pause
+            the specified flow run outside of the flow run process. When paused, the
+            flow run will continue execution until the NEXT task is orchestrated, at
+            which point the flow will exit. Any tasks that have already started will
+            run until completion. When resumed, the flow run will be rescheduled to
+            finish execution. In order pause a flow run in this way, the flow needs to
+            have an associated deployment and results need to be configured with the
+            `persist_results` option.
         timeout: the number of seconds to wait for the flow to be resumed before
             failing. Defaults to 5 minutes (300 seconds). If the pause timeout exceeds
             any configured flow-level timeout, the flow might fail even after resuming.
         poll_interval: The number of seconds between checking whether the flow has been
             resumed. Defaults to 10 seconds.
+        reschedule: Flag that will reschedule the flow run if resumed. Instead of
+            blocking execution, the flow will gracefully exit (with no result returned)
+            instead. To use this flag, a flow needs to have an associated deployment and
+            results need to be configured with the `persist_results` option.
+        key: An optional key to prevent calling pauses more than once. This defaults to
+            the number of pauses observed by the flow so far, and prevents pauses that
+            use the "reschedule" option from running the same pause twice. A custom key
+            can be supplied for custom pausing behavior.
     """
+    if flow_run_id:
+        return await _out_of_process_pause(
+            flow_run_id=flow_run_id,
+            timeout=timeout,
+            reschedule=reschedule,
+            key=key,
+        )
+    else:
+        return await _in_process_pause(
+            timeout=timeout, poll_interval=poll_interval, reschedule=reschedule, key=key
+        )
 
+
+async def _in_process_pause(
+    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
 
-    frc = FlowRunContext.get()
-    logger = get_run_logger(context=frc)
+    context = FlowRunContext.get()
+    if not context:
+        raise RuntimeError("Flow runs can only be paused from within a flow run.")
+
+    logger = get_run_logger(context=context)
+
+    pause_counter = _observed_flow_pauses(context)
+    pause_key = key or str(pause_counter)
 
     logger.info("Pausing flow, execution will continue when this flow run is resumed.")
-    client = get_client()
-    response = await client.set_flow_run_state(
-        frc.flow_run.id,
-        Paused(),
-    )
 
+    try:
+        state = await propose_state(
+            client=context.client,
+            state=Paused(
+                timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
+            ),
+            flow_run_id=context.flow_run.id,
+        )
+    except Abort as exc:
+        # Aborted pause requests mean the pause is not allowed
+        raise RuntimeError(f"Flow run cannot be paused: {exc}")
+
+    if state.is_running():
+        # The orchestrator requests that this pause be ignored
+        return
+
+    if not state.is_paused():
+        # If we receive anything but a PAUSED state, we are unable to continue
+        raise RuntimeError(
+            f"Flow run cannot be paused. Received non-paused state from API: {state}"
+        )
+
+    if reschedule:
+        # If a rescheduled pause, exit this process so the run can be resubmitted later
+        raise Pause()
+
+    # Otherwise, block and check for completion on an interval
     with anyio.move_on_after(timeout):
-
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await client.read_flow_run(frc.flow_run.id)
+        flow_run = await context.client.read_flow_run(context.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             return
 
         while True:
             await anyio.sleep(poll_interval)
-            flow_run = await client.read_flow_run(frc.flow_run.id)
+            flow_run = await context.client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 return
 
     # check one last time before failing the flow
-    flow_run = await client.read_flow_run(frc.flow_run.id)
+    flow_run = await context.client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         return
 
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
+
+
+async def _out_of_process_pause(
+    flow_run_id: UUID,
+    timeout: int = 300,
+    reschedule: bool = True,
+    key: str = None,
+):
+    if reschedule:
+        raise RuntimeError(
+            "Pausing a flow run out of process requires the `reschedule` option set to True."
+        )
+
+    client = get_client()
+    response = await client.set_flow_run_state(
+        flow_run_id,
+        Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
+    )
+    if response.status != SetStateStatus.ACCEPT:
+        raise RuntimeError(response.details.reason)
 
 
 @sync_compatible
@@ -772,10 +875,13 @@ async def resume_flow_run(flow_run_id):
     if not flow_run.state.is_paused():
         raise NotPausedError("Cannot resume a run that isn't paused!")
 
-    await client.set_flow_run_state(
-        flow_run_id,
-        Running(name="Resuming"),
-    )
+    response = await client.resume_flow_run(flow_run_id)
+
+    if response.status == SetStateStatus.REJECT:
+        if response.state.type == StateType.FAILED:
+            raise FlowPauseTimeout("Flow run can no longer be resumed.")
+        else:
+            raise RuntimeError(f"Cannot resume this run: {response.details.reason}")
 
 
 def enter_task_run_engine(
@@ -851,7 +957,13 @@ async def begin_task_map(
 
     iterable_parameters = {}
     static_parameters = {}
+    annotated_parameters = {}
     for key, val in parameters.items():
+        if isinstance(val, allow_failure):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
         if isinstance(val, unmapped):
             static_parameters[key] = val.value
         elif isiterable(val):
@@ -881,6 +993,11 @@ async def begin_task_map(
     for i in range(map_length):
         call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
         call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
         task_runs.append(
             partial(
                 get_task_call_return_value,
@@ -913,9 +1030,6 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     inputs = set()
 
     def add_futures_and_states_to_inputs(obj):
-        if isinstance(obj, allow_failure):
-            obj = obj.unwrap()
-
         if isinstance(obj, PrefectFuture):
             run_async_from_worker_thread(obj._wait_for_submission)
             inputs.add(TaskRunResult(id=obj.task_run.id))
@@ -1217,13 +1331,28 @@ async def begin_task_run(
                 # loss if the process exits
                 OrionHandler.flush(block=True)
 
-        except Abort:
-            # Task run already completed, just fetch its state
+        except Abort as abort:
+            # Task run probably already completed, fetch its state
             task_run = await client.read_task_run(task_run.id)
-            task_run_logger(task_run).info(
-                f"Task run '{task_run.id}' already finished."
-            )
+
+            if task_run.state.is_final():
+                task_run_logger(task_run).info(
+                    f"Task run '{task_run.id}' already finished."
+                )
+            else:
+                # TODO: This is a concerning case; we should determine when this occurs
+                #       1. This can occur when the flow run is not in a running state
+                task_run_logger(task_run).warning(
+                    f"Task run '{task_run.id}' received abort during orchestration: "
+                    f"{abort} Task run is in {task_run.state.type.value} state."
+                )
             state = task_run.state
+
+        except Pause:
+            task_run_logger(task_run).info(
+                "Task run encountered a pause signal during orchestration."
+            )
+            state = Paused()
 
         return state
 
@@ -1298,10 +1427,20 @@ async def orchestrate_task_run(
         else None
     )
 
+    # Ignore the cached results for a cache key, default = false
+    # Setting on task level overrules the Prefect setting (env var)
+    refresh_cache = (
+        task.refresh_cache
+        if task.refresh_cache is not None
+        else PREFECT_TASKS_REFRESH_CACHE.value()
+    )
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
-        Running(state_details=StateDetails(cache_key=cache_key)),
+        Running(
+            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        ),
         task_run_id=task_run.id,
     )
 
@@ -1469,8 +1608,8 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
     """
     try:
         yield
-    except Abort:
-        # Do not capture aborts as crashes
+    except (Abort, Pause):
+        # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
         state = await exception_to_crashed_state(exc)
@@ -1501,8 +1640,8 @@ async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
     """
     try:
         yield
-    except Abort:
-        # Do not capture aborts as crashes
+    except (Abort, Pause):
+        # Do not capture internal signals as crashes
         raise
     except BaseException as exc:
         state = await exception_to_crashed_state(exc)
@@ -1537,17 +1676,14 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
-    def resolve_input(expr):
+    def resolve_input(expr, context):
         state = None
-        should_allow_failure = False
 
-        if isinstance(expr, allow_failure):
-            expr = expr.unwrap()
-            should_allow_failure = True
+        # Expressions inside quotes should not be modified
+        if isinstance(context.get("annotation"), quote):
+            return expr
 
-        if isinstance(expr, Quote):
-            return expr.unquote()
-        elif isinstance(expr, PrefectFuture):
+        if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
         elif isinstance(expr, State):
             state = expr
@@ -1557,7 +1693,13 @@ async def resolve_inputs(
         # Do not allow uncompleted upstreams except failures when `allow_failure` has
         # been used
         if not state.is_completed() and not (
-            should_allow_failure and state.is_failed()
+            # TODO: Note that the contextual annotation here is only at the current level
+            #       if `allow_failure` is used then another annotation is used, this will
+            #       incorrectly evaulate to false — to resolve this, we must track all
+            #       annotations wrapping the current expression but this is not yet
+            #       implemented.
+            isinstance(context.get("annotation"), allow_failure)
+            and state.is_failed()
         ):
             raise UpstreamTaskError(
                 f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
@@ -1572,6 +1714,8 @@ async def resolve_inputs(
         visit_fn=resolve_input,
         return_data=return_data,
         max_depth=max_depth,
+        remove_annotations=True,
+        context={},
     )
 
 
@@ -1670,6 +1814,8 @@ async def propose_state(
         )
 
     elif response.status == SetStateStatus.REJECT:
+        if response.state.is_paused():
+            raise Pause(response.details.reason)
         return response.state
 
     else:
@@ -1685,6 +1831,14 @@ def _dynamic_key_for_task_run(context: FlowRunContext, task: Task) -> int:
         context.task_run_dynamic_keys[task.task_key] += 1
 
     return context.task_run_dynamic_keys[task.task_key]
+
+
+def _observed_flow_pauses(context: FlowRunContext) -> int:
+    if "counter" not in context.observed_flow_pauses:
+        context.observed_flow_pauses["counter"] = 1
+    else:
+        context.observed_flow_pauses["counter"] += 1
+    return context.observed_flow_pauses["counter"]
 
 
 def get_state_for_result(obj: Any) -> Optional[State]:
@@ -1786,6 +1940,11 @@ if __name__ == "__main__":
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except Pause as exc:
+        engine_logger.info(
+            f"Engine execution of flow run '{flow_run_id}' is paused: {exc}"
         )
         exit(0)
     except Exception:

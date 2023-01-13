@@ -21,11 +21,12 @@ from griffe.dataclasses import Docstring
 from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
 from packaging.version import InvalidVersion, Version
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
 from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
 import prefect.exceptions
+from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import disable_logger
 from prefect.orion.schemas.core import (
@@ -35,7 +36,7 @@ from prefect.orion.schemas.core import (
     BlockType,
 )
 from prefect.utilities.asyncutils import sync_compatible
-from prefect.utilities.collections import remove_nested_keys
+from prefect.utilities.collections import listrepr, remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
 from prefect.utilities.importtools import to_qualified_name
@@ -120,6 +121,8 @@ class Block(BaseModel, ABC):
     class Config:
         extra = "allow"
 
+        json_encoders = {SecretDict: lambda v: v.dict()}
+
         @staticmethod
         def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
             """
@@ -136,13 +139,18 @@ class Block(BaseModel, ABC):
 
             # create a list of secret field names
             # secret fields include both top-level keys and dot-delimited nested secret keys
-            # for example: ["x", "y", "child.a"]
-            # means the top-level keys "x" and "y" are secret, as is the key "a" of a block
-            # nested under the "child" key. There is no limit to nesting.
+            # A wildcard (*) means that all fields under a given key are secret.
+            # for example: ["x", "y", "z.*", "child.a"]
+            # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
+            # nested under the "child" key are all secret. There is no limit to nesting.
             secrets = schema["secret_fields"] = []
             for field in model.__fields__.values():
                 if field.type_ in [SecretStr, SecretBytes]:
                     secrets.append(field.name)
+                elif field.type_ == SecretDict:
+                    # Append .* to field name to signify that all values under this
+                    # field are secret and should be obfuscated.
+                    secrets.append(f"{field.name}.*")
                 elif Block.is_block_class(field.type_):
                     secrets.extend(
                         f"{field.name}.{s}"
@@ -540,17 +548,6 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        if (
-            block_document.block_schema.checksum
-            != block_cls._calculate_schema_checksum()
-        ):
-            warnings.warn(
-                f"Block document has schema checksum {block_document.block_schema.checksum} "
-                f"which does not match the schema checksum for class {block_cls.__name__!r}. "
-                "This indicates the schema has changed and this block may not load.",
-                stacklevel=2,
-            )
-
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -601,15 +598,36 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def load(cls, name: str, client: "OrionClient" = None):
+    async def load(
+        cls,
+        name: str,
+        validate: bool = True,
+        client: "OrionClient" = None,
+    ):
         """
         Retrieves data from the block document with the given name for the block type
         that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
         Args:
             name: The name or slug of the block document. A block document slug is a
                 string with the format <block_type_slug>/<block_document_name>
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
 
         Raises:
             ValueError: If the requested block document is not found.
@@ -636,6 +654,28 @@ class Block(BaseModel, ABC):
             Custom(message="Hello!").save("my-custom-message")
 
             loaded_block = Block.load("custom/my-custom-message")
+
+            Migrate a block document to a new schema:
+            ```python
+            # original class
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            # Updated class with new required field
+            class Custom(Block):
+                message: str
+                number_of_ducks: int
+
+            loaded_block = Custom.load("my-custom-message", validate=False)
+
+            # Prints UserWarning about schema mismatch
+
+            loaded_block.number_of_ducks = 42
+
+            loaded_block.save("my-custom-message", overwrite=True)
+            ```
         """
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
@@ -652,7 +692,26 @@ class Block(BaseModel, ABC):
                 f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
             ) from e
 
-        return cls._from_block_document(block_document)
+        try:
+            return cls._from_block_document(block_document)
+        except ValidationError as e:
+            if not validate:
+                missing_fields = tuple(err["loc"][0] for err in e.errors())
+                missing_block_data = {field: None for field in missing_fields}
+                warnings.warn(
+                    f"Could not fully load {block_document_name!r} of block type {cls._block_type_slug!r} - "
+                    "this is likely because one or more required fields were added to the schema "
+                    f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
+                    f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
+                    f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)`, and '
+                    "load this block again before attempting to use it."
+                )
+                return cls.construct(**block_document.data, **missing_block_data)
+            raise RuntimeError(
+                f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
+                "due to failed validation. To load without validation, try loading again "
+                "with `validate=False`."
+            ) from e
 
     @staticmethod
     def is_block_class(block) -> bool:

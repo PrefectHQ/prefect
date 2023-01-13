@@ -28,7 +28,7 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs) to capture details about task runs such as runtime, tags, and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state. 
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
@@ -185,6 +185,9 @@ Alternatively, you can provide your own function or other callable that returns 
 
 Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
+!!! note "Task cache keys"
+    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` setting.
+
 ```python hl_lines="3-5 7"
 from prefect import task, flow
 
@@ -232,6 +235,38 @@ def cached_task():
 !!! note "Task results, retries, and caching"
     Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
 
+### Refreshing the cache
+
+Sometimes, you want a task to update the data associated with its cache key instead of using the cache. This is a cache "refresh".
+
+The `refresh_cache` option can be used to enable this behavior for a specific task:
+
+```python
+import random
+
+
+def static_cache_key(context, parameters):
+    # return a constant
+    return "static cache key"
+
+
+@task(cache_key_fn=static_cache_key, refresh_cache=True)
+def caching_task():
+    return random.random()
+```
+
+When this task runs, it will _always_ update the cache key instead of using the cached value. This is particularly useful when you have a flow that is responsible for updating the cache.
+
+If you want to refresh the cache for all tasks, you can use the `PREFECT_TASKS_REFRESH_CACHE` setting. Setting `PREFECT_TASKS_REFRESH_CACHE=true` will change the default behavior of all tasks to refresh. This is particularly useful if you want to rerun a flow without cached results.
+
+If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache &mdash; if a cache key exists it will be read, not updated. Note that, if a cache key does _not_ exist yet, these tasks can still write to the cache.
+
+```python
+@task(cache_key_fn=static_cache_key, refresh_cache=False)
+def caching_task():
+    return random.random()
+```
+
 ## Timeouts
 
 Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
@@ -268,7 +303,7 @@ See [state returned values](/concepts/task-runners/#using-results-from-submitted
     If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
 
 ## Wait for
-To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) keyword argument:
 
 ```python
 @task
@@ -393,7 +428,7 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states). 
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states/). 
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
@@ -402,7 +437,11 @@ If there are no concurrency slots available for any one of your task's tags, the
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 

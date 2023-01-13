@@ -16,6 +16,10 @@ tags:
 
 Prefect is [air traffic control for the modern data stack](https://www.prefect.io/guide/blog/the-global-coordination-plane#ATCfortheMDS). Monitor, coordinate, and orchestrate dataflows between and across your applications. Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
 
+<div class="video-wrapper">
+  <iframe width="100%" height="500" src="https://www.youtube.com/embed/ZK1s8OfVSpY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+
 ## Why Prefect?
 
 If you move data, you probably need the following functionality:
@@ -44,13 +48,13 @@ Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect w
 
 **Concepts**
 
-Learn more about Prefect 2's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs are intended to introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
+Learn more about Prefect 2's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
 
 **Prefect UI & Prefect Cloud**
 
 See how [Prefect's UI and cloud hosted functionality](/ui/overview/) can make coordinating dataflows a joy.
 
-**Collections**
+**Integrations**
 
 Prefect integrates with the other tools of the modern data stack. In our [collections docs](/collections/catalog/) learn about our pre-built integrations and see how to add your own.
 
@@ -60,7 +64,7 @@ Prefect 2 represents a fundamentally new way of building and orchestrating dataf
 
 **API reference**
 
-Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
+Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works or see the expected payload for a REST endpoint.
 
 **Contributing**
 
@@ -70,6 +74,10 @@ Prefect 2 is made possible by the fastest-growing community of data practitioner
 
 The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. 
 
+**Recipes**
+
+[Prefect Recipes](./recipes/recipes/) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
+
 ## Prefect highlights
 
 **Graceful failures**
@@ -78,7 +86,7 @@ Inevitably dataflows will fail. Prefect helps your code automatically retry on f
 
 **Notifications**
 
-You can easily set up e-mail or Slack notifications so that the right people are notified when something doesn't go as planned. 
+Easily set up e-mail, Slack, or PagerDuty notifications so that the right people are notified when something doesn't go as planned. 
 
 **Designed for performance**
 
@@ -99,6 +107,10 @@ Prefect makes it easy to send tasks to remote clusters for distributed parallel 
 **Works well with containers**
 
 Prefect is often used with [Docker and Kubernetes](/concepts/deployments/). 
+
+**Automations**
+
+Configure all sorts of actions to run in response to triggers via [automations](./io/ui/automations/).
 
 **Security first**
 

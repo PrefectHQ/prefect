@@ -373,6 +373,14 @@ This variable only exists to faciliate testing of settings.
 If accessed when `PREFECT_TEST_MODE` is not set, `None` is returned.
 """
 
+PREFECT_API_TLS_INSECURE_SKIP_VERIFY = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, disables SSL checking to allow insecure requests. 
+This is recommended only during development, e.g. when using self-signed certificates.
+"""
+
 PREFECT_API_URL = Setting(
     str,
     default=None,
@@ -389,6 +397,12 @@ PREFECT_API_KEY = Setting(
     is_secret=True,
 )
 """API key used to authenticate against Orion API. Defaults to `None`."""
+
+PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
+"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+
+If the remote Orion API does not support HTTP/2, this will have no effect and
+connections will be made via HTTP/1.1"""
 
 PREFECT_CLOUD_API_URL = Setting(
     str,
@@ -436,6 +450,11 @@ PREFECT_API_REQUEST_TIMEOUT = Setting(
 )
 """The default timeout for requests to the API"""
 
+PREFECT_EXPERIMENTAL_WARN = Setting(bool, default=True)
+"""
+If enabled, warn on usage of expirimental features.
+"""
+
 PREFECT_PROFILES_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "profiles.toml",
@@ -459,6 +478,14 @@ The default setting for persisting results when not otherwise specified. If enab
 flow and task results will be persisted unless they opt out.
 """
 
+PREFECT_TASKS_REFRESH_CACHE = Setting(
+    bool,
+    default=False,
+)
+"""
+If `True`, enables a refresh of cached results: re-executing the
+task will refresh the cached results. Defaults to `False`.
+"""
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
@@ -561,6 +588,19 @@ PREFECT_LOGGING_COLORS = Setting(
     default=True,
 )
 """Whether to style console logs with color."""
+
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
+)
+"""
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
 
 PREFECT_AGENT_QUERY_INTERVAL = Setting(
     float,
@@ -767,6 +807,14 @@ have exceeded their scheduled start time by this many seconds. Defaults
 to `5` seconds.
 """
 
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The pause expiration service will look for runs to mark as failed
+this often. Defaults to `5`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -833,6 +881,58 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 )
 """Whether or not to start the flow run notifications service in the Orion application. 
 If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
+PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the paused flow run expiration service in the Orion
+application. If disabled, paused flows that have timed out will remain in a Paused state
+until a resume attempt.
+"""
+
+PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+"""
+The maximum number of characters allowed for a task run cache key.
+This setting cannot be changed client-side, it must be set on the server.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers.
+"""
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
+"""
+Number of seconds a worker should wait between sending a heartbeat.
+"""
+PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
+"""
+Number of seconds a worker should wait between queries for scheduled flow runs.
+"""
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
+"""
+The number of seconds into the future a worker should query for scheduled flow runs.
+Can be used to compensate for infrastructure start up time for a worker.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
+"""
+The number of seconds a worker should wait between scanning its workflow storage
+location for submitted deployments.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "workflows",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+"""
+The location where workers will scan for newly submitted deployments and store
+flow code for submitted deployments.
 """
 
 # Collect all defined settings

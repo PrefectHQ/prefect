@@ -17,6 +17,9 @@ changelog:
     - title: Fixes
       labels:
         - fix
+    - title: Experimental
+      labels:
+        - experimental
     - title: Deprecations
       labels:
         - deprecation

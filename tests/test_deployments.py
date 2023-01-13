@@ -10,6 +10,7 @@ from pydantic.error_wrappers import ValidationError
 
 from prefect import flow, task
 from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient
 from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
@@ -437,6 +438,56 @@ class TestYAML:
         new_d = await Deployment.load_from_yaml(yaml_path)
         assert new_d.storage.aws_access_key_id.get_secret_value() == "fake"
         assert new_d.storage.aws_secret_access_key.get_secret_value() == "faker"
+
+    def test_yaml_comment_for_work_queue(self, tmp_path):
+        d = Deployment(name="yaml", flow_name="test")
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+        with open(yaml_path, "r") as f:
+            contents = f.readlines()
+
+        comment_index = contents.index(
+            "# The work queue that will handle this deployment's runs\n"
+        )
+        assert contents[comment_index + 1] == "work_queue_name: default\n"
+
+    async def test_deployment_yaml_roundtrip_handles_secret_dict(self, tmp_path):
+        class CustomCredentials(Block):
+
+            auth_info: SecretDict
+
+        class CustomInfra(Infrastructure):
+            type = "CustomInfra"
+            credentials: CustomCredentials
+
+            def run(self):  # needed because abstract method
+                return 42
+
+            def preview(self):  # abstract method
+                return "woof!"
+
+        custom_creds = CustomCredentials(auth_info={"key": "val"})
+        custom_infra = CustomInfra(credentials=custom_creds)
+        await custom_infra.save("test-me-with-secrets")
+
+        d = Deployment(
+            name="yaml",
+            infrastructure=custom_infra,
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        await d.to_yaml(yaml_path)
+        with open(yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+
+        # ensure secret values are hidden
+        auth_info = data["infrastructure"]["credentials"]["auth_info"]
+        assert len(auth_info) == 1
+        assert set(auth_info["key"]) == {"*"}
+
+        # ensure secret values are re-hydrated
+        new_d = await Deployment.load_from_yaml(yaml_path)
+        auth_info = new_d.infrastructure.credentials.auth_info
+        assert auth_info.get_secret_value() == {"key": "val"}
 
     def test_yaml_comment_for_work_queue(self, tmp_path):
         d = Deployment(name="yaml", flow_name="test")

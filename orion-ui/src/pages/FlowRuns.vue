@@ -105,7 +105,6 @@
   items-center
   sticky
   top-0
-  bg-white
   bg-opacity-90
   py-2
   z-10

@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
@@ -15,7 +16,9 @@ import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
@@ -25,7 +28,7 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
@@ -35,7 +38,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
-from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
 
@@ -43,14 +45,14 @@ from prefect.utilities.slugify import slugify
 @inject_client
 async def run_deployment(
     name: str,
-    client: OrionClient = None,
-    parameters: dict = None,
-    scheduled_time: datetime = None,
-    flow_run_name: str = None,
-    timeout: float = None,
-    poll_interval: float = 5,
+    client: Optional[OrionClient] = None,
+    parameters: Optional[dict] = None,
+    scheduled_time: Optional[datetime] = None,
+    flow_run_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    poll_interval: Optional[float] = 5,
     tags: Optional[Iterable[str]] = None,
-    idempotency_key: str = None,
+    idempotency_key: Optional[str] = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -63,7 +65,7 @@ async def run_deployment(
     Args:
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
-            defaults
+            defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
@@ -72,6 +74,8 @@ async def run_deployment(
             Setting `timeout` to None will allow this function to poll indefinitely.
             Defaults to None
         poll_interval: The number of seconds between polls
+        tags: A list of tags to associate with this flow run; note that tags are used only for organizational purposes.
+        idempotency_key: A unique value to recognize retries of the same run, and prevent creating multiple flow runs.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -152,6 +156,7 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
+    logger = flow_run_logger(flow_run)
 
     if not ignore_storage:
         if deployment.storage_document_id:
@@ -164,13 +169,12 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
+
+        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
-
     import_path = relative_path_to_current_platform(deployment.entrypoint)
+    logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
     if deployment.manifest_path:
@@ -179,7 +183,7 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
-    flow = await run_sync_in_worker_thread(import_object, str(import_path))
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
     return flow
 
 
@@ -206,6 +210,13 @@ def load_deployments_from_yaml(
     return registry
 
 
+@experimental_field("work_pool_name", group="workers", when=lambda x: x is not None)
+@experimental_field(
+    "work_pool_queue_name",
+    group="workers",
+    when=lambda x: x is not None,
+    stacklevel=4,
+)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
@@ -267,6 +278,7 @@ class Deployment(BaseModel):
     """
 
     class Config:
+        json_encoders = {SecretDict: lambda v: v.dict()}
         validate_assignment = True
         extra = "forbid"
 
@@ -277,6 +289,8 @@ class Deployment(BaseModel):
             "description",
             "version",
             "work_queue_name",
+            "work_pool_name",
+            "work_pool_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -381,7 +395,12 @@ class Deployment(BaseModel):
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-
+    work_pool_name: Optional[str] = Field(
+        default=None, description="The work pool for the deployment"
+    )
+    work_pool_queue_name: Optional[str] = Field(
+        default=None, description="The work pool queue for the deployment."
+    )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
@@ -409,6 +428,7 @@ class Deployment(BaseModel):
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
+    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -503,7 +523,7 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage"}
+                    {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -638,6 +658,8 @@ class Deployment(BaseModel):
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
+                work_pool_name=self.work_pool_name,
+                work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,

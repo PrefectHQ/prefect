@@ -23,6 +23,7 @@ import prefect
 import prefect.orion.api as api
 import prefect.orion.services as services
 import prefect.settings
+from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -39,7 +40,7 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.3"
+ORION_API_VERSION = "0.8.4"
 
 logger = get_logger("orion")
 
@@ -64,6 +65,7 @@ API_ROUTERS = (
     api.concurrency_limits.router,
     api.block_types.router,
     api.block_documents.router,
+    api.workers.router,
     api.work_queues.router,
     api.block_schemas.router,
     api.block_capabilities.router,
@@ -225,6 +227,7 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     def ui_settings():
         return {
             "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "flags": enabled_experiments(),
         }
 
     if (
@@ -377,6 +380,9 @@ def create_app(
 
         if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
+
+        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+            service_instances.append(services.pause_expirations.FailExpiredPauses())
 
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
