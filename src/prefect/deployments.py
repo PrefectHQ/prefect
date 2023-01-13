@@ -510,6 +510,10 @@ class Deployment(BaseModel):
         Raises:
             - ValueError: if both name and flow name are not set
         """
+        client_field_to_api_field = {
+            "schedule_active": "is_schedule_active",
+        }
+
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be provided.")
         async with get_client() as client:
@@ -526,7 +530,8 @@ class Deployment(BaseModel):
                     {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
-                    new_value = getattr(deployment, field)
+                    api_field = client_field_to_api_field.get(field, field)
+                    new_value = getattr(deployment, api_field)
                     setattr(self, field, new_value)
 
                 if "infrastructure" not in self.__fields_set__:
