@@ -4,11 +4,12 @@ State schemas.
 
 import datetime
 import warnings
+from sqlalchemy.exc import MissingGreenlet
 from typing import Any, Generic, Optional, Type, TypeVar
 from uuid import UUID
-
 import pendulum
 from pydantic import Field, root_validator, validator
+from pydantic.utils import GetterDict
 
 from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
 from prefect.utilities.collections import AutoEnum
@@ -64,11 +65,25 @@ class StateBaseModel(IDBaseModel):
         return schema_dict
 
 
+class StateGetter(GetterDict):
+    def get(self, key: str, default: Any) -> Any:
+        # During orchestration, ORM states can be instantiated prior to inserting
+        # results into the artifact table, and the `data` field will fail to load
+        if key == 'data':
+            try:
+                return super().get(key, default)
+            except MissingGreenlet:
+                return None
+
+        return super().get(key, default)
+
+
 class State(StateBaseModel, Generic[R]):
     """Represents the state of a run."""
 
     class Config:
         orm_mode = True
+        getter_dict = StateGetter
 
     type: StateType
     name: Optional[str] = Field(default=None)
