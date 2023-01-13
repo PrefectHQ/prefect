@@ -33,6 +33,7 @@ class TestUvicornSignalForwarding:
         ) as proc:
             out = []
             for line in proc.stdout:
+                print(line)
                 out.append(line)
                 if b"Uvicorn running" in line:
                     break
@@ -61,6 +62,7 @@ class TestUvicornSignalForwarding:
         ) as proc:
             out = []
             for line in proc.stdout:
+                print(line)
                 out.append(line)
                 if b"Uvicorn running" in line:
                     break
@@ -89,6 +91,7 @@ class TestUvicornSignalForwarding:
         ) as proc:
             out = []
             for line in proc.stdout:
+                print(line)
                 out.append(line)
                 if b"Uvicorn running" in line:
                     break
@@ -115,6 +118,7 @@ class TestUvicornSignalForwarding:
         ) as proc:
             out = []
             for line in proc.stdout:
+                print(line)
                 out.append(line)
                 if b"Uvicorn running" in line:
                     break
