@@ -1049,9 +1049,7 @@ class TestRenameRetryingStates:
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestTransitionsFromTerminalStatesRule:
-    all_transitions = set(
-        product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES)
-    )
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES))
     terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
 
     # Cast to sorted lists for deterministic ordering.
