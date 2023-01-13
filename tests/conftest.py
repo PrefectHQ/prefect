@@ -62,6 +62,8 @@ from prefect.utilities.dispatch import get_registry_for_type
 # isort: split
 # Import fixtures
 
+import uvloop
+
 from prefect.testing.cli import *
 from prefect.testing.fixtures import *
 
@@ -71,6 +73,8 @@ from .fixtures.database import *
 from .fixtures.docker import *
 from .fixtures.logging import *
 from .fixtures.storage import *
+
+uvloop.install()
 
 
 def pytest_addoption(parser):
