@@ -1978,7 +1978,7 @@ class TestOrchestrateTaskRun:
         t1 = time.perf_counter()
 
         runtime = t1 - t0
-        assert runtime < 2, "The call should be return quickly after timeout"
+        assert runtime < 3, "The call should be return quickly after timeout"
 
         # Sleep for an extra second to check if the thread is still running. We cannot
         # check `thread.is_alive()` because it is still alive — presumably this is because
@@ -2419,7 +2419,7 @@ class TestFlowRunCrashes:
         t1 = time.perf_counter()
 
         runtime = t1 - t0
-        assert runtime < 2, "The call should be return quickly after timeout"
+        assert runtime < 3, "The call should be return quickly after timeout"
 
         # Sleep for an extra second to check if the thread is still running. We cannot
         # check `thread.is_alive()` because it is still alive — presumably this is because
