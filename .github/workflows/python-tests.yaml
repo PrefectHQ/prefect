@@ -37,11 +37,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  run-tests-sqlite:
-    name: Test with SQLite
+  run-tests:
+    name: Test
 
     strategy:
       matrix:
+        database:
+          - "postgres"
+          - "sqlite"
         os:
           - ubuntu-latest
         python-version:
@@ -63,6 +66,18 @@ jobs:
           # suite from building images automaticlly in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
+
+          # Test against Postgres 13 and 14
+          - database: "postgres"
+            postgres-version: "13"
+
+          - database: "postgres"
+            postgres-version: "14"
+
+        exclude:
+          # Do not run service tests with postgres
+          - database: "postgres"
+            pytest-options: "--only-services"
 
       fail-fast: false
 
@@ -149,44 +164,8 @@ jobs:
           # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
-      - name: Run tests
-        # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
-        env: 
-          SQLALCHEMY_SILENCE_UBER_WARNING: 1
-        run: |
-          # Parallelize tests by scope to reduce expensive service fixture duplication
-          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
-          # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
-
-  run-tests-postgres:
-    name: Test with Postgres
-
-    strategy:
-      matrix:
-        postgres-version:
-          - "13"
-          - "14"
-        python-version:
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
-        pytest-options:
-          - "--exclude-services"
-
-      fail-fast: false
-
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-
       - name: Start PostgreSQL ${{ matrix.postgres-version }}
+        if: ${{ matrix.database == "postgres" }}
         run: >
           docker run
           --name "postgres"
@@ -209,22 +188,13 @@ jobs:
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
-
       - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
-          # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
+        # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
+        env: 
           SQLALCHEMY_SILENCE_UBER_WARNING: 1
+          PREFECT_ORION_DATABASE_CONNECTION_URL: ${{ 'postgresql+asyncpg://prefect:prefect@localhost/orion' && matrix.database == "postgres" || '' }} 
         run: |
-          pytest tests --numprocesses auto --dist loadscope ${{ matrix.pytest-options }} --durations 30
+          # Parallelize tests by scope to reduce expensive service fixture duplication
+          # Do not allow the test suite to build images, as we want the prebuilt images to be tested
+          # Do not run Kubernetes service tests, we do not have a cluster available
+          pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
