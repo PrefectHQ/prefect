@@ -51,7 +51,6 @@ class CloudClient:
         api_key: str,
         httpx_settings: dict = None,
     ) -> None:
-
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")

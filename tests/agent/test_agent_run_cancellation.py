@@ -406,7 +406,6 @@ async def test_agent_cancel_run_with_unknown_error_during_kill(
 async def test_agent_cancel_run_without_infrastructure_support_for_kill(
     orion_client: OrionClient, deployment: ORMDeployment, caplog, monkeypatch
 ):
-
     # Patch all infrastructure types
     types = get_registry_for_type(Block)
     for t in types.values():

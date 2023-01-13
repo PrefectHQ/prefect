@@ -499,7 +499,6 @@ async def read_workers(
     offset: int = None,
     db: OrionDBInterface = None,
 ) -> List[ORMWorker]:
-
     query = (
         sa.select(db.Worker)
         .where(db.Worker.work_pool_id == work_pool_id)

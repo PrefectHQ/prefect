@@ -97,7 +97,8 @@ class BaseQueryComponents(ABC):
     async def get_flow_run_notifications_from_queue(
         self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ):
-        """Database-specific implementation of reading notifications from the queue and deleting them"""
+        """Database-specific implementation of reading notifications from the queue and deleting them
+        """
 
     async def queue_flow_run_notifications(
         self,
@@ -290,7 +291,6 @@ class BaseQueryComponents(ABC):
         scheduled_after: Optional[datetime.datetime] = None,
         respect_queue_priorities: bool = False,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
-
         template = jinja_env.get_template(
             self._get_scheduled_flow_runs_from_work_pool_template_path
         )
@@ -380,7 +380,6 @@ class BaseQueryComponents(ABC):
         offset: Optional[int] = None,
         limit: Optional[int] = None,
     ):
-
         # if no filter is provided, one is created that excludes anonymous blocks
         if block_document_filter is None:
             block_document_filter = schemas.filters.BlockDocumentFilter(
@@ -597,7 +596,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     async def get_flow_run_notifications_from_queue(
         self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ) -> List:
-
         queued_notifications = (
             sa.delete(db.FlowRunNotificationQueue)
             .returning(
@@ -863,7 +861,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
     ):
-
         # precompute for readability
         scheduled_before_clause = (
             db.FlowRun.next_scheduled_start_time <= scheduled_before

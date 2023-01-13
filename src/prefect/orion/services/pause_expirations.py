@@ -41,7 +41,6 @@ class FailExpiredPauses(LoopService):
         """
         while True:
             async with db.session_context(begin_transaction=True) as session:
-
                 query = (
                     sa.select(db.FlowRun)
                     .where(

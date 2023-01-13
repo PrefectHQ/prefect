@@ -85,7 +85,8 @@ class TestDefaultQueues:
             )
 
     async def test_cant_delete_default_queue_even_in_db(self, session, work_pool, db):
-        """Deleting the default queue is not allowed in the db, even if you bypass the model"""
+        """Deleting the default queue is not allowed in the db, even if you bypass the model
+        """
         with pytest.raises(sa.exc.IntegrityError):
             await session.execute(
                 sa.delete(db.WorkPoolQueue).where(
@@ -432,7 +433,6 @@ class TestUpdateWorkPoolQueuePriorities:
     async def test_bulk_update_priorities(
         self, session, work_pool, queues, new_priorities
     ):
-
         all_queues = await models.workers.read_work_pool_queues(
             session=session, work_pool_id=work_pool.id
         )

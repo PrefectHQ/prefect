@@ -83,13 +83,11 @@ class TestLocalFileSystem:
         await fs.get_directory(".", ".")
 
     async def test_dir_contents_copied_correctly_with_get_directory(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem()
 
             await f.get_directory(from_path=tmp_path, local_path=tmp_dst)
@@ -97,7 +95,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_dir_contents_copied_correctly_with_put_directory(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
@@ -114,7 +111,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_to_path_modifies_base_path_correctly(self, tmp_path):
-
         sub_dir_name = "puppy"
 
         parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
@@ -134,7 +130,6 @@ class TestLocalFileSystem:
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == set(child_contents)
 
     async def test_to_path_raises_error_when_not_in_basepath(self, tmp_path):
-
         f = LocalFileSystem(basepath=tmp_path)
         outside_path = "~/puppy"
         with pytest.raises(
@@ -168,7 +163,6 @@ class TestLocalFileSystem:
 
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
             await f.put_directory(
@@ -204,7 +198,6 @@ class TestLocalFileSystem:
         expected_parent_contents = os.listdir(tmp_path)
         # move file contents to tmp_dst
         with TemporaryDirectory() as tmp_dst:
-
             f = LocalFileSystem(basepath=Path(tmp_dst).parent)
 
             await f.put_directory(
@@ -334,7 +327,8 @@ class TestRemoteFileSystem:
     async def test_get_directory_empty_local_path_uses_cwd(
         self, tmp_path: Path, null_value
     ):
-        """Check that contents are copied to the CWD when no `local_path` is provided."""
+        """Check that contents are copied to the CWD when no `local_path` is provided.
+        """
 
         # Construct the `from` directory
         from_path = tmp_path / "from"
@@ -464,7 +458,8 @@ class TestGitHub:
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
 
     async def test_token_added_correctly_from_credential(self, monkeypatch):
-        """Ensure that the repo url is in the format `https://<oauth-key>@github.com/<username>/<repo>.git`."""  # noqa: E501
+        """Ensure that the repo url is in the format `https://<oauth-key>@github.com/<username>/<repo>.git`.
+        """  # noqa: E501
 
         class p:
             returncode = 0
@@ -509,7 +504,8 @@ class TestGitHub:
     async def test_dir_contents_copied_correctly_with_get_directory(
         self, monkeypatch, tmp_path
     ):  # noqa
-        """Check that `get_directory` is able to correctly copy contents from src->dst"""  # noqa
+        """Check that `get_directory` is able to correctly copy contents from src->dst
+        """  # noqa
 
         class p:
             returncode = 0

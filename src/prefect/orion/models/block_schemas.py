@@ -458,7 +458,8 @@ def _find_block_schema_via_checksum(
     ],
     checksum: str,
 ) -> Optional[BlockSchema]:
-    """Attempt to find a block schema via a given checksum. Returns None if not found."""
+    """Attempt to find a block schema via a given checksum. Returns None if not found.
+    """
     return next(
         (
             block_schema

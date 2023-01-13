@@ -49,7 +49,6 @@ def provide_database_interface() -> OrionDBInterface:
     dialect = get_dialect(connection_url)
 
     if database_config is None:
-
         if dialect.name == "postgresql":
             database_config = AsyncPostgresConfiguration(connection_url=connection_url)
         elif dialect.name == "sqlite":

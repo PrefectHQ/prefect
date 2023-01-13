@@ -45,7 +45,6 @@ class OrionAgent:
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
     ) -> None:
-
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
                 "Provide only one of 'default_infrastructure' and"
@@ -124,7 +123,6 @@ class OrionAgent:
             try:
                 work_queue = await self.client.read_work_queue_by_name(name)
             except ObjectNotFound:
-
                 # if the work queue wasn't found, create it
                 if not self.work_queue_prefix:
                     # do not attempt to create work queues if the agent is polling for
@@ -162,7 +160,6 @@ class OrionAgent:
 
         # load runs from each work queue
         async for work_queue in self.get_work_queues():
-
             # print a nice message if the work queue is paused
             if work_queue.is_paused:
                 self.logger.info(
@@ -185,7 +182,6 @@ class OrionAgent:
         submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
-
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
@@ -420,7 +416,6 @@ class OrionAgent:
         infrastructure: Infrastructure,
         task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
-
         # Note: There is not a clear way to determine if task_status.started() has been
         #       called without peeking at the internal `_future`. Ideally we could just
         #       check if the flow run id has been removed from `submitting_flow_run_ids`
@@ -462,8 +457,10 @@ class OrionAgent:
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                "Flow run infrastructure exited with non-zero status code"
-                f" {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -474,8 +471,10 @@ class OrionAgent:
             state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception as exc:
@@ -487,8 +486,10 @@ class OrionAgent:
 
         if not state.is_pending():
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 

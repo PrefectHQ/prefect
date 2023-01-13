@@ -272,7 +272,6 @@ class Runtime:
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> "concurrent.futures.Future[T]":
-
         # Safety check thread and process identifiers
         if threading.get_ident() == self._owner_thread_id:
             raise RuntimeError(

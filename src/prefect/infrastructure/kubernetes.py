@@ -685,7 +685,11 @@ class KubernetesJob(Infrastructure):
             name = key
 
         name_slug = (
-            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+            slugify(
+                name,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            ).strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or name
@@ -725,7 +729,11 @@ class KubernetesJob(Infrastructure):
             The slugified value
         """
         slug = (
-            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+            slugify(
+                value,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            ).strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value

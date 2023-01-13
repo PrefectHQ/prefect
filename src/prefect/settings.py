@@ -255,8 +255,9 @@ def check_for_deprecated_cloud_url(settings, value):
     if deprecated_value is not None:
         warnings.warn(
             "`PREFECT_CLOUD_URL` is set and will be used instead of"
-            " `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL`"
-            " is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            " `PREFECT_CLOUD_API_URL` for backwards compatibility."
+            " `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL`"
+            " instead.",
             DeprecationWarning,
         )
     return deprecated_value or value

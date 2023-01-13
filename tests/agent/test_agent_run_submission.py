@@ -313,7 +313,6 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
     monkeypatch.setattr("prefect.client.OrionClient.read_work_queue_by_name", mock)
 
     async with OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10) as agent:
-
         await agent.get_and_submit_flow_runs()
         mock.assert_awaited_once()
 

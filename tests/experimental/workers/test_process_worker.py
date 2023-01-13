@@ -79,7 +79,8 @@ def mock_open_process(monkeypatch):
 
 
 def patch_read_deployment(monkeypatch, overrides: dict = None):
-    """Patches client._read_deployment to return a mock deployment with the specified overrides"""
+    """Patches client._read_deployment to return a mock deployment with the specified overrides
+    """
 
     class MockDeployment(BaseModel):
         infra_overrides: dict = overrides or {}
@@ -199,7 +200,6 @@ async def test_process_worker_logs_exit_code_help_message(
     work_pool,
     monkeypatch,
 ):
-
     read_deployment_mock = patch_read_deployment(monkeypatch)
     patch_run_process(returncode=exit_code)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:

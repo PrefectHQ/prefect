@@ -130,8 +130,10 @@ def get_github_token() -> str:
     match = TOKEN_REGEX.search(output)
     if not match:
         print(
-            "Failed to find token in GitHub CLI output with regex"
-            f" {TOKEN_REGEX.pattern!r}:",
+            (
+                "Failed to find token in GitHub CLI output with regex"
+                f" {TOKEN_REGEX.pattern!r}:"
+            ),
             file=sys.stderr,
         )
         print(output, file=sys.stderr)

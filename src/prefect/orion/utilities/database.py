@@ -520,7 +520,6 @@ class json_has_any_key(FunctionElement):
 @compiles(json_has_any_key, "postgresql")
 @compiles(json_has_any_key)
 def _json_has_any_key_postgresql(element, compiler, **kwargs):
-
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
     if not element.values:

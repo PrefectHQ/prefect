@@ -104,17 +104,21 @@ async def create_work_queue_and_set_concurrency_limit(
                     res = await client.read_work_queue_by_name(name=work_queue_name)
                     if res.concurrency_limit != work_queue_concurrency:
                         app.console.print(
-                            f"Work queue {work_queue_name!r} already exists with a"
-                            f" concurrency limit of {res.concurrency_limit}, this limit"
-                            " is being updated...",
+                            (
+                                f"Work queue {work_queue_name!r} already exists with a"
+                                f" concurrency limit of {res.concurrency_limit}, this"
+                                " limit is being updated..."
+                            ),
                             style="red",
                         )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
                 app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} to"
-                    f" {work_queue_concurrency}",
+                    (
+                        "Updated concurrency limit on work queue"
+                        f" {work_queue_name!r} to {work_queue_concurrency}"
+                    ),
                     style="green",
                 )
             except Exception as exc:
@@ -431,7 +435,6 @@ async def run(
             warnings.filterwarnings("ignore", module="dateparser")
 
             try:
-
                 start_time_parsed = dateparser.parse(
                     start_time_raw,
                     settings={
@@ -572,7 +575,6 @@ async def apply(
     Create or update a deployment from a YAML file.
     """
     for path in paths:
-
         try:
             deployment = await Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
@@ -591,21 +593,27 @@ async def apply(
                 file_count = await deployment.upload_to_storage()
                 if file_count:
                     app.console.print(
-                        f"Successfully uploaded {file_count} files to"
-                        f" {deployment.location}",
+                        (
+                            f"Successfully uploaded {file_count} files to"
+                            f" {deployment.location}"
+                        ),
                         style="green",
                     )
             else:
                 app.console.print(
-                    f"Deployment storage {deployment.storage} does not have upload"
-                    " capabilities; no files uploaded.",
+                    (
+                        f"Deployment storage {deployment.storage} does not have upload"
+                        " capabilities; no files uploaded."
+                    ),
                     style="red",
                 )
 
         deployment_id = await deployment.apply()
         app.console.print(
-            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
-            f" created with id '{deployment_id}'.",
+            (
+                f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
+                f" created with id '{deployment_id}'."
+            ),
             style="green",
         )
 
@@ -625,10 +633,12 @@ async def apply(
             )
         else:
             app.console.print(
-                "\nThis deployment does not specify a work queue name, which means"
-                " agents will not be able to pick up its runs. To add a work queue,"
-                " edit the deployment spec and re-run this command, or visit the"
-                " deployment in the UI.",
+                (
+                    "\nThis deployment does not specify a work queue name, which means"
+                    " agents will not be able to pick up its runs. To add a work queue,"
+                    " edit the deployment spec and re-run this command, or visit the"
+                    " deployment in the UI."
+                ),
                 style="red",
             )
 
@@ -928,8 +938,10 @@ async def build(
 
     if set_default_ignore_file(path="."):
         app.console.print(
-            "Default '.prefectignore' file written to"
-            f" {(Path('.') / '.prefectignore').absolute()}",
+            (
+                "Default '.prefectignore' file written to"
+                f" {(Path('.') / '.prefectignore').absolute()}"
+            ),
             style="green",
         )
 
@@ -1007,23 +1019,29 @@ async def build(
             file_count = await deployment.upload_to_storage()
             if file_count:
                 app.console.print(
-                    f"Successfully uploaded {file_count} files to"
-                    f" {deployment.location}",
+                    (
+                        f"Successfully uploaded {file_count} files to"
+                        f" {deployment.location}"
+                    ),
                     style="green",
                 )
         else:
             app.console.print(
-                f"Deployment storage {deployment.storage} does not have upload"
-                " capabilities; no files uploaded.  Pass --skip-upload to suppress"
-                " this warning.",
+                (
+                    f"Deployment storage {deployment.storage} does not have upload"
+                    " capabilities; no files uploaded.  Pass --skip-upload to suppress"
+                    " this warning."
+                ),
                 style="green",
             )
 
     if _apply:
         deployment_id = await deployment.apply()
         app.console.print(
-            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
-            f" created with id '{deployment_id}'.",
+            (
+                f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
+                f" created with id '{deployment_id}'."
+            ),
             style="green",
         )
         if deployment.work_queue_name is not None:
@@ -1036,10 +1054,12 @@ async def build(
             )
         else:
             app.console.print(
-                "\nThis deployment does not specify a work queue name, which means"
-                " agents will not be able to pick up its runs. To add a work queue,"
-                " edit the deployment spec and re-run this command, or visit the"
-                " deployment in the UI.",
+                (
+                    "\nThis deployment does not specify a work queue name, which means"
+                    " agents will not be able to pick up its runs. To add a work queue,"
+                    " edit the deployment spec and re-run this command, or visit the"
+                    " deployment in the UI."
+                ),
                 style="red",
             )
 

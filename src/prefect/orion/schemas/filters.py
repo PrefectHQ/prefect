@@ -40,7 +40,8 @@ class PrefectFilterBaseModel(PrefectBaseModel):
         extra = "forbid"
 
     def as_sql_filter(self, db: "OrionDBInterface") -> "BooleanClauseList":
-        """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter."""
+        """Generate SQL filter from provided filter parameters. If no filters parameters are available, return a TRUE filter.
+        """
         filters = self._get_filter_list(db)
         if not filters:
             return True
@@ -52,7 +53,8 @@ class PrefectFilterBaseModel(PrefectBaseModel):
 
 
 class PrefectOperatorFilterBaseModel(PrefectFilterBaseModel):
-    """Base model for Prefect filters that combines criteria with a user-provided operator"""
+    """Base model for Prefect filters that combines criteria with a user-provided operator
+    """
 
     operator: Operator = Field(
         default=Operator.and_,
@@ -809,7 +811,8 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
 
 
 class DeploymentFilter(PrefectOperatorFilterBaseModel):
-    """Filter for deployments. Only deployments matching all criteria will be returned."""
+    """Filter for deployments. Only deployments matching all criteria will be returned.
+    """
 
     id: Optional[DeploymentFilterId] = Field(
         default=None, description="Filter criteria for `Deployment.id`"
@@ -1197,7 +1200,8 @@ class BlockDocumentFilterName(PrefectFilterBaseModel):
 
 
 class BlockDocumentFilter(PrefectOperatorFilterBaseModel):
-    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned"""
+    """Filter BlockDocuments. Only BlockDocuments matching all criteria will be returned
+    """
 
     id: Optional[BlockDocumentFilterId] = Field(
         default=None, description="Filter criteria for `BlockDocument.id`"
@@ -1355,7 +1359,6 @@ class WorkPoolFilterType(PrefectFilterBaseModel):
 
 
 class WorkPoolFilter(PrefectOperatorFilterBaseModel):
-
     id: Optional[WorkPoolFilterId] = Field(
         default=None, description="Filter criteria for `WorkPool.id`"
     )
@@ -1408,7 +1411,6 @@ class WorkPoolQueueFilterName(PrefectFilterBaseModel):
 
 
 class WorkPoolQueueFilter(PrefectOperatorFilterBaseModel):
-
     id: Optional[WorkPoolQueueFilterId] = Field(
         default=None, description="Filter criteria for `WorkPoolQueue.id`"
     )
@@ -1467,7 +1469,6 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
 
 
 class WorkerFilter(PrefectOperatorFilterBaseModel):
-
     # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
     # )

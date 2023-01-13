@@ -11,7 +11,8 @@ from prefect.orion import models, schemas
 
 @pytest.fixture
 async def many_flow_run_states(flow, session, db):
-    """Creates 5 flow runs, each with 5 states. The data payload of each state is an integer 0-4"""
+    """Creates 5 flow runs, each with 5 states. The data payload of each state is an integer 0-4
+    """
 
     # clear all other flow runs
     await session.execute(sa.delete(db.FlowRun))
@@ -46,7 +47,8 @@ async def many_flow_run_states(flow, session, db):
 
 @pytest.fixture
 async def many_task_run_states(flow_run, session, db):
-    """Creates 5 task runs, each with 5 states. The data payload of each state is an integer 0-4"""
+    """Creates 5 task runs, each with 5 states. The data payload of each state is an integer 0-4
+    """
 
     # clear all other task runs
     await session.execute(sa.delete(db.TaskRun))
@@ -96,7 +98,6 @@ class TestFlowRun:
     async def test_flow_run_state_relationship_retrieves_current_state(
         self, many_flow_run_states, session, db
     ):
-
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(db.FlowRunState)
@@ -244,7 +245,6 @@ class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
         self, many_task_run_states, session, db
     ):
-
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(db.TaskRunState)

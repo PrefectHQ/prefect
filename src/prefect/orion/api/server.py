@@ -484,7 +484,7 @@ def create_app(
         new_schema = partial_schema.copy()
         new_schema["paths"] = {}
         for path, value in partial_schema["paths"].items():
-            new_schema["paths"][f"/api{path}"] = value
+            new_schema["paths"]["/api{path}"] = value
 
         new_schema["info"]["x-logo"] = {"url": "static/prefect-logo-mark-gradient.png"}
         return new_schema

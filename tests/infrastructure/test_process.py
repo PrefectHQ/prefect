@@ -222,7 +222,6 @@ async def test_prepare_for_flow_run_uses_sys_executable(
 def test_process_logs_exit_code_help_message(
     exit_code, help_message, caplog, monkeypatch
 ):
-
     # We need to use a monkeypatch because `bash -c "exit -9"`` returns a 247
     class fake_process:
         returncode = exit_code

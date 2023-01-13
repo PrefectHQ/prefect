@@ -68,7 +68,6 @@ class BaseDatabaseConfiguration(ABC):
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
-
     ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
 
     async def engine(self) -> AsyncEngine:
@@ -95,7 +94,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in self.ENGINES:
-
             # apply database timeout
             kwargs = dict()
             connect_args = dict()
@@ -165,7 +163,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
-
     ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
     MIN_SQLITE_VERSION = (3, 24, 0)
 
@@ -202,7 +199,6 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             self.timeout,
         )
         if cache_key not in self.ENGINES:
-
             # apply database timeout
             if self.timeout is not None:
                 kwargs["connect_args"] = dict(timeout=self.timeout)
@@ -251,7 +247,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
     def setup_sqlite(self, conn, named=True):
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
-        duration of the connection. See https://www.sqlite.org/pragma.html for more info."""
+        duration of the connection. See https://www.sqlite.org/pragma.html for more info.
+        """
         # enable foreign keys
         conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
 

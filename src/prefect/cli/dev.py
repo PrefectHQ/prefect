@@ -89,7 +89,6 @@ def build_ui():
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
-
             app.console.print("Installing npm packages...")
             try:
                 subprocess.check_output(

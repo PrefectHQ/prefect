@@ -43,7 +43,8 @@ def print_query(database_engine):
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_db(database_engine, db):
-    """Create all database objects prior to running tests, and drop them when tests are done."""
+    """Create all database objects prior to running tests, and drop them when tests are done.
+    """
     try:
         # build the database
         await db.create_db()

@@ -100,9 +100,11 @@ async def start(
             pass
         work_queues.append(work_queue)
         app.console.print(
-            "Agents now support multiple work queues. Instead of passing a single"
-            " argument, provide work queue names with the `-q` or `--work-queue` flag:"
-            f" `prefect agent start -q {work_queue}`\n",
+            (
+                "Agents now support multiple work queues. Instead of passing a single"
+                " argument, provide work queue names with the `-q` or `--work-queue`"
+                f" flag: `prefect agent start -q {work_queue}`\n"
+            ),
             style="blue",
         )
 
@@ -117,10 +119,12 @@ async def start(
     if tags:
         work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
         app.console.print(
-            "`tags` are deprecated. For backwards-compatibility with old versions of"
-            f" Prefect, this agent will create a work queue named `{work_queue_name}`"
-            " that uses legacy tag-based matching. This option will be removed on"
-            " 2023-02-23.",
+            (
+                "`tags` are deprecated. For backwards-compatibility with old versions"
+                " of Prefect, this agent will create a work queue named"
+                f" `{work_queue_name}` that uses legacy tag-based matching. This option"
+                " will be removed on 2023-02-23."
+            ),
             style="red",
         )
 

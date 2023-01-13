@@ -102,7 +102,6 @@ class TestCreateDeployment:
         assert deployment.storage_document_id == storage_document_id
 
     async def test_default_work_queue_name_is_none(self, session, client, flow):
-
         data = DeploymentCreate(
             name="My Deployment", manifest_path="", flow_id=flow.id
         ).dict(json_compatible=True)
@@ -230,7 +229,6 @@ class TestCreateDeployment:
     async def test_upserting_deployment_with_inactive_schedule_deletes_existing_auto_scheduled_runs(
         self, client, deployment, session
     ):
-
         # schedule runs
         response = await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id
@@ -272,7 +270,6 @@ class TestCreateDeployment:
         session,
         db,
     ):
-
         # schedule runs
         response = await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id
@@ -982,7 +979,6 @@ class TestSetScheduleActive:
     async def test_set_schedule_inactive_deletes_auto_scheduled_runs(
         self, client, deployment, session
     ):
-
         # schedule runs
         response = await models.deployments.schedule_runs(
             session=session, deployment_id=deployment.id

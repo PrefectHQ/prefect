@@ -176,7 +176,6 @@ class TestCreateFlowRun:
         assert flow_run.id != flow_run_2.id
 
     async def test_create_flow_run_with_deployment_id(self, flow, session):
-
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -832,7 +831,6 @@ class TestReadFlowRuns:
         assert {res.id for res in result} == {flow_run_1.id}
 
     async def test_read_flow_runs_filters_by_parent_task_run_ids(self, flow, session):
-
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(

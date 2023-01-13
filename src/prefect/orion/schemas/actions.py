@@ -92,17 +92,21 @@ class DeploymentCreate(ActionBaseModel):
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
-                "`worker_pool_queue_id` is no longer supported for creating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_pool_queue_name` instead.",
+                (
+                    "`worker_pool_queue_id` is no longer supported for creating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_pool_queue_name` instead."
+                ),
                 UserWarning,
             )
         if worker_pool_name or worker_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name` and `worker_pool_queue_name` are "
-                "no longer supported for creating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_pool_queue_name` instead.",
+                (
+                    "`worker_pool_name` and `worker_pool_queue_name` are "
+                    "no longer supported for creating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_pool_queue_name` instead."
+                ),
                 UserWarning,
             )
         return values_copy
@@ -168,17 +172,21 @@ class DeploymentUpdate(ActionBaseModel):
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
-                "`worker_pool_queue_id` is no longer supported for updating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_pool_queue_name` instead.",
+                (
+                    "`worker_pool_queue_id` is no longer supported for updating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_pool_queue_name` instead."
+                ),
                 UserWarning,
             )
         if worker_pool_name or worker_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name` and `worker_pool_queue_name` are "
-                "no longer supported for updating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_pool_queue_name` instead.",
+                (
+                    "`worker_pool_name` and `worker_pool_queue_name` are "
+                    "no longer supported for updating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_pool_queue_name` instead."
+                ),
                 UserWarning,
             )
         return values_copy

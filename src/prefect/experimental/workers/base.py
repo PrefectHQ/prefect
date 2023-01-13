@@ -497,8 +497,10 @@ class BaseWorker(abc.ABC):
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                "Flow run infrastructure exited with non-zero status code"
-                f" {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -535,8 +537,10 @@ class BaseWorker(abc.ABC):
             )
         except Abort as exc:
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception:
@@ -547,8 +551,10 @@ class BaseWorker(abc.ABC):
 
         if not state.is_pending():
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 

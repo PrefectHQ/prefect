@@ -837,7 +837,8 @@ class SavedSearchFilter(PrefectBaseModel):
 
 
 class SavedSearch(ORMBaseModel):
-    """An ORM representation of saved search data. Represents a set of filter criteria."""
+    """An ORM representation of saved search data. Represents a set of filter criteria.
+    """
 
     name: str = Field(default=..., description="The name of the saved search.")
     filters: List[SavedSearchFilter] = Field(

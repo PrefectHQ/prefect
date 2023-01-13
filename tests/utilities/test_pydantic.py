@@ -286,7 +286,6 @@ class TestTypeDispatchField:
         assert isinstance(post_instance, Base)
 
     def test_both_type_field_and_dispatch_key_cannot_be_set(self):
-
         with pytest.raises(
             ValueError,
             match=(
@@ -301,7 +300,6 @@ class TestTypeDispatchField:
                 __dispatch_key__ = "base"
 
     def test_base_type_field_must_be_string_type(self):
-
         with pytest.raises(
             TypeError,
             match=(

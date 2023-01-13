@@ -56,10 +56,12 @@ def get_state_result(
     if not fetch:
         if fetch is None and in_async_main_thread():
             warnings.warn(
-                "State.result() was called from an async context but not awaited. "
-                "This method will be updated to return a coroutine by default in "
-                "the future. Pass `fetch=True` and `await` the call to get rid of "
-                "this warning.",
+                (
+                    "State.result() was called from an async context but not awaited. "
+                    "This method will be updated to return a coroutine by default in "
+                    "the future. Pass `fetch=True` and `await` the call to get rid of "
+                    "this warning."
+                ),
                 DeprecationWarning,
                 stacklevel=2,
             )

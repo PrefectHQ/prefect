@@ -141,7 +141,6 @@ async def test_worker_applies_discovered_deployments(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
     read_deployment = await orion_client.read_deployment_by_name(
@@ -165,7 +164,6 @@ async def test_worker_applies_updates_to_deployments(
         work_pool_name=work_pool.name,
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -202,7 +200,6 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -237,7 +234,6 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         assert len(await orion_client.read_deployments()) == 0
@@ -514,7 +510,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 def test_base_job_configuration_from_template_and_overrides(
     template, overrides, expected
 ):
-    """Test that the job configuration is correctly built from the template and overrides"""
+    """Test that the job configuration is correctly built from the template and overrides
+    """
     config = BaseJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides=overrides
     )
@@ -682,7 +679,8 @@ def test_base_job_configuration_from_template_and_overrides(
     ],
 )
 def test_job_configuration_from_template_and_overrides(template, overrides, expected):
-    """Test that the job configuration is correctly built from the template and overrides"""
+    """Test that the job configuration is correctly built from the template and overrides
+    """
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str = Field(template="{{ var1 }}")

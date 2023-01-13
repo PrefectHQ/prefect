@@ -67,9 +67,11 @@ async def create(
     """
     if tags:
         app.console.print(
-            "Supplying `tags` for work queues is deprecated. This work "
-            "queue will use legacy tag-matching behavior. "
-            "This option will be removed on 2023-02-23.",
+            (
+                "Supplying `tags` for work queues is deprecated. This work "
+                "queue will use legacy tag-matching behavior. "
+                "This option will be removed on 2023-02-23."
+            ),
             style="red",
         )
 
@@ -245,7 +247,6 @@ async def ls(
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
     for queue in sorted(queues, key=sort_by_created_key):
-
         row = [
             f"{queue.name} [red](**)" if queue.is_paused else queue.name,
             str(queue.id),
@@ -311,8 +312,10 @@ async def preview(
         app.console.print(table)
     else:
         app.console.print(
-            "No runs found - try increasing how far into the future you preview with"
-            " the --hours flag",
+            (
+                "No runs found - try increasing how far into the future you preview"
+                " with the --hours flag"
+            ),
             style="yellow",
         )
 
