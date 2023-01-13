@@ -211,6 +211,10 @@ class DockerContainer(Infrastructure):
         default_factory=get_prefect_image_name,
         description="Tag of a Docker image to use. Defaults to the Prefect image.",
     )
+    user: Optional[Union[str, int]] = Field(
+        default=None,
+        description='The username or user ID to use in the docker',
+    )
     image_pull_policy: Optional[ImagePullPolicy] = Field(
         default=None, description="Specifies if the image should be pulled."
     )
@@ -370,6 +374,7 @@ class DockerContainer(Infrastructure):
         network_mode = self._get_network_mode()
         return dict(
             image=self.image,
+            user=self.user,
             network=self.networks[0] if self.networks else None,
             network_mode=network_mode,
             command=self.command,
