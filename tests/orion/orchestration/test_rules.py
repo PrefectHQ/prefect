@@ -55,7 +55,7 @@ async def commit_task_run_state(
     db = provide_database_interface()
     orm_state = db.TaskRunState(
         task_run_id=task_run.id,
-        **new_state.dict(shallow=True),
+        **new_state.orm_dict(shallow=True),
     )
 
     task_run.state = orm_state
