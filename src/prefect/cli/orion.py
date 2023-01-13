@@ -175,11 +175,17 @@ async def upgrade(
     revision: str = typer.Option(
         "head",
         "-r",
-        help="The revision to pass to `alembic upgrade`. If not provided, runs all migrations.",
+        help=(
+            "The revision to pass to `alembic upgrade`. If not provided, runs all"
+            " migrations."
+        ),
     ),
     dry_run: bool = typer.Option(
         False,
-        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
+        help=(
+            "Flag to show what migrations would be made without applying them. Will"
+            " emit sql statements to stdout."
+        ),
     ),
 ):
     """Upgrade the Orion database"""
@@ -188,7 +194,7 @@ async def upgrade(
 
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to upgrade the " f"Orion database at {engine.url!r}?"
+            f"Are you sure you want to upgrade the Orion database at {engine.url!r}?"
         )
         if not confirm:
             exit_with_error("Database upgrade aborted!")
@@ -205,11 +211,17 @@ async def downgrade(
     revision: str = typer.Option(
         "base",
         "-r",
-        help="The revision to pass to `alembic downgrade`. If not provided, runs all migrations.",
+        help=(
+            "The revision to pass to `alembic downgrade`. If not provided, runs all"
+            " migrations."
+        ),
     ),
     dry_run: bool = typer.Option(
         False,
-        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
+        help=(
+            "Flag to show what migrations would be made without applying them. Will"
+            " emit sql statements to stdout."
+        ),
     ),
 ):
     """Downgrade the Orion database"""
@@ -218,8 +230,7 @@ async def downgrade(
 
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to downgrade the Orion "
-            f"database at {engine.url!r}?"
+            f"Are you sure you want to downgrade the Orion database at {engine.url!r}?"
         )
         if not confirm:
             exit_with_error("Database downgrade aborted!")

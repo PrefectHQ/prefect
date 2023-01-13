@@ -47,10 +47,10 @@ def exit_with_error_if_not_editable_install():
         or not (prefect.__root_path__ / "setup.py").exists()
     ):
         exit_with_error(
-            "Development commands cannot be used without an editable installation of Prefect. "
-            "Development commands require content outside of the 'prefect' module which "
-            "is not available when installed into your site-packages. "
-            f"Detected module path: {prefect.__module_path__}."
+            "Development commands cannot be used without an editable installation of"
+            " Prefect. Development commands require content outside of the 'prefect'"
+            " module which is not available when installed into your site-packages."
+            f" Detected module path: {prefect.__module_path__}."
         )
 
 
@@ -311,7 +311,10 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",
+            (
+                "pip install -e /opt/prefect/repo\\[dev\\] && touch /READY &&"
+                f" {blocking_cmd}"
+            ),
         ],
         name=name,
         auto_remove=True,

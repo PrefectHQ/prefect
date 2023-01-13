@@ -333,7 +333,8 @@ class TestOrionHandler:
 
         output = capsys.readouterr()
         assert (
-            "RuntimeError: Logs cannot be enqueued after the Orion log worker is stopped."
+            "RuntimeError: Logs cannot be enqueued after the Orion log worker is"
+            " stopped."
             in output.err
         )
 

@@ -259,7 +259,10 @@ class TestTypeDispatchField:
 
         with pytest.raises(
             ValueError,
-            match="Type 'Foo' does not define a value for '__dispatch_key__' which is required for registry lookup",
+            match=(
+                "Type 'Foo' does not define a value for '__dispatch_key__' which is"
+                " required for registry lookup"
+            ),
         ):
 
             class Foo(Base):
@@ -286,7 +289,10 @@ class TestTypeDispatchField:
 
         with pytest.raises(
             ValueError,
-            match="Model class 'Base' defines a `__dispatch_key__` and a type field. Only one of these may be defined for dispatch",
+            match=(
+                "Model class 'Base' defines a `__dispatch_key__` and a type field. Only"
+                " one of these may be defined for dispatch"
+            ),
         ):
 
             @add_type_dispatch
@@ -298,7 +304,10 @@ class TestTypeDispatchField:
 
         with pytest.raises(
             TypeError,
-            match="Model class 'Base' defines a 'type' field with type 'int' but it must be 'str'",
+            match=(
+                "Model class 'Base' defines a 'type' field with type 'int' but it must"
+                " be 'str'"
+            ),
         ):
 
             @add_type_dispatch

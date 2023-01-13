@@ -27,7 +27,10 @@ class ValidationTestModel(BaseModel):
 
 class TestParameterTypeError:
     def test_construction_from_single_validation_error(self):
-        expected_str = "Flow run received invalid parameters:\n - num: value is not a valid integer"
+        expected_str = (
+            "Flow run received invalid parameters:\n - num: value is not a valid"
+            " integer"
+        )
         try:
             ValidationTestModel(**{"num": "not an int", "string": "a string"})
         except Exception as exc:
@@ -37,8 +40,8 @@ class TestParameterTypeError:
 
     def test_construction_from_two_validation_errors(self):
         expected_str = (
-            "Flow run received invalid parameters:\n - num: value is not a valid integer"
-            "\n - string: str type expected"
+            "Flow run received invalid parameters:\n - num: value is not a valid"
+            " integer\n - string: str type expected"
         )
         try:
             ValidationTestModel(**{"num": "not an int", "string": [1, 2]})
@@ -74,7 +77,11 @@ class TestParameterBindError:
             pass
 
         type_error = TypeError("Demo TypeError")
-        expected_str = "Error binding parameters for function 'fn': Demo TypeError.\nFunction 'fn' has signature 'a: int, b: str' but received args: () and kwargs: {'c': 3, 'd': 'test'}."
+        expected_str = (
+            "Error binding parameters for function 'fn': Demo TypeError.\nFunction 'fn'"
+            " has signature 'a: int, b: str' but received args: () and kwargs: {'c': 3,"
+            " 'd': 'test'}."
+        )
         pbe = ParameterBindError.from_bind_failure(
             fn, type_error, (), {"c": 3, "d": "test"}
         )
@@ -87,7 +94,11 @@ class TestParameterBindError:
                 pass
 
             type_error = TypeError("Demo TypeError")
-            expected_str = "Error binding parameters for function 'fn': Demo TypeError.\nFunction 'fn' has signature 'a: int, b: str' but received args: () and kwargs: {'c': 3, 'd': 'test'}."
+            expected_str = (
+                "Error binding parameters for function 'fn': Demo TypeError.\nFunction"
+                " 'fn' has signature 'a: int, b: str' but received args: () and kwargs:"
+                " {'c': 3, 'd': 'test'}."
+            )
             pbe = ParameterBindError.from_bind_failure(
                 fn, type_error, (), {"c": 3, "d": "test"}
             )
@@ -99,7 +110,10 @@ class TestParameterBindError:
 
 class TestSignatureMismatchError:
     def test_from_bad_params(self):
-        expected = "Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+        expected = (
+            "Function expects parameters ['dog', 'cat'] but was provided with"
+            " parameters ['puppy', 'kitty']"
+        )
         sme = SignatureMismatchError.from_bad_params(["dog", "cat"], ["puppy", "kitty"])
         assert str(sme) == expected
 

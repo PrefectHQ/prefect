@@ -95,7 +95,8 @@ class PickleSerializer(Serializer):
         """
         if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
             raise ValueError(
-                f"`pickle_modules` cannot be used without 'cloudpickle'. Got {values.get('picklelib')!r}."
+                "`pickle_modules` cannot be used without 'cloudpickle'. Got"
+                f" {values.get('picklelib')!r}."
             )
         return values
 

@@ -20,8 +20,8 @@ def provide_request_api_version(x_prefect_api_version: str = Header(None)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Invalid X-PREFECT-API-VERSION header format."
-                f"Expected header in format 'x.y.z' but received {x_prefect_api_version}"
+                "Invalid X-PREFECT-API-VERSION header format.Expected header in format"
+                f" 'x.y.z' but received {x_prefect_api_version}"
             ),
         )
     return Version(x_prefect_api_version)
@@ -62,7 +62,7 @@ class EnforceMinimumAPIVersion:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
-                    f"Invalid X-PREFECT-API-VERSION header format."
+                    "Invalid X-PREFECT-API-VERSION header format."
                     f"Expected header in format 'x.y.z' but received {request_version}"
                 ),
             )

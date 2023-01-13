@@ -199,7 +199,10 @@ class SignatureMismatchError(PrefectException, TypeError):
 
     @classmethod
     def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
-        msg = f"Function expects parameters {expected_params} but was provided with parameters {provided_params}"
+        msg = (
+            f"Function expects parameters {expected_params} but was provided with"
+            f" parameters {provided_params}"
+        )
         return cls(msg)
 
 

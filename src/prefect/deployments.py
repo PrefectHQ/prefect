@@ -330,7 +330,8 @@ class Deployment(BaseModel):
         with open(path, "w") as f:
             # write header
             f.write(
-                f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+                "###\n### A complete description of a Prefect Deployment for flow"
+                f" {self.flow_name!r}\n###\n"
             )
 
             # write editable fields
@@ -400,7 +401,9 @@ class Deployment(BaseModel):
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
         default=None,
-        description="The path to the flow's manifest file, relative to the chosen storage.",
+        description=(
+            "The path to the flow's manifest file, relative to the chosen storage."
+        ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
@@ -413,11 +416,16 @@ class Deployment(BaseModel):
     )
     path: Optional[str] = Field(
         default=None,
-        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+        description=(
+            "The path to the working directory for the workflow, relative to remote"
+            " storage or an absolute path."
+        ),
     )
     entrypoint: Optional[str] = Field(
         default=None,
-        description="The path to the entrypoint for the workflow, relative to the `path`.",
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
     )
     parameter_openapi_schema: ParameterSchema = Field(
         default_factory=ParameterSchema,
@@ -594,7 +602,8 @@ class Deployment(BaseModel):
         elif self.storage:
             if "put-directory" not in self.storage.get_block_capabilities():
                 raise BlockMissingCapabilities(
-                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                    f"Storage block {self.storage!r} missing 'put-directory'"
+                    " capability."
                 )
 
             file_count = await self.storage.put_directory(

@@ -859,7 +859,8 @@ class TestOrchestrateTaskRun:
         assert state.name == "NotReady"
         assert (
             state.message
-            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED' state."
+            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED'"
+            " state."
         )
 
     async def test_quoted_parameters_are_resolved(
@@ -1781,7 +1782,8 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1868,7 +1870,8 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1943,7 +1946,8 @@ class TestCreateAndBeginSubflowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):

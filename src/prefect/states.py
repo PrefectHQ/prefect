@@ -148,13 +148,19 @@ async def exception_to_crashed_state(
             request: httpx.Request = exc.request
         except RuntimeError:
             # The request property is not set
-            state_message = f"Request failed while attempting to contact the server: {format_exception(exc)}"
+            state_message = (
+                "Request failed while attempting to contact the server:"
+                f" {format_exception(exc)}"
+            )
         else:
             # TODO: We can check if this is actually our API url
             state_message = f"Request to {request.url} failed: {format_exception(exc)}."
 
     else:
-        state_message = f"Execution was interrupted by an unexpected exception: {format_exception(exc)}"
+        state_message = (
+            "Execution was interrupted by an unexpected exception:"
+            f" {format_exception(exc)}"
+        )
 
     if result_factory:
         data = await result_factory.create_result(exc)

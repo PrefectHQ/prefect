@@ -96,7 +96,9 @@ class WorkerLookups:
         if not work_pool_queue:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+                detail=(
+                    f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found."
+                ),
             )
 
         return work_pool_queue.id
@@ -124,7 +126,9 @@ async def create_work_pool(
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use.",
+            detail=(
+                "Worker pools starting with 'Prefect' are reserved for internal use."
+            ),
         )
 
     try:
@@ -198,8 +202,10 @@ async def update_work_pool(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use "
-            "and can only be updated to set concurrency limits or pause.",
+            detail=(
+                "Worker pools starting with 'Prefect' are reserved for internal use "
+                "and can only be updated to set concurrency limits or pause."
+            ),
         )
 
     async with db.session_context(begin_transaction=True) as session:
@@ -227,7 +233,10 @@ async def delete_work_pool(
     if work_pool_name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
+            detail=(
+                "Worker pools starting with 'Prefect' are reserved for internal use and"
+                " can not be deleted."
+            ),
         )
 
     async with db.session_context(begin_transaction=True) as session:

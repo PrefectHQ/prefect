@@ -90,53 +90,69 @@ async def test_backfill_state_name(db, flow):
             # future orm incompatibilities
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run (id, name, flow_id) values ('{flow_run_id}', 'foo', '{flow.id}');"
+                    f"INSERT INTO flow_run (id, name, flow_id) values ('{flow_run_id}',"
+                    f" 'foo', '{flow.id}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run (id, name, flow_id) values ('{null_state_flow_run_id}', 'null state', '{flow.id}');"
+                    "INSERT INTO flow_run (id, name, flow_id) values"
+                    f" ('{null_state_flow_run_id}', 'null state', '{flow.id}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run_state (id, flow_run_id, type, name) values ('{flow_run_state_1_id}', '{flow_run_id}', 'SCHEDULED', 'Scheduled');"
+                    "INSERT INTO flow_run_state (id, flow_run_id, type, name) values"
+                    f" ('{flow_run_state_1_id}', '{flow_run_id}', 'SCHEDULED',"
+                    " 'Scheduled');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run_state (id, flow_run_id, type, name, timestamp) values ('{flow_run_state_2_id}', '{flow_run_id}', 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
+                    "INSERT INTO flow_run_state (id, flow_run_id, type, name,"
+                    f" timestamp) values ('{flow_run_state_2_id}', '{flow_run_id}',"
+                    f" 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"UPDATE flow_run SET state_id = '{flow_run_state_2_id}' WHERE id = '{flow_run_id}'"
+                    f"UPDATE flow_run SET state_id = '{flow_run_state_2_id}' WHERE id ="
+                    f" '{flow_run_id}'"
                 )
             )
 
             await session.execute(
                 sa.text(
-                    f"INSERT INTO task_run (id, name, task_key, dynamic_key, flow_run_id) values ('{task_run_id}', 'foo-task', 'foo-task', 0, '{flow_run_id}');"
+                    "INSERT INTO task_run (id, name, task_key, dynamic_key,"
+                    f" flow_run_id) values ('{task_run_id}', 'foo-task', 'foo-task', 0,"
+                    f" '{flow_run_id}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO task_run (id, name, task_key, dynamic_key, flow_run_id) values ('{null_state_task_run_id}', 'null-state-task', 'null-state-task', 0, '{flow_run_id}');"
+                    "INSERT INTO task_run (id, name, task_key, dynamic_key,"
+                    f" flow_run_id) values ('{null_state_task_run_id}',"
+                    f" 'null-state-task', 'null-state-task', 0, '{flow_run_id}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO task_run_state (id, task_run_id, type, name) values ('{task_run_state_1_id}', '{task_run_id}', 'SCHEDULED', 'Scheduled');"
+                    "INSERT INTO task_run_state (id, task_run_id, type, name) values"
+                    f" ('{task_run_state_1_id}', '{task_run_id}', 'SCHEDULED',"
+                    " 'Scheduled');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"INSERT INTO task_run_state (id, task_run_id, type, name, timestamp) values ('{task_run_state_2_id}', '{task_run_id}', 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
+                    "INSERT INTO task_run_state (id, task_run_id, type, name,"
+                    f" timestamp) values ('{task_run_state_2_id}', '{task_run_id}',"
+                    f" 'RUNNING', 'My Custom Name', '{pendulum.now('UTC')}');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"UPDATE task_run SET state_id = '{task_run_state_2_id}' WHERE id = '{task_run_id}'"
+                    f"UPDATE task_run SET state_id = '{task_run_state_2_id}' WHERE id ="
+                    f" '{task_run_id}'"
                 )
             )
             await session.commit()
@@ -214,18 +230,22 @@ async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
             # future orm incompatibilities
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run (id, name, flow_id) values ('{flow_run_id}', 'foo', '{flow.id}');"
+                    f"INSERT INTO flow_run (id, name, flow_id) values ('{flow_run_id}',"
+                    f" 'foo', '{flow.id}');"
                 )
             )
 
             await session.execute(
                 sa.text(
-                    f"INSERT INTO flow_run_state (id, flow_run_id, type, name) values ('{flow_run_state_1_id}', '{flow_run_id}', 'SCHEDULED', 'Scheduled');"
+                    "INSERT INTO flow_run_state (id, flow_run_id, type, name) values"
+                    f" ('{flow_run_state_1_id}', '{flow_run_id}', 'SCHEDULED',"
+                    " 'Scheduled');"
                 )
             )
             await session.execute(
                 sa.text(
-                    f"UPDATE flow_run SET state_id = '{flow_run_state_1_id}' WHERE id = '{flow_run_id}'"
+                    f"UPDATE flow_run SET state_id = '{flow_run_state_1_id}' WHERE id ="
+                    f" '{flow_run_id}'"
                 )
             )
 

@@ -215,7 +215,8 @@ def max_log_size_smaller_than_batch_size(values):
         < values["PREFECT_LOGGING_ORION_MAX_LOG_SIZE"]
     ):
         raise ValueError(
-            "`PREFECT_LOGGING_ORION_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_ORION_BATCH_SIZE`"
+            "`PREFECT_LOGGING_ORION_MAX_LOG_SIZE` cannot be larger than"
+            " `PREFECT_LOGGING_ORION_BATCH_SIZE`"
         )
     return values
 
@@ -253,7 +254,9 @@ def check_for_deprecated_cloud_url(settings, value):
     deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
     if deprecated_value is not None:
         warnings.warn(
-            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            "`PREFECT_CLOUD_URL` is set and will be used instead of"
+            " `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL`"
+            " is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
             DeprecationWarning,
         )
     return deprecated_value or value
@@ -1403,7 +1406,10 @@ class ProfilesCollection:
         )
 
     def __repr__(self) -> str:
-        return f"ProfilesCollection(profiles={list(self.profiles_by_name.values())!r}, active={self.active_name!r})>"
+        return (
+            f"ProfilesCollection(profiles={list(self.profiles_by_name.values())!r},"
+            f" active={self.active_name!r})>"
+        )
 
 
 def _read_profiles_from(path: Path) -> ProfilesCollection:

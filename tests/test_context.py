@@ -353,7 +353,8 @@ class TestSettingsContext:
         root_settings_context()
         _, err = capsys.readouterr()
         assert (
-            "profile 'bar' set by command line argument not found. The default profile will be used instead."
+            "profile 'bar' set by command line argument not found. The default profile"
+            " will be used instead."
             in err
         )
 
@@ -366,7 +367,8 @@ class TestSettingsContext:
         root_settings_context()
         _, err = capsys.readouterr()
         assert (
-            "profile 'bar' set by environment variable not found. The default profile will be used instead."
+            "profile 'bar' set by environment variable not found. The default profile"
+            " will be used instead."
             in err
         )
 

@@ -56,7 +56,10 @@ async def create(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags. This option will be removed on 2023-02-23.",
+        help=(
+            "DEPRECATED: One or more optional tags. This option will be removed on"
+            " 2023-02-23."
+        ),
     ),
 ):
     """
@@ -215,7 +218,10 @@ async def ls(
         None,
         "--match",
         "-m",
-        help="Will match work queues with names that start with the specified prefix string",
+        help=(
+            "Will match work queues with names that start with the specified prefix"
+            " string"
+        ),
     ),
 ):
     """
@@ -305,7 +311,8 @@ async def preview(
         app.console.print(table)
     else:
         app.console.print(
-            "No runs found - try increasing how far into the future you preview with the --hours flag",
+            "No runs found - try increasing how far into the future you preview with"
+            " the --hours flag",
             style="yellow",
         )
 

@@ -134,11 +134,17 @@ class KubernetesJob(Infrastructure):
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, output will be streamed from the job to local standard output.",
+        description=(
+            "If set, output will be streamed from the job to local standard output."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
-        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
+        description=(
+            "The number of seconds to retain jobs after completion. If set, finished"
+            " jobs will be cleaned up by Kubernetes after the given delay. If None"
+            " (default), jobs will need to be manually removed."
+        ),
     )
 
     # internal-use only right now
@@ -448,7 +454,9 @@ class KubernetesJob(Infrastructure):
         shortcuts += [
             {
                 "op": "add",
-                "path": f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}",
+                "path": (
+                    f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}"
+                ),
                 "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()

@@ -132,7 +132,8 @@ async def cancel(id: UUID):
 
     if result.status == SetStateStatus.ABORT:
         exit_with_error(
-            f"Flow run '{id}' was unable to be cancelled. Reason: '{result.details.reason}'"
+            f"Flow run '{id}' was unable to be cancelled. Reason:"
+            f" '{result.details.reason}'"
         )
 
     exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
@@ -165,7 +166,9 @@ async def logs(id: UUID):
             for log in page_logs:
                 app.console.print(
                     # Print following the flow run format (declared in logging.yml)
-                    f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} | {logging.getLevelName(log.level):7s} | Flow run {flow_run.name!r} - {log.message}",
+                    f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
+                    f" {logging.getLevelName(log.level):7s} | Flow run"
+                    f" {flow_run.name!r} - {log.message}",
                     soft_wrap=True,
                 )
 

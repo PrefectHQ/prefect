@@ -305,7 +305,9 @@ class TestSettingAccess:
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {
-                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test",
+                PREFECT_ORION_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_ORION_DATABASE_PASSWORD}/test"
+                ),
                 PREFECT_ORION_DATABASE_PASSWORD: "password",
             }
         ):
@@ -317,7 +319,9 @@ class TestSettingAccess:
         # a null value.
         with temporary_settings(
             {
-                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test"
+                PREFECT_ORION_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_ORION_DATABASE_PASSWORD}/test"
+                )
             }
         ):
             assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "None/test"
@@ -359,14 +363,20 @@ class TestSettingAccess:
         with temporary_settings({PREFECT_CLOUD_URL: "test"}):
             with pytest.raises(
                 DeprecationWarning,
-                match="`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL`",
+                match=(
+                    "`PREFECT_CLOUD_URL` is set and will be used instead of"
+                    " `PREFECT_CLOUD_API_URL`"
+                ),
             ):
                 PREFECT_CLOUD_API_URL.value()
 
     def test_prefect_cloud_url_deprecated_on_access(self):
         with pytest.raises(
             DeprecationWarning,
-            match="`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+            match=(
+                "`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL`"
+                " instead."
+            ),
         ):
             PREFECT_CLOUD_URL.value()
 

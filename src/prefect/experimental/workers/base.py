@@ -262,7 +262,7 @@ class BaseWorker(abc.ABC):
         if getattr(self._work_pool, "type", 0) != work_pool.type:
             if work_pool.type != self.__class__.type:
                 self._logger.warning(
-                    f"Worker type mismatch! This worker process expects type "
+                    "Worker type mismatch! This worker process expects type "
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
@@ -353,7 +353,8 @@ class BaseWorker(abc.ABC):
             )
         except Exception as exc:
             self._logger.exception(
-                "Unexpected error occurred while attempting to register discovered deployment."
+                "Unexpected error occurred while attempting to register discovered"
+                " deployment."
             )
 
     async def _get_scheduled_flow_runs(
@@ -400,7 +401,8 @@ class BaseWorker(abc.ABC):
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self._logger.info(
-                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -495,7 +497,8 @@ class BaseWorker(abc.ABC):
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                "Flow run infrastructure exited with non-zero status code"
+                f" {result.status_code}.",
             )
 
         return result

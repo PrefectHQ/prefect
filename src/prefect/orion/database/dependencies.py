@@ -56,7 +56,8 @@ def provide_database_interface() -> OrionDBInterface:
             database_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
             raise ValueError(
-                f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
+                "Unable to infer database configuration from provided dialect. Got"
+                f" dialect name {dialect.name!r}"
             )
 
         MODELS_DEPENDENCIES["database_config"] = database_config
@@ -68,7 +69,8 @@ def provide_database_interface() -> OrionDBInterface:
             query_components = AioSqliteQueryComponents()
         else:
             raise ValueError(
-                f"Unable to infer query components from provided dialect. Got dialect name {dialect.name!r}"
+                "Unable to infer query components from provided dialect. Got dialect"
+                f" name {dialect.name!r}"
             )
 
         MODELS_DEPENDENCIES["query_components"] = query_components
@@ -80,7 +82,8 @@ def provide_database_interface() -> OrionDBInterface:
             orm = AioSqliteORMConfiguration()
         else:
             raise ValueError(
-                f"Unable to infer orm configuration from provided dialect. Got dialect name {dialect.name!r}"
+                "Unable to infer orm configuration from provided dialect. Got dialect"
+                f" name {dialect.name!r}"
             )
 
         MODELS_DEPENDENCIES["orm"] = orm

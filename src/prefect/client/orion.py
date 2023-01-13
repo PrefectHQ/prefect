@@ -169,7 +169,8 @@ class OrionClient:
 
         else:
             raise TypeError(
-                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
+                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
+                " 'str' or 'FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -708,7 +709,8 @@ class OrionClient:
         """
         if tags:
             warnings.warn(
-                "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
+                "The use of tags for creating work queue filters is deprecated. This"
+                " option will be removed on 2023-02-23.",
                 DeprecationWarning,
             )
             filter = QueueFilter(tags=tags)

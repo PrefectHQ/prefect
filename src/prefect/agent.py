@@ -48,7 +48,8 @@ class OrionAgent:
 
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
-                "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
+                "Provide only one of 'default_infrastructure' and"
+                " 'default_infrastructure_document_id'."
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
@@ -194,7 +195,8 @@ class OrionAgent:
                     self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self.logger.info(
-                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -248,12 +250,16 @@ class OrionAgent:
         """
         if not flow_run.infrastructure_pid:
             self.logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
+                " attached. Cancellation cannot be guaranteed."
             )
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
-                    "message": "This flow run is missing infrastructure tracking information and cancellation cannot be guaranteed."
+                    "message": (
+                        "This flow run is missing infrastructure tracking information"
+                        " and cancellation cannot be guaranteed."
+                    )
                 },
             )
             return
@@ -290,7 +296,7 @@ class OrionAgent:
             self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
-                f"Encountered exception while killing infrastructure for flow run "
+                "Encountered exception while killing infrastructure for flow run "
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
@@ -394,8 +400,9 @@ class OrionAgent:
                         )
                     except Exception as exc:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid` on "
-                            f"flow run {flow_run.id!r}. The flow run will not be cancellable."
+                            "An error occured while setting the `infrastructure_pid`"
+                            f" on flow run {flow_run.id!r}. The flow run will not be"
+                            " cancellable."
                         )
 
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
@@ -455,7 +462,8 @@ class OrionAgent:
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                "Flow run infrastructure exited with non-zero status code"
+                f" {result.status_code}.",
             )
 
         return result

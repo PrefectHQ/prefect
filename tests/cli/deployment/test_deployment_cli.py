@@ -115,9 +115,12 @@ class TestOutputMessages:
                 str(tmp_path / "test.yaml"),
             ],
             expected_output_contains=(
-                "This deployment does not specify a work queue name, which means agents "
-                "will not be able to pick up its runs. To add a work queue, "
-                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                (
+                    "This deployment does not specify a work queue name, which means"
+                    " agents will not be able to pick up its runs. To add a work queue,"
+                    " edit the deployment spec and re-run this command, or visit the"
+                    " deployment in the UI."
+                ),
             ),
         )
 
@@ -198,7 +201,11 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
             ],
             expected_code=0,
             expected_output_contains="Updated deployment schedule!",
@@ -221,7 +228,11 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
                 "--timezone",
                 "Asia/Seoul",
             ],

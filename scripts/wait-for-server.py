@@ -37,7 +37,8 @@ async def main(timeout):
                     break
             if healthcheck_exc is not None:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to compatibility test server."
+                    "Timed out while attempting to connect to compatibility test"
+                    " server."
                 )
 
 

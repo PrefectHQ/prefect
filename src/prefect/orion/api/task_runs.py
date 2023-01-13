@@ -87,7 +87,9 @@ async def task_run_history(
     history_end: DateTimeTZ = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
-        description="The size of each history interval, in seconds. Must be at least 1 second.",
+        description=(
+            "The size of each history interval, in seconds. Must be at least 1 second."
+        ),
         alias="history_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
@@ -186,8 +188,8 @@ async def set_task_run_state(
     force: bool = Body(
         False,
         description=(
-            "If false, orchestration rules will be applied that may alter "
-            "or prevent the state transition. If True, orchestration rules are not applied."
+            "If false, orchestration rules will be applied that may alter or prevent"
+            " the state transition. If True, orchestration rules are not applied."
         ),
     ),
     db: OrionDBInterface = Depends(provide_database_interface),

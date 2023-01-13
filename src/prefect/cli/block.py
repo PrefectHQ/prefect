@@ -124,7 +124,8 @@ async def register(
     # Handles if both options are specified or if neither are specified
     if not (bool(file_path) ^ bool(module_name)):
         exit_with_error(
-            "Please specify either a module or a file containing blocks to be registered, but not both."
+            "Please specify either a module or a file containing blocks to be"
+            " registered, but not both."
         )
 
     if module_name:
@@ -163,7 +164,7 @@ async def register(
     )
     app.console.print(_build_registered_blocks_table(registered_blocks))
     app.console.print(
-        f"\n To configure the newly registered blocks, "
+        "\n To configure the newly registered blocks, "
         f"go to the Blocks page in the Prefect UI: {block_catalog_url}\n"
     )
 

@@ -164,7 +164,8 @@ class OrionLogWorker:
                         sys.stderr.write(self.worker_info())
                         if exiting:
                             sys.stderr.write(
-                                "The log worker is stopping and these logs will not be sent.\n"
+                                "The log worker is stopping and these logs will not be"
+                                " sent.\n"
                             )
                         elif self._retries > self._max_retries:
                             sys.stderr.write(
@@ -173,8 +174,8 @@ class OrionLogWorker:
                             )
                         else:
                             sys.stderr.write(
-                                "The log worker will attempt to send these logs again in "
-                                f"{PREFECT_LOGGING_ORION_BATCH_INTERVAL.value()}s\n"
+                                "The log worker will attempt to send these logs again"
+                                f" in {PREFECT_LOGGING_ORION_BATCH_INTERVAL.value()}s\n"
                             )
 
                     if self._retries > self._max_retries:

@@ -240,7 +240,9 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=0,
-            expected_output_contains=f"Flow run '{before.id}' was succcessfully scheduled for cancellation.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
@@ -263,7 +265,9 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=1,
-            expected_output_contains=f"Flow run '{before.id}' was unable to be cancelled.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was unable to be cancelled."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
 

@@ -104,14 +104,17 @@ async def create_work_queue_and_set_concurrency_limit(
                     res = await client.read_work_queue_by_name(name=work_queue_name)
                     if res.concurrency_limit != work_queue_concurrency:
                         app.console.print(
-                            f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                            f"Work queue {work_queue_name!r} already exists with a"
+                            f" concurrency limit of {res.concurrency_limit}, this limit"
+                            " is being updated...",
                             style="red",
                         )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
                 app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                    f"Updated concurrency limit on work queue {work_queue_name!r} to"
+                    f" {work_queue_concurrency}",
                     style="green",
                 )
             except Exception as exc:
@@ -358,9 +361,9 @@ async def run(
         "-p",
         "--param",
         help=(
-            "A key, value pair (key=value) specifying a flow parameter. The value will be "
-            "interpreted as JSON. May be passed multiple times to specify multiple "
-            "parameter values."
+            "A key, value pair (key=value) specifying a flow parameter. The value will"
+            " be interpreted as JSON. May be passed multiple times to specify multiple"
+            " parameter values."
         ),
     ),
     multiparams: Optional[str] = typer.Option(
@@ -550,13 +553,19 @@ async def apply(
     upload: bool = typer.Option(
         False,
         "--upload",
-        help="A flag that, when provided, uploads this deployment's files to remote storage.",
+        help=(
+            "A flag that, when provided, uploads this deployment's files to remote"
+            " storage."
+        ),
     ),
     work_queue_concurrency: int = typer.Option(
         None,
         "--limit",
         "-l",
-        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
+        help=(
+            "Sets the concurrency limit on the work queue that handles this"
+            " deployment's runs"
+        ),
     ),
 ):
     """
@@ -582,24 +591,28 @@ async def apply(
                 file_count = await deployment.upload_to_storage()
                 if file_count:
                     app.console.print(
-                        f"Successfully uploaded {file_count} files to {deployment.location}",
+                        f"Successfully uploaded {file_count} files to"
+                        f" {deployment.location}",
                         style="green",
                     )
             else:
                 app.console.print(
-                    f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
+                    f"Deployment storage {deployment.storage} does not have upload"
+                    " capabilities; no files uploaded.",
                     style="red",
                 )
 
         deployment_id = await deployment.apply()
         app.console.print(
-            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
+            f" created with id '{deployment_id}'.",
             style="green",
         )
 
         if PREFECT_UI_URL:
             app.console.print(
-                f"View Deployment in UI: {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+                "View Deployment in UI:"
+                f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
             )
 
         if deployment.work_queue_name is not None:
@@ -612,9 +625,10 @@ async def apply(
             )
         else:
             app.console.print(
-                "\nThis deployment does not specify a work queue name, which means agents "
-                "will not be able to pick up its runs. To add a work queue, "
-                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                "\nThis deployment does not specify a work queue name, which means"
+                " agents will not be able to pick up its runs. To add a work queue,"
+                " edit the deployment spec and re-run this command, or visit the"
+                " deployment in the UI.",
                 style="red",
             )
 
@@ -669,7 +683,10 @@ InfrastructureSlugs = Enum(
 async def build(
     entrypoint: str = typer.Argument(
         ...,
-        help="The path to a flow entrypoint, in the form of `./path/to/file.py:flow_func_name`",
+        help=(
+            "The path to a flow entrypoint, in the form of"
+            " `./path/to/file.py:flow_func_name`"
+        ),
     ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
@@ -681,7 +698,11 @@ async def build(
         None,
         "-t",
         "--tag",
-        help="One or more optional tags to apply to the deployment. Note: tags are used only for organizational purposes. For delegating work to agents, use the --work-queue flag.",
+        help=(
+            "One or more optional tags to apply to the deployment. Note: tags are used"
+            " only for organizational purposes. For delegating work to agents, use the"
+            " --work-queue flag."
+        ),
     ),
     work_queue_name: str = typer.Option(
         None,
@@ -697,7 +718,10 @@ async def build(
         None,
         "--limit",
         "-l",
-        help="Sets the concurrency limit on the work queue that handles this deployment's runs",
+        help=(
+            "Sets the concurrency limit on the work queue that handles this"
+            " deployment's runs"
+        ),
     ),
     infra_type: InfrastructureSlugs = typer.Option(
         None,
@@ -714,18 +738,28 @@ async def build(
     overrides: List[str] = typer.Option(
         None,
         "--override",
-        help="One or more optional infrastructure overrides provided as a dot delimited path, e.g., `env.env_key=env_value`",
+        help=(
+            "One or more optional infrastructure overrides provided as a dot delimited"
+            " path, e.g., `env.env_key=env_value`"
+        ),
     ),
     storage_block: str = typer.Option(
         None,
         "--storage-block",
         "-sb",
-        help="The slug of a remote storage block. Use the syntax: 'block_type/block_name', where block_type must be one of 'github', 's3', 'gcs', 'azure', 'smb', 'gitlab-repository'",
+        help=(
+            "The slug of a remote storage block. Use the syntax:"
+            " 'block_type/block_name', where block_type must be one of 'github', 's3',"
+            " 'gcs', 'azure', 'smb', 'gitlab-repository'"
+        ),
     ),
     skip_upload: bool = typer.Option(
         False,
         "--skip-upload",
-        help="A flag that, when provided, skips uploading this deployment's files to remote storage.",
+        help=(
+            "A flag that, when provided, skips uploading this deployment's files to"
+            " remote storage."
+        ),
     ),
     cron: str = typer.Option(
         None,
@@ -735,7 +769,10 @@ async def build(
     interval: int = typer.Option(
         None,
         "--interval",
-        help="An integer specifying an interval (in seconds) that will be used to set an IntervalSchedule on the deployment.",
+        help=(
+            "An integer specifying an interval (in seconds) that will be used to set an"
+            " IntervalSchedule on the deployment."
+        ),
     ),
     interval_anchor: Optional[str] = typer.Option(
         None, "--anchor-date", help="The anchor date for an interval schedule"
@@ -753,7 +790,10 @@ async def build(
     path: str = typer.Option(
         None,
         "--path",
-        help="An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow.",
+        help=(
+            "An optional path to specify a subdirectory of remote storage to upload to,"
+            " or to point to a subdirectory of a locally stored flow."
+        ),
     ),
     output: str = typer.Option(
         None,
@@ -765,17 +805,26 @@ async def build(
         False,
         "--apply",
         "-a",
-        help="An optional flag to automatically register the resulting deployment with the API.",
+        help=(
+            "An optional flag to automatically register the resulting deployment with"
+            " the API."
+        ),
     ),
     param: List[str] = typer.Option(
         None,
         "--param",
-        help="An optional parameter override, values are parsed as JSON strings e.g. --param question=ultimate --param answer=42",
+        help=(
+            "An optional parameter override, values are parsed as JSON strings e.g."
+            " --param question=ultimate --param answer=42"
+        ),
     ),
     params: str = typer.Option(
         None,
         "--params",
-        help='An optional parameter override in a JSON string format e.g. --params=\'{"question": "ultimate", "answer": 42}\'',
+        help=(
+            "An optional parameter override in a JSON string format e.g."
+            ' --params=\'{"question": "ultimate", "answer": 42}\''
+        ),
     ),
 ):
     """
@@ -808,7 +857,10 @@ async def build(
         fpath, obj_name = entrypoint.rsplit(":", 1)
     except ValueError as exc:
         if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            missing_flow_name_msg = (
+                "Your flow entrypoint must include the name of the function that is"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            )
             exit_with_error(missing_flow_name_msg)
         else:
             raise exc
@@ -864,7 +916,8 @@ async def build(
         block_type, block_name, *block_path = storage_block.split("/")
         if block_path and path:
             exit_with_error(
-                "Must provide a `path` explicitly or provide one on the storage block specification, but not both."
+                "Must provide a `path` explicitly or provide one on the storage block"
+                " specification, but not both."
             )
         elif not path:
             path = "/".join(block_path)
@@ -875,7 +928,8 @@ async def build(
 
     if set_default_ignore_file(path="."):
         app.console.print(
-            f"Default '.prefectignore' file written to {(Path('.') / '.prefectignore').absolute()}",
+            "Default '.prefectignore' file written to"
+            f" {(Path('.') / '.prefectignore').absolute()}",
             style="green",
         )
 
@@ -953,19 +1007,23 @@ async def build(
             file_count = await deployment.upload_to_storage()
             if file_count:
                 app.console.print(
-                    f"Successfully uploaded {file_count} files to {deployment.location}",
+                    f"Successfully uploaded {file_count} files to"
+                    f" {deployment.location}",
                     style="green",
                 )
         else:
             app.console.print(
-                f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.  Pass --skip-upload to suppress this warning.",
+                f"Deployment storage {deployment.storage} does not have upload"
+                " capabilities; no files uploaded.  Pass --skip-upload to suppress"
+                " this warning.",
                 style="green",
             )
 
     if _apply:
         deployment_id = await deployment.apply()
         app.console.print(
-            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
+            f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
+            f" created with id '{deployment_id}'.",
             style="green",
         )
         if deployment.work_queue_name is not None:
@@ -978,9 +1036,10 @@ async def build(
             )
         else:
             app.console.print(
-                "\nThis deployment does not specify a work queue name, which means agents "
-                "will not be able to pick up its runs. To add a work queue, "
-                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                "\nThis deployment does not specify a work queue name, which means"
+                " agents will not be able to pick up its runs. To add a work queue,"
+                " edit the deployment spec and re-run this command, or visit the"
+                " deployment in the UI.",
                 style="red",
             )
 

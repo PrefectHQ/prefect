@@ -267,7 +267,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         if scheme == "file":
             raise ValueError(
-                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for local file access."
+                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
+                " local file access."
             )
 
         return value
@@ -282,7 +283,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if scheme:
             if scheme != base_scheme:
                 raise ValueError(
-                    f"Path {path!r} with scheme {scheme!r} must use the same scheme as the base path {base_scheme!r}."
+                    f"Path {path!r} with scheme {scheme!r} must use the same scheme as"
+                    f" the base path {base_scheme!r}."
                 )
 
         if netloc:
@@ -520,7 +522,10 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     )
     project: Optional[str] = Field(
         default=None,
-        description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
+        description=(
+            "The project the GCS bucket resides in. If not provided, the project will"
+            " be inferred from the credentials or environment."
+        ),
     )
 
     @property
@@ -537,7 +542,8 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
                 )
             except json.JSONDecodeError:
                 raise ValueError(
-                    "Unable to load provided service_account_info. Please make sure that the provided value is a valid JSON string."
+                    "Unable to load provided service_account_info. Please make sure"
+                    " that the provided value is a valid JSON string."
                 )
         remote_file_system = RemoteFileSystem(
             basepath=f"gcs://{self.bucket_path}", settings=settings
@@ -606,12 +612,16 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     azure_storage_connection_string: Optional[SecretStr] = Field(
         default=None,
         title="Azure storage connection string",
-        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable.",
+        description=(
+            "Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable."
+        ),
     )
     azure_storage_account_name: Optional[SecretStr] = Field(
         default=None,
         title="Azure storage account name",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable.",
+        description=(
+            "Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable."
+        ),
     )
     azure_storage_account_key: Optional[SecretStr] = Field(
         default=None,
@@ -812,7 +822,10 @@ class GitHub(ReadableDeploymentStorage):
 
     repository: str = Field(
         default=...,
-        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+        description=(
+            "The URL of a GitHub repository to read from, in either HTTPS or SSH"
+            " format."
+        ),
     )
     reference: Optional[str] = Field(
         default=None,
@@ -834,13 +847,11 @@ class GitHub(ReadableDeploymentStorage):
         if v is not None:
             if urllib.parse.urlparse(values["repository"]).scheme != "https":
                 raise InvalidRepositoryURLError(
-                    (
-                        "Crendentials can only be used with GitHub repositories "
-                        "using the 'HTTPS' format. You must either remove the "
-                        "credential if you wish to use the 'SSH' format and are not "
-                        "using a private repository, or you must change the repository "
-                        "URL to the 'HTTPS' format. "
-                    )
+                    "Crendentials can only be used with GitHub repositories "
+                    "using the 'HTTPS' format. You must either remove the "
+                    "credential if you wish to use the 'SSH' format and are not "
+                    "using a private repository, or you must change the repository "
+                    "URL to the 'HTTPS' format. "
                 )
 
         return v

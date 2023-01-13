@@ -237,7 +237,8 @@ class PrefectBaseModel(BaseModel):
         if include_secrets:
             if "encoder" in kwargs:
                 raise ValueError(
-                    "Alternative encoder provided; can not set encoder for SecretFields."
+                    "Alternative encoder provided; can not set encoder for"
+                    " SecretFields."
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,
@@ -432,8 +433,8 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
                 field.type_,
             ):
                 raise TypeError(
-                    f"Field {name} ({field.type_}) does not match the type of the origin "
-                    f"field {origin_field.type_}"
+                    f"Field {name} ({field.type_}) does not match the type of the"
+                    f" origin field {origin_field.type_}"
                 )
 
         # Create a copy of the origin field

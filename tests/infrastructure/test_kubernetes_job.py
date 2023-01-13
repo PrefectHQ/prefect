@@ -277,10 +277,15 @@ class TestKill:
         BAD_NAMESPACE = "dog"
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"The job is running in namespace {BAD_NAMESPACE!r} but this block is configured to use 'default'",
+            match=(
+                f"The job is running in namespace {BAD_NAMESPACE!r} but this block is"
+                " configured to use 'default'"
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
-                infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
+                infrastructure_pid=(
+                    f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job"
+                ),
                 grace_seconds=0,
             )
 
@@ -291,8 +296,10 @@ class TestKill:
 
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
-            "cluster.",
+            match=(
+                f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                f"cluster."
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
                 infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
