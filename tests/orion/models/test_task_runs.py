@@ -8,7 +8,7 @@ from prefect.orion import models, schemas
 from prefect.orion.models import concurrency_limits, task_runs
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import Failed, Running, Scheduled
+from prefect.orion.schemas.states import Failed, Pending, Running, Scheduled
 
 
 class TestCreateTaskRun:
@@ -685,6 +685,7 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-1",
                 dynamic_key="0",
                 tags=["red"],
+                state=Pending().dict(shallow=True),
             ),
         )
         await session.commit()
@@ -699,6 +700,7 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-2",
                 dynamic_key="1",
                 tags=["red"],
+                state=Pending().dict(shallow=True),
             ),
         )
         await session.commit()
