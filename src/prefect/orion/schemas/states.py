@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Any, Generic, Optional, Type, TypeVar
+from typing import Any, Optional, Type, TypeVar
 from uuid import UUID
 
 import pendulum
@@ -68,18 +68,21 @@ class StateBaseModel(IDBaseModel):
 
 class StateGetter(GetterDict):
     def get(self, key: str, default: Any) -> Any:
-        # During orchestration, ORM states can be instantiated prior to inserting
-        # results into the artifact table, and the `data` field will fail to load
         if key == "data":
             try:
                 return super().get(key, default)
             except MissingGreenlet:
+                # During orchestration, ORM states can be instantiated prior to inserting
+                # results into the artifact table and the `data` field will not be eagerly
+                # loaded. In these cases, sqlalchemy will attept to lazily load the the
+                # relationship, which will fail when called within a synchronous pydantic
+                # method
                 return None
 
         return super().get(key, default)
 
 
-class State(StateBaseModel, Generic[R]):
+class State(StateBaseModel):
     """Represents the state of a run."""
 
     class Config:
