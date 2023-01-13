@@ -7,7 +7,6 @@ Create Date: 2023-01-12 00:00:42.488367
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import sqlite
 
 import prefect
 
@@ -126,42 +125,60 @@ def upgrade():
             use_alter=True,
         )
 
+    update_task_run_artifact_data_in_batches = """
+        INSERT INTO artifact (task_run_state_id, artifact_data)
+        SELECT id, data
+        FROM task_run_state
+        WHERE data IS NOT 'null' AND data IS NOT NULL
+    """
+
+    update_task_run_state_from_artifact_id_in_batches = """
+        UPDATE task_run_state
+        SET result_artifact_id = artifact.id
+        FROM artifact
+        WHERE task_run_state.id = artifact.task_run_state_id
+    """
+
+    update_flow_run_artifact_data_in_batches = """
+        INSERT INTO artifact (flow_run_state_id, artifact_data)
+        SELECT id, data
+        FROM flow_run_state
+        WHERE data IS NOT 'null'
+        """
+
+    update_flow_run_state_from_artifact_id_in_batches = """
+        UPDATE flow_run_state
+        SET result_artifact_id = artifact.id
+        FROM artifact
+        WHERE flow_run_state.id = artifact.flow_run_state_id
+        """
+
+    data_migration_queries = [
+        update_task_run_artifact_data_in_batches,
+        update_task_run_state_from_artifact_id_in_batches,
+        update_flow_run_artifact_data_in_batches,
+        update_flow_run_state_from_artifact_id_in_batches,
+    ]
+
     with op.get_context().autocommit_block():
-        op.execute(
-            """
-            INSERT INTO artifact (task_run_state_id, artifact_data)
-            SELECT id, data
-            FROM task_run_state
-            WHERE data IS NOT 'null';
-            """
-        )
+        conn = op.get_bind()
+        for query in data_migration_queries:
 
-        op.execute(
-            """
-            UPDATE task_run_state
-            SET result_artifact_id = artifact.id
-            FROM artifact
-            WHERE task_run_state.id = artifact.task_run_state_id;
-            """
-        )
+            batch_size = 500
+            offset = 0
 
-        op.execute(
-            """
-            INSERT INTO artifact (flow_run_state_id, artifact_data)
-            SELECT id, data
-            FROM flow_run_state
-            WHERE data IS NOT 'null';
-            """
-        )
+            while True:
+                # execute until we've updated task_run_state_id and artifact_data
+                # autocommit mode will commit each time `execute` is called
+                sql_stmt = sa.text(
+                    query + " LIMIT :batch_size OFFSET :offset;"
+                ).bindparams(batch_size=batch_size, offset=offset)
+                result = conn.execute(sql_stmt)
 
-        op.execute(
-            """
-            UPDATE flow_run_state
-            SET result_artifact_id = artifact.id
-            FROM artifact
-            WHERE flow_run_state.id = artifact.flow_run_state_id;
-            """
-        )
+                if result.rowcount <= 0:
+                    break
+
+                offset += batch_size
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
