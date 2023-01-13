@@ -259,9 +259,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 state_result_artifact = core.Artifact(
                     artifact_data=state_data, flow_run_id=self.run.id
                 )
-                created_artifact = await artifacts.create_artifact(
-                    self.session, state_result_artifact
-                )
+                await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id
 
             validated_orm_state = db.FlowRunState(
@@ -276,7 +274,8 @@ class FlowOrchestrationContext(OrchestrationContext):
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-        validated_state.data = state_data
+        if validated_state is not None:
+            validated_state.data = state_data
         self.validated_state = validated_state
 
     def safe_copy(self):
@@ -410,7 +409,8 @@ class TaskOrchestrationContext(OrchestrationContext):
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
-        validated_state.data = state_data
+        if validated_state is not None:
+            validated_state.data = state_data
         self.validated_state = validated_state
 
     def safe_copy(self):
