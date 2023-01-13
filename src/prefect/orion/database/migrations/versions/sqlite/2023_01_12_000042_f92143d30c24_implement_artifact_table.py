@@ -125,32 +125,36 @@ def upgrade():
             use_alter=True,
         )
 
-    update_task_run_artifact_data_in_batches = """
-        INSERT INTO artifact (task_run_state_id, artifact_data)
-        SELECT id, data
-        FROM task_run_state
-        WHERE data IS NOT 'null' AND data IS NOT NULL
-    """
-
-    update_task_run_state_from_artifact_id_in_batches = """
-        UPDATE task_run_state
-        SET result_artifact_id = artifact.id
-        FROM artifact
-        WHERE task_run_state.id = artifact.task_run_state_id
-    """
-
-    update_flow_run_artifact_data_in_batches = """
-        INSERT INTO artifact (flow_run_state_id, artifact_data)
-        SELECT id, data
-        FROM flow_run_state
-        WHERE data IS NOT 'null'
+    def update_task_run_artifact_data_in_batches(batch_size, offset):
+        return f"""
+            INSERT INTO artifact (task_run_state_id, artifact_data)
+            SELECT id, data
+            FROM task_run_state
+            WHERE data IS NOT 'null' AND data IS NOT NULL
+            LIMIT {batch_size} OFFSET {offset};
         """
 
-    update_flow_run_state_from_artifact_id_in_batches = """
-        UPDATE flow_run_state
-        SET result_artifact_id = artifact.id
-        FROM artifact
-        WHERE flow_run_state.id = artifact.flow_run_state_id
+    def update_task_run_state_from_artifact_id_in_batches(batch_size, offset):
+        return f"""
+            UPDATE task_run_state
+            SET result_artifact_id = (SELECT id FROM artifact WHERE task_run_state.id = task_run_state_id)
+            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (data IS NOT 'null' AND data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
+        """
+
+    def update_flow_run_artifact_data_in_batches(batch_size, offset):
+        return f"""
+            INSERT INTO artifact (flow_run_state_id, artifact_data)
+            SELECT id, data
+            FROM flow_run_state
+            WHERE data IS NOT 'null' AND data IS NOT NULL
+            LIMIT {batch_size} OFFSET {offset};
+        """
+
+    def update_flow_run_state_from_artifact_id_in_batches(batch_size, offset):
+        return f"""
+            UPDATE flow_run_state
+            SET result_artifact_id = (SELECT id FROM artifact WHERE flow_run_state.id = flow_run_state_id)
+            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (data IS NOT 'null' AND data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
         """
 
     data_migration_queries = [
@@ -171,8 +175,8 @@ def upgrade():
                 # execute until we've updated task_run_state_id and artifact_data
                 # autocommit mode will commit each time `execute` is called
                 sql_stmt = sa.text(
-                    query + " LIMIT :batch_size OFFSET :offset;"
-                ).bindparams(batch_size=batch_size, offset=offset)
+                    query(batch_size, offset)
+                )
                 result = conn.execute(sql_stmt)
 
                 if result.rowcount <= 0:
