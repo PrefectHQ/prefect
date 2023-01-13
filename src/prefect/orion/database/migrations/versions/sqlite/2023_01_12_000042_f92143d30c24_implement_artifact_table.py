@@ -48,7 +48,13 @@ def upgrade():
         sa.Column("artifact_data", sa.JSON(), nullable=True),
         sa.Column("artifact_metadata", sa.JSON(), nullable=True),
         sa.Column(
+            "task_run_id", prefect.orion.utilities.database.UUID(), nullable=True
+        ),
+        sa.Column(
             "task_run_state_id", prefect.orion.utilities.database.UUID(), nullable=True
+        ),
+        sa.Column(
+            "flow_run_id", prefect.orion.utilities.database.UUID(), nullable=True
         ),
         sa.Column(
             "flow_run_state_id", prefect.orion.utilities.database.UUID(), nullable=True
@@ -59,19 +65,39 @@ def upgrade():
             name=op.f("fk_artifact__flow_run_state_id__flow_run_state"),
         ),
         sa.ForeignKeyConstraint(
+            ["flow_run_id"],
+            ["flow_run.id"],
+            name=op.f("fk_artifact__flow_run_id__flow_run"),
+        ),
+        sa.ForeignKeyConstraint(
             ["task_run_state_id"],
             ["task_run_state.id"],
             name=op.f("fk_artifact__task_run_state_id__task_run_state"),
         ),
+        sa.ForeignKeyConstraint(
+            ["task_run_id"],
+            ["task_run.id"],
+            name=op.f("fk_artifact__task_run_id__task_run"),
+        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_artifact")),
     )
     with op.batch_alter_table("artifact", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_artifact__flow_run_id"),
+            ["flow_run_id"],
+            unique=False,
+        )
         batch_op.create_index(
             batch_op.f("ix_artifact__flow_run_state_id"),
             ["flow_run_state_id"],
             unique=False,
         )
         batch_op.create_index(batch_op.f("ix_artifact__key"), ["key"], unique=True)
+        batch_op.create_index(
+            batch_op.f("ix_artifact__task_run_id"),
+            ["task_run_id"],
+            unique=False,
+        )
         batch_op.create_index(
             batch_op.f("ix_artifact__task_run_state_id"),
             ["task_run_state_id"],
@@ -127,8 +153,8 @@ def upgrade():
 
     def update_task_run_artifact_data_in_batches(batch_size, offset):
         return f"""
-            INSERT INTO artifact (task_run_state_id, artifact_data)
-            SELECT id, data
+            INSERT INTO artifact (task_run_state_id, task_run_id, artifact_data)
+            SELECT id, task_run_id, data
             FROM task_run_state
             WHERE data IS NOT 'null' AND data IS NOT NULL
             LIMIT {batch_size} OFFSET {offset};
@@ -143,8 +169,8 @@ def upgrade():
 
     def update_flow_run_artifact_data_in_batches(batch_size, offset):
         return f"""
-            INSERT INTO artifact (flow_run_state_id, artifact_data)
-            SELECT id, data
+            INSERT INTO artifact (flow_run_state_id, flow_run_id, artifact_data)
+            SELECT id, flow_run_id, data
             FROM flow_run_state
             WHERE data IS NOT 'null' AND data IS NOT NULL
             LIMIT {batch_size} OFFSET {offset};
@@ -181,6 +207,12 @@ def upgrade():
                     break
 
                 offset += batch_size
+
+    with op.batch_alter_table("artifact", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_artifact__task_run_state_id"))
+        batch_op.drop_column("task_run_state_id")
+        batch_op.drop_index(batch_op.f("ix_artifact__flow_run_state_id"))
+        batch_op.drop_column("flow_run_state_id")
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
@@ -222,9 +254,9 @@ def downgrade():
 
     with op.batch_alter_table("artifact", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_artifact__updated"))
-        batch_op.drop_index(batch_op.f("ix_artifact__task_run_state_id"))
+        batch_op.drop_index(batch_op.f("ix_artifact__task_run_id"))
         batch_op.drop_index(batch_op.f("ix_artifact__key"))
-        batch_op.drop_index(batch_op.f("ix_artifact__flow_run_state_id"))
+        batch_op.drop_index(batch_op.f("ix_artifact__flow_run_id"))
 
     op.drop_table("artifact")
     # ### end Alembic commands ###
