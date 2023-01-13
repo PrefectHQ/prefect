@@ -1092,3 +1092,9 @@ class Artifact(ORMBaseModel):
             "Artifact metadata used for the UI. " "Content must be storable as JSON."
         ),
     )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )
