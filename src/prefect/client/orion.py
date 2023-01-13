@@ -1276,6 +1276,7 @@ class OrionClient:
         infrastructure_document_id: UUID = None,
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
+        schedule_active: bool = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1315,6 +1316,7 @@ class OrionClient:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
+            is_schedule_active=schedule_active,
         )
 
         response = await self._client.post(

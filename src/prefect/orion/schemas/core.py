@@ -559,6 +559,16 @@ class Deployment(ORMBaseModel):
         raise_on_invalid_name(v)
         return v
 
+    @validator("is_schedule_active", pre=True)
+    def validate_is_schedule_active(cls, v, field):
+        """
+        Primary responsibility of this validator is to make sure that actions that use this field
+        are able to safely accept a `None` value.
+        """
+        if v is None:
+            return field.default
+        return v
+
 
 class ConcurrencyLimit(ORMBaseModel):
     """An ORM representation of a concurrency limit."""

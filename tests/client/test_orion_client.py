@@ -1470,3 +1470,52 @@ async def test_ephemeral_app_check(orion_client):
 async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
     async with OrionClient(hosted_orion_api) as orion_client:
         assert (await orion_client.using_ephemeral_app()) is False
+
+
+@pytest.mark.parametrize(
+    "schedule_active, is_schedule_active", [(True, True), (False, False), (None, True)]
+)
+async def test_update_deployment_schedule_active_does_not_overwrite_when_not_provided(
+    orion_client, flow_run, schedule_active, is_schedule_active
+):
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_run.flow_id,
+        name="test-deployment",
+        manifest_path="file.json",
+        parameters={"foo": "bar"},
+        work_queue_name="wq",
+        schedule_active=schedule_active,
+    )
+    deployment = await orion_client.read_deployment(deployment_id)
+    assert deployment.is_schedule_active == is_schedule_active
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+    await orion_client.update_deployment(deployment, schedule=schedule)
+    deployment = await orion_client.read_deployment(deployment_id)
+    assert deployment.is_schedule_active == is_schedule_active
+
+
+@pytest.mark.parametrize(
+    "initial, initial_expected, updated",
+    [
+        (False, False, True),
+        (True, True, False),
+        (None, True, False),
+    ],
+)
+async def test_update_deployment_schedule_active_overwrites_when_provided(
+    orion_client, flow_run, initial, initial_expected, updated
+):
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_run.flow_id,
+        name="test-deployment",
+        manifest_path="file.json",
+        parameters={"foo": "bar"},
+        work_queue_name="wq",
+        schedule_active=initial,
+    )
+    deployment = await orion_client.read_deployment(deployment_id)
+    assert deployment.is_schedule_active == initial_expected
+
+    await orion_client.update_deployment(deployment, is_schedule_active=updated)
+    deployment = await orion_client.read_deployment(deployment_id)
+    assert deployment.is_schedule_active == updated

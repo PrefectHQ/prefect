@@ -228,7 +228,7 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags are
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
-        is_schedule_active: Whether or not the schedule is active
+        schedule_active: Whether or not the schedule is active
         work_queue_name: The work queue that will handle this deployment's runs
         flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
@@ -294,7 +294,7 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
-            "is_schedule_active",
+            "schedule_active",
             "infra_overrides",
         ]
 
@@ -386,7 +386,7 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    is_schedule_active: Optional[bool] = Field(
+    schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
     flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
@@ -653,7 +653,6 @@ class Deployment(BaseModel):
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
-
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=self.name,
@@ -662,7 +661,7 @@ class Deployment(BaseModel):
                 work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
-                is_schedule_active=self.is_schedule_active,
+                schedule_active=self.schedule_active,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
