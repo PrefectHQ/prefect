@@ -174,9 +174,7 @@ def upgrade():
             while True:
                 # execute until we've updated task_run_state_id and artifact_data
                 # autocommit mode will commit each time `execute` is called
-                sql_stmt = sa.text(
-                    query(batch_size, offset)
-                )
+                sql_stmt = sa.text(query(batch_size, offset))
                 result = conn.execute(sql_stmt)
 
                 if result.rowcount <= 0:
