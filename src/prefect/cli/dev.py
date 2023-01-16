@@ -97,7 +97,7 @@ def agent_process_entrypoint(**kwargs):
     )
 
     try:
-        return start_agent(**kwargs)  # type: ignore
+        start_agent(**kwargs)  # type: ignore
     except KeyboardInterrupt:
         # expected when watchfiles kills the process
         pass
