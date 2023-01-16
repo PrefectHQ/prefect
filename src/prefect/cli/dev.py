@@ -33,7 +33,8 @@ from prefect.utilities.processutils import run_process
 DEV_HELP = """
 Commands for development.
 
-Note that many of these commands require extra dependencies (such as npm and MkDocs) to function properly.
+Note that many of these commands require extra dependencies (such as npm and MkDocs)
+to function properly.
 """
 dev_app = PrefectTyper(
     name="dev", short_help="Commands for development.", help=DEV_HELP
@@ -47,9 +48,9 @@ def exit_with_error_if_not_editable_install():
         or not (prefect.__root_path__ / "setup.py").exists()
     ):
         exit_with_error(
-            "Development commands cannot be used without an editable installation of Prefect. "
-            "Development commands require content outside of the 'prefect' module which "
-            "is not available when installed into your site-packages. "
+            "Development commands require an editable Prefect installation. "
+            "Development commands require content outside of the 'prefect' module  "
+            "which is not available when installed into your site-packages. "
             f"Detected module path: {prefect.__module_path__}."
         )
 
@@ -95,7 +96,7 @@ def build_ui():
                 subprocess.check_output(
                     ["npm", "ci", "install"], shell=sys.platform == "win32"
                 )
-            except Exception as exc:
+            except Exception:
                 app.console.print(
                     "npm call failed - try running `nvm use` first.", style="red"
                 )
@@ -209,7 +210,7 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"
+                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"  # noqa
             else:
                 host = PREFECT_API_URL.value()
             tg.start_soon(agent, host)
@@ -311,7 +312,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",
+            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",  # noqa
         ],
         name=name,
         auto_remove=True,
@@ -332,7 +333,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
             ready = result.exit_code == 0
             if not ready:
                 time.sleep(3)
-    except:
+    except BaseException:
         print("\nInterrupted. Stopping container...")
         container.stop()
         raise
