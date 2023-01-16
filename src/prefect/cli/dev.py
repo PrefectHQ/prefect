@@ -263,11 +263,18 @@ async def agent(
     import watchfiles
 
     app.console.print("Creating hot-reloading agent process...")
-    await watchfiles.arun_process(
-        prefect.__module_path__,
-        target=start_agent,
-        kwargs=dict(hide_welcome=False, api=api_url),
-    )
+
+    try:
+        await watchfiles.arun_process(
+            prefect.__module_path__,
+            target=agent_process_entrypoint,
+            kwargs=dict(api=api_url, work_queues=work_queues),
+        )
+    except RuntimeError as err:
+        # a bug in watchfiles causes an 'Already borrowed' error from Rust when
+        # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
+        if "Already borrowed" not in str(err):
+            raise
 
 
 @dev_app.command()
