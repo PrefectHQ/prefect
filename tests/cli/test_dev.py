@@ -1,8 +1,8 @@
 import inspect
 from types import NoneType
 from typing import Type
-import prefect
 
+import prefect
 from prefect.cli.dev import agent_process_entrypoint, start_agent
 from prefect.testing.utilities import MagicMock
 
