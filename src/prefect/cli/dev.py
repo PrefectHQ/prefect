@@ -191,9 +191,12 @@ async def api(
     """
     Starts a hot-reloading development API.
     """
+    import watchfiles
+
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = "False"
+    server_env["PREFECT_ORION_UI_API_URL"] = f"http://{host}:{port}/api"
 
     command = [
         "uvicorn",
@@ -205,14 +208,41 @@ async def api(
         str(port),
         "--log-level",
         log_level.lower(),
-        "--reload",
-        "--reload-dir",
-        str(prefect.__module_path__),
     ]
 
     app.console.print(f"Running: {' '.join(command)}")
+    import signal
 
-    await run_process(command=command, env=server_env, stream_output=True)
+    stop_event = anyio.Event()
+    start_command = partial(
+        run_process, command=command, env=server_env, stream_output=True
+    )
+
+    async with anyio.create_task_group() as tg:
+        try:
+            orion_pid = await tg.start(start_command)
+            async for _ in watchfiles.awatch(
+                prefect.__module_path__, stop_event=stop_event  # type: ignore
+            ):
+                # when any watched files change, restart the server
+                app.console.print("Restarting Orion server...")
+                os.kill(orion_pid, signal.SIGTERM)  # type: ignore
+                # start a new server
+                orion_pid = await tg.start(start_command)
+        except RuntimeError as err:
+            # a bug in watchfiles causes an 'Already borrowed' error from Rust when
+            # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
+            if "Already borrowed" not in str(err):
+                raise
+        except KeyboardInterrupt:
+            # exit cleanly on ctrl-c by killing the server process if it's
+            # still running
+            try:
+                os.kill(orion_pid, signal.SIGTERM)  # type: ignore
+            except OSError:
+                pass
+
+            stop_event.set()
 
 
 @dev_app.command()
