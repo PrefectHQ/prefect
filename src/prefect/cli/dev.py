@@ -55,6 +55,53 @@ def exit_with_error_if_not_editable_install():
         )
 
 
+def agent_process_entrypoint(**kwargs):
+    """
+    An entrypoint for starting an agent in a subprocess. Adds a Rich console
+    to the Typer app, processes Typer default parameters, then starts an agent.
+    """
+    import inspect
+
+    import rich
+
+    from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+
+    # Typer does not process default parameters when calling a function 
+    # directly, so we must set `start_agent`'s default parameters manually.
+
+    # get the signature of the `start_agent` function
+    start_agent_signature = inspect.signature(start_agent)
+
+    # for any arguments not present in kwargs, use the default value.
+    for name, param in start_agent_signature.parameters.items():
+        if name not in kwargs:
+            # all `param.default` values are Typer params that store the 
+            # actual default value in theie `default` attribute.
+            default = param.default.default
+
+            # Some defaults are Prefect `SettingsOption.value` methods
+            # that must be called to get the actual value.
+            kwargs[name] = default() if callable(default) else default
+
+    # add a console, because calling the agent start function directly
+    # instead of via CLI call means `app` has no `console` attached.
+    app.console = (
+        rich.console.Console(
+            highlight=False,
+            color_system="auto" if PREFECT_CLI_COLORS else None,
+            soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
+        )
+        if not getattr(app, "console", None)
+        else app.console
+    )
+
+    try:
+        return start_agent(**kwargs)  # type: ignore
+    except KeyboardInterrupt:
+        # expected when watchfiles kills the process
+        pass
+
+
 @dev_app.command()
 def build_docs(
     schema_path: str = None,
