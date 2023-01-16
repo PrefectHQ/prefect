@@ -282,6 +282,12 @@ async def start(
     exclude_api: bool = typer.Option(False, "--no-api"),
     exclude_ui: bool = typer.Option(False, "--no-ui"),
     exclude_agent: bool = typer.Option(False, "--no-agent"),
+    work_queues: List[str] = typer.Option(
+        ["default"],
+        "-q",
+        "--work-queue",
+        help="One or more work queue names for the dev agent to pull from.",
+    ),
 ):
     """
     Starts a hot-reloading development server with API, UI, and agent processes.
@@ -306,7 +312,7 @@ async def start(
                 host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"  # noqa
             else:
                 host = PREFECT_API_URL.value()
-            tg.start_soon(agent, host)
+            tg.start_soon(agent, host, work_queues)
 
 
 @dev_app.command()
