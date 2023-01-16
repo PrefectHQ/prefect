@@ -233,7 +233,7 @@ async def api(
         except RuntimeError as err:
             # a bug in watchfiles causes an 'Already borrowed' error from Rust when
             # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
-            if "Already borrowed" not in str(err):
+            if str(err).strip() != "Already borrowed":
                 raise
         except KeyboardInterrupt:
             # exit cleanly on ctrl-c by killing the server process if it's
@@ -273,7 +273,7 @@ async def agent(
     except RuntimeError as err:
         # a bug in watchfiles causes an 'Already borrowed' error from Rust when
         # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
-        if "Already borrowed" not in str(err):
+        if str(err).strip() != "Already borrowed":
             raise
 
 
