@@ -60,6 +60,7 @@ def agent_process_entrypoint(**kwargs):
     """
     An entrypoint for starting an agent in a subprocess. Adds a Rich console
     to the Typer app, processes Typer default parameters, then starts an agent.
+    All kwargs are forwarded to  `prefect.cli.agent.start`.
     """
     import inspect
 
