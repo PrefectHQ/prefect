@@ -67,16 +67,15 @@ def agent_process_entrypoint(**kwargs):
 
     from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
 
-    # Typer does not process default parameters when calling a function 
+    # Typer does not process default parameters when calling a function
     # directly, so we must set `start_agent`'s default parameters manually.
-
     # get the signature of the `start_agent` function
     start_agent_signature = inspect.signature(start_agent)
 
     # for any arguments not present in kwargs, use the default value.
     for name, param in start_agent_signature.parameters.items():
         if name not in kwargs:
-            # all `param.default` values are Typer params that store the 
+            # all `param.default` values are Typer params that store the
             # actual default value in theie `default` attribute.
             default = param.default.default
 
