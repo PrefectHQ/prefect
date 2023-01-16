@@ -11,6 +11,7 @@ import textwrap
 import time
 from functools import partial
 from string import Template
+from typing import List
 
 import anyio
 import typer
@@ -246,7 +247,15 @@ async def api(
 
 
 @dev_app.command()
-async def agent(api_url: str = SettingsOption(PREFECT_API_URL)):
+async def agent(
+    api_url: str = SettingsOption(PREFECT_API_URL),
+    work_queues: List[str] = typer.Option(
+        ["default"],
+        "-q",
+        "--work-queue",
+        help="One or more work queue names for the agent to pull from.",
+    ),
+):
     """
     Starts a hot-reloading development agent process.
     """
