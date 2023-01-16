@@ -239,7 +239,8 @@ async def api(
             # still running
             try:
                 os.kill(orion_pid, signal.SIGTERM)  # type: ignore
-            except OSError:
+            except ProcessLookupError:
+                # process already exited
                 pass
 
             stop_event.set()
