@@ -107,6 +107,8 @@ def upgrade():
         )
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
+        batch_op.alter_column("data", new_column_name="_data")
+        # batch_op.drop_column('data')
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -129,6 +131,8 @@ def upgrade():
         )
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
+        batch_op.alter_column("data", new_column_name="_data")
+        # batch_op.drop_column('data')
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -156,9 +160,9 @@ def upgrade():
     def update_task_run_artifact_data_in_batches(batch_size, offset):
         return f"""
             INSERT INTO artifact (task_run_state_id, task_run_id, artifact_data)
-            SELECT id, task_run_id, data
+            SELECT id, task_run_id, _data
             FROM task_run_state
-            WHERE data IS NOT 'null' AND data IS NOT NULL
+            WHERE _data IS NOT 'null' AND _data IS NOT NULL
             LIMIT {batch_size} OFFSET {offset};
         """
 
@@ -167,16 +171,16 @@ def upgrade():
         return f"""
             UPDATE task_run_state
             SET result_artifact_id = (SELECT id FROM artifact WHERE task_run_state.id = task_run_state_id)
-            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (data IS NOT 'null' AND data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
+            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (_data IS NOT 'null' AND _data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
         """
 
     # insert nontrivial flow run state results into the artifact table
     def update_flow_run_artifact_data_in_batches(batch_size, offset):
         return f"""
             INSERT INTO artifact (flow_run_state_id, flow_run_id, artifact_data)
-            SELECT id, flow_run_id, data
+            SELECT id, flow_run_id, _data
             FROM flow_run_state
-            WHERE data IS NOT 'null' AND data IS NOT NULL
+            WHERE _data IS NOT 'null' AND _data IS NOT NULL
             LIMIT {batch_size} OFFSET {offset};
         """
 
@@ -185,7 +189,7 @@ def upgrade():
         return f"""
             UPDATE flow_run_state
             SET result_artifact_id = (SELECT id FROM artifact WHERE flow_run_state.id = flow_run_state_id)
-            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (data IS NOT 'null' AND data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
+            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (_data IS NOT 'null' AND _data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
         """
 
     data_migration_queries = [
@@ -221,14 +225,6 @@ def upgrade():
         batch_op.drop_column("task_run_state_id")
         batch_op.drop_index(batch_op.f("ix_artifact__flow_run_state_id"))
         batch_op.drop_column("flow_run_state_id")
-
-    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
-    #     batch_op.drop_column('data')
-
-    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
-    #     batch_op.drop_column('data')
 
 
 def downgrade():
