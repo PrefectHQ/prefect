@@ -25,6 +25,11 @@ Currently Prefect 2 supports sending notifications via:
 - Twilio to phone numbers
 - Email (Prefect Cloud only)
 
+!!! cloud-ad "Notifications in Prefect Cloud"
+    Prefect Cloud uses the robust [Automations](/ui/automations/) interface to enable notifications related to flow run state changes and work queue health.
+
+## Configure notifications
+
 To configure a notification, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
 ![Creating a notification in the Prefect UI](/img/ui/orion-create-slack-notification.png)
