@@ -77,7 +77,7 @@ def agent_process_entrypoint(**kwargs):
     for name, param in start_agent_signature.parameters.items():
         if name not in kwargs:
             # all `param.default` values are Typer params that store the
-            # actual default value in theie `default` attribute.
+            # actual default value in their `default` attribute.
             default = param.default.default
 
             # Some defaults are Prefect `SettingsOption.value` methods
