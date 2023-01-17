@@ -70,7 +70,6 @@ def test_dev_start_runs_all_services(monkeypatch):
 
 def test_agent_subprocess_entrypoint_runs_agent_with_valid_params(monkeypatch):
     mock_agent_start = MagicMock()
-
     monkeypatch.setattr(prefect.cli.dev, "start_agent", mock_agent_start)
 
     api = "http://127.0.0.1:4200"
@@ -78,13 +77,7 @@ def test_agent_subprocess_entrypoint_runs_agent_with_valid_params(monkeypatch):
 
     start_agent_signature = inspect.signature(start_agent)
     start_agent_params = start_agent_signature.parameters
-
-    # We are mocking the start_agent function, but agent_process_entrypoint checks
-    # the signature of start_agent to extract default values from Typer objects.
-    # So, we also need to mock inspect.signature to return the signature of
-    # start_agent and not the signature of the mock.
-    mock_signature = MagicMock(parameters=start_agent_params)
-    monkeypatch.setattr(inspect, "signature", lambda _: mock_signature)
+    mock_agent_start.__signature__ = start_agent_signature
 
     agent_process_entrypoint(api=api, work_queues=work_queues)
 
@@ -122,15 +115,12 @@ def test_agent_subprocess_entrypoint_adds_typer_console(monkeypatch):
     """
     Ensures a Rich console is added to the PrefectTyper's global `app` instance.
     """
+    start_agent_signature = inspect.signature(start_agent)
+
     mock_agent_start = MagicMock()
+    mock_agent_start.__signature__ = start_agent_signature
     monkeypatch.setattr(prefect.cli.dev, "start_agent", mock_agent_start)
 
-    # ensure agent_subprocess_entrypoint gets the correct signature
-    # and not the signature of the mock
-    mock_signature = MagicMock(parameters=inspect.signature(start_agent).parameters)
-    monkeypatch.setattr(inspect, "signature", lambda _: mock_signature)
-
-    # mock the `app` instance to ensure it is not None
     mock_app = MagicMock()
     monkeypatch.setattr(prefect.cli.dev, "app", mock_app)
 
