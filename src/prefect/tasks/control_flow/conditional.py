@@ -105,8 +105,8 @@ def ifelse(
     """
     Builds a conditional branch into a workflow.
 
-    If the condition evaluates True(ish), the true_task will run. If it
-    evaluates False(ish), the false_task will run. The task doesn't run is Skipped, as are
+    If the condition evaluates True(ish), the `true_task` will run. If it
+    evaluates False(ish), the `false_task` will run. The task that doesn't run is Skipped, as are
     all downstream tasks that don't set `skip_on_upstream_skip=False`.
 
     Args:
