@@ -807,6 +807,17 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
 this often. Defaults to `5`.
 """
 
+PREFECT_ORION_SERVICES_CONCURRENCY_LIMIT_DELAY_SECONDS = Setting(
+    float,
+    default=30,
+)
+"""The concurrency limit delay interval, in seconds. This determines how
+often the concurrency slots are checked to attempt submit tasks tagged
+with a concurrency limit tag, once the slots are full. This does not
+impact on how quickly task runs are actually executed.
+Defaults to `30`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
