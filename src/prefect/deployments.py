@@ -6,6 +6,7 @@ import importlib
 import json
 import sys
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from uuid import UUID
@@ -15,6 +16,7 @@ import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orion import OrionClient, get_client
@@ -43,14 +45,14 @@ from prefect.utilities.slugify import slugify
 @inject_client
 async def run_deployment(
     name: str,
-    client: OrionClient = None,
-    parameters: dict = None,
-    scheduled_time: datetime = None,
-    flow_run_name: str = None,
-    timeout: float = None,
-    poll_interval: float = 5,
+    client: Optional[OrionClient] = None,
+    parameters: Optional[dict] = None,
+    scheduled_time: Optional[datetime] = None,
+    flow_run_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    poll_interval: Optional[float] = 5,
     tags: Optional[Iterable[str]] = None,
-    idempotency_key: str = None,
+    idempotency_key: Optional[str] = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -63,7 +65,7 @@ async def run_deployment(
     Args:
         name: The deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
-            defaults
+            defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
@@ -72,6 +74,8 @@ async def run_deployment(
             Setting `timeout` to None will allow this function to poll indefinitely.
             Defaults to None
         poll_interval: The number of seconds between polls
+        tags: A list of tags to associate with this flow run; note that tags are used only for organizational purposes.
+        idempotency_key: A unique value to recognize retries of the same run, and prevent creating multiple flow runs.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -206,6 +210,13 @@ def load_deployments_from_yaml(
     return registry
 
 
+@experimental_field("work_pool_name", group="workers", when=lambda x: x is not None)
+@experimental_field(
+    "work_pool_queue_name",
+    group="workers",
+    when=lambda x: x is not None,
+    stacklevel=4,
+)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
@@ -277,6 +288,8 @@ class Deployment(BaseModel):
             "description",
             "version",
             "work_queue_name",
+            "work_pool_name",
+            "work_pool_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -377,7 +390,12 @@ class Deployment(BaseModel):
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-
+    work_pool_name: Optional[str] = Field(
+        default=None, description="The work pool for the deployment"
+    )
+    work_pool_queue_name: Optional[str] = Field(
+        default=None, description="The work pool queue for the deployment."
+    )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
@@ -405,6 +423,7 @@ class Deployment(BaseModel):
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
+    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -499,7 +518,7 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage"}
+                    {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -634,6 +653,8 @@ class Deployment(BaseModel):
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
+                work_pool_name=self.work_pool_name,
+                work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
                 parameters=self.parameters,

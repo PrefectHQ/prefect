@@ -909,7 +909,39 @@ This setting cannot be changed client-side, it must be set on the server.
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
-Whether or not to enable experimental Prefect workers. 
+Whether or not to enable experimental Prefect workers.
+"""
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
+"""
+Number of seconds a worker should wait between sending a heartbeat.
+"""
+PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
+"""
+Number of seconds a worker should wait between queries for scheduled flow runs.
+"""
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
+"""
+The number of seconds into the future a worker should query for scheduled flow runs.
+Can be used to compensate for infrastructure start up time for a worker.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
+"""
+The number of seconds a worker should wait between scanning its workflow storage
+location for submitted deployments.
+"""
+PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "workflows",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+"""
+The location where workers will scan for newly submitted deployments and store
+flow code for submitted deployments.
 """
 
 # Collect all defined settings
