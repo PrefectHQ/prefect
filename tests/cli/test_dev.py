@@ -1,6 +1,4 @@
 import inspect
-from types import NoneType
-from typing import Type
 
 import prefect
 from prefect.cli.dev import agent_process_entrypoint, start_agent
@@ -27,7 +25,8 @@ def test_agent_subprocess_entrypoint_runs_agent_with_valid_params(monkeypatch):
 
     agent_process_entrypoint(api=api, work_queues=work_queues)
 
-    call_args: dict = mock_agent_start.call_args.kwargs
+    # Get the call's kwargs from the mock
+    call_args = mock_agent_start.call_args[1]
 
     # Ensure that types of the call_args match the types of the start_agent.
     # This verifies that defaults are extracted from Typer.Argument and
@@ -37,8 +36,8 @@ def test_agent_subprocess_entrypoint_runs_agent_with_valid_params(monkeypatch):
         # declared argument type and NoneType. So, we need to check if the call arg
         # is either the declared type or NoneType.
 
-        arg_type: Type = NoneType
-        # check if the type is subscripted
+        # check if the type is subscripted, because we can't use isinstance
+        # on subscripted types
         if hasattr(param.annotation, "__origin__"):
             # if so, use subscripted type
             arg_type = param.annotation.__origin__
