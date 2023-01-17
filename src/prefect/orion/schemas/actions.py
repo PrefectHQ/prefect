@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
+import jsonschema
 from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
@@ -15,7 +16,7 @@ from prefect.orion.utilities.schemas import (
     FieldFrom,
     PrefectBaseModel,
     copy_model_fields,
-    orjson_dumps_non_str_keys,
+    orjson_dumps_extra_compatible,
 )
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -138,6 +139,18 @@ class DeploymentCreate(ActionBaseModel):
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
 
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that the combination of base_job_template defaults
+        and infra_overrides conforms to the specified schema.
+        """
+        variables_schema = base_job_template.get("variables")
+        schema = {
+            "type": "object",
+            "properties": variables_schema["properties"],
+            "required": variables_schema["required"],
+        }
+        jsonschema.validate(self.infra_overrides, schema)
+
 
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
@@ -195,6 +208,23 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that the combination of base_job_template defaults
+        and infra_overrides conforms to the specified schema.
+        """
+
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that the combination of base_job_template defaults
+        and infra_overrides conforms to the specified schema.
+        """
+        variables_schema = base_job_template.get("variables")
+        schema = {
+            "type": "object",
+            "properties": variables_schema["properties"],
+            "required": variables_schema["required"],
+        }
+        jsonschema.validate(self.infra_overrides, schema)
 
 
 @copy_model_fields
@@ -283,7 +313,7 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_non_str_keys
+        json_dumps = orjson_dumps_extra_compatible
 
 
 @copy_model_fields
