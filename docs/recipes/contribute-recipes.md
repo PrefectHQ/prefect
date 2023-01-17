@@ -1,5 +1,5 @@
 ---
-description: Share your Prefect solution recipes with the Prefect Community.
+description: Share your use cases with the Prefect Community.
 tags:
     - contributing
     - recipes
@@ -9,9 +9,11 @@ tags:
 
 # Share Your Solutions with the Prefect Community
 
-[Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) provide a vital cookbook from which Prefect users can find helpful code examples and, when appropriate, common steps to Prefect solutions for specific use cases. 
+[Prefect recipes](https://github.com/PrefectHQ/prefect-recipes) provide a vital cookbook where users can find helpful code examples and, when appropriate, common steps for specific Prefect use cases.
 
-We love submissions for recipes from anyone who has an example that another Prefect user can follow to achieve a common Prefect solution.
+We love recipes from anyone who has example code that another Prefect user can benefit from (e.g. a Prefect flow that loads data into Snowflake).
+
+Have a blog post, Discourse article, or tutorial you’d like to share as a recipe? All submissions are welcome. Clone the prefect-recipes repo, create a branch, add a link to your recipe to the README, and submit a PR. Have more questions? Read on.
 
 ## What is a recipe?
 
@@ -23,36 +25,30 @@ We love Julia, and we love tutorials. But we don’t expect that a Prefect recip
 
 To see an example of a high quality recipe, check out **[Serverless with AWS Chalice](https://github.com/PrefectHQ/prefect-recipes/tree/main/flows-advanced/serverless)**. This recipe includes all of the elements we like to see.
 
-## What to do, explained in a brief recipe
+## Steps to adding your recipe
 
-Here’s our brief recipe for creating a useful recipe:
+Here’s our guide to creating a recipe:
 
 1. Clone the [Prefect Recipes repo](https://github.com/PrefectHQ/prefect-recipes) and create a branch.
-2. [Write your code](#what-are-the-common-ingredients-of-a-good-recipe).
-3. Write a [README](#what-are-some-tips-for-a-good-recipe-readme).
+2. [Add your code](#what-are-the-common-ingredients-of-a-good-recipe). The code may simply be a copy/paste of a personal project, whether that be a single Python file or an entire folder/repo in itself. Unsure of where to add your code? Just add it to the `flows-advanced/` folder. A Prefect maintainer will help you find a better place for the recipe if there is one.
+3. (Optional) Write a [README](#what-are-some-tips-for-a-good-recipe-readme).
 4. Include a dependencies file, if applicable.
-5. Add your recipes where you think it fits in the repo. If you’re at all unsure, just add it anywhere and create a PR. A Prefect maintainer will help you find a good place for the recipe.  
-6. Make a PR to the repo
+6. Push your code and make a PR to the repo.
 
 That’s really it! 
 
 ## What makes a good recipe?
 
-Any example that helps a Prefect user bake a great dataflow solution!
+Every recipe is useful, as other Prefect users can adapt the recipe to their needs. Particularly good ones help a Prefect user bake a great dataflow solution! Take a look at the [prefect-recipes repo](https://github.com/PrefectHQ/prefect-recipes) to see some examples.
 
 ## What are the common ingredients of a good recipe?
 
-Every recipe is useful.
 
-Showing the cool example of using Prefect is the most important part. Show off. Other users can adapt the recipe to their needs. 
 
-Some best practice for creating useful Prefect recipes:
-
-- Make it easy to follow: We find that useful recipes are based on a example code that a user can follow.
-- Include a README or code comments: A simple explanation providing context on how to use the example code is useful, but not required. A good README can set a recipe apart, so we have some additional suggestions for README files below.
+- Easy to understand: Can a user easily follow your recipe? Would a README or code comments help? A simple explanation providing context on how to use the example code is useful, but not required. A good README can set a recipe apart, so we have some additional suggestions for README files below.
 - Language/format: Sometimes the example code is a configuration file &mdash; think of a Dockerfile or Terraform file for configuring infrastructure.
-- Include code examples: Share as much code as you can. Even boilerplate code like Dockerfiles or Terraform or Helm files are useful. Just *don’t share company secrets or IP*.
-- Don't worry about generalizing your code: Aside from removing anything internal/secret, don’t worry about it! Other users will extrapolate their own unique solutions from your example.
+- All-inclusive: Share as much code as you can. Even boilerplate code like Dockerfiles or Terraform or Helm files are useful. Just *don’t share company secrets or IP*.
+- Specific: Don't worry about generalizing your code: Aside from removing anything internal/secret, don’t worry about it! Other users will extrapolate their own unique solutions from your example.
 
 ## What are some tips for a good recipe README?
 
@@ -66,7 +62,7 @@ A thoughtful README can take a recipe from good to great. Here are some best pra
 
 ## Next steps
 
-We hope you’ll feel comfortable sharing your Prefect solutions as Prefect recipes in the [prefect-recipes repo](https://github.com/PrefectHQ/prefect-recipes#contributions). Collaboration and knowledge sharing are defining attributes of our [Prefect Community](https://www.prefect.io/slack)! 
+We hope you’ll feel comfortable sharing your Prefect solutions as recipes in the [prefect-recipes repo](https://github.com/PrefectHQ/prefect-recipes#contributions). Collaboration and knowledge sharing are defining attributes of our [Prefect Community](https://www.prefect.io/slack)! 
 
 Have questions about sharing or using recipes? Reach out on our active [Prefect Slack Community](https://www.prefect.io/slack)!
 
