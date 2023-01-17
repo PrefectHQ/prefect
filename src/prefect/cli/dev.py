@@ -25,6 +25,8 @@ from prefect.docker import get_prefect_image_name, python_version_minor
 from prefect.orion.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
     PREFECT_ORION_API_HOST,
     PREFECT_ORION_API_PORT,
 )
@@ -66,7 +68,8 @@ def agent_process_entrypoint(**kwargs):
 
     import rich
 
-    from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+    # import locally so only the `dev` command breaks if Typer internals change
+    from typer.models import ParameterInfo
 
     # Typer does not process default parameters when calling a function
     # directly, so we must set `start_agent`'s default parameters manually.
@@ -76,9 +79,15 @@ def agent_process_entrypoint(**kwargs):
     # for any arguments not present in kwargs, use the default value.
     for name, param in start_agent_signature.parameters.items():
         if name not in kwargs:
-            # all `param.default` values are Typer params that store the
-            # actual default value in their `default` attribute.
-            default = param.default.default
+            # All `param.default` values for start_agent are Typer params that store the
+            # actual default value in their `default` attribute and we must call
+            # `param.default.default` to get the actual default value. We should also
+            # ensure we extract the right default if non-Typer defaults are added
+            # to `start_agent` in the future.
+            if isinstance(param.default, ParameterInfo):
+                default = param.default.default
+            else:
+                default = param.default
 
             # Some defaults are Prefect `SettingsOption.value` methods
             # that must be called to get the actual value.

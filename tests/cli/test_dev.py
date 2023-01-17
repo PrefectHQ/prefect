@@ -1,6 +1,7 @@
 import inspect
 
 import watchfiles
+from typer import Option
 
 import prefect
 from prefect.cli.dev import agent_process_entrypoint, start_agent
@@ -109,6 +110,42 @@ def test_agent_subprocess_entrypoint_runs_agent_with_valid_params(monkeypatch):
     # passed to start_agent and not accidentally overwritten by default values.
     assert call_args["api"] == api
     assert call_args["work_queues"] == work_queues
+
+
+# ensures that the default values for the agent start function are extracted
+# correctly in cases where some of them are Typer.OptionInfo or Typer.ArgumentInfo
+# and others are normal Python defaults
+def test_mixed_parameter_default_types(monkeypatch):
+    mock_agent_start = MagicMock()
+    monkeypatch.setattr(prefect.cli.dev, "start_agent", mock_agent_start)
+
+    # mock the signature of start_agent to have a mix of Typer.OptionInfo
+    # and normal Python defaults
+    start_agent_signature = inspect.Signature(
+        parameters=[
+            inspect.Parameter(  # Typer.OptionInfo
+                name="api",
+                kind=inspect.Parameter.KEYWORD_ONLY,
+                default=Option(
+                    None,
+                    "--api",
+                    help="The URL of the Prefect API server",
+                ),
+            ),
+            inspect.Parameter(  # normal Python default
+                name="work_queues",
+                kind=inspect.Parameter.KEYWORD_ONLY,
+                default=["default"],
+            ),
+        ]
+    )
+    mock_agent_start.__signature__ = start_agent_signature
+
+    agent_process_entrypoint()
+
+    # if we get this far without errors, it means the entrypoint function
+    # successfully extracted the mixed default arguments
+    mock_agent_start.assert_called_once()
 
 
 def test_agent_subprocess_entrypoint_adds_typer_console(monkeypatch):
