@@ -1484,7 +1484,7 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
         manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        schedule_active=schedule_active,
+        is_schedule_active=schedule_active,
     )
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.is_schedule_active == is_schedule_active
@@ -1511,7 +1511,7 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
         manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        schedule_active=initial,
+        is_schedule_active=initial,
     )
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.is_schedule_active == initial_expected

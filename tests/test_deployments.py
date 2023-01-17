@@ -348,14 +348,14 @@ class TestDeploymentBuild:
             tags=["A", "B"],
             description="foobar",
             version="12",
-            schedule_active=False,
+            is_schedule_active=False,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.description == "foobar"
         assert d.tags == ["A", "B"]
         assert d.version == "12"
-        assert d.schedule_active == False
+        assert d.is_schedule_active == False
 
     async def test_build_from_flow_doesnt_load_existing(self, flow_function):
         d = await Deployment.build_from_flow(
@@ -394,11 +394,11 @@ class TestDeploymentBuild:
             tags=["A", "B"],
             description="foobar",
             version="12",
-            schedule_active=is_active,
+            is_schedule_active=is_active,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
-        assert d.schedule_active == is_active
+        assert d.is_schedule_active == is_active
 
 
 class TestYAML:
@@ -425,11 +425,11 @@ class TestYAML:
         assert new_d.infrastructure == infrastructure
 
     @pytest.mark.parametrize(
-        "schedule_active",
+        "is_schedule_active",
         [True, False, None],
     )
     def test_deployment_yaml_roundtrip_for_schedule_active(
-        self, tmp_path, schedule_active
+        self, tmp_path, is_schedule_active
     ):
         storage = LocalFileSystem(basepath=".")
         infrastructure = Process()
@@ -440,7 +440,7 @@ class TestYAML:
             storage=storage,
             infrastructure=infrastructure,
             tags=["A", "B"],
-            schedule_active=schedule_active,
+            is_schedule_active=is_schedule_active,
         )
         yaml_path = str(tmp_path / "dep.yaml")
         d.to_yaml(yaml_path)
@@ -448,7 +448,7 @@ class TestYAML:
         new_d = Deployment.load_from_yaml(yaml_path)
         assert new_d.name == d.name
         assert new_d.name == "yaml"
-        assert new_d.schedule_active == schedule_active
+        assert new_d.is_schedule_active == is_schedule_active
 
     async def test_deployment_yaml_roundtrip_handles_secret_values(self, tmp_path):
         storage = S3(
@@ -595,11 +595,11 @@ class TestDeploymentApply:
             tags=["A", "B"],
             description="foobar",
             version="12",
-            schedule_active=is_active,
+            is_schedule_active=is_active,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
-        assert d.schedule_active == is_active
+        assert d.is_schedule_active == is_active
 
         dep_id = await d.apply()
         dep = await orion_client.read_deployment(dep_id)

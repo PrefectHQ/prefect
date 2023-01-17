@@ -228,7 +228,7 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags are
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
-        schedule_active: Whether or not the schedule is active
+        is_schedule_active: Whether or not the schedule is active
         work_queue_name: The work queue that will handle this deployment's runs
         flow: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
@@ -294,7 +294,7 @@ class Deployment(BaseModel):
             "tags",
             "parameters",
             "schedule",
-            "schedule_active",
+            "is_schedule_active",
             "infra_overrides",
         ]
 
@@ -386,7 +386,7 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
-    schedule_active: Optional[bool] = Field(
+    is_schedule_active: Optional[bool] = Field(
         default=None, description="Whether or not the schedule is active."
     )
     flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
@@ -510,10 +510,6 @@ class Deployment(BaseModel):
         Raises:
             - ValueError: if both name and flow name are not set
         """
-        client_field_to_api_field = {
-            "schedule_active": "is_schedule_active",
-        }
-
         if not self.name or not self.flow_name:
             raise ValueError("Both a deployment name and flow name must be provided.")
         async with get_client() as client:
@@ -530,8 +526,7 @@ class Deployment(BaseModel):
                     {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
-                    api_field = client_field_to_api_field.get(field, field)
-                    new_value = getattr(deployment, api_field)
+                    new_value = getattr(deployment, field)
                     setattr(self, field, new_value)
 
                 if "infrastructure" not in self.__fields_set__:
@@ -666,7 +661,7 @@ class Deployment(BaseModel):
                 work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
-                schedule_active=self.schedule_active,
+                is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,
