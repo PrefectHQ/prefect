@@ -84,6 +84,19 @@ def main(
         # during tests.
         setup_logging()
 
+    # When running on Windows we need to use a non-default loop for subprocess support
+    # this is most important for the agent but we need to set the policy before a loop
+    # is created
+    if sys.platform == "win32":
+        if sys.version_info >= (3, 8):
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        else:
+            app.console.print(
+                "WARNING: Prefect does not support Python 3.7 on Windows. "
+                "We recommend using Python 3.8+. "
+                "Functionality that requires subprocess spawning may fail."
+            )
+
 
 @app.command()
 async def version():
