@@ -64,6 +64,4 @@ We hope you’ll feel comfortable sharing your Prefect solutions as recipes in t
 
 Have questions about sharing or using recipes? Reach out on our active [Prefect Slack Community](https://www.prefect.io/slack)!
 
-Have a blog post, Discourse article, or tutorial you’d like to share as a recipe? All submissions are welcome. Clone the prefect-recipes repo, create a branch, add a link to your recipe to the README, and submit a PR. 
-
 Happy engineering!
