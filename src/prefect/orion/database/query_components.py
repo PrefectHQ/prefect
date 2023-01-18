@@ -606,7 +606,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 db.FlowRunNotificationQueue.flow_run_state_id,
             )
             .where(
-                db.FlowRunNotificationQueue.id.in_(
+                db.FlowRunNotificationQueue.id.eq_(
                     sa.select(db.FlowRunNotificationQueue.id)
                     .select_from(db.FlowRunNotificationQueue)
                     .order_by(db.FlowRunNotificationQueue.updated)
