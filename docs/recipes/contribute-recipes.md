@@ -46,7 +46,7 @@ Every recipe is useful, as other Prefect users can adapt the recipe to their nee
 - Easy to understand: Can a user easily follow your recipe? Would a README or code comments help? A simple explanation providing context on how to use the example code is useful, but not required. A good README can set a recipe apart, so we have some additional suggestions for README files below.
 - Code and more: Sometimes a use case is best represented in Python code or shell scripts. Sometimes a configuration file is the most important artifact &mdash; think of a Dockerfile or Terraform file for configuring infrastructure.
 - All-inclusive: Share as much code as you can. Even boilerplate code like Dockerfiles or Terraform or Helm files are useful. Just *don’t share company secrets or IP*.
-- Specific: Don't worry about generalizing your code: Aside from removing anything internal/secret, don’t worry about it! Other users will extrapolate their own unique solutions from your example.
+- Specific: Don't worry about generalizing your code, aside from removing anything internal/secret! Other users will extrapolate their own unique solutions from your example.
 
 ## What are some tips for a good recipe README?
 
