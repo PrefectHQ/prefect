@@ -68,6 +68,20 @@ class TestBlockDocument:
         )
 
 
+class TestBlockDocumentReference:
+    async def test_block_document_reference_different_parent_and_ref(self):
+        same_id = uuid4()
+        with pytest.raises(
+            ValueError,
+            match="`parent_block_document_id` and `reference_block_document_id` cannot be the same",
+        ):
+            schemas.core.BlockDocumentReference(
+                parent_block_document_id=same_id,
+                reference_block_document_id=same_id,
+                name="name",
+            )
+
+
 class TestFlowRunNotificationPolicy:
     async def test_message_template_variables_are_validated(self):
         with pytest.raises(
