@@ -1463,6 +1463,35 @@ class TestOrchestrationContext:
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact.artifact_data == "some special data"
 
+    async def test_context_validation_does_not_write_artifact_when_no_result(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        ctx.proposed_state.data = None
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id
+        assert (
+            ctx.validated_state.data is None
+        ), "this validated state should have no result"
+
+        # an artifact should be created with the result data as well
+        if run_type == "task":
+            state_reader = models.task_run_states.read_task_run_state
+        else:
+            state_reader = models.flow_run_states.read_flow_run_state
+        validated_orm_state = await state_reader(ctx.session, ctx.validated_state.id)
+        artifact_id = validated_orm_state.result_artifact_id
+        assert artifact_id is None
+
+        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        assert orm_artifact is None
+
     @pytest.mark.parametrize(
         "intended_transition",
         list(permutations([*states.StateType, None], 2)),
