@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Any, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -66,28 +66,11 @@ class StateBaseModel(IDBaseModel):
         return schema_dict
 
 
-class StateGetter(GetterDict):
-    def get(self, key: str, default: Any) -> Any:
-        if key == "data":
-            try:
-                return super().get(key, default)
-            except MissingGreenlet:
-                # During orchestration, ORM states can be instantiated prior to inserting
-                # results into the artifact table and the `data` field will not be eagerly
-                # loaded. In these cases, sqlalchemy will attept to lazily load the the
-                # relationship, which will fail when called within a synchronous pydantic
-                # method
-                return None
-
-        return super().get(key, default)
-
-
 class State(StateBaseModel, Generic[R]):
     """Represents the state of a run."""
 
     class Config:
         orm_mode = True
-        getter_dict = StateGetter
 
     type: StateType
     name: Optional[str] = Field(default=None)
@@ -101,6 +84,35 @@ class State(StateBaseModel, Generic[R]):
         ),
     )
     state_details: StateDetails = Field(default_factory=StateDetails)
+
+    @classmethod
+    def from_orm_without_result(
+        cls,
+        orm_state: Union[
+            "prefect.orion.database.orm_models.ORMFlowRunState",
+            "prefect.orion.database.orm_models.ORMTaskRunState",
+        ],
+        with_data: Optional[Any] = None,
+    ):
+        """
+        During orchestration, ORM states can be instantiated prior to inserting results
+        into the artifact table and the `data` field will not be eagerly loaded. In
+        these cases, sqlalchemy will attept to lazily load the the relationship, which
+        will fail when called within a synchronous pydantic method.
+
+        This method will construct a `State` object from an ORM model without a loaded
+        artifact and attach data passed using the `with_data` argument to the `data`
+        field.
+        """
+
+        field_keys = cls.schema()["properties"].keys()
+        state_data = {
+            field: getattr(orm_state, field, None)
+            for field in field_keys
+            if field != "data"
+        }
+        state_data["data"] = with_data
+        return cls(**state_data)
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):

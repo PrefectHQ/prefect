@@ -156,12 +156,10 @@ class ORMFlowRunState:
         )
 
     @hybrid_property
-    def result_artifact(self):
-        return self._result_artifact
-
-    @hybrid_property
     def data(self):
-        return self._result_artifact.artifact_data
+        if not self.result_artifact_id:
+            return None
+        return getattr(self._result_artifact, "artifact_data", None)
 
     @declared_attr
     def flow_run(cls):
@@ -238,12 +236,10 @@ class ORMTaskRunState:
         )
 
     @hybrid_property
-    def result_artifact(self):
-        return self._result_artifact
-
-    @hybrid_property
     def data(self):
-        return self._result_artifact.artifact_data
+        if not self.result_artifact_id:
+            return None
+        return getattr(self._result_artifact, "artifact_data", None)
 
     @declared_attr
     def task_run(cls):

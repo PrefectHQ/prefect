@@ -271,12 +271,12 @@ class FlowOrchestrationContext(OrchestrationContext):
         self.run.set_state(validated_orm_state)
 
         await self.session.flush()
-        validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
-        if validated_state is not None:
-            validated_state.data = state_data
-        self.validated_state = validated_state
+        if validated_orm_state:
+            self.validated_state = states.State.from_orm_without_result(
+                validated_orm_state, with_data=state_data
+            )
+        else:
+            self.validated_state = None
 
     def safe_copy(self):
         """
@@ -406,12 +406,12 @@ class TaskOrchestrationContext(OrchestrationContext):
         self.run.set_state(validated_orm_state)
 
         await self.session.flush()
-        validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
-        if validated_state is not None:
-            validated_state.data = state_data
-        self.validated_state = validated_state
+        if validated_orm_state:
+            self.validated_state = states.State.from_orm_without_result(
+                validated_orm_state, with_data=state_data
+            )
+        else:
+            self.validated_state = None
 
     def safe_copy(self):
         """
