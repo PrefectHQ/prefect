@@ -133,6 +133,7 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
+    _data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def result_artifact_id(cls):
@@ -157,6 +158,8 @@ class ORMFlowRunState:
 
     @hybrid_property
     def data(self):
+        if self._data:
+            return self._data
         if not self.result_artifact_id:
             return None
         return getattr(self._result_artifact, "artifact_data", None)
@@ -213,6 +216,7 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
+    _data = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def result_artifact_id(cls):
@@ -237,6 +241,8 @@ class ORMTaskRunState:
 
     @hybrid_property
     def data(self):
+        if self._data:
+            return self._data
         if not self.result_artifact_id:
             return None
         return getattr(self._result_artifact, "artifact_data", None)
