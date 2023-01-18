@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import pendulum
 import sqlalchemy as sa
 
@@ -30,3 +32,19 @@ async def create_artifact(
     model = result.scalar()
 
     return model
+
+
+@inject_db
+async def read_artifact(
+    session: sa.orm.Session,
+    artifact_id: UUID,
+    db: OrionDBInterface,
+):
+    """
+    Reads an artifact by id.
+    """
+
+    query = sa.select(db.Artifact).where(db.Artifact.id == artifact_id)
+
+    result = await session.execute(query)
+    return result.scalar()
