@@ -121,6 +121,9 @@ async def test_injecting_really_dumb_query_components():
         ):
             ...
 
+        def _get_scheduled_flow_runs_from_work_pool_template_path(self):
+            ...
+
     with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == ReallyBrokenQueries

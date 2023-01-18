@@ -3,11 +3,14 @@ Utilities for working with Python callables.
 """
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
 import pydantic.schema
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.docstrings.parsers import Parser, parse
 from typing_extensions import Literal
 
 from prefect.exceptions import (
@@ -15,10 +18,14 @@ from prefect.exceptions import (
     ReservedArgumentError,
     SignatureMismatchError,
 )
+from prefect.logging.loggers import disable_logger
 
 
 def get_call_parameters(
-    fn: Callable, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
+    fn: Callable,
+    call_args: Tuple[Any, ...],
+    call_kwargs: Dict[str, Any],
+    apply_defaults: bool = True,
 ) -> Dict[str, Any]:
     """
     Bind a call to a function to get parameter/value mapping. Default values on the
@@ -30,7 +37,10 @@ def get_call_parameters(
         bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     except TypeError as exc:
         raise ParameterBindError.from_bind_failure(fn, exc, call_args, call_kwargs)
-    bound_signature.apply_defaults()
+
+    if apply_defaults:
+        bound_signature.apply_defaults()
+
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
     # ordered dictionary to values during execution; this is the default behavior in
     # Python 3.9 anyway.
@@ -113,6 +123,36 @@ class ParameterSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
+def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
+    """
+    Given a docstring in Google docstring format, parse the parameter section
+    and return a dictionary that maps parameter names to docstring.
+
+    Args:
+        docstring: The function's docstring.
+
+    Returns:
+        Mapping from parameter names to docstrings.
+    """
+    param_docstrings = {}
+
+    if not docstring:
+        return param_docstrings
+
+    with disable_logger("griffe.docstrings.google"), disable_logger(
+        "griffe.agents.nodes"
+    ):
+        parsed = parse(Docstring(docstring), Parser.google)
+        for section in parsed:
+            if section.kind != DocstringSectionKind.parameters:
+                continue
+            param_docstrings = {
+                parameter.name: parameter.description for parameter in section.value
+            }
+
+    return param_docstrings
+
+
 def parameter_schema(fn: Callable) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
@@ -131,11 +171,12 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     signature = inspect.signature(fn)
     model_fields = {}
     aliases = {}
+    docstrings = parameter_docstrings(inspect.getdoc(fn))
 
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    for param in signature.parameters.values():
+    for position, param in enumerate(signature.parameters.values()):
         # Pydantic model creation will fail if names collide with the BaseModel type
         if hasattr(pydantic.BaseModel, param.name):
             name = param.name + "__"
@@ -148,8 +189,9 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
-                description=None,
+                description=docstrings.get(param.name, None),
                 alias=aliases.get(name),
+                position=position,
             ),
         )
 

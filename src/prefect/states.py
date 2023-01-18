@@ -3,7 +3,7 @@ import sys
 import traceback
 import warnings
 from collections import Counter
-from types import TracebackType
+from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
@@ -27,6 +27,7 @@ from prefect.orion import schemas
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
+from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
@@ -272,8 +273,14 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             data=await result_factory.create_result(retval),
         )
 
+    # Generators aren't portable, implicitly convert them to a list.
+    if isinstance(retval, GeneratorType):
+        data = list(retval)
+    else:
+        data = retval
+
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(retval))
+    return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
@@ -385,8 +392,11 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
     # We do not check for arbitary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
-
-    if isinstance(obj, (list, set, tuple)) and obj:
+    if (
+        not isinstance(obj, BaseAnnotation)
+        and isinstance(obj, (list, set, tuple))
+        and obj
+    ):
         return all([is_state(o) for o in obj])
     else:
         return False
@@ -529,9 +539,13 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    state_details.pause_timeout = pause_expiration_time or (
-        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
-    )
+    if pause_expiration_time is None and timeout_seconds is None:
+        pass
+    else:
+        state_details.pause_timeout = pause_expiration_time or (
+            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+        )
+
     state_details.pause_reschedule = reschedule
     state_details.pause_key = pause_key
 

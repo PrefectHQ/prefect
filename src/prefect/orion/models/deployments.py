@@ -12,6 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 
 from prefect.orion import models, schemas
+from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
@@ -140,7 +141,30 @@ async def update_deployment(
 
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = deployment.dict(shallow=True, exclude_unset=True)
+    update_data = deployment.dict(
+        shallow=True,
+        exclude_unset=True,
+        exclude={"work_pool_name", "work_pool_queue_name"},
+    )
+    if deployment.work_pool_name and deployment.work_pool_queue_name:
+        # If a specific pool name/queue name combination was provided, get the
+        # ID for that work pool queue.
+        update_data[
+            "work_pool_queue_id"
+        ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
+            session=session,
+            work_pool_name=deployment.work_pool_name,
+            work_pool_queue_name=deployment.work_pool_queue_name,
+        )
+    elif deployment.work_pool_name:
+        # If just a pool name was provided, get the ID for its default
+        # work pool queue.
+        update_data[
+            "work_pool_queue_id"
+        ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
+            session=session,
+            work_pool_name=deployment.work_pool_name,
+        )
 
     update_stmt = (
         sa.update(db.Deployment)
@@ -217,6 +241,8 @@ async def _apply_deployment_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ):
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
@@ -248,6 +274,23 @@ async def _apply_deployment_filters(
 
         query = query.where(exists_clause.exists())
 
+    if work_pool_filter or work_pool_queue_filter:
+        exists_clause = select(db.WorkPoolQueue).where(
+            db.Deployment.work_pool_queue_id == db.WorkPoolQueue.id
+        )
+
+        if work_pool_queue_filter:
+            exists_clause = exists_clause.where(
+                work_pool_queue_filter.as_sql_filter(db)
+            )
+
+        if work_pool_filter:
+            exists_clause = exists_clause.join(
+                db.WorkPool, db.WorkPool.id == db.WorkPoolQueue.work_pool_id
+            ).where(work_pool_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
     return query
 
 
@@ -261,6 +304,8 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
@@ -274,6 +319,8 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
+        work_pool_filter: only select deployments whose work pools match these criteria
+        work_pool_queue_filter: only select deployments whose work pool queues match these criteria
         sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
@@ -288,6 +335,8 @@ async def read_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 
@@ -308,6 +357,8 @@ async def count_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ) -> int:
     """
     Count deployments.
@@ -318,6 +369,8 @@ async def count_deployments(
         flow_run_filter: only count deployments whose flow runs match these criteria
         task_run_filter: only count deployments whose task runs match these criteria
         deployment_filter: only count deployment that match these filters
+        work_pool_filter: only count deployments that match these work pool filters
+        work_pool_queue_filter: only count deployments that match these work pool queue filters
 
     Returns:
         int: the number of deployments matching filters
@@ -331,6 +384,8 @@ async def count_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 
@@ -388,7 +443,7 @@ async def schedule_runs(
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
-    will be respected:
+    will be respected.
 
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
@@ -460,7 +515,7 @@ async def _generate_scheduled_flow_runs(
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
-    will be respected:
+    will be respected.
 
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
@@ -502,6 +557,7 @@ async def _generate_scheduled_flow_runs(
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
                 "work_queue_name": deployment.work_queue_name,
+                "work_pool_queue_id": deployment.work_pool_queue_id,
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
@@ -597,18 +653,20 @@ async def check_work_queues_for_deployment(
     """
     Get work queues that can pick up the specified deployment.
 
-    Work queues will pick up a deployment when all of the following are met:
-    - the deployment has ALL tags that the work queue has (i.e. the work
-    queue's tags must be a subset of the deployment's tags.)
-    - the work queue's specified deployment IDs match the deployment's ID,
-    or the work queue does NOT have specified deployment IDs
-    - the work queue's specified flow runners match the deployment's flow
-    runner or the work queue does NOT have a specified flow runner
+    Work queues will pick up a deployment when all of the following are met.
+
+    - The deployment has ALL tags that the work queue has (i.e. the work
+    queue's tags must be a subset of the deployment's tags).
+    - The work queue's specified deployment IDs match the deployment's ID,
+    or the work queue does NOT have specified deployment IDs.
+    - The work queue's specified flow runners match the deployment's flow
+    runner or the work queue does NOT have a specified flow runner.
 
     Notes on the query:
-    - our database currently allows either "null" and empty lists as
+
+    - Our database currently allows either "null" and empty lists as
     null values in filters, so we need to catch both cases with "or".
-    - json_contains(A, B) should be interepreted as "True if A
+    - `json_contains(A, B)` should be interepreted as "True if A
     contains B".
 
     Returns:

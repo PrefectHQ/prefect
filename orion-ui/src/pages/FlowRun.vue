@@ -4,6 +4,8 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
+    <FlowRunTimeline v-if="flowRun" :flow-run="flowRun" />
+
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">
       <template #details>
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
@@ -40,6 +42,7 @@
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
+    FlowRunTimeline,
     FlowRunSubFlows,
     JsonView,
     useFavicon,
@@ -56,7 +59,7 @@
 
   const router = useRouter()
 
-  const selectedTab= ref('Logs')
+  const selectedTab = ref('Logs')
   const flowRunId = useRouteParam('flowRunId')
   const tabs = computed(() => {
     const values = [

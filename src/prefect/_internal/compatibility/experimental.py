@@ -12,11 +12,15 @@ Some experimental features require opt-in to enable any usage. These require the
 """
 import functools
 import warnings
-from typing import Callable, TypeVar
+from typing import Any, Callable, Optional, Set, Type, TypeVar
+
+import pydantic
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
+from prefect.utilities.callables import get_call_parameters
 
 T = TypeVar("T", bound=Callable)
+M = TypeVar("M", bound=pydantic.BaseModel)
 
 
 EXPERIMENTAL_WARNING = (
@@ -81,7 +85,12 @@ def _warn_setting_for_group(group: str) -> Setting[bool]:
 
 
 def experimental(
-    group: str, feature: str, help: str = "", stacklevel: int = 2, opt_in: bool = False
+    feature: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
 ) -> Callable[[T], T]:
     group = group.upper()
 
@@ -119,3 +128,122 @@ def experimental(
 def experiment_enabled(group: str) -> bool:
     group_opt_in = _opt_in_setting_for_group(group)
     return group_opt_in.value()
+
+
+def experimental_parameter(
+    name: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
+    when: Optional[Callable[[Any], bool]] = None,
+) -> Callable[[T], T]:
+    """
+    Mark a parameter in a callable as experimental.
+
+    Example:
+
+        ```python
+
+        @experimental_parameter("y", group="example", when=lambda y: y is not None)
+        def foo(x, y = None):
+            return x + 1 + (y or 0)
+        ```
+    """
+
+    when = when or (lambda _: True)
+
+    @experimental(
+        group=group,
+        feature=f"The parameter {name!r}",
+        help=help,
+        opt_in=opt_in,
+        stacklevel=stacklevel + 2,
+    )
+    def experimental_check():
+        pass
+
+    def decorator(fn: T):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                parameters = get_call_parameters(fn, args, kwargs, apply_defaults=False)
+            except Exception:
+                # Avoid raising any parsing exceptions here
+                parameters = kwargs
+
+            if name in parameters and when(parameters[name]):
+                experimental_check()
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def experimental_field(
+    name: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
+    when: Optional[Callable[[Any], bool]] = None,
+):
+    """
+    Mark a field in a Pydantic model as experimental.
+
+    Raises warning only if the field is specified during init.
+
+    Example:
+
+        ```python
+
+        @experimental_parameter("y", group="example", when=lambda y: y is not None)
+        def foo(x, y = None):
+            return x + 1 + (y or 0)
+        ```
+    """
+
+    when = when or (lambda _: True)
+
+    @experimental(
+        group=group,
+        feature=f"The field {name!r}",
+        help=help,
+        opt_in=opt_in,
+        stacklevel=stacklevel + 2,
+    )
+    def experimental_check():
+        """Utility function for performing a warning check for the specified group"""
+
+    # Replaces the model's __init__ method with one that performs an additional warning check
+    def decorator(model_cls: Type[M]) -> Type[M]:
+        cls_init = model_cls.__init__
+
+        @functools.wraps(model_cls.__init__)
+        def __init__(__pydantic_self__, **data: Any) -> None:
+            # Call the original init
+            cls_init(__pydantic_self__, **data)
+            # Perform warning check
+            if name in data.keys() and when(data[name]):
+                experimental_check()
+
+        # Patch the model's init method
+        model_cls.__init__ = __init__
+
+        return model_cls
+
+    return decorator
+
+
+def enabled_experiments() -> Set[str]:
+    """
+    Return the set of all enabled experiments.
+    """
+    return {
+        name[len("PREFECT_EXPERIMENTAL_ENABLE_") :].lower()
+        for name, setting in SETTING_VARIABLES.items()
+        if name.startswith("PREFECT_EXPERIMENTAL_ENABLE_") and setting.value()
+    }

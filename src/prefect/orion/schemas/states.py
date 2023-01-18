@@ -49,6 +49,7 @@ class StateDetails(PrefectBaseModel):
     pause_timeout: DateTimeTZ = None
     pause_reschedule: bool = False
     pause_key: str = None
+    refresh_cache: bool = None
 
 
 class State(IDBaseModel, Generic[R]):
@@ -308,9 +309,13 @@ def Paused(
             "Cannot supply both a pause_expiration_time and timeout_seconds"
         )
 
-    state_details.pause_timeout = pause_expiration_time or (
-        pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
-    )
+    if pause_expiration_time is None and timeout_seconds is None:
+        pass
+    else:
+        state_details.pause_timeout = pause_expiration_time or (
+            pendulum.now("UTC") + pendulum.Duration(seconds=timeout_seconds)
+        )
+
     state_details.pause_reschedule = reschedule
     state_details.pause_key = pause_key
 
