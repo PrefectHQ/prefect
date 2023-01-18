@@ -835,6 +835,12 @@ PREFECT_ORION_API_PORT = Setting(
 )
 """The API's port address (defaults to `4200`)."""
 
+PREFECT_ORION_API_KEEPALIVE = Setting(
+    int,
+    default=5,
+)
+"""The API's keep alive timeout (defaults to `5`)."""
+
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,
     default=True,
