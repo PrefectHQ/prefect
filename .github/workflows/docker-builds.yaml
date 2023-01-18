@@ -88,20 +88,6 @@ jobs:
           flavor: |
             latest=false
 
-      - name: Generate tags for prefecthq/prefect
-        id: metadata-prod
-        uses: docker/metadata-action@v4
-        with:
-          images: prefecthq/prefect,enable=${{ github.event_name == 'release' }}
-          tags: |
-            type=raw,enable=${{ matrix.python-version == '3.10' }},value=2-latest
-            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}
-            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}
-            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}
-          flavor: |
-            latest=false
-            suffix=${{ matrix.flavor }}
-
       - name: Build image
         uses: docker/build-push-action@v3
         env:
