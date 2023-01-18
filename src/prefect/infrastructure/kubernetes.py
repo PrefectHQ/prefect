@@ -604,11 +604,19 @@ class KubernetesJob(Infrastructure):
             try:
                 watch = kubernetes.watch.Watch()
                 with self.get_batch_client() as batch_client:
+                    remaining_timeout = (
+                        (  # subtract previous watch time
+                            self.job_watch_timeout_seconds - elapsed
+                        )
+                        if self.job_watch_timeout_seconds
+                        else None
+                    )
+
                     for event in watch.stream(
                         func=batch_client.list_namespaced_job,
                         field_selector=f"metadata.name={job_name}",
                         namespace=self.namespace,
-                        timeout_seconds=self.job_watch_timeout_seconds,
+                        timeout_seconds=remaining_timeout,
                     ):
                         if event["object"].status.completion_time:
                             watch.stop()
