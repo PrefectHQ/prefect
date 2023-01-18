@@ -63,7 +63,7 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect"])
 ```
 
-After running any running some flows, fire up the UI to gain insight into their execution:
+After running some flows, fire up the UI to gain insight into their execution:
 
 ```bash
 prefect orion start
