@@ -9,7 +9,6 @@ from uuid import UUID
 
 import pendulum
 from pydantic import Field, root_validator, validator
-from pydantic.utils import GetterDict
 from sqlalchemy.exc import MissingGreenlet
 
 from prefect.orion.utilities.schemas import DateTimeTZ, IDBaseModel, PrefectBaseModel
