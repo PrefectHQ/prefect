@@ -155,6 +155,7 @@ async def update_deployment(
             session=session,
             work_pool_name=deployment.work_pool_name,
             work_pool_queue_name=deployment.work_pool_queue_name,
+            create_queue_if_not_found=True,
         )
     elif deployment.work_pool_name:
         # If just a pool name was provided, get the ID for its default
