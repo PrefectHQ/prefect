@@ -98,12 +98,13 @@ def downgrade():
         return f"""
             UPDATE task_run_state
             SET result_artifact_id = NULL
-            WHERE flow_run_state.id in (SELECT id FROM task_run_state WHERE result_artifact_id IS NOT NULL LIMIT {batch_size});
+            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE result_artifact_id IS NOT NULL LIMIT {batch_size});
         """
 
     def delete_artifacts_in_batches(batch_size):
         return f"""
-            DELETE FROM artifact LIMIT {batch_size};
+            DELETE FROM artifact
+            WHERE artifact.id IN (SELECT id FROM artifact LIMIT {batch_size});
         """
 
     data_migration_queries = [
@@ -111,3 +112,18 @@ def downgrade():
         nullify_artifact_ref_from_flow_run_state_in_batches,
         nullify_artifact_ref_from_task_run_state_in_batches,
     ]
+
+    with op.get_context().autocommit_block():
+        conn = op.get_bind()
+        for query in data_migration_queries:
+
+            batch_size = 500
+
+            while True:
+                # execute until we've updated task_run_state_id and artifact_data
+                # autocommit mode will commit each time `execute` is called
+                sql_stmt = sa.text(query(batch_size))
+                result = conn.execute(sql_stmt)
+
+                if result.rowcount <= 0:
+                    break
