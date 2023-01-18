@@ -25,8 +25,8 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_PORT,
     PREFECT_ORION_API_KEEPALIVE,
+    PREFECT_ORION_API_PORT,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_ORION_UI_ENABLED,
@@ -135,7 +135,7 @@ async def start(
                     "--port",
                     str(port),
                     "--timeout-keep-alive",
-                    str(keep_alive_timeout)
+                    str(keep_alive_timeout),
                 ],
                 env=server_env,
                 stream_output=True,

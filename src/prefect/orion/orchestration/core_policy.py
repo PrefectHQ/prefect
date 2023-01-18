@@ -30,9 +30,8 @@ from prefect.orion.orchestration.rules import (
 )
 from prefect.orion.schemas import core, filters, states
 from prefect.orion.schemas.states import StateType
-from prefect.utilities.math import clamped_poisson_interval
-
 from prefect.settings import PREFECT_ORION_SERVICES_CONCURRENCY_LIMIT_DELAY_SECONDS
+from prefect.utilities.math import clamped_poisson_interval
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -100,12 +99,12 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
 
     def __init__(self, *args, **kwargs):
         # Call the base class init
-        super().__init__(
-            *args, **kwargs
-        )
+        super().__init__(*args, **kwargs)
 
         # Back off for transition_delay_seconds, if all the concurrency slots are in use
-        self.transition_delay_seconds: int=PREFECT_ORION_SERVICES_CONCURRENCY_LIMIT_DELAY_SECONDS.value()
+        self.transition_delay_seconds: int = (
+            PREFECT_ORION_SERVICES_CONCURRENCY_LIMIT_DELAY_SECONDS.value()
+        )
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [StateType.RUNNING]
