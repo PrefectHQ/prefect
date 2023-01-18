@@ -281,7 +281,7 @@ async def schedule_deployment(
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
-    will be respected:
+    will be respected.
 
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
