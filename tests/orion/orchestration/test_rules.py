@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.orion import schemas
+from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.orchestration.rules import (
@@ -1434,6 +1434,34 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
+
+    async def test_context_validation_writes_result_data(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        ctx.proposed_state.data = "some special data"
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id
+        assert (
+            ctx.validated_state.data == "some special data"
+        ), "result data should be attached to the validated state"
+
+        # an artifact should be created with the result data as well
+        if run_type == "task":
+            state_reader = models.task_run_states.read_task_run_state
+        else:
+            state_reader = models.flow_run_states.read_flow_run_state
+        validated_orm_state = await state_reader(ctx.session, ctx.validated_state.id)
+        artifact_id = validated_orm_state.result_artifact_id
+
+        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        assert orm_artifact.artifact_data == "some special data"
 
     @pytest.mark.parametrize(
         "intended_transition",
