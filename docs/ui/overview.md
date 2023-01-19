@@ -15,7 +15,7 @@ tags:
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 
-![Prefect UI](/img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/orion-dashboard.png)
 
 There are two ways to access the UI:
 
@@ -60,7 +60,7 @@ Check out the dashboard at http://127.0.0.1:4200
 
 When the Prefect Orion server is running, you can access the Prefect UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
-![Prefect UI](/img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/orion-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 

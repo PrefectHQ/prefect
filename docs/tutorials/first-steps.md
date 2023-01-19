@@ -230,7 +230,7 @@ $ prefect orion start
 
 Open the URL for the Orion UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
-![Viewing the orchestrated flow runs in the Orion UI.](/img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Orion UI.](../img/tutorials/first-steps-ui.png)
 
 The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 

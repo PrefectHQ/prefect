@@ -40,7 +40,7 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
     - [Email notifications](/ui/notifications/) &mdash; configure email alerts based on flow run states and tags.
     - [Automations](/ui/automations/) &mdash; configure triggers and actions in response to real-time monitoring events.
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-workspace-dashboard.png)
 
 ## User accounts
 
@@ -71,7 +71,7 @@ Each workspace keeps track of its own:
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. The next steps will show you how to [get started with Prefect Cloud](/ui/cloud-getting-started/). 
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-new-workspace.png)
 
 ## Organizations <span class="badge orgs"></span>
 
