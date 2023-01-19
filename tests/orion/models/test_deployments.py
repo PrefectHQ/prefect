@@ -1010,3 +1010,23 @@ class TestUpdateDeployment:
             session=session, deployment_id=deployment.id
         )
         assert updated_deployment.work_pool_queue_id == default_queue.id
+
+    async def test_update_work_pool_can_create_work_pool_queue(
+        self, session, deployment, work_pool
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_pool_name=work_pool.name,
+                work_pool_queue_name="new-work-pool-queue",
+            ),
+        )
+
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        work_pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=updated_deployment.work_pool_queue_id
+        )
+        assert work_pool_queue.name == "new-work-pool-queue"

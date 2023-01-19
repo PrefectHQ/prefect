@@ -44,6 +44,11 @@ async def create_deployment(
             work_pool = await models.workers.read_work_pool_by_name(
                 session=session, work_pool_name=deployment.work_pool_name
             )
+            if work_pool is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f'Work pool "{deployment.work_pool_name}" not found.',
+                )
             try:
                 deployment.check_valid_configuration(work_pool.base_job_template)
             except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
@@ -65,6 +70,7 @@ async def create_deployment(
                 session=session,
                 work_pool_name=deployment.work_pool_name,
                 work_pool_queue_name=deployment.work_pool_queue_name,
+                create_queue_if_not_found=True,
             )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
@@ -281,7 +287,7 @@ async def schedule_deployment(
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
-    will be respected:
+    will be respected.
 
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
