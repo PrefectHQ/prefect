@@ -1,5 +1,29 @@
 # Prefect Release Notes
 
+## Release 2.7.9
+
+### Enhancements
+- Add "head" flag to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add option to filter out `.git` files when reading files with the GitHub storage block — https://github.com/PrefectHQ/prefect/pull/8193
+
+### Fixes
+- Fix possible recursive loop when blocks label themselves as both their own parent and reference — https://github.com/PrefectHQ/prefect/pull/8197
+
+### Experimental
+- Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
+
+### Documentation
+- Add recipe contribution page and new recipe — https://github.com/PrefectHQ/prefect/pull/8183
+- Add new "discourse" and "blog" admonition types — https://github.com/PrefectHQ/prefect/pull/8202
+- Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
+- Update README.md — https://github.com/PrefectHQ/prefect/pull/8201
+- Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
+
+## New Contributors
+* @mj0nez made their first contribution in https://github.com/PrefectHQ/prefect/pull/8201
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.8...2.7.9
+
 ## Release 2.7.8
 
 ### Flow run timeline view
