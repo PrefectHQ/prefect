@@ -3,20 +3,25 @@
 ## Release 2.7.9
 
 ### Enhancements
-- Add "head" option to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add `head` flag to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add `num_logs` option to flow-run logs CLI command to specify the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
 - Add option to filter out `.git` files when reading files with the GitHub storage block — https://github.com/PrefectHQ/prefect/pull/8193
 
 ### Fixes
+- Fix bug causing failures when spawning Windows subprocesses - https://github.com/PrefectHQ/prefect/pull/8184
 - Fix possible recursive loop when blocks label themselves as both their own parent and reference — https://github.com/PrefectHQ/prefect/pull/8197
-
-### Experimental
-- Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
 
 ### Documentation
 - Add [recipe contribution page](https://docs.prefect.io/recipes/recipes/#contributing-recipes) and [AWS Chalice](https://docs.prefect.io/recipes/recipes/#recipe-catalog) recipe — https://github.com/PrefectHQ/prefect/pull/8183
 - Add new `discourse` and `blog` admonition types — https://github.com/PrefectHQ/prefect/pull/8202
 - Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
 - Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
+
+### Collections
+- [`prefect-openai` 0.1.0](https://github.com/PrefectHQ/prefect-openai) newly released with support for authentication and completions
+
+### Experimental
+- Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
 
 ## New Contributors
 * @mj0nez made their first contribution in https://github.com/PrefectHQ/prefect/pull/8201
