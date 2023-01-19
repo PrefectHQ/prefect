@@ -1,6 +1,7 @@
 import json
 from contextlib import contextmanager
 from pathlib import Path
+from time import sleep
 from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
@@ -805,6 +806,31 @@ def test_watch_continues_despite_410(
             ),
         ]
     )
+
+
+def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+            job.status.completion_time = None
+            yield {"object": job}
+            sleep(0.5)
+            yield {"object": job}
+
+    mock_watch.stream.side_effect = mock_stream
+    k8s_job_args = dict(
+        command=["echo", "hello"],
+        pod_watch_timeout_seconds=42,
+        job_watch_timeout_seconds=0,
+    )
+
+    result = KubernetesJob(**k8s_job_args).run(MagicMock())
+    assert result.status_code == -1
 
 
 def test_watches_the_right_namespace(
