@@ -47,6 +47,7 @@ theme:
         - navigation.instant
         - search.suggest
         - search.highlight
+        - content.code.copy
     font:
         text: Inter
         code: Source Code Pro
