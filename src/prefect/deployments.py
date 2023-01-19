@@ -32,6 +32,7 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -210,7 +211,11 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field("work_pool_name", group="workers", when=lambda x: x is not None)
+@experimental_field(
+    "work_pool_name",
+    group="workers",
+    when=lambda x: x is not None and x is not DEFAULT_AGENT_WORK_POOL_NAME,
+)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
