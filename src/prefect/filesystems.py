@@ -924,13 +924,13 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            ignore = None
+            ignore_func = None
             if not self.include_git_objects:
-                ignore = ignore_patterns(".git")
+                ignore_func = ignore_patterns(".git")
 
             copytree(
                 src=content_source,
                 dst=content_destination,
                 dirs_exist_ok=True,
-                ignore=ignore,
+                ignore=ignore_func,
             )
