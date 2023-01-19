@@ -3,7 +3,7 @@
 ## Release 2.7.9
 
 ### Enhancements
-- Add "head" flag to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add "head" option to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
 - Add option to filter out `.git` files when reading files with the GitHub storage block — https://github.com/PrefectHQ/prefect/pull/8193
 
 ### Fixes
