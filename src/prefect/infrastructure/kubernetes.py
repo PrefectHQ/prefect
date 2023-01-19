@@ -621,10 +621,6 @@ class KubernetesJob(Infrastructure):
                         if event["object"].status.completion_time:
                             watch.stop()
                             completed = True
-                            break  # don't enter else, just end watch
-                    else:
-                        self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                        return -1
             except kubernetes.client.exceptions.ApiException as exc:
                 if exc.status == 410:  # Gone
                     continue

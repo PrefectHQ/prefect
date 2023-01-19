@@ -113,6 +113,16 @@ def _mock_pods_stream_that_returns_running_pod(*args, **kwargs):
     return [{"object": job_pod}, {"object": job}]
 
 
+def _mock_pods_stream_that_returns_job_without_completion_time(*args, **kwargs):
+    job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+    job_pod.status.phase = "Running"
+
+    job = MagicMock(spec=kubernetes.client.V1Job)
+    job.status.completion_time = None
+
+    return [{"object": job_pod}, {"object": job}]
+
+
 def test_infrastructure_type():
     assert KubernetesJob().type == "kubernetes-job"
 
@@ -746,6 +756,52 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
                 timeout_seconds=job_timeout,
+            ),
+        ]
+    )
+
+
+def test_watch_continues_despite_410(
+    mock_k8s_client, mock_watch, mock_k8s_batch_client
+):
+    job = MagicMock(spec=kubernetes.client.V1Job)
+    job.status.completion_time = pendulum.now("utc").timestamp()
+    mock_watch.stream.side_effect = [
+        _mock_pods_stream_that_returns_job_without_completion_time(),
+        ApiException(status=410),
+        [{"object": job}],
+    ]
+
+    k8s_job_args = dict(
+        command=["echo", "hello"],
+        pod_watch_timeout_seconds=42,
+        job_watch_timeout_seconds=24,
+    )
+
+    KubernetesJob(**k8s_job_args).run(MagicMock())
+
+    assert mock_watch.stream.call_count == 3
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=42,
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                namespace=mock.ANY,
+                field_selector=mock.ANY,
+                timeout_seconds=24,
+            ),
+            # Second call of list_namespaced_job occurs after the 410 ApiException
+            # is raised
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                namespace=mock.ANY,
+                field_selector=mock.ANY,
+                timeout_seconds=24,
             ),
         ]
     )
