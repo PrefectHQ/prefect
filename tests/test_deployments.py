@@ -583,11 +583,11 @@ class TestDeploymentApply:
         assert work_queue.concurrency_limit == 424242
 
     @pytest.mark.parametrize(
-        "is_active, expected_schedule_active",
+        "provided, expected",
         [(True, True), (False, False), (None, True)],
     )
     async def test_deployment_is_active_behaves_as_expected(
-        self, flow_function, is_active, expected_schedule_active, orion_client
+        self, flow_function, provided, expected, orion_client
     ):
         d = await Deployment.build_from_flow(
             flow_function,
@@ -595,15 +595,15 @@ class TestDeploymentApply:
             tags=["A", "B"],
             description="foobar",
             version="12",
-            is_schedule_active=is_active,
+            is_schedule_active=provided,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
-        assert d.is_schedule_active == is_active
+        assert d.is_schedule_active is provided
 
         dep_id = await d.apply()
         dep = await orion_client.read_deployment(dep_id)
-        assert dep.is_schedule_active == expected_schedule_active
+        assert dep.is_schedule_active == expected
 
 
 class TestRunDeployment:

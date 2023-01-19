@@ -1473,10 +1473,10 @@ async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
 
 
 @pytest.mark.parametrize(
-    "schedule_active, is_schedule_active", [(True, True), (False, False), (None, True)]
+    "on_create, after_update", [(True, True), (False, False), (None, True)]
 )
 async def test_update_deployment_schedule_active_does_not_overwrite_when_not_provided(
-    orion_client, flow_run, schedule_active, is_schedule_active
+    orion_client, flow_run, on_create, after_update
 ):
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_run.flow_id,
@@ -1484,26 +1484,31 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
         manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=schedule_active,
+        is_schedule_active=on_create,
     )
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == is_schedule_active
+    assert deployment.is_schedule_active == on_create
     schedule = IntervalSchedule(interval=timedelta(days=1))
     await orion_client.update_deployment(deployment, schedule=schedule)
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == is_schedule_active
+    assert deployment.is_schedule_active == after_update
 
 
 @pytest.mark.parametrize(
-    "initial, initial_expected, updated",
+    "on_create, after_create, on_update, after_update",
     [
-        (False, False, True),
-        (True, True, False),
-        (None, True, False),
+        (False, False, True, True),
+        (True, True, False, False),
+        (None, True, False, False),
     ],
 )
 async def test_update_deployment_schedule_active_overwrites_when_provided(
-    orion_client, flow_run, initial, initial_expected, updated
+    orion_client,
+    flow_run,
+    on_create,
+    after_create,
+    on_update,
+    after_update,
 ):
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_run.flow_id,
@@ -1511,11 +1516,11 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
         manifest_path="file.json",
         parameters={"foo": "bar"},
         work_queue_name="wq",
-        is_schedule_active=initial,
+        is_schedule_active=on_create,
     )
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == initial_expected
+    assert deployment.is_schedule_active == after_create
 
-    await orion_client.update_deployment(deployment, is_schedule_active=updated)
+    await orion_client.update_deployment(deployment, is_schedule_active=on_update)
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == updated
+    assert deployment.is_schedule_active == after_update
