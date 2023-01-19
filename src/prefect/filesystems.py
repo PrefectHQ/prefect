@@ -3,6 +3,7 @@ import io
 import json
 import urllib.parse
 from pathlib import Path
+from shutil import ignore_patterns
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -823,6 +824,10 @@ class GitHub(ReadableDeploymentStorage):
         default=None,
         description="A GitHub Personal Access Token (PAT) with repo scope.",
     )
+    include_git_objects: bool = Field(
+        default=True,
+        description="Whether to include git objects when copying the repo contents to a directory.",
+    )
 
     @validator("access_token")
     def _ensure_credentials_go_with_https(cls, v: str, values: dict) -> str:
@@ -919,4 +924,13 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
+            ignore_func = None
+            if not self.include_git_objects:
+                ignore_func = ignore_patterns(".git")
+
+            copytree(
+                src=content_source,
+                dst=content_destination,
+                dirs_exist_ok=True,
+                ignore=ignore_func,
+            )
