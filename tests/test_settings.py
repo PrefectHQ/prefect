@@ -21,7 +21,6 @@ from prefect.settings import (
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_KEEPALIVE,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_DATABASE_PASSWORD,
@@ -390,10 +389,6 @@ class TestSettingAccess:
     def test_ui_url_set_directly(self):
         with temporary_settings({PREFECT_UI_URL: "test"}):
             assert PREFECT_UI_URL.value() == "test"
-
-    def test_keep_alive_timeout_on_set(self):
-        with temporary_settings({PREFECT_ORION_API_KEEPALIVE: 30}):
-            assert PREFECT_ORION_API_KEEPALIVE.value() == 30
 
     @pytest.mark.parametrize(
         "api_url,ui_url",

@@ -71,23 +71,3 @@ def test_start_from_cli_with_keep_alive(mock_run_process: AsyncMock):
     command: List[str] = mock_run_process.call_args[1]["command"]
     assert "--timeout-keep-alive" in command
     assert command[command.index("--timeout-keep-alive") + 1] == "100"
-
-
-def test_start_from_cli_with_invalid_keep_alive(mock_run_process: AsyncMock):
-    invoke_and_assert(
-        ["orion", "start", "--timeout-keep-alive", "45"],
-        expected_code=2,
-        expected_output_contains=[
-            "No such option: --timeout-keep-alive Did you mean --keep-alive-timeout?",
-        ],
-    )
-
-
-def test_start_help_from_cli_has_keep_alive(mock_run_process: AsyncMock):
-    invoke_and_assert(
-        ["orion", "start", "--help"],
-        expected_output_contains=[
-            "--keep-alive-timeout",
-            "PREFECT_ORION_API_KEEPA",
-        ],
-    )
