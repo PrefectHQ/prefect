@@ -266,7 +266,7 @@ nav:
 
 extra:
     version:
-        profider: mike
+        provider: mike
     analytics:
         provider: google
         property: G-3M31G9B0QJ
