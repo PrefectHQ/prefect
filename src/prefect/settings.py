@@ -839,7 +839,10 @@ PREFECT_ORION_API_KEEPALIVE = Setting(
     int,
     default=5,
 )
-"""The API's keep alive timeout (defaults to `5`)."""
+"""The API's keep alive timeout (defaults to `5`). This
+is helpful in resolving 502 Gateway timeouts when orion API
+is behind an AWS Load Balancer. Set this value to 65.
+Please refer to https://www.uvicorn.org/settings/#timeouts """
 
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,
