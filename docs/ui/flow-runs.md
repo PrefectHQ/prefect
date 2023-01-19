@@ -51,7 +51,7 @@ The default view shows all flow runs observed by the Prefect API and scheduled f
 
 Each row in the flow run details shows information about a specific completed, in progress, or scheduled flow run.
 
-![Information displayed for a flow run in the UI](../img/ui/orion-flow-run-examples.png)
+![Information displayed for a flow run in the Prefect UI](../img/ui/orion-flow-run-examples.png)
 
 For each flow run listed, you'll see:
 
