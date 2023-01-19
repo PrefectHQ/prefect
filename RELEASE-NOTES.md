@@ -13,7 +13,7 @@
 - Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
 
 ### Documentation
-- Add recipe contribution page and new recipe — https://github.com/PrefectHQ/prefect/pull/8183
+- Add recipe contribution page and [AWS Chalice](https://github.com/PrefectHQ/prefect-recipes/tree/main/flows-advanced/serverless) recipe — https://github.com/PrefectHQ/prefect/pull/8183
 - Add new "discourse" and "blog" admonition types — https://github.com/PrefectHQ/prefect/pull/8202
 - Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
 - Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
