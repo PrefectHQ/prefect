@@ -161,8 +161,7 @@ class DockerContainer(Infrastructure):
     Requires a Docker Engine to be connectable. Docker settings will be retrieved from
     the environment.
 
-    For a tutorial, see:
-    https://docs.prefect.io/tutorials/docker/
+    Click [here](https://docs.prefect.io/tutorials/docker/) to see a tutorial.
 
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,
