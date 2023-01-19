@@ -1,6 +1,7 @@
 """
 Base `prefect` command-line application
 """
+import asyncio
 import platform
 import sys
 from typing import Optional
@@ -84,18 +85,13 @@ def main(
         # during tests.
         setup_logging()
 
-    # When running on Windows we need to use a non-default loop for subprocess support
-    # this is most important for the agent but we need to set the policy before a loop
-    # is created
+    # When running on Windows we need to ensure that the correct event loop policy is
+    # in place or we will not be able to spawn subprocesses. Sometimes this policy is
+    # changed by other libraries, but here in our CLI we should have ownership of the
+    # process and be able to safely force it to be the correct policy.
+    # https://github.com/PrefectHQ/prefect/issues/8206
     if sys.platform == "win32":
-        if sys.version_info >= (3, 8):
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        else:
-            app.console.print(
-                "WARNING: Prefect does not support Python 3.7 on Windows. "
-                "We recommend using Python 3.8+. "
-                "Functionality that requires subprocess spawning may fail."
-            )
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 @app.command()
