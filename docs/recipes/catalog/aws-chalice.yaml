@@ -1,0 +1,8 @@
+recipeName: Serverless Prefect with AWS Chalice
+author: Prefect
+authorUrl: https://prefect.io
+description: Execute Prefect flows in an AWS Lambda function managed by Chalice.
+topic: AWS
+recipeUrl: https://github.com/PrefectHQ/prefect-recipes/tree/main/flows-advanced/serverless
+iconUrl: 
+  - /img/collections/aws.png
