@@ -2,7 +2,7 @@
 
 Prefect 0.14.0 included a new Flow configuration system based on
 [RunConfig](../flow_config/run_configs.md) objects. This replaces the previous system based
-on [Environment](/docs/orchestration/execution/overview.md) objects, with
+on [Environment](/orchestration/execution/overview.md) objects, with
 `Environment` based configuration being deprecated.
 
 If you never configured `flow.environment` explicitly on your flow, your
@@ -143,8 +143,8 @@ ECS tasks. There are also options for common settings (e.g.  `image`, `cpu`,
 for more information.
 
 Note that use of `ECSRun` requires running an [ECS
-Agent](../agents/ecs.md), not the deprecated [Fargate
-Agent](../agents/fargate.md).
+Agent](../agents/ecs.md), not the deprecated Fargate
+Agent.
 
 - If you configured an `Executor` on your `FargateTaskEnvironment`, move that
   setting to the flow itself.
@@ -161,10 +161,10 @@ Agent](../agents/fargate.md).
 
 - `ECSRun` (coupled with the [ECS Agent](../agents/ecs.md))
   supports configuring ECS Tasks at a finer level than before. If you
-  previously configured custom task definitions on the [Fargate
-  Agent](../agents/fargate.md), you may be better served by
+  previously configured custom task definitions on the Fargate
+  Agent, you may be better served by
   specifying these options via `ECSRun` objects instead. See the [ECSRun API
-  docs](/docs/api/0.15.13/run_configs.md#ecsrun) for a complete list of available
+  docs](/api/latest/run_configs.md#ecsrun) for a complete list of available
   options.
 
 
@@ -213,7 +213,7 @@ created to execute the flow run. For more information on the various options,
 please see:
 
 - [KubernetesRun docs](../flow_config/run_configs.md#kubernetesrun)
-- [DaskExecutor docs](../flow_config/run_configs.md#daskexecutor)
+- [DaskExecutor docs](../flow_config/executors.md#daskexecutor)
 - [dask-kubernetes docs](https://kubernetes.dask.org)
 
 
@@ -268,5 +268,5 @@ to execute the flow run. For more information on the various options, please
 see:
 
 - [ECSRun docs](../flow_config/run_configs.md#ecsrun)
-- [DaskExecutor docs](../flow_config/run_configs.md#daskexecutor)
+- [DaskExecutor docs](../flow_config/executors.md#daskexecutor)
 - [dask-cloudprovider docs](https://cloudprovider.dask.org)
