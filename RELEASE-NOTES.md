@@ -16,7 +16,6 @@
 - Add recipe contribution page and new recipe — https://github.com/PrefectHQ/prefect/pull/8183
 - Add new "discourse" and "blog" admonition types — https://github.com/PrefectHQ/prefect/pull/8202
 - Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
-- Update README.md — https://github.com/PrefectHQ/prefect/pull/8201
 - Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
 
 ## New Contributors
