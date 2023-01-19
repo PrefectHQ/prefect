@@ -20,6 +20,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models import workers_migration
 from prefect.orion.orchestration.core_policy import MinimalFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
@@ -28,6 +29,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.settings import PREFECT_BETA_WORKERS_ENABLED
 
 
 @inject_db
@@ -63,6 +65,18 @@ async def create_flow_run(
         ),
         created=now,
     )
+
+    # if the flow run has a work queue name but no worker pool queue id, migrate it
+    # (this is unusual and would only come from legacy internal systems)
+    if (
+        PREFECT_BETA_WORKERS_ENABLED
+        and flow_run_dict.get("work_queue_name")
+        and not flow_run_dict.get("worker_pool_queue_id")
+    ):
+        worker_pool_queue = await workers_migration.get_or_create_worker_pool_queue(
+            session=session, work_queue_name=flow_run_dict["work_queue_name"]
+        )
+        flow_run_dict["worker_pool_queue_id"] = worker_pool_queue.id
 
     # if no idempotency key was provided, create the run directly
     if not flow_run.idempotency_key:

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models import workers_migration
 
 
 @pytest.fixture
@@ -390,3 +391,28 @@ class TestGetRunsInWorkQueue:
         )
 
         assert len(runs_wq1) == min(limit, 2)
+
+
+class TestWorkerMigration:
+    async def test_create_worker_pool_when_work_queue_created(
+        self,
+        session,
+    ):
+        name = "migration test queue"
+
+        assert not await models.workers.read_worker_pool_queue_by_name(
+            session=session,
+            worker_pool_name=workers_migration.AGENT_WORKER_POOL_NAME,
+            worker_pool_queue_name=name,
+        )
+
+        assert await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name=name),
+        )
+
+        assert await models.workers.read_worker_pool_queue_by_name(
+            session=session,
+            worker_pool_name=workers_migration.AGENT_WORKER_POOL_NAME,
+            worker_pool_queue_name=name,
+        )

@@ -76,6 +76,20 @@ class TestCreateDeployment:
         )
         await session.commit()
 
+    async def test_create_deployment_with_worker_pool(
+        self, session, flow, worker_pool_queue
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                worker_pool_queue_id=worker_pool_queue.id,
+            ),
+        )
+
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id
+
     async def test_create_deployment_updates_existing_deployment(
         self,
         session,
@@ -960,3 +974,91 @@ class TestUpdateDeployment:
             session=session, name="wq-1"
         )
         assert wq is not None
+
+
+class TestWorkerMigration:
+    async def test_deployments_with_no_queues_dont_generate_worker_pool_queues(
+        self, session, flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+            ),
+        )
+        assert deployment.work_queue_name is None
+        assert deployment.worker_pool_queue_id is None
+
+    async def test_deployments_with_work_queue_names_add_worker_pool_queues(
+        self, session, flow
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment", flow_id=flow.id, work_queue_name="my-queue"
+            ),
+        )
+
+        assert deployment.work_queue_name == "my-queue"
+        assert deployment.worker_pool_queue_id is not None
+
+        pool_queue = await models.workers.read_worker_pool_queue(
+            session=session, worker_pool_queue_id=deployment.worker_pool_queue_id
+        )
+        assert pool_queue.name == "my-queue"
+
+    async def test_deployments_with_work_queue_names_and_different_worker_pool_ids_are_ok(
+        self, session, flow, worker_pool_queue
+    ):
+
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                work_queue_name="my-queue",
+                worker_pool_queue_id=worker_pool_queue.id,
+            ),
+        )
+
+        assert deployment.work_queue_name == "my-queue"
+        assert worker_pool_queue.name != "my-queue"
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id
+
+    async def test_update_deployment_work_queue_name_updates_worker_pool_also(
+        self, session, deployment
+    ):
+        original_worker_pool_queue_id = deployment.worker_pool_queue_id
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(work_queue_name="my-queue"),
+        )
+        session.expunge_all()
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert deployment.worker_pool_queue_id != original_worker_pool_queue_id
+        worker_pool_queue = await models.workers.read_worker_pool_queue(
+            session=session, worker_pool_queue_id=deployment.worker_pool_queue_id
+        )
+        assert worker_pool_queue.name == "my-queue"
+
+    async def test_update_deployment_work_queue_name_doesnt_update_worker_pool_if_also_provided(
+        self, session, deployment, worker_pool_queue
+    ):
+        original_worker_pool_queue_id = deployment.worker_pool_queue_id
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_queue_name="my-queue", worker_pool_queue_id=worker_pool_queue.id
+            ),
+        )
+        session.expunge_all()
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert deployment.worker_pool_queue_id != original_worker_pool_queue_id
+        assert deployment.worker_pool_queue_id == worker_pool_queue.id

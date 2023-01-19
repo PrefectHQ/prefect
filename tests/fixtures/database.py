@@ -3,6 +3,7 @@ import warnings
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
@@ -69,6 +70,9 @@ async def clear_db(database_engine, db):
     """
     yield
     async with database_engine.begin() as conn:
+        # worker pool has a circular dependency on pool queue; delete it first
+        await conn.execute(sa.text("DELETE FROM worker_pool;"))
+
         for table in reversed(db.Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
@@ -317,6 +321,27 @@ async def work_queue(session):
     )
     await session.commit()
     return work_queue
+
+
+@pytest.fixture
+async def worker_pool(session):
+    model = await models.workers.create_worker_pool(
+        session=session,
+        worker_pool=schemas.actions.WorkerPoolCreate(name="Test Worker Pool"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def worker_pool_queue(session, worker_pool):
+    model = await models.workers.create_worker_pool_queue(
+        session=session,
+        worker_pool_id=worker_pool.id,
+        worker_pool_queue=schemas.actions.WorkerPoolQueueCreate(name="Test Queue"),
+    )
+    await session.commit()
+    return model
 
 
 @pytest.fixture

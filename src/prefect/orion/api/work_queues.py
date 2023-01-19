@@ -13,8 +13,10 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.models import workers_migration
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
+from prefect.settings import PREFECT_BETA_WORKERS_ENABLED
 
 router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
 
@@ -141,6 +143,12 @@ async def read_work_queue_runs(
             work_queue_id=work_queue_id,
             agent_id=agent_id,
         )
+
+        if PREFECT_BETA_WORKERS_ENABLED:
+            background_tasks.add_task(
+                workers_migration.heartbeat_legacy_agent,
+                db=db,
+            )
 
     return flow_runs
 

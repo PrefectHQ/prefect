@@ -9,6 +9,7 @@ from prefect.blocks.core import Block
 from prefect.exceptions import Abort, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
+from prefect.orion.models import workers_migration
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
@@ -695,3 +696,181 @@ async def test_agent_displays_message_on_work_queue_pause(
         await agent.get_and_submit_flow_runs()
 
         assert f"Work queue 'wq' ({work_queue.id}) is paused." in prefect_caplog.text
+
+
+class TestWorkerMigration:
+    async def test_agent_with_work_queue(
+        self, orion_client, session, deployment, db, monkeypatch
+    ):
+
+        instrumented_worker_pool_query = AsyncMock(
+            side_effect=workers_migration.get_runs_from_worker_pool_queue
+        )
+        instrumented_work_queue_query = AsyncMock(
+            side_effect=db.queries.get_scheduled_flow_runs_from_work_queues
+        )
+        monkeypatch.setattr(
+            workers_migration,
+            "get_runs_from_worker_pool_queue",
+            instrumented_worker_pool_query,
+        )
+        monkeypatch.setattr(
+            db.queries,
+            "get_scheduled_flow_runs_from_work_queues",
+            instrumented_work_queue_query,
+        )
+
+        @flow
+        def foo():
+            pass
+
+        create_run_with_deployment = (
+            lambda state: orion_client.create_flow_run_from_deployment(
+                deployment.id, state=state
+            )
+        )
+
+        flow_runs = [
+            await create_run_with_deployment(Pending()),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            ),
+            await create_run_with_deployment(Running()),
+            await create_run_with_deployment(Completed()),
+            await orion_client.create_flow_run(foo, state=Scheduled()),
+        ]
+        flow_run_ids = [run.id for run in flow_runs]
+
+        # Pull runs from the work queue to get expected runs
+        work_queue = await orion_client.read_work_queue_by_name(
+            deployment.work_queue_name
+        )
+        work_queue_runs = await orion_client.get_runs_in_work_queue(
+            work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
+        )
+        work_queue_flow_run_ids = {run.id for run in work_queue_runs}
+
+        # Should only include scheduled runs in the past or next prefetch seconds
+        # Should not include runs without deployments
+        assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
+
+        agent = OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10)
+
+        async with agent:
+            agent.submit_run = AsyncMock()  # do not actually run anything
+            submitted_flow_runs = await agent.get_and_submit_flow_runs()
+
+        submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+        assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+        # worker pool method should have been accessed twice - once manually and once by the agent
+        assert instrumented_worker_pool_query.await_count == 2
+        # the "classic" work queue method should not have been accessed
+        instrumented_work_queue_query.assert_not_awaited()
+
+    async def test_agent_with_tag_based_work_queue(
+        self, orion_client, session, deployment, db, monkeypatch
+    ):
+        # add a filter to the work queue
+        work_queue = await models.work_queues.read_work_queue_by_name(
+            session=session, name=deployment.work_queue_name
+        )
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue.id,
+            work_queue=schemas.actions.WorkQueueUpdate(filter=dict(tags=["test"])),
+        )
+        await session.commit()
+
+        # mocks
+        instrumented_worker_pool_query = AsyncMock(
+            side_effect=workers_migration.get_runs_from_worker_pool_queue
+        )
+        instrumented_work_queue_query = AsyncMock(
+            side_effect=db.queries.get_scheduled_flow_runs_from_work_queues
+        )
+        instrumented_old_deployment_query = AsyncMock(
+            side_effect=models.work_queues._legacy_get_runs_in_work_queue
+        )
+        monkeypatch.setattr(
+            workers_migration,
+            "get_runs_from_worker_pool_queue",
+            instrumented_worker_pool_query,
+        )
+        monkeypatch.setattr(
+            db.queries,
+            "get_scheduled_flow_runs_from_work_queues",
+            instrumented_work_queue_query,
+        )
+        monkeypatch.setattr(
+            models.work_queues,
+            "_legacy_get_runs_in_work_queue",
+            instrumented_old_deployment_query,
+        )
+
+        @flow
+        def foo():
+            pass
+
+        create_run_with_deployment = (
+            lambda state: orion_client.create_flow_run_from_deployment(
+                deployment.id, state=state
+            )
+        )
+
+        flow_runs = [
+            await create_run_with_deployment(Pending()),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+            ),
+            await create_run_with_deployment(
+                Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+            ),
+            await create_run_with_deployment(Running()),
+            await create_run_with_deployment(Completed()),
+            await orion_client.create_flow_run(foo, state=Scheduled()),
+        ]
+        flow_run_ids = [run.id for run in flow_runs]
+
+        # Pull runs from the work queue to get expected runs
+        work_queue = await orion_client.read_work_queue_by_name(
+            deployment.work_queue_name
+        )
+        work_queue_runs = await orion_client.get_runs_in_work_queue(
+            work_queue.id, scheduled_before=pendulum.now().add(seconds=10)
+        )
+        work_queue_flow_run_ids = {run.id for run in work_queue_runs}
+
+        # Should only include scheduled runs in the past or next prefetch seconds
+        # Should not include runs without deployments
+        assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
+
+        agent = OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10)
+
+        async with agent:
+            agent.submit_run = AsyncMock()  # do not actually run anything
+            submitted_flow_runs = await agent.get_and_submit_flow_runs()
+
+        submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+        assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+        # worker pool method AND "new" work queue method should not have been accessed
+        instrumented_worker_pool_query.assert_not_awaited()
+        instrumented_work_queue_query.assert_not_awaited()
+        # the "legacy" work queue method should have been accessed twice
+        assert instrumented_old_deployment_query.await_count == 2

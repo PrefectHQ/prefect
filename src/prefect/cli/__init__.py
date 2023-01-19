@@ -17,3 +17,4 @@ import prefect.cli.orion
 import prefect.cli.orion_utils
 import prefect.cli.profile
 import prefect.cli.work_queue
+import prefect.cli.worker

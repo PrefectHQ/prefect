@@ -87,6 +87,9 @@ async def clear_database_models(database_engine):
     """
     yield
     async with database_engine.begin() as conn:
+        # worker pool has a circular dependency on pool queue; delete it first
+        await conn.execute(sa.text("DELETE FROM worker_pool;"))
+
         for table in reversed(DBBase.metadata.sorted_tables):
             await conn.execute(table.delete())
 

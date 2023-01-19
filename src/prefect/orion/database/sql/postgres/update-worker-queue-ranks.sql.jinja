@@ -1,0 +1,112 @@
+-- compute available slots under worker pool concurrency limits
+WITH worker_slots AS (
+    SELECT
+        wc.id,
+        GREATEST (0, wc.concurrency_limit - COUNT(fr.id)) AS available_slots
+    FROM
+        worker_pool wc
+        JOIN worker_pool_queue wq ON wq.worker_pool_id = wc.id
+        LEFT JOIN flow_run fr ON wq.id = fr.worker_pool_queue_id
+            AND fr.state_type IN ('RUNNING', 'PENDING')
+    WHERE
+        wc.is_paused IS FALSE
+        AND wq.is_paused IS FALSE
+        AND wc.concurrency_limit IS NOT NULL
+    GROUP BY
+        wc.id
+),
+
+-- compute avaialble slots under worker pool queue concurrency limits
+queue_slots AS (
+    SELECT
+        wq.id,
+        GREATEST (0, wq.concurrency_limit - COUNT(fr.id)) AS available_slots
+    FROM
+        worker_pool_queue wq
+        LEFT JOIN flow_run fr ON wq.id = fr.worker_pool_queue_id
+            AND fr.state_type IN ('RUNNING', 'PENDING')
+    WHERE
+        wq.is_paused IS FALSE
+        AND wq.concurrency_limit IS NOT NULL
+    GROUP BY
+        wq.id
+),
+
+-- get all flow runs that match criteria
+final_flow_runs AS (
+    SELECT
+        wc.id AS worker_pool_id,
+        fr_outer.worker_pool_queue_id,
+        fr_outer.*
+    FROM
+        worker_pool wc
+        LEFT JOIN worker_slots ON wc.id = worker_slots.id
+        
+        -- get worker pool queues for each worker pool
+        CROSS JOIN LATERAL (
+            SELECT
+                fr_inner.*
+            FROM
+                worker_pool_queue wq
+                LEFT JOIN queue_slots ON wq.id = queue_slots.id
+        
+                -- get scheduled flow runs for each worker pool queue
+                CROSS JOIN LATERAL (
+                    SELECT
+                        fr.*
+                    FROM
+                        flow_run fr
+                    WHERE
+                        fr.worker_pool_queue_id = wq.id
+                        AND fr.state_type = 'SCHEDULED'
+                        AND fr.next_scheduled_start_time <= :scheduled_before
+                    ORDER BY
+                        fr.next_scheduled_start_time ASC
+                    LIMIT LEAST (:queue_limit, queue_slots.available_slots)
+                    -- lock runs
+                    FOR UPDATE SKIP LOCKED
+                    ) fr_inner
+            
+            WHERE
+                wq.worker_pool_id = wc.id
+                AND wq.is_paused IS FALSE 
+
+                {% if worker_pool_queue_ids %}
+                -- optionally filter for specific worker pool queue IDs
+                AND wq.id IN :worker_pool_queue_ids
+                {% endif %}
+            
+            {% if respect_queue_priorities %}
+            -- optionally order by worker pool queue rank so that higher-ranked queues get priority
+            ORDER BY wq.rank ASC
+            {% endif %}
+
+            LIMIT LEAST (:worker_limit, worker_slots.available_slots)) fr_outer
+
+    WHERE
+        wc.is_paused IS FALSE 
+
+        {% if worker_pool_ids %}
+        -- optionally filter for specific worker pool IDs
+        AND wc.id IN :worker_pool_ids
+        {% endif %}
+
+    {% if not respect_queue_priorities %}
+    -- optionally order by next scheduled start time
+    ORDER BY next_scheduled_start_time ASC
+    {% endif %}
+
+
+    LIMIT :limit
+)
+
+-- select the final flow runs and order by next scheduled start time. If this
+-- order by is applied in `final_flow_runs` query, then it overrides any sorts
+-- applied within the lateral joins, such as the optional sort on queue
+-- rankings.
+SELECT
+    *
+FROM
+    final_flow_runs
+ORDER BY
+    next_scheduled_start_time ASC;

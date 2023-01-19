@@ -887,6 +887,149 @@ class OrionClient:
             else:
                 raise
 
+    async def _read_worker_pool(self, worker_pool_name: str) -> schemas.core.WorkerPool:
+        """
+        Read a worker pool.
+
+        Args:
+            worker_pool_name: the name of the worker pool to load
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkerPool: an instantiated WorkerPool object
+        """
+        try:
+            response = await self._client.get(f"/beta/workers/pools/{worker_pool_name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return schemas.core.WorkerPool.parse_obj(response.json())
+
+    async def _create_worker_pool(
+        self, worker_pool: schemas.actions.WorkerPoolCreate
+    ) -> schemas.core.WorkerPool:
+        """
+        Create a worker pool.
+
+        Args:
+            worker_pool: the worker pool to create
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            WorkerPool: an instantiated WorkerPool object
+        """
+        try:
+            response = await self._client.post(
+                f"/beta/workers/pools/", json=worker_pool.dict(json_compatible=True)
+            )
+            return pydantic.parse_obj_as(schemas.core.WorkerPool, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def _read_worker_pool_queues(
+        self, worker_pool_name: str
+    ) -> List[schemas.core.WorkerPoolQueue]:
+        """
+        Read the queues of a specific worker
+
+        Args:
+            worker_pool_name: the name of the worker pool
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            List[WorkerPoolQueue]: a list of worker pool queues, sorted by rank
+        """
+        try:
+            response = await self._client.get(
+                f"/beta/workers/pools/{worker_pool_name}/queues"
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return pydantic.parse_obj_as(
+            List[schemas.core.WorkerPoolQueue], response.json()
+        )
+
+    async def _get_scheduled_flow_runs_for_worker(
+        self,
+        worker_pool_name: str,
+        worker_pool_queue_names: Optional[List[str]] = None,
+        scheduled_before: datetime.datetime = None,
+    ):
+        """
+        Get a list of scheduled flow runs for a worker.
+
+        Args:
+            worker_pool_name: the name of the worker pool
+            worker_pool_queue_names: a list of worker pool queue names to filter by
+            scheduled_before: a datetime to filter by; no runs will be returned
+                that are scheduled after this date
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        Returns:
+            List[schemas.responses.WorkerFlowRunResponse]: a list of flow runs
+        """
+        try:
+            response = await self._client.post(
+                f"/beta/workers/pools/{worker_pool_name}/get_scheduled_flow_runs",
+                json=dict(
+                    worker_pool_queue_names=worker_pool_queue_names,
+                    scheduled_before=(
+                        str(scheduled_before) if scheduled_before else None
+                    ),
+                ),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+        return pydantic.parse_obj_as(
+            List[schemas.responses.WorkerFlowRunResponse], response.json()
+        )
+
+    async def _send_worker_heartbeat(self, worker_pool_name, worker_name):
+        """
+        Send a heartbeat for a worker.
+
+        Args:
+            worker_pool_name: the name of the worker pool
+            worker_name: the name of the worker
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+        """
+        try:
+            await self._client.post(
+                f"/beta/workers/pools/{worker_pool_name}/workers/heartbeat",
+                json=dict(name=worker_name),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def create_block_type(
         self, block_type: schemas.actions.BlockTypeCreate
     ) -> BlockType:
@@ -1216,6 +1359,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
+        worker_pool_queue_name: str = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
@@ -1368,6 +1512,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
+        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
+        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
@@ -1381,6 +1527,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
+            worker_pool_filter: filter criteria for worker pools
+            worker_pool_queue_filter: filter criteria for worker pool queues
             limit: a limit for the deployment query
             offset: an offset for the deployment query
 
@@ -1401,10 +1549,21 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
+            "worker_pools": (
+                worker_pool_filter.dict(json_compatible=True)
+                if worker_pool_filter
+                else None
+            ),
+            "worker_pool_queues": (
+                worker_pool_queue_filter.dict(json_compatible=True)
+                if worker_pool_queue_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
             "sort": sort,
         }
+
         response = await self._client.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 

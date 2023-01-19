@@ -14,6 +14,7 @@ from . import (
     task_runs,
     saved_searches,
     logs,
+    workers,
     work_queues,
     agents,
 )

@@ -813,6 +813,46 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
 If disabled, you will need to run this service separately to send flow run notifications.
 """
 
+PREFECT_BETA_WORKERS_ENABLED = Setting(bool, default=False)
+"""
+Whether or not to enable the beta Prefect worker architecture. 
+"""
+
+
+PREFECT_WORKER_QUERY_INTERVAL = Setting(
+    int,
+    default=5,
+)
+"""
+Workers will check for new work every `PREFECT_WORKER_QUERY_INTERVAL` seconds,
+looking up to `PREFECT_WORKER_PREFETCH_SECONDS` into the future to ensure work
+starts on time.
+"""
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(
+    int,
+    default=15,
+)
+"""
+Workers will heartbeat and refresh their settings every
+`PREFECT_WORKER_HEARTBEAT_SECONDS` seconds. This value should be set low enough
+that the worker can detect a change in settings before the next heartbeat, but
+high enough that the worker doesn't spam the server with heartbeats. Defaults to `15`.
+"""
+
+
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(
+    int,
+    default=10,
+)
+"""
+Workers will look for scheduled runs this many seconds in
+the future and attempt to run them. This accounts for any additional
+infrastructure spin-up time or latency in preparing a flow run. Note
+flow runs will not start before their scheduled time, even if they are
+prefetched. Defaults to `10`.
+"""
+
 # Collect all defined settings
 
 SETTING_VARIABLES = {

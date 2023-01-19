@@ -23,19 +23,23 @@ class LoopService:
 
     loop_seconds = 60
 
-    def __init__(self, loop_seconds: float = None, handle_signals: bool = True):
+    def __init__(
+        self, loop_seconds: float = None, handle_signals: bool = True, name: str = None
+    ):
         """
         Args:
             loop_seconds (float): if provided, overrides the loop interval
                 otherwise specified as a class variable
             handle_signals (bool): if True (default), SIGINT and SIGTERM are
                 gracefully intercepted and shut down the running service.
+            name (str): an optional name for the service. If not provided, the
+                class name is used.
         """
         if loop_seconds:
             self.loop_seconds = loop_seconds  # seconds between runs
         self._should_stop = False  # flag for whether the service should stop running
         self._is_running = False  # flag for whether the service is running
-        self.name = type(self).__name__
+        self.name = name or type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
         if handle_signals:
