@@ -58,10 +58,8 @@ async def create_deployment(
                 )
 
         # hydrate the input model into a full model
-        deployment_dict = deployment.dict(
-            exclude={"work_pool_name", "work_pool_queue_name"}
-        )
-        if deployment.work_pool_name and deployment.work_pool_queue_name:
+        deployment_dict = deployment.dict(exclude={"work_pool_name"})
+        if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
             deployment_dict[
@@ -69,7 +67,7 @@ async def create_deployment(
             ] = await worker_lookups._get_work_pool_queue_id_from_name(
                 session=session,
                 work_pool_name=deployment.work_pool_name,
-                work_pool_queue_name=deployment.work_pool_queue_name,
+                work_pool_queue_name=deployment.work_queue_name,
                 create_queue_if_not_found=True,
             )
         elif deployment.work_pool_name:
@@ -81,6 +79,15 @@ async def create_deployment(
                 session=session,
                 work_pool_name=deployment.work_pool_name,
             )
+        elif deployment.work_queue_name:
+            # If just a work queue name was provided, we assume this deployment is using
+            # an agent and create a queue in the default agents work pool. This is a
+            # legacy case and can be removed once agents are removed.
+            _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
+                session=session, name=deployment.work_queue_name, db=db
+            )
+            if work_pool_queue:
+                deployment_dict["work_pool_queue_id"] = work_pool_queue.id
 
         deployment = schemas.core.Deployment(**deployment_dict)
 
@@ -444,4 +451,5 @@ async def work_queue_check_for_deployment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
+    return work_queues
     return work_queues

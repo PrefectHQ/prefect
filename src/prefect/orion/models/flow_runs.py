@@ -64,6 +64,16 @@ async def create_flow_run(
         created=now,
     )
 
+    # If the flow run has a work queue name but no worker pool queue id, migrate it
+    # This is unusual and would only come from legacy internal systems.
+    if flow_run_dict.get("work_queue_name") and not flow_run_dict.get(
+        "work_pool_queue_id"
+    ):
+        work_pool_queue = await models.workers_migration.get_or_create_work_pool_queue(
+            session=session, work_queue_name=flow_run_dict["work_queue_name"]
+        )
+        flow_run_dict["work_pool_queue_id"] = work_pool_queue.id
+
     # if no idempotency key was provided, create the run directly
     if not flow_run.idempotency_key:
         model = db.FlowRun(**flow_run_dict)

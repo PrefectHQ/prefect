@@ -329,7 +329,7 @@ class TestReadFlowRuns:
             key=lambda fr: fr.name,
         )
         assert response[2].work_pool_name == work_pool.name
-        assert response[2].work_pool_queue_name == work_pool_queue.name
+        assert response[2].work_queue_name == work_pool_queue.name
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(

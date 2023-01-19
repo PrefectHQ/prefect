@@ -211,12 +211,6 @@ def load_deployments_from_yaml(
 
 
 @experimental_field("work_pool_name", group="workers", when=lambda x: x is not None)
-@experimental_field(
-    "work_pool_queue_name",
-    group="workers",
-    when=lambda x: x is not None,
-    stacklevel=4,
-)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
@@ -289,7 +283,6 @@ class Deployment(BaseModel):
             "version",
             "work_queue_name",
             "work_pool_name",
-            "work_pool_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -392,9 +385,6 @@ class Deployment(BaseModel):
     )
     work_pool_name: Optional[str] = Field(
         default=None, description="The work pool for the deployment"
-    )
-    work_pool_queue_name: Optional[str] = Field(
-        default=None, description="The work pool queue for the deployment."
     )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
@@ -654,7 +644,6 @@ class Deployment(BaseModel):
                 name=self.name,
                 work_queue_name=self.work_queue_name,
                 work_pool_name=self.work_pool_name,
-                work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
                 parameters=self.parameters,

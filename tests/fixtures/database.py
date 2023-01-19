@@ -401,7 +401,7 @@ async def work_pool_queue(session, work_pool):
     model = await models.workers.create_work_pool_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="Test Queue"),
+        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="wq"),
     )
     await session.commit()
     return model

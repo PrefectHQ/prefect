@@ -295,16 +295,30 @@ async def _ensure_work_queue_exists(
     Checks if a work queue exists and creates it if it does not.
 
     Useful when working with deployments, agents, and flow runs that automatically create work queues.
+
+    Will also create a work pool queue in the default agent pool to facilitate migration to work pools.
     """
     # read work queue
     work_queue = await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
     if not work_queue:
-        await models.work_queues.create_work_queue(
+        work_queue = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(name=name),
         )
+
+    # Ensure the corresponding work pool queue exists
+    worker_pool_queue = None
+    # Filter-based work queues cannot be migrated
+    if work_queue.filter is None:
+        worker_pool_queue = (
+            await models.workers_migration.get_or_create_work_pool_queue(
+                session=session, work_queue_name=name
+            )
+        )
+
+    return work_queue, worker_pool_queue
 
 
 @inject_db

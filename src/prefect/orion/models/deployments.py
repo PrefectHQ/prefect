@@ -144,9 +144,9 @@ async def update_deployment(
     update_data = deployment.dict(
         shallow=True,
         exclude_unset=True,
-        exclude={"work_pool_name", "work_pool_queue_name"},
+        exclude={"work_pool_name"},
     )
-    if deployment.work_pool_name and deployment.work_pool_queue_name:
+    if deployment.work_pool_name and deployment.work_queue_name:
         # If a specific pool name/queue name combination was provided, get the
         # ID for that work pool queue.
         update_data[
@@ -154,7 +154,7 @@ async def update_deployment(
         ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
             session=session,
             work_pool_name=deployment.work_pool_name,
-            work_pool_queue_name=deployment.work_pool_queue_name,
+            work_pool_queue_name=deployment.work_queue_name,
             create_queue_if_not_found=True,
         )
     elif deployment.work_pool_name:
@@ -166,6 +166,15 @@ async def update_deployment(
             session=session,
             work_pool_name=deployment.work_pool_name,
         )
+    elif deployment.work_queue_name:
+        # If just a work queue name was provided, we assume this deployment is using
+        # an agent and create a queue in the default agents work pool. This is a
+        # legacy case and can be removed once agents are removed.
+        _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
+            session=session, name=update_data["work_queue_name"], db=db
+        )
+        if work_pool_queue:
+            update_data["work_pool_queue_id"] = work_pool_queue.id
 
     update_stmt = (
         sa.update(db.Deployment)
@@ -178,12 +187,6 @@ async def update_deployment(
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
-
-    # create work queue if it doesn't exist
-    if update_data.get("work_queue_name"):
-        await models.work_queues._ensure_work_queue_exists(
-            session=session, name=update_data["work_queue_name"], db=db
-        )
 
     return result.rowcount > 0
 

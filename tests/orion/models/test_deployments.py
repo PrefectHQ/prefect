@@ -983,7 +983,7 @@ class TestUpdateDeployment:
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
                 work_pool_name=work_pool.name,
-                work_pool_queue_name=work_pool_queue.name,
+                work_queue_name=work_pool_queue.name,
             ),
         )
 
@@ -1019,7 +1019,7 @@ class TestUpdateDeployment:
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
                 work_pool_name=work_pool.name,
-                work_pool_queue_name="new-work-pool-queue",
+                work_queue_name="new-work-pool-queue",
             ),
         )
 
