@@ -1473,10 +1473,10 @@ async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
 
 
 @pytest.mark.parametrize(
-    "on_create, after_update", [(True, True), (False, False), (None, True)]
+    "on_create, expected_value", [(True, True), (False, False), (None, True)]
 )
 async def test_update_deployment_schedule_active_does_not_overwrite_when_not_provided(
-    orion_client, flow_run, on_create, after_update
+    orion_client, flow_run, on_create, expected_value
 ):
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_run.flow_id,
@@ -1486,12 +1486,15 @@ async def test_update_deployment_schedule_active_does_not_overwrite_when_not_pro
         work_queue_name="wq",
         is_schedule_active=on_create,
     )
+    # Check that is_schedule_active is created as expected
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == on_create
+    assert deployment.is_schedule_active == expected_value
+
+    # Check that updating the deployment without providing is_schedule_active does not modify the value
     schedule = IntervalSchedule(interval=timedelta(days=1))
     await orion_client.update_deployment(deployment, schedule=schedule)
     deployment = await orion_client.read_deployment(deployment_id)
-    assert deployment.is_schedule_active == after_update
+    assert deployment.is_schedule_active == expected_value
 
 
 @pytest.mark.parametrize(
