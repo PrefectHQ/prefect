@@ -599,7 +599,9 @@ class KubernetesJob(Infrastructure):
                 self.job_watch_timeout_seconds is not None
                 and elapsed > self.job_watch_timeout_seconds
             ):
-                self.logger.error(f"Job {job_name!r}: Job timed out.")
+                self.logger.error(
+                    f"Job {job_name!r}: Job timed out after {self.job_watch_timeout_seconds}s."
+                )
                 return -1
             try:
                 watch = kubernetes.watch.Watch()
@@ -625,7 +627,7 @@ class KubernetesJob(Infrastructure):
                 if exc.status == 410:  # Gone
                     continue
                 else:
-                    raise exc
+                    raise
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
