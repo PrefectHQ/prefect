@@ -921,11 +921,13 @@ async def test_read_flow_by_name(orion_client):
     assert the_flow.id == flow_id
 
 
-async def test_create_flow_run_from_deployment(orion_client, deployment):
+async def test_create_flow_run_from_deployment(orion_client: OrionClient, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
+    assert flow_run.work_queue_name == deployment.work_queue_name
+    assert flow_run.work_queue_name  # not empty
 
     # Flow version is not populated yet
     assert flow_run.flow_version is None
