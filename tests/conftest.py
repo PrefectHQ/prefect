@@ -360,6 +360,8 @@ async def generate_test_database_connection_url(
         yield None
         return
 
+    print(f"Generating test database connection URL from {original_url!r}")
+
     scheme, netloc, database, query, fragment = urlsplit(original_url)
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
@@ -374,8 +376,11 @@ async def generate_test_database_connection_url(
         postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
 
         # Create an empty temporary database for use in the tests
+
+        print(f"Connecting to postgres at {postgres_url!r}")
         connection = await asyncpg.connect(postgres_url)
         try:
+            print(f"Creating test postgres database {quoted_db_name!r}")
             # remove any connections to the test database. For example if a SQL IDE
             # is being used to investigate it, it will block the drop database command.
             await connection.execute(
@@ -394,7 +399,10 @@ async def generate_test_database_connection_url(
 
         new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
 
+        print(f"Using test database connection URL {new_url!r}")
         yield new_url
+
+        print("Cleaning up test postgres database")
 
         # Now drop the temporary database we created
         connection = await asyncpg.connect(postgres_url)
