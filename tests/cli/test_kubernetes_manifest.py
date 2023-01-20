@@ -95,7 +95,7 @@ def test_printing_the_agent_manifest_with_no_args():
     assert manifests
 
     for manifest in manifests:
-        if manifest["kind"] not in ["ClusterRole","ClusterRoleBinding"]:
+        if manifest["kind"] not in ["ClusterRole", "ClusterRoleBinding"]:
             assert manifest["metadata"]["namespace"] == "default"
 
         if manifest["kind"] == "Deployment":
