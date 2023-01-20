@@ -60,6 +60,12 @@ async def start(
             "for example `dev-` will match all work queues with a name that starts with `dev-`"
         ),
     ),
+    work_pool_name: str = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="A work pool name for the agent to pull from.",
+    ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
     run_once: bool = typer.Option(
@@ -145,6 +151,7 @@ async def start(
     async with OrionAgent(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
+        work_pool_name=work_pool_name,
         prefetch_seconds=prefetch_seconds,
         limit=limit,
     ) as agent:

@@ -3,7 +3,7 @@ The agent is responsible for checking for flow runs that are ready to run and st
 their execution.
 """
 import inspect
-from typing import Iterator, List, Optional, Set, Union
+from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
 
 import anyio
@@ -22,7 +22,8 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.orion import schemas
+from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkPoolQueue, WorkQueue
 from prefect.orion.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
@@ -52,6 +53,7 @@ class OrionAgent:
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
+        self.work_pool_name = work_pool_name
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.cancelling_flow_run_ids = set()
@@ -99,7 +101,7 @@ class OrionAgent:
                     )
             self.work_queues = matched_queues
 
-    async def get_work_queues(self) -> Iterator[WorkQueue]:
+    async def get_work_queues(self) -> AsyncIterator[Union[WorkQueue, WorkPoolQueue]]:
         """
         Loads the work queue objects corresponding to the agent's target work
         queues. If any of them don't exist, they are created.
@@ -121,7 +123,12 @@ class OrionAgent:
 
         for name in self.work_queues:
             try:
-                work_queue = await self.client.read_work_queue_by_name(name)
+                if self.work_pool_name:
+                    work_queue = await self.client.read_work_pool_queue(
+                        work_pool_name=self.work_pool_name, work_pool_queue_name=name
+                    )
+                else:
+                    work_queue = await self.client.read_work_queue_by_name(name)
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
@@ -129,8 +136,19 @@ class OrionAgent:
                     # do not attempt to create work queues if the agent is polling for
                     # queues using a regex
                     try:
-                        work_queue = await self.client.create_work_queue(name=name)
-                        self.logger.info(f"Created work queue '{name}'.")
+                        if self.work_pool_name:
+                            work_queue = await self.client.create_work_pool_queue(
+                                work_pool_name=self.work_pool_name,
+                                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                                    name=name
+                                ),
+                            )
+                            self.logger.info(
+                                f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
+                            )
+                        else:
+                            work_queue = await self.client.create_work_queue(name=name)
+                            self.logger.info(f"Created work queue '{name}'.")
 
                     # if creating it raises an exception, it was probably just
                     # created by some other agent; rather than entering a re-read
@@ -170,9 +188,17 @@ class OrionAgent:
 
             else:
                 try:
-                    queue_runs = await self.client.get_runs_in_work_queue(
-                        id=work_queue.id, limit=10, scheduled_before=before
-                    )
+                    if isinstance(work_queue, WorkPoolQueue):
+                        responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
+                            work_pool_name=self.work_pool_name,
+                            work_pool_queue_names=[work_queue.name],
+                            scheduled_before=before,
+                        )
+                        queue_runs = [response.flow_run for response in responses]
+                    else:
+                        queue_runs = await self.client.get_runs_in_work_queue(
+                            id=work_queue.id, limit=10, scheduled_before=before
+                        )
                     submittable_runs.extend(queue_runs)
                 except ObjectNotFound:
                     self.logger.error(

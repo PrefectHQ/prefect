@@ -2078,6 +2078,25 @@ class OrionClient:
 
         return pydantic.parse_obj_as(List[WorkPoolQueue], response.json())
 
+    async def read_work_pool_queue(
+        self, work_pool_name: str, work_pool_queue_name: str
+    ) -> schemas.core.WorkPoolQueue:
+        """
+        Retrieves queues for a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool the queue belong to.
+            work_pool_queue_name: Name of the work pool queue to get.
+
+        Returns:
+            The specified work pool queue.
+        """
+        response = await self._client.get(
+            f"/experimental/work_pools/{work_pool_name}/queues/{work_pool_queue_name}"
+        )
+
+        return pydantic.parse_obj_as(WorkPoolQueue, response.json())
+
     async def create_work_pool_queue(
         self,
         work_pool_name: str,
