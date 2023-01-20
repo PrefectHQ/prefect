@@ -187,7 +187,7 @@ jobs:
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
-          echo "PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://prefect:prefect@localhost/orion'" >> $GITHUB_ENV
+          echo "PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/orion" >> $GITHUB_ENV
 
       - name: Run tests
         # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
