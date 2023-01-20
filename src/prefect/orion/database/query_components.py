@@ -609,7 +609,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .order_by(db.FlowRunNotificationQueue.updated)
             .limit(limit)
             .with_for_update(skip_locked=True)
-        ).cte("select_notifications")
+        ).cte("queued_notifications_ids")
 
         queued_notifications = (
             sa.delete(db.FlowRunNotificationQueue)
