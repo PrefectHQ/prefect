@@ -184,12 +184,17 @@ async def delete_work_queue(
         bool: whether or not the WorkQueue was deleted
     """
     # delete the related work pool queue
-    wpq = await workers_migration.get_or_create_work_pool_queue(
-        session=session, work_queue_id=work_queue_id
-    )
-    await models.workers.delete_work_pool_queue(
-        session=session, work_pool_queue_id=wpq.id
-    )
+    try:
+        wpq = await workers_migration.get_or_create_work_pool_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        await models.workers.delete_work_pool_queue(
+            session=session, work_pool_queue_id=wpq.id
+        )
+    except ObjectNotFoundError:
+        # The work queue doesn't exist so there isn't a corresponding work pool
+        # queue to delete.
+        pass
 
     result = await session.execute(
         delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
