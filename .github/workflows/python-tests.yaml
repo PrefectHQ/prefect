@@ -164,7 +164,7 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Start database container
-        if: ${{ matrix.database.startsWith('postgres') }}
+        if: ${{ startsWith(matrix.database, 'postgres') }}
         run: >
           docker run
           --name "postgres"
