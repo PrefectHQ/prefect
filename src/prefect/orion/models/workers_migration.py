@@ -140,14 +140,14 @@ async def get_runs_from_work_pool_queue(
     limit: Optional[int] = None,
     db: Optional[OrionDBInterface] = None,
 ):
-    worker_pool_queue = await get_or_create_work_pool_queue(
+    work_pool_queue = await get_or_create_work_pool_queue(
         session=session, work_queue_id=work_queue_id, db=db
     )
 
     return await models.workers.get_scheduled_flow_runs(
         session=session,
-        worker_pool_ids=[worker_pool_queue.worker_pool_id],
-        worker_pool_queue_ids=[worker_pool_queue.id],
+        work_pool_ids=[work_pool_queue.work_pool_id],
+        work_pool_queue_ids=[work_pool_queue.id],
         scheduled_before=scheduled_before,
         limit=limit,
         db=db,

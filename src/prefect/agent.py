@@ -40,6 +40,7 @@ class OrionAgent:
         self,
         work_queues: List[str] = None,
         work_queue_prefix: Union[str, List[str]] = None,
+        work_pool_name: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
