@@ -1276,7 +1276,7 @@ class OrionClient:
         infrastructure_document_id: UUID = None,
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
-        is_schedule_active: bool = None,
+        is_schedule_active: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
