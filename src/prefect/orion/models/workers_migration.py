@@ -11,6 +11,7 @@ from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.utilities.schemas import DateTimeTZ
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 PREFECT_AGENT_WORK_POOL_TYPE = "prefect-agent"
@@ -51,8 +52,11 @@ async def get_or_create_work_pool_queue(
     work_queue_name: Optional[str] = None,
     db: OrionDBInterface = None,
 ):
-
     """
+    Gets or creates a work pool queue for a work queue.
+
+    Will update corresponding deployments and flow runs to point at the new work pool queue.
+
     Args:
         session (AsyncSession): a database session
         work_queue_id (UUID): the work queue id
@@ -126,3 +130,25 @@ async def get_or_create_work_pool_queue(
 
     # return the new queue
     return work_pool_queue
+
+
+@inject_db
+async def get_runs_from_work_pool_queue(
+    session: AsyncSession,
+    work_queue_id: UUID,
+    scheduled_before: Optional[DateTimeTZ] = None,
+    limit: Optional[int] = None,
+    db: Optional[OrionDBInterface] = None,
+):
+    worker_pool_queue = await get_or_create_work_pool_queue(
+        session=session, work_queue_id=work_queue_id, db=db
+    )
+
+    return await models.workers.get_scheduled_flow_runs(
+        session=session,
+        worker_pool_ids=[worker_pool_queue.worker_pool_id],
+        worker_pool_queue_ids=[worker_pool_queue.id],
+        scheduled_before=scheduled_before,
+        limit=limit,
+        db=db,
+    )
