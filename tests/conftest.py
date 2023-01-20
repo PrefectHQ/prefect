@@ -361,63 +361,68 @@ async def generate_test_database_connection_url(
         return
 
     print(f"Generating test database connection URL from {original_url!r}")
+    try:
+        scheme, netloc, database, query, fragment = urlsplit(original_url)
+        if scheme == "sqlite+aiosqlite":
+            # SQLite databases will be scoped by the PREFECT_HOME setting, which will
+            # be in an isolated temporary directory
+            yield None
+            return
 
-    scheme, netloc, database, query, fragment = urlsplit(original_url)
-    if scheme == "sqlite+aiosqlite":
-        # SQLite databases will be scoped by the PREFECT_HOME setting, which will
-        # be in an isolated temporary directory
-        yield None
-        return
+        if scheme == "postgresql+asyncpg":
+            test_db_name = database.strip("/") + f"_tests_{worker_id}"
+            quoted_db_name = postgres_dialect().identifier_preparer.quote(test_db_name)
 
-    if scheme == "postgresql+asyncpg":
-        test_db_name = database.strip("/") + f"_tests_{worker_id}"
-        quoted_db_name = postgres_dialect().identifier_preparer.quote(test_db_name)
+            postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
 
-        postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
+            # Create an empty temporary database for use in the tests
 
-        # Create an empty temporary database for use in the tests
+            print(f"Connecting to postgres at {postgres_url!r}")
+            connection = await asyncpg.connect(postgres_url)
+            try:
+                print(f"Creating test postgres database {quoted_db_name!r}")
+                # remove any connections to the test database. For example if a SQL IDE
+                # is being used to investigate it, it will block the drop database command.
+                await connection.execute(
+                    f"""
+                    SELECT pg_terminate_backend(pg_stat_activity.pid)
+                    FROM pg_stat_activity
+                    WHERE pg_stat_activity.datname = '{quoted_db_name}'
+                    AND pid <> pg_backend_pid();
+                    """
+                )
 
-        print(f"Connecting to postgres at {postgres_url!r}")
-        connection = await asyncpg.connect(postgres_url)
-        try:
-            print(f"Creating test postgres database {quoted_db_name!r}")
-            # remove any connections to the test database. For example if a SQL IDE
-            # is being used to investigate it, it will block the drop database command.
-            await connection.execute(
-                f"""
-                SELECT pg_terminate_backend(pg_stat_activity.pid)
-                FROM pg_stat_activity
-                WHERE pg_stat_activity.datname = '{quoted_db_name}'
-                AND pid <> pg_backend_pid();
-                """
-            )
+                await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
+                await connection.execute(f"CREATE DATABASE {quoted_db_name}")
+            finally:
+                await connection.close()
 
-            await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
-            await connection.execute(f"CREATE DATABASE {quoted_db_name}")
-        finally:
-            await connection.close()
+            new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
 
-        new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
+            print(f"Using test database connection URL {new_url!r}")
+            yield new_url
 
-        print(f"Using test database connection URL {new_url!r}")
-        yield new_url
+            print("Cleaning up test postgres database")
 
-        print("Cleaning up test postgres database")
+            # Now drop the temporary database we created
+            connection = await asyncpg.connect(postgres_url)
+            try:
+                await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
+            except asyncpg.exceptions.ObjectInUseError:
+                # If we aren't able to drop the database because there's still a connection,
+                # open, that's okay.  If we're in CI, then this DB is going away permanently
+                # anyway, and if we're testing locally, in the beginning of this fixture,
+                # we drop the database prior to creating it.  The worst case is that we
+                # leave a DB catalog lying around on your local Postgres, which will get
+                # cleaned up before the next test suite run.
+                pass
+            finally:
+                await connection.close()
+    except:
+        import traceback
 
-        # Now drop the temporary database we created
-        connection = await asyncpg.connect(postgres_url)
-        try:
-            await connection.execute(f"DROP DATABASE IF EXISTS {quoted_db_name}")
-        except asyncpg.exceptions.ObjectInUseError:
-            # If we aren't able to drop the database because there's still a connection,
-            # open, that's okay.  If we're in CI, then this DB is going away permanently
-            # anyway, and if we're testing locally, in the beginning of this fixture,
-            # we drop the database prior to creating it.  The worst case is that we
-            # leave a DB catalog lying around on your local Postgres, which will get
-            # cleaned up before the next test suite run.
-            pass
-        finally:
-            await connection.close()
+        traceback.print_exc()
+        raise
 
 
 @pytest.fixture(scope="session", autouse=True)
