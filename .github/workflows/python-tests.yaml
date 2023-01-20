@@ -165,7 +165,7 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
       - name: Start PostgreSQL ${{ matrix.postgres-version }}
-        if: ${{ matrix.database == "postgres" }}
+        if: ${{ matrix.database == 'postgres' }}
         run: >
           docker run
           --name "postgres"
