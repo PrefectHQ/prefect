@@ -200,7 +200,8 @@ jobs:
           pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 -x ${{ matrix.pytest-options }}
 
       - name: Check database container
-        if: always() && ${{ startsWith(matrix.database, 'postgres') }}
-        run: |
+        if: always()
+        run: >
           docker container inspect postgres
-          docker container logs postgres
+          && docker container logs postgres
+          || echo "Ok"
