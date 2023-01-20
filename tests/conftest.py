@@ -402,7 +402,6 @@ async def generate_test_database_connection_url(
         yield new_url
 
         print("Cleaning up test postgres database")
-
         # Now drop the temporary database we created
         connection = await asyncpg.connect(postgres_url)
         try:
