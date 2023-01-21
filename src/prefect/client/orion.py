@@ -1329,9 +1329,10 @@ class OrionClient:
             if field not in deployment_create.__fields_set__
         }
 
-        json = deployment_create.dict(
-            json_compatible=True, exclude=exclude, exclude_none=True
-        )
+        if deployment_create.is_schedule_active is None:
+            exclude.add("is_schedule_active")
+
+        json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
             "/deployments/",
             json=json,
