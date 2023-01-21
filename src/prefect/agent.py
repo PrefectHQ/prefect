@@ -11,6 +11,7 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
+from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
@@ -37,6 +38,9 @@ from prefect.states import Crashed, Pending, StateType, exception_to_failed_stat
 
 
 class OrionAgent:
+    @experimental_parameter(
+        "work_pool_name", group="workers", when=lambda y: y is not None
+    )
     def __init__(
         self,
         work_queues: List[str] = None,
@@ -189,6 +193,13 @@ class OrionAgent:
         )
 
         submittable_runs: List[FlowRun] = []
+
+        if self.work_pool_name and not self.work_queues:
+            responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
+                work_pool_name=self.work_pool_name,
+                scheduled_before=before,
+            )
+            submittable_runs.extend([response.flow_run for response in responses])
 
         # load runs from each work queue
         async for work_queue in self.get_work_queues():
