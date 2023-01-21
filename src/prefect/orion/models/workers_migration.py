@@ -152,3 +152,20 @@ async def get_runs_from_work_pool_queue(
         limit=limit,
         db=db,
     )
+
+
+@inject_db
+async def migrate_all_work_queues(
+    session: AsyncSession,
+    db: Optional[OrionDBInterface] = None,
+):
+    """
+    Migrates all existing work queues to the default Prefect agent work pool.
+
+    Can be run at any time to facilitate user-initiated migrations without
+    waiting for an agent to poll.
+    """
+    for work_queue in await models.work_queues.read_work_queues(session=session):
+        await get_or_create_work_pool_queue(
+            session=session, work_queue_id=work_queue.id, db=db
+        )

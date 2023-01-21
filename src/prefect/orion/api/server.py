@@ -30,6 +30,7 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
@@ -365,6 +366,28 @@ def create_app(
         except Exception as exc:
             logger.warn(f"Error occurred during block auto-registration: {exc!r}")
 
+    async def migrate_work_queues():
+        """Duplicates work queues to work pool queues"""
+        if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
+            from prefect.orion.database.dependencies import provide_database_interface
+            from prefect.orion.models.configuration import (
+                read_configuration,
+                write_configuration,
+            )
+            from prefect.orion.models.workers_migration import migrate_all_work_queues
+
+            db = provide_database_interface()
+            session = await db.session()
+
+            migration_status = await read_configuration(
+                session, "WORK_POOL_QUEUE_MIGRATION"
+            )
+            if not migration_status.get("has_run"):
+                await migrate_all_work_queues(session=session, db=db)
+                await write_configuration(
+                    session, "WORK_POOL_QUEUE_MIGRATION", {"has_run": True}
+                )
+
     async def start_services():
         """Start additional services when the Orion API starts up."""
 
@@ -435,6 +458,7 @@ def create_app(
             run_migrations,
             add_block_types,
             start_services,
+            migrate_work_queues,
         ],
         on_shutdown=[stop_services],
     )
