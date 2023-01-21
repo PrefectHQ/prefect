@@ -1319,9 +1319,14 @@ class OrionClient:
             is_schedule_active=is_schedule_active,
         )
 
-        response = await self._client.post(
-            "/deployments/", json=deployment_create.dict(json_compatible=True)
-        )
+        deployment_dict = deployment_create.dict(json_compatible=True)
+
+        # remove is_schedule_active from deployment_dict if value is None so that default value is used
+        # by the server
+        if deployment_dict.get("is_schedule_active") is None:
+            deployment_dict.pop("is_schedule_active")
+
+        response = await self._client.post("/deployments/", json=deployment_dict)
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise httpx.RequestError(f"Malformed response: {response}")

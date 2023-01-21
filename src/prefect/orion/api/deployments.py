@@ -75,12 +75,8 @@ async def create_deployment(
                 session=session,
                 work_pool_name=deployment.work_pool_name,
             )
-        # remove is_schedule_active from deployment_dict if value is None so that default value is used
-        if deployment_dict.get("is_schedule_active") is None:
-            deployment_dict.pop("is_schedule_active")
 
         deployment = schemas.core.Deployment(**deployment_dict)
-
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:
