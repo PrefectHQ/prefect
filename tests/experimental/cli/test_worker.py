@@ -41,7 +41,9 @@ def test_start_worker_run_once_with_name():
     )
 
 
-async def test_start_worker_creates_work_pool(orion_client: OrionClient):
+async def test_start_worker_creates_work_pool(
+    orion_client: OrionClient, enable_workers
+):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],

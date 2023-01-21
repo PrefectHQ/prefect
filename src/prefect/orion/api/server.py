@@ -380,21 +380,22 @@ def create_app(
             db = provide_database_interface()
             session = await db.session()
 
-            migration_status = (
-                await read_configuration(
-                    session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
-                )
-            ) or {}
-            if not migration_status.get("has_run", False):
-                await migrate_all_work_queues(session=session, db=db)
-                await write_configuration(
-                    session=session,
-                    configuration=Configuration(
-                        key="WORK_POOL_QUEUE_MIGRATION",
-                        value={"has_run": True},
-                    ),
-                    db=db,
-                )
+            async with session.begin():
+                migration_status = (
+                    await read_configuration(
+                        session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
+                    )
+                ) or {}
+                if not migration_status.get("has_run", False):
+                    await migrate_all_work_queues(session=session, db=db)
+                    await write_configuration(
+                        session=session,
+                        configuration=Configuration(
+                            key="WORK_POOL_QUEUE_MIGRATION",
+                            value={"has_run": True},
+                        ),
+                        db=db,
+                    )
 
     async def start_services():
         """Start additional services when the Orion API starts up."""
