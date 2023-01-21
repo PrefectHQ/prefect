@@ -1306,8 +1306,6 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
-            work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
             description=description,
             storage_document_id=storage_document_id,
             path=path,
@@ -1319,14 +1317,26 @@ class OrionClient:
             is_schedule_active=is_schedule_active,
         )
 
-        deployment_dict = deployment_create.dict(json_compatible=True)
+        if work_pool_name is not None:
+            deployment_create.work_pool_name = work_pool_name
+        if work_pool_queue_name is not None:
+            deployment_create.work_pool_queue_name = work_pool_queue_name
 
-        # remove is_schedule_active from deployment_dict if value is None so that default value is used
-        # by the server
-        if deployment_dict.get("is_schedule_active") is None:
-            deployment_dict.pop("is_schedule_active")
+        # Exclude newer fields that are not set to avoid compatibility issues
+        exclude = {
+            field
+            for field in ["work_pool_name", "work_pool_queue_name"]
+            if field not in deployment_create.__fields_set__
+        }
 
-        response = await self._client.post("/deployments/", json=deployment_dict)
+        json = deployment_create.dict(
+            json_compatible=True, exclude=exclude, exclude_unset=True
+        )
+
+        response = await self._client.post(
+            "/deployments/",
+            json=json,
+        )
         deployment_id = response.json().get("id")
         if not deployment_id:
             raise httpx.RequestError(f"Malformed response: {response}")
