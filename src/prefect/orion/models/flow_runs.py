@@ -28,6 +28,7 @@ from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.orion.schemas.states import State
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
 @inject_db
@@ -66,8 +67,10 @@ async def create_flow_run(
 
     # If the flow run has a work queue name but no worker pool queue id, migrate it
     # This is unusual and would only come from legacy internal systems.
-    if flow_run_dict.get("work_queue_name") and not flow_run_dict.get(
-        "work_pool_queue_id"
+    if (
+        PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value()
+        and flow_run_dict.get("work_queue_name")
+        and not flow_run_dict.get("work_pool_queue_id")
     ):
         work_pool_queue = await models.workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_name=flow_run_dict["work_queue_name"]

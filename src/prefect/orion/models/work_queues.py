@@ -45,9 +45,10 @@ async def create_work_queue(
     session.add(model)
     await session.flush()
 
-    await workers_migration.get_or_create_work_pool_queue(
-        session=session, work_queue_id=model.id
-    )
+    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and model.filter is None:
+        await workers_migration.get_or_create_work_pool_queue(
+            session=session, work_queue_id=model.id
+        )
 
     return model
 
@@ -156,7 +157,7 @@ async def update_work_queue(
     wpq_updates = {
         k: v for k, v in update_data.items() if k in ("is_paused", "concurrency_limit")
     }
-    if wpq_updates:
+    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and wpq_updates:
         wpq = await workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_id=work_queue_id
         )
@@ -359,7 +360,7 @@ async def _ensure_work_queue_exists(
     # Ensure the corresponding work pool queue exists
     work_pool_queue = None
     # Filter-based work queues cannot be migrated
-    if work_queue.filter is None:
+    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and work_queue.filter is None:
         work_pool_queue = await models.workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_name=name
         )
