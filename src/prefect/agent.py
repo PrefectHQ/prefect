@@ -194,42 +194,44 @@ class OrionAgent:
 
         submittable_runs: List[FlowRun] = []
 
-        if self.work_pool_name and not self.work_queues:
+        if self.work_pool_name:
             responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
                 work_pool_name=self.work_pool_name,
+                work_pool_queue_names=self.work_queues,
                 scheduled_before=before,
             )
             submittable_runs.extend([response.flow_run for response in responses])
 
-        # load runs from each work queue
-        async for work_queue in self.get_work_queues():
+        else:
+            # load runs from each work queue
+            async for work_queue in self.get_work_queues():
 
-            # print a nice message if the work queue is paused
-            if work_queue.is_paused:
-                self.logger.info(
-                    f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
-                )
-
-            else:
-                try:
-                    if isinstance(work_queue, WorkPoolQueue):
-                        responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
-                            work_pool_name=self.work_pool_name,
-                            work_pool_queue_names=[work_queue.name],
-                            scheduled_before=before,
-                        )
-                        queue_runs = [response.flow_run for response in responses]
-                    else:
-                        queue_runs = await self.client.get_runs_in_work_queue(
-                            id=work_queue.id, limit=10, scheduled_before=before
-                        )
-                    submittable_runs.extend(queue_runs)
-                except ObjectNotFound:
-                    self.logger.error(
-                        f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                # print a nice message if the work queue is paused
+                if work_queue.is_paused:
+                    self.logger.info(
+                        f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
                     )
-                except Exception as exc:
-                    self.logger.exception(exc)
+
+                else:
+                    try:
+                        if isinstance(work_queue, WorkPoolQueue):
+                            responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
+                                work_pool_name=self.work_pool_name,
+                                work_pool_queue_names=[work_queue.name],
+                                scheduled_before=before,
+                            )
+                            queue_runs = [response.flow_run for response in responses]
+                        else:
+                            queue_runs = await self.client.get_runs_in_work_queue(
+                                id=work_queue.id, limit=10, scheduled_before=before
+                            )
+                        submittable_runs.extend(queue_runs)
+                    except ObjectNotFound:
+                        self.logger.error(
+                            f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                        )
+                    except Exception as exc:
+                        self.logger.exception(exc)
 
         submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 

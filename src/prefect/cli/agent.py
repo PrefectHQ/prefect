@@ -161,7 +161,12 @@ async def start(
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            if work_queue_prefix:
+            if work_pool_name:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"work pool '{work_pool_name}'..."
+                )
+            elif work_queue_prefix:
                 app.console.print(
                     "Agent started! Looking for work from "
                     f"queue(s) that start with the prefix: {work_queue_prefix}..."
