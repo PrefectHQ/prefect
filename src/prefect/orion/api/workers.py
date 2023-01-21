@@ -373,9 +373,12 @@ async def read_work_pool_queue(
         )
 
 
-@router.get("/{work_pool_name}/queues")
+@router.post("/{work_pool_name}/queues/filter")
 async def read_work_pool_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    limit: int = dependencies.LimitBody(),
+    offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkPoolQueue]:
@@ -388,7 +391,12 @@ async def read_work_pool_queues(
             work_pool_name=work_pool_name,
         )
         return await models.workers.read_work_pool_queues(
-            session=session, work_pool_id=work_pool_id, db=db
+            session=session,
+            work_pool_id=work_pool_id,
+            work_pool_queue_filter=work_pool_queues,
+            limit=limit,
+            offset=offset,
+            db=db,
         )
 
 

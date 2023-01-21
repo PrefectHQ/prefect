@@ -41,6 +41,7 @@ class OrionAgent:
         self,
         work_queues: List[str] = None,
         work_queue_prefix: Union[str, List[str]] = None,
+        work_pool_name: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -86,7 +87,19 @@ class OrionAgent:
 
     async def update_matched_agent_work_queues(self):
         if self.work_queue_prefix:
-            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
+            if self.work_pool_name:
+                matched_queues = await self.client.read_work_pool_queues(
+                    work_pool_name=self.work_pool_name,
+                    work_pool_queue_filter=schemas.filters.WorkPoolQueueFilter(
+                        name=schemas.filters.WorkPoolQueueFilterName(
+                            startswith_=self.work_queue_prefix
+                        )
+                    ),
+                )
+            else:
+                matched_queues = await self.client.match_work_queues(
+                    self.work_queue_prefix
+                )
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
