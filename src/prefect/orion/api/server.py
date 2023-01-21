@@ -375,17 +375,25 @@ def create_app(
                 write_configuration,
             )
             from prefect.orion.models.workers_migration import migrate_all_work_queues
+            from prefect.orion.schemas.core import Configuration
 
             db = provide_database_interface()
             session = await db.session()
 
-            migration_status = await read_configuration(
-                session, "WORK_POOL_QUEUE_MIGRATION"
-            )
-            if not migration_status.get("has_run"):
+            migration_status = (
+                await read_configuration(
+                    session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
+                )
+            ) or {}
+            if not migration_status.get("has_run", False):
                 await migrate_all_work_queues(session=session, db=db)
                 await write_configuration(
-                    session, "WORK_POOL_QUEUE_MIGRATION", {"has_run": True}
+                    session=session,
+                    configuration=Configuration(
+                        key="WORK_POOL_QUEUE_MIGRATION",
+                        value={"has_run": True},
+                    ),
+                    db=db,
                 )
 
     async def start_services():
