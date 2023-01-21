@@ -107,12 +107,16 @@ async def start(
             style="blue",
         )
 
-    if not work_queues and not tags and not work_queue_prefix:
+    if not work_queues and not tags and not work_queue_prefix and not work_pool_name:
         exit_with_error("No work queues provided!", style="red")
     elif bool(work_queues) + bool(tags) + bool(work_queue_prefix) > 1:
         exit_with_error(
             "Only one of `work_queues`, `match`, or `tags` can be provided.",
             style="red",
+        )
+    if work_pool_name and tags:
+        exit_with_error(
+            "`tag` and `pool` options cannot be used together.", style="red"
         )
 
     if tags:

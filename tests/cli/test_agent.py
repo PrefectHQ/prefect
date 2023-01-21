@@ -174,3 +174,35 @@ def test_start_agent_with_work_queue_match_and_work_queue():
         expected_output_contains="Only one of `work_queues`, `match`, or `tags` can be provided.",
         expected_code=1,
     )
+
+
+def test_start_agent_with_just_work_pool(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    invoke_and_assert(
+        command=["agent", "start", "--pool", "test-pool", "--run-once"],
+        expected_code=0,
+    )
+    mock_agent.assert_called_once_with(
+        work_queues=[],
+        work_queue_prefix=[],
+        work_pool_name="test-pool",
+        prefetch_seconds=ANY,
+        limit=None,
+    )
+
+
+def test_start_agent_errors_with_work_pool_and_tags():
+    invoke_and_assert(
+        command=[
+            "agent",
+            "start",
+            "--pool",
+            "test-pool",
+            "--run-once",
+            "--tag",
+            "test",
+        ],
+        expected_output_contains="`tag` and `pool` options cannot be used together.",
+        expected_code=1,
+    )
