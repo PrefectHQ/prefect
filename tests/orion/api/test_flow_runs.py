@@ -317,7 +317,7 @@ class TestReadFlowRuns:
         )
 
     async def test_read_flow_runs_work_pool_fields(
-        self, flow_runs, client, work_pool, work_pool_queue
+        self, flow_runs, client, work_pool, work_pool_queue, enable_workers
     ):
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK

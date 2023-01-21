@@ -362,6 +362,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_pool_queue,
+        enable_workers,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -408,6 +409,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_workers,
     ):
         default_queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
