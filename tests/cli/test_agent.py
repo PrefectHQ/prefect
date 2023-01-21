@@ -69,6 +69,7 @@ def test_start_agent_with_prefetch_seconds(monkeypatch):
     mock_agent.assert_called_once_with(
         work_queues=["test"],
         work_queue_prefix=ANY,
+        work_pool_name=None,
         prefetch_seconds=30,
         limit=None,
     )
@@ -91,6 +92,7 @@ def test_start_agent_with_prefetch_seconds_from_setting_by_default(monkeypatch):
     mock_agent.assert_called_once_with(
         work_queues=ANY,
         work_queue_prefix=ANY,
+        work_pool_name=None,
         prefetch_seconds=100,
         limit=None,
     )
@@ -106,6 +108,7 @@ def test_start_agent_respects_work_queue_names(monkeypatch):
     mock_agent.assert_called_once_with(
         work_queues=["a", "b"],
         work_queue_prefix=[],
+        work_pool_name=None,
         prefetch_seconds=ANY,
         limit=None,
     )
@@ -121,6 +124,7 @@ def test_start_agent_respects_work_queue_prefixes(monkeypatch):
     mock_agent.assert_called_once_with(
         work_queues=[],
         work_queue_prefix=["a", "b"],
+        work_pool_name=None,
         prefetch_seconds=ANY,
         limit=None,
     )
@@ -136,8 +140,25 @@ def test_start_agent_respects_limit(monkeypatch):
     mock_agent.assert_called_once_with(
         work_queues=["test"],
         work_queue_prefix=[],
+        work_pool_name=None,
         prefetch_seconds=ANY,
         limit=10,
+    )
+
+
+def test_start_agent_respects_work_pool_name(monkeypatch):
+    mock_agent = MagicMock()
+    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    invoke_and_assert(
+        command=["agent", "start", "--pool", "test-pool", "--run-once", "-q", "test"],
+        expected_code=0,
+    )
+    mock_agent.assert_called_once_with(
+        work_queues=["test"],
+        work_queue_prefix=[],
+        work_pool_name="test-pool",
+        prefetch_seconds=ANY,
+        limit=None,
     )
 
 
