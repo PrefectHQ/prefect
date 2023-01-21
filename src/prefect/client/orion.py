@@ -2104,7 +2104,7 @@ class OrionClient:
         self, work_pool_name: str, work_pool_queue_name: str
     ) -> schemas.core.WorkPoolQueue:
         """
-        Retrieves queues for a work pool.
+        Retrieves a given queue for a work pool.
 
         Args:
             work_pool_name: Name of the work pool the queue belong to.
