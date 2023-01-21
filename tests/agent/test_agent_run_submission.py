@@ -257,6 +257,24 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
+async def test_agent_creates_work_pool_queue_if_doesnt_exist(
+    session, work_pool, prefect_caplog, enable_workers
+):
+    name = "hello-there"
+    assert not await models.workers.read_work_pool_queue_by_name(
+        session=session, work_pool_name=work_pool.name, work_pool_queue_name=name
+    )
+    async with OrionAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
+        await agent.get_and_submit_flow_runs()
+    assert await models.workers.read_work_pool_queue_by_name(
+        session=session, work_pool_name=work_pool.name, work_pool_queue_name=name
+    )
+    assert (
+        f"Created work queue '{name}' in work pool '{work_pool.name}'."
+        in prefect_caplog.text
+    )
+
+
 async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
     session, prefect_caplog
 ):

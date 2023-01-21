@@ -2113,11 +2113,16 @@ class OrionClient:
         Returns:
             The specified work pool queue.
         """
-        response = await self._client.get(
-            f"/experimental/work_pools/{work_pool_name}/queues/{work_pool_queue_name}"
-        )
-
-        return pydantic.parse_obj_as(WorkPoolQueue, response.json())
+        try:
+            response = await self._client.get(
+                f"/experimental/work_pools/{work_pool_name}/queues/{work_pool_queue_name}"
+            )
+            return pydantic.parse_obj_as(WorkPoolQueue, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def create_work_pool_queue(
         self,
