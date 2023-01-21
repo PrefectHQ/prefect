@@ -1330,9 +1330,8 @@ class OrionClient:
         }
 
         json = deployment_create.dict(
-            json_compatible=True, exclude=exclude, exclude_unset=True
+            json_compatible=True, exclude=exclude, exclude_none=True
         )
-
         response = await self._client.post(
             "/deployments/",
             json=json,
