@@ -2189,7 +2189,7 @@ class OrionClient:
         """
         body: Dict[str, Any] = {}
         if work_pool_queue_names is not None:
-            body["work_pool_queue_names"] = work_pool_queue_names
+            body["work_pool_queue_names"] = list(work_pool_queue_names)
         if scheduled_before:
             body["scheduled_before"] = str(scheduled_before)
 
