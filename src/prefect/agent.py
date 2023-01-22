@@ -197,7 +197,7 @@ class OrionAgent:
         if self.work_pool_name:
             responses = await self.client.get_scheduled_flow_runs_for_work_pool_queues(
                 work_pool_name=self.work_pool_name,
-                work_pool_queue_names=self.work_queues,
+                work_pool_queue_names=[wq.name async for wq in self.get_work_queues()],
                 scheduled_before=before,
             )
             submittable_runs.extend([response.flow_run for response in responses])
