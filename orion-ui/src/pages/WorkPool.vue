@@ -18,7 +18,7 @@
       </template>
 
       <template #workers>
-        <WorkersTable :work-pool-filter="workPool.name" />
+        <WorkersTable :work-pool-name="workPool.name" />
       </template>
     </p-tabs>
 
