@@ -144,12 +144,13 @@ class DeploymentCreate(ActionBaseModel):
         and infra_overrides conforms to the specified schema.
         """
         variables_schema = base_job_template.get("variables")
-        schema = {
-            "type": "object",
-            "properties": variables_schema["properties"],
-            "required": variables_schema["required"],
-        }
-        jsonschema.validate(self.infra_overrides, schema)
+        if variables_schema is not None:
+            schema = {
+                "type": "object",
+                "properties": variables_schema["properties"],
+                "required": variables_schema["required"],
+            }
+            jsonschema.validate(self.infra_overrides, schema)
 
 
 @copy_model_fields
@@ -213,18 +214,14 @@ class DeploymentUpdate(ActionBaseModel):
         """Check that the combination of base_job_template defaults
         and infra_overrides conforms to the specified schema.
         """
-
-    def check_valid_configuration(self, base_job_template: dict):
-        """Check that the combination of base_job_template defaults
-        and infra_overrides conforms to the specified schema.
-        """
         variables_schema = base_job_template.get("variables")
-        schema = {
-            "type": "object",
-            "properties": variables_schema["properties"],
-            "required": variables_schema["required"],
-        }
-        jsonschema.validate(self.infra_overrides, schema)
+        if variables_schema is not None:
+            schema = {
+                "type": "object",
+                "properties": variables_schema["properties"],
+                "required": variables_schema["required"],
+            }
+            jsonschema.validate(self.infra_overrides, schema)
 
 
 @copy_model_fields
