@@ -1076,17 +1076,18 @@ class Artifact(ORMBaseModel):
     key: Optional[str] = Field(
         default=None, description="An optional unique reference key for this artifact."
     )
-    artifact_type: Optional[str] = Field(
-        default=None, description="An identifier for how this artifact is persisted."
+    type: Optional[str] = Field(
+        default=None,
+        description="An identifier for how this artifact is persisted.",
     )
-    artifact_data: Optional[Any] = Field(
+    data: Optional[Any] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
             "Content must be storable as JSON."
         ),
     )
-    artifact_metadata: Optional[Any] = Field(
+    metadata: Optional[Any] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. " "Content must be storable as JSON."
