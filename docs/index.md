@@ -24,11 +24,11 @@ Prefect is [air traffic control for the modern data stack](https://www.prefect.i
 
 If you move data, you probably need the following functionality:
 
-- [scheduling](concepts/schedules/)
-- [retries](concepts/tasks/#task-arguments)
-- [logging](concepts/logs/)
-- [caching](concepts/tasks/#caching)
-- [notifications](ui/notifications/)
+- [scheduling](/concepts/schedules/)
+- [retries](/concepts/tasks/#task-arguments)
+- [logging](/concepts/logs/)
+- [caching](/concepts/tasks/#caching)
+- [notifications](/ui/notifications/)
 - [observability](/ui/overview/)
 
 Implementing all of these features for your dataflows is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code.
@@ -64,7 +64,7 @@ Prefect 2 represents a fundamentally new way of building and orchestrating dataf
 
 **API reference**
 
-Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview). This section is where you can learn how a specific function works or see the expected payload for a REST endpoint.
+Prefect 2 provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](/api-ref/overview/). This section is where you can learn how a specific function works or see the expected payload for a REST endpoint.
 
 **Contributing**
 
@@ -76,7 +76,7 @@ The [Prefect Discourse](https://discourse.prefect.io/) is an additional communit
 
 **Recipes**
 
-[Prefect Recipes](./recipes/recipes/) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
+[Prefect Recipes](/recipes/recipes/) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
 
 ## Prefect highlights
 
@@ -98,7 +98,7 @@ Prefect has [integrations](/collections/catalog/) for all the major cloud provid
 
 **Simple concurrency**
 
-Prefect makes it easy to run your code [asynchronously](concepts/task-runners/). Prefect allows you to write workflows mixing synchronous and asynchronous tasks without worrying about the complexity of managing event loops.
+Prefect makes it easy to run your code [asynchronously](/concepts/task-runners/). Prefect allows you to write workflows mixing synchronous and asynchronous tasks without worrying about the complexity of managing event loops.
 
 **Easy distributed parallel processing**
 
@@ -110,7 +110,7 @@ Prefect is often used with [Docker and Kubernetes](/concepts/deployments/).
 
 **Automations**
 
-Configure all sorts of actions to run in response to triggers via [automations](./io/ui/automations/).
+Configure all sorts of actions to run in response to triggers via [automations](/ui/automations/).
 
 **Security first**
 
@@ -205,11 +205,11 @@ prefect orion start
 
 Follow the link in your terminal to see the dashboard.
 
-![screenshot of prefect orion dashboard with flow runs in a scatter plot](./img/intro-ui-dashboard.png)
+![screenshot of prefect orion dashboard with flow runs in a scatter plot](../img/intro-ui-dashboard.png)
 
 Click on your flow name to see logs and other details.
 
-![screenshot of prefect orion dashboard with logs, radar plot, and flow info](./img/intro-ui-logs.png)
+![screenshot of prefect orion dashboard with logs, radar plot, and flow info](../img/intro-ui-logs.png)
 
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
