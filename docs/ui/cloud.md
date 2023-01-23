@@ -42,6 +42,9 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
 
+!!! cloud-ad "Prefect Cloud Quickstart"
+    Ready to jump right in and start running flows that are monitored by Prefect Cloud? See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
+
 ## User accounts
 
 When you sign up for Prefect Cloud, a personal account is automatically provisioned for you. A personal account gives you access to profile settings where you can view and administer your: 
@@ -69,9 +72,13 @@ Each workspace keeps track of its own:
 - [Blocks](/ui/blocks/) and [storage](/concepts/storage/)
 - [Notifications](/ui/notifications/)
 
-When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. The next steps will show you how to [get started with Prefect Cloud](/ui/cloud-getting-started/). 
+When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud. 
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace.png)
+
+## Automations
+
+Prefect Cloud [automations](/ui/automations/) enable you to configure triggers and actions that can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 ## Organizations <span class="badge orgs"></span>
 
@@ -106,19 +113,16 @@ Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/prici
 
 Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/pricing) offer [Audit Log](/ui/audit-log/) compliance and transparency tools. Audit logs provide a chronological record of activities performed by users in your organization, allowing you to monitor detailed actions for security and compliance purposes. 
 
-## Automations <span class="badge beta"></span>
-
-Prefect Cloud automations enable you to configure triggers and actions that can automatically kick off flow runs, pause deployments, or send custom notifications (coming soon!) in response to real-time monitoring events.
-
-## Start using Prefect Cloud
-
-To create an account or sign in with an existing Prefect Cloud account, go to [http://app.prefect.cloud/](http://app.prefect.cloud/).
-
-Then see [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) to set up your profile and workspace, configure your workflow execution environment, and start running workflows with Prefect Cloud.
-
 ## Prefect Cloud REST API
 
 The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Orion clients to Prefect Cloud or a local Prefect Orion server so that orchestration can be performed. This API is mainly consumed by Orion clients like the Prefect Python Client or the Orion Dashboard.
 
 !!! note "Prefect Cloud REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
+
+
+## Start using Prefect Cloud
+
+To create an account or sign in with an existing Prefect Cloud account, go to [http://app.prefect.cloud/](http://app.prefect.cloud/).
+
+Then following the steps in our [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and start running workflows with Prefect Cloud.

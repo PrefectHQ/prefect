@@ -1,5 +1,5 @@
 ---
-description: Learn how to create Prefect deployments and execute flow runs with agents and work queues.
+description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution.
 tags:
     - Orion
     - work queues
@@ -11,11 +11,11 @@ tags:
     - tutorial
 ---
 
-# Deployments
+# Flow deployments
 
 In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, and so on. But so far, you've run flows as scripts. 
 
-[Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a flow run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities.
+[Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a flow run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities. Deployments also enable remote flow run execution.
 
 ## Components of a deployment
 
@@ -266,7 +266,7 @@ To review, we have four files that make up the artifacts for this particular dep
 - The ignore file `.prefectignore`
 - The deployment definition in `log_flow-deployment.yaml`
 
-Now we can _apply_ the settings in `log_flow-deployment.yaml` to create the deployment object on the Prefect Orion server API &mdash; or on a [Prefect Cloud workspace](/ui/cloud-getting-started/) if you had configured the Prefect Cloud API as your backend. 
+Now we can _apply_ the settings in `log_flow-deployment.yaml` to create the deployment object on the Prefect Orion server API &mdash; or on a [Prefect Cloud workspace](/ui/cloud/) if you had configured the Prefect Cloud API as your backend. 
 
 Use the `prefect deployment apply` command to create the deployment on the Prefect server, specifying the name of the `log_flow-deployment.yaml` file.
 
