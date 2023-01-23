@@ -1087,7 +1087,7 @@ class Artifact(ORMBaseModel):
             "Content must be storable as JSON."
         ),
     )
-    metadata: Optional[Any] = Field(
+    metadata_: Optional[Any] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. " "Content must be storable as JSON."
