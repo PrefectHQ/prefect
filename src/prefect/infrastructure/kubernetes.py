@@ -51,6 +51,8 @@ class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
 
+    Click [here](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/) to see a tutorial.
+
     Attributes:
         cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
@@ -76,6 +78,7 @@ class KubernetesJob(Infrastructure):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
         default="kubernetes-job", description="The type of infrastructure."
