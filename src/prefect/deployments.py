@@ -229,7 +229,7 @@ class Deployment(BaseModel):
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
         work_queue_name: The work queue that will handle this deployment's runs
-        flow: The name of the flow this deployment encapsulates
+        flow_name: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
