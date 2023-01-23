@@ -25,7 +25,7 @@ def error_404_if_workers_not_enabled():
 
 router = OrionRouter(
     prefix="/experimental/work_pools",
-    tags=["Worker Pools"],
+    tags=["Work Pools"],
     dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
