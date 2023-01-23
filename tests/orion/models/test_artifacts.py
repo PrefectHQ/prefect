@@ -5,20 +5,20 @@ from prefect.orion import models, schemas
 
 async def test_creating_artifacts(session):
     artifact_schema = schemas.core.Artifact(
-        key="voltaic", artifact_data=1, artifact_metadata="opens many doors"
+        key="voltaic", data=1, metadata="opens many doors"
     )
     artifact = await models.artifacts.create_artifact(
         session=session, artifact=artifact_schema
     )
     assert artifact.key == "voltaic"
-    assert artifact.artifact_data == 1
-    assert artifact.artifact_metadata == "opens many doors"
+    assert artifact.data == 1
+    assert artifact.metadata == "opens many doors"
 
 
 class TestReadingSingleArtifacts:
     async def test_reading_artifacts_by_id(self, session):
         artifact_schema = schemas.core.Artifact(
-            key="voltaic", artifact_data=1, artifact_metadata="opens many doors"
+            key="voltaic", data=1, metadata="opens many doors"
         )
         artifact = await models.artifacts.create_artifact(
             session=session, artifact=artifact_schema
@@ -28,8 +28,8 @@ class TestReadingSingleArtifacts:
         tutored_artifact = await models.artifacts.read_artifact(session, artifact_id)
 
         assert tutored_artifact.key == "voltaic"
-        assert tutored_artifact.artifact_data == 1
-        assert tutored_artifact.artifact_metadata == "opens many doors"
+        assert tutored_artifact.data == 1
+        assert tutored_artifact.metadata == "opens many doors"
 
     async def test_reading_artifacts_returns_none_if_missing(self, session):
         tutored_artifact = await models.artifacts.read_artifact(session, str(uuid4()))

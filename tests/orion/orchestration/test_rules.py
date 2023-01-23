@@ -1461,7 +1461,7 @@ class TestOrchestrationContext:
         artifact_id = validated_orm_state.result_artifact_id
 
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
-        assert orm_artifact.artifact_data == "some special data"
+        assert orm_artifact.data == "some special data"
 
     async def test_context_validation_does_not_write_artifact_when_no_result(
         self, session, run_type, initialize_orchestration
