@@ -12,7 +12,7 @@ async def test_creating_artifacts(session):
     )
     assert artifact.key == "voltaic"
     assert artifact.data == 1
-    assert artifact.metadata == "opens many doors"
+    assert artifact.metadata_ == "opens many doors"
 
 
 class TestReadingSingleArtifacts:
@@ -29,7 +29,7 @@ class TestReadingSingleArtifacts:
 
         assert tutored_artifact.key == "voltaic"
         assert tutored_artifact.data == 1
-        assert tutored_artifact.metadata == "opens many doors"
+        assert tutored_artifact.metadata_ == "opens many doors"
 
     async def test_reading_artifacts_returns_none_if_missing(self, session):
         tutored_artifact = await models.artifacts.read_artifact(session, str(uuid4()))
