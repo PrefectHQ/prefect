@@ -17,9 +17,6 @@
         <WorkPoolQueuesTable :work-pool-name="workPoolName" />
       </template>
 
-      <template #workers>
-        <WorkersTable :work-pool-name="workPool.name" />
-      </template>
     </p-tabs>
 
     <template #well>
@@ -29,7 +26,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, WorkersTable, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -39,7 +36,7 @@
   const workPoolName = useRouteParam('workPoolName')
 
   const tabs = computed(() => {
-    const values = ['Runs', 'Queues', 'Workers']
+    const values = ['Runs', 'Queues']
 
     if (!media.xl) {
       values.unshift('Details')
