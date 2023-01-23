@@ -23,6 +23,7 @@ class JSON(Block):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/19W3Di10hhb4oma2Qer0x6/764d1e7b4b9974cd268c775a488b9d26/image16.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON"
 
     value: Any = Field(default=..., description="A JSON-compatible value.")
 
@@ -44,6 +45,7 @@ class String(Block):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4zjrZmh9tBrFiikeB44G4O/2ce1dbbac1c8e356f7c429e0f8bbb58d/image10.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.String"
 
     value: str = Field(default=..., description="A string value.")
 
@@ -66,6 +68,7 @@ class DateTime(Block):
 
     _block_type_name = "Date Time"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1gmljt5UBcAwEXHPnIofcE/0f3cf1da45b8b2df846e142ab52b1778/image21.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime"
 
     value: pendulum.DateTime = Field(
         default=...,
@@ -93,6 +96,7 @@ class Secret(Block):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/5uUmyGBjRejYuGTWbTxz6E/3003e1829293718b3a5d2e909643a331/image8.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret"
 
     value: SecretStr = Field(
         default=..., description="A string value that should be kept secret."
