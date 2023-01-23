@@ -250,7 +250,7 @@ class Deployment(BaseModel):
         >>> from prefect.deployments import Deployment
         >>>
         >>> deployment = Deployment.build_from_flow(
-        ...     flow=my_flow,
+        ...     flow_name=my_flow,
         ...     name="example",
         ...     version="1",
         ...     tags=["demo"],
@@ -265,7 +265,7 @@ class Deployment(BaseModel):
 
         >>> storage = S3.load("dev-bucket") # load a pre-defined block
         >>> deployment = Deployment.build_from_flow(
-        ...     flow=my_flow,
+        ...     flow_name=my_flow,
         ...     name="s3-example",
         ...     version="2",
         ...     tags=["aws"],

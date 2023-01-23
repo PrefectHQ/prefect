@@ -365,7 +365,7 @@ from my_project.flows import my_flow
 from prefect.deployments import Deployment
 
 deployment = Deployment.build_from_flow(
-    flow=my_flow,
+    flow_name=my_flow,
     name="example-deployment", 
     version=1, 
     work_queue_name="demo",
@@ -383,7 +383,7 @@ from prefect.filesystems import S3
 storage = S3.load("dev-bucket") # load a pre-defined block
 
 deployment = Deployment.build_from_flow(
-    flow=my_flow,
+    flow_name=my_flow,
     name="s3-example",
     version=2,
     work_queue_name="aws",

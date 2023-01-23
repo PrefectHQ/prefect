@@ -369,7 +369,7 @@ from log_flow import log_flow
 from prefect.deployments import Deployment
 
 deployment = Deployment.build_from_flow(
-    flow=log_flow,
+    flow_name=log_flow,
     name="log-simple",
     parameters={"name": "Marvin"},
     infra_overrides={"env": {"PREFECT_LOGGING_LEVEL": "DEBUG"}},

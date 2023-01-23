@@ -235,7 +235,7 @@ from prefect.blocks.core import Block
 storage = Block.load("s3/log-test")
 
 deployment = Deployment.build_from_flow(
-    flow=log_flow,
+    flow_name=log_flow,
     name="log-simple",
     parameters={"name": "Marvin"},
     infra_overrides={"env": {"PREFECT_LOGGING_LEVEL": "DEBUG"}},
