@@ -69,6 +69,7 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
     A base class for sending notifications using Apprise, through webhook URLs.
     """
 
+    _documentation_url = "https://docs.prefect.io/ui/notifications/"
     url: SecretStr = Field(
         default=...,
         title="Webhook URL",
@@ -95,6 +96,7 @@ class SlackWebhook(AppriseNotificationBlock):
 
     _block_type_name = "Slack Webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/7dkzINU9r6j44giEFuHuUC/85d4cd321ad60c1b1e898bc3fbd28580/5cb480cd5f1b6d3fbadece79.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook"
 
     url: SecretStr = Field(
         default=...,
@@ -120,6 +122,7 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
     _block_type_name = "Microsoft Teams Webhook"
     _block_type_slug = "ms-teams-webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6n0dSTBzwoVPhX8Vgg37i7/9040e07a62def4f48242be3eae6d3719/teams_logo.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook"
 
     url: SecretStr = Field(
         ...,
@@ -149,6 +152,7 @@ class PagerDutyWebHook(AbstractAppriseNotificationBlock):
     _block_type_name = "Pager Duty Webhook"
     _block_type_slug = "pager-duty-webhook"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6FHJ4Lcozjfl1yDPxCvQDT/c2f6bdf47327271c068284897527f3da/PagerDuty-Logo.wine.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook"
 
     # The default cannot be prefect_default because NotifyPagerDuty's
     # PAGERDUTY_SEVERITY_MAP only has these notify types defined as keys
@@ -251,6 +255,7 @@ class TwilioSMS(AbstractAppriseNotificationBlock):
     _block_type_name = "Twilio SMS"
     _block_type_slug = "twilio-sms"
     _logo_url = "https://images.ctfassets.net/zscdif0zqppk/YTCgPL6bnK3BczP2gV9md/609283105a7006c57dbfe44ee1a8f313/58482bb9cef1014c0b5e4a31.png?h=250"  # noqa
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS"
 
     account_sid: str = Field(
         default=...,
@@ -313,6 +318,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     _block_type_name = "Opsgenie Webhook"
     _block_type_slug = "opsgenie-webhook"
     _logo_url = "https://images.ctfassets.net/sahxz1jinscj/3habq8fTzmplh7Ctkppk4/590cecb73f766361fcea9223cd47bad8/opsgenie.png"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook"
 
     apikey: SecretStr = Field(
         default=...,
