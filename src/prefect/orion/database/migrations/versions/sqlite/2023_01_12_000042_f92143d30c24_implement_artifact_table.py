@@ -91,6 +91,11 @@ def upgrade():
             ["flow_run_state_id"],
             unique=False,
         )
+        batch_op.create_index(
+            batch_op.f("ix_artifact__data"),
+            ["data"],
+            unique=False,
+        )
         batch_op.create_index(batch_op.f("ix_artifact__key"), ["key"], unique=True)
         batch_op.create_index(
             batch_op.f("ix_artifact__task_run_id"),
