@@ -37,6 +37,7 @@ class KubernetesClusterConfig(Block):
 
     _block_type_name = "Kubernetes Cluster Config"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig"
 
     config: Dict = Field(
         default=..., description="The entire contents of a kubectl config file."
