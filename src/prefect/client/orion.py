@@ -34,7 +34,11 @@ from prefect.orion.schemas.core import (
     WorkPool,
     WorkPoolQueue,
 )
-from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
+from prefect.orion.schemas.filters import (
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    WorkPoolQueueFilter,
+)
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
@@ -2061,22 +2065,64 @@ class OrionClient:
         )
 
     async def read_work_pool_queues(
-        self, work_pool_name: str
+        self,
+        work_pool_name: str,
+        work_pool_queue_filter: Optional[WorkPoolQueueFilter] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
     ) -> List[schemas.core.WorkPoolQueue]:
         """
         Retrieves queues for a work pool.
 
         Args:
             work_pool_name: Name of the work pool for which to get queues.
+            work_pool_queue_filter: Criteria by which to filter queues.
+            limit: Limit for the queue query.
+            offset: Limit for the queue query.
 
         Returns:
             List of queues for the specified work pool.
         """
-        response = await self._client.get(
-            f"/experimental/work_pools/{work_pool_name}/queues"
+        json = {
+            "flow_run_notification_policy_filter": work_pool_queue_filter.dict(
+                json_compatible=True, exclude_unset=True
+            )
+            if work_pool_queue_filter
+            else None,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = await self._client.post(
+            f"/experimental/work_pools/{work_pool_name}/queues/filter",
+            json=json,
         )
 
         return pydantic.parse_obj_as(List[WorkPoolQueue], response.json())
+
+    async def read_work_pool_queue(
+        self, work_pool_name: str, work_pool_queue_name: str
+    ) -> schemas.core.WorkPoolQueue:
+        """
+        Retrieves a given queue for a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool the queue belong to.
+            work_pool_queue_name: Name of the work pool queue to get.
+
+        Returns:
+            The specified work pool queue.
+        """
+        try:
+            response = await self._client.get(
+                f"/experimental/work_pools/{work_pool_name}/queues/{work_pool_queue_name}"
+            )
+            return pydantic.parse_obj_as(WorkPoolQueue, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def create_work_pool_queue(
         self,
@@ -2143,7 +2189,7 @@ class OrionClient:
         """
         body: Dict[str, Any] = {}
         if work_pool_queue_names is not None:
-            body["work_pool_queue_names"] = work_pool_queue_names
+            body["work_pool_queue_names"] = list(work_pool_queue_names)
         if scheduled_before:
             body["scheduled_before"] = str(scheduled_before)
 
