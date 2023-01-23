@@ -23,7 +23,7 @@ def upgrade():
     # insert nontrivial task run state results into the artifact table
     def update_task_run_artifact_data_in_batches(batch_size, offset):
         return f"""
-            INSERT INTO artifact (task_run_state_id, task_run_id, artifact_data)
+            INSERT INTO artifact (task_run_state_id, task_run_id, data)
             SELECT id, task_run_id, _data
             FROM task_run_state
             WHERE _data IS NOT 'null' AND _data IS NOT NULL
@@ -41,7 +41,7 @@ def upgrade():
     # insert nontrivial flow run state results into the artifact table
     def update_flow_run_artifact_data_in_batches(batch_size, offset):
         return f"""
-            INSERT INTO artifact (flow_run_state_id, flow_run_id, artifact_data)
+            INSERT INTO artifact (flow_run_state_id, flow_run_id, data)
             SELECT id, flow_run_id, _data
             FROM flow_run_state
             WHERE _data IS NOT 'null' AND _data IS NOT NULL

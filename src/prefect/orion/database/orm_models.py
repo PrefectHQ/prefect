@@ -162,7 +162,7 @@ class ORMFlowRunState:
             return self._data
         if not self.result_artifact_id:
             return None
-        return getattr(self._result_artifact, "artifact_data", None)
+        return getattr(self._result_artifact, "data", None)
 
     @declared_attr
     def flow_run(cls):
@@ -245,7 +245,7 @@ class ORMTaskRunState:
             return self._data
         if not self.result_artifact_id:
             return None
-        return getattr(self._result_artifact, "artifact_data", None)
+        return getattr(self._result_artifact, "data", None)
 
     @declared_attr
     def task_run(cls):
@@ -295,9 +295,10 @@ class ORMArtifact:
             UUID(), sa.ForeignKey("flow_run.id"), nullable=True, index=True
         )
 
-    type = sa.Column(sa.String, name="artifact_type")
-    artifact_data = sa.Column(sa.JSON, nullable=True)
-    artifact_metadata = sa.Column(sa.JSON, nullable=True)
+    type = sa.Column(sa.String, name="type")
+    data = sa.Column(sa.JSON, nullable=True)
+    # Prefixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
+    _metadata = sa.Column(sa.JSON, nullable=True, name="metadata")
 
 
 class ORMTaskRunStateCache:

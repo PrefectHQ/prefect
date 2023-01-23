@@ -257,7 +257,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
             if state_data is not None:
                 state_result_artifact = core.Artifact(
-                    artifact_data=state_data, flow_run_id=self.run.id
+                    data=state_data, flow_run_id=self.run.id
                 )
                 await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id
@@ -392,7 +392,7 @@ class TaskOrchestrationContext(OrchestrationContext):
 
             if state_data is not None:
                 state_result_artifact = core.Artifact(
-                    artifact_data=state_data, task_run_id=self.run.id
+                    data=state_data, task_run_id=self.run.id
                 )
                 await artifacts.create_artifact(self.session, state_result_artifact)
                 state_payload["result_artifact_id"] = state_result_artifact.id

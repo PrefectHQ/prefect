@@ -39,8 +39,8 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("key", sa.String(), nullable=True),
-        sa.Column("artifact_type", sa.String(), nullable=True),
-        sa.Column("artifact_data", sa.JSON(), nullable=True),
+        sa.Column("type", sa.String(), nullable=True),
+        sa.Column("data", sa.JSON(), nullable=True),
         sa.Column("artifact_metadata", sa.JSON(), nullable=True),
         sa.Column(
             "task_run_id", prefect.orion.utilities.database.UUID(), nullable=True
