@@ -297,8 +297,8 @@ class ORMArtifact:
 
     type = sa.Column(sa.String)
     data = sa.Column(sa.JSON, nullable=True)
-    # Prefixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
-    _metadata = sa.Column(sa.JSON, nullable=True, name="metadata")
+    # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
+    metadata_ = sa.Column(sa.JSON, nullable=True, name="metadata")
 
 
 class ORMTaskRunStateCache:
