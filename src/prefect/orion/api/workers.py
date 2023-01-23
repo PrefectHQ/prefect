@@ -342,7 +342,7 @@ async def create_work_pool_queue(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A work pool queue with this name already exists.",
+            detail="A work queue with this name already exists in work pool {work_pool_name!r}.",
         )
 
     return model
