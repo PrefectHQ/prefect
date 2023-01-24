@@ -85,12 +85,12 @@ def upgrade():
         ["flow_run_state_id"],
         unique=False,
     )
-    op.create_index(
-        op.f("ix_artifact__data"),
-        "artifact",
-        ["data"],
-        unique=False,
-    )
+    # op.create_index(
+    #     op.f("ix_artifact__data"),
+    #     "artifact",
+    #     ["data"],
+    #     unique=False,
+    # )
     op.create_index(op.f("ix_artifact__key"), "artifact", ["key"], unique=True)
     op.create_index(
         op.f("ix_artifact__task_run_id"), "artifact", ["task_run_id"], unique=False
@@ -183,5 +183,5 @@ def downgrade():
     op.drop_index(op.f("ix_artifact__task_run_id"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__flow_run_id"), table_name="artifact")
-    op.drop_index(op.f("ix_artifact__data"), table_name="artifact")
+    # op.drop_index(op.f("ix_artifact__data"), table_name="artifact")
     op.drop_table("artifact")

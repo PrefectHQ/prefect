@@ -24,7 +24,7 @@ def upgrade():
         batch_op.drop_column("task_run_state_id")
         batch_op.drop_index(batch_op.f("ix_artifact__flow_run_state_id"))
         batch_op.drop_column("flow_run_state_id")
-        batch_op.drop_index(batch_op.f("ix_artifact__data"))
+        # batch_op.drop_index(batch_op.f("ix_artifact__data"))
 
 
 def downgrade():
@@ -53,8 +53,8 @@ def downgrade():
             ["task_run_state_id"],
             unique=False,
         )
-        batch_op.create_index(
-            batch_op.f("ix_artifact__data"),
-            ["data"],
-            unique=False,
-        )
+        # batch_op.create_index(
+        #     batch_op.f("ix_artifact__data"),
+        #     ["data"],
+        #     unique=False,
+        # )
