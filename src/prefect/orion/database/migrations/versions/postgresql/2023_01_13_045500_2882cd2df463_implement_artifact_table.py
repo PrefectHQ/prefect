@@ -146,21 +146,35 @@ def upgrade():
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
 
-    with op.get_context().autocommit_block():
-        op.execute(
-            """
-            CREATE INDEX CONCURRENTLY ix_artifact___data ON artifact USING gin (_data jsonb_path_ops);
-            """
-        )
+    op.add_column("task_run_state", sa.Column("has_data", sa.Boolean))
+    op.execute(
+        "UPDATE task_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
+    )
+    op.create_index(
+        op.f("ix_task_run_state__has_data"),
+        "task_run_state",
+        ["has_data"],
+        unique=False,
+    )
+
+    op.add_column("flow_run_state", sa.Column("has_data", sa.Boolean))
+    op.execute(
+        "UPDATE flow_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
+    )
+    op.create_index(
+        op.f("ix_flow_run_state__has_data"),
+        "flow_run_state",
+        ["has_data"],
+        unique=False,
+    )
 
 
 def downgrade():
-    with op.get_context().autocommit_block():
-        op.execute(
-            """
-            DROP INDEX CONCURRENTLY ix_artifact___data;
-            """
-        )
+    op.drop_index(op.f("ix_flow_run_state__has_data"), table_name="flow_run_state")
+    op.drop_column("flow_run_state", "has_data")
+
+    op.drop_index(op.f("ix_task_run_state__has_data"), table_name="task_run_state")
+    op.drop_column("task_run_state", "has_data")
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("_data", new_column_name="data")
