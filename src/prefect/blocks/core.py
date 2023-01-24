@@ -102,7 +102,8 @@ def _get_non_block_reference_definitions(object_definition: Dict, definitions: D
 
 def _is_subclass(cls, parent_cls) -> bool:
     """
-    Checks if a given class is a subclass of another class.
+    Checks if a given class is a subclass of another class. Unlike issubclass,
+    this will not throw an exception if cls is an instance instead of a type.
     """
     return inspect.isclass(cls) and issubclass(cls, parent_cls)
 
