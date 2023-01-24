@@ -451,8 +451,8 @@ class WorkPoolCreate(ActionBaseModel):
     name: str = FieldFrom(schemas.core.WorkPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
     type: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkPool)
+    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
+    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
 
 

@@ -37,6 +37,7 @@ from prefect.orion.schemas.core import (
 from prefect.orion.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
+    WorkPoolFilter,
     WorkPoolQueueFilter,
 )
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
@@ -2036,6 +2037,36 @@ class OrionClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
+
+    async def read_work_pools(
+        self,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+    ) -> List[WorkPool]:
+        """
+        Reads work pools.
+
+        Args:
+            limit: Limit for the work pool query.
+            offset: Offset for the work pool query.
+            work_pool_filter: Criteria by which to filter work pools.
+
+        Returns:
+            A list of work pools.
+        """
+
+        body = {
+            "limit": limit,
+            "offset": offset,
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
+                else None
+            ),
+        }
+        response = await self._client.post("/experimental/work_pools/filter", json=body)
+        return pydantic.parse_obj_as(List[WorkPool], response.json())
 
     async def create_work_pool(
         self,
