@@ -24,7 +24,14 @@ def upgrade():
         batch_op.drop_column("task_run_state_id")
         batch_op.drop_index(batch_op.f("ix_artifact__flow_run_state_id"))
         batch_op.drop_column("flow_run_state_id")
-        # batch_op.drop_index(batch_op.f("ix_artifact__data"))
+
+    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_flow_run_state__has_data"))
+        batch_op.drop_column("has_data")
+
+    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_task_run_state__has_data"))
+        batch_op.drop_column("has_data")
 
 
 def downgrade():
@@ -53,8 +60,19 @@ def downgrade():
             ["task_run_state_id"],
             unique=False,
         )
-        # batch_op.create_index(
-        #     batch_op.f("ix_artifact__data"),
-        #     ["data"],
-        #     unique=False,
-        # )
+
+    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
+        batch_op.create_index(
+            batch_op.f("ix_flow_run_state__has_data"),
+            ["has_data"],
+            unique=False,
+        )
+
+    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
+        batch_op.create_index(
+            batch_op.f("ix_task_run_state__has_data"),
+            ["has_data"],
+            unique=False,
+        )
