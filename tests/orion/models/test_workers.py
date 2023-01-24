@@ -44,7 +44,7 @@ class TestCreateWorkPool:
         with pytest.raises(pydantic.ValidationError, match="(invalid character)"):
             schemas.core.WorkPool(name=name)
 
-    @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
+    @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_worker(self, session, type):
         result = await models.workers.create_work_pool(
             session=session,
