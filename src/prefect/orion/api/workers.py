@@ -49,22 +49,15 @@ class WorkerLookups:
         user-facing APIs (which are name-based) to internal ones (which are
         id-based).
         """
-        if work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
-            work_pool = (
-                await models.workers_migration.get_or_create_default_agent_work_pool(
-                    session=session
-                )
+        work_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=work_pool_name,
+        )
+        if not work_pool:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
-        else:
-            work_pool = await models.workers.read_work_pool_by_name(
-                session=session,
-                work_pool_name=work_pool_name,
-            )
-            if not work_pool:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f'Work pool "{work_pool_name}" not found.',
-                )
 
         return work_pool.id
 
@@ -111,16 +104,23 @@ class WorkerLookups:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
                 )
-            work_pool_id = await self._get_work_pool_id_from_name(
-                session=session, work_pool_name=work_pool_name
-            )
-            work_pool_queue = await models.workers.create_work_pool_queue(
-                session=session,
-                work_pool_id=work_pool_id,
-                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                    name=work_pool_queue_name
-                ),
-            )
+            if work_pool_name.lower() == DEFAULT_AGENT_WORK_POOL_NAME:
+                work_pool_queue = (
+                    await models.workers_migration.get_or_create_work_pool_queue(
+                        session=session, work_queue_name=work_pool_queue_name
+                    )
+                )
+            else:
+                work_pool_id = await self._get_work_pool_id_from_name(
+                    session=session, work_pool_name=work_pool_name
+                )
+                work_pool_queue = await models.workers.create_work_pool_queue(
+                    session=session,
+                    work_pool_id=work_pool_id,
+                    work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                        name=work_pool_queue_name
+                    ),
+                )
 
         return work_pool_queue.id
 
