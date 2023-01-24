@@ -87,7 +87,6 @@ async def create_deployment(
                 )
 
         deployment = schemas.core.Deployment(**deployment_dict)
-
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
         if deployment.infrastructure_document_id is not None:
