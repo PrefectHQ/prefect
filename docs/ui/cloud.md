@@ -13,7 +13,11 @@ tags:
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>
 
-Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect Orion Server](https://docs.prefect.io/tutorials/orion/?h=server#running-the-prefect-server) and [UI](/ui/overview/) in a hosted environment, including:
+Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect Orion Server](https://docs.prefect.io/tutorials/orion/?h=server#running-the-prefect-server) and [UI](/ui/overview/) in a hosted environment, plus additional features such as automations, workspaces, and organizations.
+
+![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
+
+Prefect Cloud includes the same features as the open-source Prefect Orion server, including:
 
 - [Flow runs](/ui/flow-runs/) dashboard, including:
     - Details of completed and upcoming scheduled flow runs.
@@ -23,7 +27,6 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 - [Deployments](/ui/deployments/) created on the Prefect Cloud API. You can also use the Prefect Cloud UI to create ad-hoc flow runs from deployments.
 - [Work queues](/ui/work-queues/) created to queue work for agents.
 - [Blocks](/ui/blocks/) configured for storage or infrastructure used by your flow runs.
-- [Notifications](/ui/notifications/) configured to alert on flow run state changes.
 - [Task Run Concurrency Limits](/ui/task-concurrency/) configured to prevent too many tasks from running simultaneously.
 
 !!! cloud-ad "Prefect Cloud features"
@@ -31,18 +34,16 @@ Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud pr
 
     - [User accounts](#user-accounts) &mdash; personal accounts for working in Prefect Cloud. 
     - [Workspaces](/ui/workspaces/) &mdash; isolated environments to organize your flows, deployments, and flow runs.
+    - [Automations](/ui/automations/) &mdash; configure triggers, actions, and notifications in response to real-time monitoring events.
+    - [Email notifications](/ui/automations/) &mdash; configure email alerts based on flow run and queue states.
     - [Organizations](/ui/organizations/) &mdash; user and workspace management features that enable collaboration for larger teams.
     - [Service accounts](/ui/service-accounts/) &mdash; configure API access for running agents or executing flow runs on remote infrastructure.
     - [Custom role-based access controls (RBAC)](/ui/roles/) &mdash; assign users granular permissions to perform certain activities within an organization or a workspace.
-    - [Single Sign-on (SSO)](/ui/sso/) authentication using your identity provider.
-    - [Audit Log](/ui/audit-log/) record of user activities to monitor security and compliance.
+    - [Single Sign-on (SSO)](/ui/sso/) &mdash; authentication using your identity provider.
+    - [Audit Log](/ui/audit-log/) &mdash; a record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your [workspace](/ui/workspaces/#workspace-collaborators) or [organization](/ui/organizations/#organization-members).
-    - [Email notifications](/ui/notifications/) &mdash; configure email alerts based on flow run states and tags.
-    - [Automations](/ui/automations/) &mdash; configure triggers and actions in response to real-time monitoring events.
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-workspace-dashboard.png)
-
-!!! cloud-ad "Prefect Cloud Quickstart"
+!!! success "Prefect Cloud Quickstart"
     Ready to jump right in and start running flows that are monitored by Prefect Cloud? See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
 ## User accounts
@@ -70,7 +71,7 @@ Each workspace keeps track of its own:
 - [Deployments](/concepts/deployments/)
 - [Work queues](/concepts/work-queues/)
 - [Blocks](/ui/blocks/) and [storage](/concepts/storage/)
-- [Notifications](/ui/notifications/)
+- [Automations](/ui/automations/)
 
 When you first log into Prefect Cloud and create your workspace, it will most likely be empty. Don't Panic &mdash; you just haven't run any flows tracked by this workspace yet. See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to configure a local execution environment and start tracking flow runs in Prefect Cloud. 
 
@@ -78,13 +79,11 @@ When you first log into Prefect Cloud and create your workspace, it will most li
 
 ## Automations
 
-Prefect Cloud [automations](/ui/automations/) enable you to configure triggers and actions that can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
+Prefect Cloud [automations](/ui/automations/) provide the same notification capabilities as the open-source Prefect Orion server, and also enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
 
 ## Organizations <span class="badge orgs"></span>
 
-An organization is a type of account available on Prefect Cloud that enables more extensive and granular control over workspace collaboration. 
-
-Within an organization account you can:
+A Prefect Cloud [organization](/ui/organizations/) is a type of account available on Prefect Cloud that enables more extensive and granular control over workspace collaboration. Within an organization account you can:
 
 - Invite members to join the organization.
 - Create organization workspaces.
