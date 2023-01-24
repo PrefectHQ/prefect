@@ -2,7 +2,7 @@
 Command line interface for working with work queues.
 """
 from textwrap import dedent
-from typing import List, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 import pendulum
@@ -15,6 +15,8 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.orion.schemas.actions import WorkPoolQueueCreate
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -58,6 +60,12 @@ async def create(
         "--tag",
         help="DEPRECATED: One or more optional tags. This option will be removed on 2023-02-23.",
     ),
+    work_pool_name: Optional[str] = typer.Option(
+        None,
+        "-wp",
+        "--work-pool",
+        help="The name of the work pool to create the work queue in.",
+    ),
 ):
     """
     Create a work queue.
@@ -69,37 +77,78 @@ async def create(
             "This option will be removed on 2023-02-23.",
             style="red",
         )
+    # if the queue name contains a "/", split the first element into the pool name
+    # else use the work_pool_name argument
+    if "/" in name:
+        work_pool_name, name = name.split("/", 1)
+
+    if work_pool_name and tags:
+        exit_with_error(
+            "Work queues created with tags cannot specify work pools or set priorities."
+        )
 
     async with get_client() as client:
-        try:
-            result = await client.create_work_queue(
-                name=name,
-                tags=tags or None,
-            )
-            if limit is not None:
-                await client.update_work_queue(
-                    id=result.id,
+        if work_pool_name:
+            try:
+                work_pool_queue_create = WorkPoolQueueCreate(
+                    name=name,
                     concurrency_limit=limit,
                 )
-        except ObjectAlreadyExists:
-            exit_with_error(f"Work queue with name: {name!r} already exists.")
+                result = await client.create_work_pool_queue(
+                    work_pool_name=work_pool_name,
+                    work_pool_queue=work_pool_queue_create,
+                )
+            except Exception as exc:
+                exit_with_error(exc)
+        else:
+            try:
+                result = await client.create_work_queue(
+                    name=name,
+                    tags=tags or None,
+                )
+                if limit is not None:
+                    await client.update_work_queue(
+                        id=result.id,
+                        concurrency_limit=limit,
+                    )
+            except ObjectAlreadyExists:
+                exit_with_error(f"Work queue with name: {name!r} already exists.")
 
-    tags_message = f"tags - {', '.join(sorted(tags))}\n" if tags else ""
+    if tags:
+        tags_message = f"tags - {', '.join(sorted(tags))}\n" or ""
+        output_msg = dedent(
+            f"""
+            Created work queue with properties:
+                name - {name!r}
+                id - {result.id}
+                concurrency limit - {limit}
+                {tags_message}
+            Start an agent to pick up flow runs from the work queue:
+                prefect agent start -q '{result.name}'
 
-    output_msg = dedent(
-        f"""
-        Created work queue with properties:
-            name - {name!r}
-            id - {result.id}
-            concurrency limit - {limit}
-            {tags_message}
-        Start an agent to pick up flow runs from the work queue:
-            prefect agent start -q '{result.name}'
+            Inspect the work queue:
+                prefect work-queue inspect '{result.name}'
+            """
+        )
+    else:
+        if not work_pool_name:
+            # specify the default work pool name after work queue creation to allow the server
+            # to handle a bunch of logic associated with agents without work pools
+            work_pool_name = DEFAULT_AGENT_WORK_POOL_NAME
+        output_msg = dedent(
+            f"""
+            Created work queue with properties:
+                name - {name!r}
+                work pool - {work_pool_name!r}
+                id - {result.id}
+                concurrency limit - {limit}
+            Start an agent to pick up flow runs from the work queue:
+                prefect agent start -q '{result.name} -p {work_pool_name}'
 
-        Inspect the work queue:
-            prefect work-queue inspect '{result.name}'
-        """
-    )
+            Inspect the work queue:
+                prefect work-queue inspect '{result.name}'
+            """
+        )
     exit_with_success(output_msg)
 
 
