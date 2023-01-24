@@ -377,6 +377,7 @@ async def work_pool(session):
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name="Test Worker Pool",
+            type="test",
             base_job_template={
                 "job_configuration": {"command": "{{ command }}"},
                 "variables": {

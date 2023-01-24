@@ -24,9 +24,9 @@ def auto_enable_workers(enable_workers):
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_worker_pools(enable_work_pools):
+def auto_enable_work_pools(enable_work_pools):
     """
-    Enable workers for testing
+    Enable work pools for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
