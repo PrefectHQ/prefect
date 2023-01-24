@@ -498,6 +498,15 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
     return schemas.states.Crashed(cls=cls, **kwargs)
 
 
+def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelling` states.
+
+    Returns:
+        State: a Cancelling state
+    """
+    return schemas.states.Cancelling(cls=cls, **kwargs)
+
+
 def Cancelled(cls: Type[State] = State, **kwargs) -> State:
     """Convenience function for creating `Cancelled` states.
 
