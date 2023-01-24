@@ -1280,6 +1280,7 @@ class OrionClient:
         infrastructure_document_id: UUID = None,
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
+        is_schedule_active: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1317,6 +1318,7 @@ class OrionClient:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
+            is_schedule_active=is_schedule_active,
         )
 
         if work_pool_name is not None:
@@ -1331,8 +1333,10 @@ class OrionClient:
             if field not in deployment_create.__fields_set__
         }
 
-        json = deployment_create.dict(json_compatible=True, exclude=exclude)
+        if deployment_create.is_schedule_active is None:
+            exclude.add("is_schedule_active")
 
+        json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
             "/deployments/",
             json=json,

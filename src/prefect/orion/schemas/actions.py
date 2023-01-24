@@ -109,7 +109,7 @@ class DeploymentCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
 
