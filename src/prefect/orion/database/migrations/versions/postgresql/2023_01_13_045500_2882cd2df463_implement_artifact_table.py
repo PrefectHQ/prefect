@@ -146,16 +146,23 @@ def upgrade():
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
 
-    op.create_index(
-        op.f("ix_artifact___data"),
-        "artifact",
-        ["_data"],
-        unique=False,
-    )
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            CREATE INDEX CONCURRENTLY
+            ix_artifact___data
+            ON artifact (_data);
+            """
+        )
 
 
 def downgrade():
-    op.drop_index(op.f("ix_artifact___data"), table_name="artifact")
+    with op.get_context().autocommit_block():
+        op.execute(
+            """
+            DROP INDEX CONCURRENTLY ix_artifact___data;
+            """
+        )
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("_data", new_column_name="data")
