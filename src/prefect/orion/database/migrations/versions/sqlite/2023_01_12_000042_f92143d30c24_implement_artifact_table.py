@@ -108,6 +108,7 @@ def upgrade():
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -131,6 +132,7 @@ def upgrade():
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
