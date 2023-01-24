@@ -110,8 +110,9 @@ def _is_subclass(cls, parent_cls) -> bool:
 
 def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
     """
-    Collects all secret fields from a given type.
-    Note, this function mutates the input secrets list, thus does not return anything.
+    Recursively collects all secret fields from a given type and adds them to the
+    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
+    mutates the input secrets list, thus does not return anything.
     """
     if get_origin(type_) is Union:
         for union_type in get_args(type_):
