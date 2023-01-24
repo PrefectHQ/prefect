@@ -440,7 +440,7 @@ class WorkPoolCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.WorkPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    type: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    type: str = FieldFrom(schemas.core.WorkPool)
     base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
     is_paused: bool = FieldFrom(schemas.core.WorkPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
