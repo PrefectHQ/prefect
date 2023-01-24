@@ -53,3 +53,8 @@ def downgrade():
             ["task_run_state_id"],
             unique=False,
         )
+        batch_op.create_index(
+            batch_op.f("ix_artifact__data"),
+            ["data"],
+            unique=False,
+        )

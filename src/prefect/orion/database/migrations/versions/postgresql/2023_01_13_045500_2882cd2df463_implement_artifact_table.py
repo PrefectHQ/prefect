@@ -183,4 +183,5 @@ def downgrade():
     op.drop_index(op.f("ix_artifact__task_run_id"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__flow_run_id"), table_name="artifact")
+    op.drop_index(op.f("ix_artifact__data"), table_name="artifact")
     op.drop_table("artifact")
