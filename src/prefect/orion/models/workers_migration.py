@@ -117,16 +117,35 @@ async def get_or_create_work_pool_queue(
         await session.execute(update_deployments_stmt)
 
         # update scheduled flow runs to point at the new work queue
-        update_flow_runs_stmt = (
-            sa.update(db.FlowRun)
-            .where(
-                db.FlowRun.work_queue_name == work_queue.name,
-                db.FlowRun.state_type == "SCHEDULED",
-                db.FlowRun.work_pool_queue_id.is_(None),
+        offset = 0
+        while True:
+            where_clause = (
+                sa.select([db.FlowRun.id])
+                .where(
+                    db.FlowRun.work_queue_name == work_queue.name,
+                    db.FlowRun.state_type == "SCHEDULED",
+                    db.FlowRun.work_pool_queue_id.is_(None),
+                )
+                .order_by(db.FlowRun.id.asc())
+                .limit(50)
+                .offset(offset)
             )
-            .values(work_pool_queue_id=work_pool_queue.id)
-        )
-        await session.execute(update_flow_runs_stmt)
+            result = await session.execute(where_clause)
+            flow_run_ids = result.scalars().all()
+
+            if not flow_run_ids:
+                break
+
+            update_flow_runs_stmt = (
+                sa.update(db.FlowRun)
+                .where(
+                    db.FlowRun.id.in_(flow_run_ids),
+                )
+                .values(work_pool_queue_id=work_pool_queue.id)
+            )
+            await session.execute(update_flow_runs_stmt)
+            await session.commit()
+            offset += 50
 
     # return the new queue
     return work_pool_queue
@@ -165,7 +184,17 @@ async def migrate_all_work_queues(
     Can be run at any time to facilitate user-initiated migrations without
     waiting for an agent to poll.
     """
-    for work_queue in await models.work_queues.read_work_queues(session=session):
-        await get_or_create_work_pool_queue(
-            session=session, work_queue_id=work_queue.id, db=db
+    offset = 0
+    while True:
+        work_queues = await models.work_queues.read_work_queues(
+            session=session, offset=offset, limit=25
         )
+        if not work_queues:
+            break
+
+        for work_queue in work_queues:
+            await get_or_create_work_pool_queue(
+                session=session, work_queue_id=work_queue.id, db=db
+            )
+
+        offset += 25
