@@ -149,9 +149,7 @@ def upgrade():
     with op.get_context().autocommit_block():
         op.execute(
             """
-            CREATE INDEX CONCURRENTLY
-            ix_artifact___data
-            ON artifact (_data);
+            CREATE INDEX CONCURRENTLY ix_artifact___data ON artifact USING gin (_data jsonb_path_ops);
             """
         )
 
