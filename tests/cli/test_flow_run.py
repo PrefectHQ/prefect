@@ -246,8 +246,7 @@ class TestCancelFlowRun:
         after = await orion_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
-        assert after.state.name == "Cancelling"
-        assert after.state.type == StateType.CANCELLED
+        assert after.state.type == StateType.CANCELLING
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(

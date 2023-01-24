@@ -271,7 +271,7 @@ class OrionAgent:
         async for work_queue in self.get_work_queues():
             work_queue_names.add(work_queue.name)
 
-        cancelling_flow_runs = await self.client.read_flow_runs(
+        named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
@@ -282,6 +282,19 @@ class OrionAgent:
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
         )
+
+        typed_cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
+            ),
+        )
+
+        cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
         if cancelling_flow_runs:
             self.logger.info(
