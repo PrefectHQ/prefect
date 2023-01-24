@@ -142,11 +142,12 @@ def upgrade():
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(sa.Column("has_data", sa.Boolean))
 
-    op.add_column("task_run_state", sa.Column("has_data", sa.Boolean))
     op.execute(
         "UPDATE task_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
     )
@@ -157,7 +158,6 @@ def upgrade():
         unique=False,
     )
 
-    op.add_column("flow_run_state", sa.Column("has_data", sa.Boolean))
     op.execute(
         "UPDATE flow_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
     )
@@ -170,16 +170,15 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index(op.f("ix_flow_run_state__has_data"), table_name="flow_run_state")
-    op.drop_column("flow_run_state", "has_data")
-
-    op.drop_index(op.f("ix_task_run_state__has_data"), table_name="task_run_state")
-    op.drop_column("task_run_state", "has_data")
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_task_run_state__has_data"))
+        batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_flow_run_state__has_data"))
+        batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
 
     op.drop_constraint(
