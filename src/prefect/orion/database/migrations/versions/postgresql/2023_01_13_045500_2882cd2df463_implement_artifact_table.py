@@ -85,8 +85,9 @@ def upgrade():
         ["flow_run_state_id"],
         unique=False,
     )
-    batch_op.create_index(
-        batch_op.f("ix_artifact__data"),
+    op.create_index(
+        op.f("ix_artifact__data"),
+        "artifact",
         ["data"],
         unique=False,
     )
