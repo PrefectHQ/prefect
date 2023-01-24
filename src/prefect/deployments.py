@@ -213,7 +213,7 @@ def load_deployments_from_yaml(
 
 @experimental_field(
     "work_pool_name",
-    group="workers",
+    group="work_pools",
     when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
 )
 class Deployment(BaseModel):
