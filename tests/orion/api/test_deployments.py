@@ -624,6 +624,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",

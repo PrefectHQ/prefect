@@ -51,7 +51,7 @@ class TestEnableWorkPoolsFlag:
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session, client):
         response = await client.post(
-            "/experimental/work_pools/", json=dict(name="Pool 1")
+            "/experimental/work_pools/", json=dict(name="Pool 1", type="test")
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -68,7 +68,7 @@ class TestCreateWorkPool:
     async def test_create_work_pool_with_options(self, client):
         response = await client.post(
             "/experimental/work_pools/",
-            json=dict(name="Pool 1", is_paused=True, concurrency_limit=5),
+            json=dict(name="Pool 1", type="test", is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -96,7 +96,7 @@ class TestCreateWorkPool:
 
         response = await client.post(
             "/experimental/work_pools/",
-            json=dict(name="Pool 1", base_job_template=base_job_template),
+            json=dict(name="Pool 1", type="test", base_job_template=base_job_template),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -114,7 +114,7 @@ class TestCreateWorkPool:
         response = await client.post("/experimental/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
+    @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
         response = await client.post(
             "/experimental/work_pools/", json=dict(name="Pool 1", type=type)
@@ -381,7 +381,9 @@ class TestReadWorkPools:
     @pytest.fixture(autouse=True)
     async def create_work_pools(self, client):
         for name in ["C", "B", "A"]:
-            await client.post("/experimental/work_pools/", json=dict(name=name))
+            await client.post(
+                "/experimental/work_pools/", json=dict(name=name, type="test")
+            )
 
     async def test_read_work_pools(self, client, session):
         response = await client.post("/experimental/work_pools/filter")
