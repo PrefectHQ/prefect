@@ -1,4 +1,4 @@
-name: Python tests
+name: Unit tests
 
 # Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
 
@@ -38,7 +38,7 @@ concurrency:
 
 jobs:
   run-tests:
-    name: Test
+    name: Python ${{ matrix.python-version }} (${{ matrix.database }} / ${{ matrix.pytest-options }})
 
     strategy:
       matrix:
