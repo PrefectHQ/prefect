@@ -9,23 +9,21 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalog, BlockTypeList, BlockTypeFilter, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalog, BlockTypeList, BlockTypesFilter, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
   const capability = ref<string | null>(null)
-  const filter = computed<BlockTypeFilter>(() => {
+  const filter = computed<BlockTypesFilter>(() => {
     if (!capability.value) {
       return {}
     }
 
     return {
       blockSchemas: {
-        blockCapabilities: {
-          all_: [capability.value],
-        },
+        blockCapabilities: [capability.value],
       },
     }
   })

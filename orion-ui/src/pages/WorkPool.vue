@@ -16,7 +16,6 @@
       <template #queues>
         <WorkPoolQueuesTable :work-pool-name="workPoolName" />
       </template>
-
     </p-tabs>
 
     <template #well>
@@ -26,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useRecentFlowRunsFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -52,7 +51,12 @@
   const workPool = computed(() => workPoolSubscription.response)
   const workPoolId = computed(() => workPool.value ? [workPool.value.id] : [])
 
-  const flowRunFilter = useRecentFlowRunFilter({ workPools: workPoolId })
+  // this isn't reactive...
+  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
+    workPools: {
+      id: workPoolId.value,
+    },
+  })
 
   const title = computed(() => {
     if (!workPool.value) {

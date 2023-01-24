@@ -44,7 +44,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, StateType, useWorkspaceApi, useRecentFlowRunsFilter, useFlowRunsFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
@@ -88,9 +88,22 @@
   const activeRunsBuildUp = computed(() => !!(workQueueConcurrency.value && workQueueConcurrency.value <= activeFlowRunsCount.value && !workQueuePaused.value))
 
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
-  const recentFlowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
-  const flowRunFilter = useFlowRunFilter({ workQueues: workQueueName })
-  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter.value : recentFlowRunFilter.value)
+
+  // not reactive...
+  const { filter: recentFlowRunFilter } = useRecentFlowRunsFilter({
+    flowRuns: {
+      workQueueName: workQueueName.value,
+    },
+  })
+
+  // not reactive...
+  const { filter: flowRunFilter } = useFlowRunsFilter({
+    flowRuns: {
+      workQueueName: workQueueName.value,
+    },
+  })
+
+  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter : recentFlowRunFilter)
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
@@ -104,8 +117,17 @@
   })
   usePageTitle(title)
 
-  const activeFlowRunsFilter = useFlowRunFilter({ states: ['Running', 'Pending'], workQueues: workQueueName })
-  const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
+  // not reactive...
+  const { filter: activeFlowRunsFilter } = useFlowRunsFilter({
+    flowRuns: {
+      state: {
+        name: ['Running', 'Pending'],
+      },
+      workQueueName: workQueueName.value,
+    },
+  })
+
+  const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter], { interval: 30000 })
   const activeFlowRunsCount = computed(() => flowRunsCountSubscription.response ?? [])
 
   watch(() => workQueue.value?.deprecated, value => {

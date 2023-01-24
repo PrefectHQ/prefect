@@ -14,7 +14,7 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="flowFilter" />
+        <FlowRunFilteredList :flow-run-filter="flowRunsFilter" />
       </template>
     </p-tabs>
 
@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useRecentFlowRunsFilter, DeploymentsFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -53,11 +53,18 @@
   const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
-  const deploymentsFilter = computed<UseDeploymentFilterArgs>(() => ({
-    flows: [flowId.value],
-  }))
+  // not reactive...
+  const { filter: flowRunsFilter } = useRecentFlowRunsFilter({
+    flows: {
+      id: [flowId.value],
+    },
+  })
 
+  const deploymentsFilter = computed<DeploymentsFilter>(() => ({
+    flows: {
+      id: [flowId.value],
+    },
+  }))
 
   function deleteFlow(): void {
     router.push(routes.flows())
