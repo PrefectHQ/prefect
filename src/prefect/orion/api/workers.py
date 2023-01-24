@@ -1,7 +1,7 @@
 """
 Routes for interacting with work queue objects.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -175,7 +175,7 @@ async def read_work_pool(
 
 @router.post("/filter")
 async def read_work_pools(
-    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: OrionDBInterface = Depends(provide_database_interface),
