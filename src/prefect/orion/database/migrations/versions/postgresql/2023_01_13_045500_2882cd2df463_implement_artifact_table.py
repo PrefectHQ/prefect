@@ -41,7 +41,7 @@ def upgrade():
         sa.Column("key", sa.String(), nullable=True),
         sa.Column("type", sa.String(), nullable=True),
         sa.Column("data", sa.JSON(), nullable=True),
-        sa.Column("metadata", sa.JSON(), nullable=True),
+        sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.Column(
             "task_run_id", prefect.orion.utilities.database.UUID(), nullable=True
         ),
