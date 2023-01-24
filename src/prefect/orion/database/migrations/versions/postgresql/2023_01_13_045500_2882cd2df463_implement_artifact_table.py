@@ -76,69 +76,77 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_artifact")),
     )
-    op.create_index(
-        op.f("ix_artifact__flow_run_id"), "artifact", ["flow_run_id"], unique=False
-    )
-    op.create_index(
-        op.f("ix_artifact__flow_run_state_id"),
-        "artifact",
-        ["flow_run_state_id"],
-        unique=False,
-    )
-    op.create_index(op.f("ix_artifact__key"), "artifact", ["key"], unique=True)
-    op.create_index(
-        op.f("ix_artifact__task_run_id"), "artifact", ["task_run_id"], unique=False
-    )
-    op.create_index(
-        op.f("ix_artifact__task_run_state_id"),
-        "artifact",
-        ["task_run_state_id"],
-        unique=False,
-    )
-    op.create_index(op.f("ix_artifact__updated"), "artifact", ["updated"], unique=False)
+    with op.batch_alter_table("artifact", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_artifact__flow_run_id"),
+            ["flow_run_id"],
+            unique=False,
+        )
+        batch_op.create_index(
+            batch_op.f("ix_artifact__flow_run_state_id"),
+            ["flow_run_state_id"],
+            unique=False,
+        )
+        batch_op.create_index(batch_op.f("ix_artifact__key"), ["key"], unique=True)
+        batch_op.create_index(
+            batch_op.f("ix_artifact__task_run_id"),
+            ["task_run_id"],
+            unique=False,
+        )
+        batch_op.create_index(
+            batch_op.f("ix_artifact__task_run_state_id"),
+            ["task_run_state_id"],
+            unique=False,
+        )
+        batch_op.create_index(
+            batch_op.f("ix_artifact__updated"), ["updated"], unique=False
+        )
 
-    op.add_column(
-        "flow_run_state",
-        sa.Column(
-            "result_artifact_id", prefect.orion.utilities.database.UUID(), nullable=True
-        ),
-    )
-    op.create_index(
-        op.f("ix_flow_run_state__result_artifact_id"),
-        "flow_run_state",
-        ["result_artifact_id"],
-        unique=False,
-    )
-    op.create_foreign_key(
-        op.f("fk_flow_run_state__result_artifact_id__artifact"),
-        "flow_run_state",
-        "artifact",
-        ["result_artifact_id"],
-        ["id"],
-        ondelete="SET NULL",
-        use_alter=True,
-    )
-    op.add_column(
-        "task_run_state",
-        sa.Column(
-            "result_artifact_id", prefect.orion.utilities.database.UUID(), nullable=True
-        ),
-    )
-    op.create_index(
-        op.f("ix_task_run_state__result_artifact_id"),
-        "task_run_state",
-        ["result_artifact_id"],
-        unique=False,
-    )
-    op.create_foreign_key(
-        op.f("fk_task_run_state__result_artifact_id__artifact"),
-        "task_run_state",
-        "artifact",
-        ["result_artifact_id"],
-        ["id"],
-        ondelete="SET NULL",
-        use_alter=True,
-    )
+    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
+        batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(
+            sa.Column(
+                "result_artifact_id",
+                prefect.orion.utilities.database.UUID(),
+                nullable=True,
+            )
+        )
+        batch_op.create_index(
+            batch_op.f("ix_flow_run_state__result_artifact_id"),
+            ["result_artifact_id"],
+            unique=False,
+        )
+        batch_op.create_foreign_key(
+            batch_op.f("fk_flow_run_state__result_artifact_id__artifact"),
+            "artifact",
+            ["result_artifact_id"],
+            ["id"],
+            ondelete="SET NULL",
+            use_alter=True,
+        )
+
+    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
+        batch_op.alter_column("data", new_column_name="_data")
+        batch_op.add_column(
+            sa.Column(
+                "result_artifact_id",
+                prefect.orion.utilities.database.UUID(),
+                nullable=True,
+            )
+        )
+        batch_op.create_index(
+            batch_op.f("ix_task_run_state__result_artifact_id"),
+            ["result_artifact_id"],
+            unique=False,
+        )
+        batch_op.create_foreign_key(
+            batch_op.f("fk_task_run_state__result_artifact_id__artifact"),
+            "artifact",
+            ["result_artifact_id"],
+            ["id"],
+            ondelete="SET NULL",
+            use_alter=True,
+        )
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
@@ -157,7 +165,6 @@ def upgrade():
         ["has_data"],
         unique=False,
     )
-
     op.execute(
         "UPDATE flow_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
     )
@@ -175,33 +182,30 @@ def downgrade():
         batch_op.drop_index(batch_op.f("ix_task_run_state__has_data"))
         batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
+        batch_op.drop_constraint(
+            batch_op.f("fk_task_run_state__result_artifact_id__artifact"),
+            type_="foreignkey",
+        )
+        batch_op.drop_index(batch_op.f("ix_task_run_state__result_artifact_id"))
+        batch_op.drop_column("result_artifact_id")
+        batch_op.alter_column("_data", new_column_name="data")
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_flow_run_state__has_data"))
         batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
+        batch_op.drop_constraint(
+            batch_op.f("fk_flow_run_state__result_artifact_id__artifact"),
+            type_="foreignkey",
+        )
+        batch_op.drop_index(batch_op.f("ix_flow_run_state__result_artifact_id"))
+        batch_op.drop_column("result_artifact_id")
+        batch_op.alter_column("_data", new_column_name="data")
 
-    op.drop_constraint(
-        op.f("fk_task_run_state__result_artifact_id__artifact"),
-        "task_run_state",
-        type_="foreignkey",
-    )
-    op.drop_index(
-        op.f("ix_task_run_state__result_artifact_id"), table_name="task_run_state"
-    )
-    op.drop_column("task_run_state", "result_artifact_id")
-    op.drop_constraint(
-        op.f("fk_flow_run_state__result_artifact_id__artifact"),
-        "flow_run_state",
-        type_="foreignkey",
-    )
-    op.drop_index(
-        op.f("ix_flow_run_state__result_artifact_id"), table_name="flow_run_state"
-    )
-    op.drop_column("flow_run_state", "result_artifact_id")
+    with op.batch_alter_table("artifact", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_artifact__updated"))
+        batch_op.drop_index(batch_op.f("ix_artifact__task_run_id"))
+        batch_op.drop_index(batch_op.f("ix_artifact__key"))
+        batch_op.drop_index(batch_op.f("ix_artifact__flow_run_id"))
 
-    op.drop_index(op.f("ix_artifact__updated"), table_name="artifact")
-    op.drop_index(op.f("ix_artifact__task_run_id"), table_name="artifact")
-    op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
-    op.drop_index(op.f("ix_artifact__flow_run_id"), table_name="artifact")
     op.drop_table("artifact")
