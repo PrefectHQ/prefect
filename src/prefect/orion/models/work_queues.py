@@ -18,7 +18,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models import workers_migration
 from prefect.orion.schemas.states import StateType
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 @inject_db
@@ -45,7 +45,7 @@ async def create_work_queue(
     session.add(model)
     await session.flush()
 
-    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and model.filter is None:
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and model.filter is None:
         await workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_id=model.id
         )
@@ -157,7 +157,7 @@ async def update_work_queue(
     wpq_updates = {
         k: v for k, v in update_data.items() if k in ("is_paused", "concurrency_limit")
     }
-    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and wpq_updates:
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and wpq_updates:
         wpq = await workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_id=work_queue_id
         )
@@ -231,7 +231,7 @@ async def get_runs_in_work_queue(
     if work_queue.filter is None:
         # If workers are enabled, ensure that a corresponding work pool queue exists
         # and retrieve runs from that work pool queue.
-        if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
             worker_flow_run_response = (
                 await workers_migration.get_runs_from_work_pool_queue(
                     session=session,
@@ -360,7 +360,7 @@ async def _ensure_work_queue_exists(
     # Ensure the corresponding work pool queue exists
     work_pool_queue = None
     # Filter-based work queues cannot be migrated
-    if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value() and work_queue.filter is None:
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and work_queue.filter is None:
         work_pool_queue = await models.workers_migration.get_or_create_work_pool_queue(
             session=session, work_queue_name=name
         )

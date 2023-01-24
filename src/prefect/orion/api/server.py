@@ -30,7 +30,7 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
@@ -368,7 +368,7 @@ def create_app(
 
     async def migrate_work_queues():
         """Duplicates work queues to work pool queues"""
-        if PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
             from prefect.orion.database.dependencies import provide_database_interface
             from prefect.orion.models.configuration import (
                 read_configuration,

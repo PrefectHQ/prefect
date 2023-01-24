@@ -3,6 +3,7 @@ import pytest
 import prefect
 from prefect.client.orion import OrionClient
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     temporary_settings,
@@ -20,6 +21,14 @@ def auto_enable_workers(enable_workers):
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
     # Import to register worker CLI
     import prefect.experimental.cli.worker  # noqa
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_worker_pools(enable_work_pools):
+    """
+    Enable workers for testing
+    """
+    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 def test_start_worker_run_once_with_name():
@@ -41,9 +50,7 @@ def test_start_worker_run_once_with_name():
     )
 
 
-async def test_start_worker_creates_work_pool(
-    orion_client: OrionClient, enable_workers
-):
+async def test_start_worker_creates_work_pool(orion_client: OrionClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],

@@ -524,7 +524,7 @@ class TestReadWorkQueueStatus:
 
 class TestWorkerMigration:
     async def test_create_work_pool_queue_when_work_queue_created(
-        self, session, client, enable_workers
+        self, session, client, enable_work_pools
     ):
         name = "migration test queue"
 
@@ -550,7 +550,7 @@ class TestWorkerMigration:
         )
 
     async def test_update_work_pool_queue_when_work_queue_updated(
-        self, session, client, enable_workers
+        self, session, client, enable_work_pools
     ):
         name = "migration-test-queue"
 
@@ -582,7 +582,7 @@ class TestWorkerMigration:
         assert wpq.is_paused is True
 
     async def test_delete_work_pool_queue_when_work_queue_deleted(
-        self, session, client, enable_workers
+        self, session, client, enable_work_pools
     ):
         name = "migration-test-queue"
 

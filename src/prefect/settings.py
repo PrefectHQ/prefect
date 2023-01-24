@@ -898,6 +898,14 @@ The maximum number of characters allowed for a task run cache key.
 This setting cannot be changed client-side, it must be set on the server.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect work pools.
+"""
+PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect work pools are used.
+"""
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers.

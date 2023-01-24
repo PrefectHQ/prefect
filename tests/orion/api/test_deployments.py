@@ -362,7 +362,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_pool_queue,
-        enable_workers,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -409,7 +409,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_workers,
+        enable_work_pools,
     ):
         default_queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
@@ -1277,7 +1277,7 @@ class TestGetDeploymentWorkQueueCheck:
 
 class TestWorkPoolMigration:
     async def test_deployments_with_no_queues_dont_generate_work_pool_queues(
-        self, session, flow, client, enable_workers
+        self, session, flow, client, enable_work_pools
     ):
         response = await client.post(
             "/deployments/",
@@ -1293,7 +1293,7 @@ class TestWorkPoolMigration:
         assert deployment.work_pool_queue_id is None
 
     async def test_deployments_with_work_queue_names_add_work_pool_queues(
-        self, session, flow, client, enable_workers
+        self, session, flow, client, enable_work_pools
     ):
         response = await client.post(
             "/deployments/",
@@ -1314,7 +1314,7 @@ class TestWorkPoolMigration:
         assert pool_queue.name == "my-queue"
 
     async def test_update_deployment_work_queue_name_updates_work_pool_also(
-        self, session, deployment, client, enable_workers
+        self, session, deployment, client, enable_work_pools
     ):
         original_work_pool_queue_id = deployment.work_pool_queue_id
         await client.patch(
