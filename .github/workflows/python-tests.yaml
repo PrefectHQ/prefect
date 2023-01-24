@@ -38,7 +38,7 @@ concurrency:
 
 jobs:
   run-tests:
-    name: Python ${{ matrix.python-version }} (${{ matrix.database }} / ${{ matrix.pytest-options }})
+    name: Python ${{ matrix.python-version }} / ${{ matrix.database }} / ${{ matrix.pytest-options }}
 
     strategy:
       matrix:
