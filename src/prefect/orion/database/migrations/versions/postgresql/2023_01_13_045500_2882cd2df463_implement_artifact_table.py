@@ -155,6 +155,8 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_index(op.f("ix_artifact___data"), table_name="artifact")
+
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("_data", new_column_name="data")
 
@@ -183,6 +185,5 @@ def downgrade():
     op.drop_index(op.f("ix_artifact__updated"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__task_run_id"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
-    op.drop_index(op.f("ix_artifact___data"), table_name="artifact")
     op.drop_index(op.f("ix_artifact__flow_run_id"), table_name="artifact")
     op.drop_table("artifact")
