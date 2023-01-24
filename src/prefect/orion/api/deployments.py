@@ -64,24 +64,16 @@ async def create_deployment(
         # hydrate the input model into a full model
         deployment_dict = deployment.dict(exclude={"work_pool_name"})
         if deployment.work_pool_name and deployment.work_queue_name:
-            if deployment.work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
-                # If the default agent work pool was specified, create a queue in that work pool
-                _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
-                    session=session, name=deployment.work_queue_name, db=db
-                )
-                if work_pool_queue:
-                    deployment_dict["work_pool_queue_id"] = work_pool_queue.id
-            else:
-                # If a specific pool name/queue name combination was provided, get the
-                # ID for that work pool queue.
-                deployment_dict[
-                    "work_pool_queue_id"
-                ] = await worker_lookups._get_work_pool_queue_id_from_name(
-                    session=session,
-                    work_pool_name=deployment.work_pool_name,
-                    work_pool_queue_name=deployment.work_queue_name,
-                    create_queue_if_not_found=True,
-                )
+            # If a specific pool name/queue name combination was provided, get the
+            # ID for that work pool queue.
+            deployment_dict[
+                "work_pool_queue_id"
+            ] = await worker_lookups._get_work_pool_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_pool_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
+            )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
             # work pool queue.
@@ -462,5 +454,4 @@ async def work_queue_check_for_deployment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
-    return work_queues
     return work_queues

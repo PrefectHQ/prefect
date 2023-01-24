@@ -707,7 +707,7 @@ async def build(
         DEFAULT_AGENT_WORK_POOL_NAME,
         "-p",
         "--pool",
-        help=("The work pool that will handle this deployment's runs."),
+        help="The work pool that will handle this deployment's runs.",
     ),
     work_queue_concurrency: int = typer.Option(
         None,

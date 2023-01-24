@@ -13,6 +13,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
@@ -48,15 +49,22 @@ class WorkerLookups:
         user-facing APIs (which are name-based) to internal ones (which are
         id-based).
         """
-        work_pool = await models.workers.read_work_pool_by_name(
-            session=session,
-            work_pool_name=work_pool_name,
-        )
-        if not work_pool:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Work pool "{work_pool_name}" not found.',
+        if work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
+            work_pool = (
+                await models.workers_migration.get_or_create_default_agent_work_pool(
+                    session=session
+                )
             )
+        else:
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session,
+                work_pool_name=work_pool_name,
+            )
+            if not work_pool:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f'Work pool "{work_pool_name}" not found.',
+                )
 
         return work_pool.id
 
