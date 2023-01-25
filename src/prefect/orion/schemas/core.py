@@ -2,6 +2,7 @@
 Full schemas of Orion API objects.
 """
 import datetime
+import re
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -749,6 +750,16 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
+    @root_validator
+    def validate_parent_and_ref_are_different(cls, values):
+        parent_id = values.get("parent_block_document_id")
+        ref_id = values.get("reference_block_document_id")
+        if parent_id and ref_id and parent_id == ref_id:
+            raise ValueError(
+                "`parent_block_document_id` and `reference_block_document_id` cannot be the same"
+            )
+        return values
+
 
 class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
@@ -953,7 +964,7 @@ class WorkPool(ORMBaseModel):
     description: Optional[str] = Field(
         default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The work pool type.")
+    type: str = Field(description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )
@@ -993,6 +1004,35 @@ class WorkPool(ORMBaseModel):
                 "`default_queue_id` is a required field. If you are "
                 "creating a new WorkPool and don't have a queue "
                 "ID yet, use the `actions.WorkPoolCreate` model instead."
+            )
+        return v
+
+    @validator("base_job_template")
+    def validate_base_job_template(cls, v):
+        if v == dict():
+            return v
+
+        job_config = v.get("job_configuration")
+        variables = v.get("variables")
+        if not (job_config and variables):
+            raise ValueError(
+                "The `base_job_template` must contain both a `job_configuration` key"
+                " and a `variables` key."
+            )
+        template_variables = set()
+        for template in job_config.values():
+            # find any variables inside of double curly braces, minus any whitespace
+            # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
+            found_variables = re.findall(r"{{\s*(.*?)\s*}}", template)
+            template_variables.update(found_variables)
+
+        provided_variables = set(variables["properties"].keys())
+        if not template_variables.issubset(provided_variables):
+            raise ValueError(
+                "The variables specified in the job configuration template must be "
+                "present as attributes in the variables class. "
+                f"Your job expects the following variables: {template_variables!r}, "
+                f"but your template provides: {provided_variables!r}"
             )
         return v
 

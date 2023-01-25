@@ -362,6 +362,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_pool_queue,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -374,7 +375,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_pool_queue_name=work_pool_queue.name,
+            work_queue_name=work_pool_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -387,7 +388,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_pool_queue_name"] == work_pool_queue.name
+        assert response.json()["work_queue_name"] == work_pool_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -408,6 +409,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         default_queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
@@ -435,7 +437,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_pool_queue_name"] == default_queue.name
+        assert response.json()["work_queue_name"] == default_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -448,6 +450,237 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.work_pool_queue_id == work_pool.default_queue_id
+
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with wrong overrides
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_two": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1", "var2"],
+                    },
+                },
+                {"var2": "hello"},  # wrong override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_bad_template_override_combo_fails(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Work Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 409
+        assert (
+            "<ValidationError: \"'var1' is a required property\">"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides, no required
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {"var1": {"type": "string", "default": "hello"}},
+                        "required": [],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with override
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+            (  # test with override and multiple variables
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_one": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {"type": "string", "default": "world"},
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_correct_template_override_combo_succeeds(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Work Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+    async def test_create_deployment_can_create_work_pool_queue(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+        enable_work_pools,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name=work_pool.name,
+            work_queue_name="new-work-pool-queue",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        assert response.json()["work_queue_name"] == "new-work-pool-queue"
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+
+        work_pool_queue = await models.workers.read_work_pool_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_pool_queue_name="new-work-pool-queue",
+        )
+
+        assert deployment.work_pool_queue_id == work_pool_queue.id
+
+    async def test_create_deployment_returns_404_for_non_existent_work_pool(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name="imaginary-work-pool",
+            work_queue_name="default",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
 
 class TestReadDeployment:
@@ -1041,3 +1274,62 @@ class TestGetDeploymentWorkQueueCheck:
         assert {q1["name"], q2["name"]} == {"First", "Second"}
         assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
         assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+
+
+class TestWorkPoolMigration:
+    async def test_deployments_with_no_queues_dont_generate_work_pool_queues(
+        self, session, flow, client, enable_work_pools
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.json()["work_queue_name"] is None
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.work_pool_queue_id is None
+
+    async def test_deployments_with_work_queue_names_add_work_pool_queues(
+        self, session, flow, client, enable_work_pools
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment", flow_id=flow.id, work_queue_name="my-queue"
+            ).dict(json_compatible=True),
+        )
+
+        assert response.json()["work_queue_name"] == "my-queue"
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.work_pool_queue_id is not None
+
+        pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=deployment.work_pool_queue_id
+        )
+        assert pool_queue.name == "my-queue"
+
+    async def test_update_deployment_work_queue_name_updates_work_pool_also(
+        self, session, deployment, client, enable_work_pools
+    ):
+        original_work_pool_queue_id = deployment.work_pool_queue_id
+        await client.patch(
+            f"/deployments/{deployment.id}",
+            json=schemas.actions.DeploymentUpdate(work_queue_name="my-queue").dict(
+                json_compatible=True
+            ),
+        )
+        session.expunge_all()
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert deployment.work_pool_queue_id != original_work_pool_queue_id
+        work_pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=deployment.work_pool_queue_id
+        )
+        assert work_pool_queue.name == "my-queue"

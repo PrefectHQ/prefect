@@ -119,7 +119,9 @@ nav:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
         - Migration Guide: migration-guide.md
-        - Prefect Recipes: recipes/recipes.md
+        - Prefect Recipes: 
+            - Recipes Catalog: recipes/recipes.md
+            - Contributing Recipes: recipes/contribute-recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -267,3 +269,22 @@ extra:
     analytics:
         provider: google
         property: G-3M31G9B0QJ
+    social:
+        - icon: fontawesome/brands/slack
+          link: https://www.prefect.io/slack/
+        - icon: fontawesome/brands/discourse
+          link: https://discourse.prefect.io/
+        - icon: fontawesome/brands/youtube
+          link: https://www.youtube.com/c/PrefectIO/videos
+        - icon: fontawesome/regular/newspaper
+          link: https://prefect.io/guide/
+        - icon: fontawesome/brands/twitter
+          link: https://twitter.com/PrefectIO
+        - icon: fontawesome/brands/linkedin
+          link: https://www.linkedin.com/company/prefect/
+        - icon: fontawesome/brands/github
+          link: https://github.com/PrefectHQ/prefect
+        - icon: fontawesome/brands/docker
+          link: https://hub.docker.com/r/prefecthq/prefect/
+        - icon: fontawesome/brands/python
+          link: https://pypi.org/project/prefect/
