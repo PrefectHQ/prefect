@@ -55,7 +55,7 @@ def upgrade():
                 sql_stmt = sa.text(query(batch_size))
                 result = conn.execute(sql_stmt)
 
-                if result.rowcount <= 0:
+                if result.rowcount < batch_size:
                     break
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
