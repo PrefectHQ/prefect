@@ -1,7 +1,7 @@
 """Rename Worker Pools to Work Pools
 
 Revision ID: d481d5058a19
-Revises: 9326a6aee18b
+Revises: f7587d6c5776
 Create Date: 2023-01-08 18:01:42.559990
 
 """
