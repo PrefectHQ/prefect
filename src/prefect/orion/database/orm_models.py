@@ -280,7 +280,6 @@ class ORMArtifact:
         sa.String,
         nullable=True,
         index=True,
-        unique=True,
     )
 
     @declared_attr
@@ -299,6 +298,10 @@ class ORMArtifact:
     data = sa.Column(sa.JSON, nullable=True)
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
     metadata_ = sa.Column(sa.JSON, nullable=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
 
 
 class ORMTaskRunStateCache:
