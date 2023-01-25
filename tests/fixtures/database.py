@@ -376,7 +376,8 @@ async def work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="Test Worker Pool",
+            name="test-work-pool",
+            type="test-type",
             base_job_template={
                 "job_configuration": {"command": "{{ command }}"},
                 "variables": {
