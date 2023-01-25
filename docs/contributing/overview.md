@@ -20,12 +20,16 @@ First, you'll need to download the source code and install an editable version o
 # Clone the repository
 git clone https://github.com/PrefectHQ/prefect.git
 cd prefect
+
+# We recommend using a virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
 # Install the package with development dependencies
 pip install -e ".[dev]"
+
 # Setup pre-commit hooks for required formatting
 pre-commit install
-# Run tests
-pytest
 ```
 </div>
 
@@ -39,6 +43,20 @@ pip install $(./scripts/precommit-versions.py)
 
 You'll need to run `black`, `autoflake8`, and `isort` before a contribution can be accepted.
 
+After installation, you can run the test suite with `pytest`:
+
+
+<div class="terminal">
+```bash
+# Run all the tests
+pytest tests
+
+
+# Run a subset of tests
+pytest tests/test_flows.py
+```
+</div>
+
 !!! tip "Building the Prefect UI"
     If you intend to run a local Prefect Orion server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
@@ -48,6 +66,8 @@ You'll need to run `black`, `autoflake8`, and `isort` before a contribution can 
     Right now, we're focused on your ability to develop and run flows and tasks on Windows, along with running the API server, orchestration engine, and UI.
 
     Currently, we cannot guarantee that the tooling for developing Prefect itself in a Windows environment is fully functional.
+
+
 
 ## Prefect Code of Conduct
 
