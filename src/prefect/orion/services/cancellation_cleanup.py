@@ -43,56 +43,62 @@ class CancellationCleanup(LoopService):
         """
         async with db.session_context(begin_transaction=True) as session:
             # cancels active tasks belonging to recently cancelled flow runs
-            while True:
-                cancelled_flow_query = (
-                    sa.select(db.FlowRun)
-                    .where(
-                        db.FlowRun.state_type == states.StateType.CANCELLED,
-                        db.FlowRun.end_time != None,
-                        db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
-                    )
-                    .limit(self.batch_size)
-                )
+            await self.clean_up_cancelled_flow_run_task_runs(db, session)
 
-                flow_run_result = await session.execute(cancelled_flow_query)
-                flow_runs = flow_run_result.scalars().all()
-
-                for run in flow_runs:
-                    await self._cancel_child_runs(session=session, flow_run=run)
-
-                # if no relevant flows were found, exit the loop
-                if len(flow_runs) < self.batch_size:
-                    break
-
-            while True:
-                # cancels any active subflow run that belongs to a cancelled flow run
-                subflow_query = (
-                    sa.select(db.FlowRun)
-                    .where(
-                        or_(
-                            db.FlowRun.state_type == states.StateType.PENDING,
-                            db.FlowRun.state_type == states.StateType.SCHEDULED,
-                            db.FlowRun.state_type == states.StateType.RUNNING,
-                            db.FlowRun.state_type == states.StateType.PAUSED,
-                            db.FlowRun.state_type == states.StateType.CANCELLING,
-                        ),
-                        db.FlowRun.parent_task_run_id != None,
-                    )
-                    .limit(self.batch_size)
-                )
-
-                subflow_run_result = await session.execute(subflow_query)
-                subflow_runs = subflow_run_result.scalars().all()
-
-                self.logger.info("subflow_runs")
-                for subflow_run in subflow_runs:
-                    await self._cancel_subflows(session=session, flow_run=subflow_run)
-
-                # if no relevant flows were found, exit the loop
-                if len(subflow_runs) < self.batch_size:
-                    break
+            # cancels any active subflow run that belongs to a cancelled flow run
+            await self.clean_up_cancelled_subflow_runs(db, session)
 
         self.logger.info("Finished cleaning up cancelled flow runs.")
+
+    async def clean_up_cancelled_flow_run_task_runs(self, db, session):
+        while True:
+            cancelled_flow_query = (
+                sa.select(db.FlowRun)
+                .where(
+                    db.FlowRun.state_type == states.StateType.CANCELLED,
+                    db.FlowRun.end_time != None,
+                    db.FlowRun.end_time >= (pendulum.now("UTC").subtract(days=1)),
+                )
+                .limit(self.batch_size)
+            )
+
+            flow_run_result = await session.execute(cancelled_flow_query)
+            flow_runs = flow_run_result.scalars().all()
+
+            for run in flow_runs:
+                await self._cancel_child_runs(session=session, flow_run=run)
+
+            # if no relevant flows were found, exit the loop
+            if len(flow_runs) < self.batch_size:
+                break
+
+    async def clean_up_cancelled_subflow_runs(self, db, session):
+        while True:
+            subflow_query = (
+                sa.select(db.FlowRun)
+                .where(
+                    or_(
+                        db.FlowRun.state_type == states.StateType.PENDING,
+                        db.FlowRun.state_type == states.StateType.SCHEDULED,
+                        db.FlowRun.state_type == states.StateType.RUNNING,
+                        db.FlowRun.state_type == states.StateType.PAUSED,
+                        db.FlowRun.state_type == states.StateType.CANCELLING,
+                    ),
+                    db.FlowRun.parent_task_run_id != None,
+                )
+                .limit(self.batch_size)
+            )
+
+            subflow_run_result = await session.execute(subflow_query)
+            subflow_runs = subflow_run_result.scalars().all()
+
+            self.logger.info("subflow_runs")
+            for subflow_run in subflow_runs:
+                await self._cancel_subflows(session=session, flow_run=subflow_run)
+
+            # if no relevant flows were found, exit the loop
+            if len(subflow_runs) < self.batch_size:
+                break
 
     async def _cancel_child_runs(
         self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
