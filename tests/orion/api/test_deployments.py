@@ -1277,3 +1277,62 @@ class TestGetDeploymentWorkQueueCheck:
         assert {q1["name"], q2["name"]} == {"First", "Second"}
         assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
         assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+
+
+class TestWorkPoolMigration:
+    async def test_deployments_with_no_queues_dont_generate_work_pool_queues(
+        self, session, flow, client, enable_work_pools
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
+                json_compatible=True
+            ),
+        )
+        assert response.json()["work_queue_name"] is None
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.work_pool_queue_id is None
+
+    async def test_deployments_with_work_queue_names_add_work_pool_queues(
+        self, session, flow, client, enable_work_pools
+    ):
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment", flow_id=flow.id, work_queue_name="my-queue"
+            ).dict(json_compatible=True),
+        )
+
+        assert response.json()["work_queue_name"] == "my-queue"
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.work_pool_queue_id is not None
+
+        pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=deployment.work_pool_queue_id
+        )
+        assert pool_queue.name == "my-queue"
+
+    async def test_update_deployment_work_queue_name_updates_work_pool_also(
+        self, session, deployment, client, enable_work_pools
+    ):
+        original_work_pool_queue_id = deployment.work_pool_queue_id
+        await client.patch(
+            f"/deployments/{deployment.id}",
+            json=schemas.actions.DeploymentUpdate(work_queue_name="my-queue").dict(
+                json_compatible=True
+            ),
+        )
+        session.expunge_all()
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert deployment.work_pool_queue_id != original_work_pool_queue_id
+        work_pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=deployment.work_pool_queue_id
+        )
+        assert work_pool_queue.name == "my-queue"
