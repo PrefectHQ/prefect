@@ -409,10 +409,10 @@ class ORMFlowRun(ORMRun):
         )
 
     @declared_attr
-    def work_pool_queue_id(cls):
+    def work_queue_id(cls):
         return sa.Column(
             UUID,
-            sa.ForeignKey("work_pool_queue.id", ondelete="SET NULL"),
+            sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
         )
@@ -479,11 +479,11 @@ class ORMFlowRun(ORMRun):
         )
 
     @declared_attr
-    def work_pool_queue(cls):
+    def work_queue(cls):
         return sa.orm.relationship(
-            "WorkPoolQueue",
+            "WorkQueue",
             lazy="joined",
-            foreign_keys=[cls.work_pool_queue_id],
+            foreign_keys=[cls.work_queue_id],
         )
 
     @declared_attr
@@ -715,10 +715,10 @@ class ORMDeployment:
         )
 
     @declared_attr
-    def work_pool_queue_id(cls):
+    def work_queue_id(cls):
         return sa.Column(
             UUID,
-            sa.ForeignKey("work_pool_queue.id", ondelete="SET NULL"),
+            sa.ForeignKey("work_queue.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
         )
@@ -766,9 +766,9 @@ class ORMDeployment:
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
 
     @declared_attr
-    def work_pool_queue(cls):
+    def work_queue(cls):
         return sa.orm.relationship(
-            "WorkPoolQueue", lazy="joined", foreign_keys=[cls.work_pool_queue_id]
+            "WorkQueue", lazy="joined", foreign_keys=[cls.work_queue_id]
         )
 
     @declared_attr
@@ -1019,6 +1019,7 @@ class ORMWorkQueue:
         sa.Integer,
         nullable=True,
     )
+    priority = sa.Column(sa.Integer, index=True, nullable=False)
     last_polled = sa.Column(
         Timestamp(),
         nullable=True,
@@ -1026,7 +1027,24 @@ class ORMWorkQueue:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("name"),)
+        return (sa.UniqueConstraint("work_pool_id", "name"),)
+
+    @declared_attr
+    def work_pool_id(cls):
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("work_pool.id", ondelete="cascade"),
+            nullable=False,
+            index=True,
+        )
+
+    @declared_attr
+    def work_pool(cls):
+        return sa.orm.relationship(
+            "WorkPool",
+            lazy="joined",
+            foreign_keys=[cls.work_pool_id],
+        )
 
 
 @declarative_mixin
@@ -1047,42 +1065,6 @@ class ORMWorkPool:
     @declared_attr
     def __table_args__(cls):
         return (sa.UniqueConstraint("name"),)
-
-
-@declarative_mixin
-class ORMWorkPoolQueue:
-    """SQLAlchemy model of a Worker Queue"""
-
-    name = sa.Column(sa.String, nullable=False)
-    description = sa.Column(sa.String)
-
-    @declared_attr
-    def work_pool_id(cls):
-        return sa.Column(
-            UUID,
-            sa.ForeignKey("work_pool.id", ondelete="cascade"),
-            nullable=False,
-            index=True,
-        )
-
-    is_paused = sa.Column(sa.Boolean, nullable=False, server_default="0", default=False)
-    concurrency_limit = sa.Column(
-        sa.Integer,
-        nullable=True,
-    )
-    priority = sa.Column(sa.Integer, index=True, nullable=False)
-
-    @declared_attr
-    def __table_args__(cls):
-        return (sa.UniqueConstraint("work_pool_id", "name"),)
-
-    @declared_attr
-    def work_pool(cls):
-        return sa.orm.relationship(
-            "WorkPool",
-            lazy="joined",
-            foreign_keys=[cls.work_pool_id],
-        )
 
 
 @declarative_mixin
@@ -1192,7 +1174,6 @@ class BaseORMConfiguration(ABC):
         saved_search_mixin: saved search orm mixin, combined with Base orm class
         log_mixin: log orm mixin, combined with Base orm class
         work_pool_mixin: work pool orm mixin, combined with Base orm class
-        work_pool_queue_mixin: work pool queue orm mixin, combined with Base orm class
         worker_mixin: worker orm mixin, combined with Base orm class
         concurrency_limit_mixin: concurrency limit orm mixin, combined with Base orm class
         block_type_mixin: block_type orm mixin, combined with Base orm class
@@ -1219,7 +1200,6 @@ class BaseORMConfiguration(ABC):
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_pool_mixin=ORMWorkPool,
-        work_pool_queue_mixin=ORMWorkPoolQueue,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
@@ -1269,7 +1249,6 @@ class BaseORMConfiguration(ABC):
             log_mixin=log_mixin,
             concurrency_limit_mixin=concurrency_limit_mixin,
             work_pool_mixin=work_pool_mixin,
-            work_pool_queue_mixin=work_pool_queue_mixin,
             worker_mixin=worker_mixin,
             work_queue_mixin=work_queue_mixin,
             agent_mixin=agent_mixin,
@@ -1313,7 +1292,6 @@ class BaseORMConfiguration(ABC):
         log_mixin=ORMLog,
         concurrency_limit_mixin=ORMConcurrencyLimit,
         work_pool_mixin=ORMWorkPool,
-        work_pool_queue_mixin=ORMWorkPoolQueue,
         worker_mixin=ORMWorker,
         block_type_mixin=ORMBlockType,
         block_schema_mixin=ORMBlockSchema,
@@ -1364,9 +1342,6 @@ class BaseORMConfiguration(ABC):
         class WorkPool(work_pool_mixin, self.Base):
             pass
 
-        class WorkPoolQueue(work_pool_queue_mixin, self.Base):
-            pass
-
         class Worker(worker_mixin, self.Base):
             pass
 
@@ -1411,7 +1386,6 @@ class BaseORMConfiguration(ABC):
         self.Log = Log
         self.ConcurrencyLimit = ConcurrencyLimit
         self.WorkPool = WorkPool
-        self.WorkPoolQueue = WorkPoolQueue
         self.Worker = Worker
         self.WorkQueue = WorkQueue
         self.Agent = Agent

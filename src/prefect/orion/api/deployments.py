@@ -69,19 +69,19 @@ async def create_deployment(
                 # If a specific pool name/queue name combination was provided, get the
                 # ID for that work pool queue.
                 deployment_dict[
-                    "work_pool_queue_id"
-                ] = await worker_lookups._get_work_pool_queue_id_from_name(
+                    "work_queue_id"
+                ] = await worker_lookups._get_work_queue_id_from_name(
                     session=session,
                     work_pool_name=deployment.work_pool_name,
-                    work_pool_queue_name=deployment.work_queue_name,
+                    work_queue_name=deployment.work_queue_name,
                     create_queue_if_not_found=True,
                 )
             elif deployment.work_pool_name:
                 # If just a pool name was provided, get the ID for its default
                 # work pool queue.
                 deployment_dict[
-                    "work_pool_queue_id"
-                ] = await worker_lookups._get_default_work_pool_queue_id_from_work_pool_name(
+                    "work_queue_id"
+                ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
                     session=session,
                     work_pool_name=deployment.work_pool_name,
                 )
@@ -201,7 +201,7 @@ async def read_deployments(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -221,7 +221,7 @@ async def read_deployments(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_pool_queue_filter=work_pool_queues,
+            work_queue_filter=work_queues,
         )
         return [
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
@@ -236,7 +236,7 @@ async def count_deployments(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -250,7 +250,7 @@ async def count_deployments(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_pool_queue_filter=work_pool_queues,
+            work_queue_filter=work_queues,
         )
 
 
@@ -408,7 +408,7 @@ async def create_flow_run_from_deployment(
                 or deployment.infrastructure_document_id
             ),
             work_queue_name=deployment.work_queue_name,
-            work_pool_queue_id=deployment.work_pool_queue_id,
+            work_queue_id=deployment.work_queue_id,
         )
 
         if not flow_run.state:

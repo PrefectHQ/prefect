@@ -457,28 +457,6 @@ class WorkPoolUpdate(ActionBaseModel):
 
 
 @copy_model_fields
-class WorkPoolQueueCreate(ActionBaseModel):
-    """Data used by the Orion API to create a work pool queue."""
-
-    name: str = FieldFrom(schemas.core.WorkPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-
-
-@copy_model_fields
-class WorkPoolQueueUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a work pool queue."""
-
-    name: str = FieldFrom(schemas.core.WorkPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-
-
-@copy_model_fields
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Orion API to create a work queue."""
 
@@ -486,6 +464,7 @@ class WorkQueueCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 
@@ -503,6 +482,7 @@ class WorkQueueUpdate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
