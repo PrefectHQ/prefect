@@ -44,7 +44,7 @@ class TestCreateWorkPool:
         with pytest.raises(pydantic.ValidationError, match="(invalid character)"):
             schemas.core.WorkPool(name=name)
 
-    @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
+    @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_worker(self, session, type):
         result = await models.workers.create_work_pool(
             session=session,
@@ -856,3 +856,45 @@ class TestGetScheduledRuns:
             work_pool_queue_ids=[work_pool_queues["wq_aa"].id],
         )
         assert len(runs) == 0
+
+
+class TestMigration:
+    async def test_migrate_all_work_queues(self, session, db):
+        # Create three work queues
+        await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-queue-1"),
+        )
+        await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-queue-2"),
+        )
+        await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="test-queue-3"),
+        )
+
+        # Delete any proactive migrations to simulate old queues
+        await session.execute(sa.delete(db.WorkPool))
+        await session.execute(sa.delete(db.WorkPoolQueue))
+        await session.commit()
+
+        # Migrate all work queues
+        await models.workers_migration.migrate_all_work_queues(session=session, db=db)
+
+        # Check that all work queues were migrated
+        default_agent_work_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=models.workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
+        )
+        wpqs = await models.workers.read_work_pool_queues(
+            session=session, work_pool_id=default_agent_work_pool.id
+        )
+
+        assert len(wpqs) == 4
+        assert [q.name for q in wpqs] == [
+            "default",
+            "test-queue-1",
+            "test-queue-2",
+            "test-queue-3",
+        ]

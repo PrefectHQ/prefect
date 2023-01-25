@@ -39,7 +39,7 @@ from prefect.states import Crashed, Pending, StateType, exception_to_failed_stat
 
 class OrionAgent:
     @experimental_parameter(
-        "work_pool_name", group="workers", when=lambda y: y is not None
+        "work_pool_name", group="work_pools", when=lambda y: y is not None
     )
     def __init__(
         self,
