@@ -20,9 +20,19 @@ def upgrade():
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.add_column(sa.Column("has_data", sa.Boolean))
+        batch_op.create_index(
+            batch_op.f("ix_flow_run_state__has_data"),
+            ["has_data"],
+            unique=False,
+        )
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.add_column(sa.Column("has_data", sa.Boolean))
+        batch_op.create_index(
+            batch_op.f("ix_task_run_state__has_data"),
+            ["has_data"],
+            unique=False,
+        )
 
     def populate_flow_has_data_in_batches(batch_size):
         return f"""
@@ -57,20 +67,6 @@ def upgrade():
 
                 if result.rowcount < batch_size:
                     break
-
-    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_flow_run_state__has_data"),
-            ["has_data"],
-            unique=False,
-        )
-
-    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_task_run_state__has_data"),
-            ["has_data"],
-            unique=False,
-        )
 
 
 def downgrade():
