@@ -122,10 +122,65 @@ def upgrade():
             unique=False,
         )
 
+    # Create default agent work pool and associate all existing queues with it
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    WORK_POOL = meta_data.tables["work_pool"]
+    WORK_QUEUE = meta_data.tables["work_queue"]
+
+    connection.execute(
+        sa.insert(WORK_POOL).values(name="default-agent-pool", type="prefect-agent")
+    )
+
+    default_pool_id = connection.execute(
+        sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
+    ).fetchone()[0]
+
+    connection.execute(
+        sa.insert(WORK_QUEUE).values(name="default", work_pool_id=default_pool_id)
+    )
+
+    connection.execute(
+        sa.update(WORK_QUEUE)
+        .where(WORK_QUEUE.c.work_pool_id.is_(None))
+        .values(work_pool_id=default_pool_id)
+    )
+
+    default_queue_id = connection.execute(
+        sa.select([WORK_QUEUE.c.id]).where(
+            WORK_QUEUE.c.name == "default", WORK_QUEUE.c.work_pool_id == default_pool_id
+        )
+    ).fetchone()[0]
+
+    connection.execute(
+        sa.update(WORK_POOL)
+        .where(WORK_POOL.c.id == default_pool_id)
+        .values(default_queue_id=default_queue_id)
+    )
+
+    # Set priority on all queues
+    queue_rows = connection.execute(
+        sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.work_pool_id == default_pool_id)
+    ).fetchall()
+
+    for enumeration, row in enumerate(queue_rows):
+        connection.execute(
+            sa.update(WORK_QUEUE)
+            .where(WORK_QUEUE.c.id == row[0])
+            .values(priority=enumeration)
+        )
+
     op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    WORK_POOL = meta_data.tables["work_pool"]
+    WORK_QUEUE = meta_data.tables["work_queue"]
+
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
         batch_op.drop_index("ix_work_queue__work_pool_id")
@@ -135,6 +190,18 @@ def downgrade():
 
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_queue")
+
+    default_queue_id = connection.execute(
+        sa.select([WORK_POOL.c.default_queue_id]).where(
+            WORK_POOL.c.name == "default-agent-pool"
+        )
+    ).fetchone()[0]
+
+    connection.execute(sa.delete(WORK_QUEUE).where(WORK_QUEUE.c.id == default_queue_id))
+
+    connection.execute(
+        sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
+    )
 
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_constraint("fk_deployment__work_queue_id__work_queue")
