@@ -1543,3 +1543,8 @@ class TestWorkPools:
         assert len(pools) == 2
         assert names == {work_pool.name, work_pool_2.name}
         assert ids == {work_pool.id, work_pool_2.id}
+
+    async def test_delete_work_pool(self, enable_workers, orion_client, work_pool):
+        await orion_client.delete_work_pool(work_pool.name)
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.read_work_pool(work_pool.id)

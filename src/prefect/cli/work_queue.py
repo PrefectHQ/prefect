@@ -10,10 +10,10 @@ import typer
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect import get_client
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client import get_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.actions import WorkPoolQueueCreate
@@ -156,12 +156,22 @@ async def create(
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue"),
     limit: int = typer.Argument(..., help="The concurrency limit to set on the queue."),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool to set the concurrency limit on.",
+    ),
 ):
     """
     Set a concurrency limit on a work queue.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
 
+    # classic queue with tags
+    # work pool queue with default
+    # work pool queue
     async with get_client() as client:
         try:
             await client.update_work_queue(
