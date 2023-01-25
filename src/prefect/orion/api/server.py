@@ -30,6 +30,7 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
@@ -365,6 +366,40 @@ def create_app(
         except Exception as exc:
             logger.warn(f"Error occurred during block auto-registration: {exc!r}")
 
+    async def migrate_work_queues():
+        """Duplicates work queues to work pool queues"""
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+            from prefect.orion.database.dependencies import provide_database_interface
+            from prefect.orion.models.configuration import (
+                read_configuration,
+                write_configuration,
+            )
+            from prefect.orion.models.workers_migration import migrate_all_work_queues
+            from prefect.orion.schemas.core import Configuration
+
+            db = provide_database_interface()
+            session = await db.session()
+
+            async with session.begin():
+                migration_status_configuration = await read_configuration(
+                    session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
+                )
+                has_run = (
+                    migration_status_configuration.value.get("has_run", False)
+                    if migration_status_configuration is not None
+                    else False
+                )
+                if not has_run:
+                    await migrate_all_work_queues(session=session, db=db)
+                    await write_configuration(
+                        session=session,
+                        configuration=Configuration(
+                            key="WORK_POOL_QUEUE_MIGRATION",
+                            value={"has_run": True},
+                        ),
+                        db=db,
+                    )
+
     async def start_services():
         """Start additional services when the Orion API starts up."""
 
@@ -456,6 +491,7 @@ def create_app(
             run_migrations,
             add_block_types,
             start_services,
+            migrate_work_queues,
         ],
         on_shutdown=[stop_services],
     )

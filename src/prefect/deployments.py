@@ -32,6 +32,7 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -210,12 +211,10 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field("work_pool_name", group="workers", when=lambda x: x is not None)
 @experimental_field(
-    "work_pool_queue_name",
-    group="workers",
-    when=lambda x: x is not None,
-    stacklevel=4,
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
 )
 class Deployment(BaseModel):
     """
@@ -290,7 +289,6 @@ class Deployment(BaseModel):
             "version",
             "work_queue_name",
             "work_pool_name",
-            "work_pool_queue_name",
             "tags",
             "parameters",
             "schedule",
@@ -397,9 +395,6 @@ class Deployment(BaseModel):
     )
     work_pool_name: Optional[str] = Field(
         default=None, description="The work pool for the deployment"
-    )
-    work_pool_queue_name: Optional[str] = Field(
-        default=None, description="The work pool queue for the deployment."
     )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
@@ -658,7 +653,6 @@ class Deployment(BaseModel):
                 name=self.name,
                 work_queue_name=self.work_queue_name,
                 work_pool_name=self.work_pool_name,
-                work_pool_queue_name=self.work_pool_queue_name,
                 version=self.version,
                 schedule=self.schedule,
                 is_schedule_active=self.is_schedule_active,
