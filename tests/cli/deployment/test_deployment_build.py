@@ -12,7 +12,6 @@ from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
-from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 
@@ -636,24 +635,6 @@ class TestWorkQueue:
 
 
 class TestWorkPool:
-    def test_work_pool_name_is_populated_as_default(self, patch_import, tmp_path):
-        invoke_and_assert(
-            [
-                "deployment",
-                "build",
-                "fake-path.py:fn",
-                "-n",
-                "TEST",
-                "-o",
-                str(tmp_path / "test.yaml"),
-            ],
-            expected_code=0,
-            temp_dir=tmp_path,
-        )
-
-        deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-        assert deployment.work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME
-
     def test_warns_when_work_pool_name_provided(self, patch_import, tmp_path):
         with pytest.warns(
             ExperimentalFeature, match="The field 'work_pool_name' is experimental."
