@@ -133,7 +133,14 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+    __data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data = sa.Column(sa.JSON, nullable=True)
+
+    @hybrid_property
+    def data(self):
+        if self._data:
+            return self._data
+        return self.__data
 
     @declared_attr
     def flow_run(cls):
@@ -187,7 +194,14 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+    __data = sa.Column(sa.JSON, nullable=True, name="data")
+    _data = sa.Column(sa.JSON, nullable=True)
+
+    @hybrid_property
+    def data(self):
+        if self._data:
+            return self._data
+        return self.__data
 
     @declared_attr
     def task_run(cls):
