@@ -17,7 +17,7 @@ from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
-from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
@@ -85,15 +85,6 @@ async def create_deployment(
                     session=session,
                     work_pool_name=deployment.work_pool_name,
                 )
-            elif deployment.work_queue_name:
-                # If just a work queue name was provided, we assume this deployment is using
-                # an agent and create a queue in the default agents work pool. This is a
-                # legacy case and can be removed once agents are removed.
-                _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
-                    session=session, name=deployment.work_queue_name, db=db
-                )
-                if work_pool_queue:
-                    deployment_dict["work_pool_queue_id"] = work_pool_queue.id
 
         deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message
