@@ -14,7 +14,6 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
