@@ -1,8 +1,8 @@
 """Expand work queue table
 
-Revision ID: b9bda9f142f1
-Revises: bb38729c471a
-Create Date: 2023-01-25 11:43:48.160070
+Revision ID: 0a1250a5aa25
+Revises: d481d5058a19
+Create Date: 2023-01-25 15:28:01.263916
 
 """
 import sqlalchemy as sa
@@ -11,16 +11,13 @@ from alembic import op
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "b9bda9f142f1"
-down_revision = "bb38729c471a"
+revision = "0a1250a5aa25"
+down_revision = "d481d5058a19"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
-    # dropping columns to efficiently clear indexes and constraints
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_pool_queue")
     with op.batch_alter_table("deployment", schema=None) as batch_op:
@@ -122,8 +119,6 @@ def upgrade():
             unique=False,
         )
 
-    op.execute("PRAGMA foreign_keys=ON")
-
 
 def downgrade():
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
@@ -155,21 +150,19 @@ def downgrade():
         sa.Column(
             "id",
             prefect.orion.utilities.database.UUID(),
-            server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4)))\n        || '-'\n        || lower(hex(randomblob(2)))\n        || '-4'\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || substr('89ab',abs(random()) % 4 + 1, 1)\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || lower(hex(randomblob(6)))\n    )\n    )"
-            ),
+            server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
             prefect.orion.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
             prefect.orion.utilities.database.Timestamp(timezone=True),
-            server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
