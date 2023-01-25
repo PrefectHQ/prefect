@@ -1,16 +1,16 @@
 """Create temporary _data column
 
-Revision ID: 451789a36324
-Revises: 451789a36323
-Create Date: 2023-01-25 13:21:47.389352
+Revision ID: 9b53afa4c332
+Revises: 9b53afa4c331
+Create Date: 2023-01-25 13:20:56.808015
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '451789a36324'
-down_revision = '451789a36323'
+revision = "9b53afa4c332"
+down_revision = "9b53afa4c331"
 branch_labels = None
 depends_on = None
 
@@ -46,9 +46,25 @@ def upgrade():
             WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (has_data IS NULL) LIMIT {batch_size});
         """
 
+    def move_flow_data_in_batches(batch_size):
+        return f"""
+            UPDATE flow_run_state
+            SET _data = data
+            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (has_data IS TRUE) AND (_data IS NULL) LIMIT {batch_size});
+        """
+
+    def move_task_data_in_batches(batch_size):
+        return f"""
+            UPDATE task_run_state
+            SET _data = data
+            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (has_data IS TRUE) AND (_data IS NULL) LIMIT {batch_size});
+        """
+
     migration_statements = [
         populate_flow_has_data_in_batches,
         populate_task_has_data_in_batches,
+        move_flow_data_in_batches,
+        move_task_data_in_batches,
     ]
 
     with op.get_context().autocommit_block():
