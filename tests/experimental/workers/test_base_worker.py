@@ -18,6 +18,7 @@ from prefect.flows import flow
 from prefect.orion import models
 from prefect.orion.schemas.core import WorkPool
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
@@ -43,6 +44,14 @@ def auto_enable_workers(enable_workers):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_work_pools(enable_work_pools):
+    """
+    Enable workers for testing
+    """
+    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):

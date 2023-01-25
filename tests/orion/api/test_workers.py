@@ -9,7 +9,7 @@ import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkPoolCreate
 from prefect.orion.schemas.core import WorkPool, WorkPoolQueue
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS, temporary_settings
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS, temporary_settings
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -24,20 +24,24 @@ RESERVED_POOL_NAMES = [
 
 
 @pytest.fixture(autouse=True)
-def auto_enable_workers(enable_workers):
+def auto_enable_work_pools(enable_work_pools):
     """
     Enable workers for testing
     """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
-class TestEnableWorkersFlag:
+class TestEnableWorkPoolsFlag:
     async def test_flag_defaults_to_false(self):
-        with temporary_settings(restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORKERS}):
-            assert not PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+        with temporary_settings(
+            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS}
+        ):
+            assert not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
     async def test_404_when_flag_disabled(self, client):
-        with temporary_settings(restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORKERS}):
+        with temporary_settings(
+            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS}
+        ):
             response = await client.post(
                 "/experimental/work_pools/", json=dict(name="Pool 1")
             )
@@ -47,7 +51,7 @@ class TestEnableWorkersFlag:
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session, client):
         response = await client.post(
-            "/experimental/work_pools/", json=dict(name="Pool 1")
+            "/experimental/work_pools/", json=dict(name="Pool 1", type="test")
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -64,7 +68,7 @@ class TestCreateWorkPool:
     async def test_create_work_pool_with_options(self, client):
         response = await client.post(
             "/experimental/work_pools/",
-            json=dict(name="Pool 1", is_paused=True, concurrency_limit=5),
+            json=dict(name="Pool 1", type="test", is_paused=True, concurrency_limit=5),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -92,7 +96,7 @@ class TestCreateWorkPool:
 
         response = await client.post(
             "/experimental/work_pools/",
-            json=dict(name="Pool 1", base_job_template=base_job_template),
+            json=dict(name="Pool 1", type="test", base_job_template=base_job_template),
         )
         assert response.status_code == status.HTTP_201_CREATED
         result = pydantic.parse_obj_as(WorkPool, response.json())
@@ -110,7 +114,7 @@ class TestCreateWorkPool:
         response = await client.post("/experimental/work_pools/", json=dict(name=name))
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    @pytest.mark.parametrize("type", [None, "PROCESS", "K8S", "AGENT"])
+    @pytest.mark.parametrize("type", ["PROCESS", "K8S", "AGENT"])
     async def test_create_typed_work_pool(self, session, client, type):
         response = await client.post(
             "/experimental/work_pools/", json=dict(name="Pool 1", type=type)
@@ -377,7 +381,9 @@ class TestReadWorkPools:
     @pytest.fixture(autouse=True)
     async def create_work_pools(self, client):
         for name in ["C", "B", "A"]:
-            await client.post("/experimental/work_pools/", json=dict(name=name))
+            await client.post(
+                "/experimental/work_pools/", json=dict(name=name, type="test")
+            )
 
     async def test_read_work_pools(self, client, session):
         response = await client.post("/experimental/work_pools/filter")

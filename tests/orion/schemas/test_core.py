@@ -315,7 +315,7 @@ class TestWorkPool:
 
     async def test_valid_work_pool_default_queue_id(self):
         qid = uuid4()
-        wp = schemas.core.WorkPool(name="test", default_queue_id=qid)
+        wp = schemas.core.WorkPool(name="test", type="test", default_queue_id=qid)
         assert wp.default_queue_id == qid
 
     @pytest.mark.parametrize(
@@ -360,6 +360,6 @@ class TestWorkPool:
         are provided in variables."""
         qid = uuid4()
         wp = schemas.core.WorkPool(
-            name="test", default_queue_id=qid, base_job_template=template
+            name="test", type="test", default_queue_id=qid, base_job_template=template
         )
         assert wp
