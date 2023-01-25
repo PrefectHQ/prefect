@@ -384,6 +384,11 @@ def create_app(
         if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
             service_instances.append(services.pause_expirations.FailExpiredPauses())
 
+        if prefect.settings.PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
+            service_instances.append(
+                services.cancellation_cleanup.CancellationCleanup()
+            )
+
         if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
