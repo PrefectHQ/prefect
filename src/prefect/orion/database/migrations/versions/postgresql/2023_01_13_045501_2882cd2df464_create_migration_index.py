@@ -1,23 +1,21 @@
 """Adds a helper index for the artifact data migration
 
-Revision ID: f92143d30c25
-Revises: f92143d30c24
-Create Date: 2023-01-12 00:00:43.488367
+Revision ID: 2882cd2df464
+Revises: 2882cd2df463
+Create Date: 2023-01-13 04:55:01.358638
 
 """
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "f92143d30c25"
-down_revision = "f92143d30c24"
+revision = "2882cd2df464"
+down_revision = "2882cd2df463"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.add_column(sa.Column("has_data", sa.Boolean))
 
@@ -74,8 +72,6 @@ def upgrade():
 
 
 def downgrade():
-    op.execute("PRAGMA foreign_keys=OFF")
-
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_task_run_state__has_data"))
         batch_op.drop_column("has_data")
