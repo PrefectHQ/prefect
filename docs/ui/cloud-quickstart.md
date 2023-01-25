@@ -131,7 +131,7 @@ Go to the **Flow Runs** pages in your workspace in Prefect Cloud. You'll see the
 
 Prefect Cloud automatically tracks any flow runs in a local execution environment logged into Prefect Cloud.
 
-Select the name of the flow run to see details about this run. In this example, the flow run name is `aquamarine-deer`. Your flow run name is likely to be different.
+Select the name of the flow run to see details about this run. In this example, the randomly generated flow run name is `aquamarine-deer`. Your flow run name is likely to be different.
 
 ![Viewing local flow run details in the Prefect Cloud UI.](../img/ui/cloud-flow-run-details.png)
 

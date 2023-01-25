@@ -614,7 +614,7 @@ Select the flow run to see details. In the flow run logs, you can see that the f
 
 ## Run deployments with Prefect Cloud
 
-The same steps demonstrated in this tutorial work to apply deployments and create flow runs from them with Prefect Cloud. 
+The steps in this tutorial also work to apply deployments to Prefect Cloud, which creates the corresponding flow runs.
 
 See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect Orion server.
 
