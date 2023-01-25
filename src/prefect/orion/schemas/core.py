@@ -964,7 +964,7 @@ class WorkPool(ORMBaseModel):
     description: Optional[str] = Field(
         default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The work pool type.")
+    type: str = Field(description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )

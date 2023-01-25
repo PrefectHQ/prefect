@@ -702,6 +702,12 @@ async def build(
             "Note that if a work queue is not set, work will not be scheduled."
         ),
     ),
+    work_pool_name: str = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The work pool that will handle this deployment's runs.",
+    ),
     work_queue_concurrency: int = typer.Option(
         None,
         "--limit",
@@ -934,6 +940,8 @@ async def build(
         init_kwargs.update(infrastructure=infrastructure)
     if work_queue_name:
         init_kwargs.update(work_queue_name=work_queue_name)
+    if work_pool_name:
+        init_kwargs.update(work_pool_name=work_pool_name)
 
     deployment_loc = output_file or f"{obj_name}-deployment.yaml"
     deployment = await Deployment.build_from_flow(
