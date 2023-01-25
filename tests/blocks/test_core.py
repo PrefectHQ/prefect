@@ -223,6 +223,61 @@ class TestAPICompatibility:
             },
         }
 
+    def test_create_api_block_with_nested_union_secret_fields_in_base_model_reflected_in_schema(
+        self,
+    ):
+        class Child(BaseModel):
+            a: SecretStr
+            b: str
+            c: SecretDict
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Union[Child, str]
+
+        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert schema.fields == {
+            "title": "Parent",
+            "type": "object",
+            "properties": {
+                "a": {
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {
+                    "title": "Child",
+                    "anyOf": [{"$ref": "#/definitions/Child"}, {"type": "string"}],
+                },
+            },
+            "required": ["a", "b", "child"],
+            "block_type_slug": "parent",
+            "secret_fields": ["a", "child.a", "child.c.*"],
+            "block_schema_references": {},
+            "definitions": {
+                "Child": {
+                    "title": "Child",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "b": {"title": "B", "type": "string"},
+                        "c": {"title": "C", "type": "object"},
+                    },
+                    "required": ["a", "b", "c"],
+                }
+            },
+        }
+
     def test_create_api_block_with_deeply_nested_secret_fields_in_base_model_reflected_in_schema(
         self,
     ):
