@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
-import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
@@ -585,51 +584,35 @@ class KubernetesJob(Infrastructure):
                     follow=True,
                     _preload_content=False,
                 )
-                for log in logs.stream():
-                    print(log.decode().rstrip())
+                try:
+                    for log in logs.stream():
+                        print(log.decode().rstrip())
+                except Exception:
+                    self.logger.warning(
+                        "Error occurred while streaming logs - "
+                        "Job will continue to run but logs will not be streamed."
+                        "Consider adjusting `streaming-connection-idle-timeout` in "
+                        "your cluster's Kubelet configuration file.",
+                        exc_info=True,
+                    )
 
         # Wait for job to complete
         # if `job_watch_timeout_seconds` is None, no timeout will be enforced
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        start_time = pendulum.now("utc")
-        completed = False
-        while not completed:
-            elapsed = (pendulum.now("utc") - start_time).in_seconds()
-            if (
-                self.job_watch_timeout_seconds is not None
-                and elapsed > self.job_watch_timeout_seconds
+        watch = kubernetes.watch.Watch()
+        with self.get_batch_client() as batch_client:
+            for event in watch.stream(
+                func=batch_client.list_namespaced_job,
+                field_selector=f"metadata.name={job_name}",
+                namespace=self.namespace,
+                timeout_seconds=self.job_watch_timeout_seconds,
             ):
-                self.logger.error(f"Job {job_name!r}: Job timed out.")
+                if event["object"].status.completion_time:
+                    watch.stop()
+                    break
+            else:
+                self.logger.error(f"Job {job_name!r}: Job did not complete.")
                 return -1
-            try:
-                watch = kubernetes.watch.Watch()
-                with self.get_batch_client() as batch_client:
-                    remaining_timeout = (
-                        (  # subtract previous watch time
-                            self.job_watch_timeout_seconds - elapsed
-                        )
-                        if self.job_watch_timeout_seconds
-                        else None
-                    )
-
-                    for event in watch.stream(
-                        func=batch_client.list_namespaced_job,
-                        field_selector=f"metadata.name={job_name}",
-                        namespace=self.namespace,
-                        timeout_seconds=remaining_timeout,
-                    ):
-                        if event["object"].status.completion_time:
-                            watch.stop()
-                            completed = True
-                            break  # don't enter else, just end watch
-                    else:
-                        self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                        return -1
-            except kubernetes.client.exceptions.ApiException as exc:
-                if exc.status == 410:  # Gone
-                    continue
-                else:
-                    raise exc
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
