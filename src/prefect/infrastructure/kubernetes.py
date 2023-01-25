@@ -590,9 +590,8 @@ class KubernetesJob(Infrastructure):
                 except Exception:
                     self.logger.warning(
                         "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will not be streamed."
-                        "Consider adjusting `streaming-connection-idle-timeout` in "
-                        "your cluster's Kubelet configuration file.",
+                        "Job will continue to run but logs will "
+                        "no longer be streamed to stdout.",
                         exc_info=True,
                     )
 

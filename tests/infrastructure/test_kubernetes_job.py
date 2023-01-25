@@ -782,6 +782,26 @@ def test_watches_the_right_namespace(
     )
 
 
+def test_streaming_pod_logs_timeout_warns(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    caplog,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    mock_logs = MagicMock()
+    mock_logs.stream = MagicMock(side_effect=RuntimeError("something went wrong"))
+
+    mock_k8s_client.read_namespaced_pod_log = MagicMock(return_value=mock_logs)
+
+    with caplog.at_level("WARNING"):
+        result = KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+
+    assert result.status_code == 1
+    assert "Error occurred while streaming logs - " in caplog.text
+
+
 class TestCustomizingBaseJob:
     """Tests scenarios where a user is providing a customized base Job template"""
 
