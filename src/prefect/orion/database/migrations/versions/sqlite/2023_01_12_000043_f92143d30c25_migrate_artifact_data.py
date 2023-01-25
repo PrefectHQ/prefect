@@ -26,7 +26,7 @@ def upgrade():
             INSERT INTO artifact (task_run_state_id, task_run_id, data)
             SELECT id, task_run_id, _data
             FROM task_run_state
-            WHERE _data IS NOT 'null' AND _data IS NOT NULL
+            WHERE has_data IS TRUE
             LIMIT {batch_size} OFFSET {offset};
         """
 
@@ -35,7 +35,7 @@ def upgrade():
         return f"""
             UPDATE task_run_state
             SET result_artifact_id = (SELECT id FROM artifact WHERE task_run_state.id = task_run_state_id)
-            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (_data IS NOT 'null' AND _data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
+            WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (has_data IS TRUE) AND (result_artifact_id IS NULL) LIMIT {batch_size});
         """
 
     # insert nontrivial flow run state results into the artifact table
@@ -44,7 +44,7 @@ def upgrade():
             INSERT INTO artifact (flow_run_state_id, flow_run_id, data)
             SELECT id, flow_run_id, _data
             FROM flow_run_state
-            WHERE _data IS NOT 'null' AND _data IS NOT NULL
+            WHERE has_data IS TRUE
             LIMIT {batch_size} OFFSET {offset};
         """
 
@@ -53,7 +53,7 @@ def upgrade():
         return f"""
             UPDATE flow_run_state
             SET result_artifact_id = (SELECT id FROM artifact WHERE flow_run_state.id = flow_run_state_id)
-            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (_data IS NOT 'null' AND _data IS NOT NULL) AND (result_artifact_id IS NULL) LIMIT {batch_size});
+            WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (has_data IS TRUE) AND (result_artifact_id IS NULL) LIMIT {batch_size});
         """
 
     data_migration_queries = [
