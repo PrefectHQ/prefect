@@ -2096,6 +2096,24 @@ class OrionClient:
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
+    async def delete_work_pool(
+        self,
+        work_pool_name: str,
+    ):
+        """
+        Deletes a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to delete.
+        """
+        try:
+            await self._client.delete(f"/experimental/work_pools/{work_pool_name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_work_pool_queues(
         self,
         work_pool_name: str,
@@ -2198,18 +2216,22 @@ class OrionClient:
             json=work_pool_queue.dict(json_compatible=True, exclude_unset=True),
         )
 
-    async def delete_work_pool(
+    async def delete_work_pool_queue(
         self,
         work_pool_name: str,
+        work_pool_queue_name: str,
     ):
         """
-        Deletes a work pool.
+        Deletes a queue for a given work pool
 
         Args:
-            work_pool_name: Name of the work pool to delete.
+            work_pool_name: Name of the work pool in which the queue resides.
+            work_pool_queue_name: Name of the work queue to delete
         """
         try:
-            await self._client.delete(f"/experimental/work_pools/{work_pool_name}")
+            await self._client.delete(
+                f"/experimental/work_pools/{work_pool_name}/queues/{work_pool_queue_name}"
+            )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
