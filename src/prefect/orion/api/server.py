@@ -381,12 +381,15 @@ def create_app(
             session = await db.session()
 
             async with session.begin():
-                migration_status = (
-                    await read_configuration(
-                        session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
-                    )
-                ) or {}
-                if not migration_status.get("has_run", False):
+                migration_status_configuration = await read_configuration(
+                    session=session, key="WORK_POOL_QUEUE_MIGRATION", db=db
+                )
+                has_run = (
+                    migration_status_configuration.value.get("has_run", False)
+                    if migration_status_configuration is not None
+                    else False
+                )
+                if not has_run:
                     await migrate_all_work_queues(session=session, db=db)
                     await write_configuration(
                         session=session,

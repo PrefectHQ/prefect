@@ -18,6 +18,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
@@ -146,35 +147,38 @@ async def update_deployment(
         exclude_unset=True,
         exclude={"work_pool_name"},
     )
-    if deployment.work_pool_name and deployment.work_queue_name:
-        # If a specific pool name/queue name combination was provided, get the
-        # ID for that work pool queue.
-        update_data[
-            "work_pool_queue_id"
-        ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
-            session=session,
-            work_pool_name=deployment.work_pool_name,
-            work_pool_queue_name=deployment.work_queue_name,
-            create_queue_if_not_found=True,
-        )
-    elif deployment.work_pool_name:
-        # If just a pool name was provided, get the ID for its default
-        # work pool queue.
-        update_data[
-            "work_pool_queue_id"
-        ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
-            session=session,
-            work_pool_name=deployment.work_pool_name,
-        )
-    elif deployment.work_queue_name:
-        # If just a work queue name was provided, we assume this deployment is using
-        # an agent and create a queue in the default agents work pool. This is a
-        # legacy case and can be removed once agents are removed.
-        _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
-            session=session, name=update_data["work_queue_name"], db=db
-        )
-        if work_pool_queue:
-            update_data["work_pool_queue_id"] = work_pool_queue.id
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        if deployment.work_pool_name and deployment.work_queue_name:
+            # If a specific pool name/queue name combination was provided, get the
+            # ID for that work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_pool_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
+            )
+            update_data.pop("work_queue_name", None)
+        elif deployment.work_pool_name:
+            # If just a pool name was provided, get the ID for its default
+            # work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+            )
+        elif deployment.work_queue_name:
+            # If just a work queue name was provided, we assume this deployment is using
+            # an agent and create a queue in the default agents work pool. This is a
+            # legacy case and can be removed once agents are removed.
+            _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
+                session=session, name=update_data["work_queue_name"], db=db
+            )
+            if work_pool_queue:
+                update_data["work_pool_queue_id"] = work_pool_queue.id
+                update_data.pop("work_queue_name", None)
 
     update_stmt = (
         sa.update(db.Deployment)

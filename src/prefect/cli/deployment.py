@@ -33,7 +33,6 @@ from prefect.exceptions import (
 )
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
-from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.orion.schemas.schedules import (
     CronSchedule,
@@ -704,7 +703,7 @@ async def build(
         ),
     ),
     work_pool_name: str = typer.Option(
-        DEFAULT_AGENT_WORK_POOL_NAME,
+        None,
         "-p",
         "--pool",
         help="The work pool that will handle this deployment's runs.",

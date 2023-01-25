@@ -76,6 +76,9 @@ async def create_deployment(
                     work_pool_queue_name=deployment.work_queue_name,
                     create_queue_if_not_found=True,
                 )
+                # Pop work queue name to prevent work from being pulled from
+                # a legacy work queue.
+                deployment_dict.pop("work_queue_name", None)
             elif deployment.work_pool_name:
                 # If just a pool name was provided, get the ID for its default
                 # work pool queue.
@@ -85,15 +88,18 @@ async def create_deployment(
                     session=session,
                     work_pool_name=deployment.work_pool_name,
                 )
-        elif deployment.work_queue_name:
-            # If just a work queue name was provided, we assume this deployment is using
-            # an agent and create a queue in the default agents work pool. This is a
-            # legacy case and can be removed once agents are removed.
-            _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
-                session=session, name=deployment.work_queue_name, db=db
-            )
-            if work_pool_queue:
-                deployment_dict["work_pool_queue_id"] = work_pool_queue.id
+            elif deployment.work_queue_name:
+                # If just a work queue name was provided, we assume this deployment is using
+                # an agent and create a queue in the default agents work pool. This is a
+                # legacy case and can be removed once agents are removed.
+                _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
+                    session=session, name=deployment.work_queue_name, db=db
+                )
+                if work_pool_queue:
+                    deployment_dict["work_pool_queue_id"] = work_pool_queue.id
+                    # Pop work queue name to prevent work from being pulled from
+                    # a legacy work queue.
+                    deployment_dict.pop("work_queue_name", None)
 
         deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message
