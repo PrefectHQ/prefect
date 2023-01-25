@@ -450,7 +450,7 @@ class TaskRunnerStandardTestSuite(ABC):
 
         if sys.platform != "darwin":
             # CI machines are slow
-            sleep_time += 2.0
+            sleep_time += 2.5
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
