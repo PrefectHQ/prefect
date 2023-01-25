@@ -217,9 +217,11 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 | Attributes | Description |
 | ---- | ---- |
+| cluster_config | An optional Kubernetes cluster config to use for this job. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
 | customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
 | env	| Environment variables to set for the container. |
+| finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
 | job	| The base manifest for the Kubernetes Job. |
