@@ -108,7 +108,6 @@ def upgrade():
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
-        batch_op.add_column(sa.Column("has_data", sa.Boolean))
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -132,7 +131,6 @@ def upgrade():
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
-        batch_op.add_column(sa.Column("has_data", sa.Boolean))
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -154,32 +152,11 @@ def upgrade():
             use_alter=True,
         )
 
-    op.execute(
-        "UPDATE task_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
-    )
-    op.create_index(
-        op.f("ix_task_run_state__has_data"),
-        "task_run_state",
-        ["has_data"],
-        unique=False,
-    )
-    op.execute(
-        "UPDATE flow_run_state SET has_data = (_data IS NOT NULL or _data != 'null')"
-    )
-    op.create_index(
-        op.f("ix_flow_run_state__has_data"),
-        "flow_run_state",
-        ["has_data"],
-        unique=False,
-    )
-
 
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_task_run_state__has_data"))
-        batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
         batch_op.drop_constraint(
             batch_op.f("fk_task_run_state__result_artifact_id__artifact"),
@@ -190,8 +167,6 @@ def downgrade():
         batch_op.alter_column("_data", new_column_name="data")
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_flow_run_state__has_data"))
-        batch_op.drop_column("has_data")
         batch_op.alter_column("_data", new_column_name="data")
         batch_op.drop_constraint(
             batch_op.f("fk_flow_run_state__result_artifact_id__artifact"),

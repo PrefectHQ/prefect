@@ -1,7 +1,7 @@
 """Migrates state data to the artifact table
 
-Revision ID: f92143d30c25
-Revises: f92143d30c24
+Revision ID: f92143d30c26
+Revises: f92143d30c25
 Create Date: 2023-01-12 00:00:43.488367
 
 """
@@ -9,8 +9,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "f92143d30c25"
-down_revision = "f92143d30c24"
+revision = "f92143d30c26"
+down_revision = "f92143d30c25"
 branch_labels = None
 depends_on = None
 

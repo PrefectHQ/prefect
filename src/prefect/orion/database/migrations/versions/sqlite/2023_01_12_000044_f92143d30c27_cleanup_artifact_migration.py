@@ -1,7 +1,7 @@
 """State data migration cleanup
 
-Revision ID: f92143d30c26
-Revises: f92143d30c25
+Revision ID: f92143d30c27
+Revises: f92143d30c26
 Create Date: 2023-01-12 00:00:44.488367
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 import prefect
 
 # revision identifiers, used by Alembic.
-revision = "f92143d30c26"
-down_revision = "f92143d30c25"
+revision = "f92143d30c27"
+down_revision = "f92143d30c26"
 branch_labels = None
 depends_on = None
 
