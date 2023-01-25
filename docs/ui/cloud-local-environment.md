@@ -43,7 +43,7 @@ The `prefect cloud login` command, used on its own, provides an interactive logi
 $ prefect cloud login
 ? How would you like to authenticate? [Use arrows to move; enter to select]
 > Log in with a web browser
-    Paste an authentication key
+    Paste an API key
 Paste your authentication key:
 ? Which workspace would you like to use? [Use arrows to move; enter to select]
 > prefect/terry-prefect-workspace
@@ -51,6 +51,8 @@ Paste your authentication key:
 Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
 ```
 </div>
+
+You can also log in by providing a [Prefect Cloud API key](/ui/cloud-api-keys/).
 
 ### Change workspaces
 
