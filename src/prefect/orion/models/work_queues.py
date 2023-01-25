@@ -16,9 +16,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models import workers_migration
 from prefect.orion.schemas.states import StateType
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 @inject_db
@@ -44,11 +42,6 @@ async def create_work_queue(
     model = db.WorkQueue(**work_queue.dict())
     session.add(model)
     await session.flush()
-
-    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and model.filter is None:
-        await workers_migration.get_or_create_work_pool_queue(
-            session=session, work_queue_id=model.id
-        )
 
     return model
 
@@ -153,20 +146,6 @@ async def update_work_queue(
     )
     result = await session.execute(update_stmt)
 
-    # update the related work pool queue
-    wpq_updates = {
-        k: v for k, v in update_data.items() if k in ("is_paused", "concurrency_limit")
-    }
-    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and wpq_updates:
-        wpq = await workers_migration.get_or_create_work_pool_queue(
-            session=session, work_queue_id=work_queue_id
-        )
-        await models.workers.update_work_pool_queue(
-            session=session,
-            work_pool_queue_id=wpq.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueUpdate(**wpq_updates),
-        )
-
     return result.rowcount > 0
 
 
@@ -184,19 +163,6 @@ async def delete_work_queue(
     Returns:
         bool: whether or not the WorkQueue was deleted
     """
-    # delete the related work pool queue
-    try:
-        wpq = await workers_migration.get_or_create_work_pool_queue(
-            session=session, work_queue_id=work_queue_id
-        )
-        await models.workers.delete_work_pool_queue(
-            session=session, work_pool_queue_id=wpq.id
-        )
-    except ObjectNotFoundError:
-        # The work queue doesn't exist so there isn't a corresponding work pool
-        # queue to delete.
-        pass
-
     result = await session.execute(
         delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
     )
@@ -229,28 +195,14 @@ async def get_runs_in_work_queue(
         raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
 
     if work_queue.filter is None:
-        # If workers are enabled, ensure that a corresponding work pool queue exists
-        # and retrieve runs from that work pool queue.
-        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
-            worker_flow_run_response = (
-                await workers_migration.get_runs_from_work_pool_queue(
-                    session=session,
-                    work_queue_id=work_queue_id,
-                    scheduled_before=scheduled_before,
-                    limit=limit,
-                )
-            )
-            return [r.flow_run for r in worker_flow_run_response]
-        # Otherwise get runs from the legacy work queue.
-        else:
-            query = db.queries.get_scheduled_flow_runs_from_work_queues(
-                db=db,
-                limit_per_queue=limit,
-                work_queue_ids=[work_queue_id],
-                scheduled_before=scheduled_before,
-            )
-            result = await session.execute(query)
-            return result.scalars().unique().all()
+        query = db.queries.get_scheduled_flow_runs_from_work_queues(
+            db=db,
+            limit_per_queue=limit,
+            work_queue_ids=[work_queue_id],
+            scheduled_before=scheduled_before,
+        )
+        result = await session.execute(query)
+        return result.scalars().unique().all()
 
     # if the work queue has a filter, it's a deprecated tag-based work queue
     # and uses an old approach
@@ -357,15 +309,7 @@ async def _ensure_work_queue_exists(
             work_queue=schemas.core.WorkQueue(name=name),
         )
 
-    # Ensure the corresponding work pool queue exists
-    work_pool_queue = None
-    # Filter-based work queues cannot be migrated
-    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and work_queue.filter is None:
-        work_pool_queue = await models.workers_migration.get_or_create_work_pool_queue(
-            session=session, work_queue_name=name
-        )
-
-    return work_queue, work_pool_queue
+    return work_queue
 
 
 @inject_db

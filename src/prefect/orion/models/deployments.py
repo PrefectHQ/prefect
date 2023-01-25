@@ -168,15 +168,6 @@ async def update_deployment(
                 session=session,
                 work_pool_name=deployment.work_pool_name,
             )
-        elif deployment.work_queue_name:
-            # If just a work queue name was provided, we assume this deployment is using
-            # an agent and create a queue in the default agents work pool. This is a
-            # legacy case and can be removed once agents are removed.
-            _, work_pool_queue = await models.work_queues._ensure_work_queue_exists(
-                session=session, name=update_data["work_queue_name"], db=db
-            )
-            if work_pool_queue:
-                update_data["work_pool_queue_id"] = work_pool_queue.id
 
     update_stmt = (
         sa.update(db.Deployment)
@@ -189,6 +180,12 @@ async def update_deployment(
     await _delete_scheduled_runs(
         session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
+
+    # create work queue if it doesn't exist
+    if update_data.get("work_queue_name"):
+        await models.work_queues._ensure_work_queue_exists(
+            session=session, name=update_data["work_queue_name"], db=db
+        )
 
     return result.rowcount > 0
 
