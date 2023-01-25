@@ -16,10 +16,16 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('flow_run_state', sa.Column('_data', sa.JSON(), nullable=True))
-    op.add_column('task_run_state', sa.Column('_data', sa.JSON(), nullable=True))
+    with op.batch_alter_table('flow_run_state', schema=None) as batch_op:
+        batch_op.add_column(sa.Column('_data', sa.JSON(), nullable=True))
+
+    with op.batch_alter_table('task_run_state', schema=None) as batch_op:
+        batch_op.add_column(sa.Column('_data', sa.JSON(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('task_run_state', '_data')
-    op.drop_column('flow_run_state', '_data')
+    with op.batch_alter_table('task_run_state', schema=None) as batch_op:
+        batch_op.drop_column('_data')
+
+    with op.batch_alter_table('flow_run_state', schema=None) as batch_op:
+        batch_op.drop_column('_data')
