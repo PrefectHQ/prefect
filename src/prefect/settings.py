@@ -815,6 +815,14 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
 this often. Defaults to `5`.
 """
 
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
+    float,
+    default=20,
+)
+"""The cancellation cleanup service will look non-terminal tasks and subflows
+this often. Defaults to `20`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -906,6 +914,15 @@ PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=True)
 """
 Whether or not to warn when experimental Prefect work pools are used.
 """
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the cancellation cleanup service in the Orion
+application. If disabled, task runs and subflow runs belonging to cancelled flows may
+remain in non-terminal states.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers.
