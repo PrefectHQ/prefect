@@ -48,6 +48,25 @@ jobs:
           name: pypi-dists
           path: "./dist"
 
+  publish-pypi-dists:
+    name: Publish to PyPI
+    environment: "prod"
+    needs: [build-pypi-dists]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pypi-dists
+          path: "./dist"
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          name: ci
+
   publish-docs:
     name: Publish documentation
     needs: [build-pypi-dists]
@@ -88,22 +107,3 @@ jobs:
           gh pr merge --rebase --delete-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-pypi-dists:
-    name: Publish to PyPI
-    environment: "prod"
-    needs: [build-pypi-dists]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: pypi-dists
-          path: "./dist"
-
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          name: ci
