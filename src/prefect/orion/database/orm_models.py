@@ -747,7 +747,7 @@ class ORMDeployment:
     def infrastructure_document_id(cls):
         return sa.Column(
             UUID,
-            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            sa.ForeignKey("block_document.id", ondelete="SET NULL"),
             nullable=True,
             index=False,
         )
@@ -756,7 +756,7 @@ class ORMDeployment:
     def storage_document_id(cls):
         return sa.Column(
             UUID,
-            sa.ForeignKey("block_document.id", ondelete="CASCADE"),
+            sa.ForeignKey("block_document.id", ondelete="SET NULL"),
             nullable=True,
             index=False,
         )

@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# SET NULL deployment block relationship on delete instead of CASCADE
+SQLite: `55d6a0b2f12f`
+Postgres: `12caf319f245`
+
 # Add infrastructure_pid to flow runs
 SQLite: `7201de756d85`
 Postgres: `5d526270ddb4`
