@@ -25,7 +25,7 @@ from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.orion.schemas.actions import LogCreate, WorkPoolCreate, WorkPoolQueueCreate
 from prefect.orion.schemas.core import FlowRunNotificationPolicy
 from prefect.orion.schemas.filters import (
     FlowRunNotificationPolicyFilter,
@@ -1548,3 +1548,24 @@ class TestWorkPools:
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)
+
+
+class TestWorkPoolQueues:
+    async def test_delete_queue(self, enable_work_pools, orion_client, work_pool):
+        work_queue_name = "test-queue"
+        wpq = await orion_client.create_work_pool_queue(
+            work_pool_name=work_pool.name,
+            work_pool_queue=WorkPoolQueueCreate(
+                name=work_queue_name,
+            ),
+        )
+
+        await orion_client.delete_work_pool_queue(
+            work_pool_name=work_pool.name, work_pool_queue_name=wpq.name
+        )
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.read_work_pool_queue(
+                work_pool_name=work_pool.name,
+                work_pool_queue_name=wpq.name,
+            )

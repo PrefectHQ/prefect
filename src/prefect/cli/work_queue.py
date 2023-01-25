@@ -16,7 +16,7 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.orion.schemas.actions import WorkPoolQueueCreate
+from prefect.orion.schemas.actions import WorkPoolQueueCreate, WorkPoolQueueUpdate
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -60,10 +60,10 @@ async def create(
         "--tag",
         help="DEPRECATED: One or more optional tags. This option will be removed on 2023-02-23.",
     ),
-    work_pool_name: Optional[str] = typer.Option(
+    pool: Optional[str] = typer.Option(
         None,
-        "-wp",
-        "--work-pool",
+        "-p",
+        "--pool",
         help="The name of the work pool to create the work queue in.",
     ),
 ):
@@ -77,25 +77,21 @@ async def create(
             "This option will be removed on 2023-02-23.",
             style="red",
         )
-    # if the queue name contains a "/", split the first element into the pool name
-    # else use the work_pool_name argument
-    if "/" in name:
-        work_pool_name, name = name.split("/", 1)
 
-    if work_pool_name and tags:
+    if pool and tags:
         exit_with_error(
             "Work queues created with tags cannot specify work pools or set priorities."
         )
 
     async with get_client() as client:
-        if work_pool_name:
+        if pool:
             try:
                 work_pool_queue_create = WorkPoolQueueCreate(
                     name=name,
                     concurrency_limit=limit,
                 )
                 result = await client.create_work_pool_queue(
-                    work_pool_name=work_pool_name,
+                    work_pool_name=pool,
                     work_pool_queue=work_pool_queue_create,
                 )
             except Exception as exc:
@@ -131,19 +127,19 @@ async def create(
             """
         )
     else:
-        if not work_pool_name:
+        if not pool:
             # specify the default work pool name after work queue creation to allow the server
             # to handle a bunch of logic associated with agents without work pools
-            work_pool_name = DEFAULT_AGENT_WORK_POOL_NAME
+            pool = DEFAULT_AGENT_WORK_POOL_NAME
         output_msg = dedent(
             f"""
             Created work queue with properties:
                 name - {name!r}
-                work pool - {work_pool_name!r}
+                work pool - {pool!r}
                 id - {result.id}
                 concurrency limit - {limit}
             Start an agent to pick up flow runs from the work queue:
-                prefect agent start -q '{result.name} -p {work_pool_name}'
+                prefect agent start -q '{result.name} -p {pool}'
 
             Inspect the work queue:
                 prefect work-queue inspect '{result.name}'
@@ -160,7 +156,7 @@ async def set_concurrency_limit(
         None,
         "-p",
         "--pool",
-        help="The name of the work pool to set the concurrency limit on.",
+        help="The name of the work pool that the work queue belongs to.",
     ),
 ):
     """
@@ -169,81 +165,160 @@ async def set_concurrency_limit(
     if not pool:
         queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
 
-    # classic queue with tags
-    # work pool queue with default
-    # work pool queue
-    async with get_client() as client:
-        try:
-            await client.update_work_queue(
-                id=queue_id,
-                concurrency_limit=limit,
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+        async with get_client() as client:
+            try:
+                await client.update_work_queue(
+                    id=queue_id,
+                    concurrency_limit=limit,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Concurrency limit of {limit} set on work queue {name!r}")
+        exit_with_success(f"Concurrency limit of {limit} set on work queue {name!r}")
+
+    else:
+        async with get_client() as client:
+            try:
+                await client.update_work_pool_queue(
+                    work_pool_name=pool,
+                    work_pool_queue_name=name,
+                    work_pool_queue=WorkPoolQueueUpdate(
+                        concurrency_limit=limit,
+                    ),
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+
+        exit_with_success(
+            f"Concurrency limit of {limit} set on work queue {name!r} in work pool {pool!r}"
+        )
 
 
 @work_app.command()
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name or ID of the work queue to clear"),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool that the work queue belongs to.",
+    ),
 ):
     """
     Clear any concurrency limits from a work queue.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-    async with get_client() as client:
-        try:
-            await client.update_work_queue(
-                id=queue_id,
-                concurrency_limit=None,
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+        async with get_client() as client:
+            try:
+                await client.update_work_queue(
+                    id=queue_id,
+                    concurrency_limit=None,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Concurrency limits removed on work queue {name!r}")
+        exit_with_success(f"Concurrency limits removed on work queue {name!r}")
+    else:
+        async with get_client() as client:
+            try:
+                await client.update_work_pool_queue(
+                    work_pool_name=pool,
+                    work_pool_queue_name=name,
+                    work_pool_queue=WorkPoolQueueUpdate(
+                        concurrency_limit=None,
+                    ),
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+
+        exit_with_success(
+            f"Concurrency limits removed on work queue {name!r} in work pool {pool!r}"
+        )
 
 
 @work_app.command()
 async def pause(
     name: str = typer.Argument(..., help="The name or ID of the work queue to pause"),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool that the work queue belongs to.",
+    ),
 ):
     """
     Pause a work queue.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
 
-    async with get_client() as client:
-        try:
-            await client.update_work_queue(
-                id=queue_id,
-                is_paused=True,
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+        async with get_client() as client:
+            try:
+                await client.update_work_queue(
+                    id=queue_id,
+                    is_paused=True,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Paused work queue {name!r}")
+        exit_with_success(f"Paused work queue {name!r}")
+    else:
+        async with get_client() as client:
+            try:
+                await client.update_work_pool_queue(
+                    work_pool_name=pool,
+                    work_pool_queue_name=name,
+                    work_pool_queue=WorkPoolQueueUpdate(
+                        is_paused=True,
+                    ),
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+
+        exit_with_success(f"Paused work queue {name!r} in work pool {pool!r}")
 
 
 @work_app.command()
 async def resume(
     name: str = typer.Argument(..., help="The name or ID of the work queue to resume"),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool that the work queue belongs to.",
+    ),
 ):
     """
     Resume a paused work queue.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
 
-    async with get_client() as client:
-        try:
-            await client.update_work_queue(
-                id=queue_id,
-                is_paused=False,
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+        async with get_client() as client:
+            try:
+                await client.update_work_queue(
+                    id=queue_id,
+                    is_paused=False,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Resumed work queue {name!r}")
+        exit_with_success(f"Resumed work queue {name!r}")
+    else:
+        async with get_client() as client:
+            try:
+                await client.update_work_pool_queue(
+                    work_pool_name=pool,
+                    work_pool_queue_name=name,
+                    work_pool_queue=WorkPoolQueueUpdate(
+                        is_paused=False,
+                    ),
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+
+        exit_with_success(f"Resumed work queue {name!r} in work pool {pool!r}")
 
 
 @work_app.command()
@@ -251,18 +326,35 @@ async def inspect(
     name: str = typer.Argument(
         None, help="The name or ID of the work queue to inspect"
     ),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool that the work queue belongs to.",
+    ),
 ):
     """
     Inspect a work queue by ID.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-    async with get_client() as client:
-        try:
-            result = await client.read_work_queue(id=queue_id)
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+        async with get_client() as client:
+            try:
+                result = await client.read_work_queue(id=queue_id)
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    app.console.print(Pretty(result))
+        app.console.print(Pretty(result))
+    else:
+        async with get_client() as client:
+            try:
+                result = await client.read_work_pool_queue(
+                    work_pool_name=pool, work_pool_queue_name=name
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+
+        app.console.print(Pretty(result))
 
 
 @work_app.command()
@@ -276,39 +368,77 @@ async def ls(
         "-m",
         help="Will match work queues with names that start with the specified prefix string",
     ),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool containing the work queues to list.",
+    ),
 ):
     """
     View all work queues.
     """
-    table = Table(
-        title="Work Queues", caption="(**) denotes a paused queue", caption_style="red"
-    )
-    table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Concurrency Limit", style="blue", no_wrap=True)
-    if verbose:
-        table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
+    if not pool:
+        table = Table(
+            title="Work Queues",
+            caption="(**) denotes a paused queue",
+            caption_style="red",
+        )
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        if verbose:
+            table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
 
-    async with get_client() as client:
-        if work_queue_prefix is not None:
-            queues = await client.match_work_queues([work_queue_prefix])
-        else:
-            queues = await client.read_work_queues()
+        async with get_client() as client:
+            if work_queue_prefix is not None:
+                queues = await client.match_work_queues([work_queue_prefix])
+            else:
+                queues = await client.read_work_queues()
 
-    sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
-    for queue in sorted(queues, key=sort_by_created_key):
+            for queue in sorted(queues, key=sort_by_created_key):
 
-        row = [
-            f"{queue.name} [red](**)" if queue.is_paused else queue.name,
-            str(queue.id),
-            f"[red]{queue.concurrency_limit}"
-            if queue.concurrency_limit
-            else "[blue]None",
-        ]
-        if verbose and queue.filter is not None:
-            row.append(queue.filter.json())
-        table.add_row(*row)
+                row = [
+                    f"{queue.name} [red](**)" if queue.is_paused else queue.name,
+                    str(queue.id),
+                    f"[red]{queue.concurrency_limit}"
+                    if queue.concurrency_limit
+                    else "[blue]None",
+                ]
+                if verbose and queue.filter is not None:
+                    row.append(queue.filter.json())
+                table.add_row(*row)
+    else:
+        table = Table(
+            title=f"Work Queues in Work Pool {pool!r}",
+            caption="(**) denotes a paused queue",
+            caption_style="red",
+        )
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Priority", style="magenta", no_wrap=True)
+        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        if verbose:
+            table.add_column("Description", style="cyan", no_wrap=False)
+
+        async with get_client() as client:
+            queues = await client.read_work_pool_queues(work_pool_name=pool)
+
+            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+
+            for queue in sorted(queues, key=sort_by_created_key):
+
+                row = [
+                    f"{queue.name} [red](**)" if queue.is_paused else queue.name,
+                    f"{queue.priority}",
+                    f"[red]{queue.concurrency_limit}"
+                    if queue.concurrency_limit
+                    else "[blue]None",
+                ]
+                if verbose:
+                    row.append(queue.description)
+                table.add_row(*row)
 
     app.console.print(table)
 
@@ -324,11 +454,16 @@ async def preview(
         "--hours",
         help="The number of hours to look ahead; defaults to 1 hour",
     ),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool that the work queue belongs to.",
+    ),
 ):
     """
     Preview a work queue.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
 
     table = Table(caption="(**) denotes a late run", caption_style="red")
     table.add_column(
@@ -339,14 +474,29 @@ async def preview(
     table.add_column("Deployment ID", style="blue", no_wrap=True)
 
     window = pendulum.now("utc").add(hours=hours or 1)
-    async with get_client() as client:
-        try:
-            runs = await client.get_runs_in_work_queue(
-                queue_id, limit=10, scheduled_before=window
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
 
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+        async with get_client() as client:
+            try:
+                runs = await client.get_runs_in_work_queue(
+                    queue_id, limit=10, scheduled_before=window
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
+    else:
+        async with get_client() as client:
+            try:
+                runs_response = (
+                    await client.get_scheduled_flow_runs_for_work_pool_queues(
+                        work_pool_name=pool,
+                        work_pool_queue_names=[name],
+                        scheduled_before=window,
+                    )
+                )
+                runs = [r.flow_run for r in runs_response]
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
 
@@ -372,15 +522,32 @@ async def preview(
 @work_app.command()
 async def delete(
     name: str = typer.Argument(..., help="The name or ID of the work queue to delete"),
+    pool: Optional[str] = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The name of the work pool containing the work queue to delete.",
+    ),
 ):
     """
     Delete a work queue by ID.
     """
-    queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-    async with get_client() as client:
-        try:
-            await client.delete_work_queue_by_id(id=queue_id)
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+    if not pool:
+        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+        async with get_client() as client:
+            try:
+                await client.delete_work_queue_by_id(id=queue_id)
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
 
-    exit_with_success(f"Deleted work queue {name!r}")
+        exit_with_success(f"Deleted work queue {name!r}")
+    else:
+        async with get_client() as client:
+            try:
+                await client.delete_work_pool_queue(
+                    work_pool_name=pool, work_pool_queue_name=name
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
+
+        exit_with_success(f"Deleted work queue {name!r} from work pool {pool!r}")
