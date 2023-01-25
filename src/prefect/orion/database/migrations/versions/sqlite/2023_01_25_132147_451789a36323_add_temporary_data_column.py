@@ -16,6 +16,8 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table('flow_run_state', schema=None) as batch_op:
         batch_op.add_column(sa.Column('_data', sa.JSON(), nullable=True))
 
@@ -24,6 +26,8 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     with op.batch_alter_table('task_run_state', schema=None) as batch_op:
         batch_op.drop_column('_data')
 
