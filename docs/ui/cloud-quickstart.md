@@ -28,7 +28,7 @@ You can create an account with:
 
 - Google account
 - Microsoft (GitHub) account
-- Email and password
+- Email
 
 ![Creating a new Prefect Cloud account.](../img/ui/cloud-sign-in.png)
 
