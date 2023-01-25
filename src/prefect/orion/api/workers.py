@@ -13,6 +13,7 @@ import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
@@ -103,16 +104,28 @@ class WorkerLookups:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
                 )
-            work_pool_id = await self._get_work_pool_id_from_name(
-                session=session, work_pool_name=work_pool_name
-            )
-            work_pool_queue = await models.workers.create_work_pool_queue(
-                session=session,
-                work_pool_id=work_pool_id,
-                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                    name=work_pool_queue_name
-                ),
-            )
+            if work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
+                work_pool = await models.workers_migration.get_or_create_default_agent_work_pool(
+                    session=session
+                )
+                work_pool_queue = await models.workers.create_work_pool_queue(
+                    session=session,
+                    work_pool_id=work_pool.id,
+                    work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                        name=work_pool_queue_name
+                    ),
+                )
+            else:
+                work_pool_id = await self._get_work_pool_id_from_name(
+                    session=session, work_pool_name=work_pool_name
+                )
+                work_pool_queue = await models.workers.create_work_pool_queue(
+                    session=session,
+                    work_pool_id=work_pool_id,
+                    work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                        name=work_pool_queue_name
+                    ),
+                )
 
         return work_pool_queue.id
 
