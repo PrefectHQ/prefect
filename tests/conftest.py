@@ -41,7 +41,9 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_WARN_WORK_POOLS,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
@@ -360,6 +362,7 @@ async def generate_test_database_connection_url(
         yield None
         return
 
+    print(f"Generating test database connection URL from {original_url!r}")
     scheme, netloc, database, query, fragment = urlsplit(original_url)
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
@@ -367,15 +370,18 @@ async def generate_test_database_connection_url(
         yield None
         return
 
-    if scheme == "postgresql+asyncpg":
+    elif scheme == "postgresql+asyncpg":
         test_db_name = database.strip("/") + f"_tests_{worker_id}"
         quoted_db_name = postgres_dialect().identifier_preparer.quote(test_db_name)
 
         postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
 
         # Create an empty temporary database for use in the tests
+
+        print(f"Connecting to postgres at {postgres_url!r}")
         connection = await asyncpg.connect(postgres_url)
         try:
+            print(f"Creating test postgres database {quoted_db_name!r}")
             # remove any connections to the test database. For example if a SQL IDE
             # is being used to investigate it, it will block the drop database command.
             await connection.execute(
@@ -394,8 +400,10 @@ async def generate_test_database_connection_url(
 
         new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
 
+        print(f"Using test database connection URL {new_url!r}")
         yield new_url
 
+        print("Cleaning up test postgres database")
         # Now drop the temporary database we created
         connection = await asyncpg.connect(postgres_url)
         try:
@@ -410,6 +418,10 @@ async def generate_test_database_connection_url(
             pass
         finally:
             await connection.close()
+    else:
+        raise ValueError(
+            f"Unknown scheme {scheme!r} parsed from database url {original_url!r}."
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -469,6 +481,17 @@ def caplog(caplog):
                 logger.handlers.append(caplog.handler)
 
     yield caplog
+
+
+@pytest.fixture
+def enable_work_pools():
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS: 1,
+            PREFECT_EXPERIMENTAL_WARN_WORK_POOLS: 0,
+        }
+    ):
+        yield
 
 
 @pytest.fixture

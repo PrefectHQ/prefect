@@ -3,6 +3,7 @@ import io
 import json
 import urllib.parse
 from pathlib import Path
+from shutil import ignore_patterns
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -79,6 +80,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+    _documentation_url = (
+        "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
+    )
 
     basepath: Optional[str] = Field(
         default=None, description="Default local path for this block to write to."
@@ -239,6 +243,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
+    _documentation_url = (
+        "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
+    )
 
     basepath: str = Field(
         default=...,
@@ -419,6 +426,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "S3"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#s3"
 
     bucket_path: str = Field(
         default=...,
@@ -508,6 +516,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#gcs"
 
     bucket_path: str = Field(
         default=...,
@@ -597,6 +606,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Azure"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#azure"
 
     bucket_path: str = Field(
         default=...,
@@ -719,6 +729,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "SMB"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#smb"
 
     share_path: str = Field(
         default=...,
@@ -809,6 +820,7 @@ class GitHub(ReadableDeploymentStorage):
 
     _block_type_name = "GitHub"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#github"
 
     repository: str = Field(
         default=...,
@@ -822,6 +834,10 @@ class GitHub(ReadableDeploymentStorage):
         name="Personal Access Token",
         default=None,
         description="A GitHub Personal Access Token (PAT) with repo scope.",
+    )
+    include_git_objects: bool = Field(
+        default=True,
+        description="Whether to include git objects when copying the repo contents to a directory.",
     )
 
     @validator("access_token")
@@ -919,4 +935,13 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
+            ignore_func = None
+            if not self.include_git_objects:
+                ignore_func = ignore_patterns(".git")
+
+            copytree(
+                src=content_source,
+                dst=content_destination,
+                dirs_exist_ok=True,
+                ignore=ignore_func,
+            )
