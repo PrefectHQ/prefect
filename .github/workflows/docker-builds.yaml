@@ -100,7 +100,7 @@ jobs:
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
-          push: false
+          push: true
           pull: true
           # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
           cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}
