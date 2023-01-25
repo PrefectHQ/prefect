@@ -16,7 +16,8 @@ tags:
 Get signed in and using Prefect Cloud, including running a flow observed by Prefect Cloud, in just a few steps:
 
 1. [Sign in or register](#sign-in-or-register) a Prefect Cloud account.
-1. [Create a workspaces](#create-a-workspace) for your account.
+1. [Create a workspace](#create-a-workspace) for your account.
+1. [Install Prefect](#install-prefect) in your local environment.
 1. [Log into Prefect Cloud](#log-into-prefect-cloud-from-a-terminal) from a local terminal session.
 1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
 
@@ -52,7 +53,7 @@ Select **Save** to create the workspace. If you change your mind, select **Edit*
 
 The **Workspace Settings** page for your new workspace displays the commands that enable you to install Prefect and log into Prefect Cloud in a local execution environment.
 
-## Log into Prefect Cloud from a terminal
+## Install Prefect
 
 Configure a local execution environment to use Prefect Cloud as the API server for flow runs. In other words, "log in" to Prefect Cloud from a local environment where you want to run a flow.
 
@@ -68,6 +69,8 @@ $ pip install -U prefect
 
 !!! note "Installation requirements"
     Prefect requires Python 3.7 or later. If you have any questions about Prefect installations requirements or dependencies in your preferred development environment, check out the [Installation](/getting-started/installation/) documentation.
+
+## Log into Prefect Cloud from a terminal
 
 Use the `prefect cloud login` Prefect CLI command to log into Prefect Cloud from your environment.
 
