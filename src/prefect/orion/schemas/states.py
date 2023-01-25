@@ -69,6 +69,13 @@ class State(IDBaseModel, Generic[R]):
             "Content must be storable as JSON."
         ),
     )
+    _data: Optional[Any] = Field(
+        default=None,
+        description=(
+            "Data associated with the state, e.g. a result. "
+            "Content must be storable as JSON."
+        ),
+    )
     state_details: StateDetails = Field(default_factory=StateDetails)
 
     @validator("name", always=True)

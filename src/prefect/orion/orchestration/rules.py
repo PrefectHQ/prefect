@@ -268,18 +268,27 @@ class FlowOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
+            state_data = None
         else:
+            state_payload = self.proposed_state.dict(shallow=True)
+            state_data = state_payload.pop("data", None)
+
+            if state_data is not None:
+                state_payload["_data"] = state_data
+
             validated_orm_state = db.FlowRunState(
                 flow_run_id=self.run.id,
-                **self.proposed_state.dict(shallow=True),
+                **state_payload,
             )
-            self.session.add(validated_orm_state)
-            self.run.set_state(validated_orm_state)
+
+        self.session.add(validated_orm_state)
+        self.run.set_state(validated_orm_state)
 
         await self.session.flush()
-        self.validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
+        if validated_orm_state:
+            self.validated_state = validated_orm_state.as_state()
+        else:
+            self.validated_state = None
 
     def safe_copy(self):
         """
@@ -405,18 +414,27 @@ class TaskOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
+            state_data = None
         else:
+            state_payload = self.proposed_state.dict(shallow=True)
+            state_data = state_payload.pop("data", None)
+
+            if state_data is not None:
+                state_payload["_data"] = state_data
+
             validated_orm_state = db.TaskRunState(
                 task_run_id=self.run.id,
-                **self.proposed_state.dict(shallow=True),
+                **state_payload,
             )
-            self.session.add(validated_orm_state)
-            self.run.set_state(validated_orm_state)
+
+        self.session.add(validated_orm_state)
+        self.run.set_state(validated_orm_state)
 
         await self.session.flush()
-        self.validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
+        if validated_orm_state:
+            self.validated_state = validated_orm_state.as_state()
+        else:
+            self.validated_state = None
 
     def safe_copy(self):
         """
