@@ -18,6 +18,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 @inject_db
@@ -75,6 +76,11 @@ async def create_work_queue(
 
     session.add(model)
     await session.flush()
+
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and model.filter is None:
+        await workers_migration.get_or_create_work_pool_queue(
+            session=session, work_queue_id=model.id
+        )
 
     return model
 
@@ -236,14 +242,28 @@ async def get_runs_in_work_queue(
         raise ObjectNotFoundError(f"Work queue with id {work_queue_id} not found.")
 
     if work_queue.filter is None:
-        query = db.queries.get_scheduled_flow_runs_from_work_queues(
-            db=db,
-            limit_per_queue=limit,
-            work_queue_ids=[work_queue_id],
-            scheduled_before=scheduled_before,
-        )
-        result = await session.execute(query)
-        return result.scalars().unique().all()
+        # If workers are enabled, ensure that a corresponding work pool queue exists
+        # and retrieve runs from that work pool queue.
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+            worker_flow_run_response = (
+                await workers_migration.get_runs_from_work_pool_queue(
+                    session=session,
+                    work_queue_id=work_queue_id,
+                    scheduled_before=scheduled_before,
+                    limit=limit,
+                )
+            )
+            return [r.flow_run for r in worker_flow_run_response]
+        # Otherwise get runs from the legacy work queue.
+        else:
+            query = db.queries.get_scheduled_flow_runs_from_work_queues(
+                db=db,
+                limit_per_queue=limit,
+                work_queue_ids=[work_queue_id],
+                scheduled_before=scheduled_before,
+            )
+            result = await session.execute(query)
+            return result.scalars().unique().all()
 
     # if the work queue has a filter, it's a deprecated tag-based work queue
     # and uses an old approach

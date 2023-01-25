@@ -20,6 +20,7 @@ from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 

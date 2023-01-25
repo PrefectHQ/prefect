@@ -18,6 +18,7 @@ from prefect.orion.utilities.schemas import (
     PrefectBaseModel,
     copy_model_fields,
 )
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
