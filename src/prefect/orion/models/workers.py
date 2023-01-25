@@ -16,10 +16,12 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkPoolQueue
 
+DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
+
 # -----------------------------------------------------
 # --
 # --
-# -- Worker Pools
+# -- Work Pools
 # --
 # --
 # -----------------------------------------------------
@@ -232,7 +234,7 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 # --
 # --
-# -- work pool queues
+# -- Work Pool Queues
 # --
 # --
 # -----------------------------------------------------

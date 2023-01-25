@@ -7,7 +7,6 @@ import pytest
 from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.models import workers_migration
 from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 
 
@@ -520,93 +519,3 @@ class TestReadWorkQueueStatus:
     async def test_read_work_queue_status_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/work_queues/{uuid4()}/status")
         assert response.status_code == status.HTTP_404_NOT_FOUND
-
-
-class TestWorkerMigration:
-    async def test_create_work_pool_queue_when_work_queue_created(
-        self, session, client, enable_work_pools
-    ):
-        name = "migration test queue"
-
-        assert not await models.workers.read_work_pool_queue_by_name(
-            session=session,
-            work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-            work_pool_queue_name=name,
-        )
-
-        assert (
-            await client.post(
-                "/work_queues/",
-                json=schemas.actions.WorkQueueCreate(name=name).dict(
-                    json_compatible=True
-                ),
-            )
-        ).status_code == status.HTTP_201_CREATED
-
-        assert await models.workers.read_work_pool_queue_by_name(
-            session=session,
-            work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-            work_pool_queue_name=name,
-        )
-
-    async def test_update_work_pool_queue_when_work_queue_updated(
-        self, session, client, enable_work_pools
-    ):
-        name = "migration-test-queue"
-
-        create_response = await client.post(
-            "/work_queues/",
-            json=schemas.actions.WorkQueueCreate(name=name).dict(json_compatible=True),
-        )
-        wpq = await models.workers.read_work_pool_queue_by_name(
-            session=session,
-            work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-            work_pool_queue_name=name,
-        )
-        assert wpq.is_paused is False
-        session.expunge(wpq)
-
-        update_response = await client.patch(
-            f"/work_queues/{create_response.json()['id']}",
-            json=schemas.actions.WorkQueueUpdate(is_paused=True).dict(
-                json_compatible=True, exclude_unset=True
-            ),
-        )
-        assert update_response.status_code == status.HTTP_204_NO_CONTENT
-
-        wpq = await models.workers.read_work_pool_queue_by_name(
-            session=session,
-            work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-            work_pool_queue_name=name,
-        )
-        assert wpq.is_paused is True
-
-    async def test_delete_work_pool_queue_when_work_queue_deleted(
-        self, session, client, enable_work_pools
-    ):
-        name = "migration-test-queue"
-
-        create_response = await client.post(
-            "/work_queues/",
-            json=schemas.actions.WorkQueueCreate(name=name).dict(json_compatible=True),
-        )
-        assert await models.workers.read_work_pool_queue_by_name(
-            session=session,
-            work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-            work_pool_queue_name=name,
-        )
-        session.expunge_all()
-
-        delete_response = await client.delete(
-            f"/work_queues/{create_response.json()['id']}",
-        )
-        assert delete_response.status_code == status.HTTP_204_NO_CONTENT
-
-        assert (
-            await models.workers.read_work_pool_queue_by_name(
-                session=session,
-                work_pool_name=workers_migration.DEFAULT_AGENT_WORK_POOL_NAME,
-                work_pool_queue_name=name,
-            )
-            is None
-        )
