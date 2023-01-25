@@ -15,7 +15,6 @@ from . import (
     saved_searches,
     logs,
     workers,
-    workers_migration,
     work_queues,
     agents,
 )
