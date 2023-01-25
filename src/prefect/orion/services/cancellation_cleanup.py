@@ -92,7 +92,6 @@ class CancellationCleanup(LoopService):
             subflow_run_result = await session.execute(subflow_query)
             subflow_runs = subflow_run_result.scalars().all()
 
-            self.logger.info("subflow_runs")
             for subflow_run in subflow_runs:
                 await self._cancel_subflows(session=session, flow_run=subflow_run)
 
