@@ -100,6 +100,39 @@ def _get_non_block_reference_definitions(object_definition: Dict, definitions: D
     return non_block_definitions
 
 
+def _is_subclass(cls, parent_cls) -> bool:
+    """
+    Checks if a given class is a subclass of another class. Unlike issubclass,
+    this will not throw an exception if cls is an instance instead of a type.
+    """
+    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+
+
+def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
+    """
+    Recursively collects all secret fields from a given type and adds them to the
+    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
+    mutates the input secrets list, thus does not return anything.
+    """
+    if get_origin(type_) is Union:
+        for union_type in get_args(type_):
+            _collect_secret_fields(name, union_type, secrets)
+        return
+    elif _is_subclass(type_, BaseModel):
+        for field in type_.__fields__.values():
+            _collect_secret_fields(f"{name}.{field.name}", field.type_, secrets)
+        return
+
+    if type_ in (SecretStr, SecretBytes):
+        secrets.append(name)
+    elif type_ == SecretDict:
+        # Append .* to field name to signify that all values under this
+        # field are secret and should be obfuscated.
+        secrets.append(f"{name}.*")
+    elif Block.is_block_class(type_):
+        secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
 @register_base_type
 class Block(BaseModel, ABC):
     """
@@ -145,17 +178,7 @@ class Block(BaseModel, ABC):
             # nested under the "child" key are all secret. There is no limit to nesting.
             secrets = schema["secret_fields"] = []
             for field in model.__fields__.values():
-                if field.type_ in [SecretStr, SecretBytes]:
-                    secrets.append(field.name)
-                elif field.type_ == SecretDict:
-                    # Append .* to field name to signify that all values under this
-                    # field are secret and should be obfuscated.
-                    secrets.append(f"{field.name}.*")
-                elif Block.is_block_class(field.type_):
-                    secrets.extend(
-                        f"{field.name}.{s}"
-                        for s in field.type_.schema()["secret_fields"]
-                    )
+                _collect_secret_fields(field.name, field.type_, secrets)
 
             # create block schema references
             refs = schema["block_schema_references"] = {}
@@ -715,7 +738,7 @@ class Block(BaseModel, ABC):
 
     @staticmethod
     def is_block_class(block) -> bool:
-        return inspect.isclass(block) and issubclass(block, Block)
+        return _is_subclass(block, Block)
 
     @classmethod
     @sync_compatible
