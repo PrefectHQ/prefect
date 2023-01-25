@@ -76,9 +76,6 @@ async def create_deployment(
                     work_pool_queue_name=deployment.work_queue_name,
                     create_queue_if_not_found=True,
                 )
-                # Pop work queue name to prevent work from being pulled from
-                # a legacy work queue.
-                deployment_dict.pop("work_queue_name", None)
             elif deployment.work_pool_name:
                 # If just a pool name was provided, get the ID for its default
                 # work pool queue.
@@ -97,9 +94,6 @@ async def create_deployment(
                 )
                 if work_pool_queue:
                     deployment_dict["work_pool_queue_id"] = work_pool_queue.id
-                    # Pop work queue name to prevent work from being pulled from
-                    # a legacy work queue.
-                    deployment_dict.pop("work_queue_name", None)
 
         deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message

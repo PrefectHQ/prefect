@@ -104,11 +104,16 @@ class WorkerLookups:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
                 )
-            if work_pool_name.lower() == DEFAULT_AGENT_WORK_POOL_NAME:
-                work_pool_queue = (
-                    await models.workers_migration.get_or_create_work_pool_queue(
-                        session=session, work_queue_name=work_pool_queue_name
-                    )
+            if work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
+                work_pool = await models.workers_migration.get_or_create_default_agent_work_pool(
+                    session=session
+                )
+                work_pool_queue = await models.workers.create_work_pool_queue(
+                    session=session,
+                    work_pool_id=work_pool.id,
+                    work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                        name=work_pool_queue_name
+                    ),
                 )
             else:
                 work_pool_id = await self._get_work_pool_id_from_name(

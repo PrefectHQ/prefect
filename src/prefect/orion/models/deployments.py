@@ -159,7 +159,6 @@ async def update_deployment(
                 work_pool_queue_name=deployment.work_queue_name,
                 create_queue_if_not_found=True,
             )
-            update_data.pop("work_queue_name", None)
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
             # work pool queue.
@@ -178,7 +177,6 @@ async def update_deployment(
             )
             if work_pool_queue:
                 update_data["work_pool_queue_id"] = work_pool_queue.id
-                update_data.pop("work_queue_name", None)
 
     update_stmt = (
         sa.update(db.Deployment)
