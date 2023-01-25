@@ -52,7 +52,7 @@ Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspa
 ```
 </div>
 
-### Changing workspaces
+### Change workspaces
 
 If you need to change which workspace you're syncing with, use the `prefect cloud workspace set` Prefect CLI command while logged in, passing the account handle and workspace name.
 
@@ -74,7 +74,7 @@ $ prefect cloud login --workspace "prefect/my-workspace"
 ```
 </div>
 
-## Manually configuring Prefect API settings
+## Manually configure Prefect API settings
 
 You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect Orion server API.
 
@@ -104,4 +104,6 @@ In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the de
 
 See the [Flow orchestration with Prefect](/tutorials/orion/) tutorial for examples.
 
-## Installing requirements in local execution environments
+## Install requirements in execution environments
+
+In local and remote execution environments &mdash; such as VMs and containers &mdash; you must make sure any flow requirements or dependencies have been installed before creating a flow run.

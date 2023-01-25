@@ -112,7 +112,6 @@ nav:
                 - tutorials/execution.md
                 - tutorials/orion.md
                 - tutorials/deployments.md
-                - tutorials/cloud-deployments.md
                 - tutorials/storage.md
                 - tutorials/docker.md
                 - Prefect Cloud Quickstart: ui/cloud-quickstart.md
