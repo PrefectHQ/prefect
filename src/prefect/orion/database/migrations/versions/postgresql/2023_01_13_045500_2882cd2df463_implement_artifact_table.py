@@ -146,6 +146,7 @@ def upgrade():
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
         batch_op.alter_column("data", new_column_name="_data")
 
+
 def downgrade():
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
