@@ -86,6 +86,7 @@ async def orion_process():
             process.terminate()
         except ProcessLookupError:
             pass
+        out.close()
 
 
 class TestUvicornSignalForwarding:
