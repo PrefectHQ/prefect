@@ -133,7 +133,7 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True)
+    _data = sa.Column(sa.JSON, nullable=True, name="data")
 
     @declared_attr
     def result_artifact_id(cls):
@@ -216,7 +216,7 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    _data = sa.Column(sa.JSON, nullable=True)
+    _data = sa.Column(sa.JSON, nullable=True, name="data")
 
     @declared_attr
     def result_artifact_id(cls):
