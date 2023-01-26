@@ -1,5 +1,77 @@
 # Prefect Release Notes
 
+## Release 2.7.10
+
+### Flow run cancellation enhancements
+
+We're excited to announce an upgrade to our flow run cancellation feature, resolving common issues.
+
+We added SIGTERM handling to the flow run engine. When cancellation is requested, the agent sends a termination signal to the flow run infrastructure. Previously, this signal resulted in the immediate exit of the flow run. Now, the flow run will detect the signal and attempt to shut down gracefully. This gives the run an opportunity to clean up any resources it is managing. If the flow run does not gracefully exit in a reasonable time (this differs per infrastructure type), it will be killed.
+
+We improved our handling of runs that are in the process of cancelling. When a run is cancelled, it's first placed in a "cancelling" state then moved to a "cancelled" state when cancellation is complete. Previously, concurrency slots were released as soon as cancellation was requested. Now, the flow run will continue to occupy concurrency slots until a "cancelled" state is reached.
+
+We added cleanup of tasks and subflows belonging to cancelled flow runs. Previously, these tasks and subflows could be left in a "running" state. This can cause problems with concurrency slot consumption and restarts, so we've added a service that updates the states of the children of recently cancelled flow runs. 
+
+See https://github.com/PrefectHQ/prefect/pull/8126 for implementation details.
+
+
+### Multiarchitecture Docker builds
+
+In 2.7.8, we announced that we were publishing development Docker images, including multiarchitecture images. This was the first step in the incremental rollout of multiarchitecture Docker images. We're excited to announce we will be publishing multiarchitecture Docker images starting with this release.
+
+You can try downloading one of the new images by including the `--platform` specifier, e.g.:
+
+```bash
+$ docker pull prefecthq/prefect:2-python3.10 --platform linux/arm64
+```
+
+We will be publishing images for the following architectures:
+
+- linux/amd64
+- linux/arm64
+
+This should provide a significant speedup to anyone running containers on ARM64 machines (I'm looking at you, Apple M1 chips!) and reduce the complexity for our users that are deploying on different platforms. The workflow for building our images was rewritten from scratch, and it'll be easy for us to expand support to include other common platforms.
+
+Shoutout to [@ddelange](https://github.com/ddelange) who led implementation of the feature.
+See https://github.com/PrefectHQ/prefect/pull/7902 for details.
+
+### Enhancements
+- Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
+
+- Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
+- Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
+- Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
+- Enable publish of multiarchitecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
+- Add `CANCELLING` state type — https://github.com/PrefectHQ/prefect/pull/7794
+- Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
+- Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
+- Add `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` setting to allow configuration of Uvicorn `timeout-keep-alive` setting - https://github.com/PrefectHQ/prefect/pull/8190
+
+### Fixes
+- Fix server compatibility with clients on 2.7.8 - https://github.com/PrefectHQ/prefect/pull/8272
+- Fix tracking of long-running Kubernetes jobs and add handling for connection failures - https://github.com/PrefectHQ/prefect/pull/8189
+
+### Experimental
+- Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
+- Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
+- Fix property for `WorkersTable` in UI — https://github.com/PrefectHQ/prefect/pull/8232
+
+### Documentation
+- [Add Prefect Cloud Quickstart tutorial](https://docs.prefect.io/ui/cloud-getting-started/) — https://github.com/PrefectHQ/prefect/pull/8227
+- Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
+- Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
+- Improve [contributing documentation](https://docs.prefect.io/contributing/overview/) with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
+- Update documentation on [KubernetesJob options](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob) — https://github.com/PrefectHQ/prefect/pull/8261
+- Update documentation on [workspace-level roles](https://docs.prefect.io/ui/roles/#workspace-level-roles) — https://github.com/PrefectHQ/prefect/pull/8263
+
+### Collections
+- Add [prefect-openai](https://prefecthq.github.io/prefect-openai/) to [Collections catalog](https://docs.prefect.io/collections/catalog/) — https://github.com/PrefectHQ/prefect/pull/8236
+
+### Contributors
+- @ddelange
+- @imsurat
+- @Laerte
+
 ## Release 2.7.9
 
 ### Enhancements
