@@ -107,7 +107,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -130,7 +129,6 @@ def upgrade():
         )
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
@@ -157,24 +155,20 @@ def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
 
     with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.alter_column("_data", new_column_name="data")
         batch_op.drop_constraint(
             batch_op.f("fk_task_run_state__result_artifact_id__artifact"),
             type_="foreignkey",
         )
         batch_op.drop_index(batch_op.f("ix_task_run_state__result_artifact_id"))
         batch_op.drop_column("result_artifact_id")
-        batch_op.alter_column("_data", new_column_name="data")
 
     with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.alter_column("_data", new_column_name="data")
         batch_op.drop_constraint(
             batch_op.f("fk_flow_run_state__result_artifact_id__artifact"),
             type_="foreignkey",
         )
         batch_op.drop_index(batch_op.f("ix_flow_run_state__result_artifact_id"))
         batch_op.drop_column("result_artifact_id")
-        batch_op.alter_column("_data", new_column_name="data")
 
     with op.batch_alter_table("artifact", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_artifact__updated"))

@@ -140,21 +140,8 @@ def upgrade():
         use_alter=True,
     )
 
-    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
-
-    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.alter_column("data", new_column_name="_data")
-
 
 def downgrade():
-
-    with op.batch_alter_table("task_run_state", schema=None) as batch_op:
-        batch_op.alter_column("_data", new_column_name="data")
-
-    with op.batch_alter_table("flow_run_state", schema=None) as batch_op:
-        batch_op.alter_column("_data", new_column_name="data")
-
     op.drop_constraint(
         op.f("fk_task_run_state__result_artifact_id__artifact"),
         "task_run_state",

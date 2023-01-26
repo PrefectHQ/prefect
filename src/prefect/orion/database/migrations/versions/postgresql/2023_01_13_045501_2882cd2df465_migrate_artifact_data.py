@@ -22,7 +22,7 @@ def upgrade():
     def update_task_run_artifact_data_in_batches(batch_size, offset):
         return f"""
             INSERT INTO artifact (task_run_state_id, task_run_id, data)
-            SELECT id, task_run_id, _data
+            SELECT id, task_run_id, data
             FROM task_run_state
             WHERE has_data IS TRUE
             LIMIT {batch_size} OFFSET {offset};
@@ -40,7 +40,7 @@ def upgrade():
     def update_flow_run_artifact_data_in_batches(batch_size, offset):
         return f"""
             INSERT INTO artifact (flow_run_state_id, flow_run_id, data)
-            SELECT id, flow_run_id, _data
+            SELECT id, flow_run_id, data
             FROM flow_run_state
             WHERE has_data IS TRUE
             LIMIT {batch_size} OFFSET {offset};
