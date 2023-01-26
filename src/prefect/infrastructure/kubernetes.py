@@ -608,9 +608,7 @@ class KubernetesJob(Infrastructure):
                 self.job_watch_timeout_seconds is not None
                 and elapsed > self.job_watch_timeout_seconds
             ):
-                self.logger.error(
-                    f"Job {job_name!r}: Job timed out " f"after {elapsed}s."
-                )
+                self.logger.error(f"Job {job_name!r}: Job timed out after {elapsed}s.")
                 return -1
 
             watch = kubernetes.watch.Watch()
@@ -631,13 +629,16 @@ class KubernetesJob(Infrastructure):
                 ):
                     if event["object"].status.completion_time:
                         if not event["object"].status.succeeded:
+                            # Job failed, exit while loop and return pod exit code
                             self.logger.error(f"Job {job_name!r}: Job failed.")
-                            return -1
                         completed = True
                         watch.stop()
                         break
                 else:
-                    self.logger.error(f"Job {job_name!r}: Job did not complete.")
+                    self.logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {self.job_watch_timeout_seconds}s."
+                    )
                     return -1
 
         with self.get_client() as client:
