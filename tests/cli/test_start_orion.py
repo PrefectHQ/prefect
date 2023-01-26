@@ -3,7 +3,6 @@ import re
 import signal
 import sys
 import tempfile
-import time
 
 import anyio
 import httpx
@@ -13,6 +12,7 @@ from prefect.settings import get_current_settings
 from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.processutils import open_process
 
+STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 10
 
 
@@ -62,7 +62,7 @@ async def orion_process():
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
             response = None
-            with anyio.move_on_after(20):
+            with anyio.move_on_after(STARTUP_TIMEOUT):
                 while True:
                     try:
                         response = await client.get(api_url + "/health")
@@ -96,7 +96,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigint_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGINT)
-        time.sleep(0.1)
+        await anyio.sleep(0.1)
         orion_process.send_signal(signal.SIGINT)
         with anyio.move_on_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
@@ -114,7 +114,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGTERM)
-        time.sleep(0.1)
+        await anyio.sleep(0.1)
         orion_process.send_signal(signal.SIGTERM)
         with anyio.move_on_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
