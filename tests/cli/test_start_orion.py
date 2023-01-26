@@ -13,7 +13,7 @@ from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.processutils import open_process
 
 STARTUP_TIMEOUT = 20
-SHUTDOWN_TIMEOUT = 10
+SHUTDOWN_TIMEOUT = 20
 
 
 @pytest.fixture(scope="function")
@@ -97,7 +97,7 @@ class TestUvicornSignalForwarding:
         orion_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.1)
         orion_process.send_signal(signal.SIGINT)
-        with anyio.move_on_after(SHUTDOWN_TIMEOUT):
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
@@ -115,7 +115,7 @@ class TestUvicornSignalForwarding:
         orion_process.send_signal(signal.SIGTERM)
         await anyio.sleep(0.1)
         orion_process.send_signal(signal.SIGTERM)
-        with anyio.move_on_after(SHUTDOWN_TIMEOUT):
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
@@ -131,7 +131,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_directly(self, orion_process):
         orion_process.send_signal(signal.SIGTERM)
-        with anyio.move_on_after(SHUTDOWN_TIMEOUT):
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
@@ -147,7 +147,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sends_ctrl_break_win32(self, orion_process):
         orion_process.send_signal(signal.SIGINT)
-        with anyio.move_on_after(SHUTDOWN_TIMEOUT):
+        with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
