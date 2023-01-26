@@ -61,7 +61,7 @@ Importantly, triggers can be configured not only in reaction to events, but also
 For example, in the case of flow run state change triggers, you might expect production flows to finish in no longer than thirty minutes. But transient infrastructure or network issues could cause your flow to get “stuck” in a running state. A trigger could kick off an action if the flow stays in a running state for more than 30 minutes. This action could be on the flow itself, such as canceling or restarting it, or it could take the form of a notification so someone can take manual remediation steps.
 
 !!! note "Work queue health"
-    A work queue is "unhealthy" if it has not been polled in over 60 seconds and has one or more late runs.
+    A work queue is "unhealthy" if it has not been polled in over 60 seconds OR if it has one or more late runs.
 
 ### Actions
 
