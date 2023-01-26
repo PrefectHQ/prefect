@@ -91,13 +91,13 @@
 
   const { filter: recentFlowRunFilter } = useRecentFlowRunsFilter({
     flowRuns: {
-      workQueueName: workQueueName.value,
+      workQueueName: workQueueName,
     },
   })
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
     flowRuns: {
-      workQueueName: workQueueName.value,
+      workQueueName: workQueueName,
     },
   })
 
