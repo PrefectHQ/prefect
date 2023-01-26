@@ -30,7 +30,7 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.models import flow_runs
-from prefect.orion.schemas import core, states
+from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
