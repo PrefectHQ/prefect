@@ -11,7 +11,7 @@ We've also added a service to cleanup unfinished tasks and subflows from recentl
 
 ### Enhancements
 - Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
-- Add ability to restart Kubernetes job events watch by allowing `KubernetesJob._watch_job` to track long-running jobs - https://github.com/PrefectHQ/prefect/pull/8189
+- Add ability to track long-running Kubernetes jobs by restarting the job event stream in `KubernetesJob._watch_job` - https://github.com/PrefectHQ/prefect/pull/8189
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
 - Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
 - Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
