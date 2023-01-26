@@ -7,6 +7,7 @@ import pendulum
 import pytest
 
 from prefect.orion import models, schemas
+from prefect.orion.models import artifacts
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.orchestration.rules import (
@@ -1461,7 +1462,7 @@ class TestOrchestrationContext:
         validated_orm_state = await state_reader(ctx.session, ctx.validated_state.id)
         artifact_id = validated_orm_state.result_artifact_id
 
-        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        orm_artifact = await artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact.data == "some special data"
 
     async def test_context_validation_does_not_write_artifact_when_no_result(
@@ -1490,7 +1491,7 @@ class TestOrchestrationContext:
         artifact_id = validated_orm_state.result_artifact_id
         assert artifact_id is None
 
-        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        orm_artifact = await artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact is None
 
     @pytest.mark.parametrize(
