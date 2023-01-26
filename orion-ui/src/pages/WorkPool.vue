@@ -49,12 +49,11 @@
   }
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
-  const workPoolId = computed(() => workPool.value ? [workPool.value.id] : [])
+  const workPoolIds = computed(() => workPool.value ? [workPool.value.id] : [])
 
-  // this isn't reactive...
   const { filter: flowRunFilter } = useRecentFlowRunsFilter({
     workPools: {
-      id: workPoolId.value,
+      id: workPoolIds,
     },
   })
 
