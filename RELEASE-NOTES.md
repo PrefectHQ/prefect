@@ -19,10 +19,10 @@ See https://github.com/PrefectHQ/prefect/pull/8126 for implementation details.
 
 In 2.7.8, we announced that we were publishing development Docker images, including multiarchitecture images. This was the first step in the incremental rollout of multiarchitecture Docker images. We're excited to announce we will be publishing multiarchitecture Docker images starting with this release.
 
-You can try downloading one of the new images by including the `--platform` specifier, e.g.:
+You can try one of the new images by including the `--platform` specifier, e.g.:
 
 ```bash
-$ docker pull prefecthq/prefect:2-python3.10 --platform linux/arm64
+$ docker run --platform linux/arm64 --pull always prefecthq/prefect:2-latest prefect version
 ```
 
 We will be publishing images for the following architectures:
