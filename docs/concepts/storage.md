@@ -68,11 +68,11 @@ You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI
 
 To create a new block, select the **+** button. Prefect displays a library of block types you can configure to create blocks to be used by your flows.
 
-![Viewing the new block library in the Prefect UI](/img/ui/orion-block-library.png)
+![Viewing the new block library in the Prefect UI](../img/ui/orion-block-library.png)
 
 Select **Add +** to configure a new storage block based on a specific block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configurating an S3 storage block in the Prefect UI](/img/tutorials/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](../img/tutorials/s3-block-configuration.png)
 
 You can also create blocks using the Prefect Python API:
 

@@ -139,7 +139,7 @@ You can configure work queues by using:
 - Prefect CLI commands
 - Prefect Python API
 
-![Creating a new work queue in the Orion UI](/img/ui/work-queue-create.png)
+![Creating a new work queue in the Orion UI](../img/ui/work-queue-create.png)
 
 
 To configure a work queue via the Prefect CLI, use the `prefect work-queue create` command:
@@ -183,7 +183,7 @@ On success, the command returns the details of the newly created work queue, whi
 
 At any time, users can see and edit configured work queues in the Prefect UI.
 
-![The UI displays a list of configured work queues](/img/ui/work-queue-list.png)
+![The UI displays a list of configured work queues](../img/ui/work-queue-list.png)
 
 To view work queues with the Prefect CLI, you can:
 

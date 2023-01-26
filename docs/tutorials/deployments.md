@@ -531,7 +531,7 @@ Note that we referenced the deployment by name in the format "flow_name/deployme
 
 You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/). You'll see your deployment's flow run in the UI.
 
-![Deployment flow run on the Flow Runs page of the Prefect UI](/img/tutorials/my-first-deployment.png)
+![Deployment flow run on the Flow Runs page of the Prefect UI](../img/tutorials/my-first-deployment.png)
 
 ## Run a deployment from the UI
 
@@ -539,22 +539,22 @@ With a work queue and agent in place, you can also create a flow run for `log_si
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance.
 
-![The Deployments page displays a list of deployments created in Prefect](/img/tutorials/orion-deployments.png)
+![The Deployments page displays a list of deployments created in Prefect](../img/tutorials/orion-deployments.png)
 
 Now select **log-flow/log-simple** to see details for the deployment you just created.
 
-![Viewing details of a single deployment](/img/tutorials/deployment-details.png)
+![Viewing details of a single deployment](../img/tutorials/deployment-details.png)
 
 Select **Parameters** to see the default parameters you specified in the deployment definition.
 
-![Viewing deployment parameters](/img/tutorials/deployment-parameters.png)
+![Viewing deployment parameters](../img/tutorials/deployment-parameters.png)
 
 You can start a flow run for this deployment from the UI by selecting the **Run** button, which gives you options to:
 
 - Create a flow run with the default settings
 - Create a flow run with custom settings
 
-![Deployment run options in the UI](/img/tutorials/deployment-run-options.png)
+![Deployment run options in the UI](../img/tutorials/deployment-run-options.png)
 
 If you choose a **Custom** flow run, you can configure details including:
 
@@ -564,13 +564,13 @@ If you choose a **Custom** flow run, you can configure details including:
 - Scheduled start time
 - Custom parameters
 
-![Configuring custom flow run settings](/img/tutorials/custom-flow-run.png)
+![Configuring custom flow run settings](../img/tutorials/custom-flow-run.png)
 
 Let's change the `name` parameter for the next flow run. Under **Parameters**, select **Custom**.
 
 Change the value for the `name` parameter to some other value. We used "Trillian".
 
-![Configuring custom flow run settings](/img/tutorials/custom-parameter.png)
+![Configuring custom flow run settings](../img/tutorials/custom-parameter.png)
 
 Select **Save** to save any changed values, then select **Run** to create the custom flow run.
 
@@ -606,11 +606,11 @@ As before, the flow run will be picked up by the agent, and you should be able t
 
 Go back the **Flow Runs** page in the UI and you'll see the flow run you just initiatied ran and was observed by the API.
 
-![The deployment flow run is shown in the UI run history](/img/tutorials/deployment-run.png)
+![The deployment flow run is shown in the UI run history](../img/tutorials/deployment-run.png)
 
 Select the flow run to see details. In the flow run logs, you can see that the flow run logged a "Hello Trillian!" message as expected.
 
-![The flow run logs show the expected Hello Trillian! log message](/img/tutorials/dep-flow-logs.png)
+![The flow run logs show the expected Hello Trillian! log message](../img/tutorials/dep-flow-logs.png)
 
 ## Run deployments with Prefect Cloud
 
