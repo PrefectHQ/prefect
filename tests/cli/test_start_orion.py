@@ -96,7 +96,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigint_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.01)
+        await anyio.sleep(0.042)
         orion_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
@@ -113,7 +113,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.01)
+        await anyio.sleep(0.042)
         orion_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
