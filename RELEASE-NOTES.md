@@ -27,6 +27,7 @@
 - Update KubernetesJob options — https://github.com/PrefectHQ/prefect/pull/8261
 - Add Prefect Cloud Quickstart tutorial — https://github.com/PrefectHQ/prefect/pull/8227
 - Update roles and permissions in documentation — https://github.com/PrefectHQ/prefect/pull/8263
+- Add configuration to mkdocs.yml to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
 
 ### Uncategorized
 - Refactor and improve cancellation handling — https://github.com/PrefectHQ/prefect/pull/8126
