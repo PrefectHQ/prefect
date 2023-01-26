@@ -48,10 +48,6 @@
 
   const workPoolQueuesSubscription = useSubscription(api.workPoolQueues.getWorkPoolQueueByName, [workPoolName.value, workPoolQueueName.value], subscriptionOptions)
   const workPoolQueue = computed(() => workPoolQueuesSubscription.response)
-
-  const workPoolWorkersSubscription = useSubscription(api.workPoolWorkers.getWorkers, [workPoolName.value], subscriptionOptions)
-  const workPoolWorkers = computed(() => workPoolWorkersSubscription.response ?? [])
-  const workPoolWorkerName = computed(() => workPoolWorkers.value[0]?.name ?? '<worker name>')
   const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --queue ${workPoolQueueName.value}`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
