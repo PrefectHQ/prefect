@@ -125,7 +125,7 @@ async def delete(id: UUID):
 async def cancel(id: UUID):
     """Cancel a flow fun by ID."""
     async with get_client() as client:
-        cancelling_state = State(type=StateType.CANCELLED, name="Cancelling")
+        cancelling_state = State(type=StateType.CANCELLING)
         try:
             result = await client.set_flow_run_state(
                 flow_run_id=id, state=cancelling_state
