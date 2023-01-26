@@ -92,7 +92,7 @@ def upgrade():
             "work_queue",
             ["default_queue_id"],
             ["id"],
-            ondelete="RESTRICT",
+            ondelete="cascade",
         )
         batch_op.alter_column("type", nullable=False)
 
