@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
+import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
@@ -595,23 +596,44 @@ class KubernetesJob(Infrastructure):
                         exc_info=True,
                     )
 
-        # Wait for job to complete
-        # if `job_watch_timeout_seconds` is None, no timeout will be enforced
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        watch = kubernetes.watch.Watch()
-        with self.get_batch_client() as batch_client:
-            for event in watch.stream(
-                func=batch_client.list_namespaced_job,
-                field_selector=f"metadata.name={job_name}",
-                namespace=self.namespace,
-                timeout_seconds=self.job_watch_timeout_seconds,
+        start_time = pendulum.now("utc")
+        completed = False
+        while not completed:
+            elapsed = (pendulum.now("utc") - start_time).in_seconds()
+            if (
+                self.job_watch_timeout_seconds is not None
+                and elapsed > self.job_watch_timeout_seconds
             ):
-                if event["object"].status.completion_time:
-                    watch.stop()
-                    break
-            else:
-                self.logger.error(f"Job {job_name!r}: Job did not complete.")
+                self.logger.error(f"Job {job_name!r}: Job timed out.")
                 return -1
+
+            watch = kubernetes.watch.Watch()
+            with self.get_batch_client() as batch_client:
+                remaining_timeout = (
+                    (  # subtract previous watch time
+                        self.job_watch_timeout_seconds - elapsed
+                    )
+                    if self.job_watch_timeout_seconds
+                    else None
+                )
+
+                for event in watch.stream(
+                    func=batch_client.list_namespaced_job,
+                    field_selector=f"metadata.name={job_name}",
+                    namespace=self.namespace,
+                    timeout_seconds=remaining_timeout,
+                ):
+                    if event["object"].status.completion_time:
+                        if not event["object"].status.succeeded:
+                            self.logger.error(f"Job {job_name!r}: Job failed.")
+                            return -1
+                        completed = True
+                        watch.stop()
+                        break
+                else:
+                    self.logger.error(f"Job {job_name!r}: Job did not complete.")
+                    return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
