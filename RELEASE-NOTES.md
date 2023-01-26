@@ -45,7 +45,7 @@ See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 - Add `CANCELLING` state type — https://github.com/PrefectHQ/prefect/pull/7794
 - Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
 - Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
-- Add PREFECT_ORION_API_KEEPALIVE_TIMEOUT setting to allow configuration of Uvicorn timeout-keep-alive setting - https://github.com/PrefectHQ/prefect/pull/8190
+- Add `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` setting to allow configuration of Uvicorn `timeout-keep-alive` setting - https://github.com/PrefectHQ/prefect/pull/8190
 
 ### Fixes
 - Fix compatibility with clients on 2.7.8 client - https://github.com/PrefectHQ/prefect/pull/8272
