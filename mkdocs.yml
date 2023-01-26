@@ -73,6 +73,7 @@ theme:
             icon: material/weather-night
             name: Switch to light mode
 plugins:
+    mike:
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -269,6 +270,8 @@ nav:
         - Troubleshooting: contributing/common-mistakes.md
 
 extra:
+    version:
+        provider: mike
     analytics:
         provider: google
         property: G-3M31G9B0QJ

@@ -8,6 +8,7 @@ mkdocs
 mkdocs-gen-files
 mkdocs-material
 mkdocstrings-python
+mike
 mock; python_version < '3.8'
 moto
 mypy
