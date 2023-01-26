@@ -18,7 +18,7 @@
 - Small work pools UI updates — https://github.com/PrefectHQ/prefect/pull/8257
 
 ### Documentation
-- Add `prefect-openai` to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
+- Add [`prefect-openai`](https://prefecthq.github.io/prefect-openai/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
 - Fix broken link and generally standardize links on home page — https://github.com/PrefectHQ/prefect/pull/8229
 - Add blocks documentation URLs — https://github.com/PrefectHQ/prefect/pull/8210
 - Updates deployments docstring to match behavior — https://github.com/PrefectHQ/prefect/pull/8233
