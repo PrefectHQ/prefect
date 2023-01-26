@@ -105,7 +105,7 @@ class TestUvicornSignalForwarding:
         assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
-        ), "When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess"
+        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -123,7 +123,7 @@ class TestUvicornSignalForwarding:
         assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
-        ), "When sending two SIGTERM shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess"
+        ), f"When sending two SIGTERM shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -139,7 +139,7 @@ class TestUvicornSignalForwarding:
         assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"(Sending SIGTERM)(.|\s)*(Application shutdown complete)", out
-        ), "When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess"
+        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
         sys.platform != "win32",
@@ -155,4 +155,4 @@ class TestUvicornSignalForwarding:
         assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"Sending CTRL_BREAK_EVENT", out
-        ), "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess"
+        ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:{out}"
