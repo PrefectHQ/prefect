@@ -7,7 +7,7 @@
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
 - Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
 - Add support for obscuring secrets in nested block fields in the UI to enhance the security of the blocks. — https://github.com/PrefectHQ/prefect/pull/8246
-- Add consolidation and manual dispatch of multi-arch Docker build and publish logic — https://github.com/PrefectHQ/prefect/pull/7902
+- Add capability to publish multi-architecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
 
 ### Experimental
 - Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
