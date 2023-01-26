@@ -109,12 +109,12 @@ def my_flow():
 
 ## Retries
 
-Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
+Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task. This task will retry up to 3 times, waiting 60 seconds between each retry:
 
 ```python hl_lines="3"
 import requests
 from prefect import task, flow
-# this task will retry up to 3 times, waiting 1 minute between each retry
+
 @task(retries=3, retry_delay_seconds=60)
 def get_page(url):
     page = requests.get(url)
