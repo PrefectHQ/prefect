@@ -3,11 +3,37 @@
 ## Release 2.7.10
 
 ### Enhanced flow run cancellation
-We're excited to announce an upgrade to our flow run cancellation feature, giving you even more control over your workflow!
 
-We've enhanced our flow run cancellation process to ensure a smooth and efficient shutdown. When a cancellation is requested, the flow run is immediately transitioned to a "Cancelling" state. The agent detects this change and promptly sends a signal to the flow run infrastructure requesting termination. To guarantee a timely exit, the infrastructure will be forcefully terminated if it does not shut down within a customizable grace period (default of 30 seconds).
+We're excited to announce an upgrade to our flow run cancellation feature, resolving common issues.
 
-We've also added a service to cleanup unfinished tasks and subflows from recently cancelled flow runs, as well as actively running subflows belonging to a cancelled flow run. Task cancellation can handle 100 active tasks at a time per cancelled flow run.
+First, we've added SIGTERM handling to the flow run engine. When cancellation is requested, the agent sends a termination signal to the flow run infrastructure. Previously, this signal resulted in the immediate exit of the flow run. Now, the flow run will detect the signal and attempt to shut down gracefully. This gives the run an opportunity to clean up any resources it is managing. If the flow run does not gracefully exit in a reasonable time (this differs per infrastructure type), it will be killed.
+
+We've improved our handling of runs that are in the process of cancelling. When a run is cancelled, it's first placed in a "cancelling" state then moved to a "cancelled" state when cancellation is complete. Previously, concurrency slots were released as soon as cancellation was requested. Now, the flow run will continue to occupy concurrency slots until a "cancelled" state is reached.
+
+We've added cleanup of tasks and subflows belonging to cancelled flow runs. Previously, these tasks and subflows could be left in a "running" state. This can cause problems with concurrency slot consumption and restarts, so we've added a service that updates the states of the children of recently cancelled flow runs. 
+
+See https://github.com/PrefectHQ/prefect/pull/8126 for implementation details.
+
+
+### Multiarchitecture Docker builds
+
+In 2.7.8, we announced that we were publishing development Docker images, including multiarchitecture images. This was the first step in the incremental rollout of multiarchitecture Docker images. We're excited to announce we will be publishing multiarchitecture Docker images starting with this release.
+
+You can try downloading one of the new images by including the `--platform` specifier, e.g.:
+
+```bash
+$ docker pull prefecthq/prefect:2-python3.10 --platform linux/arm64
+```
+
+We will be publishing images for the following architectures:
+
+- linux/amd64
+- linux/arm64
+
+This should provide a significant speedup to anyone running containers on ARM64 machines (I'm looking at you, Apple M1 chips!) and reduce the complexity for our users that are deploying on different platforms. The workflow for building our images was rewritten from scratch, and it'll be easy for us to expand support to include other common platforms.
+
+Shoutout to [@ddelange](https://github.com/ddelange) who lead implementation of the feature.
+See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 
 ### Enhancements
 - Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
@@ -15,7 +41,10 @@ We've also added a service to cleanup unfinished tasks and subflows from recentl
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
 - Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
 - Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
-- Add capability to publish multi-architecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
+- Enable publish of multi-architecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
+- Add `CANCELLING` state type — https://github.com/PrefectHQ/prefect/pull/7794
+- Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
+- Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
 
 ### Experimental
 - Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
