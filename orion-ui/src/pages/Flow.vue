@@ -35,6 +35,7 @@
 
   const api = useWorkspaceApi()
   const flowId = useRouteParam('flowId')
+  const flowIds = computed(() => [flowId.value])
   const router = useRouter()
   const tabs = computed(() => {
     const values = ['Deployments', 'Runs']
@@ -53,16 +54,15 @@
   const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  // not reactive...
   const { filter: flowRunsFilter } = useRecentFlowRunsFilter({
     flows: {
-      id: [flowId.value],
+      id: flowIds,
     },
   })
 
   const deploymentsFilter = computed<DeploymentsFilter>(() => ({
     flows: {
-      id: [flowId.value],
+      id: flowIds.value,
     },
   }))
 
