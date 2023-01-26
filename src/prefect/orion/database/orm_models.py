@@ -159,10 +159,12 @@ class ORMFlowRunState:
     @hybrid_property
     def data(self):
         if self._data:
+            # ensures backwards compatibility for results stored on state objects
             return self._data
         if not self.result_artifact_id:
+            # do not try to load the relationship if there's no artifact id
             return None
-        return getattr(self._result_artifact, "data", None)
+        return self._result_artifact.data
 
     @declared_attr
     def flow_run(cls):
@@ -242,10 +244,12 @@ class ORMTaskRunState:
     @hybrid_property
     def data(self):
         if self._data:
+            # ensures backwards compatibility for results stored on state objects
             return self._data
         if not self.result_artifact_id:
+            # do not try to load the relationship if there's no artifact id
             return None
-        return getattr(self._result_artifact, "data", None)
+        return self._result_artifact.data
 
     @declared_attr
     def task_run(cls):
