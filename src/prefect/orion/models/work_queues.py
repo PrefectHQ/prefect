@@ -309,6 +309,7 @@ async def _ensure_work_queue_exists(
             work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
             db=db,
         )
+
         work_queue = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(

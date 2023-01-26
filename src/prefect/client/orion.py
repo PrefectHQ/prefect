@@ -2167,7 +2167,7 @@ class OrionClient:
             json=work_queue.dict(json_compatible=True, exclude_unset=True),
         )
 
-    async def get_scheduled_flow_runs_for_work_queues(
+    async def get_scheduled_flow_runs_for_work_pool(
         self,
         work_pool_name: str,
         work_queue_names: Optional[List[str]] = None,
