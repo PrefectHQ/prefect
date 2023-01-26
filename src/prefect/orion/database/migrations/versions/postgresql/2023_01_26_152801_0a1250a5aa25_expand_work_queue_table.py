@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "0a1250a5aa25"
-down_revision = "d481d5058a19"
+down_revision = "9326a6aee18b"
 branch_labels = None
 depends_on = None
 
@@ -134,6 +134,8 @@ def upgrade():
     default_pool_id = connection.execute(
         sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
     ).fetchone()[0]
+
+    print("DEFAULT_POOL_CREATED", default_pool_id)
 
     default_queue = connection.execute(
         sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.name == "default")
