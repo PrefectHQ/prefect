@@ -106,7 +106,7 @@ Every time you run a flow, whether it is tracked by the API server or ad-hoc thr
 With Prefect 2, your functions *are* your flows and tasks. Prefect 2 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### Incremental adoption
-The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](../ui/cloud-getting-started/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
+The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](/ui/cloud/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
 
 Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script. 
 
