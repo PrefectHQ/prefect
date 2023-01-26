@@ -1,5 +1,5 @@
 ---
-description: Learn how to create Prefect deployments and execute flow runs with agents and work queues.
+description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution.
 tags:
     - Orion
     - work queues
@@ -11,11 +11,16 @@ tags:
     - tutorial
 ---
 
-# Deployments
+# Flow deployments
 
 In the tutorials leading up to this one, you've been able to explore Prefect capabilities like flows, tasks, retries, caching, and so on. But so far, you've run flows as scripts. 
 
-[Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a flow run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities.
+[Deployments](/concepts/deployments/) take your flows to the next level: adding the information needed for scheduling flow runs or triggering a flow run via an API call. Deployments elevate workflows from functions that you call manually to API-managed entities. Deployments also enable remote flow run execution.
+
+!!! cloud-ad "Run deployments with Prefect Cloud"
+    The same steps demonstrated in this tutorial work to apply deployments and create flow runs from them with Prefect Cloud. 
+
+    See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect Orion server.
 
 ## Components of a deployment
 
@@ -266,7 +271,7 @@ To review, we have four files that make up the artifacts for this particular dep
 - The ignore file `.prefectignore`
 - The deployment definition in `log_flow-deployment.yaml`
 
-Now we can _apply_ the settings in `log_flow-deployment.yaml` to create the deployment object on the Prefect Orion server API &mdash; or on a [Prefect Cloud workspace](/ui/cloud-getting-started/) if you had configured the Prefect Cloud API as your backend. 
+Now we can _apply_ the settings in `log_flow-deployment.yaml` to create the deployment object on the Prefect Orion server API &mdash; or on a [Prefect Cloud workspace](/ui/cloud/) if you had [configured the Prefect Cloud API](/ui/cloud-local-environment/) as your backend. 
 
 Use the `prefect deployment apply` command to create the deployment on the Prefect server, specifying the name of the `log_flow-deployment.yaml` file.
 
@@ -413,7 +418,7 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
 </div>
 
 !!! note "Set the `PREFECT_API_URL` for your server"
-    Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
+    Note the message to set `PREFECT_API_URL`, configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
 
     Go to your first terminal session and run this command to set the API URL to point to the Prefect Orion instance you just started:
 
@@ -606,6 +611,32 @@ Go back the **Flow Runs** page in the UI and you'll see the flow run you just in
 Select the flow run to see details. In the flow run logs, you can see that the flow run logged a "Hello Trillian!" message as expected.
 
 ![The flow run logs show the expected Hello Trillian! log message](/img/tutorials/dep-flow-logs.png)
+
+## Run deployments with Prefect Cloud
+
+The steps in this tutorial also work to apply deployments to Prefect Cloud, which creates the corresponding flow runs.
+
+See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) for step-by-step instructions to log into Prefect Cloud, create a workspace, and configure your local environment to use Prefect Cloud as the API backend. Then run through this tutorial again, using Prefect Cloud instead of a local Prefect Orion server.
+
+Already have a Prefect Cloud account? Logging in from your local development environment is as easy as `prefect cloud login`: 
+
+<div class="terminal">
+```shell
+$ prefect cloud login
+? How would you like to authenticate? [Use arrows to move; enter to select]
+> Log in with a web browser
+Paste an API key
+Opening browser...
+Waiting for response...
+? Which workspace would you like to use? [Use arrows to move; enter to select]
+> prefect/terry-prefect-workspace
+g-gadflow/g-workspace
+Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspace'.
+```
+</div>
+
+!!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
+    Note that, if you ran through this tutorial on a local Prefect Orion server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
 
 ## Next steps
 
