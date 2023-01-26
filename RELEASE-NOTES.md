@@ -20,7 +20,7 @@
 - Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
 - Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
 - Improve [contributing documentation](https://docs.prefect.io/contributing/overview/) with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
-- Update documentation on [KubernetesJob options](https://docs.prefect.io/concepts/infrastructure/?h=#kubernetesjob) — https://github.com/PrefectHQ/prefect/pull/8261
+- Update documentation on [KubernetesJob options](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob) — https://github.com/PrefectHQ/prefect/pull/8261
 - Update documentation on [workspace-level roles](https://docs.prefect.io/ui/roles/#workspace-level-roles) — https://github.com/PrefectHQ/prefect/pull/8263
 
 ### Contributors
