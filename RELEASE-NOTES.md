@@ -2,15 +2,15 @@
 
 ## Release 2.7.10
 
-### Enhanced flow run cancellation
+### Flow run cancellation enhancements
 
 We're excited to announce an upgrade to our flow run cancellation feature, resolving common issues.
 
-First, we've added SIGTERM handling to the flow run engine. When cancellation is requested, the agent sends a termination signal to the flow run infrastructure. Previously, this signal resulted in the immediate exit of the flow run. Now, the flow run will detect the signal and attempt to shut down gracefully. This gives the run an opportunity to clean up any resources it is managing. If the flow run does not gracefully exit in a reasonable time (this differs per infrastructure type), it will be killed.
+We added SIGTERM handling to the flow run engine. When cancellation is requested, the agent sends a termination signal to the flow run infrastructure. Previously, this signal resulted in the immediate exit of the flow run. Now, the flow run will detect the signal and attempt to shut down gracefully. This gives the run an opportunity to clean up any resources it is managing. If the flow run does not gracefully exit in a reasonable time (this differs per infrastructure type), it will be killed.
 
-We've improved our handling of runs that are in the process of cancelling. When a run is cancelled, it's first placed in a "cancelling" state then moved to a "cancelled" state when cancellation is complete. Previously, concurrency slots were released as soon as cancellation was requested. Now, the flow run will continue to occupy concurrency slots until a "cancelled" state is reached.
+We improved our handling of runs that are in the process of cancelling. When a run is cancelled, it's first placed in a "cancelling" state then moved to a "cancelled" state when cancellation is complete. Previously, concurrency slots were released as soon as cancellation was requested. Now, the flow run will continue to occupy concurrency slots until a "cancelled" state is reached.
 
-We've added cleanup of tasks and subflows belonging to cancelled flow runs. Previously, these tasks and subflows could be left in a "running" state. This can cause problems with concurrency slot consumption and restarts, so we've added a service that updates the states of the children of recently cancelled flow runs. 
+We added cleanup of tasks and subflows belonging to cancelled flow runs. Previously, these tasks and subflows could be left in a "running" state. This can cause problems with concurrency slot consumption and restarts, so we've added a service that updates the states of the children of recently cancelled flow runs. 
 
 See https://github.com/PrefectHQ/prefect/pull/8126 for implementation details.
 
