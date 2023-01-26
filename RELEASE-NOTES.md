@@ -32,7 +32,7 @@ We will be publishing images for the following architectures:
 
 This should provide a significant speedup to anyone running containers on ARM64 machines (I'm looking at you, Apple M1 chips!) and reduce the complexity for our users that are deploying on different platforms. The workflow for building our images was rewritten from scratch, and it'll be easy for us to expand support to include other common platforms.
 
-Shoutout to [@ddelange](https://github.com/ddelange) who lead implementation of the feature.
+Shoutout to [@ddelange](https://github.com/ddelange) who led implementation of the feature.
 See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 
 ### Enhancements
@@ -41,16 +41,16 @@ See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
 - Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
 - Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
-- Enable publish of multi-architecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
+- Enable publish of multiarchitecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
 - Add `CANCELLING` state type — https://github.com/PrefectHQ/prefect/pull/7794
 - Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
 - Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
-
+- Add PREFECT_ORION_API_KEEPALIVE_TIMEOUT setting to allow configuration of Uvicorn timeout-keep-alive setting - https://github.com/PrefectHQ/prefect/pull/8190
 ### Experimental
 - Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
 - Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
 - Fix property for `WorkersTable` in UI — https://github.com/PrefectHQ/prefect/pull/8232
-
+- Add compatibility with 2.7.8 client by filtering out the work_pool_queue_name field in deployments API requests - https://github.com/PrefectHQ/prefect/pull/8272
 ### Documentation
 - [Add Prefect Cloud Quickstart tutorial](https://docs.prefect.io/ui/cloud-getting-started/) — https://github.com/PrefectHQ/prefect/pull/8227
 - Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
