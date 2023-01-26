@@ -16,7 +16,7 @@
 
 ### Documentation
 - [Add Prefect Cloud Quickstart tutorial](https://docs.prefect.io/ui/cloud-getting-started/) — https://github.com/PrefectHQ/prefect/pull/8227
-- Add [`prefect-openai`](Add [`prefect-openai`](https://prefecthq.github.io/prefect-openai/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
+- Add [prefect-openai](https://prefecthq.github.io/prefect-openai/) to [Collections catalog](https://docs.prefect.io/collections/catalog/) — https://github.com/PrefectHQ/prefect/pull/8236
 - Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
 - Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
 - Improve [contributing documentation](https://docs.prefect.io/contributing/overview/) with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
