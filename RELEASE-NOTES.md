@@ -3,34 +3,25 @@
 ## Release 2.7.10
 
 ### Enhancements
-- chore: add k8s kube-system permissions to prefect agent template — https://github.com/PrefectHQ/prefect/pull/8205
-- Add `is_schedule_active` to client `Deployment` class — https://github.com/PrefectHQ/prefect/pull/7430
-- Consolidate multi-arch docker builds — https://github.com/PrefectHQ/prefect/pull/7902
-
-### Fixes
-- Fix incorrect prop for WorkersTable — https://github.com/PrefectHQ/prefect/pull/8232
-- Include nested `pydantic.BaseModel` secret fields in blocks' schema — https://github.com/PrefectHQ/prefect/pull/8246
+- Add `is_schedule_active` option to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
+- Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
+- Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
+- Enhance security of secrets in blocks UI by incorporating secret fields in blocks' schema — https://github.com/PrefectHQ/prefect/pull/8246
+- Add consolidation and manual dispatch of multi-arch Docker build and publish logic — https://github.com/PrefectHQ/prefect/pull/7902
 
 ### Experimental
-- Makes agents work pool aware — https://github.com/PrefectHQ/prefect/pull/8222
-- Adds migration logic for work pools — https://github.com/PrefectHQ/prefect/pull/8214
-- Removes migration logic — https://github.com/PrefectHQ/prefect/pull/8255
-- Small work pools UI updates — https://github.com/PrefectHQ/prefect/pull/8257
+- Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
+- Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
+- Fix property for `WorkersTable` in UI — https://github.com/PrefectHQ/prefect/pull/8232
 
 ### Documentation
-- Add [`prefect-openai`](https://prefecthq.github.io/prefect-openai/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
-- Fix broken link and generally standardize links on home page — https://github.com/PrefectHQ/prefect/pull/8229
-- Add blocks documentation URLs — https://github.com/PrefectHQ/prefect/pull/8210
-- Updates deployments docstring to match behavior — https://github.com/PrefectHQ/prefect/pull/8233
-- Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
-- Improve contributing documentation with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
-- Update KubernetesJob options — https://github.com/PrefectHQ/prefect/pull/8261
 - Add Prefect Cloud Quickstart tutorial — https://github.com/PrefectHQ/prefect/pull/8227
-- Update roles and permissions in documentation — https://github.com/PrefectHQ/prefect/pull/8263
-- Add configuration to mkdocs.yml to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
-
-### Uncategorized
-- Refactor and improve cancellation handling — https://github.com/PrefectHQ/prefect/pull/8126
+- Add [`prefect-openai`](Add [`prefect-openai`](https://prefecthq.github.io/prefect-openai/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
+- Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
+- Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
+- Improve contributing documentation with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
+- Update documentation on KubernetesJob options — https://github.com/PrefectHQ/prefect/pull/8261
+- Update documentation on workspace-level roles — https://github.com/PrefectHQ/prefect/pull/8263
 
 ### Contributors
 - @Laerte
