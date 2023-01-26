@@ -733,6 +733,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
+        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -823,6 +824,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
+        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -899,6 +901,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
