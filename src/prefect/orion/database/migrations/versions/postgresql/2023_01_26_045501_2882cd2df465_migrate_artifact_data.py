@@ -25,6 +25,7 @@ def upgrade():
             SELECT id, task_run_id, data
             FROM task_run_state
             WHERE has_data IS TRUE
+            ORDER BY id
             LIMIT {batch_size} OFFSET {offset};
         """
 
@@ -43,6 +44,7 @@ def upgrade():
             SELECT id, flow_run_id, data
             FROM flow_run_state
             WHERE has_data IS TRUE
+            ORDER BY id
             LIMIT {batch_size} OFFSET {offset};
         """
 
