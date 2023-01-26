@@ -843,14 +843,20 @@ PREFECT_ORION_API_PORT = Setting(
 )
 """The API's port address (defaults to `4200`)."""
 
-PREFECT_ORION_API_KEEPALIVE = Setting(
+PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
     int,
     default=5,
 )
-"""The API's keep alive timeout (defaults to `5`). This
-is helpful in resolving 502 Gateway timeouts when orion API
-is behind an AWS Load Balancer. Set this value to 65.
-Please refer to https://www.uvicorn.org/settings/#timeouts """
+"""
+The API's keep alive timeout (defaults to `5`).
+Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+When the API is hosted behind a load balancer, you may want to set this to a value
+greater than the load balancer's idle timeout.
+
+Note this setting only applies when calling `prefect orion start`; if hosting the
+API with another tool you will need to configure this there instead.
+"""
 
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,
