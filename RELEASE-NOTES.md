@@ -65,8 +65,9 @@ See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 - Add [prefect-openai](https://prefecthq.github.io/prefect-openai/) to [Collections catalog](https://docs.prefect.io/collections/catalog/) — https://github.com/PrefectHQ/prefect/pull/8236
 
 ### Contributors
-- @Laerte
 - @ddelange
+- @imsurat
+- @Laerte
 
 ## Release 2.7.9
 
