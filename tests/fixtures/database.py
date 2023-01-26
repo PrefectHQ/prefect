@@ -359,12 +359,46 @@ async def deployment(
 
 
 @pytest.fixture
+async def deployment_in_non_default_work_pool(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
-            name="wq-1",
-            description="All about my work queue",
+        work_queue=schemas.actions.WorkQueueCreate(
+            name="wq-1", description="All about my work queue", priority=1
         ),
     )
     await session.commit()

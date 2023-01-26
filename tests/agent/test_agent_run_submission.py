@@ -907,11 +907,11 @@ async def test_agent_displays_message_on_work_queue_pause(
         assert f"Work queue 'wq' ({work_queue.id}) is paused." in prefect_caplog.text
 
 
-async def test_agent_with_work_queue(
+async def test_agent_with_work_queue_and_work_pool(
     orion_client: OrionClient,
-    deployment: schemas.core.Deployment,
+    deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
-    work_queue: schemas.core.WorkQueue,
+    work_queue_1: schemas.core.WorkQueue,
     enable_work_pools,
 ):
     @flow
@@ -920,7 +920,7 @@ async def test_agent_with_work_queue(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            deployment_in_non_default_work_pool.id, state=state
         )
     )
 
@@ -945,13 +945,9 @@ async def test_agent_with_work_queue(
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue(
-        work_pool_name=work_pool.name,
-        work_queue_name=work_queue.name,
-    )
     responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
-        work_queue_names=[work_queue.name],
+        work_queue_names=[work_queue_1.name],
         scheduled_before=pendulum.now().add(seconds=10),
     )
     work_queue_flow_run_ids = {response.flow_run.id for response in responses}
@@ -961,7 +957,7 @@ async def test_agent_with_work_queue(
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
     agent = OrionAgent(
-        work_queues=[work_queue.name],
+        work_queues=[work_queue_1.name],
         work_pool_name=work_pool.name,
         prefetch_seconds=10,
     )
@@ -976,9 +972,9 @@ async def test_agent_with_work_queue(
 
 async def test_agent_with_work_pool(
     orion_client: OrionClient,
-    deployment: schemas.core.Deployment,
+    deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
-    work_queue: schemas.core.WorkQueue,
+    work_queue_1: schemas.core.WorkQueue,
     enable_work_pools,
 ):
     @flow
@@ -987,7 +983,7 @@ async def test_agent_with_work_pool(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            deployment_in_non_default_work_pool.id, state=state
         )
     )
 
@@ -1014,7 +1010,7 @@ async def test_agent_with_work_pool(
     # Pull runs from the work queue to get expected runs
     work_queue = await orion_client.read_work_queue(
         work_pool_name=work_pool.name,
-        work_queue_name=work_queue.name,
+        work_queue_name=work_queue_1.name,
     )
     responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
@@ -1042,9 +1038,9 @@ async def test_agent_with_work_pool(
 
 async def test_agent_with_work_pool_and_work_queue_prefix(
     orion_client: OrionClient,
-    deployment: schemas.core.Deployment,
+    deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
-    work_queue: schemas.core.WorkQueue,
+    work_queue_1: schemas.core.WorkQueue,
     enable_work_pools,
 ):
     @flow
@@ -1053,7 +1049,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            deployment_in_non_default_work_pool.id, state=state
         )
     )
 
@@ -1080,7 +1076,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     # Pull runs from the work queue to get expected runs
     work_queue = await orion_client.read_work_queue(
         work_pool_name=work_pool.name,
-        work_queue_name=work_queue.name,
+        work_queue_name=work_queue_1.name,
     )
     responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,

@@ -38,7 +38,7 @@ async def create_work_queue(
         db.WorkQueue: the newly-created or updated WorkQueue
 
     """
-    data = work_queue.dict()
+    data = work_queue.dict(exclude={"priority"})
 
     if data.get("work_pool_id") is None:
         default_agent_pool = await models.workers.get_or_create_default_agent_work_pool(
@@ -46,7 +46,12 @@ async def create_work_queue(
         )
         data["work_pool_id"] = default_agent_pool.id
 
-    model = db.WorkQueue(**data)
+    max_priority_query = sa.select(
+        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+    ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
+    priority = (await session.execute(max_priority_query)).scalar()
+
+    model = db.WorkQueue(**data, priority=priority)
     session.add(model)
     await session.flush()
 
