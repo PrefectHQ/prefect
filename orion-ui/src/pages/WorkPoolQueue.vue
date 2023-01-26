@@ -6,7 +6,7 @@
 
     <p-layout-well class="work-pool-queue__body">
       <template #header>
-        <CodeBanner :command="workPoolQueueCliCommand" title="Worker pool queue is ready to go!" subtitle="Work queues are scoped to a specific work pool to ensure that the work put into a queue will only be picked up by a specific type of worker." />
+        <CodeBanner :command="workPoolQueueCliCommand" title="Work queue is ready to go!" subtitle="Work queues are scoped to a work pool to allow agents to pull from groups of queues with different priorities." />
       </template>
 
       <p-tabs :tabs="tabs">
@@ -39,6 +39,7 @@
 
   const api = useWorkspaceApi()
   const workPoolName = useRouteParam('workPoolName')
+  const workPoolNames = computed(() => [workPoolName.value])
   const workPoolQueueName = useRouteParam('workPoolQueueName')
   const workPoolQueueNames = computed(() => [workPoolQueueName.value])
   const subscriptionOptions = {
@@ -51,11 +52,14 @@
   const workPoolWorkersSubscription = useSubscription(api.workPoolWorkers.getWorkers, [workPoolName.value], subscriptionOptions)
   const workPoolWorkers = computed(() => workPoolWorkersSubscription.response ?? [])
   const workPoolWorkerName = computed(() => workPoolWorkers.value[0]?.name ?? '<worker name>')
-  const workPoolQueueCliCommand = computed(() => `prefect worker start --name ${workPoolWorkerName.value} --type process --pool ${workPoolName.value}`)
+  const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --queue ${workPoolQueueName.value}`)
 
   const { filter: flowRunFilter } = useFlowRunsFilter({
     workPoolQueues: {
       name: workPoolQueueNames,
+    },
+    workPools: {
+      name: workPoolNames,
     },
   })
 

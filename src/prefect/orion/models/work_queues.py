@@ -145,6 +145,7 @@ async def update_work_queue(
         .values(**update_data)
     )
     result = await session.execute(update_stmt)
+
     return result.rowcount > 0
 
 
@@ -162,10 +163,10 @@ async def delete_work_queue(
     Returns:
         bool: whether or not the WorkQueue was deleted
     """
-
     result = await session.execute(
         delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
     )
+
     return result.rowcount > 0
 
 
@@ -295,16 +296,20 @@ async def _ensure_work_queue_exists(
     Checks if a work queue exists and creates it if it does not.
 
     Useful when working with deployments, agents, and flow runs that automatically create work queues.
+
+    Will also create a work pool queue in the default agent pool to facilitate migration to work pools.
     """
     # read work queue
     work_queue = await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
     if not work_queue:
-        await models.work_queues.create_work_queue(
+        work_queue = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.core.WorkQueue(name=name),
         )
+
+    return work_queue
 
 
 @inject_db

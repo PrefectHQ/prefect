@@ -39,19 +39,19 @@ A workspace is an isolated environment within Prefect Cloud for your flows and d
 
 When you register a new account, you'll be prompted to create a workspace.  
 
-![Creating a new Prefect Cloud account.](/img/ui/cloud-new-login.png)
+![Creating a new Prefect Cloud account.](../img/ui/cloud-new-login.png)
 
 Select **Create Workspace**. You'll be prompted to provide a name and description for your workspace.
 
-![Creating a new workspace in the Cloud UI.](/img/ui/cloud-workspace-details.png)
+![Creating a new workspace in the Cloud UI.](../img/ui/cloud-workspace-details.png)
 
 Select **Save** to create the workspace. 
 
-![Viewing a workspace dashboard in the Prefect Cloud UI.](/img/ui/cloud-new-workspace-full.png)
+![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-new-workspace-full.png)
 
 If you change your mind, you can select **Workspace Settings** to modify the workspace details or to delete it. 
 
-![Editing workspace settings in the Prefect Cloud UI](/img/ui/cloud-workspace-settings.png)
+![Editing workspace settings in the Prefect Cloud UI](../img/ui/cloud-workspace-settings.png)
 
 !!! warning "Deleting a workspace"
     Deleting a workspace removes any flows, deployments, and storage created on that workspace.
@@ -64,11 +64,11 @@ To create an API key, select the account icon at the bottom-left corner of the U
 
 Select the **API Keys** tab. This displays a list of previously generated keys and lets you create new API keys or delete keys.
 
-![Viewing and editing API keys in the Cloud UI.](/img/ui/cloud-api-keys.png)
+![Viewing and editing API keys in the Cloud UI.](../img/ui/cloud-api-keys.png)
 
 Select the **+** button to create a new API key. You're prompted to provide a name for the key and, optionally, an expiration date. Select **Create API Key** to generate the key.
 
-![Creating an API key in the Cloud UI.](/img/ui/cloud-new-api-key.png)
+![Creating an API key in the Cloud UI.](../img/ui/cloud-new-api-key.png)
 
 Note that API keys cannot be revealed again in the UI after you generate them, so copy the key to a secure location.
 
@@ -197,7 +197,7 @@ $ python basic_flow.py
 
 Go to the dashboard for your workspace in Prefect Cloud. You'll see the flow run results right there in Prefect Cloud!
 
-![Viewing local flow run results in the Cloud UI.](/img/ui/cloud-flow-run.png)
+![Viewing local flow run results in the Cloud UI.](../img/ui/cloud-flow-run.png)
 
 Prefect Cloud now automatically tracks any flow runs in a local execution environment logged into Prefect Cloud.
 
@@ -257,7 +257,7 @@ Now your deployment has been created and is ready to orchestrate future `Testing
 
 To demonstrate that your deployment exists, go back to Prefect Cloud and select the **Deployments** page. You'll see the 'Testing/Test Deployment' deployment was created.
 
-!['Testing/Test Deployment' appears in the Prefect Cloud Deployments page](/img/ui/cloud-test-deployment.png)
+!['Testing/Test Deployment' appears in the Prefect Cloud Deployments page](../img/ui/cloud-test-deployment.png)
 
 ### Create a work queue and agent
 
@@ -293,7 +293,7 @@ Now create a flow run from your deployment. You'll start the flow run from the P
 
 Go back to Prefect Cloud and select the **Deployments** page, then select **Test Deployment** in the 'Testing/Test Deployment' deployment name. You'll see a page showing details about the deployment.
 
-![Overview of the test deployment in Prefect Cloud](/img/ui/cloud-test-deployment-details.png)
+![Overview of the test deployment in Prefect Cloud](../img/ui/cloud-test-deployment-details.png)
 
 To start an ad-hoc flow run, select the **Run** button from Prefect Cloud.
 
@@ -323,6 +323,6 @@ Agent started! Looking for work from queue 'test-queue'...
 
 In Prefect Cloud, select the **Flow Runs** page and notice that your flow run appears on the dashboard. (Your flow run name will be different, but the rest of the details should be similar to what you see here.)
 
-![Viewing the flow run based on the test deployment in Prefect Cloud](/img/ui/cloud-test-flow-run.png)
+![Viewing the flow run based on the test deployment in Prefect Cloud](../img/ui/cloud-test-flow-run.png)
 
 To learn more, see the [Deployments tutorial](/tutorials/deployments/#work-queues-and-agents) for a hands-on example.

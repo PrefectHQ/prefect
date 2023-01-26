@@ -1271,7 +1271,6 @@ class OrionClient:
         description: str = None,
         work_queue_name: str = None,
         work_pool_name: str = None,
-        work_pool_queue_name: str = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
@@ -1323,8 +1322,6 @@ class OrionClient:
 
         if work_pool_name is not None:
             deployment_create.work_pool_name = work_pool_name
-        if work_pool_queue_name is not None:
-            deployment_create.work_pool_queue_name = work_pool_queue_name
 
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {

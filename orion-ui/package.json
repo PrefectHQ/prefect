@@ -11,7 +11,7 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/orion-design": "1.2.6",
+    "@prefecthq/orion-design": "1.2.7",
     "@prefecthq/prefect-design": "1.2.2",
     "@prefecthq/vue-compositions": "1.2.9",
     "@types/lodash.debounce": "4.0.7",
