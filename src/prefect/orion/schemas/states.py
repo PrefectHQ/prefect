@@ -56,6 +56,14 @@ class StateBaseModel(IDBaseModel):
     def orm_dict(
         self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
     ) -> dict:
+        """
+        This method is used as a convenience method for constructing fixtues by first
+        building a `State` schema object and converting it into an ORM-compatible
+        format. Because the `data` field is not writable on ORM states, this method
+        omits the `data` field entirely for the purposes of constructing an ORM model.
+        If state data is required, an artifact must be created separately.
+        """
+
         schema_dict = self.dict(
             *args, shallow=shallow, json_compatible=json_compatible, **kwargs
         )
