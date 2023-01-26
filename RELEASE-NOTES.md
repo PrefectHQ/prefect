@@ -46,11 +46,13 @@ See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 - Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
 - Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
 - Add PREFECT_ORION_API_KEEPALIVE_TIMEOUT setting to allow configuration of Uvicorn timeout-keep-alive setting - https://github.com/PrefectHQ/prefect/pull/8190
+
+### Fixes
+- Fix compatibility with clients on 2.7.8 client - https://github.com/PrefectHQ/prefect/pull/8272
 ### Experimental
 - Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
 - Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
 - Fix property for `WorkersTable` in UI — https://github.com/PrefectHQ/prefect/pull/8232
-- Add compatibility with 2.7.8 client by filtering out the work_pool_queue_name field in deployments API requests - https://github.com/PrefectHQ/prefect/pull/8272
 ### Documentation
 - [Add Prefect Cloud Quickstart tutorial](https://docs.prefect.io/ui/cloud-getting-started/) — https://github.com/PrefectHQ/prefect/pull/8227
 - Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
