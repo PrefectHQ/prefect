@@ -6,7 +6,7 @@
 - Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
 - Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
-- Add support for obscuring secrets in nested block fields in the UI to enhance the security of the blocks. — https://github.com/PrefectHQ/prefect/pull/8246
+- Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
 - Add capability to publish multi-architecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
 
 ### Experimental
