@@ -16,7 +16,7 @@ STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
 
 
-@pytest.fixture(scope="function")
+# @pytest.fixture(scope="function")
 async def orion_process():
     """
     Runs an instance of the Orion server. Requires a port from 2222-2227 to be available.
@@ -95,7 +95,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigint_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.1)
+        await anyio.sleep(0.01)
         orion_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
@@ -112,7 +112,7 @@ class TestUvicornSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_then_sigkill(self, orion_process):
         orion_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.1)
+        await anyio.sleep(0.01)
         orion_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await orion_process.wait()
