@@ -168,7 +168,7 @@ def upgrade():
         connection.execute(
             sa.update(WORK_QUEUE)
             .where(WORK_QUEUE.c.id == row[0])
-            .values(priority=enumeration)
+            .values(priority=enumeration + 1)
         )
 
     op.execute("PRAGMA foreign_keys=ON")

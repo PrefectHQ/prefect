@@ -465,6 +465,7 @@ class WorkQueueCreate(ActionBaseModel):
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    work_pool_id: UUID = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 

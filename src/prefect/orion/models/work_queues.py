@@ -304,9 +304,16 @@ async def _ensure_work_queue_exists(
         session=session, name=name
     )
     if not work_queue:
+        default_pool = await models.workers.read_work_pool_by_name(
+            session=session,
+            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
+            db=db,
+        )
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name=name),
+            work_queue=schemas.core.WorkQueue(
+                name=name, priority=1, work_pool_id=default_pool.id
+            ),
         )
 
     return work_queue
