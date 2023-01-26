@@ -976,7 +976,7 @@ class TestUpdateDeployment:
         assert wq is not None
 
     async def test_update_work_pool_deployment(
-        self, session, deployment, work_pool, work_pool_queue
+        self, session, deployment, work_pool, work_pool_queue, enable_work_pools
     ):
         await models.deployments.update_deployment(
             session=session,
