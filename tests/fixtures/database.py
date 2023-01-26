@@ -330,7 +330,7 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_pool_queue,
+    work_queue,
 ):
     def hello(name: str):
         pass
@@ -351,7 +351,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
-            work_pool_queue_id=work_pool_queue.id,
+            work_queue_id=work_queue.id,
         ),
     )
     await session.commit()
@@ -398,11 +398,11 @@ async def work_pool(session):
 
 
 @pytest.fixture
-async def work_pool_queue(session, work_pool):
-    model = await models.workers.create_work_pool_queue(
+async def work_queue(session, work_pool):
+    model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="wq"),
+        work_queue=schemas.actions.WorkQueueCreate(name="wq"),
     )
     await session.commit()
     return model
