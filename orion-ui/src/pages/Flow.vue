@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useRecentFlowRunsFilter, DeploymentsFilter } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useRecentFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -60,11 +60,11 @@
     },
   })
 
-  const deploymentsFilter = computed<DeploymentsFilter>(() => ({
+  const { filter: deploymentsFilter } = useDeploymentsFilter({
     flows: {
-      id: flowIds.value,
+      id: flowIds,
     },
-  }))
+  })
 
   function deleteFlow(): void {
     router.push(routes.flows())
