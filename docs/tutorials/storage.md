@@ -79,7 +79,7 @@ For this tutorial example, we'll use the AWS S3 block as an example. If you use 
 
 Scroll down the list of blocks and find the **S3** block, then select **Add +** to configure a new storage block based on this block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configurating an S3 storage block in the Prefect UI](../img/tutorials/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](../img/tutorials/s3-block-configuration.png)
 
 Enter the configuration for your storage.
 

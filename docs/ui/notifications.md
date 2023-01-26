@@ -54,4 +54,4 @@ When the conditions of the notification are triggered, you’ll receive a simple
 
 On the **Notifications** page you can pause, edit, or delete any configured notification.
 
-![Viewing all configured notification in the Prefect UI](../img/ui/orion-notifications.png)
+![Viewing all configured notifications in the Prefect UI](../img/ui/orion-notifications.png)

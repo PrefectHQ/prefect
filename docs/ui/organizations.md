@@ -86,7 +86,7 @@ The maximum number of organization members varies. See the [Prefect Cloud plans]
 
 Select **Service Accounts** to view, create, or edit service accounts for your organization.
 
-![Viewing service accoutns for an organization in Prefect Cloud.](../img/ui/service-accounts.png)
+![Viewing service accounts for an organization in Prefect Cloud.](../img/ui/service-accounts.png)
 
 Service accounts are created at the organization level, but may be shared to individual workspaces within the organization. See [workspace sharing](#workspace-sharing) for more information.
 
