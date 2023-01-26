@@ -244,11 +244,11 @@ Created flow run 'poetic-scorpion' (adb711df-e005-41c7-a822-9cb3ae2704f4)
 
 You can also run the flow from the Prefect Orion UI. Open a browser tab and navigate to [http://127.0.0.1:4200](http://127.0.0.1:4200). You should see the flow run deployment “my-kubernetes-flow” and a successful flow run.
 
-![Screenshot showing the "my-kubernetes-flow" flow](/img/tutorials/k8s-test-flow.png)
+![Screenshot showing the "my-kubernetes-flow" flow](../img/tutorials/k8s-test-flow.png)
 
 Click **Deployments** to see the entry for this deployment, `k8s-example`. You can run the flow interactively using the **Quick Run** button.
 
-![Screenshot showing deployed “k8s-example” deployment](/img/tutorials/k8s-test-deploy.png)
+![Screenshot showing deployed “k8s-example” deployment](../img/tutorials/k8s-test-deploy.png)
 
 Go ahead and kick off an ad-hoc flow run: click **Quick Run** to run the deployment a second time.
 
@@ -258,11 +258,11 @@ Let's take a closer look at the `my-kubernetes-flow` flow runs we created from t
 
 Click **Flow Runs** to see that we did, in fact, create two flow runs that executed as Kubernetes Jobs.
 
-![Screenshot showing flow runs for “k8s-example”](/img/tutorials/k8s-flow-runs.png)
+![Screenshot showing flow runs for “k8s-example”](../img/tutorials/k8s-flow-runs.png)
 
 Now select one of the flow runs by clicking on the flow run name &mdash; in this case I clicked "poetic-scorpion". Your flow names will be different.
 
-![Screenshot showing details for the "poetic-scorpion" flow run](/img/tutorials/k8s-flow-run-logs.png)
+![Screenshot showing details for the "poetic-scorpion" flow run](../img/tutorials/k8s-flow-run-logs.png)
 
 Go to the **Logs** tab of your flow run. You should see the "Hello from Kubernetes!" log message created by the flow running in Kubernetes!
 

@@ -166,7 +166,7 @@ See the [Database](/concepts/database/) documentation for further details on cho
 
 The [Prefect UI](/ui/overview/) comes prepackaged with the Prefect Orion API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
 
-![Prefect Orion UI dashboard.](/img/ui/orion-dashboard.png)
+![Prefect Orion UI dashboard.](../img/ui/orion-dashboard.png)
 
 The UI enables you to track and manage your flows, runs, and deployments and additionally allows you to filter by names, tags, and other metadata to quickly find the information you are looking for.
 

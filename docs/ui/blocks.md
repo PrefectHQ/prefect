@@ -18,16 +18,16 @@ You can create, edit, and manage blocks in the Prefect UI and Prefect Cloud. On 
 
 Select the **Blocks** page to see all blocks currently defined on your Prefect Orion API server or Prefect Cloud workspace.
 
-![Viewing configured blocks in the Prefect UI](/img/ui/orion-blocks.png)
+![Viewing configured blocks in the Prefect UI](../img/ui/orion-blocks.png)
 
 You can get the identifier for any storage block, edit the block, or delete the block by selecting the button to the right of the block.
 
 To create a new block, select the **+** button. Prefect displays a library of block types you can configure to create blocks to be used by your flows.
 
-![Viewing the new block library in the Prefect UI](/img/ui/orion-block-library.png)
+![Viewing the new block library in the Prefect UI](../img/ui/orion-block-library.png)
 
 Select the block type, then provide the information needed to make the block functional. For example, here we're configuring a Slack Webhook block.
 
-![Configuring a Slack Webhook block in the Prefect UI](/img/ui/orion-blocks-slack.png)
+![Configuring a Slack Webhook block in the Prefect UI](../img/ui/orion-blocks-slack.png)
 
 The [Blocks](/concepts/blocks/) documentation provides further detail on using blocks in your Prefect flows.
