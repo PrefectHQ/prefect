@@ -183,7 +183,7 @@ Related Resources:
     {% for label, value in event.resource %}
     {{ label }}: {{ value }}
     {% endfor %}
-{% endfor %
+{% endfor %}
 ```
 
 Note that this example also illustrates the ability to use Jinja features such as iterator and for loop [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when templating notifications.
