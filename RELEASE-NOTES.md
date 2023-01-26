@@ -2,6 +2,13 @@
 
 ## Release 2.7.10
 
+### Enhanced flow run cancellation
+We're excited to announce an upgrade to our flow run cancellation feature, giving you even more control over your workflow!
+
+We've enhanced our flow run cancellation process to ensure a smooth and efficient shutdown. When a cancellation is requested, the flow run is immediately transitioned to a "Cancelling" state. The agent detects this change and promptly sends a signal to the flow run infrastructure requesting termination. To guarantee a timely exit, the infrastructure will be forcefully terminated if it does not shut down within a customizable grace period (default of 30 seconds).
+
+We've also added a service to cleanup unfinished tasks and subflows from recently cancelled flow runs, as well as actively running subflows belonging to a cancelled flow run. Task cancellation can handle 100 active tasks at a time per cancelled flow run.
+
 ### Enhancements
 - Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
 - Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
