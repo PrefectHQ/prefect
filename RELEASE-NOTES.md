@@ -1,5 +1,40 @@
 # Prefect Release Notes
 
+## Release 2.7.10
+
+### Enhancements
+- chore: add k8s kube-system permissions to prefect agent template — https://github.com/PrefectHQ/prefect/pull/8205
+- Add `is_schedule_active` to client `Deployment` class — https://github.com/PrefectHQ/prefect/pull/7430
+- Consolidate multi-arch docker builds — https://github.com/PrefectHQ/prefect/pull/7902
+
+### Fixes
+- Fix incorrect prop for WorkersTable — https://github.com/PrefectHQ/prefect/pull/8232
+- Include nested `pydantic.BaseModel` secret fields in blocks' schema — https://github.com/PrefectHQ/prefect/pull/8246
+
+### Experimental
+- Makes agents work pool aware — https://github.com/PrefectHQ/prefect/pull/8222
+- Adds migration logic for work pools — https://github.com/PrefectHQ/prefect/pull/8214
+- Removes migration logic — https://github.com/PrefectHQ/prefect/pull/8255
+- Small work pools UI updates — https://github.com/PrefectHQ/prefect/pull/8257
+
+### Documentation
+- Add `prefect-openai` to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
+- Fix broken link and generally standardize links on home page — https://github.com/PrefectHQ/prefect/pull/8229
+- Add blocks documentation URLs — https://github.com/PrefectHQ/prefect/pull/8210
+- Updates deployments docstring to match behavior — https://github.com/PrefectHQ/prefect/pull/8233
+- Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
+- Improve contributing documentation with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
+- Update KubernetesJob options — https://github.com/PrefectHQ/prefect/pull/8261
+- Add Prefect Cloud Quickstart tutorial — https://github.com/PrefectHQ/prefect/pull/8227
+- Update roles and permissions in documentation — https://github.com/PrefectHQ/prefect/pull/8263
+
+### Uncategorized
+- Refactor and improve cancellation handling — https://github.com/PrefectHQ/prefect/pull/8126
+
+### Contributors
+- @Laerte
+- @ddelange
+
 ## Release 2.7.9
 
 ### Enhancements
