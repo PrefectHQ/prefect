@@ -40,7 +40,7 @@ def upgrade():
         )
         batch_op.add_column(
             sa.Column(
-                "work_pool_id", prefect.orion.utilities.database.UUID(), nullable=False
+                "work_pool_id", prefect.orion.utilities.database.UUID(), nullable=True
             )
         )
 
@@ -94,6 +94,7 @@ def upgrade():
             ["id"],
             ondelete="RESTRICT",
         )
+        batch_op.alter_column("type", nullable=False)
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.create_foreign_key(
@@ -134,9 +135,14 @@ def upgrade():
         sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
     ).fetchone()[0]
 
-    connection.execute(
-        sa.insert(WORK_QUEUE).values(name="default", work_pool_id=default_pool_id)
-    )
+    default_queue = connection.execute(
+        sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.name == "default")
+    ).fetchone()
+
+    if not default_queue:
+        connection.execute(
+            sa.insert(WORK_QUEUE).values(name="default", work_pool_id=default_pool_id)
+        )
 
     connection.execute(
         sa.update(WORK_QUEUE)
@@ -168,13 +174,15 @@ def upgrade():
             .values(priority=enumeration + 1)
         )
 
+    with op.batch_alter_table("work_queue", schema=None) as batch_op:
+        batch_op.alter_column("work_pool_id", nullable=False)
+
 
 def downgrade():
     connection = op.get_bind()
     meta_data = sa.MetaData(bind=connection)
     meta_data.reflect()
     WORK_POOL = meta_data.tables["work_pool"]
-    WORK_QUEUE = meta_data.tables["work_queue"]
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
@@ -185,14 +193,7 @@ def downgrade():
 
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_queue")
-
-    default_queue_id = connection.execute(
-        sa.select([WORK_POOL.c.default_queue_id]).where(
-            WORK_POOL.c.name == "default-agent-pool"
-        )
-    ).fetchone()[0]
-
-    connection.execute(sa.delete(WORK_QUEUE).where(WORK_QUEUE.c.id == default_queue_id))
+        batch_op.alter_column("type", nullable=True)
 
     connection.execute(
         sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
@@ -211,6 +212,10 @@ def downgrade():
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_column("work_pool_id")
         batch_op.drop_column("priority")
+
+    connection.execute(
+        sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
+    )
 
     op.create_table(
         "work_pool_queue",
