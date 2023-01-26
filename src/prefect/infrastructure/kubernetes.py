@@ -59,7 +59,9 @@ class KubernetesJob(Infrastructure):
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         env: Environment variables to set for the container.
-        image: An optional string specifying the tag of a Docker image to use for the job.
+        image: An optional string specifying the image reference of a container image
+            to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
+            behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
             Defaults to the Prefect image.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         job: The base manifest for the Kubernetes Job.
@@ -87,8 +89,8 @@ class KubernetesJob(Infrastructure):
     image: Optional[str] = Field(
         default=None,
         description=(
-            "The tag of a Docker image to use for the job. Defaults to the Prefect "
-            "image unless an image is already present in a provided job manifest."
+            "The image reference of a container image to use for the job, for example, `docker.io/prefecthq/prefect:2-latest`."
+            "The behavior is as described in the Kubernetes documentation and uses the latest version of Prefect by default, unless an image is already present in a provided job manifest."
         ),
     )
     namespace: Optional[str] = Field(
