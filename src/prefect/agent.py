@@ -118,7 +118,7 @@ class OrionAgent:
                     )
             self.work_queues = matched_queues
 
-    async def get_work_queues(self) -> AsyncIterator[Union[WorkQueue, WorkQueue]]:
+    async def get_work_queues(self) -> AsyncIterator[WorkQueue]:
         """
         Loads the work queue objects corresponding to the agent's target work
         queues. If any of them don't exist, they are created.
@@ -212,7 +212,7 @@ class OrionAgent:
 
                 else:
                     try:
-                        if isinstance(work_queue, WorkQueue):
+                        if self.work_pool_name:
                             responses = await self.client.get_scheduled_flow_runs_for_work_queues(
                                 work_pool_name=self.work_pool_name,
                                 work_queue_names=[work_queue.name],

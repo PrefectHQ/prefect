@@ -138,7 +138,7 @@ class WorkerFlowRunResponse(PrefectBaseModel):
         arbitrary_types_allowed = True
 
     work_pool_id: UUID
-    work_pool_queue_id: UUID
+    work_queue_id: UUID
     flow_run: schemas.core.FlowRun
 
 
@@ -181,12 +181,9 @@ class FlowRunResponse(ORMBaseModel):
     @classmethod
     def from_orm(cls, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value()
-            and orm_flow_run.work_pool_queue
-        ):
-            response.work_queue_name = orm_flow_run.work_pool_queue.name
-            response.work_pool_name = orm_flow_run.work_pool_queue.work_pool.name
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and orm_flow_run.work_queue:
+            response.work_queue_name = orm_flow_run.work_queue.name
+            response.work_pool_name = orm_flow_run.work_queue.work_pool.name
 
         return response
 
@@ -239,11 +236,8 @@ class DeploymentResponse(ORMBaseModel):
         cls, orm_deployment: "prefect.orion.database.orm_models.ORMDeployment"
     ):
         response = super().from_orm(orm_deployment)
-        if (
-            PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value()
-            and orm_deployment.work_pool_queue
-        ):
-            response.work_queue_name = orm_deployment.work_pool_queue.name
-            response.work_pool_name = orm_deployment.work_pool_queue.work_pool.name
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() and orm_deployment.work_queue:
+            response.work_queue_name = orm_deployment.work_queue.name
+            response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
         return response

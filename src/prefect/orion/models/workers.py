@@ -266,7 +266,7 @@ async def create_work_queue(
     priority = (await session.execute(max_priority_query)).scalar()
 
     model = db.WorkQueue(
-        **work_queue.dict(exclude={"priority"}),
+        **work_queue.dict(exclude={"priority", "work_pool_id"}),
         work_pool_id=work_pool_id,
         # initialize the priority as the current max priority + 1
         priority=priority + 1
