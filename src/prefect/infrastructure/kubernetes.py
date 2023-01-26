@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
+import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
@@ -51,13 +52,17 @@ class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
 
+    Click [here](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/) to see a tutorial.
+
     Attributes:
         cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         env: Environment variables to set for the container.
-        image: An optional string specifying the tag of a Docker image to use for the job.
+        image: An optional string specifying the image reference of a container image
+            to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
+            behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
             Defaults to the Prefect image.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         job: The base manifest for the Kubernetes Job.
@@ -76,6 +81,7 @@ class KubernetesJob(Infrastructure):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
         default="kubernetes-job", description="The type of infrastructure."
@@ -84,8 +90,8 @@ class KubernetesJob(Infrastructure):
     image: Optional[str] = Field(
         default=None,
         description=(
-            "The tag of a Docker image to use for the job. Defaults to the Prefect "
-            "image unless an image is already present in a provided job manifest."
+            "The image reference of a container image to use for the job, for example, `docker.io/prefecthq/prefect:2-latest`."
+            "The behavior is as described in the Kubernetes documentation and uses the latest version of Prefect by default, unless an image is already present in a provided job manifest."
         ),
     )
     namespace: Optional[str] = Field(
@@ -584,26 +590,58 @@ class KubernetesJob(Infrastructure):
                     follow=True,
                     _preload_content=False,
                 )
-                for log in logs.stream():
-                    print(log.decode().rstrip())
+                try:
+                    for log in logs.stream():
+                        print(log.decode().rstrip())
+                except Exception:
+                    self.logger.warning(
+                        "Error occurred while streaming logs - "
+                        "Job will continue to run but logs will "
+                        "no longer be streamed to stdout.",
+                        exc_info=True,
+                    )
 
-        # Wait for job to complete
-        # if `job_watch_timeout_seconds` is None, no timeout will be enforced
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        watch = kubernetes.watch.Watch()
-        with self.get_batch_client() as batch_client:
-            for event in watch.stream(
-                func=batch_client.list_namespaced_job,
-                field_selector=f"metadata.name={job_name}",
-                namespace=self.namespace,
-                timeout_seconds=self.job_watch_timeout_seconds,
+        start_time = pendulum.now("utc")
+        completed = False
+        while not completed:
+            elapsed = (pendulum.now("utc") - start_time).in_seconds()
+            if (
+                self.job_watch_timeout_seconds is not None
+                and elapsed > self.job_watch_timeout_seconds
             ):
-                if event["object"].status.completion_time:
-                    watch.stop()
-                    break
-            else:
-                self.logger.error(f"Job {job_name!r}: Job did not complete.")
+                self.logger.error(f"Job {job_name!r}: Job timed out after {elapsed}s.")
                 return -1
+
+            watch = kubernetes.watch.Watch()
+            with self.get_batch_client() as batch_client:
+                remaining_timeout = (
+                    (  # subtract previous watch time
+                        self.job_watch_timeout_seconds - elapsed
+                    )
+                    if self.job_watch_timeout_seconds
+                    else None
+                )
+
+                for event in watch.stream(
+                    func=batch_client.list_namespaced_job,
+                    field_selector=f"metadata.name={job_name}",
+                    namespace=self.namespace,
+                    timeout_seconds=remaining_timeout,
+                ):
+                    if event["object"].status.completion_time:
+                        if not event["object"].status.succeeded:
+                            # Job failed, exit while loop and return pod exit code
+                            self.logger.error(f"Job {job_name!r}: Job failed.")
+                        completed = True
+                        watch.stop()
+                        break
+                else:
+                    self.logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {self.job_watch_timeout_seconds}s."
+                    )
+                    return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(

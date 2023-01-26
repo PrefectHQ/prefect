@@ -2,7 +2,7 @@
 
 Revision ID: 2882cd2df463
 Revises: d481d5058a19
-Create Date: 2023-01-13 04:55:00.358638
+Create Date: 2023-01-26 04:55:00.358638
 
 """
 import sqlalchemy as sa
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "2882cd2df463"
-down_revision = "d481d5058a19"
+down_revision = "9326a6aee18b"
 branch_labels = None
 depends_on = None
 

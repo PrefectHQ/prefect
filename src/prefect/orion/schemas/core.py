@@ -750,6 +750,16 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
+    @root_validator
+    def validate_parent_and_ref_are_different(cls, values):
+        parent_id = values.get("parent_block_document_id")
+        ref_id = values.get("reference_block_document_id")
+        if parent_id and ref_id and parent_id == ref_id:
+            raise ValueError(
+                "`parent_block_document_id` and `reference_block_document_id` cannot be the same"
+            )
+        return values
+
 
 class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
@@ -954,7 +964,7 @@ class WorkPool(ORMBaseModel):
     description: Optional[str] = Field(
         default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The work pool type.")
+    type: str = Field(description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )

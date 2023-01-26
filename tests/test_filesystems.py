@@ -572,3 +572,58 @@ class TestGitHub:
 
             assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
             assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
+
+    @pytest.mark.parametrize(
+        "include_git_objects, expect_git_objects",
+        [(True, True), (False, False), (None, True)],
+    )
+    async def test_dir_contents_copied_correctly_with_include_git_object(
+        self,
+        monkeypatch,
+        tmp_path,
+        include_git_objects,
+        expect_git_objects,
+    ):
+        """Check that `get_directory` is able to correctly copy contents from src->dst
+        with the `include_git_object`.
+
+        Current default behavior is to include git objects.
+        """
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect.filesystems, "run_process", mock)
+
+        sub_dir_name = "puppy"
+
+        parent_contents, child_contents = setup_test_directory(tmp_path, sub_dir_name)
+        self.MockTmpDir.dir = tmp_path
+
+        # add a git object to the directory
+        dot_git_file = Path(tmp_path) / ".git/test"
+        dot_git_file.parent.mkdir(parents=True, exist_ok=True)
+        dot_git_file.touch()
+
+        # move file contents to tmp_dst
+        with TemporaryDirectory() as tmp_dst:
+            monkeypatch.setattr(
+                prefect.filesystems,
+                "TemporaryDirectory",
+                self.MockTmpDir,
+            )
+
+            if include_git_objects is None:
+                # Check default behavior is to include git objects
+                g = GitHub(
+                    repository="https://github.com/PrefectHQ/prefect.git",
+                )
+            else:
+                g = GitHub(
+                    repository="https://github.com/PrefectHQ/prefect.git",
+                    include_git_objects=include_git_objects,
+                )
+            await g.get_directory(local_path=tmp_dst)
+
+            assert any(".git" in f for f in os.listdir(tmp_dst)) == expect_git_objects

@@ -26,6 +26,10 @@ Postgres: `2882cd2df463`
 
 This schema migration creates the artifact table with extra `state_id` columns in order speed up the data migration.
 
+# Add `CANCELLING` to StateType enum
+SQLite: None
+Postgres: `9326a6aee18b`
+
 # Add infrastructure_pid to flow runs
 SQLite: `7201de756d85`
 Postgres: `5d526270ddb4`

@@ -47,7 +47,7 @@ However you run the flow, the Prefect API monitors the flow run, capturing flow 
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/orion-dashboard.png)
 
 ## Writing flows
 
@@ -752,4 +752,4 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
-![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
+![Prefect UI](../img/ui/flow-run-cancellation-ui.png)
