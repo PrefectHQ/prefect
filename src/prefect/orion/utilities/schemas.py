@@ -279,9 +279,10 @@ class PrefectBaseModel(BaseModel):
             if not experiment_enabled(field.field_info.extra["experimental-group"])
         ]
 
-        kwargs["exclude"] = kwargs.get("exclude", set()).union(
-            experimental_fields_to_exclude
-        )
+        if experimental_fields_to_exclude:
+            kwargs["exclude"] = (kwargs.get("exclude") or set()).union(
+                experimental_fields_to_exclude
+            )
 
         if json_compatible and shallow:
             raise ValueError(
