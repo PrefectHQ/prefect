@@ -19,11 +19,10 @@ SHUTDOWN_TIMEOUT = 10
 @pytest.fixture(scope="function")
 async def orion_process():
     """
-    Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
-    application. Requires a port from 2222-2227 to be available.
+    Runs an instance of the Orion server. Requires a port from 2222-2227 to be available.
     Uses the same database as the rest of the tests.
     Yields:
-        The connection string
+        The anyio.Process.
     """
 
     ports = [2222 + i for i in range(5)]
