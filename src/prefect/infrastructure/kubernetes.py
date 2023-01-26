@@ -608,7 +608,9 @@ class KubernetesJob(Infrastructure):
                 self.job_watch_timeout_seconds is not None
                 and elapsed > self.job_watch_timeout_seconds
             ):
-                self.logger.error(f"Job {job_name!r}: Job timed out.")
+                self.logger.error(
+                    f"Job {job_name!r}: Job timed out " f"after {elapsed}s."
+                )
                 return -1
 
             watch = kubernetes.watch.Watch()
