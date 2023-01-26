@@ -32,6 +32,7 @@ from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.orion import schemas
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -210,12 +211,10 @@ def load_deployments_from_yaml(
     return registry
 
 
-@experimental_field("worker_pool_name", group="workers", when=lambda x: x is not None)
 @experimental_field(
-    "worker_pool_queue_name",
-    group="workers",
-    when=lambda x: x is not None,
-    stacklevel=4,
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
 )
 class Deployment(BaseModel):
     """
@@ -228,8 +227,9 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags are
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
+        is_schedule_active: Whether or not the schedule is active
         work_queue_name: The work queue that will handle this deployment's runs
-        flow: The name of the flow this deployment encapsulates
+        flow_name: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -288,11 +288,11 @@ class Deployment(BaseModel):
             "description",
             "version",
             "work_queue_name",
-            "worker_pool_name",
-            "worker_pool_queue_name",
+            "work_pool_name",
             "tags",
             "parameters",
             "schedule",
+            "is_schedule_active",
             "infra_overrides",
         ]
 
@@ -384,17 +384,17 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
+    is_schedule_active: Optional[bool] = Field(
+        default=None, description="Whether or not the schedule is active."
+    )
     flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
         "default",
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-    worker_pool_name: Optional[str] = Field(
-        default=None, description="The worker pool for the deployment"
-    )
-    worker_pool_queue_name: Optional[str] = Field(
-        default=None, description="The worker pool queue for the deployment."
+    work_pool_name: Optional[str] = Field(
+        default=None, description="The work pool for the deployment"
     )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
@@ -648,15 +648,14 @@ class Deployment(BaseModel):
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
-
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
-                worker_pool_name=self.worker_pool_name,
-                worker_pool_queue_name=self.worker_pool_queue_name,
+                work_pool_name=self.work_pool_name,
                 version=self.version,
                 schedule=self.schedule,
+                is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,

@@ -4,6 +4,8 @@
       <PageHeadingFlowRun v-if="flowRun" :flow-run-id="flowRun.id" @delete="goToFlowRuns" />
     </template>
 
+    <FlowRunTimeline v-if="flowRun" :flow-run="flowRun" />
+
     <p-tabs v-model:selected="selectedTab" :tabs="tabs">
       <template #details>
         <FlowRunDetails v-if="flowRun" :flow-run="flowRun" />
@@ -22,7 +24,7 @@
       </template>
 
       <template #parameters>
-        <JsonView :value="parameters" />
+        <CodeHighlighting language="json" :value="parameters" />
       </template>
     </p-tabs>
 
@@ -40,8 +42,9 @@
     FlowRunDetails,
     FlowRunLogs,
     FlowRunTaskRuns,
+    FlowRunTimeline,
     FlowRunSubFlows,
-    JsonView,
+    CodeHighlighting,
     useFavicon,
     useWorkspaceApi,
     useDeployment,

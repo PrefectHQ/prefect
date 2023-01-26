@@ -1,5 +1,76 @@
 # Prefect Release Notes
 
+## Release 2.7.9
+
+### Enhancements
+- Add `--head` flag to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add `--num_logs` option to `flow-run logs` CLI command to specify the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add option to filter out `.git` files when reading files with the GitHub storage block — https://github.com/PrefectHQ/prefect/pull/8193
+
+### Fixes
+- Fix bug causing failures when spawning Windows subprocesses - https://github.com/PrefectHQ/prefect/pull/8184
+- Fix possible recursive loop when blocks label themselves as both their own parent and reference — https://github.com/PrefectHQ/prefect/pull/8197
+
+### Documentation
+- Add [recipe contribution page](https://docs.prefect.io/recipes/recipes/#contributing-recipes) and [AWS Chalice](https://docs.prefect.io/recipes/recipes/#recipe-catalog) recipe — https://github.com/PrefectHQ/prefect/pull/8183
+- Add new `discourse` and `blog` admonition types — https://github.com/PrefectHQ/prefect/pull/8202
+- Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
+- Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
+
+### Collections
+- [`prefect-openai` 0.1.0](https://github.com/PrefectHQ/prefect-openai) newly released with support for authentication and completions
+
+### Experimental
+- Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
+
+## New Contributors
+* @mj0nez made their first contribution in https://github.com/PrefectHQ/prefect/pull/8201
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.8...2.7.9
+
+## Release 2.7.8
+
+### Flow run timeline view
+
+We're excited to announce that a new timeline graph has been added to the flow run page. 
+This view helps visualize how execution of your flow run takes place in time, an alternative to the radar view that focuses on the structure of dependencies between task runs.
+
+This feature is currently in beta and we have lots of improvements planned in the near future! We're looking forward to your feedback.
+
+![The timeline view visualizes execution of your flow run over time](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
+
+### Enhancements
+- Add [task option `refresh_cache`](https://docs.prefect.io/concepts/tasks/#refreshing-the-cache) to update the cached data for a task run — https://github.com/PrefectHQ/prefect/pull/7856
+- Add logs when a task run receives an abort signal and is in a non-final state — https://github.com/PrefectHQ/prefect/pull/8097
+- Add [publishing of multiarchitecture Docker images](https://hub.docker.com/r/prefecthq/prefect-dev) for development builds  — https://github.com/PrefectHQ/prefect/pull/7900
+- Add `httpx.WriteError` to client retryable exceptions — https://github.com/PrefectHQ/prefect/pull/8145
+- Add support for memory limits and privileged containers to `DockerContainer` — https://github.com/PrefectHQ/prefect/pull/8033
+
+### Fixes
+- Add support for `allow_failure` to mapped task arguments — https://github.com/PrefectHQ/prefect/pull/8135
+- Update conda requirement regex to support channel and build hashes — https://github.com/PrefectHQ/prefect/pull/8137
+- Add numpy array support to orjson serialization — https://github.com/PrefectHQ/prefect/pull/7912
+
+### Experimental
+- Rename "Worker pools" to "Work pools" — https://github.com/PrefectHQ/prefect/pull/8107
+- Rename default work pool queue — https://github.com/PrefectHQ/prefect/pull/8117
+- Add worker configuration — https://github.com/PrefectHQ/prefect/pull/8100
+- Add `BaseWorker` and `ProcessWorker` — https://github.com/PrefectHQ/prefect/pull/7996
+
+### Documentation
+- Add YouTube video to welcome page - https://github.com/PrefectHQ/prefect/pull/8090
+- Add social links - https://github.com/PrefectHQ/prefect/pull/8088
+- Increase visibility of Prefect Cloud and Orion REST API documentation - https://github.com/PrefectHQ/prefect/pull/8134
+
+## New Contributors
+* @muddi900 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8101
+* @ddelange made their first contribution in https://github.com/PrefectHQ/prefect/pull/7900
+* @toro-berlin made their first contribution in https://github.com/PrefectHQ/prefect/pull/7856
+* @Ewande made their first contribution in https://github.com/PrefectHQ/prefect/pull/7912
+* @brandonreid made their first contribution in https://github.com/PrefectHQ/prefect/pull/8153
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.7...2.7.8
+
 ## Release 2.7.7
 
 ### Improved reference documentation

@@ -6,6 +6,7 @@ import datetime
 from typing import List
 from uuid import UUID
 
+import jsonschema.exceptions
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -15,9 +16,11 @@ import prefect.orion.schemas as schemas
 from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.exceptions import MissingVariableError, ObjectNotFoundError
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -38,29 +41,50 @@ async def create_deployment(
     """
 
     async with db.session_context(begin_transaction=True) as session:
+        if (
+            deployment.work_pool_name
+            and deployment.work_pool_name != DEFAULT_AGENT_WORK_POOL_NAME
+        ):
+            # Make sure that deployment is valid before beginning creation process
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session, work_pool_name=deployment.work_pool_name
+            )
+            if work_pool is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f'Work pool "{deployment.work_pool_name}" not found.',
+                )
+            try:
+                deployment.check_valid_configuration(work_pool.base_job_template)
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment: {exc!r}",
+                )
+
         # hydrate the input model into a full model
-        deployment_dict = deployment.dict(
-            exclude={"worker_pool_name", "worker_pool_queue_name"}
-        )
-        if deployment.worker_pool_name and deployment.worker_pool_queue_name:
-            # If a specific pool name/queue name combination was provided, get the
-            # ID for that worker pool queue.
-            deployment_dict[
-                "worker_pool_queue_id"
-            ] = await worker_lookups._get_worker_pool_queue_id_from_name(
-                session=session,
-                worker_pool_name=deployment.worker_pool_name,
-                worker_pool_queue_name=deployment.worker_pool_queue_name,
-            )
-        elif deployment.worker_pool_name:
-            # If just a pool name was provided, get the ID for its default
-            # worker pool queue.
-            deployment_dict[
-                "worker_pool_queue_id"
-            ] = await worker_lookups._get_default_worker_pool_queue_id_from_worker_pool_name(
-                session=session,
-                worker_pool_name=deployment.worker_pool_name,
-            )
+        deployment_dict = deployment.dict(exclude={"work_pool_name"})
+        if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+            if deployment.work_pool_name and deployment.work_queue_name:
+                # If a specific pool name/queue name combination was provided, get the
+                # ID for that work pool queue.
+                deployment_dict[
+                    "work_pool_queue_id"
+                ] = await worker_lookups._get_work_pool_queue_id_from_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                    work_pool_queue_name=deployment.work_queue_name,
+                    create_queue_if_not_found=True,
+                )
+            elif deployment.work_pool_name:
+                # If just a pool name was provided, get the ID for its default
+                # work pool queue.
+                deployment_dict[
+                    "work_pool_queue_id"
+                ] = await worker_lookups._get_default_work_pool_queue_id_from_work_pool_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                )
 
         deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message
@@ -109,6 +133,19 @@ async def update_deployment(
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
+        if deployment.work_pool_name:
+            # Make sure that deployment is valid before beginning creation process
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session, work_pool_name=deployment.work_pool_name
+            )
+            try:
+                deployment.check_valid_configuration(work_pool.base_job_template)
+            except (MissingVariableError, jsonschema.exceptions.ValidationError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Error creating deployment: {exc!r}",
+                )
+
         result = await models.deployments.update_deployment(
             session=session, deployment_id=deployment_id, deployment=deployment
         )
@@ -163,8 +200,8 @@ async def read_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    worker_pools: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -183,8 +220,8 @@ async def read_deployments(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
-            worker_pool_filter=worker_pools,
-            worker_pool_queue_filter=worker_pool_queues,
+            work_pool_filter=work_pools,
+            work_pool_queue_filter=work_pool_queues,
         )
         return [
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
@@ -198,8 +235,8 @@ async def count_deployments(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    worker_pools: schemas.filters.WorkerPoolFilter = None,
-    worker_pool_queues: schemas.filters.WorkerPoolQueueFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -212,8 +249,8 @@ async def count_deployments(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
-            worker_pool_filter=worker_pools,
-            worker_pool_queue_filter=worker_pool_queues,
+            work_pool_filter=work_pools,
+            work_pool_queue_filter=work_pool_queues,
         )
 
 
@@ -253,7 +290,7 @@ async def schedule_deployment(
 
     This function will generate the minimum number of runs that satisfy the min
     and max times, and the min and max counts. Specifically, the following order
-    will be respected:
+    will be respected.
 
         - Runs will be generated starting on or after the `start_time`
         - No more than `max_runs` runs will be generated
@@ -371,7 +408,7 @@ async def create_flow_run_from_deployment(
                 or deployment.infrastructure_document_id
             ),
             work_queue_name=deployment.work_queue_name,
-            worker_pool_queue_id=deployment.worker_pool_queue_id,
+            work_pool_queue_id=deployment.work_pool_queue_id,
         )
 
         if not flow_run.state:

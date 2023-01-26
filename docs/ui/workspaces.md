@@ -60,8 +60,6 @@ Within a workspace, select **Workspace Settings** to view or edit workspace deta
 
 ![Managing a workspace in the Prefect Cloud UI.](/img/ui/workspace-settings.png)
 
-This page enables you to copy the configuration string to [set up a local development or execution environment](/ui/cloud-getting-started/#configure-execution-environment) to work this workspace.
-
 The options menu enables you to edit workspace details or delete the workspace.
 
 !!! warning "Deleting a workspace"
