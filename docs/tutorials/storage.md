@@ -102,6 +102,9 @@ Select **Create** to create the new storage block. Prefect displays the details 
 
 ![Viewing details of a new S3 storage block in the Prefect UI](/img/tutorials/new-storage-block.png)
 
+!!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
+    Note that, if you ran through this tutorial on a local Prefect Orion server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
+
 ## Using storage blocks with deployments
 
 To demonstrate using a storage block, we'll create a new variation of the deployment for the `log_flow` example from the [deployments tutorial](/tutorials/deployments/). For this deployment, we'll specify using the storage block created earlier by passing `-sb s3/log-test` or `--storage-block s3/log-test` to the `prefect deployment build` command.
