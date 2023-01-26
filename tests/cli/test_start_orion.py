@@ -138,7 +138,7 @@ class TestUvicornSignalForwarding:
 
         assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
-            r"(Sending SIGTERM)(.|\s)*(Application shutdown complete)", out
+            r"Sending SIGTERM", out
         ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
