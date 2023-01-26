@@ -49,21 +49,29 @@ class TestDeploymentCreate:
 
         assert getattr(deployment_create, "worker_pool_queue_id", 0) == 0
 
-    def test_create_with_worker_pool_name_warns(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            ({"worker_pool_queue_name": "test-worker-pool-queue"}),
+            ({"work_pool_queue_name": "test-work-pool-queue"}),
+            ({"worker_pool_name": "test-worker-pool"}),
+        ],
+    )
+    def test_create_with_worker_pool_name_warns(self, kwargs):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_name` and `worker_pool_queue_name` are "
+            match="`worker_pool_name`, `worker_pool_queue_name`, and "
+            "`work_pool_name` are"
             "no longer supported for creating "
             "deployments. Please use `work_pool_name` and "
             "`work_queue_name` instead.",
         ):
             deployment_create = DeploymentCreate(
-                **dict(
-                    name="test-deployment", worker_pool_queue_name="test-worker-pool"
-                )
+                **dict(name="test-deployment", **kwargs)
             )
 
-        assert getattr(deployment_create, "worker_pool_name", 0) == 0
+        for key in kwargs.keys():
+            assert getattr(deployment_create, key, 0) == 0
 
 
 class TestDeploymentUpdate:
@@ -78,16 +86,24 @@ class TestDeploymentUpdate:
 
         assert getattr(deployment_update, "worker_pool_queue_id", 0) == 0
 
-    def test_update_with_worker_pool_name_warns(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            ({"worker_pool_queue_name": "test-worker-pool-queue"}),
+            ({"work_pool_queue_name": "test-work-pool-queue"}),
+            ({"worker_pool_name": "test-worker-pool"}),
+        ],
+    )
+    def test_update_with_worker_pool_name_warns(self, kwargs):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_name` and `worker_pool_queue_name` are "
+            match="`worker_pool_name`, `worker_pool_queue_name`, and "
+            "`work_pool_name` are"
             "no longer supported for creating "
             "deployments. Please use `work_pool_name` and "
             "`work_queue_name` instead.",
         ):
-            deployment_update = DeploymentCreate(
-                **dict(worker_pool_queue_name="test-worker-pool")
-            )
+            deployment_update = DeploymentCreate(**kwargs)
 
-        assert getattr(deployment_update, "worker_pool_name", 0) == 0
+        for key in kwargs.keys():
+            assert getattr(deployment_update, key, 0) == 0
