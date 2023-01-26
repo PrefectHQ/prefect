@@ -398,7 +398,7 @@ async def work_pool(session):
 
 
 @pytest.fixture
-async def work_queue(session, work_pool):
+async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,

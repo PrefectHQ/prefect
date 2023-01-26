@@ -193,7 +193,7 @@ class OrionAgent:
         submittable_runs: List[FlowRun] = []
 
         if self.work_pool_name:
-            responses = await self.client.get_scheduled_flow_runs_for_work_queues(
+            responses = await self.client.get_scheduled_flow_runs_for_work_pool(
                 work_pool_name=self.work_pool_name,
                 work_queue_names=[wq.name async for wq in self.get_work_queues()],
                 scheduled_before=before,
@@ -213,10 +213,12 @@ class OrionAgent:
                 else:
                     try:
                         if self.work_pool_name:
-                            responses = await self.client.get_scheduled_flow_runs_for_work_queues(
-                                work_pool_name=self.work_pool_name,
-                                work_queue_names=[work_queue.name],
-                                scheduled_before=before,
+                            responses = (
+                                await self.client.get_scheduled_flow_runs_for_work_pool(
+                                    work_pool_name=self.work_pool_name,
+                                    work_queue_names=[work_queue.name],
+                                    scheduled_before=before,
+                                )
                             )
                             queue_runs = [response.flow_run for response in responses]
                         else:

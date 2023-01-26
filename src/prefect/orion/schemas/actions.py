@@ -465,7 +465,6 @@ class WorkQueueCreate(ActionBaseModel):
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    work_pool_id: UUID = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 
@@ -480,6 +479,7 @@ class WorkQueueCreate(ActionBaseModel):
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Orion API to update a work queue."""
 
+    name: str = FieldFrom(schemas.core.WorkQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
@@ -491,11 +491,6 @@ class WorkQueueUpdate(ActionBaseModel):
     filter: Optional[schemas.core.QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
-    name: Optional[str] = Field(
-        default=None,
-        description="DEPRECATED: The name of the work queue.",
         deprecated=True,
     )
 

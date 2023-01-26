@@ -103,6 +103,31 @@ async def read_work_pool_by_name(
     return result.scalar()
 
 
+async def get_or_create_default_agent_work_pool(session: AsyncSession):
+    """
+    Reads a WorkPool by name.
+
+    Args:
+        session (AsyncSession): A database session
+        work_pool_name (str): a WorkPool name
+
+    Returns:
+        db.WorkPool: the WorkPool
+    """
+    default_agent_work_pool = await read_work_pool_by_name(
+        session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_agent_work_pool is None:
+        default_agent_work_pool = await create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=DEFAULT_AGENT_WORK_POOL_NAME,
+                description="The default work pool for agents.",
+            ),
+        )
+    return default_agent_work_pool
+
+
 @inject_db
 async def read_work_pools(
     db: OrionDBInterface,

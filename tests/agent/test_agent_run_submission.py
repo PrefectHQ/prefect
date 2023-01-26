@@ -949,7 +949,7 @@ async def test_agent_with_work_queue(
         work_pool_name=work_pool.name,
         work_queue_name=work_queue.name,
     )
-    responses = await orion_client.get_scheduled_flow_runs_for_work_queues(
+    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
         scheduled_before=pendulum.now().add(seconds=10),
@@ -1016,7 +1016,7 @@ async def test_agent_with_work_pool(
         work_pool_name=work_pool.name,
         work_queue_name=work_queue.name,
     )
-    responses = await orion_client.get_scheduled_flow_runs_for_work_queues(
+    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
         scheduled_before=pendulum.now().add(seconds=10),
@@ -1082,7 +1082,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
         work_pool_name=work_pool.name,
         work_queue_name=work_queue.name,
     )
-    responses = await orion_client.get_scheduled_flow_runs_for_work_queues(
+    responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
         work_queue_names=[work_queue.name],
         scheduled_before=pendulum.now().add(seconds=10),

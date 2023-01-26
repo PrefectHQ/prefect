@@ -38,8 +38,15 @@ async def create_work_queue(
         db.WorkQueue: the newly-created or updated WorkQueue
 
     """
+    data = work_queue.dict()
 
-    model = db.WorkQueue(**work_queue.dict())
+    if data.get("work_pool_id") is None:
+        default_agent_pool = await models.workers.get_or_create_default_agent_work_pool(
+            session=session
+        )
+        data["work_pool_id"] = default_agent_pool.id
+
+    model = db.WorkQueue(**data)
     session.add(model)
     await session.flush()
 
@@ -78,8 +85,11 @@ async def read_work_queue_by_name(
     Returns:
         db.WorkQueue: the WorkQueue
     """
+    default_work_pool = await models.workers.get_or_create_default_agent_work_pool(
+        session
+    )
 
-    query = select(db.WorkQueue).filter_by(name=name)
+    query = select(db.WorkQueue).filter_by(name=name, work_pool_id=default_work_pool.id)
     result = await session.execute(query)
     return result.scalar()
 
@@ -304,18 +314,21 @@ async def _ensure_work_queue_exists(
         session=session, name=name
     )
     if not work_queue:
-        default_pool = await models.workers.read_work_pool_by_name(
+        default_pool = await models.workers.get_or_create_default_agent_work_pool(
             session=session,
-            work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME,
-            db=db,
         )
 
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(
-                name=name, priority=1, work_pool_id=default_pool.id
-            ),
-        )
+        if name != "default":
+            work_queue = await models.work_queues.create_work_queue(
+                session=session,
+                work_queue=schemas.core.WorkQueue(
+                    name=name, priority=1, work_pool_id=default_pool.id
+                ),
+            )
+        else:
+            work_queue = await models.work_queues.read_work_queue(
+                session=session, work_queue_id=default_pool.default_work_id
+            )
 
     return work_queue
 

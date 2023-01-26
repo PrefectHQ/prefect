@@ -693,7 +693,14 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self, name: str, tags: List[str] = None
+        self,
+        name: str,
+        tags: Optional[List[str]] = None,
+        description: Optional[str] = None,
+        is_paused: Optional[bool] = None,
+        concurrency_limit: Optional[int] = None,
+        priority: Optional[int] = None,
+        work_pool_name: Optional[str] = None,
     ) -> schemas.core.WorkQueue:
         """
         Create a work queue.
@@ -702,6 +709,11 @@ class OrionClient:
             name: a unique name for the work queue
             tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue. This option will be removed on 2023-02-23.
+            description: An optional description for the work queue.
+            is_paused: Whether or not the work queue is paused.
+            concurrency_limit: An optional concurrency limit for the work queue.
+            priority: The queue's priority. Lower values are higher priority (1 is the highest).
+            work_pool_name: The name of the work pool to use for this queue.
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
@@ -718,9 +730,23 @@ class OrionClient:
             filter = QueueFilter(tags=tags)
         else:
             filter = None
+        create_model = WorkQueueCreate(name=name, filter=filter)
+        if description is not None:
+            create_model.description = description
+        if is_paused is not None:
+            create_model.is_paused = is_paused
+        if concurrency_limit is not None:
+            create_model.concurrency_limit = concurrency_limit
+        if priority is not None:
+            create_model.priority = priority
         data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
-            response = await self._client.post("/work_queues/", json=data)
+            if work_pool_name is not None:
+                response = await self._client.post(
+                    "experimental/work_pools/{work_pool_name}/queues", json=data
+                )
+            else:
+                response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
@@ -2124,48 +2150,6 @@ class OrionClient:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
-
-    async def create_work_queue(
-        self,
-        work_pool_name: str,
-        work_queue: schemas.actions.WorkQueueCreate,
-    ) -> schemas.core.WorkQueue:
-        """
-        Creates a queue for a given work pool
-
-        Args:
-            work_pool_name: Name of the work pool to create the queue under.
-            work_queue: Desired configuration for the new queue.
-
-        Returns:
-            Information about the newly created queue.
-        """
-        response = await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/queues",
-            json=work_queue.dict(json_compatible=True, exclude_unset=True),
-        )
-
-        return pydantic.parse_obj_as(WorkQueue, response.json())
-
-    async def update_work_queue(
-        self,
-        work_pool_name: str,
-        work_queue_name: str,
-        work_queue: schemas.actions.WorkQueueUpdate,
-    ):
-        """
-        Creates a queue for a given work pool
-
-        Args:
-            work_pool_name: Name of the work pool in which the queue resides.
-            work_queue_name: Name of the work pool queue to update
-            work_queue: Desired updates for the queue.
-
-        """
-        await self._client.patch(
-            f"/experimental/work_pools/{work_pool_name}/queues/{work_queue_name}",
-            json=work_queue.dict(json_compatible=True, exclude_unset=True),
-        )
 
     async def get_scheduled_flow_runs_for_work_pool(
         self,
