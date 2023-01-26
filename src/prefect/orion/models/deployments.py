@@ -18,6 +18,7 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
@@ -144,28 +145,29 @@ async def update_deployment(
     update_data = deployment.dict(
         shallow=True,
         exclude_unset=True,
-        exclude={"work_pool_name", "work_pool_queue_name"},
+        exclude={"work_pool_name"},
     )
-    if deployment.work_pool_name and deployment.work_pool_queue_name:
-        # If a specific pool name/queue name combination was provided, get the
-        # ID for that work pool queue.
-        update_data[
-            "work_pool_queue_id"
-        ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
-            session=session,
-            work_pool_name=deployment.work_pool_name,
-            work_pool_queue_name=deployment.work_pool_queue_name,
-            create_queue_if_not_found=True,
-        )
-    elif deployment.work_pool_name:
-        # If just a pool name was provided, get the ID for its default
-        # work pool queue.
-        update_data[
-            "work_pool_queue_id"
-        ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
-            session=session,
-            work_pool_name=deployment.work_pool_name,
-        )
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        if deployment.work_pool_name and deployment.work_queue_name:
+            # If a specific pool name/queue name combination was provided, get the
+            # ID for that work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_pool_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
+            )
+        elif deployment.work_pool_name:
+            # If just a pool name was provided, get the ID for its default
+            # work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+            )
 
     update_stmt = (
         sa.update(db.Deployment)
