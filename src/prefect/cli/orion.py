@@ -25,6 +25,7 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_KEEPALIVE,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
@@ -95,6 +96,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    keep_alive_timeout: int = SettingsOption(PREFECT_ORION_API_KEEPALIVE),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     scheduler: bool = SettingsOption(PREFECT_ORION_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
@@ -132,6 +134,8 @@ async def start(
                     str(host),
                     "--port",
                     str(port),
+                    "--timeout-keep-alive",
+                    str(keep_alive_timeout),
                 ],
                 env=server_env,
                 stream_output=True,
