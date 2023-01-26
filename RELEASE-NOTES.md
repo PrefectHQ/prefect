@@ -19,7 +19,7 @@
 - Add [`prefect-openai`](Add [`prefect-openai`](https://prefecthq.github.io/prefect-openai/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8236
 - Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
 - Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
-- Improve contributing documentation with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
+- Improve [contributing documentation](https://docs.prefect.io/contributing/overview/) with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
 - Update documentation on KubernetesJob options — https://github.com/PrefectHQ/prefect/pull/8261
 - Update documentation on workspace-level roles — https://github.com/PrefectHQ/prefect/pull/8263
 
