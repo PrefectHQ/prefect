@@ -103,7 +103,7 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        if "sys.exit" in out:
+        if "KeyboardInterrupt" in out:
             pass  # SIGKILL came too late, main PID already closing
         else:
             assert re.search(
@@ -123,7 +123,7 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        if "sys.exit" in out:
+        if "KeyboardInterrupt" in out:
             pass  # SIGKILL received before SIGTERM (sys.exit) could finish
         else:
             assert re.search(
