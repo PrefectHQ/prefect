@@ -44,7 +44,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, StateType, useWorkspaceApi, useRecentFlowRunsFilter, useFlowRunsFilter } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useRecentFlowRunsFilter, useFlowRunsFilter, PrefectStateNames } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
@@ -70,10 +70,10 @@
   const workQueueId = useRouteParam('workQueueId')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
-  const states = ref<StateType[]>([])
+  const states = ref<PrefectStateNames[]>([])
   const selectedTab = ref<string | undefined>()
   const showActiveRuns = (): void => {
-    states.value = ['running', 'pending']
+    states.value = ['Running', 'Pending']
     selectedTab.value = 'Runs'
   }
 
@@ -89,14 +89,12 @@
 
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
 
-  // not reactive...
   const { filter: recentFlowRunFilter } = useRecentFlowRunsFilter({
     flowRuns: {
       workQueueName: workQueueName.value,
     },
   })
 
-  // not reactive...
   const { filter: flowRunFilter } = useFlowRunsFilter({
     flowRuns: {
       workQueueName: workQueueName.value,
@@ -117,7 +115,6 @@
   })
   usePageTitle(title)
 
-  // not reactive...
   const { filter: activeFlowRunsFilter } = useFlowRunsFilter({
     flowRuns: {
       state: {

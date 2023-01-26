@@ -12,7 +12,12 @@
         <FlowRunsFilterGroup />
 
         <template v-if="media.md">
-          <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
+          <FlowRunsScatterPlot
+            :history="flowRunHistory"
+            :start-date="filter.flowRuns.expectedStartTimeAfter"
+            :end-date="filter.flowRuns.expectedStartTimeBefore"
+            class="flow-runs__chart"
+          />
         </template>
 
         <div class="flow-runs__list">
@@ -25,7 +30,7 @@
             </div>
 
             <template v-if="media.md">
-              <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
+              <SearchInput v-model="filter.flowRuns.nameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="sort" />
           </div>
@@ -34,7 +39,7 @@
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>
-              <template v-if="hasFilters" #actions>
+              <template v-if="exist" #actions>
                 <p-button size="sm" secondary @click="clear">
                   Clear Filters
                 </p-button>
@@ -48,7 +53,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useFlowRunsFilterFromRoute } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -64,7 +69,18 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
+  const { filter, exist } = useFlowRunsFilterFromRoute({
+    sort: 'START_TIME_ASC',
+  })
+
+  const sort = computed({
+    get() {
+      return filter.sort!
+    },
+    set(value) {
+      filter.sort = value
+    },
+  })
 
   const subscriptionOptions = {
     interval: 30000,

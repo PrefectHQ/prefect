@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunsFilter, useTabs, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -57,6 +57,7 @@
   import { routes } from '@/router'
 
   const deploymentId = useRouteParam('deploymentId')
+  const deploymentIds = computed(() => [deploymentId.value])
   const router = useRouter()
   const api = useWorkspaceApi()
   const showToast = useToast()
@@ -80,7 +81,11 @@
     router.push(routes.deployments())
   }
 
-  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
+  const { filter: deploymentFilter } = useRecentFlowRunsFilter({
+    deployments: {
+      id: deploymentIds,
+    },
+  })
 
   const title = computed(() => {
     if (!deployment.value) {

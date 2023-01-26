@@ -40,6 +40,7 @@
   const api = useWorkspaceApi()
   const workPoolName = useRouteParam('workPoolName')
   const workPoolQueueName = useRouteParam('workPoolQueueName')
+  const workPoolQueueNames = computed(() => [workPoolQueueName.value])
   const subscriptionOptions = {
     interval: 300000,
   }
@@ -52,10 +53,9 @@
   const workPoolWorkerName = computed(() => workPoolWorkers.value[0]?.name ?? '<worker name>')
   const workPoolQueueCliCommand = computed(() => `prefect worker start --name ${workPoolWorkerName.value} --type process --pool ${workPoolName.value}`)
 
-  // not reactive...
   const { filter: flowRunFilter } = useFlowRunsFilter({
-    flowRuns: {
-      workQueueName: [workPoolQueueName.value],
+    workPoolQueues: {
+      name: workPoolQueueNames,
     },
   })
 
