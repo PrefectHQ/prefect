@@ -266,6 +266,14 @@ class PrefectBaseModel(BaseModel):
             dict
         """
 
+        experimental_fields = [
+            name
+            for name, field in self.__fields__.items()
+            if field.field_info.extra.get("experimental")
+        ]
+
+        kwargs["exclude"] = kwargs.get("exclude", set()).union(experimental_fields)
+
         if json_compatible and shallow:
             raise ValueError(
                 "`json_compatible` can only be applied to the entire object."

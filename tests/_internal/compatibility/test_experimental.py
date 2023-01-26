@@ -12,6 +12,7 @@ from prefect._internal.compatibility.experimental import (
     experimental_field,
     experimental_parameter,
 )
+from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     SETTING_VARIABLES,
@@ -245,6 +246,32 @@ def test_experimental_field_warning_no_warning_when_not_provided():
         value: int = 1
 
     assert Foo().value == 1
+
+
+def test_experimental_fields_excluded_from_dict_by_default():
+    @experimental_field(
+        "value",
+        group="test",
+        help="This is just a test, don't worry.",
+    )
+    class Foo(PrefectBaseModel):
+        value: int = 1
+
+    assert Foo().dict() == {}
+
+
+def test_experimental_fields_included_in_dict_when_opted_in(
+    enable_prefect_experimental_test_opt_in_setting,
+):
+    @experimental_field(
+        "value",
+        group="test",
+        help="This is just a test, don't worry.",
+    )
+    class Foo(PrefectBaseModel):
+        value: int = 1
+
+    assert Foo().dict() == {"value": 1}
 
 
 def test_experimental_field_warning_when():
