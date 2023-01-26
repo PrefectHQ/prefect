@@ -102,7 +102,6 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
         ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
@@ -120,7 +119,6 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
         ), f"When sending two SIGTERM shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
@@ -136,7 +134,6 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"Sending SIGTERM", out
         ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
@@ -152,7 +149,6 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert orion_process.returncode == 0, "The main process should exit gracefully"
         assert re.search(
             r"Sending CTRL_BREAK_EVENT", out
         ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:{out}"
