@@ -256,11 +256,7 @@ class FlowOrchestrationContext(OrchestrationContext):
             state_data = state_payload.pop("data", None)
 
             if state_data is not None:
-                state_result_artifact = core.Artifact(
-                    data=state_data, flow_run_id=self.run.id
-                )
-                await artifacts.create_artifact(self.session, state_result_artifact)
-                state_payload["result_artifact_id"] = state_result_artifact.id
+                state_payload["_data"] = state_data
 
             validated_orm_state = db.FlowRunState(
                 flow_run_id=self.run.id,
@@ -272,9 +268,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         await self.session.flush()
         if validated_orm_state:
-            self.validated_state = states.State.from_orm_without_result(
-                validated_orm_state, with_data=state_data
-            )
+            self.validated_state = validated_orm_state.as_state()
         else:
             self.validated_state = None
 
@@ -391,11 +385,7 @@ class TaskOrchestrationContext(OrchestrationContext):
             state_data = state_payload.pop("data", None)
 
             if state_data is not None:
-                state_result_artifact = core.Artifact(
-                    data=state_data, task_run_id=self.run.id
-                )
-                await artifacts.create_artifact(self.session, state_result_artifact)
-                state_payload["result_artifact_id"] = state_result_artifact.id
+                state_payload["_data"] = state_data
 
             validated_orm_state = db.TaskRunState(
                 task_run_id=self.run.id,
@@ -407,9 +397,7 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         await self.session.flush()
         if validated_orm_state:
-            self.validated_state = states.State.from_orm_without_result(
-                validated_orm_state, with_data=state_data
-            )
+            self.validated_state = validated_orm_state.as_state()
         else:
             self.validated_state = None
 

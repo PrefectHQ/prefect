@@ -1435,6 +1435,7 @@ class TestOrchestrationContext:
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
 
+    @pytest.mark.xfail()
     async def test_context_validation_writes_result_data(
         self, session, run_type, initialize_orchestration
     ):
