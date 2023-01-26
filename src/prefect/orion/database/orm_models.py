@@ -133,7 +133,38 @@ class ORMFlowRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+    _data = sa.Column(sa.JSON, nullable=True, name="data")
+
+    @declared_attr
+    def result_artifact_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
+
+    @declared_attr
+    def _result_artifact(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="joined",
+            foreign_keys=[cls.result_artifact_id],
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
+        )
+
+    @hybrid_property
+    def data(self):
+        if self._data:
+            # ensures backwards compatibility for results stored on state objects
+            return self._data
+        if not self.result_artifact_id:
+            # do not try to load the relationship if there's no artifact id
+            return None
+        return self._result_artifact.data
 
     @declared_attr
     def flow_run(cls):
@@ -187,7 +218,38 @@ class ORMTaskRunState:
         default=schemas.states.StateDetails,
         nullable=False,
     )
-    data = sa.Column(sa.JSON, nullable=True)
+    _data = sa.Column(sa.JSON, nullable=True, name="data")
+
+    @declared_attr
+    def result_artifact_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+                ondelete="SET NULL",
+                use_alter=True,
+            ),
+            index=True,
+        )
+
+    @declared_attr
+    def _result_artifact(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="joined",
+            foreign_keys=[cls.result_artifact_id],
+            primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
+        )
+
+    @hybrid_property
+    def data(self):
+        if self._data:
+            # ensures backwards compatibility for results stored on state objects
+            return self._data
+        if not self.result_artifact_id:
+            # do not try to load the relationship if there's no artifact id
+            return None
+        return self._result_artifact.data
 
     @declared_attr
     def task_run(cls):
@@ -210,6 +272,40 @@ class ORMTaskRunState:
                 unique=True,
             ),
         )
+
+
+@declarative_mixin
+class ORMArtifact:
+    """
+    SQLAlchemy model of artifacts.
+    """
+
+    key = sa.Column(
+        sa.String,
+        nullable=True,
+        index=True,
+    )
+
+    @declared_attr
+    def task_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("task_run.id"), nullable=True, index=True
+        )
+
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(
+            UUID(), sa.ForeignKey("flow_run.id"), nullable=True, index=True
+        )
+
+    type = sa.Column(sa.String)
+    data = sa.Column(sa.JSON, nullable=True)
+    # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
+    metadata_ = sa.Column(sa.JSON, nullable=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("key"),)
 
 
 class ORMTaskRunStateCache:
@@ -1213,6 +1309,7 @@ class BaseORMConfiguration(ABC):
         flow_run_state_mixin=ORMFlowRunState,
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
+        artifact_mixin=ORMArtifact,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1263,6 +1360,7 @@ class BaseORMConfiguration(ABC):
             flow_run_state_mixin=flow_run_state_mixin,
             task_run_mixin=task_run_mixin,
             task_run_state_mixin=task_run_state_mixin,
+            artifact_mixin=artifact_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
@@ -1307,6 +1405,7 @@ class BaseORMConfiguration(ABC):
         flow_run_state_mixin=ORMFlowRunState,
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
+        artifact_mixin=ORMArtifact,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1338,6 +1437,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class TaskRunState(task_run_state_mixin, self.Base):
+            pass
+
+        class Artifact(artifact_mixin, self.Base):
             pass
 
         class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
@@ -1403,6 +1505,7 @@ class BaseORMConfiguration(ABC):
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
+        self.Artifact = Artifact
         self.TaskRunStateCache = TaskRunStateCache
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun

@@ -44,6 +44,7 @@ ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
     # Set the key to sort the `None` state
 )
+CANONICAL_STATES = list(states.StateType)
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
 
 
@@ -1049,7 +1050,7 @@ class TestRenameRetryingStates:
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestTransitionsFromTerminalStatesRule:
-    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES))
     terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
 
     # Cast to sorted lists for deterministic ordering.

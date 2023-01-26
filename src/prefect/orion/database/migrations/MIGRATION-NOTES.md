@@ -8,6 +8,24 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# State data migration cleanup
+SQLite: `f92143d30c27`
+Postgres: `2882cd2df466`
+
+# Migrates state data to the artifact table
+SQLite: `f92143d30c26`
+Postgres: `2882cd2df465`
+
+# Add a helper index for the artifact data migration
+SQLite: `f92143d30c25`
+Postgres: `2882cd2df464`
+
+# Initial schema migration for the artifacts/results table
+SQLite: `f92143d30c24`
+Postgres: `2882cd2df463`
+
+This schema migration creates the artifact table with extra `state_id` columns in order speed up the data migration.
+
 # Add `CANCELLING` to StateType enum
 SQLite: None
 Postgres: `9326a6aee18b`

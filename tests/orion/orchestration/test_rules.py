@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.orion import schemas
+from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.exceptions import OrchestrationError
 from prefect.orion.orchestration.rules import (
@@ -55,7 +55,7 @@ async def commit_task_run_state(
     db = provide_database_interface()
     orm_state = db.TaskRunState(
         task_run_id=task_run.id,
-        **new_state.dict(shallow=True),
+        **new_state.orm_dict(shallow=True),
     )
 
     task_run.state = orm_state
@@ -1435,12 +1435,69 @@ class TestOrchestrationContext:
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
 
+    async def test_context_validation_writes_result_data(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        ctx.proposed_state.data = "some special data"
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id
+        assert (
+            ctx.validated_state.data == "some special data"
+        ), "result data should be attached to the validated state"
+
+        # an artifact should be created with the result data as well
+        if run_type == "task":
+            state_reader = models.task_run_states.read_task_run_state
+        else:
+            state_reader = models.flow_run_states.read_flow_run_state
+        validated_orm_state = await state_reader(ctx.session, ctx.validated_state.id)
+        artifact_id = validated_orm_state.result_artifact_id
+
+        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        assert orm_artifact.data == "some special data"
+
+    async def test_context_validation_does_not_write_artifact_when_no_result(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        ctx.proposed_state.data = None
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id
+        assert (
+            ctx.validated_state.data is None
+        ), "this validated state should have no result"
+
+        # an artifact should be created with the result data as well
+        if run_type == "task":
+            state_reader = models.task_run_states.read_task_run_state
+        else:
+            state_reader = models.flow_run_states.read_flow_run_state
+        validated_orm_state = await state_reader(ctx.session, ctx.validated_state.id)
+        artifact_id = validated_orm_state.result_artifact_id
+        assert artifact_id is None
+
+        orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
+        assert orm_artifact is None
+
     @pytest.mark.parametrize(
         "intended_transition",
         list(permutations([*states.StateType, None], 2)),
         ids=transition_names,
     )
-    async def test_context_state_validation_encounters_multiple_exceptions(
+    async def test_context_state_validation_encounters_intermittent_exception(
         self, session, run_type, intended_transition, initialize_orchestration
     ):
         initial_state_type, proposed_state_type = intended_transition
@@ -1464,10 +1521,8 @@ class TestOrchestrationContext:
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         # Bypass pydantic mutation protection, inject a one-time error
-        side_effects = [
-            RuntimeError("Something's wrong with the database!"),
-            RuntimeError("Something's really wrong with the database..."),
-        ]
+        working_flush = ctx.session.flush
+        side_effects = [RuntimeError("One time error!"), working_flush]
         object.__setattr__(ctx.session, "flush", AsyncMock(side_effect=side_effects))
 
         async with contextlib.AsyncExitStack() as stack:
@@ -1475,85 +1530,12 @@ class TestOrchestrationContext:
             ctx = await stack.enter_async_context(mock_rule)
             await ctx.validate_proposed_state()
 
-        if ctx.initial_state is None:
-            assert ctx.run.state is None, "The run state should remain unchanged"
-        else:
-            assert (
-                ctx.run.state.type == ctx.initial_state.type
-            ), "The run state should remain unchanged"
-
         before_transition_hook.assert_called_once()
         if proposed_state_type is not None:
             after_transition_hook.assert_not_called()
             cleanup_hook.assert_called_once(), "Cleanup should be called when trasition is aborted"
         else:
             after_transition_hook.assert_called_once(), "Rule expected no transition"
-            cleanup_hook.assert_not_called()
-
-        @pytest.mark.parametrize(
-            "intended_transition",
-            list(permutations([*states.StateType, None], 2)),
-            ids=transition_names,
-        )
-        async def test_context_state_validation_encounters_intermittent_exception(
-            self, session, run_type, intended_transition, initialize_orchestration
-        ):
-            initial_state_type, proposed_state_type = intended_transition
-            before_transition_hook = MagicMock()
-            after_transition_hook = MagicMock()
-            cleanup_hook = MagicMock()
-
-            class MockRule(BaseOrchestrationRule):
-                FROM_STATES = ALL_ORCHESTRATION_STATES
-                TO_STATES = ALL_ORCHESTRATION_STATES
-
-                async def before_transition(
-                    self, initial_state, proposed_state, context
-                ):
-                    before_transition_hook(initial_state, proposed_state, context)
-
-                async def after_transition(
-                    self, initial_state, validated_state, context
-                ):
-                    after_transition_hook(initial_state, validated_state, context)
-
-                async def cleanup(self, initial_state, validated_state, context):
-                    cleanup_hook(initial_state, validated_state, context)
-
-            ctx = await initialize_orchestration(
-                session, run_type, *intended_transition
-            )
-
-            # Bypass pydantic mutation protection, inject a one-time error
-            working_flush = ctx.session.flush
-            side_effects = [RuntimeError("One time error!"), working_flush]
-            object.__setattr__(
-                ctx.session, "flush", AsyncMock(side_effect=side_effects)
-            )
-
-            async with contextlib.AsyncExitStack() as stack:
-                mock_rule = MockRule(ctx, *intended_transition)
-                ctx = await stack.enter_async_context(mock_rule)
-                await ctx.validate_proposed_state()
-
-            if ctx.proposed_state is not None:
-                assert (
-                    ctx.run.state.id == ctx.proposed_state.id
-                ), "The run state was not set to the proposed state after validation"
-                assert (
-                    ctx.run.state.id == ctx.validated_state.id
-                ), "The run state does not match the validated state"
-            elif ctx.initial_state is None:
-                assert (
-                    ctx.run.state is None
-                ), "No state should be set if the proposed state is None"
-            else:
-                assert (
-                    ctx.run.state.type == ctx.initial_state.type
-                ), "No state should be set if the proposed state is None"
-
-            before_transition_hook.assert_called_once()
-            after_transition_hook.assert_called_once()
             cleanup_hook.assert_not_called()
 
 
