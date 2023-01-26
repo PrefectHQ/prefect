@@ -11,6 +11,7 @@ import jsonschema
 from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
@@ -76,6 +77,11 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
+@experimental_field(
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None,
+)
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Orion API to create a deployment."""
@@ -90,6 +96,7 @@ class DeploymentCreate(ActionBaseModel):
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
         worker_pool_name = values_copy.pop("worker_pool_name", None)
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
                 "`worker_pool_queue_id` is no longer supported for creating "
@@ -97,9 +104,10 @@ class DeploymentCreate(ActionBaseModel):
                 "`work_queue_name` instead.",
                 UserWarning,
             )
-        if worker_pool_name or worker_pool_queue_name:
+        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name` and `worker_pool_queue_name` are "
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
                 "no longer supported for creating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead.",
@@ -148,6 +156,11 @@ class DeploymentCreate(ActionBaseModel):
             jsonschema.validate(self.infra_overrides, schema)
 
 
+@experimental_field(
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None,
+)
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a deployment."""
@@ -162,6 +175,7 @@ class DeploymentUpdate(ActionBaseModel):
         worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
         worker_pool_name = values_copy.pop("worker_pool_name", None)
         worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
                 "`worker_pool_queue_id` is no longer supported for updating "
@@ -169,10 +183,11 @@ class DeploymentUpdate(ActionBaseModel):
                 "`work_queue_name` instead.",
                 UserWarning,
             )
-        if worker_pool_name or worker_pool_queue_name:
+        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name` and `worker_pool_queue_name` are "
-                "no longer supported for updating "
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
                 "deployments. Please use `work_pool_name` and "
                 "`work_queue_name` instead.",
                 UserWarning,
