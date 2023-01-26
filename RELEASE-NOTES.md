@@ -48,7 +48,7 @@ See https://github.com/PrefectHQ/prefect/pull/7902 for details.
 - Add `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` setting to allow configuration of Uvicorn `timeout-keep-alive` setting - https://github.com/PrefectHQ/prefect/pull/8190
 
 ### Fixes
-- Fix compatibility with clients on 2.7.8 client - https://github.com/PrefectHQ/prefect/pull/8272
+- Fix server compatibility with clients on 2.7.8 - https://github.com/PrefectHQ/prefect/pull/8272
 ### Experimental
 - Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
 - Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
