@@ -135,14 +135,45 @@ def my_flow():
 
 ## Retries
 
-Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
+Prefect tasks can automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task. This task will retry up to 3 times, waiting 60 seconds between each retry:
 
-```python hl_lines="3"
+```python hl_lines="4"
 import requests
-# this task will retry up to 3 times, waiting 1 minute between each retry
+from prefect import task, flow
+
 @task(retries=3, retry_delay_seconds=60)
 def get_page(url):
     page = requests.get(url)
+```
+
+When configuring task retries, you can configure a specific delay for each retry. The `retry_delay_seconds` option accepts a list of delays for custom retry behavior. The following task will wait for successively increasing intervals of 1, 10, and 100 seconds, respectively, before the next attempt starts:
+
+```python
+from prefect import task, flow
+
+@task(retries=3, retry_delay_seconds=[1, 10, 100])
+```
+
+Additionally, you can pass a callable that accepts the number of retries as an argument and returns a list. Prefect includes an [`exponential_backoff`](/api-ref/prefect/tasks/#prefect.tasks.exponential_backoff) utility that will automatically generate a list of retry delays that correspond to an exponential backoff retry strategy. The following flow will wait for 10, 20, then 40 seconds before each retry.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+
+@task(retries=3, retry_delay_seconds=exponential_backoff(backoff_factor=10))
+```
+
+While using exponential backoff you may also want to jitter the delay times to prevent "thundering herd" scenarios, where many tasks all retry at exactly the same time, causing cascading failures. The `retry_jitter_factor` option can be used to add variance to the base delay. For example, a retry delay of 10 seconds with a `retry_jitter_factor` of 0.5 will be allowed to delay up to 15 seconds. Large values of `retry_jitter_factor` provide more protection against "thundering herds", while keeping the average retry delay time constant. For example, the following task adds jitter to its exponential backoff so the retry delays will vary up to a maximum delay time of 20, 40, and 80 seconds respectively.
+
+```python
+from prefect import task, flow
+from prefect.tasks import exponential_backoff
+
+@task(
+    retries=3,
+    retry_delay_seconds=exponential_backoff(backoff_factor=10),
+    retry_jitter_factor=1,
+)
 ```
 
 !!! note "Retries don't create new task runs"
