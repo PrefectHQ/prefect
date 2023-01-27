@@ -832,7 +832,7 @@ class WorkQueue(ORMBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional[conint(ge=0)] = Field(
         default=None, description="An optional concurrency limit for the work queue."
     )
     priority: conint(ge=1) = Field(

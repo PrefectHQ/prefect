@@ -47,7 +47,7 @@ class TestUpdateWorkQueue:
         )
         assert result
 
-        updated_queue = schemas.actions.WorkQueueCreate.from_orm(
+        updated_queue = schemas.core.WorkQueue.from_orm(
             await models.work_queues.read_work_queue(
                 session=session, work_queue_id=work_queue.id
             )

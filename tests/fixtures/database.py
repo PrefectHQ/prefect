@@ -63,6 +63,7 @@ async def clear_db(db):
     """
     yield
     async with db.session_context(begin_transaction=True) as session:
+        await session.execute(db.Agent.__table__.delete())
         # work pool has a circular dependency on pool queue; delete it first
         await session.execute(db.WorkPool.__table__.delete())
 
