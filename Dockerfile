@@ -105,7 +105,7 @@ RUN python -m pip install --no-cache-dir pip==21.3.1
 
 # Install the base requirements separately so they cache
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade --no-cache-dir -r requirements.txt
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
