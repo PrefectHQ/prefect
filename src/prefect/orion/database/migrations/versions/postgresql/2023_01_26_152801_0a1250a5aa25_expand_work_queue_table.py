@@ -135,8 +135,6 @@ def upgrade():
         sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
     ).fetchone()[0]
 
-    print("DEFAULT_POOL_CREATED", default_pool_id)
-
     default_queue = connection.execute(
         sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.name == "default")
     ).fetchone()
