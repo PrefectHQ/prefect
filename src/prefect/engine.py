@@ -101,7 +101,6 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
-from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -1145,7 +1144,7 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+    task_run_name = f"{task.name}-{dynamic_key}"
 
     # Generate a future
     future = PrefectFuture(
