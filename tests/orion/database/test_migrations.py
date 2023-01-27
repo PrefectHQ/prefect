@@ -334,9 +334,9 @@ async def test_adding_default_agent_pool_without_existing_default_queue_migratio
 
     # get the proper migration revisions
     if dialect.name == "postgresql":
-        revisions = ("9326a6aee18b", "0a1250a5aa25")
+        revisions = ("2882cd2df466", "0a1250a5aa25")
     else:
-        revisions = ("bb38729c471a", "b9bda9f142f1")
+        revisions = ("f92143d30c27", "b9bda9f142f1")
 
     try:
         await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
