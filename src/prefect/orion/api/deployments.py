@@ -201,7 +201,7 @@ async def read_deployments(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter = None,
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
@@ -221,7 +221,7 @@ async def read_deployments(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_queue_filter=work_queues,
+            work_queue_filter=work_pool_queues,
         )
         return [
             schemas.responses.DeploymentResponse.from_orm(orm_deployment=deployment)
@@ -236,7 +236,7 @@ async def count_deployments(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -250,7 +250,7 @@ async def count_deployments(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_queue_filter=work_queues,
+            work_queue_filter=work_pool_queues,
         )
 
 
