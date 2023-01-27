@@ -150,21 +150,21 @@ class TestReadWorkQueues:
     async def work_queues(self, session):
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1 X",
             ),
         )
 
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1 Y",
             ),
         )
 
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-2 Y",
             ),
         )
@@ -208,7 +208,7 @@ class TestGetRunsInWorkQueue:
     async def work_queue_2(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name="wq-2"),
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
         )
         await session.commit()
         return work_queue
@@ -425,7 +425,7 @@ class TestReadWorkQueueStatus:
     async def recently_polled_work_queue(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1",
                 description="All about my work queue",
                 last_polled=pendulum.now("UTC"),
@@ -438,7 +438,7 @@ class TestReadWorkQueueStatus:
     async def not_recently_polled_work_queue(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1",
                 description="All about my work queue",
                 last_polled=pendulum.now("UTC").subtract(days=1),
@@ -451,7 +451,7 @@ class TestReadWorkQueueStatus:
     async def work_queue_with_late_runs(self, session, flow):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1",
                 description="All about my work queue",
                 last_polled=pendulum.now("UTC"),
@@ -494,7 +494,7 @@ class TestReadWorkQueueStatus:
         assert response.status_code == status.HTTP_200_OK
 
         parsed_response = pydantic.parse_obj_as(
-            schemas.core.WorkQueueStatusDetail, response.json()
+            schemas.actions.WorkQueueCreateStatusDetail, response.json()
         )
         assert parsed_response.healthy is False
         assert parsed_response.late_runs_count == 0

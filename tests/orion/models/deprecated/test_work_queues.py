@@ -13,7 +13,7 @@ from prefect.orion.models.deployments import check_work_queues_for_deployment
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
+        work_queue=schemas.actions.WorkQueueCreate(
             name="My WorkQueue",
             description="All about my work queue",
             # filters for all runs
@@ -28,7 +28,7 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_succeeds(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="My WorkQueue", filter=schemas.core.QueueFilter()
             ),
         )
@@ -47,7 +47,7 @@ class TestUpdateWorkQueue:
         )
         assert result
 
-        updated_queue = schemas.core.WorkQueue.from_orm(
+        updated_queue = schemas.actions.WorkQueueCreate.from_orm(
             await models.work_queues.read_work_queue(
                 session=session, work_queue_id=work_queue.id
             )
@@ -61,7 +61,7 @@ class TestGetRunsInWorkQueue:
     async def tb12_work_queue(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="TB12",
                 description="The GOAT",
                 filter=schemas.core.QueueFilter(tags=["tb12"]),

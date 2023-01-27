@@ -1246,14 +1246,14 @@ class TestGetDeploymentWorkQueueCheck:
     ):
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"First",
                 filter=schemas.core.QueueFilter(tags=["a"]),
             ),
         )
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Second",
                 filter=schemas.core.QueueFilter(tags=["b"]),
             ),
