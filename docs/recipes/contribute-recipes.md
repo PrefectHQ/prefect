@@ -29,11 +29,20 @@ To see an example of a high quality recipe, check out **[Serverless with AWS Cha
 
 Here’s our guide to creating a recipe:
 
-1. Clone the [Prefect Recipes repo](https://github.com/PrefectHQ/prefect-recipes) and create a branch.
-2. [Add your code](#what-are-the-common-ingredients-of-a-good-recipe). The code may simply be a copy/paste of a personal project, whether that be a single Python file or an entire folder/repo in itself. Unsure of where to add your code? Just add it to the `flows-advanced/` folder. A Prefect maintainer will help you find a better place for the recipe if there is one.
-3. (Optional) Write a [README](#what-are-some-tips-for-a-good-recipe-readme).
-4. Include a dependencies file, if applicable.
-6. Push your code and make a PR to the repo.
+<div class="terminal">
+```bash
+# Clone the repository
+git clone git@github.com:PrefectHQ/prefect-recipes.git
+cd prefect-recipes
+
+# Create and checkout a new branch
+git checkout -b new_recipe_branch_name
+```
+</div>
+1. [Add your recipe](#what-are-the-common-ingredients-of-a-good-recipe). Your code may simply be a copy/paste of a single Python file or an entire folder. Unsure of where to add your file or folder? Just add under the `flows-advanced/` folder. A Prefect Recipes maintainer will help you find the best place for your recipe. Just want to direct others to a project you made, whether it be a repo or a blogpost? Simply link to it in the [Prefect Recipes README](https://github.com/PrefectHQ/prefect-recipes#readme)!
+2. (Optional) Write a [README](#what-are-some-tips-for-a-good-recipe-readme).
+3. Include a dependencies file, if applicable.
+4. Push your code and make a PR to the repository.
 
 That’s really it! 
 
