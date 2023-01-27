@@ -70,6 +70,7 @@ class KubernetesJob(Infrastructure):
             timing out. Defaults to `None`, which means no timeout will be enforced
             while waiting for each event in the job lifecycle.
         labels: An optional dictionary of labels to add to the job.
+        annotations: An optional dictionary of annotations to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
@@ -87,6 +88,12 @@ class KubernetesJob(Infrastructure):
         default="kubernetes-job", description="The type of infrastructure."
     )
     # shortcuts for the most common user-serviceable settings
+    annotations: Optional[dict] = Field(
+        default={},
+        description=(
+            "The the annotations for Kubernetes to use for the job, Defaults to {}"
+        ),
+    )
     image: Optional[str] = Field(
         default=None,
         description=(
@@ -338,6 +345,7 @@ class KubernetesJob(Infrastructure):
     def build_job(self) -> KubernetesManifest:
         """Builds the Kubernetes Job Manifest"""
         job_manifest = copy.copy(self.job)
+        job_manifest = self._add_noop_defaults(job_manifest)
         job_manifest = self._shortcut_customizations().apply(job_manifest)
         job_manifest = self.customizations.apply(job_manifest)
         return job_manifest
@@ -427,6 +435,11 @@ class KubernetesJob(Infrastructure):
             except kubernetes.config.ConfigException:
                 kubernetes.config.load_kube_config()
 
+    def _add_noop_defaults(self, job_manifest):
+        if "annotations" not in job_manifest["metadata"]:
+            job_manifest["metadata"]["annotations"] = {}
+        return job_manifest
+
     def _shortcut_customizations(self) -> JsonPatch:
         """Produces the JSON 6902 patch for the most commonly used customizations, like
         image and namespace, which we offer as top-level parameters (with sensible
@@ -458,6 +471,15 @@ class KubernetesJob(Infrastructure):
                 "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()
+        ]
+
+        shortcuts += [
+            {
+                "op": "add",
+                "path": f"/metadata/annotations/{key.replace('/', '~1', 1)}",
+                "value": value,
+            }
+            for key, value in self.annotations.items()
         ]
 
         shortcuts += [

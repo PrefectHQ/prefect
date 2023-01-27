@@ -422,6 +422,23 @@ def test_uses_labels_setting(
     assert labels["foo"] == "foo"
     assert labels["bar"] == "bar"
 
+def test_uses_annotations_setting(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+
+    KubernetesJob(command=["echo", "hello"], annotations={"foo": "foo", "bar": "bar"}).run(
+        MagicMock()
+    )
+    mock_k8s_batch_client.create_namespaced_job.assert_called_once()
+    annotations = mock_k8s_batch_client.create_namespaced_job.call_args[0][1]["metadata"][
+        "annotations"
+    ]
+    assert annotations["foo"] == "foo"
+    assert annotations["bar"] == "bar"
+
 
 async def test_sets_environment_variables(
     mock_k8s_client,
@@ -948,6 +965,38 @@ class TestCustomizingBaseJob:
             "my-custom-label": "sweet",
         }
 
+    def test_user_supplied_base_job_with_annotations(self):
+        """The user can supply a custom base job with annotations and they will be
+        included in the final manifest"""
+        manifest = KubernetesJob(
+            command=["echo", "hello"],
+            job={
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "metadata": {"labels": {}, "annotations": {"my-custom-label": "sweet"}},
+                "spec": {
+                    "template": {
+                        "spec": {
+                            "parallelism": 1,
+                            "completions": 1,
+                            "restartPolicy": "Never",
+                            "containers": [
+                                {
+                                    "name": "prefect-job",
+                                    "env": [],
+                                }
+                            ],
+                        }
+                    }
+                },
+            },
+        ).build_job()
+
+        assert manifest["metadata"]["annotations"] == {
+            # the annotations provided in the user's job base
+            "my-custom-label": "sweet",
+        }
+
     def test_user_can_supply_a_sidecar_container_and_volume(self):
         """The user can supply a custom base job that includes more complex
         modifications, like a sidecar container and volumes"""
@@ -956,7 +1005,7 @@ class TestCustomizingBaseJob:
             job={
                 "apiVersion": "batch/v1",
                 "kind": "Job",
-                "metadata": {"labels": {}},
+                "metadata": {"labels": {}, "annotations": {}},
                 "spec": {
                     "template": {
                         "spec": {
@@ -1176,7 +1225,7 @@ class TestLoadingManifestsFromFiles:
         return {
             "apiVersion": "batch/v1",
             "kind": "Job",
-            "metadata": {"labels": {"my-custom-label": "sweet"}},
+            "metadata": {"labels": {"my-custom-label": "sweet"}, "annotations": {"another-custom-label": "very-sweet"}},
             "spec": {
                 "template": {
                     "spec": {
