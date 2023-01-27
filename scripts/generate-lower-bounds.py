@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-This helper script compiles all of our lower version bounds on all base dependencies 
-from our `requirements.txt` file into a new file which is printed to stdout.  In this 
-new requirements file all dependencies are pinned to their lowest allowed versions.  
+This helper script compiles all of our lower version bounds on all base dependencies
+from our `requirements.txt` file into a new file which is printed to stdout.  In this
+new requirements file all dependencies are pinned to their lowest allowed versions.
 We use this new requirements file to test that we still support all of our
 specified versions.
 
@@ -36,7 +36,10 @@ LOWER_BOUND_RE = re.compile(
     .*                  # Ignore any non-lower bound version specifications
     (?:>=|==|~=)        # Begin parsing a version with a lower bound like equality
     \s*                 # Allow arbitrary whitespace between the equality and version
-    ([\d*\.?]+)         # Capture versions of arbitrary length X.Y.Z...
+    (
+        [\d*\.?]+       # Capture versions of arbitrary length X.Y.Z...
+        (\w+\d*)?      # Capture following alpha/beta/rc designations
+    )
     """,
     re.VERBOSE,
 )

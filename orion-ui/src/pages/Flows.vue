@@ -10,24 +10,27 @@
       </template>
 
       <template v-else>
-        <FlowsTable :flows="flows" @delete="flowsSubscription.refresh()" />
+        <FlowsTable @delete="flowsCountSubscription.refresh" />
       </template>
     </template>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { Flow, FlowsTable, FlowsPageEmptyState, PageHeadingFlows } from '@prefecthq/orion-design'
+  import { FlowsTable, FlowsPageEmptyState, PageHeadingFlows, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { flowsApi } from '@/services/flowsApi'
+  import { usePageTitle } from '@/compositions/usePageTitle'
 
+  const api = useWorkspaceApi()
   const subscriptionOptions = {
     interval: 30000,
   }
 
-  const flowsSubscription = useSubscription(flowsApi.getFlows, [{}], subscriptionOptions)
-  const flows = computed<Flow[]>(() => flowsSubscription.response ?? [])
-  const empty = computed(() => flowsSubscription.executed && flows.value.length === 0)
-  const loaded = computed(() => flowsSubscription.executed)
+  const flowsCountSubscription = useSubscription(api.flows.getFlowsCount, [{}], subscriptionOptions)
+  const flowsCount = computed(() => flowsCountSubscription.response ?? 0)
+  const empty = computed(() => flowsCountSubscription.executed && flowsCount.value === 0)
+  const loaded = computed(() => flowsCountSubscription.executed)
+
+  usePageTitle('Flows')
 </script>

@@ -80,7 +80,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         with respx.mock:
             authorized = respx.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
-            ).mock(return_value=Response(200, json={}))
+            ).mock(return_value=Response(200, json=[]))
 
             yield authorized
 
@@ -453,6 +453,78 @@ def test_rename_profile_unknown_name():
         expected_output="Profile 'foo' not found.",
         expected_code=1,
     )
+
+
+def test_rename_profile_renames_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
+    invoke_and_assert(
+        ["profile", "rename", "foo", "bar"],
+        expected_output="Renamed profile 'foo' to 'bar'.",
+        expected_code=0,
+    )
+
+    profiles = load_profiles()
+    assert "foo" not in profiles, "The original profile should not exist anymore"
+    assert profiles["bar"].settings == {
+        PREFECT_API_KEY: "foo"
+    }, "Settings should be retained"
+    assert profiles.active_name != "bar", "The active profile should not be changed"
+
+
+def test_rename_profile_changes_active_profile():
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active="foo",
+        )
+    )
+
+    invoke_and_assert(
+        ["profile", "rename", "foo", "bar"],
+        expected_output="Renamed profile 'foo' to 'bar'.",
+        expected_code=0,
+    )
+
+    profiles = load_profiles()
+    assert profiles.active_name == "bar"
+
+
+def test_rename_profile_warns_on_environment_variable_active_profile(monkeypatch):
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(name="foo", settings={PREFECT_API_KEY: "foo"}),
+            ],
+            active=None,
+        )
+    )
+
+    monkeypatch.setenv("PREFECT_PROFILE", "foo")
+
+    invoke_and_assert(
+        ["profile", "rename", "foo", "bar"],
+        expected_output_contains=(
+            "You have set your current profile to 'foo' with the PREFECT_PROFILE "
+            "environment variable. You must update this variable to 'bar' "
+            "to continue using the profile."
+        ),
+        expected_code=0,
+    )
+
+    profiles = load_profiles()
+    assert (
+        profiles.active_name != "foo"
+    ), "The active profile should not be updated in the file"
 
 
 def test_inspect_profile_unknown_name():

@@ -1,5 +1,5 @@
 ---
-description: Prefect tasks are functions that represents a discrete unit of work in a Prefect workflow.
+description: Prefect tasks represents a discrete unit of work in a Prefect workflow.
 tags:
     - tasks
     - task runs
@@ -12,7 +12,7 @@ tags:
     - results
     - async
     - asynchronous execution
-    - concurrent execution
+    - map
     - concurrency
     - concurrency limits
     - task concurrency
@@ -28,9 +28,11 @@ Tasks are functions: they can take inputs, perform work, and return an output. A
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs) to capture details about task runs such as runtime, tags, and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs/) to capture details about task runs such as runtime, tags, and final state. 
 
 You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
+
+**Calling a task from a flow**
 
 Use the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
 
@@ -53,6 +55,29 @@ Tasks are uniquely identified by a task key, which is a hash composed of the tas
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be avoided by splitting the code into multiple dependent tasks.
 
+!!! warning "Calling a task's function from another task"
+
+    Prefect does not allow triggering task runs from other tasks. If you want to call your task's function directly, you can use `task.fn()`. 
+
+    ```python hl_lines="9"
+    from prefect import flow, task
+
+    @task
+    def my_first_task(msg):
+        print(f"Hello, {msg}")
+
+    @task
+    def my_second_task(msg):
+        my_first_task.fn(msg)
+
+    @flow
+    def my_flow():
+        my_second_task("Trillian")
+
+    ```
+
+    Note that in the example above you are only calling the task's function without actually generating a task run. Prefect won't track task execution in your Prefect backend if you call the task function this way. You also won't be able to use features such as retries with this function call.
+
 ## Task arguments
 
 Tasks allow a great deal of customization via arguments. Examples include retry behavior, names, tags, caching, and more. Tasks accept the following optional arguments.
@@ -60,7 +85,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | Argument | Description |
 | --- | --- |
 | name | An optional name for the task. If not provided, the name will be inferred from the function name. |
-| description | An optional string description for the task. |
+| description | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
 | tags | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
 | cache_key_fn | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
 | cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
@@ -71,7 +96,8 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
 ```python hl_lines="1"
-@task(name="hello-task", description="This task says hello.")
+@task(name="hello-task", 
+      description="This task says hello.")
 def my_task():
     print("Hello, I'm a task")
 ```
@@ -190,6 +216,9 @@ Alternatively, you can provide your own function or other callable that returns 
 
 Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
+!!! note "Task cache keys"
+    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` setting.
+
 ```python hl_lines="3-5 7"
 from prefect import task, flow
 
@@ -226,7 +255,7 @@ A real-world example might include the flow run ID from the context in the cache
 
 ```python
 def cache_within_flow_run(context, parameters):
-    return f"{context.flow_run_id}-{task_input_hash(context, parameters)}"
+    return f"{context.task_run.flow_run_id}-{task_input_hash(context, parameters)}"
 
 @task(cache_key_fn=cache_within_flow_run)
 def cached_task():
@@ -234,11 +263,184 @@ def cached_task():
     return 42
 ```
 
-See the [Flow and task configuration](/tutorials/flow-task-config/#task-caching) tutorial for additional examples of task caching.
+!!! note "Task results, retries, and caching"
+    Task results are cached in memory during a flow run and persisted to the location specified by the `PREFECT_LOCAL_STORAGE_PATH` setting. As a result, task caching between flow runs is currently limited to flow runs with access to that local storage path.
+
+### Refreshing the cache
+
+Sometimes, you want a task to update the data associated with its cache key instead of using the cache. This is a cache "refresh".
+
+The `refresh_cache` option can be used to enable this behavior for a specific task:
+
+```python
+import random
+
+
+def static_cache_key(context, parameters):
+    # return a constant
+    return "static cache key"
+
+
+@task(cache_key_fn=static_cache_key, refresh_cache=True)
+def caching_task():
+    return random.random()
+```
+
+When this task runs, it will _always_ update the cache key instead of using the cached value. This is particularly useful when you have a flow that is responsible for updating the cache.
+
+If you want to refresh the cache for all tasks, you can use the `PREFECT_TASKS_REFRESH_CACHE` setting. Setting `PREFECT_TASKS_REFRESH_CACHE=true` will change the default behavior of all tasks to refresh. This is particularly useful if you want to rerun a flow without cached results.
+
+If you have tasks that should not refresh when this setting is enabled, you may explicitly set `refresh_cache` to `False`. These tasks will never refresh the cache &mdash; if a cache key exists it will be read, not updated. Note that, if a cache key does _not_ exist yet, these tasks can still write to the cache.
+
+```python
+@task(cache_key_fn=static_cache_key, refresh_cache=False)
+def caching_task():
+    return random.random()
+```
+
+## Timeouts
+
+Task timeouts are used to prevent unintentional long-running tasks. When the duration of execution for a task exceeds the duration specified in the timeout, a timeout exception will be raised and the task will be marked as failed. In the UI, the task will be visibly designated as `TimedOut`. From the perspective of the flow, the timed-out task will be treated like any other failed task. 
+
+Timeout durations are specified using the `timeout_seconds` keyword argument. 
+
+```python
+from prefect import task, get_run_logger
+import time
+
+@task(timeout_seconds=1)
+def show_timeouts():
+    logger = get_run_logger()
+    logger.info("I will execute")
+    time.sleep(5)
+    logger.info("I will not execute")
+```
+
+## Task results
+
+Depending on how you call tasks, they can return different types of results and optionally engage the use of a [task runner](/concepts/task-runners/).
+
+Any task can return:
+
+- Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
+- [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
+- Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
+
+To run your task with a [task runner](/concepts/task-runners/), you must call the task with `.submit()`.
+
+See [state returned values](/concepts/task-runners/#using-results-from-submitted-tasks) for examples.
+
+!!! tip "Task runners are optional"
+    If you just need the result from a task, you can simply call the task from your flow. For most workflows, the default behavior of calling a task directly and receiving a result is all you'll need.
+
+## Wait for
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.submit) keyword argument:
+
+```python
+@task
+def task_1():
+    pass
+
+@task
+def task_2():
+    pass
+
+@flow
+def my_flow():
+    x = task_1()
+
+    # task 2 will wait for task_1 to complete
+    y = task_2(wait_for=[x])
+```
+
+## Map
+
+Prefect provides a `.map()` implementation that automatically creates a task run for each element of its input data. Mapped tasks represent the computations of many individual children tasks.
+
+The simplest Prefect map takes a tasks and applies it to each element of its inputs.
+
+```python
+from prefect import flow, task
+
+@task
+def print_nums(nums):
+    for n in nums:
+        print(n)
+
+@task
+def square_num(num):
+    return num**2
+
+@flow
+def map_flow(nums):
+    print_nums(nums)
+    squared_nums = square_num.map(nums) 
+    print_nums(squared_nums)
+
+map_flow([1,2,3,5,8,13])
+```
+
+Prefect also supports `unmapped` arguments, allowing you to pass static values that don't get mapped over.
+
+```python
+from prefect import flow, task
+
+@task
+def add_together(x, y):
+    return x + y
+
+@flow
+def sum_it(numbers, static_value):
+    futures = add_together.map(numbers, static_value)
+    return futures
+
+sum_it([1, 2, 3], 5)
+```
+
+If your static argument is an iterable, you'll need to wrap it with `unmapped` to tell Prefect that it should be treated as a static value.
+
+```python
+from prefect import flow, task, unmapped
+
+@task
+def sum_plus(x, static_iterable):
+    return x + sum(static_iterable)
+
+@flow
+def sum_it(numbers, static_iterable):
+    futures = sum_plus.map(numbers, static_iterable)
+    return futures
+
+sum_it([4, 5, 6], unmapped([1, 2, 3]))
+```
 
 ## Async tasks
 
-Coming soon.
+Prefect also supports asynchronous task and flow definitions by default. All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
+
+```python
+import asyncio
+
+from prefect import task, flow
+
+@task
+async def print_values(values):
+    for value in values:
+        await asyncio.sleep(1) # yield
+        print(value, end=" ")
+
+@flow
+async def async_flow():
+    await print_values([1, 2])  # runs immediately
+    coros = [print_values("abcd"), print_values("6789")]
+
+    # asynchronously gather the tasks
+    await asyncio.gather(*coros)
+
+asyncio.run(async_flow())
+```
+
+Note, if you are not using `asyncio.gather`, calling [`.submit()`](/concepts/task-runners/#using-a-task-runner) is required for asynchronous execution on the `ConcurrentTaskRunner`.
 
 ## Task run concurrency limits
 
@@ -252,23 +454,25 @@ If a task has multiple tags, it will run only if _all_ tags have available concu
 
 Tags without explicit limits are considered to have unlimited concurrency.
 
-!!! note 0 concurrency limit aborts task runs 
-
+!!! note "0 concurrency limit aborts task runs"
     Currently, if the concurrency limit is set to 0 for a tag, any attempt to run a task with that tag will be aborted instead of delayed.
 
 ### Execution behavior
 
-Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states). 
+Task tag limits are checked whenever a task run attempts to enter a [`Running` state](/concepts/states/). 
 
 If there are no concurrency slots available for any one of your task's tags, the transition to a `Running` state will be delayed and the client is instructed to try entering a `Running` state again in 30 seconds. 
 
-!!! warning Concurrency limits in subflows
-
+!!! warning "Concurrency limits in subflows"
     Using concurrency limits on task runs in subflows can cause deadlocks. As a best practice, configure your tags and concurrency limits to avoid setting limits on task runs in subflows.
 
 ### Configuring concurrency limits
 
-You can set concurrency limits on as few or as many tags as you wish. You can set limits through the CLI or via API by using the `OrionClient`.
+You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
+
+- Prefect [CLI](#cli)
+- Prefect API by using `OrionClient` [Python client](#python-client)
+- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 
@@ -282,8 +486,8 @@ $ prefect concurrency-limit [command] [arguments]
 | --- | --- |
 | create | Create a concurrency limit by specifying a tag and limit. |
 | delete | Delete the concurrency limit set on the specified tag. |
+| inspect | View details about a concurrency limit set on the specified tag. |
 | ls     | View all defined concurrency limits. |
-| read   | View details about a concurrency limit. `active_slots` shows a list of IDs for task runs that are currently using a concurrency slot. |
 
 For example, to set a concurrency limit of 10 on the 'small_instance' tag:
 
@@ -295,6 +499,12 @@ To delete the concurrency limit on the 'small_instance' tag:
 
 ```bash
 $ prefect concurrency-limit delete small_instance
+```
+
+To view details about the concurrency limit on the 'small_instance' tag:
+
+```bash
+$ prefect concurrency-limit inspect small_instance
 ```
 
 #### Python client

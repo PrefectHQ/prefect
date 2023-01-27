@@ -8,8 +8,12 @@
       </PageHeading>
     </template>
 
+    <p-label label="Theme">
+      <p-theme-toggle />
+    </p-label>
+
     <p-label label="Color Mode" class="settings__color-mode">
-      <ColorModeSelect v-model:selected="mode" />
+      <ColorModeSelect v-model:selected="activeColorMode" />
     </p-label>
 
     <p-label label="Orion Settings">
@@ -19,19 +23,18 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeading, ColorModeSelect, ColorMode } from '@prefecthq/orion-design'
-  import { ref, watchEffect } from 'vue'
+  import { PageHeading, ColorModeSelect } from '@prefecthq/orion-design'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { adminApi } from '@/services/adminApi'
-  import { getActiveColorMode, setActiveColorMode } from '@/utilities/colorMode'
+  import { activeColorMode } from '@/utilities/colorMode'
 
   const crumbs = [{ text: 'Settings' }]
 
   const engineSettings = await adminApi.getSettings()
   const version = await adminApi.getVersion()
-  const mode = ref<ColorMode>(getActiveColorMode())
 
-  watchEffect(() => setActiveColorMode(mode.value))
+  usePageTitle('Settings')
 </script>
 
 <style>

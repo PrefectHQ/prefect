@@ -7,16 +7,18 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect.orion.api.run_history import run_history
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration import dependencies as orchestration_dependencies
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.responses import OrchestrationResult
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
@@ -26,7 +28,10 @@ router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_task_orchestration_parameters
+    ),
 ) -> schemas.core.TaskRun:
     """
     Create a task run. If a task run with the same flow_run_id,
@@ -42,7 +47,14 @@ async def create_task_run(
         task_run.state = schemas.states.Pending()
 
     now = pendulum.now("UTC")
-    model = await models.task_runs.create_task_run(session=session, task_run=task_run)
+
+    async with db.session_context(begin_transaction=True) as session:
+        model = await models.task_runs.create_task_run(
+            session=session,
+            task_run=task_run,
+            orchestration_parameters=orchestration_parameters,
+        )
+
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
     return model
@@ -50,7 +62,7 @@ async def create_task_run(
 
 @router.post("/count")
 async def count_task_runs(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -59,21 +71,20 @@ async def count_task_runs(
     """
     Count task runs.
     """
-    return await models.task_runs.count_task_runs(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-    )
+    async with db.session_context() as session:
+        return await models.task_runs.count_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+        )
 
 
 @router.post("/history")
 async def task_run_history(
-    history_start: datetime.datetime = Body(
-        ..., description="The history's start time."
-    ),
-    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_start: DateTimeTZ = Body(..., description="The history's start time."),
+    history_end: DateTimeTZ = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
         description="The size of each history interval, in seconds. Must be at least 1 second.",
@@ -83,7 +94,7 @@ async def task_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Query for task run history data across a given range and interval.
@@ -94,30 +105,32 @@ async def task_run_history(
             detail="History interval must not be less than 1 second.",
         )
 
-    return await run_history(
-        session=session,
-        run_type="task_run",
-        history_start=history_start,
-        history_end=history_end,
-        history_interval=history_interval,
-        flows=flows,
-        flow_runs=flow_runs,
-        task_runs=task_runs,
-        deployments=deployments,
-    )
+    async with db.session_context() as session:
+        return await run_history(
+            session=session,
+            run_type="task_run",
+            history_start=history_start,
+            history_end=history_end,
+            history_interval=history_interval,
+            flows=flows,
+            flow_runs=flow_runs,
+            task_runs=task_runs,
+            deployments=deployments,
+        )
 
 
 @router.get("/{id}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.TaskRun:
     """
     Get a task run by id.
     """
-    task_run = await models.task_runs.read_task_run(
-        session=session, task_run_id=task_run_id
-    )
+    async with db.session_context() as session:
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=task_run_id
+        )
     if not task_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task_run
@@ -132,34 +145,36 @@ async def read_task_runs(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """
     Query for task runs.
     """
-    return await models.task_runs.read_task_runs(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
-        offset=offset,
-        limit=limit,
-        sort=sort,
-    )
+    async with db.session_context() as session:
+        return await models.task_runs.read_task_runs(
+            session=session,
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a task run by id.
     """
-    result = await models.task_runs.delete_task_run(
-        session=session, task_run_id=task_run_id
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.task_runs.delete_task_run(
+            session=session, task_run_id=task_run_id
+        )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
@@ -175,28 +190,36 @@ async def set_task_run_state(
             "or prevent the state transition. If True, orchestration rules are not applied."
         ),
     ),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     response: Response = None,
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy
     ),
+    orchestration_parameters: dict = Depends(
+        orchestration_dependencies.provide_task_orchestration_parameters
+    ),
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
-    # create the state
-    orchestration_result = await models.task_runs.set_task_run_state(
-        session=session,
-        task_run_id=task_run_id,
-        state=schemas.states.State.parse_obj(state),  # convert to a full State object
-        force=force,
-        task_policy=task_policy,
-    )
+    now = pendulum.now()
 
-    if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
-        response.status_code = status.HTTP_200_OK
-    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
-        response.status_code = status.HTTP_200_OK
-    else:
+    # create the state
+    async with db.session_context(begin_transaction=True) as session:
+        orchestration_result = await models.task_runs.set_task_run_state(
+            session=session,
+            task_run_id=task_run_id,
+            state=schemas.states.State.parse_obj(
+                state
+            ),  # convert to a full State object
+            force=force,
+            task_policy=task_policy,
+            orchestration_parameters=orchestration_parameters,
+        )
+
+    # set the 201 if a new state was created
+    if orchestration_result.state and orchestration_result.state.timestamp >= now:
         response.status_code = status.HTTP_201_CREATED
+    else:
+        response.status_code = status.HTTP_200_OK
 
     return orchestration_result

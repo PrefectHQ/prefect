@@ -1,5 +1,6 @@
 from . import (
     block_documents,
+    block_registration,
     block_schemas,
     block_types,
     configuration,
@@ -13,6 +14,7 @@ from . import (
     task_runs,
     saved_searches,
     logs,
+    workers,
     work_queues,
     agents,
 )

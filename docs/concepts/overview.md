@@ -1,5 +1,5 @@
 ---
-description: Take a deeper dive into the features of Prefect 2.0
+description: Take a deeper dive into the features of Prefect 2.
 tags:
     - concepts
     - features

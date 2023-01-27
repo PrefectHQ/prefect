@@ -9,6 +9,8 @@ Because these transforms record information about the validated state committed 
 state database, they should be the most deeply nested contexts in orchestration loop.
 """
 
+from packaging.version import Version
+
 import prefect.orion.models as models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -17,13 +19,14 @@ from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.schemas.core import FlowRunPolicy
 
 COMMON_GLOBAL_TRANSFORMS = lambda: [
     SetRunStateType,
     SetRunStateName,
+    SetRunStateTimestamp,
     SetStartTime,
     SetEndTime,
-    IncrementRunCount,
     IncrementRunTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
@@ -43,6 +46,8 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
         return COMMON_GLOBAL_TRANSFORMS() + [
             UpdateSubflowParentTask,
             UpdateSubflowStateDetails,
+            IncrementFlowRunCount,
+            RemoveResumingIndicator,
         ]
 
 
@@ -55,7 +60,9 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy):
     """
 
     def priority():
-        return COMMON_GLOBAL_TRANSFORMS()
+        return COMMON_GLOBAL_TRANSFORMS() + [
+            IncrementTaskRunCount,
+        ]
 
 
 class SetRunStateType(BaseUniversalTransform):
@@ -64,6 +71,8 @@ class SetRunStateType(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's type
         context.run.state_type = context.proposed_state.type
@@ -75,6 +84,8 @@ class SetRunStateName(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # record the new state's name
         context.run.state_name = context.proposed_state.name
@@ -86,10 +97,26 @@ class SetStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if entering a running state and no start time is set...
         if context.proposed_state.is_running() and context.run.start_time is None:
             # set the start time
             context.run.start_time = context.proposed_state.timestamp
+
+
+class SetRunStateTimestamp(BaseUniversalTransform):
+    """
+    Records the time a run changes states.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        # record the new state's timestamp
+        context.run.state_timestamp = context.proposed_state.timestamp
 
 
 class SetEndTime(BaseUniversalTransform):
@@ -102,6 +129,9 @@ class SetEndTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if exiting a final state for a non-final state...
         if (
             context.initial_state
@@ -124,6 +154,9 @@ class IncrementRunTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if exiting a running state...
         if context.initial_state and context.initial_state.is_running():
             # increment the run time by the time spent in the previous state
@@ -132,12 +165,56 @@ class IncrementRunTime(BaseUniversalTransform):
             )
 
 
-class IncrementRunCount(BaseUniversalTransform):
+class IncrementFlowRunCount(BaseUniversalTransform):
     """
     Records the number of times a run enters a running state. For use with retries.
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        # if entering a running state...
+        if context.proposed_state.is_running():
+            # do not increment the run count if resuming a paused flow
+            api_version = context.parameters.get("api-version", None)
+            if api_version is None or api_version >= Version("0.8.4"):
+                if context.run.empirical_policy.resuming:
+                    return
+
+            # increment the run count
+            context.run.run_count += 1
+
+
+class RemoveResumingIndicator(BaseUniversalTransform):
+    """
+    Removes the indicator on a flow run that marks it as resuming.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
+        proposed_state = context.proposed_state
+
+        api_version = context.parameters.get("api-version", None)
+        if api_version is None or api_version >= Version("0.8.4"):
+            if proposed_state.is_running() or proposed_state.is_final():
+                if context.run.empirical_policy.resuming:
+                    updated_policy = context.run.empirical_policy.dict()
+                    updated_policy["resuming"] = False
+                    context.run.empirical_policy = FlowRunPolicy(**updated_policy)
+
+
+class IncrementTaskRunCount(BaseUniversalTransform):
+    """
+    Records the number of times a run enters a running state. For use with retries.
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
+
         # if entering a running state...
         if context.proposed_state.is_running():
             # increment the run count
@@ -153,6 +230,8 @@ class SetExpectedStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # set expected start time if this is the first state
         if not context.run.expected_start_time:
@@ -174,6 +253,8 @@ class SetNextScheduledStartTime(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # remove the next scheduled start time if exiting a scheduled state
         if context.initial_state and context.initial_state.is_scheduled():
@@ -192,6 +273,8 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
     """
 
     async def after_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
@@ -227,6 +310,8 @@ class UpdateSubflowStateDetails(BaseUniversalTransform):
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
+        if self.nullified_transition():
+            return
 
         # only applies to flow runs with a parent task run id
         if context.run.parent_task_run_id is not None:
@@ -244,6 +329,8 @@ class UpdateStateDetails(BaseUniversalTransform):
         self,
         context: OrchestrationContext,
     ) -> None:
+        if self.nullified_transition():
+            return
 
         if isinstance(context, FlowOrchestrationContext):
             flow_run = await context.flow_run()

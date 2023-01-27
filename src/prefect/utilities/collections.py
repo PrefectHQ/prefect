@@ -1,23 +1,23 @@
 """
 Utilities for extensions of and operations on Python collections.
 """
+import io
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence
 from dataclasses import fields, is_dataclass
 from enum import Enum, auto
-from functools import partial
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Dict,
-    Generic,
+    Generator,
     Hashable,
     Iterable,
     Iterator,
     List,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -29,7 +29,8 @@ from unittest.mock import Mock
 
 import pydantic
 
-from prefect.utilities.asyncutils import gather
+# Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
+from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
 
 
 class AutoEnum(str, Enum):
@@ -128,6 +129,23 @@ def flatdict_to_dict(
 T = TypeVar("T")
 
 
+def isiterable(obj: Any) -> bool:
+    """
+    Return a boolean indicating if an object is iterable.
+
+    Excludes types that are iterable but typically used as singletons:
+    - str
+    - bytes
+    - IO objects
+    """
+    try:
+        iter(obj)
+    except TypeError:
+        return False
+    else:
+        return not isinstance(obj, (str, bytes, io.IOBase))
+
+
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj
@@ -190,37 +208,13 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
-class Quote(Generic[T]):
-    """
-    Simple wrapper to mark an expression as a different type so it will not be coerced
-    by Prefect. For example, if you want to return a state from a flow without having
-    the flow assume that state.
-    """
-
-    def __init__(self, data: T) -> None:
-        self.data = data
-
-    def unquote(self) -> T:
-        return self.data
-
-
-def quote(expr: T) -> Quote[T]:
-    """
-    Create a `Quote` object
-
-    Examples:
-        >>> from prefect.utilities.collections import quote
-        >>> x = quote(1)
-        >>> x.unquote()
-        1
-    """
-    return Quote(expr)
-
-
-async def visit_collection(
+def visit_collection(
     expr,
-    visit_fn: Callable[[Any], Awaitable[Any]],
+    visit_fn: Callable[[Any], Any],
     return_data: bool = False,
+    max_depth: int = -1,
+    context: Optional[dict] = None,
+    remove_annotations: bool = False,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -239,6 +233,7 @@ async def visit_collection(
     - Dict (note: keys are also visited recursively)
     - Dataclass
     - Pydantic model
+    - Prefect annotations
 
     Args:
         expr (Any): a Python object or expression
@@ -247,28 +242,56 @@ async def visit_collection(
         return_data (bool): if `True`, a copy of `expr` containing data modified
             by `visit_fn` will be returned. This is slower than `return_data=False`
             (the default).
+        max_depth: Controls the depth of recursive visitation. If set to zero, no
+            recursion will occur. If set to a positive integer N, visitation will only
+            descend to N layers deep. If set to any negative integer, no limit will be
+            enforced and recursion will continue until terminal items are reached. By
+            default, recursion is unlimited.
+        context: An optional dictionary. If passed, the context will be sent to each
+            call to the `visit_fn`. The context can be mutated by each visitor and will
+            be available for later visits to expressions at the given depth. Values
+            will not be available "up" a level from a given expression.
+
+            The context will be automatically populated with an 'annotation' key when
+            visiting collections within a `BaseAnnotation` type. This requires the
+            caller to pass `context={}` and will not be activated by default.
+        remove_annotations: If set, annotations will be replaced by their contents. By
+            default, annotations are preserved but their contents are visited.
     """
 
     def visit_nested(expr):
-        # Utility for a recursive call, preserving options.
-        # Returns a `partial` for use with `gather`.
-        return partial(
-            visit_collection,
+        # Utility for a recursive call, preserving options and updating the depth.
+        return visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
+            remove_annotations=remove_annotations,
+            max_depth=max_depth - 1,
+            # Copy the context on nested calls so it does not "propagate up"
+            context=context.copy() if context is not None else None,
         )
 
+    def visit_expression(expr):
+        if context is not None:
+            return visit_fn(expr, context)
+        else:
+            return visit_fn(expr)
+
     # Visit every expression
-    result = await visit_fn(expr)
+    result = visit_expression(expr)
+
     if return_data:
         # Only mutate the expression while returning data, otherwise it could be null
         expr = result
 
     # Then, visit every child of the expression recursively
 
+    # If we have reached the maximum depth, do not perform any recursion
+    if max_depth == 0:
+        return result if return_data else None
+
     # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = list if isinstance(expr, IteratorABC) and isiterable(expr) else type(expr)
     typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
     # Then visit every item in the expression if it is a collection
@@ -276,21 +299,27 @@ async def visit_collection(
         # Do not attempt to recurse into mock objects
         result = expr
 
+    elif isinstance(expr, BaseAnnotation):
+        if context is not None:
+            context["annotation"] = expr
+        value = visit_nested(expr.unwrap())
+
+        if remove_annotations:
+            result = value if return_data else None
+        else:
+            result = expr.rewrap(value) if return_data else None
+
     elif typ in (list, tuple, set):
-        items = await gather(*[visit_nested(o) for o in expr])
+        items = [visit_nested(o) for o in expr]
         result = typ(items) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        keys, values = zip(*expr.items()) if expr else ([], [])
-        keys = await gather(*[visit_nested(k) for k in keys])
-        values = await gather(*[visit_nested(v) for v in values])
-        result = typ(zip(keys, values)) if return_data else None
+        items = [(visit_nested(k), visit_nested(v)) for k, v in expr.items()]
+        result = typ(items) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
-        values = await gather(
-            *[visit_nested(getattr(expr, f.name)) for f in fields(expr)]
-        )
+        values = [visit_nested(getattr(expr, f.name)) for f in fields(expr)]
         items = {field.name: value for field, value in zip(fields(expr), values)}
         result = typ(**items) if return_data else None
 
@@ -298,10 +327,11 @@ async def visit_collection(
         # NOTE: This implementation *does not* traverse private attributes
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
-        model_fields = expr.__fields_set__.union(expr.__fields__)
-        items = await gather(
-            *[visit_nested(getattr(expr, key)) for key in model_fields]
-        )
+        # Check for presence of attrs even if they're in the field set due to pydantic#4916
+        model_fields = {
+            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
+        }
+        items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
         if return_data:
             # Collect fields with aliases so reconstruction can use the correct field name
@@ -328,6 +358,7 @@ async def visit_collection(
             result = model_instance
         else:
             result = None
+
     else:
         result = result if return_data else None
 
@@ -340,12 +371,12 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
     `key_to_remove`. Return `obj` unchanged if not a dictionary.
 
     Args:
-        keys_to_remove: A list of keys to remove from obj
-        obj: The object to remove keys from.
+        keys_to_remove: A list of keys to remove from obj obj: The object to remove keys
+            from.
 
     Returns:
-        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a dictionary.
-        `obj` if `obj` is not a dictionary.
+        `obj` without keys matching an entry in `keys_to_remove` if `obj` is a
+            dictionary. `obj` if `obj` is not a dictionary.
     """
     if not isinstance(obj, dict):
         return obj
@@ -354,3 +385,15 @@ def remove_nested_keys(keys_to_remove: List[Hashable], obj):
         for key, value in obj.items()
         if key not in keys_to_remove
     }
+
+
+def distinct(
+    iterable: Iterable[T],
+    key: Callable[[T], Any] = (lambda i: i),
+) -> Generator[T, None, None]:
+    seen: Set = set()
+    for item in iterable:
+        if key(item) in seen:
+            continue
+        seen.add(key(item))
+        yield item

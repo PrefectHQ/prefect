@@ -1,5 +1,5 @@
 ---
-description: Manage flow deployments from the Prefect UI and Prefect Cloud.
+description: Configure notifications based on flow state from the Prefect UI and Prefect Cloud.
 tags:
     - Orion
     - UI
@@ -16,20 +16,29 @@ At any time, you can visit the [Prefect UI](/ui/flow-runs/) to get a comprehensi
 
 Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 
-Currently Prefect 2.0 supports sending notifications via:
+Currently Prefect 2 supports sending notifications via:
 
 - Slack message to a channel
+- Microsoft Teams message to a channel
+- Opsgenie to alerts
+- PagerDuty to alerts
+- Twilio to phone numbers
 - Email (Prefect Cloud only)
+
+!!! cloud-ad "Notifications in Prefect Cloud"
+    Prefect Cloud uses the robust [Automations](/ui/automations/) interface to enable notifications related to flow run state changes and work queue health.
+
+## Configure notifications
 
 To configure a notification, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
-![Creating a notification in the Prefect UI](/img/ui/orion-create-slack-notification.png)
+![Creating a notification in the Prefect UI](../img/ui/orion-create-slack-notification.png)
 
 Notifications are structured just as you would describe them to someone. You can choose:
 
 - Which run states should trigger a notification.
 - Tags to filter which flow runs are covered by the notification.
-- Whether to send a Slack message or an email.
+- Whether to send an email, a Slack message, Microsoft Teams message, or other services.
 
 For Slack notifications, the configuration requires webhook credentials for your Slack and the channel to which the message is sent.
 
@@ -45,4 +54,4 @@ When the conditions of the notification are triggered, you’ll receive a simple
 
 On the **Notifications** page you can pause, edit, or delete any configured notification.
 
-![Viewing all configured notification in the Prefect UI](/img/ui/orion-notifications.png)
+![Viewing all configured notifications in the Prefect UI](../img/ui/orion-notifications.png)

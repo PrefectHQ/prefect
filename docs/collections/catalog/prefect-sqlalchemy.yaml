@@ -3,4 +3,4 @@ author: Prefect
 authorUrl: https://prefect.io
 documentation: https://prefecthq.github.io/prefect-sqlalchemy/
 iconUrl: /img/collections/sqlalchemy.png
-
+tag: SQLAlchemy

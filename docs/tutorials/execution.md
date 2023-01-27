@@ -8,6 +8,7 @@ tags:
     - parallel execution
     - asynchronous execution
     - async
+    - submit
 ---
 
 # Flow and task execution
@@ -24,9 +25,31 @@ The default task runner is the `ConcurrentTaskRunner`, which will run submitted 
 
 All Prefect task runners support asynchronous task execution.
 
+## Result
+By default, the result of a task is a Python object, and execution of the task blocks the execution of the next task in a flow. To make sure that the tasks within your flow can run concurrently or in parallel, add `.submit()` to your task run. This method will return a `PrefectFuture` instead of a Python object.
+
+A `PrefectFuture` is an object that provides access to a computation happening in a task runner. Here's an example of using `.submit` in a flow.
+
+```python
+import time
+from prefect import task, flow
+
+@task
+def my_task():
+    return 1
+
+@flow
+def my_flow():
+    result = my_task.submit()
+
+if __name__ == "__main__":
+    my_flow()
+```
+
 ## Concurrent execution
 
 As mentioned, by default Prefect flows use the `ConcurrentTaskRunner` for non-blocking, concurrent execution of tasks.
+
 
 Here's a basic flow and task using the default task runner.
 
@@ -113,7 +136,7 @@ Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run s
 
 ## Parallel execution
 
-You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/overview/). 
+You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/catalog/). 
 
 For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
 
@@ -231,7 +254,7 @@ Task runners only manage _task runs_ within a flow run. But what about flows?
 
 Any given flow run &mdash; meaning in this case your workflow including any subflows and tasks &mdash; executes in its own environment using the infrastructure configured for that environment. In these examples, that infrastructure is probably your local computing environment. But for flow runs based on [deployments](/concepts/deployments/), that infrastructure might be a server in a datacenter, a VM, a Docker container, or a Kubernetes cluster.
 
-The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [work queues and agents](/concepts/work-queues/) &mdash; advanced topics that are covered in other tutorials.
+The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work queues](/concepts/work-queues/) &mdash; advanced topics that are covered in other tutorials.
 
 Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
 

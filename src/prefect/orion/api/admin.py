@@ -1,12 +1,9 @@
 """
 Routes for admin-level interactions with the Orion API.
 """
-
-import sqlalchemy as sa
 from fastapi import Body, Depends, Response, status
 
 import prefect
-import prefect.orion.api.dependencies as dependencies
 import prefect.settings
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
@@ -17,8 +14,12 @@ router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
-    """Get the current Orion settings"""
-    return prefect.settings.get_current_settings()
+    """
+    Get the current Orion settings.
+
+    Secret setting values will be obfuscated.
+    """
+    return prefect.settings.get_current_settings().with_obfuscated_secrets()
 
 
 @router.get("/version")
@@ -29,7 +30,6 @@ async def read_version() -> str:
 
 @router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
@@ -42,8 +42,11 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    for table in reversed(db.Base.metadata.sorted_tables):
-        await session.execute(table.delete())
+    async with db.session_context(begin_transaction=True) as session:
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+        for table in reversed(db.Base.metadata.sorted_tables):
+            await session.execute(table.delete())
 
 
 @router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)

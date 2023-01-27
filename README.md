@@ -1,10 +1,28 @@
 <p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/6rIpC9ZCAewsRGLwOw5BRe/bb17e1ef62f60d1ec32c1ae69487704c/prefect-2-logo-dark.png" width=1000></p>
 
-# Prefect 2.0
+<p align="center">
+    <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
+    <a href="https://github.com/prefecthq/prefect/" alt="Stars">
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://pepy.tech/badge/prefect/" alt="Downloads">
+        <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
+        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <br>
+    <a href="https://prefect-community.slack.com" alt="Slack">
+        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
+    <a href="https://discourse.prefect.io/" alt="Discourse">
+        <img src="https://img.shields.io/badge/discourse-browse_forum-red.svg?color=0052FF&labelColor=090422&logo=discourse" /></a>
+    <a href="https://www.youtube.com/c/PrefectIO/" alt="YouTube">
+        <img src="https://img.shields.io/badge/youtube-watch_videos-red.svg?color=0052FF&labelColor=090422&logo=youtube" /></a>
+</p>
 
-Prefect 2.0 is the second-generation dataflow coordination and orchestration platform from [Prefect](https://www.prefect.io).
+# Prefect 2
 
-Prefect 2.0 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Prefect Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
+Prefect 2 is the second-generation dataflow coordination and orchestration platform from [Prefect](https://www.prefect.io).
+
+Prefect 2 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Prefect Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
 _**You should love your workflows again.**_
 
@@ -12,7 +30,7 @@ _**You should love your workflows again.**_
 
 **"Don't Panic"**
 
-Still using Prefect 1.0 Core and Server? Find the [legacy Prefect 1.0 docs](https://docs-v1.prefect.io/) at [https://docs-v1.prefect.io/](https://docs.prefect.io/).
+Still using Prefect 1 Core and Server? Find the [legacy Prefect 1 docs](https://docs-v1.prefect.io/) at [https://docs-v1.prefect.io/](https://docs.prefect.io/).
 
 ---
 
@@ -45,7 +63,7 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect"])
 ```
 
-After running any running some flows, fire up the UI to gain insight into their execution:
+After running some flows, fire up the UI to gain insight into their execution:
 
 ```bash
 prefect orion start
@@ -57,12 +75,11 @@ From here, you can continue to use Prefect interactively or set up automated [de
 
 ## Next steps
 
-Prefect 2.0 was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
+Prefect 2 was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
 
 ### Getting started
 
-Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
-
+Begin by [installing Prefect](https://docs.prefect.io/getting-started/installation) on your machine--Prefect currently supports the following Python versions: 3.7, 3.8, 3.9, 3.10. Then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://docs.prefect.io/getting-started/overview) for more.
 
 ### Concepts
 
@@ -70,7 +87,7 @@ Learn more about Prefect's features and design by reading our in-depth [concept 
 
 ### Frequently asked questions
 
-Prefect 2.0 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://docs.prefect.io/faq).
+Prefect 2 represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://docs.prefect.io/faq).
 
 ### API reference
 
@@ -78,9 +95,9 @@ Prefect provides a number of programmatic workflow interfaces, each of which is 
 
 ### Contributing
 
-See our [documentation on contributing to Prefect 2.0](https://docs.prefect.io/contributing/overview/).
+See our [documentation on contributing to Prefect 2](https://docs.prefect.io/contributing/overview/).
 
 
 ## Join the community
 
-Prefect 2.0 was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data engineers to help build a new kind of workflow system.
+Prefect 2 was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. The [Prefect Discourse](https://discourse.prefect.io/) is an additional community-driven knowledge base to find answers to your Prefect-related questions. Join us and thousands of friendly data engineers to help build a new kind of workflow system.

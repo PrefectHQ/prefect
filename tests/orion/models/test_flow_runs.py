@@ -140,11 +140,22 @@ class TestCreateFlowRun:
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
-        anotha_flow_run = await models.flow_runs.create_flow_run(
+        another_flow_run = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
-        assert flow_run.id == anotha_flow_run.id
+        assert flow_run.id == another_flow_run.id
+
+    async def test_create_flow_run_with_differing_idempotency_key(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
+        )
+        another_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="foo"),
+        )
+        assert flow_run.id != another_flow_run.id
 
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
         self, flow, session, db
@@ -180,6 +191,19 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
         assert flow_run.deployment_id == deployment.id
+
+    async def test_create_flow_run_with_created_by(self, flow, session):
+        created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="A-TYPE", display_value="creator-of-things"
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, created_by=created_by),
+        )
+        assert flow_run.created_by
+        assert flow_run.created_by.id == created_by.id
+        assert flow_run.created_by.display_value == created_by.display_value
+        assert flow_run.created_by.type == created_by.type
 
 
 class TestUpdateFlowRun:
@@ -241,16 +265,6 @@ class TestUpdateFlowRun:
                 flow_run=schemas.actions.FlowRunUpdate(),
             )
         )
-
-    async def test_update_flow_run_raises_error_if_bad_flow_run_is_passed(
-        self, flow, session
-    ):
-        with pytest.raises(ValueError):
-            await models.flow_runs.update_flow_run(
-                session=session,
-                flow_run_id=uuid4(),
-                flow_run=schemas.core.FlowRun(flow_id=flow.id),
-            )
 
 
 class TestReadFlowRun:
@@ -1002,6 +1016,64 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+    async def test_read_flow_runs_filters_by_work_pool_name(self, flow, session):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="work-pool"),
+        )
+        work_pool_queue = await models.workers.create_work_pool_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, work_pool_queue_id=work_pool_queue.id
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            work_pool_filter=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id}
+
+    async def test_read_flow_runs_filters_by_work_pool_queue_id(self, session, flow):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name="work-pool"),
+        )
+        work_pool_queue = await models.workers.create_work_pool_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, work_pool_queue_id=work_pool_queue.id
+            ),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            work_pool_queue_filter=schemas.filters.WorkPoolQueueFilter(
+                id=schemas.filters.WorkPoolQueueFilterId(any_=[work_pool_queue.id])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id}
+
     async def test_read_flow_runs_applies_sort(self, flow, session):
         now = pendulum.now()
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -1116,9 +1188,22 @@ class TestReadFlowRunTaskRunDependencies:
         d3 = next(filter(lambda d: d["id"] == task_run_3.id, dependencies))
 
         assert len(dependencies) == 3
-        assert d1["id"] == task_run_1.id
-        assert d2["id"] == task_run_2.id
-        assert d3["id"] == task_run_3.id
+
+        fields = [
+            "id",
+            "name",
+            "state",
+            "expected_start_time",
+            "start_time",
+            "end_time",
+            "total_run_time",
+            "estimated_run_time",
+        ]
+
+        for field in fields:
+            assert d1[field] == getattr(task_run_1, field)
+            assert d2[field] == getattr(task_run_2, field)
+            assert d3[field] == getattr(task_run_3, field)
 
         assert len(d1["upstream_dependencies"]) == 0
         assert len(d2["upstream_dependencies"]) == len(d3["upstream_dependencies"]) == 1

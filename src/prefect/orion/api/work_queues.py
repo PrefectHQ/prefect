@@ -1,18 +1,19 @@
 """
 Routes for interacting with work queue objects.
 """
-
-import datetime
 from typing import List, Optional
 from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import BackgroundTasks, Body, Depends, Header, HTTPException, Path, status
 
 import prefect.orion.api.dependencies as dependencies
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
@@ -21,7 +22,7 @@ router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Creates a new work queue.
@@ -31,9 +32,10 @@ async def create_work_queue(
     """
 
     try:
-        model = await models.work_queues.create_work_queue(
-            session=session, work_queue=work_queue
-        )
+        async with db.session_context(begin_transaction=True) as session:
+            model = await models.work_queues.create_work_queue(
+                session=session, work_queue=work_queue
+            )
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -47,15 +49,15 @@ async def create_work_queue(
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Updates an existing work queue.
     """
-
-    result = await models.work_queues.update_work_queue(
-        session=session, work_queue_id=work_queue_id, work_queue=work_queue
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.work_queues.update_work_queue(
+            session=session, work_queue_id=work_queue_id, work_queue=work_queue
+        )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Work Queue {id} not found"
@@ -65,14 +67,15 @@ async def update_work_queue(
 @router.get("/name/{name}")
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Get a work queue by id.
     """
-    work_queue = await models.work_queues.read_work_queue_by_name(
-        session=session, name=name
-    )
+    async with db.session_context() as session:
+        work_queue = await models.work_queues.read_work_queue_by_name(
+            session=session, name=name
+        )
     if not work_queue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
@@ -83,14 +86,15 @@ async def read_work_queue_by_name(
 @router.get("/{id}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Get a work queue by id.
     """
-    work_queue = await models.work_queues.read_work_queue(
-        session=session, work_queue_id=work_queue_id
-    )
+    async with db.session_context() as session:
+        work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
     if not work_queue:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
@@ -100,66 +104,115 @@ async def read_work_queue(
 
 @router.post("/{id}/get_runs")
 async def read_work_queue_runs(
+    background_tasks: BackgroundTasks,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     limit: int = dependencies.LimitBody(),
-    scheduled_before: datetime.datetime = Body(
+    scheduled_before: DateTimeTZ = Body(
         None,
-        description="Only flow runs scheduled to start before this time will be returned. If not provided, defaults to now.",
+        description="Only flow runs scheduled to start before this time will be returned.",
     ),
     agent_id: Optional[UUID] = Body(
         None,
         description="An optional unique identifier for the agent making this query. If provided, the Orion API will track the last time this agent polled the work queue.",
     ),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[schemas.core.FlowRun]:
+    x_prefect_ui: Optional[bool] = Header(
+        default=False,
+        description="A header to indicate this request came from the Prefect UI.",
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> List[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
     """
-    scheduled_before = scheduled_before or pendulum.now("UTC")
+    async with db.session_context(begin_transaction=True) as session:
+        flow_runs = await models.work_queues.get_runs_in_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            scheduled_before=scheduled_before,
+            limit=limit,
+        )
 
-    flow_runs = await models.work_queues.get_runs_in_work_queue(
-        session=session,
-        work_queue_id=work_queue_id,
-        scheduled_before=scheduled_before,
-        limit=limit,
-    )
-
-    if agent_id:
-        await models.agents.record_agent_poll(
-            session=session, agent_id=agent_id, work_queue_id=work_queue_id
+    # The Prefect UI often calls this route to see which runs are enqueued.
+    # We do not want to record this as an actual poll event.
+    if not x_prefect_ui:
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_queue_id=work_queue_id,
+            agent_id=agent_id,
         )
 
     return flow_runs
+
+
+async def _record_work_queue_polls(
+    db: OrionDBInterface,
+    work_queue_id: UUID,
+    agent_id: Optional[UUID] = None,
+):
+    """
+    Records that a work queue has been polled.
+
+    If an agent_id is provided, we update this agent id's last poll time.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+
+        await models.work_queues.update_work_queue(
+            session=session,
+            work_queue_id=work_queue_id,
+            work_queue=schemas.actions.WorkQueueUpdate(last_polled=pendulum.now("UTC")),
+        )
+
+        if agent_id:
+            await models.agents.record_agent_poll(
+                session=session, agent_id=agent_id, work_queue_id=work_queue_id
+            )
 
 
 @router.post("/filter")
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    work_queues: schemas.filters.WorkQueueFilter = None,
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Query for work queues.
     """
-    return await models.work_queues.read_work_queues(
-        session=session,
-        offset=offset,
-        limit=limit,
-    )
+    async with db.session_context() as session:
+        return await models.work_queues.read_work_queues(
+            session=session, offset=offset, limit=limit, work_queue_filter=work_queues
+        )
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a work queue by id.
     """
-    result = await models.work_queues.delete_work_queue(
-        session=session, work_queue_id=work_queue_id
-    )
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.work_queues.delete_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
         )
+
+
+@router.get("/{id}/status")
+async def read_work_queue_status(
+    work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> schemas.core.WorkQueueStatusDetail:
+    """
+    Get the status of a work queue.
+    """
+    async with db.session_context() as session:
+        work_queue_status = await models.work_queues.read_work_queue_status(
+            session=session, work_queue_id=work_queue_id
+        )
+    return work_queue_status

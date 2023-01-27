@@ -23,21 +23,21 @@ from typing import (
     Union,
 )
 
+import anyio.abc
 import pendulum
-from anyio.abc import BlockingPortal, CancelScope
-from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field, PrivateAttr
 
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client import OrionClient
+from prefect.client.orion import OrionClient
+from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
-from prefect.filesystems import WritableFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.core import FlowRun, TaskRun
-from prefect.orion.schemas.states import State
+from prefect.orion.utilities.schemas import DateTimeTZ
+from prefect.results import ResultFactory
 from prefect.settings import PREFECT_HOME, Profile, Settings
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
 from prefect.utilities.importtools import load_script_as_module
 
@@ -47,6 +47,11 @@ if TYPE_CHECKING:
 
     from prefect.flows import Flow
     from prefect.tasks import Task
+
+# Define the global settings context variable
+# This will be populated downstream but must be null here to facilitate loading the
+# default settings.
+GLOBAL_SETTINGS_CONTEXT = None
 
 
 class ContextModel(BaseModel):
@@ -85,7 +90,20 @@ class ContextModel(BaseModel):
         return cls.__var__.get(None)
 
     def copy(self, **kwargs):
-        """Remove the token on copy to avoid re-entrance errors"""
+        """
+        Duplicate the context model, optionally choosing which fields to include, exclude, or change.
+
+        Attributes:
+            include: Fields to include in new model.
+            exclude: Fields to exclude from new model, as with values this takes precedence over include.
+            update: Values to change/add in the new model. Note: the data is not validated before creating
+                the new model - you should trust this data.
+            deep: Set to `True` to make a deep copy of the model.
+
+        Returns:
+            A new model instance.
+        """
+        # Remove the token on copy to avoid re-entrance errors
         new = super().copy(**kwargs)
         new._token = None
         return new
@@ -102,7 +120,7 @@ class PrefectObjectRegistry(ContextModel):
         capture_failures: If set, failures during __init__ will be silenced and tracked.
     """
 
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
 
     _instance_registry: Dict[Type[T], List[T]] = PrivateAttr(
         default_factory=lambda: defaultdict(list)
@@ -179,7 +197,7 @@ class RunContext(ContextModel):
         client: The Orion client instance being used for API communication
     """
 
-    start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
     client: OrionClient
 
 
@@ -192,7 +210,6 @@ class FlowRunContext(RunContext):
         flow: The flow instance associated with the run
         flow_run: The API metadata for the flow run
         task_runner: The task runner instance being used for the flow run
-        result_filesystem: A block to used to persist run state data
         task_run_futures: A list of futures for task runs submitted within this flow run
         task_run_states: A list of states for task runs created within this flow run
         task_run_results: A mapping of result ids to task run states for this flow run
@@ -204,10 +221,16 @@ class FlowRunContext(RunContext):
     flow: "Flow"
     flow_run: FlowRun
     task_runner: BaseTaskRunner
-    result_filesystem: WritableFileSystem
+    log_prints: bool = False
+
+    # Result handling
+    result_factory: ResultFactory
 
     # Counter for task calls allowing unique
     task_run_dynamic_keys: Dict[str, int] = Field(default_factory=dict)
+
+    # Counter for flow pauses
+    observed_flow_pauses: Dict[str, int] = Field(default_factory=dict)
 
     # Tracking for objects created by this flow run
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
@@ -217,8 +240,11 @@ class FlowRunContext(RunContext):
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
-    sync_portal: Optional[BlockingPortal] = None
-    timeout_scope: Optional[CancelScope] = None
+    sync_portal: Optional[anyio.abc.BlockingPortal] = None
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
+
+    # Task group that can be used for background tasks during the flow run
+    background_tasks: anyio.abc.TaskGroup
 
     __var__ = ContextVar("flow_run")
 
@@ -231,12 +257,16 @@ class TaskRunContext(RunContext):
     Attributes:
         task: The task instance associated with the task run
         task_run: The API metadata for this task run
-        result_filesystem: A block to used to persist run state data
+        timeout_scope: The cancellation scope for task-level timeouts
     """
 
     task: "Task"
     task_run: TaskRun
-    result_filesystem: WritableFileSystem
+    timeout_scope: Optional[anyio.abc.CancelScope] = None
+    log_prints: bool = False
+
+    # Result handling
+    result_factory: ResultFactory
 
     __var__ = ContextVar("task_run")
 
@@ -294,6 +324,11 @@ class SettingsContext(ContextModel):
             )
 
         return return_value
+
+    @classmethod
+    def get(cls) -> "SettingsContext":
+        # Return the global context instead of `None` if no context exists
+        return super().get() or GLOBAL_SETTINGS_CONTEXT
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
@@ -462,27 +497,15 @@ def use_profile(
         yield ctx
 
 
-GLOBAL_SETTINGS_CM: ContextManager[SettingsContext] = None
-
-
-def enter_root_settings_context():
+def root_settings_context():
     """
-    Enter the profile that will exist as the root context for the module.
+    Return the settings context that will exist as the root context for the module.
 
     The profile to use is determined with the following precedence
     - Command line via 'prefect --profile <name>'
     - Environment variable via 'PREFECT_PROFILE'
     - Profiles file via the 'active' key
-
-    This function is safe to call multiple times.
     """
-    # We set a global variable because otherwise the context object will be garbage
-    # collected which will call __exit__ as soon as this function scope ends.
-    global GLOBAL_SETTINGS_CM
-
-    if GLOBAL_SETTINGS_CM:
-        return  # A global context already has been entered
-
     profiles = prefect.settings.load_profiles()
     active_name = profiles.active_name
     profile_source = "in the profiles file"
@@ -507,15 +530,18 @@ def enter_root_settings_context():
         )
         active_name = "default"
 
-    GLOBAL_SETTINGS_CM = use_profile(
+    with use_profile(
         profiles[active_name],
         # Override environment variables if the profile was set by the CLI
         override_environment_variables=profile_source == "by command line argument",
-    )
+    ) as settings_context:
+        return settings_context
 
-    GLOBAL_SETTINGS_CM.__enter__()
+    # Note the above context is exited and the global settings context is used by
+    # an override in the `SettingsContext.get` method.
 
 
+GLOBAL_SETTINGS_CONTEXT: SettingsContext = root_settings_context()
 GLOBAL_OBJECT_REGISTRY: ContextManager[PrefectObjectRegistry] = None
 
 

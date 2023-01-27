@@ -1,10 +1,12 @@
 ---
-description: Prefect blocks package configuration for use cases such as storage, secrets, and deployments.
+description: Prefect blocks package configuration storage, infrastructure, and secrets for use with deployments or flow scripts.
 tags:
   - blocks
   - storage
   - secrets
   - configuration
+  - infrastructure
+  - deployments
 ---
 
 # Blocks
@@ -33,13 +35,18 @@ json_block = JSON(value={"the_answer": 42})
 
 ### Saving blocks
 
-If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the blocks to store the value in a block document on the Orion DB for retrieval later:
+If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Orion DB for retrieval later:
 
 ```python
 json_block.save(name="life-the-universe-everything")
 ```
 
-The name given when saving the value stored in the JSON block can be used to later when retrieving the value during a flow or task run:
+!!! tip "Utilizing the UI"
+    Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+
+### Loading blocks
+
+The name given when saving the value stored in the JSON block can be used when retrieving the value during a flow or task run:
 
 ```python hl_lines="6"
 from prefect import flow
@@ -53,20 +60,19 @@ def what_is_the_answer():
 what_is_the_answer() # 42
 ```
 
-### Loading blocks
-
-Blocks can also be loaded with a unique slug which a combination of a block type slug and a block document name.
+Blocks can also be loaded with a unique slug that is a combination of a block type slug and a block document name.
 
 To load our JSON block document from before, we can run the following:
 
-```python
-from prefect.block.core import Block
+```python hl_lines="3"
+from prefect.blocks.core import Block
 
 json_block = Block.load("json/life-the-universe-everything")
 print(json_block.value["the-answer"]) #42
 ```
 
-Blocks documents can also be created and updated via the [Prefect UI](/ui/blocks/).
+!!! tip "Sharing Blocks"
+    Blocks can also be loaded by fellow Workspace Collaborators, available on [Prefect Cloud](/ui/cloud/).
 
 ## Creating new block types
 
@@ -112,24 +118,6 @@ def calculate_cube_surface_area(cube_name):
 calculate_cube_surface_area("rubiks-cube") # 30.375
 ```
 
-### Registering blocks
-
-Once a block has been created in a `.py` file, the block can be registered with the CLI command:
-
-```bash
-$ prefect block register --file my_block.py
-```
-
-The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.
-
-Blocks can also be registered from a Python module available in the current virtual environment with the CLI command:
-
-```bash
-$ prefect block register --module prefect_aws.credentials
-```
-
-This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/overview).
-
 ### Secret fields
 
 All block values are encrypted before being stored, but if you have values that you would not like visible in the UI or in logs, then you can use the `SecretStr` field type provided by Pydantic to automatically obfuscate those values. This can be useful for fields that are used to store credentials like passwords and API tokens.
@@ -162,6 +150,43 @@ print(aws_credentials_block)
 # aws_access_key_id='AKIAJKLJKLJKLJKLJKLJK' aws_secret_access_key=SecretStr('**********') aws_session_token=None profile_name=None region_name=None
 ```
 
+There's  also use the `SecretDict` field type provided by Prefect. This type will allow you to add a dictionary field to your block that will have values at all levels automatically obfuscated in the UI or in logs. This is useful for blocks where typing or structure of secret fields is not known until configuration time.
+
+Here's an example of a block that uses `SecretDict`:
+
+```python
+from typing import Dict
+
+from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
+
+
+class SystemConfiguration(Block):
+    system_secrets: SecretDict
+    system_variables: Dict
+
+
+system_configuration_block = SystemConfiguration(
+    system_secrets={
+        "password": "p@ssw0rd",
+        "api_token": "token_123456789",
+        "private_key": "<private key here>",
+    },
+    system_variables={
+        "self_destruct_countdown_seconds": 60,
+        "self_destruct_countdown_stop_time": 7,
+    },
+)
+```
+`system_secrets` will be obfuscated when `system_configuration_block` is displayed, but `system_variables` will be shown in plain-text:
+
+```python
+print(system_configuration_block)
+# SystemConfiguration(
+#   system_secrets=SecretDict('{'password': '**********', 'api_token': '**********', 'private_key': '**********'}'), 
+#   system_variables={'self_destruct_countdown_seconds': 60, 'self_destruct_countdown_stop_time': 7}
+# )
+```
 ### Blocks metadata
 
 The way that a block is displayed can be controlled by metadata fields that can be set on a block subclass.
@@ -260,3 +285,51 @@ my_s3_bucket.save("my_s3_bucket")
 ```
 
 In the above example, the values for `AWSCredentials` are saved with `my_s3_bucket` and will not be usable with any other blocks.
+
+### Handling updates to custom `Block` types
+Let's say that you now want to add a `bucket_folder` field to your custom `S3Bucket` block that represents the default path to read and write objects from (this field exists on [our implementation](https://github.com/PrefectHQ/prefect-aws/blob/main/prefect_aws/s3.py#L292)).
+
+We can add the new field to the class definition:
+
+
+```python hl_lines="4"
+class S3Bucket(Block):
+    bucket_name: str
+    credentials: AWSCredentials
+    bucket_folder: str = None
+    ...
+```
+
+Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect Orion server.
+
+
+If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
+
+```python
+# Bypass Pydantic validation to allow your local Block class to load the old block version
+my_s3_bucket_block = S3Bucket.load("my-s3-bucket", validate=False)
+
+# Set the new field to an appropriate value
+my_s3_bucket_block.bucket_path = "my-default-bucket-path"
+
+# Overwrite the old block values and update the expected fields on the block
+my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
+```
+
+## Registering blocks for use in the Prefect UI
+
+Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
+
+```bash
+$ prefect block register --module prefect_aws.credentials
+```
+
+This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/catalog/).
+
+Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
+
+```bash
+$ prefect block register --file my_block.py
+```
+
+The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.

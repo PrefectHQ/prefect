@@ -4,7 +4,7 @@ Interface and implementations of various task runners.
 [Task Runners](/concepts/task-runners/) in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
 
 Example:
-
+    ```
     >>> from prefect import flow, task
     >>> from prefect.task_runners import SequentialTaskRunner
     >>> from typing import List
@@ -32,8 +32,10 @@ Example:
     goodbye ford
     hello marvin
     goodbye marvin
+    ```
 
     Switching to a `DaskTaskRunner`:
+    ```
     >>> from prefect_dask.task_runners import DaskTaskRunner
     >>> flow.task_runner = DaskTaskRunner()
     >>> greetings(["arthur", "trillian", "ford", "marvin"])
@@ -45,10 +47,12 @@ Example:
     hello marvin
     goodbye ford
     goodbye trillian
+    ```
 
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
+import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -68,14 +72,11 @@ import anyio
 from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
-    from anyio.abc import TaskGroup
+    import anyio.abc
 
-from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.states import exception_to_crashed_state
-from prefect.utilities.asyncutils import A
 from prefect.utilities.collections import AutoEnum
 
 T = TypeVar("T", bound="BaseTaskRunner")
@@ -112,12 +113,9 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def submit(
         self,
-        task_run: TaskRun,
-        run_key: str,
-        run_fn: Callable[..., Awaitable[State[R]]],
-        run_kwargs: Dict[str, Any],
-        asynchronous: A = True,
-    ) -> PrefectFuture[R, A]:
+        key: UUID,
+        call: Callable[..., Awaitable[State[R]]],
+    ) -> None:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
         get the call result.
@@ -126,18 +124,16 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
             task_run: The task run being submitted.
             task_key: A unique key for this orchestration run of the task. Can be used
                 for caching.
-            run_fn: The function to be executed
-            run_kwargs: A dict of keyword arguments to pass to `run_fn`
+            call: The function to be executed
+            run_kwargs: A dict of keyword arguments to pass to `call`
 
         Returns:
-            A future representing the result of `run_fn` execution
+            A future representing the result of `call` execution
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def wait(
-        self, prefect_future: PrefectFuture, timeout: float = None
-    ) -> Optional[State]:
+    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
         """
         Given a `PrefectFuture`, wait for its return state up to `timeout` seconds.
         If it is not finished after the timeout expires, `None` should be returned.
@@ -203,31 +199,19 @@ class SequentialTaskRunner(BaseTaskRunner):
 
     async def submit(
         self,
-        task_run: TaskRun,
-        run_key: str,
-        run_fn: Callable[..., Awaitable[State[R]]],
-        run_kwargs: Dict[str, Any],
-        asynchronous: A = True,
-    ) -> PrefectFuture[R, A]:
+        key: UUID,
+        call: Callable[..., Awaitable[State[R]]],
+    ) -> None:
         # Run the function immediately and store the result in memory
         try:
-            result = await run_fn(**run_kwargs)
+            result = await call()
         except BaseException as exc:
-            result = exception_to_crashed_state(exc)
+            result = await exception_to_crashed_state(exc)
 
-        self._results[run_key] = result
+        self._results[key] = result
 
-        return PrefectFuture(
-            task_run=task_run,
-            run_key=run_key,
-            task_runner=self,
-            asynchronous=asynchronous,
-        )
-
-    async def wait(
-        self, prefect_future: PrefectFuture, timeout: float = None
-    ) -> Optional[State]:
-        return self._results[prefect_future.run_key]
+    async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
+        return self._results[key]
 
 
 class ConcurrentTaskRunner(BaseTaskRunner):
@@ -235,23 +219,26 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     A concurrent task runner that allows tasks to switch when blocking on IO.
     Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 
-    Examples:
-
+    Example:
+        ```
         Using a thread for concurrency:
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
         >>> def my_flow():
         >>>     ...
+        ```
     """
 
     def __init__(self):
         # TODO: Consider adding `max_workers` support using anyio capacity limiters
 
         # Runtime attributes
-        self._task_group: TaskGroup = None
+        self._task_group: anyio.abc.TaskGroup = None
+        self._result_events: Dict[UUID, anyio.abc.Event] = {}
         self._results: Dict[UUID, Any] = {}
-        self._run_keys: Set[UUID] = set()
+        self._keys: Set[UUID] = set()
+
         super().__init__()
 
     @property
@@ -260,12 +247,9 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
     async def submit(
         self,
-        task_run: TaskRun,
-        run_key: str,
-        run_fn: Callable[..., Awaitable[State[R]]],
-        run_kwargs: Dict[str, Any],
-        asynchronous: A = True,
-    ) -> PrefectFuture[R, A]:
+        key: UUID,
+        call: Callable[[], Awaitable[State[R]]],
+    ) -> None:
         if not self._started:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
@@ -277,24 +261,17 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
+        self._result_events[key] = anyio.Event()
+
         # Rely on the event loop for concurrency
-        self._task_group.start_soon(
-            self._run_and_store_result, run_key, run_fn, run_kwargs
-        )
+        self._task_group.start_soon(self._run_and_store_result, key, call)
 
         # Track the keys so we can ensure to gather them later
-        self._run_keys.add(run_key)
-
-        return PrefectFuture(
-            task_run=task_run,
-            run_key=run_key,
-            task_runner=self,
-            asynchronous=asynchronous,
-        )
+        self._keys.add(key)
 
     async def wait(
         self,
-        prefect_future: PrefectFuture,
+        key: UUID,
         timeout: float = None,
     ) -> Optional[State]:
         if not self._task_group:
@@ -303,9 +280,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
-        return await self._get_run_result(prefect_future.run_key, timeout)
+        return await self._get_run_result(key, timeout)
 
-    async def _run_and_store_result(self, run_key: str, run_fn, run_kwargs):
+    async def _run_and_store_result(
+        self, key: UUID, call: Callable[[], Awaitable[State[R]]]
+    ):
         """
         Simple utility to store the orchestration result in memory on completion
 
@@ -313,19 +292,40 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            self._results[run_key] = await run_fn(**run_kwargs)
+            self._results[key] = await call()
         except BaseException as exc:
-            self._results[run_key] = exception_to_crashed_state(exc)
+            self._results[key] = await exception_to_crashed_state(exc)
 
-    async def _get_run_result(self, run_key: str, timeout: float = None):
+        self._result_events[key].set()
+
+    async def _get_run_result(
+        self, key: UUID, timeout: float = None
+    ) -> Optional[State]:
         """
         Block until the run result has been populated.
         """
+        result = None  # Return value on timeout
+        result_event = self._result_events.get(key)
+
         with anyio.move_on_after(timeout):
-            result = self._results.get(run_key)
+
+            # Attempt to use the event to wait for the result. This is much more efficient
+            # than the spin-lock that follows but does not work if the wait call
+            # happens from an event loop in a different thread than the one from which
+            # the event was created
+
+            while not result_event:
+                await anyio.sleep(0)  # yield to other tasks
+                result_event = self._result_events.get(key)
+
+            if result_event._event._loop == asyncio.get_running_loop():
+                await result_event.wait()
+
+            result = self._results.get(key)
             while not result:
                 await anyio.sleep(0)  # yield to other tasks
-                result = self._results.get(run_key)
+                result = self._results.get(key)
+
         return result
 
     async def _start(self, exit_stack: AsyncExitStack):

@@ -1,11 +1,13 @@
 import datetime
 import enum
+import math
 from typing import List
 
 import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 
 from prefect.orion.database.configurations import AioSqliteConfiguration
@@ -79,14 +81,17 @@ async def create_database_models(database_engine):
 
 
 @pytest.fixture(scope="function", autouse=True)
-async def clear_database_models(database_engine):
+async def clear_database_models(db):
     """
     Clears the models defined in this file
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
         for table in reversed(DBBase.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 class TestPydantic:
@@ -336,6 +341,29 @@ class TestJSON:
         )
         assert await self.get_ids(session, query) == ids
 
+    async def test_multiple_json_has_any(self, session):
+        """
+        SQLAlchemy's default bindparam has a `.` in it, which SQLite rejects. We
+        create a custom bindparam name with `unique=True` to avoid confusion;
+        this tests that multiple json_has_any_key clauses can be used in the
+        same query.
+        """
+        query = (
+            sa.select(SQLJSONModel)
+            .where(
+                sa.or_(
+                    sa.and_(
+                        json_has_any_key(SQLJSONModel.data, ["a"]),
+                        json_has_any_key(SQLJSONModel.data, ["b"]),
+                    ),
+                    json_has_any_key(SQLJSONModel.data, ["c"]),
+                    json_has_any_key(SQLJSONModel.data, ["d"]),
+                ),
+            )
+            .order_by(SQLJSONModel.id)
+        )
+        assert await self.get_ids(session, query) == [3, 4, 5, 6]
+
     @pytest.mark.parametrize(
         "keys,ids",
         [
@@ -395,6 +423,21 @@ class TestJSON:
         assert "json_each" in str(any_stmt)
         assert "?&" not in str(all_stmt)
         assert "json_each" in str(all_stmt)
+
+    @pytest.mark.parametrize("extrema", [-math.inf, math.nan, +math.inf])
+    async def test_json_floating_point_extrema(
+        self, session: AsyncSession, extrema: float
+    ):
+        example = SQLJSONModel(id=100, data=[-1.0, extrema, 1.0])
+        session.add(example)
+        await session.flush()
+        session.expire(example)
+
+        result = await session.execute(
+            sa.select(SQLJSONModel).where(SQLJSONModel.id == 100)
+        )
+        from_db: SQLJSONModel = result.scalars().first()
+        assert from_db.data == [-1.0, None, 1.0]
 
 
 class TestDateFunctions:

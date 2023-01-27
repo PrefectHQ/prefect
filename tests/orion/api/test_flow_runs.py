@@ -1,3 +1,4 @@
+from typing import List
 from uuid import uuid4
 
 import pendulum
@@ -7,9 +8,9 @@ import sqlalchemy as sa
 from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states
 from prefect.orion.schemas.core import TaskRunResult
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 class TestCreateFlowRun:
@@ -216,7 +217,9 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
@@ -237,7 +240,9 @@ class TestUpdateFlowRun:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         response = await client.get(f"flow_runs/{flow_run.id}")
-        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        updated_flow_run = pydantic.parse_obj_as(
+            schemas.responses.FlowRunResponse, response.json()
+        )
         assert updated_flow_run.flow_version == "1.0"
 
     async def test_update_flow_run_raises_error_if_flow_run_not_found(self, client):
@@ -276,7 +281,7 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, session):
+    async def flow_runs(self, flow, work_pool_queue, session):
         flow_2 = await models.flows.create_flow(
             session=session,
             flow=actions.FlowCreate(name="another-test"),
@@ -284,15 +289,20 @@ class TestReadFlowRuns:
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr1", tags=["red"]),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=actions.FlowRunCreate(flow_id=flow.id, name="fr2", tags=["blue"]),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_2.id,
+                name="fr3",
+                tags=["blue", "red"],
+                work_pool_queue_id=work_pool_queue.id,
+            ),
         )
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
@@ -301,6 +311,25 @@ class TestReadFlowRuns:
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 3
+        # return type should be correct
+        assert pydantic.parse_obj_as(
+            List[schemas.responses.FlowRunResponse], response.json()
+        )
+
+    async def test_read_flow_runs_work_pool_fields(
+        self, flow_runs, client, work_pool, work_pool_queue, enable_work_pools
+    ):
+        response = await client.post("/flow_runs/filter")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 3
+        response = sorted(
+            pydantic.parse_obj_as(
+                List[schemas.responses.FlowRunResponse], response.json()
+            ),
+            key=lambda fr: fr.name,
+        )
+        assert response[2].work_pool_name == work_pool.name
+        assert response[2].work_queue_name == work_pool_queue.name
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
@@ -346,6 +375,47 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
+    async def test_read_flow_runs_applies_work_pool_name_filter(
+        self, flow_runs, client, work_pool
+    ):
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flow_runs/filter", json=work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_applies_work_pool_queue_id_filter(
+        self,
+        flow_runs,
+        work_pool_queue,
+        client,
+    ):
+        work_pool_filter = dict(
+            work_pool_queues=schemas.filters.WorkPoolQueueFilter(
+                id=schemas.filters.WorkPoolQueueFilterId(any_=[work_pool_queue.id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/flow_runs/filter", json=work_pool_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
+
+    async def test_read_flow_runs_multi_filter(self, flow, flow_runs, client):
+        flow_run_filter = dict(
+            flow_runs=dict(tags=dict(all_=["blue"])),
+            flows=dict(name=dict(any_=["another-test"])),
+            limit=1,
+            offset=0,
+        )
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[2].id)
+
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
         response = await client.post("/flow_runs/filter", json=dict(limit=1))
         assert response.status_code == status.HTTP_200_OK
@@ -378,9 +448,24 @@ class TestReadFlowRuns:
                     type="SCHEDULED",
                     timestamp=now.add(minutes=1),
                 ),
+                start_time=now.subtract(minutes=2),
             ),
         )
         await session.commit()
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_ASC.value),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter",
+            json=dict(limit=1, sort=schemas.sorting.FlowRunSort.START_TIME_DESC.value),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(flow_run_1.id)
 
         response = await client.post(
             "/flow_runs/filter",
@@ -551,6 +636,72 @@ class TestDeleteFlowRuns:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestResumeFlowrun:
+    async def test_resuming_blocking_pauses(
+        self, blocking_paused_flow_run, client, session
+    ):
+        flow_run_id = blocking_paused_flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "RUNNING"
+
+    async def test_resuming_nonblocking_pauses(
+        self, nonblocking_paused_flow_run, client, session
+    ):
+        flow_run_id = nonblocking_paused_flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "SCHEDULED"
+
+    async def test_cannot_resume_nonblocking_pauses_without_deployment(
+        self, nonblockingpaused_flow_run_without_deployment, client, session
+    ):
+        flow_run_id = nonblockingpaused_flow_run_without_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "PAUSED"
+
+    async def test_cannot_resume_flow_runs_without_a_state(self, flow_run, client):
+        flow_run_id = flow_run.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+        assert response.json()["status"] == "ABORT"
+
+    async def test_cannot_resume_flow_runs_not_in_paused_state(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        flow_run_id = failed_flow_run_with_deployment.id
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/resume",
+        )
+        assert response.json()["status"] == "ABORT"
+
+        session.expire_all()
+        resumed_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert resumed_run.state.type == "FAILED"
+
+
 class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, session):
         response = await client.post(
@@ -560,6 +711,7 @@ class TestSetFlowRunState:
         assert response.status_code == 201
 
         api_response = OrchestrationResult.parse_obj(response.json())
+
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         flow_run_id = flow_run.id
@@ -571,8 +723,34 @@ class TestSetFlowRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
-    async def test_set_flow_run_errors_if_client_provides_timestamp(
-        self, flow_run, client
+    @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
+    async def test_setting_flow_run_state_twice_aborts(
+        self, flow_run, client, session, proposed_state
+    ):
+        # A multi-agent environment may attempt to orchestrate a run more than once,
+        # this test ensures that a 2nd agent cannot re-propose a state that's already
+        # been set
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="PENDING", name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+
+    async def test_set_flow_run_state_ignores_client_provided_timestamp(
+        self, flow_run, client, session
     ):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
@@ -584,7 +762,9 @@ class TestSetFlowRunState:
                 )
             ),
         )
-        assert response.status_code == 422
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session
@@ -618,6 +798,166 @@ class TestSetFlowRunState:
         )
         assert response2.status_code == status.HTTP_201_CREATED
         assert response2.json()["status"] == "ACCEPT"
+
+    @pytest.mark.parametrize("data", [1, "test", {"foo": "bar"}])
+    async def test_set_flow_run_state_accepts_any_jsonable_data(
+        self, flow_run, client, session, data
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="COMPLETED", data=data)),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.data == data
+
+    async def test_flow_run_receives_wait_until_scheduled_start_time(
+        self, flow_run, client, session
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now("UTC").add(days=1)
+                ).dict(json_compatible=True)
+            ),
+        )
+        assert response.status_code == 201
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=schemas.states.Pending().dict(json_compatible=True)),
+        )
+        assert response.status_code == 201
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=schemas.states.Running().dict(json_compatible=True)),
+        )
+        assert response.status_code == 200
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.WAIT
+        assert (
+            0
+            <= (
+                # Fuzzy comparison
+                pendulum.duration(days=1).total_seconds()
+                - api_response.details.delay_seconds
+            )
+            <= 10
+        )
+
+
+class TestManuallyRetryingFlowRuns:
+    async def test_manual_flow_run_retries(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.run_count == 1, "manual retries preserve the run count"
+        assert restarted_run.state.type == "SCHEDULED"
+
+    async def test_manual_flow_run_retries_succeed_even_if_exceeding_retries_setting(
+        self, failed_flow_run_with_deployment_with_no_more_retries, client, session
+    ):
+        assert failed_flow_run_with_deployment_with_no_more_retries.run_count == 3
+        assert (
+            failed_flow_run_with_deployment_with_no_more_retries.empirical_policy.retries
+            == 2
+        )
+        assert failed_flow_run_with_deployment_with_no_more_retries.deployment_id
+        flow_run_id = failed_flow_run_with_deployment_with_no_more_retries.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="SCHEDULED", name="AwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.run_count == 3, "manual retries preserve the run count"
+        assert restarted_run.state.type == "SCHEDULED"
+
+    async def test_manual_flow_run_retries_require_an_awaitingretry_state_name(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="SCHEDULED", name="NotAwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.state.type == "FAILED"
+
+    async def test_only_proposing_scheduled_states_manually_retries(
+        self, failed_flow_run_with_deployment, client, session
+    ):
+        assert failed_flow_run_with_deployment.run_count == 1
+        assert failed_flow_run_with_deployment.deployment_id
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.state.type == "FAILED"
+
+    async def test_cannot_restart_flow_run_without_deployment(
+        self, failed_flow_run_without_deployment, client, session
+    ):
+        assert failed_flow_run_without_deployment.run_count == 1
+        assert not failed_flow_run_without_deployment.deployment_id
+        flow_run_id = failed_flow_run_without_deployment.id
+
+        response = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="AwaitingRetry")),
+        )
+
+        session.expire_all()
+        restarted_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert restarted_run.run_count == 1, "the run count should not change"
+        assert restarted_run.state.type == "FAILED"
 
 
 class TestFlowRunHistory:

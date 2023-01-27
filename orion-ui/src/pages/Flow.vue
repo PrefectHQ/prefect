@@ -8,8 +8,13 @@
       <template #details>
         <FlowDetails v-if="flow" :flow="flow" />
       </template>
+
       <template #deployments>
-        <DeploymentsTable :deployments="flowDeployments" @update="flowDeploymentsSubscription.refresh()" @delete="flowDeploymentsSubscription.refresh()" />
+        <DeploymentsTable :filter="deploymentsFilter" />
+      </template>
+
+      <template #runs>
+        <FlowRunFilteredList :flow-run-filter="flowFilter" />
       </template>
     </p-tabs>
 
@@ -20,19 +25,19 @@
 </template>
 
 <script lang="ts" setup>
-  import { UnionFilters, DeploymentsTable, PageHeadingFlow, FlowDetails } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
-  import { deploymentsApi } from '@/services/deploymentsApi'
-  import { flowsApi } from '@/services/flowsApi'
 
-  const flowId = useRouteParam('id')
+  const api = useWorkspaceApi()
+  const flowId = useRouteParam('flowId')
   const router = useRouter()
   const tabs = computed(() => {
-    const values = ['Deployments']
+    const values = ['Deployments', 'Runs']
 
     if (!media.xl) {
       values.unshift('Details')
@@ -45,21 +50,24 @@
     interval: 300000,
   }
 
-  const flowSubscription = useSubscription(flowsApi.getFlow, [flowId.value], subscriptionOptions)
+  const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowDeploymentFilter = computed<UnionFilters>(() => ({
-    flows: {
-      id: {
-        any_: [flowId.value],
-      },
-    },
+  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
+  const deploymentsFilter = computed<UseDeploymentFilterArgs>(() => ({
+    flows: [flowId.value],
   }))
 
-  const flowDeploymentsSubscription = useSubscription(deploymentsApi.getDeployments, [flowDeploymentFilter], subscriptionOptions)
-  const flowDeployments = computed(() => flowDeploymentsSubscription.response ?? [])
 
   function deleteFlow(): void {
     router.push(routes.flows())
   }
+
+  const title = computed(() => {
+    if (!flow.value) {
+      return 'Flow'
+    }
+    return `Flow: ${flow.value.name}`
+  })
+  usePageTitle(title)
 </script>

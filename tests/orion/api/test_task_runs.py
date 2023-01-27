@@ -5,8 +5,8 @@ import pytest
 from fastapi import status
 
 from prefect.orion import models, schemas
-from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import responses, states
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 class TestCreateTaskRun:
@@ -57,7 +57,7 @@ class TestCreateTaskRun:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run.id,
             task_key="task-key",
-            state=states.Running(),
+            state=schemas.actions.StateCreate(type=schemas.states.StateType.RUNNING),
             dynamic_key="0",
         )
         response = await client.post(
@@ -69,7 +69,7 @@ class TestCreateTaskRun:
         assert str(task_run.id) == response.json()["id"]
         assert task_run.state.type == task_run_data.state.type
 
-    async def test_create_task_run_with_state_sets_timestamp_on_server(
+    async def test_create_task_run_with_state_ignores_client_provided_timestamp(
         self, flow_run, client, session
     ):
         response = await client.post(
@@ -77,7 +77,10 @@ class TestCreateTaskRun:
             json=schemas.actions.TaskRunCreate(
                 flow_run_id=flow_run.id,
                 task_key="a",
-                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+                state=schemas.actions.StateCreate(
+                    type=schemas.states.StateType.COMPLETED,
+                    timestamp=pendulum.now().add(months=1),
+                ),
                 dynamic_key="0",
             ).dict(json_compatible=True),
         )
@@ -88,6 +91,36 @@ class TestCreateTaskRun:
         )
         # the timestamp was overwritten
         assert task_run.state.timestamp < pendulum.now()
+
+    async def test_raises_on_retry_delay_validation(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "empirical_policy": {"retries": 3, "retry_delay": list(range(100))},
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.json()["exception_detail"][0]["msg"]
+            == "Can not configure more than 50 retry delays per task."
+        )
+
+    async def test_raises_on_jitter_factor_validation(self, flow_run, client, session):
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
+            "empirical_policy": {"retries": 3, "retry_jitter_factor": -100},
+        }
+        response = await client.post("/task_runs/", json=task_run_data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            response.json()["exception_detail"][0]["msg"]
+            == "`retry_jitter_factor` must be >= 0."
+        )
 
 
 class TestReadTaskRun:
@@ -288,6 +321,12 @@ class TestDeleteTaskRuns:
 
 class TestSetTaskRunState:
     async def test_set_task_run_state(self, task_run, client, session):
+        # first ensure the parent flow run is in a running state
+        await client.post(
+            f"/flow_runs/{task_run.flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="RUNNING", name="Test State")),
@@ -306,7 +345,39 @@ class TestSetTaskRunState:
         assert run.state.name == "Test State"
         assert run.run_count == 1
 
-    async def test_set_task_run_errors_if_client_provides_timestamp(
+    @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
+    async def test_setting_task_run_state_twice_aborts(
+        self, task_run, client, session, proposed_state
+    ):
+        # A multi-agent environment may attempt to orchestrate a run more than once,
+        # this test ensures that a 2nd agent cannot re-propose a state that's already
+        # been set
+
+        # first ensure the parent flow run is in a running state
+        await client.post(
+            f"/flow_runs/{task_run.flow_run_id}/set_state",
+            json=dict(state=dict(type="RUNNING")),
+        )
+
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type=proposed_state, name="Test State")),
+        )
+        assert response.status_code == 200
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ABORT
+
+    async def test_set_task_run_ignores_client_provided_timestamp(
         self, flow_run, client
     ):
         response = await client.post(
@@ -319,13 +390,15 @@ class TestSetTaskRunState:
                 )
             ),
         )
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_201_CREATED
+        state = schemas.states.State.parse_obj(response.json()["state"])
+        assert state.timestamp < pendulum.now(), "The timestamp should be overwritten"
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
-        task_run.empirical_policy.max_retries = 1
+        task_run.empirical_policy.retries = 1
         await session.flush()
 
         (
@@ -355,7 +428,7 @@ class TestSetTaskRunState:
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
-        task_run.empirical_policy.max_retries = 1
+        task_run.empirical_policy.retries = 1
         await session.flush()
 
         (
@@ -377,6 +450,19 @@ class TestSetTaskRunState:
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.state.type == states.StateType.FAILED
+
+    async def test_set_task_run_state_returns_404_on_missing_flow_run(
+        self, task_run, client, session
+    ):
+        await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=task_run.flow_run_id
+        )
+        await session.commit()
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Test State")),
+        )
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestTaskRunHistory:

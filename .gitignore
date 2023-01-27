@@ -11,10 +11,8 @@ sdist/
 # Test artifacts
 .coverage
 .coverage.*.*
-.coverage*
 .prefect-results
 .pytest_cache/
-.coverage
 
 # Type checking artifacts
 .mypy_cache/
@@ -27,6 +25,9 @@ profile_default/
 ipython_config.py
 *.ipynb_checkpoints/*
 
+# Profiling
+/prof
+
 # Environments
 .python-version
 .env
@@ -35,16 +36,19 @@ env/
 venv/
 
 # Documentation artifacts
-docs/api-ref/schema.json
+schema.json
 site/
 .cache/
 
 # UI artifacts
 src/prefect/orion/ui/*
-orion-ui/node_modules
+**/node_modules
 
 # Databases
 *.db
+
+# API artifacts
+
 
 # MacOS
 .DS_Store

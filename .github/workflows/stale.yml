@@ -1,0 +1,20 @@
+name: "Close stale issues and PRs"
+on:
+  schedule:
+    - cron: "30 * * * *"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v7
+        with:
+          stale-issue-message: "This issue is stale because it has been open 30 days with no activity. To keep this issue open remove stale label or comment."
+          stale-issue-label: "status:stale"
+          close-issue-message: "This issue was closed because it has been stale for 14 days with no activity. If this issue is important or you have more to add feel free to re-open it."
+          days-before-stale: 30
+          days-before-pr-stale: -1 # Disable stale-ing PRs
+          days-before-close: 14
+          exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted"
+          ascending: true # https://github.com/actions/stale#ascending
+          operations-per-run: 30

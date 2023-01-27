@@ -89,11 +89,15 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 WORKDIR /opt/prefect
 
-# Install tini for the entrypoint
+# Install requirements
+# - tini: Used in the entrypoint
+# - build-essential: Required for Python dependencies without wheels
+# - git: Required for retrieving workflows from git sources
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
         tini=0.19.* \
-        build-essential \ 
+        build-essential \
+        git=1:2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
@@ -109,6 +113,9 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 # Extras to include during `pip install`. Must be wrapped in brackets, e.g. "[dev]"
 ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
+
+# Smoke test
+RUN prefect version
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh

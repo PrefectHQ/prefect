@@ -1,4 +1,5 @@
 import string
+from typing import List
 from uuid import uuid4
 
 import pytest
@@ -6,15 +7,17 @@ import sqlalchemy as sa
 from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
+from prefect.blocks.fields import SecretDict
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.utilities.names import obfuscate_string
+from prefect.utilities.names import obfuscate, obfuscate_string
 
 
 def long_string(s: str):
     return string.ascii_letters + s
 
 
+W = long_string("w")
 X = long_string("x")
 Y = long_string("y")
 Z = long_string("z")
@@ -808,7 +811,7 @@ class TestReadBlockDocuments:
             b.id for b in block_documents if not b.is_anonymous
         }
 
-        # sorted by block type name, block document name
+        # sorted by block document name
         assert [rb.id for rb in read_blocks] == [
             b.id for b in block_documents if not b.is_anonymous
         ]
@@ -950,6 +953,33 @@ class TestUpdateBlockDocument:
             session, block_document_id=block_document.id
         )
         assert updated_block_document.data == dict(x=2)
+
+    @pytest.mark.parametrize("new_data", [{"x": 4}, {}])
+    async def test_update_block_document_data_without_merging_existing_data(
+        self, session, block_schemas, new_data
+    ):
+        block_document = await models.block_documents.create_block_document(
+            session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="test-update-data",
+                data=dict(x=1, y=2, z=3),
+                block_schema_id=block_schemas[1].id,
+                block_type_id=block_schemas[1].block_type_id,
+            ),
+        )
+
+        await models.block_documents.update_block_document(
+            session,
+            block_document_id=block_document.id,
+            block_document=schemas.actions.BlockDocumentUpdate(
+                data=new_data, merge_existing_data=False
+            ),
+        )
+
+        updated_block_document = await models.block_documents.read_block_document_by_id(
+            session, block_document_id=block_document.id
+        )
+        assert updated_block_document.data == new_data
 
     async def test_update_block_document_data_partial(self, session, block_schemas):
         block_document = await models.block_documents.create_block_document(
@@ -1399,6 +1429,7 @@ class TestSecretBlockDocuments:
     @pytest.fixture()
     async def secret_block_type_and_schema(self, session):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
@@ -1423,7 +1454,7 @@ class TestSecretBlockDocuments:
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
                 name="secret-block",
-                data=dict(x=X, y=Y, z=Z),
+                data=dict(w={"secret": W}, x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
             ),
@@ -1439,12 +1470,13 @@ class TestSecretBlockDocuments:
             session=session,
             block_document=schemas.actions.BlockDocumentCreate(
                 name="secret-block",
-                data=dict(x=X, y=Y, z=Z),
+                data=dict(w={"secret": W}, x=X, y=Y, z=Z),
                 block_type_id=secret_block_type.id,
                 block_schema_id=secret_block_schema.id,
             ),
         )
 
+        assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
         assert block.data["y"] == obfuscate_string(Y)
         assert block.data["z"] == Z
@@ -1457,6 +1489,7 @@ class TestSecretBlockDocuments:
             session=session, block_document_id=secret_block_document.id
         )
 
+        assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
         assert block.data["y"] == obfuscate_string(Y)
         assert block.data["z"] == Z
@@ -1471,6 +1504,7 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
 
+        assert block.data["w"] == {"secret": W}
         assert block.data["x"] == X
         assert block.data["y"] == Y
         assert block.data["z"] == Z
@@ -1485,6 +1519,7 @@ class TestSecretBlockDocuments:
             block_type_slug=secret_block_document.block_type.slug,
         )
 
+        assert block.data["w"] == {"secret": obfuscate_string(W)}
         assert block.data["x"] == obfuscate_string(X)
         assert block.data["y"] == obfuscate_string(Y)
         assert block.data["z"] == Z
@@ -1500,6 +1535,7 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
 
+        assert block.data["w"] == {"secret": W}
         assert block.data["x"] == X
         assert block.data["y"] == Y
         assert block.data["z"] == Z
@@ -1515,6 +1551,7 @@ class TestSecretBlockDocuments:
             ),
         )
         assert len(blocks) == 1
+        assert blocks[0].data["w"] == {"secret": obfuscate_string(W)}
         assert blocks[0].data["x"] == obfuscate_string(X)
         assert blocks[0].data["y"] == obfuscate_string(Y)
         assert blocks[0].data["z"] == Z
@@ -1531,6 +1568,7 @@ class TestSecretBlockDocuments:
             include_secrets=True,
         )
         assert len(blocks) == 1
+        assert blocks[0].data["w"] == {"secret": W}
         assert blocks[0].data["x"] == X
         assert blocks[0].data["y"] == Y
         assert blocks[0].data["z"] == Z
@@ -1564,3 +1602,43 @@ class TestSecretBlockDocuments:
 
         # x was NOT overwritten
         assert block2.data["x"] != obfuscate_string(X)
+
+    async def test_block_with_list_of_secrets(self, session):
+        class ListSecretBlock(Block):
+            x: List[SecretStr]
+
+        # save the block
+        orig_block = ListSecretBlock(x=["a", "b"])
+        await orig_block.save(name="list-secret")
+
+        # load the block
+        block = await ListSecretBlock.load("list-secret")
+
+        assert block.x[0].get_secret_value() == "a"
+        assert block.x[1].get_secret_value() == "b"
+        assert block.x[1].get_secret_value() == "b"
+
+    async def test_block_with_list_in_secret_dict(
+        self, session, secret_block_type_and_schema
+    ):
+        secret_block_type, secret_block_schema = secret_block_type_and_schema
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="secret-block",
+                data=dict(w={"secret": [W, W]}, x=X, y=Y, z=Z),
+                block_type_id=secret_block_type.id,
+                block_schema_id=secret_block_schema.id,
+            ),
+        )
+
+        assert block.data["w"] == {"secret": obfuscate([W, W])}
+
+        block = await models.block_documents.read_block_document_by_name(
+            session=session,
+            name="secret-block",
+            block_type_slug=secret_block_type.slug,
+            include_secrets=True,
+        )
+
+        assert block.data["w"] == {"secret": [W, W]}

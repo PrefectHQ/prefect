@@ -3,10 +3,8 @@ import warnings
 
 import pendulum
 import pytest
-import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect.blocks.core import Block
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
@@ -17,6 +15,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
+from prefect.utilities.callables import parameter_schema
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -56,22 +55,19 @@ async def setup_db(database_engine, db):
             f"Failed to set up the database at {database_engine.url!r}"
         ) from exc
 
-    finally:
-        # tear down the database
-        await db.drop_db()
-
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db):
-    """Clear the database by
-
-    Args:
-        database_engine ([type]): [description]
+async def clear_db(db):
+    """
+    Delete all data from all tables after running each test.
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 @pytest.fixture
@@ -101,8 +97,128 @@ async def flow_run(session, flow):
 
 
 @pytest.fixture
+async def failed_flow_run_without_deployment(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Failed(),
+        flow_id=flow.id,
+        flow_version="0.1",
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+        ),
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def failed_flow_run_with_deployment(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Failed(),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+        ),
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def failed_flow_run_with_deployment_with_no_more_retries(
+    session, flow, deployment
+):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Failed(),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+        run_count=3,
+        empirical_policy={"retries": 2},
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+        ),
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def nonblockingpaused_flow_run_without_deployment(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def blocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=False, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
+async def nonblocking_paused_flow_run(session, flow, deployment):
+    flow_run_model = schemas.core.FlowRun(
+        state=schemas.states.Paused(reschedule=True, timeout_seconds=300),
+        flow_id=flow.id,
+        flow_version="0.1",
+        deployment_id=deployment.id,
+        run_count=1,
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=flow_run_model,
+    )
+    await session.commit()
+    return flow_run
+
+
+@pytest.fixture
 async def flow_run_state(session, flow_run, db):
-    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
+    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return flow_run.state
 
@@ -121,7 +237,7 @@ async def task_run(session, flow_run):
 
 @pytest.fixture
 async def task_run_state(session, task_run, db):
-    task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
+    task_run.set_state(db.TaskRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return task_run.state
 
@@ -182,42 +298,60 @@ async def task_run_states(session, task_run, task_run_state):
 
 
 @pytest.fixture
-async def storage_document_id(db, block_document, tmpdir):
-    return await LocalFileSystem(basepath=str(tmpdir)).save(name="local-test")
+async def storage_document_id(orion_client, tmpdir):
+    return await LocalFileSystem(basepath=str(tmpdir)).save(
+        name="local-test", client=orion_client
+    )
 
 
 @pytest.fixture
-async def storage_document_id_2(db, block_document):
-    return await LocalFileSystem().save(name="distinct-local-test")
+async def storage_document_id_2(orion_client):
+    return await LocalFileSystem().save(name="distinct-local-test", client=orion_client)
 
 
 @pytest.fixture
-async def infrastructure_document_id(db, block_document):
-    return await Process(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
+async def infrastructure_document_id(orion_client):
+    return await Process(env={"MY_TEST_VARIABLE": 1})._save(
+        is_anonymous=True, client=orion_client
+    )
 
 
 @pytest.fixture
-async def infrastructure_document_id_2(db, block_document):
-    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(is_anonymous=True)
+async def infrastructure_document_id_2(orion_client):
+    return await DockerContainer(env={"MY_TEST_VARIABLE": 1})._save(
+        is_anonymous=True, client=orion_client
+    )
 
 
 @pytest.fixture
 async def deployment(
-    session, flow, flow_function, infrastructure_document_id, storage_document_id
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_pool_queue,
 ):
+    def hello(name: str):
+        pass
+
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="My Deployment",
             tags=["test"],
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1),
                 anchor_date=pendulum.datetime(2020, 1, 1),
             ),
             storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_pool_queue_id=work_pool_queue.id,
         ),
     )
     await session.commit()
@@ -225,23 +359,63 @@ async def deployment(
 
 
 @pytest.fixture
+async def work_queue(session):
+    work_queue = await models.work_queues.create_work_queue(
+        session=session,
+        work_queue=schemas.core.WorkQueue(
+            name="wq-1",
+            description="All about my work queue",
+        ),
+    )
+    await session.commit()
+    return work_queue
+
+
+@pytest.fixture
+async def work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="Test Worker Pool",
+            type="test",
+            base_job_template={
+                "job_configuration": {"command": "{{ command }}"},
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_pool_queue(session, work_pool):
+    model = await models.workers.create_work_pool_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="wq"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def block_type_x(session):
-    # Ignore warnings caused by block reuse in fixtuer
-    warnings.filterwarnings("ignore", category=UserWarning)
-    # TODO: In some cases, this fixture can run more than once which results in a
-    #       failure due to the block already existing. Instead of failing, we'll read
-    #       the existing block
-    try:
-        block_type = await models.block_types.create_block_type(
-            session=session,
-            block_type=schemas.actions.BlockTypeCreate(name="x", slug="x"),
-        )
-        await session.commit()
-        return block_type
-    except sa.exc.IntegrityError:
-        return await models.block_types.read_block_type_by_slug(
-            session=session, block_type_slug="x"
-        )
+    block_type = await models.block_types.create_block_type(
+        session=session,
+        block_type=schemas.actions.BlockTypeCreate(name="x", slug="x-fixture"),
+    )
+    await session.commit()
+    return block_type
 
 
 @pytest.fixture
@@ -264,7 +438,6 @@ async def block_type_z(session):
 
 @pytest.fixture
 async def block_schema(session, block_type_x):
-    # TODO: See `block_type_x` for integrity error description
     fields = {
         "title": "x",
         "type": "object",
@@ -273,20 +446,15 @@ async def block_schema(session, block_type_x):
         "block_schema_references": {},
         "block_type_slug": block_type_x.slug,
     }
-    try:
-        block_schema = await models.block_schemas.create_block_schema(
-            session=session,
-            block_schema=schemas.actions.BlockSchemaCreate(
-                fields=fields,
-                block_type_id=block_type_x.id,
-            ),
-        )
-        await session.commit()
-        return block_schema
-    except sa.exc.IntegrityError:
-        return await models.block_schemas.read_block_schema_by_checksum(
-            Block._calculate_schema_checksum(fields)
-        )
+    block_schema = await models.block_schemas.create_block_schema(
+        session=session,
+        block_schema=schemas.actions.BlockSchemaCreate(
+            fields=fields,
+            block_type_id=block_type_x.id,
+        ),
+    )
+    await session.commit()
+    return block_schema
 
 
 @pytest.fixture
@@ -394,14 +562,36 @@ def initialize_orchestration(flow):
         run_type,
         initial_state_type,
         proposed_state_type,
+        initial_flow_run_state_type=None,
         run_override=None,
         run_tags=None,
         initial_details=None,
         proposed_details=None,
+        flow_retries: int = None,
+        flow_run_count: int = None,
+        resuming: bool = None,
     ):
+        flow_create_kwargs = {}
+        empirical_policy = {}
+        if flow_retries:
+            empirical_policy.update({"retries": flow_retries})
+        if resuming:
+            empirical_policy.update({"resuming": resuming})
+
+        flow_create_kwargs.update(
+            {"empirical_policy": schemas.core.FlowRunPolicy(**empirical_policy)}
+        )
+
+        if flow_run_count:
+            flow_create_kwargs.update({"run_count": flow_run_count})
+
+        flow_run_model = schemas.core.FlowRun(
+            flow_id=flow.id, flow_version="0.1", **flow_create_kwargs
+        )
+
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+            flow_run=flow_run_model,
         )
 
         if run_type == "flow":
@@ -411,6 +601,13 @@ def initialize_orchestration(flow):
             context = FlowOrchestrationContext
             state_constructor = commit_flow_run_state
         elif run_type == "task":
+            if initial_flow_run_state_type:
+                flow_state_constructor = commit_flow_run_state
+                await flow_state_constructor(
+                    session,
+                    flow_run,
+                    initial_flow_run_state_type,
+                )
             task_run = await models.task_runs.create_task_run(
                 session=session,
                 task_run=schemas.actions.TaskRunCreate(
@@ -422,6 +619,8 @@ def initialize_orchestration(flow):
                 run.tags = run_tags
             context = TaskOrchestrationContext
             state_constructor = commit_task_run_state
+        else:
+            raise NotImplementedError("Only 'task' and 'flow' run types are supported")
 
         await session.commit()
 

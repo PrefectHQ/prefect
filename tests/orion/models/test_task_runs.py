@@ -8,7 +8,7 @@ from prefect.orion import models, schemas
 from prefect.orion.models import concurrency_limits, task_runs
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import Failed, Running, Scheduled
+from prefect.orion.schemas.states import Failed, Pending, Running, Scheduled
 
 
 class TestCreateTaskRun:
@@ -685,6 +685,7 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-1",
                 dynamic_key="0",
                 tags=["red"],
+                state=Pending().dict(shallow=True),
             ),
         )
         await session.commit()
@@ -699,12 +700,21 @@ class TestPreventOrphanedConcurrencySlots:
                 task_key="my-key-2",
                 dynamic_key="1",
                 tags=["red"],
+                state=Pending().dict(shallow=True),
             ),
         )
         await session.commit()
         return model
 
     async def test_force_releases_concurrency(self, session, task_run_1, task_run_2):
+        # first set flow runs in a running state
+        await models.flow_runs.set_flow_run_state(
+            session=session, flow_run_id=task_run_1.flow_run_id, state=Running()
+        )
+        await models.flow_runs.set_flow_run_state(
+            session=session, flow_run_id=task_run_2.flow_run_id, state=Running()
+        )
+
         await concurrency_limits.create_concurrency_limit(
             session=session,
             concurrency_limit=schemas.core.ConcurrencyLimit(

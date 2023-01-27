@@ -1,6 +1,7 @@
 """
 Base `prefect` command-line application
 """
+import asyncio
 import platform
 import sys
 from typing import Optional
@@ -16,7 +17,11 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.logging.configuration import setup_logging
-from prefect.settings import PREFECT_CLI_COLORS, PREFECT_CLI_WRAP_LINES
+from prefect.settings import (
+    PREFECT_CLI_COLORS,
+    PREFECT_CLI_WRAP_LINES,
+    PREFECT_TEST_MODE,
+)
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -25,6 +30,10 @@ def version_callback(value: bool):
     if value:
         print(prefect.__version__)
         raise typer.Exit()
+
+
+def is_interactive():
+    return app.console.is_interactive
 
 
 @app.callback()
@@ -70,7 +79,19 @@ def main(
         soft_wrap=not PREFECT_CLI_WRAP_LINES.value(),
     )
 
-    setup_logging()
+    if not PREFECT_TEST_MODE:
+        # When testing, this entrypoint can be called multiple times per process which
+        # can cause logging configuration conflicts. Logging is set up in conftest
+        # during tests.
+        setup_logging()
+
+    # When running on Windows we need to ensure that the correct event loop policy is
+    # in place or we will not be able to spawn subprocesses. Sometimes this policy is
+    # changed by other libraries, but here in our CLI we should have ownership of the
+    # process and be able to safely force it to be the correct policy.
+    # https://github.com/PrefectHQ/prefect/issues/8206
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 @app.command()
@@ -80,7 +101,11 @@ async def version():
 
     from prefect.orion.api.server import ORION_API_VERSION
     from prefect.orion.utilities.database import get_dialect
-    from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+    from prefect.settings import (
+        PREFECT_API_URL,
+        PREFECT_CLOUD_API_URL,
+        PREFECT_ORION_DATABASE_CONNECTION_URL,
+    )
 
     version_info = {
         "Version": prefect.__version__,
@@ -101,7 +126,15 @@ async def version():
     except Exception as exc:
         version_info["Server type"] = "<client error>"
     else:
-        version_info["Server type"] = "ephemeral" if is_ephemeral else "hosted"
+        version_info["Server type"] = (
+            "ephemeral"
+            if is_ephemeral
+            else (
+                "cloud"
+                if PREFECT_API_URL.value().startswith(PREFECT_CLOUD_API_URL.value())
+                else "hosted"
+            )
+        )
 
     # TODO: Consider adding an API route to retrieve this information?
     if is_ephemeral:

@@ -11,11 +11,19 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
-&& prefect dev build-docs  \
-&& mkdocs build --config-file mkdocs.insiders.yml
+&& pip install git+https://oauth:${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
+&& prefect dev build-docs \
+&& mkdocs build --config-file mkdocs.insiders.yml \
+|| mkdocs build --config-file mkdocs.yml \
 """
 publish = "site"
+
+# moved page redirects #
+
+[[redirects]]
+  from = "/collections/overview/"
+  to = "/collections/catalog/"
+  status = 301
 
 # redirect v1 traffic to docs-v1.prefect.io
 [[redirects]]
@@ -31,6 +39,16 @@ publish = "site"
 [[redirects]]
   from = "/api/*"
   to = "https://docs-v1.prefect.io/api/:splat"
+  status = 301
+
+[[redirects]]
+  from = "https://docs.prefect.io/migration_guide/"
+  to = "https://docs.prefect.io/migration-guide/"
+  status = 301
+
+[[redirects]]
+  from = "https://orion-docs.prefect.io/migration_guide/"
+  to = "https://docs.prefect.io/migration-guide/"
   status = 301
 
 [[redirects]]

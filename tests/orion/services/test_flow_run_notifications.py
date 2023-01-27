@@ -3,6 +3,7 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.services.flow_run_notifications import FlowRunNotifications
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 
 
 @pytest.fixture
@@ -99,6 +100,25 @@ async def test_service_sends_notifications(
     )
 
 
+@pytest.mark.parametrize(
+    "provided_ui_url,expected_ui_url",
+    [
+        (None, "http://ephemeral-orion/api"),
+        ("http://some-url", "http://some-url"),
+    ],
+)
+def test_get_ui_url_for_flow_run_id_with_ui_url(
+    flow_run, provided_ui_url, expected_ui_url
+):
+    with temporary_settings({PREFECT_UI_URL: provided_ui_url}):
+        url = FlowRunNotifications(handle_signals=False).get_ui_url_for_flow_run_id(
+            flow_run_id=flow_run.id
+        )
+        assert url == expected_ui_url + "/flow-runs/flow-run/{flow_run_id}".format(
+            flow_run_id=flow_run.id
+        )
+
+
 async def test_service_uses_message_template(
     session, db, flow, flow_run, completed_policy, capsys
 ):
@@ -107,7 +127,7 @@ async def test_service_uses_message_template(
         session=session,
         flow_run_notification_policy_id=completed_policy.id,
         flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
-            message_template="Hi there {flow_run_name}"
+            message_template="Hi there {flow_run_name}! Also the url works: {flow_run_url}"
         ),
     )
 
@@ -118,9 +138,13 @@ async def test_service_uses_message_template(
     await session.commit()
 
     await FlowRunNotifications(handle_signals=False).start(loops=1)
+    expected_url = FlowRunNotifications(
+        handle_signals=False
+    ).get_ui_url_for_flow_run_id(flow_run_id=flow_run.id)
 
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out
+    assert f"Also the url works: {expected_url}" in captured.out
 
 
 async def test_service_sends_multiple_notifications(

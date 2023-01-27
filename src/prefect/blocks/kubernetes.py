@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
+from pydantic import Field
 from typing_extensions import Self
 
 from prefect.blocks.core import Block
@@ -21,9 +22,9 @@ class KubernetesClusterConfig(Block):
 
     See `from_file` for creation.
 
-    Args:
-        config (dict): The entire loaded YAML contents of a kubectl config file
-        context_name (str): The name of the context to use
+    Attributes:
+        config: The entire loaded YAML contents of a kubectl config file
+        context_name: The name of the kubectl context to use
 
     Example:
         Load a saved Kubernetes cluster config:
@@ -35,10 +36,15 @@ class KubernetesClusterConfig(Block):
     """
 
     _block_type_name = "Kubernetes Cluster Config"
-    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/8e4792f00a0c808ad1ad5126126fa5f8/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig"
 
-    config: Dict
-    context_name: str
+    config: Dict = Field(
+        default=..., description="The entire contents of a kubectl config file."
+    )
+    context_name: str = Field(
+        default=..., description="The name of the kubectl context to use."
+    )
 
     @classmethod
     def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:

@@ -8,6 +8,59 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# State data migration cleanup
+SQLite: `f92143d30c27`
+Postgres: `2882cd2df466`
+
+# Migrates state data to the artifact table
+SQLite: `f92143d30c26`
+Postgres: `2882cd2df465`
+
+# Add a helper index for the artifact data migration
+SQLite: `f92143d30c25`
+Postgres: `2882cd2df464`
+
+# Initial schema migration for the artifacts/results table
+SQLite: `f92143d30c24`
+Postgres: `2882cd2df463`
+
+This schema migration creates the artifact table with extra `state_id` columns in order speed up the data migration.
+
+# Add `CANCELLING` to StateType enum
+SQLite: None
+Postgres: `9326a6aee18b`
+
+# Add infrastructure_pid to flow runs
+SQLite: `7201de756d85`
+Postgres: `5d526270ddb4`
+
+# Add index for partial work queue name match
+SQLite: None
+Postgres: `41e5ed9e1034`
+
+# Add version to block schema
+SQLite: `e757138e954a`
+Postgres: `2d5e000696f1`
+
+# Add work queue name to runs
+SQLite: `575634b7acd4`
+Postgres: `77eb737fc759`
+
+## Add more fields to deployments
+
+SQLite: `296e2665785f`
+Postgres: `60e428f92a75`
+
+## Fix concurrency limit tag index name
+
+SQLite: `53c19b31aa09`
+Postgres: `7737221bf8a4`
+
+## Add deployment.version
+
+SQLite: `24bb2e4a195c`
+Postgres: `97e212ea6545`
+
 ## Breaking changes to Deployment schema
 
 SQLite: `88c2112b668f`

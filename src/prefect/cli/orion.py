@@ -2,7 +2,6 @@
 Command line interface for working with Orion
 """
 import os
-import signal
 import textwrap
 from functools import partial
 
@@ -26,13 +25,14 @@ from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_API_HOST,
+    PREFECT_ORION_API_KEEPALIVE_TIMEOUT,
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_ORION_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import run_process
+from prefect.utilities.processutils import kill_on_interrupt, run_process
 
 orion_app = PrefectTyper(
     name="orion",
@@ -96,6 +96,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
     port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    keep_alive_timeout: int = SettingsOption(PREFECT_ORION_API_KEEPALIVE_TIMEOUT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
     scheduler: bool = SettingsOption(PREFECT_ORION_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
@@ -124,36 +125,31 @@ async def start(
                 run_process,
                 command=[
                     "uvicorn",
+                    "--app-dir",
+                    # quote wrapping needed for windows paths with spaces
+                    f'"{prefect.__module_path__.parent}"',
                     "--factory",
                     "prefect.orion.api.server:create_app",
                     "--host",
                     str(host),
                     "--port",
                     str(port),
+                    "--timeout-keep-alive",
+                    str(keep_alive_timeout),
                 ],
                 env=server_env,
                 stream_output=True,
             )
         )
 
-        # Explicitly handle the interrupt signal here, as it will allow us to cleanly
-        # stop the Orion uvicorn server with a SIGTERM.  Failing to do that may cause
-        # a large amount of anyio error traces on the terminal, because the SIGINT is
-        # handled by Typer/Click in this (the parent process) and will start
-        # shutting down subprocesses:
+        # Explicitly handle the interrupt signal here, as it will allow us to
+        # cleanly stop the Orion uvicorn server. Failing to do that may cause a
+        # large amount of anyio error traces on the terminal, because the
+        # SIGINT is handled by Typer/Click in this process (the parent process)
+        # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/orion/issues/2475
-        # The first interrupt with send a SIGTERM to uvicorn, then subsequent ones will
-        # send SIGKILL
-        def stop_orion(*args):
-            app.console.print("\nStopping Orion...")
-            os.kill(orion_process_id, signal.SIGTERM)
-            signal.signal(signal.SIGINT, kill_orion)
 
-        def kill_orion(*args):
-            app.console.print("\nKilling Orion...")
-            os.kill(orion_process_id, signal.SIGKILL)
-
-        signal.signal(signal.SIGINT, stop_orion)
+        kill_on_interrupt(orion_process_id, "Orion", app.console.print)
 
     app.console.print("Orion stopped!")
 
@@ -241,7 +237,15 @@ async def downgrade(
 
 
 @database_app.command()
-async def revision(message: str = None, autogenerate: bool = False):
+async def revision(
+    message: str = typer.Option(
+        None,
+        "--message",
+        "-m",
+        help="A message to describe the migration.",
+    ),
+    autogenerate: bool = False,
+):
     """Create a new migration for the Orion database"""
 
     app.console.print("Running migration file creation ...")

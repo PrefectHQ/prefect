@@ -11,26 +11,25 @@
 </template>
 
 <script lang="ts" setup>
-  import { BlockTypeCardLayout, BlockSchemaEditForm, BlockDocumentData, PageHeadingBlockEdit } from '@prefecthq/orion-design'
+  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router/routes'
-  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
 
+  const api = useWorkspaceApi()
   const router = useRouter()
   const blockDocumentId = useRouteParam('blockDocumentId')
-  const blockDocument = await blockDocumentsApi.getBlockDocument(blockDocumentId.value)
+  const blockDocument = await api.blockDocuments.getBlockDocument(blockDocumentId.value)
   const { blockType, blockSchema } = blockDocument
-  const data = ref<BlockDocumentData>(blockDocument.data)
+  const data = ref(blockDocument.data)
   const name = ref(blockDocument.name)
 
-  function submit(): void {
-    blockDocumentsApi
-      .updateBlockDocument(blockDocument.id, {
-        data: data.value,
-      })
+  function submit(request: BlockDocumentUpdate): void {
+    api.blockDocuments
+      .updateBlockDocument(blockDocument.id, request)
       .then(() => {
         showToast('Block updated successfully', 'success')
         router.push(routes.block(blockDocumentId.value))
@@ -44,4 +43,6 @@
   function cancel(): void {
     router.back()
   }
+
+  usePageTitle(`Edit Block: ${name.value}`)
 </script>

@@ -1,22 +1,20 @@
 repos:
-  - repo: https://github.com/pycqa/autoflake
-    rev: v1.4
+  - repo: https://github.com/fsouza/autoflake8
+    rev: v0.4.0
     hooks:
-      - id: autoflake
+      - id: autoflake8
         language_version: python3
         args: [
           '--in-place', 
-          '--remove-all-unused-imports', 
-          '--ignore-init-module-imports', 
-          '--exclude','*/prefect/utilities/compat.py'
+          '--exclude','*/utilities/compat.py,*/utilities/slugify.py,**__init__.py',
         ]
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.11.4
     hooks:
       - id: isort
         language_version: python3
   - repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 22.12.0
     hooks:
       - id: black
         language_version: python3

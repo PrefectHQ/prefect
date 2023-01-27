@@ -1,6 +1,7 @@
 """
 Utilities for interoperability with async functions and workers from various contexts.
 """
+import asyncio
 import ctypes
 import inspect
 import threading
@@ -8,7 +9,18 @@ import warnings
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from threading import Thread
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -26,17 +38,40 @@ A = TypeVar("A", Async, Sync, covariant=True)
 # Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
 EVENT_LOOP_GC_REFS = {}
 
+PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
+
+
+def get_thread_limiter():
+    global PREFECT_THREAD_LIMITER
+
+    if PREFECT_THREAD_LIMITER is None:
+        PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
+
+    return PREFECT_THREAD_LIMITER
+
 
 def is_async_fn(
     func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
 ) -> TypeGuard[Callable[P, Awaitable[R]]]:
     """
-    This wraps `iscoroutinefunction` with a `TypeGuard` such that we can perform a
-    conditional check and type checkers will narrow the expected type.
+    Returns `True` if a function returns a coroutine.
 
     See https://github.com/microsoft/pyright/issues/2142 for an example use
     """
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__
+
     return inspect.iscoroutinefunction(func)
+
+
+def is_async_gen_fn(func):
+    """
+    Returns `True` if a function is an async generator.
+    """
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__
+
+    return inspect.isasyncgenfunction(func)
 
 
 async def run_sync_in_worker_thread(
@@ -53,7 +88,9 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(call, cancellable=True)
+    return await anyio.to_thread.run_sync(
+        call, cancellable=True, limiter=get_thread_limiter()
+    )
 
 
 def raise_async_exception_in_thread(thread: Thread, exc_type: Type[BaseException]):
@@ -86,6 +123,8 @@ async def run_sync_in_interruptible_worker_thread(
 
     thread: Thread = None
     result = NotSet
+    event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
     def capture_worker_thread_and_result():
         # Captures the worker thread that AnyIO is using to execute the function so
@@ -97,13 +136,14 @@ async def run_sync_in_interruptible_worker_thread(
         except BaseException as exc:
             result = exc
             raise
+        finally:
+            loop.call_soon_threadsafe(event.set)
 
     async def send_interrupt_to_thread():
         # This task waits until the result is returned from the thread, if cancellation
         # occurs during that time, we will raise the exception in the thread as well
         try:
-            while result is NotSet:
-                await anyio.sleep(0)
+            await event.wait()
         except anyio.get_cancelled_exc_class():
             # NOTE: We could send a SIGINT here which allow us to interrupt system
             # calls but the interrupt bubbles from the child thread into the main thread
@@ -118,6 +158,7 @@ async def run_sync_in_interruptible_worker_thread(
                 anyio.to_thread.run_sync,
                 capture_worker_thread_and_result,
                 cancellable=True,
+                limiter=get_thread_limiter(),
             )
         )
 
@@ -173,13 +214,9 @@ def sync_compatible(async_fn: T) -> T:
     - If we cannot find an event loop, we will create a new one and run the async method
         then tear down the loop.
     """
-    # TODO: This is breaking type hints on the callable... mypy is behind the curve
-    #       on argument annotations. We can still fix this for editors though.
-    if not inspect.iscoroutinefunction(async_fn):
-        raise TypeError("The decorated function must be async.")
 
     @wraps(async_fn)
-    def wrapper(*args, **kwargs):
+    def coroutine_wrapper(*args, **kwargs):
         if in_async_main_thread():
             # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
@@ -191,6 +228,15 @@ def sync_compatible(async_fn: T) -> T:
             # In a sync context and there is no event loop; just create an event loop
             # to run the async code then tear it down
             return run_async_in_new_loop(async_fn, *args, **kwargs)
+
+    # TODO: This is breaking type hints on the callable... mypy is behind the curve
+    #       on argument annotations. We can still fix this for editors though.
+    if is_async_fn(async_fn):
+        wrapper = coroutine_wrapper
+    elif is_async_gen_fn(async_fn):
+        raise ValueError("Async generators cannot yet be marked as `sync_compatible`")
+    else:
+        raise TypeError("The decorated function must be async.")
 
     wrapper.aio = async_fn
     return wrapper

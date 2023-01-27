@@ -1,8 +1,12 @@
+import io
 import logging
+from builtins import print
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import prefect
+from prefect.exceptions import MissingContextError
 
 if TYPE_CHECKING:
     from prefect.context import RunContext
@@ -29,7 +33,11 @@ class PrefectLogAdapter(logging.LoggerAdapter):
 @lru_cache()
 def get_logger(name: str = None) -> logging.Logger:
     """
-    Get a `prefect` logger. For use within Prefect.
+    Get a `prefect` logger. These loggers are intended for internal use within the
+    `prefect` package.
+
+    See `get_run_logger` for retrieving loggers for use within task or flow runs.
+    By default, only run-related loggers are connected to the `OrionHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
@@ -54,6 +62,9 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
 
+    These loggers are connected to the `OrionHandler` by default to send log records to
+    the API.
+
     Arguments:
         context: A specific context may be provided as an override. By default, the
             context is inferred from global state and this should not be needed.
@@ -73,6 +84,11 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
             flow_run_context = context
         elif isinstance(context, prefect.context.TaskRunContext):
             task_run_context = context
+        else:
+            raise TypeError(
+                f"Received unexpected type {type(context).__name__!r} for context. "
+                "Expected one of 'None', 'FlowRunContext', or 'TaskRunContext'."
+            )
 
     # Determine if this is a task or flow run logger
     if task_run_context:
@@ -87,8 +103,13 @@ def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logge
         logger = flow_run_logger(
             flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
         )
+    elif (
+        get_logger("prefect.flow_run").disabled
+        and get_logger("prefect.task_run").disabled
+    ):
+        logger = logging.getLogger("null")
     else:
-        raise RuntimeError("There is no active flow or task run context.")
+        raise MissingContextError("There is no active flow or task run context.")
 
     return logger
 
@@ -144,3 +165,73 @@ def task_run_logger(
             **kwargs,
         },
     )
+
+
+@contextmanager
+def disable_logger(name: str):
+    """
+    Get a logger by name and disables it within the context manager.
+    Upon exiting the context manager, the logger is returned to its
+    original state.
+    """
+    logger = logging.getLogger(name=name)
+
+    # determine if it's already disabled
+    base_state = logger.disabled
+    try:
+        # disable the logger
+        logger.disabled = True
+        yield
+    finally:
+        # return to base state
+        logger.disabled = base_state
+
+
+@contextmanager
+def disable_run_logger():
+    """
+    Gets both `prefect.flow_run` and `prefect.task_run` and disables them
+    within the context manager. Upon exiting the context manager, both loggers
+    are returned to its original state.
+    """
+    with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
+        yield
+
+
+def print_as_log(*args, **kwargs):
+    """
+    A patch for `print` to send printed messages to the Prefect run logger.
+
+    If no run is active, `print` will behave as if it were not patched.
+    """
+    from prefect.context import FlowRunContext, TaskRunContext
+
+    context = TaskRunContext.get() or FlowRunContext.get()
+    if not context or not context.log_prints:
+        return print(*args, **kwargs)
+
+    logger = get_run_logger()
+
+    # Print to an in-memory buffer; so we do not need to implement `print`
+    buffer = io.StringIO()
+    kwargs["file"] = buffer
+    print(*args, **kwargs)
+
+    # Remove trailing whitespace to prevent duplicates
+    logger.info(buffer.getvalue().rstrip())
+
+
+@contextmanager
+def patch_print():
+    """
+    Patches the Python builtin `print` method to use `print_as_log`
+    """
+    import builtins
+
+    original = builtins.print
+
+    try:
+        builtins.print = print_as_log
+        yield
+    finally:
+        builtins.print = original

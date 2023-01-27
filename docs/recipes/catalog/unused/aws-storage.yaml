@@ -1,0 +1,8 @@
+recipeName: S3 Flow Storage
+author: Prefect
+authorUrl: https://prefect.io
+description: Create a flow deployment that uses AWS S3 storage for flow files.
+topic: Deployments
+recipeUrl: https://discourse.prefect.io/t/how-to-deploy-prefect-2-0-flows-to-aws/1252
+iconUrl: 
+  - /img/collections/aws.png

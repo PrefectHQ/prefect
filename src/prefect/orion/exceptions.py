@@ -8,3 +8,13 @@ class ObjectNotFoundError(PrefectException):
     If thrown during a request, this exception will be caught and
     a 404 response will be returned.
     """
+
+
+class OrchestrationError(PrefectException):
+    """An error raised while orchestrating a state transition"""
+
+
+class MissingVariableError(PrefectException):
+    """An error raised by the Orion API when attempting to create or update a
+    deployment with missing required variables.
+    """

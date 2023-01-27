@@ -23,8 +23,10 @@ with mkdocs_gen_files.open("collections/catalog.md", "w") as markdown_file:
 
     # Sort collections alphabetically by name
     sorted_collection_configs = sorted(
-        collection_configs, key=lambda x: x["collectionName"]
+        collection_configs, key=lambda x: x["tag"].lower()
     )
+
+    tags = [config["tag"] for config in sorted_collection_configs]
 
     env = Environment(
         loader=FileSystemLoader("./docs/collections/"),
@@ -33,4 +35,6 @@ with mkdocs_gen_files.open("collections/catalog.md", "w") as markdown_file:
     template = env.get_template("catalog.md")
 
     # Render jinja2 template and write to catalog.md
-    markdown_file.write(template.render(collections=sorted_collection_configs))
+    markdown_file.write(
+        template.render(collections=sorted_collection_configs, tags=tags)
+    )

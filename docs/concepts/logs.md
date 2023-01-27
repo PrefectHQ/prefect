@@ -10,6 +10,7 @@ tags:
     - logging
     - log formatters
     - configuration
+    - debug
 ---
 
 # Logging
@@ -18,7 +19,7 @@ Prefect enables you to log a variety of useful information about your flow and t
 
 Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect Orion API server with `prefect orion start`.
 
-You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API or CLI.
+You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API.
 
 Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
@@ -46,7 +47,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](/img/ui/orion-flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](../img/ui/orion-flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -104,8 +105,8 @@ Logging in tasks works much as logging in flows: retrieve a logger instance with
 ```python
 from prefect import flow, task, get_run_logger
 
-@task
-def logger_task(name="log-example-task"):
+@task(name="log-example-task")
+def logger_task():
     logger = get_run_logger()
     logger.info("INFO level log message from a task.")
 
@@ -123,6 +124,71 @@ Prefect automatically uses the task run logger based on the task context. The de
 </div>
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
+
+### Logging print statements
+
+Prefect provides the `log_prints` option to enable the logging of `print` statements at the task or flow level. When `log_prints=True` for a given task or flow, the Python builtin `print` will be patched to redirect to the Prefect logger for the scope of that task or flow.
+
+By default, tasks and subflows will inherit the `log_prints` setting from their parent flow, unless opted out with their own explicit `log_prints` setting.
+
+
+```python
+from prefect import task, flow
+
+@task
+def my_task():
+    print("we're logging print statements from a task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+Will output:
+
+<div class='terminal'>
+```bash
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+15:52:12.217 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
+```
+</div>
+
+```python
+from prefect import task, flow
+
+@task
+def my_task(log_prints=False):
+    print("not logging print statements in this task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+Using `log_prints=False` at the task level will output:
+
+<div class='terminal'>
+```bash
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+not logging print statements in this task
+```
+</div>
+
+You can also configure this behavior globally for all Prefect flows, tasks, and subflows.
+
+<div class='terminal'>
+```bash
+prefect config set PREFECT_LOGGING_LOG_PRINTS=True
+```
+</div>
 
 ## Formatters
 
@@ -166,6 +232,131 @@ The resulting messages, using the flow run ID instead of name, would look like t
 'othertask-1c085beb-3' for task 'othertask'
 ```
 </div>
+
+## Styles
+
+By default, Prefect highlights specific keywords in the console logs with a variety of colors.
+
+Highlighting can be toggled on/off with the `PREFECT_LOGGING_COLORS` setting, e.g.
+
+<div class='terminal'>
+```bash
+PREFECT_LOGGING_COLORS=False
+```
+</div>
+
+You can change what gets highlighted and also adjust the colors by updating the styles in a `logging.yml` file. Below lists the specific keys built-in to the `PrefectConsoleHighlighter`.
+
+URLs:
+
+- `log.web_url`
+- `log.local_url`
+
+Log levels:
+
+- `log.info_level`
+- `log.warning_level`
+- `log.error_level`
+- `log.critical_level`
+
+State types:
+
+- `log.pending_state`
+- `log.running_state`
+- `log.scheduled_state`
+- `log.completed_state`
+- `log.cancelled_state`
+- `log.failed_state`
+- `log.crashed_state`
+
+Flow (run) names:
+
+- `log.flow_run_name`
+- `log.flow_name`
+
+Task (run) names:
+
+- `log.task_run_name`
+- `log.task_name`
+
+You can also build your own handler with a [custom highlighter](https://rich.readthedocs.io/en/stable/highlighting.html#custom-highlighters). For example, to additionally highlight emails:
+
+1. Copy and paste the following into  `my_package_or_module.py` (rename as needed) in the same directory as the flow run script, or ideally part of a Python package so it's available in `site-packages` to be accessed anywhere within your environment.
+
+```python
+import logging
+from typing import Dict, Union
+
+from rich.highlighter import Highlighter
+
+from prefect.logging.handlers import PrefectConsoleHandler
+from prefect.logging.highlighters import PrefectConsoleHighlighter
+
+class CustomConsoleHighlighter(PrefectConsoleHighlighter):
+    base_style = "log."
+    highlights = PrefectConsoleHighlighter.highlights + [
+        # ?P<email> is naming this expression as `email`
+        r"(?P<email>[\w-]+@([\w-]+\.)+[\w-]+)",
+    ]
+
+class CustomConsoleHandler(PrefectConsoleHandler):
+    def __init__(
+        self,
+        highlighter: Highlighter = CustomConsoleHighlighter,
+        styles: Dict[str, str] = None,
+        level: Union[int, str] = logging.NOTSET,
+   ):
+        super().__init__(highlighter=highlighter, styles=styles, level=level)
+```
+
+2. Update `/.prefect/logging.yml` to use `my_package_or_module.CustomConsoleHandler` and additionally reference the base_style and named expression: `log.email`.
+```yaml
+    console_flow_runs:
+        level: 0
+        class: my_package_or_module.CustomConsoleHandler
+        formatter: flow_runs
+        styles:
+            log.email: magenta
+            # other styles can be appended here, e.g.
+            # log.completed_state: green
+```
+
+3. Then on your next flow run, text that looks like an email will be highlighted--e.g. `my@email.com` is colored in magenta here.
+```python
+from prefect import flow, get_run_logger
+
+@flow
+def log_email_flow():
+    logger = get_run_logger()
+    logger.info("my@email.com")
+
+log_email_flow()
+```
+
+## Applying markup in logs
+
+To use [Rich's markup](https://rich.readthedocs.io/en/stable/markup.html#console-markup) in Prefect logs, first configure `PREFECT_LOGGING_MARKUP`.
+
+<div class='terminal'>
+```bash
+PREFECT_LOGGING_MARKUP=True
+```
+</div>
+
+Then, the following will highlight "fancy" in red.
+```python
+from prefect import flow, get_run_logger
+
+@flow
+def my_flow():
+    logger = get_run_logger()
+    logger.info("This is [bold red]fancy[/]")
+
+log_email_flow()
+```
+
+!!! warning "Inaccurate logs could result"
+    Although this can be convenient, the downside is, if enabled, strings that contain square brackets may be inaccurately interpreted and lead to incomplete output, e.g. `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
 
 ## Log database schema
 

@@ -1,13 +1,15 @@
 import warnings
-from typing import Union
+from typing import List, Union
 
 import pytest
 import sqlalchemy as sa
+from pydantic import BaseModel
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.models.block_schemas import read_block_schema_by_checksum
 from prefect.orion.schemas.filters import BlockSchemaFilter
+from prefect.utilities.collections import AutoEnum
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -472,8 +474,8 @@ class TestCreateBlockSchema:
         assert block_schema.checksum == X._calculate_schema_checksum()
         assert block_schema.fields == X.schema()
 
-    async def test_create_block_schema_unique_checksum(self, session, block_type_x):
-        await models.block_schemas.create_block_schema(
+    async def test_create_block_schema_is_idempotent(self, session, block_type_x):
+        first_create_response = await models.block_schemas.create_block_schema(
             session=session,
             block_schema=schemas.actions.BlockSchemaCreate(
                 fields={},
@@ -481,14 +483,61 @@ class TestCreateBlockSchema:
             ),
         )
 
-        with pytest.raises(sa.exc.IntegrityError):
-            await models.block_schemas.create_block_schema(
-                session=session,
-                block_schema=schemas.actions.BlockSchemaCreate(
-                    fields={},
-                    block_type_id=block_type_x.id,
-                ),
-            )
+        # Should not raise
+        second_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={},
+                block_type_id=block_type_x.id,
+            ),
+        )
+
+        # Should not raise
+        third_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={},
+                block_type_id=block_type_x.id,
+            ),
+        )
+
+        assert (
+            first_create_response.id
+            == second_create_response.id
+            == third_create_response.id
+        )
+
+    async def test_create_block_schema_is_idempotent_for_nested_blocks(self, session):
+        class Child(Block):
+            age: int
+
+        class Parent(Block):
+            child: Child
+
+        parent_block_type = await models.block_types.create_block_type(
+            session=session, block_type=Parent._to_block_type()
+        )
+        child_block_type = await models.block_types.create_block_type(
+            session=session, block_type=Child._to_block_type()
+        )
+
+        parent_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Parent._to_block_schema(block_type_id=parent_block_type.id),
+        )
+
+        # Should not raise
+        child_create_response = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Child._to_block_schema(block_type_id=child_block_type.id),
+        )
+
+        assert (
+            parent_create_response.fields["block_schema_references"]["child"][
+                "block_schema_checksum"
+            ]
+            == child_create_response.checksum
+        )
 
 
 class TestReadBlockSchemas:
@@ -575,6 +624,47 @@ class TestReadBlockSchemas:
         assert db_block_schema.fields == block_schema.fields
         assert db_block_schema.block_type_id == block_schema.block_type_id
 
+    async def test_read_block_schema_by_checksum_with_version(
+        self, session, client, block_type_x
+    ):
+        # Create two block schemas with the same checksum, but different versions
+        block_schema_0 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.0.1"
+            ),
+        )
+
+        block_schema_1 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.1.0"
+            ),
+        )
+
+        assert block_schema_0.checksum == block_schema_1.checksum
+
+        # Read first version with version query parameter
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_0.checksum, version="1.0.1"
+        )
+
+        assert read_block_schema.id == block_schema_0.id
+
+        # Read second version with version
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_1.checksum, version="1.1.0"
+        )
+
+        assert read_block_schema.id == block_schema_1.id
+
+        # Read without version. Should return most recently created block schema.
+        read_block_schema = await models.block_schemas.read_block_schema_by_checksum(
+            session=session, checksum=block_schema_0.checksum
+        )
+
+        assert read_block_schema.id == block_schema_1.id
+
     async def test_read_block_schema_does_not_hardcode_references(
         self, session, db, block_type_x
     ):
@@ -635,6 +725,8 @@ class TestReadBlockSchemas:
             c: int
 
         class X(Block):
+            _block_schema_version = "1.1.0"
+
             y: Y
             z: Z
 
@@ -731,6 +823,31 @@ class TestReadBlockSchemas:
         assert db_block_schemas[0].block_type_id == block_type_y.id
         assert db_block_schemas[1].block_type_id == block_type_x.id
 
+    async def test_read_all_block_schemas_with_block_type_and_version_filters(
+        self, session, nested_schemas
+    ):
+        A, X, Y, Z, block_type_x, block_type_y = nested_schemas
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id]),
+                version=dict(any_=[X._block_schema_version]),
+            ),
+        )
+
+        assert len(db_block_schemas) == 1
+        assert db_block_schemas[0].block_type_id == block_type_x.id
+
+        db_block_schemas = await models.block_schemas.read_block_schemas(
+            session=session,
+            block_schema_filter=schemas.filters.BlockSchemaFilter(
+                block_type_id=dict(any_=[block_type_x.id]), version=dict(any_=["1.1.1"])
+            ),
+        )
+
+        assert len(db_block_schemas) == 0
+
     async def test_read_block_schemas_with_capabilities_filter(
         self, session, block_schemas_with_capabilities
     ):
@@ -768,7 +885,9 @@ class TestReadBlockSchemas:
             block_schemas_with_capabilities[0].id
         ]
 
-    @pytest.mark.flaky  # Order of block schema references sometimes doesn't match
+    @pytest.mark.flaky(
+        max_runs=3
+    )  # Order of block schema references sometimes doesn't match
     async def test_read_block_schema_with_union(
         self, session, block_type_x, block_type_y, block_type_z
     ):
@@ -822,6 +941,192 @@ class TestReadBlockSchemas:
 
         assert len(result) == 2
         assert [a_id, y_id] == [b.id for b in result]
+
+    async def test_read_block_with_non_block_object_attributes(self, session):
+        class NotABlock(BaseModel):
+            alias: str
+
+        class AlsoNotABlock(BaseModel):
+            pseudonym: str
+            child: NotABlock
+
+        class IsABlock(Block):
+            size: int
+            contents: AlsoNotABlock
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.checksum == IsABlock._calculate_schema_checksum()
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+
+        assert read_block_schema.fields == IsABlock.schema()
+
+    async def test_read_block_with_enum_attribute(self, session):
+        class Fruit(AutoEnum):
+            APPLE = AutoEnum.auto()
+            BANANA = AutoEnum.auto()
+            ORANGE = AutoEnum.auto()
+
+        class IsABlock(Block):
+            size: int
+            contents: Fruit
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.checksum == IsABlock._calculate_schema_checksum()
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+
+        assert read_block_schema.fields == IsABlock.schema()
+
+    async def test_read_block_with_non_block_union_attribute(self, session):
+        class NotABlock(BaseModel):
+            alias: str
+
+        class AlsoNotABlock(BaseModel):
+            pseudonym: str
+
+        class IsABlock(Block):
+            size: int
+            contents: Union[NotABlock, AlsoNotABlock]
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.checksum == IsABlock._calculate_schema_checksum()
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        assert read_block_schema.fields == IsABlock.schema()
+
+    async def test_read_block_with_non_block_list_attribute(self, session):
+        class NotABlock(BaseModel):
+            alias: str
+
+        class IsABlock(Block):
+            size: int
+            contents: List[NotABlock]
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsABlock.schema()
+        assert block_schema.checksum == IsABlock._calculate_schema_checksum()
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        assert read_block_schema.fields == IsABlock.schema()
+
+    async def test_read_block_with_both_block_and_non_block_attributes(self, session):
+        class NotABlock(BaseModel):
+            alias: str
+
+        class IsABlock(Block):
+            size: int
+
+        class IsAlsoABlock(Block):
+            size: float
+            contents: IsABlock
+            config: NotABlock
+
+        await models.block_types.create_block_type(
+            session=session, block_type=IsABlock._to_block_type()
+        )
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=IsAlsoABlock._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=IsAlsoABlock._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == IsAlsoABlock.schema()
+        assert block_schema.checksum == IsAlsoABlock._calculate_schema_checksum()
+
+        read_parent_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        assert read_parent_block_schema.fields == IsAlsoABlock.schema()
+
+        read_child_block_schema = (
+            await models.block_schemas.read_block_schema_by_checksum(
+                session=session, checksum=IsABlock._calculate_schema_checksum()
+            )
+        )
+        assert read_child_block_schema.fields == IsABlock.schema()
+
+    async def test_read_block_schema_with_list_block_attribute(self, session):
+        class Child(Block):
+            age: float
+
+        class Parent(Block):
+            age: int
+            children: List[Child]
+
+        await models.block_types.create_block_type(
+            session=session, block_type=Child._to_block_type()
+        )
+
+        block_type = await models.block_types.create_block_type(
+            session=session, block_type=Parent._to_block_type()
+        )
+
+        block_schema = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=Parent._to_block_schema(block_type_id=block_type.id),
+        )
+
+        assert block_schema.fields == Parent.schema()
+        assert block_schema.checksum == Parent._calculate_schema_checksum()
+        assert block_schema.fields["block_schema_references"] == {
+            "children": {
+                "block_type_slug": "child",
+                "block_schema_checksum": Child._calculate_schema_checksum(),
+            }
+        }
+
+        read_block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+        assert read_block_schema.fields == Parent.schema()
 
 
 class TestDeleteBlockSchema:

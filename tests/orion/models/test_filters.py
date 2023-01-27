@@ -8,7 +8,7 @@ import pytest
 
 from prefect.client import get_client
 from prefect.orion import models
-from prefect.orion.schemas import core, filters, schedules, states
+from prefect.orion.schemas import actions, core, filters, schedules, states
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -22,14 +22,34 @@ d_1_2_id = uuid4()
 d_3_1_id = uuid4()
 
 
+def adjust_kwargs_for_client(kwargs):
+    adjusted_kwargs = {}
+    for k, v in kwargs.items():
+        if k == "flow_filter":
+            k = "flows"
+        elif k == "flow_run_filter":
+            k = "flow_runs"
+        elif k == "task_run_filter":
+            k = "task_runs"
+        elif k == "deployment_filter":
+            k = "deployments"
+        elif k == "work_pool_filter":
+            k = "work_pools"
+        elif k == "work_pool_queue_filter":
+            k = "work_pool_queues"
+        else:
+            raise ValueError("Unrecognized filter")
+        adjusted_kwargs[k] = v
+    return adjusted_kwargs
+
+
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine, flow_function, db):
+async def data(flow_function, db):
     # This fixture uses the prefix of `test-` whenever the value is going to be
     # used for a filter in the actual tests below ensuring that the
     # auto-generated names never conflict.
 
-    session = await db.session()
-    async with session:
+    async with db.session_context(begin_transaction=True) as session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
         create_deployment = lambda deployment: models.deployments.create_deployment(
@@ -40,6 +60,10 @@ async def data(database_engine, flow_function, db):
         )
         create_task_run = lambda task_run: models.task_runs.create_task_run(
             session=session, task_run=task_run
+        )
+
+        wp = await models.workers.create_work_pool(
+            session=session, work_pool=actions.WorkPoolCreate(name="Test Pool")
         )
 
         f_1 = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
@@ -64,6 +88,7 @@ async def data(database_engine, flow_function, db):
                 manifest_path="file.json",
                 flow_id=f_1.id,
                 is_schedule_active=False,
+                work_queue_name="test-queue-for-filters",
             )
         )
         d_3_1 = await create_deployment(
@@ -74,6 +99,7 @@ async def data(database_engine, flow_function, db):
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
+                work_pool_queue_id=wp.default_queue_id,
             )
         )
 
@@ -156,6 +182,7 @@ async def data(database_engine, flow_function, db):
                 tags=[],
                 state=states.Completed(),
                 deployment_id=d_3_1.id,
+                work_pool_queue_id=wp.default_queue_id,
             )
         )
 
@@ -253,17 +280,16 @@ async def data(database_engine, flow_function, db):
             task_run=core.TaskRun(flow_run_id=fr2.id, task_key="a", dynamic_key="0")
         )
 
-        # ----------------- Commit and yield
-
-        await session.commit()
-
-        yield
+    yield
 
     # ----------------- clear data
 
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 class TestCountFlowsModels:
@@ -379,17 +405,7 @@ class TestCountFlowsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_count(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/flows/count",
@@ -404,17 +420,7 @@ class TestCountFlowsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/flows/filter",
@@ -566,6 +572,49 @@ class TestCountFlowRunModels:
             ),
             12,
         ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                )
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                ),
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(
+                    name=dict(any_=["A pool that doesn't exist"])
+                ),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                ),
+            ),
+            0,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["a queue that doesn't exist"])
+                ),
+            ),
+            0,
+        ],
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
@@ -586,17 +635,7 @@ class TestCountFlowRunModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_count(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/flow_runs/count",
@@ -608,17 +647,7 @@ class TestCountFlowRunModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/flow_runs/filter",
@@ -771,17 +800,7 @@ class TestCountTaskRunsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_count(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
         repsonse = await client.post(
             "/task_runs/count",
             json=json.loads(
@@ -792,17 +811,7 @@ class TestCountTaskRunsModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/task_runs/filter",
@@ -902,6 +911,49 @@ class TestCountDeploymentModels:
             ),
             0,
         ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                )
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                ),
+            ),
+            1,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(
+                    name=dict(any_=["A pool that doesn't exist"])
+                ),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["default"])
+                ),
+            ),
+            0,
+        ],
+        [
+            dict(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                    name=dict(any_=["a queue that doesn't exist"])
+                ),
+            ),
+            0,
+        ],
         # empty filter
         [dict(flow_filter=filters.FlowFilter()), 3],
         # multiple empty filters
@@ -932,17 +984,7 @@ class TestCountDeploymentModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_count(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/deployments/count",
@@ -957,17 +999,7 @@ class TestCountDeploymentModels:
 
     @pytest.mark.parametrize("kwargs,expected", params)
     async def test_api_read(self, client, kwargs, expected):
-        adjusted_kwargs = {}
-        for k, v in kwargs.items():
-            if k == "flow_filter":
-                k = "flows"
-            elif k == "flow_run_filter":
-                k = "flow_runs"
-            elif k == "task_run_filter":
-                k = "task_runs"
-            elif k == "deployment_filter":
-                k = "deployments"
-            adjusted_kwargs[k] = v
+        adjusted_kwargs = adjust_kwargs_for_client(kwargs)
 
         repsonse = await client.post(
             "/deployments/filter",

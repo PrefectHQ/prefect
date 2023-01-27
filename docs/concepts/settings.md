@@ -17,6 +17,73 @@ Settings have keys that match environment variables that can be used to override
 
 Prefect provides the ability to organize settings as [profiles](#configuration-profiles) and apply the settings persisted in a profile. When you change profiles, all of the settings configured in the profile are applied. You can apply profiles to individual commands or set a profile for your environment.
 
+## Commonly configured settings
+
+This section describes some commonly configured settings for Prefect installations. See [Configuring settings](#configuring-settings) for details on setting and unsetting configuration values.
+
+### PREFECT_API_URL
+
+The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or Prefect Orion API server instance.
+
+For example, using a local Prefect Orion API server instance.
+```bash
+PREFECT_API_URL="http://127.0.0.1:4200/api"
+```
+
+Using Prefect Cloud:
+
+```bash
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
+```
+
+!!! tip "`PREFECT_API_URL` setting for agents"
+    When using [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your agent is running. 
+
+    If you want the agent to communicate with Prefect Cloud or a Prefect Orion API server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+
+### PREFECT_API_KEY
+
+The `PREFECT_API_KEY` value specifies the [API key](/ui/cloud-api-keys/#create-an-api-key) used to authenticate with your Prefect Cloud workspace.
+
+```bash
+PREFECT_API_KEY="[API-KEY]"
+```
+
+### PREFECT_HOME
+
+The `PREFECT_HOME` value specifies the local Prefect directory for configuration files, profiles, and the location of the default [Prefect SQLite database](/concepts/database/).
+
+```bash
+PREFECT_HOME='~/.prefect'
+```
+
+### PREFECT_LOCAL_STORAGE_PATH
+
+The `PREFECT_LOCAL_STORAGE_PATH` value specifies the default location of local storage for flow runs.
+
+```bash
+PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
+```
+### Database settings
+
+Prefect provides several settings for configuring the [Prefect database](/concepts/database/).
+
+```bash
+PREFECT_ORION_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/orion.db'
+PREFECT_ORION_DATABASE_ECHO='False'
+PREFECT_ORION_DATABASE_MIGRATE_ON_START='True'
+PREFECT_ORION_DATABASE_PASSWORD='None'
+```
+
+### Logging settings
+
+Prefect provides several settings for configuring [logging level and loggers](/concepts/logs/).
+
+```bash
+PREFECT_LOGGING_EXTRA_LOGGERS=''
+PREFECT_LOGGING_LEVEL='INFO'
+```
+
 ## Configuring settings
 
 The `prefect config` CLI commands enable you to view, set, and unset settings.
@@ -63,14 +130,14 @@ PREFECT_API_URL='None' (from defaults)
 
 The `prefect config set` command lets you change the value of a default setting.
 
-A commonly used example is setting the `PREFECT_API_URL`, which you may need to change when interacting with different Orion API server instances or Prefect Cloud.
+A commonly used example is setting the `PREFECT_API_URL`, which you may need to change when interacting with different Prefect Orion API server instances or Prefect Cloud.
 
 ```bash
 # use a local Orion API server
-prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api
+prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 # use Prefect Cloud
-prefect config set PREFECT_API_URL=http://app.prefect.cloud/api
+prefect config set PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/[WORKSPACE-ID]"
 ```
 
 If you want to configure a setting to use its default value, use the `prefect config unset` command.
@@ -262,7 +329,7 @@ View all settings for a profile:
 
 ```bash
 $ prefect profile inspect cloud
-PREFECT_API_URL='https://app.prefect.cloud/api/accounts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx
+PREFECT_API_URL='https://api.prefect.cloud/api/accounts/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx
 x/workspaces/xxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 PREFECT_API_KEY='xxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'          
 ```

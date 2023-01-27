@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Read the documentation
+    url: https://docs.prefect.io/
+    about: Please consult the documentation before opening any issues!
+  - name: 🙋 Ask a question
+    url: https://discourse.prefect.io/c/21
+    about: Ask questions about how to use Prefect on our Discourse forum.
+  - name: 💬 Chat with experts
+    url: https://www.prefect.io/slack
+    about: Join thousands of Prefect experts, engineers, and users in our Slack community
+  - name: 🦆 Book a rubber duck
+    url: https://calendly.com/prefect-experts/rubber-duck
+    about: Book time with a Prefect engineer!

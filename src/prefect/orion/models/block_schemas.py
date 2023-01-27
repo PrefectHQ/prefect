@@ -10,13 +10,12 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.blocks.core import Block
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.models.block_types import read_block_type_by_slug
 from prefect.orion.schemas.actions import BlockSchemaCreate
-from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference
+from prefect.orion.schemas.core import BlockSchema, BlockSchemaReference, BlockType
 
 
 class MissingBlockTypeException(Exception):
@@ -43,16 +42,50 @@ async def create_block_schema(
     Returns:
         block_schema: an ORM block schema model
     """
+    from prefect.blocks.core import Block, _get_non_block_reference_definitions
+
     insert_values = block_schema.dict(
         shallow=True,
         exclude_unset=False,
         exclude={"block_type", "id", "created", "updated"},
     )
-    definitions = definitions or insert_values["fields"].pop("definitions", None)
-    insert_values["checksum"] = Block._calculate_schema_checksum(
-        insert_values["fields"]
-    )
 
+    definitions = definitions or block_schema.fields.get("definitions")
+    fields_for_checksum = insert_values["fields"]
+    if definitions:
+        # Ensure definitions are available if this is a nested schema
+        # that is being registered
+        fields_for_checksum["definitions"] = definitions
+    checksum = Block._calculate_schema_checksum(fields_for_checksum)
+
+    # Check for existing block schema based on calculated checksum
+    existing_block_schema = await read_block_schema_by_checksum(
+        session=session, checksum=checksum, version=block_schema.version
+    )
+    # Return existing block schema if it exists. Allows block schema creation to be called multiple
+    # times for the same schema without errors.
+    if existing_block_schema:
+        return existing_block_schema
+
+    insert_values["checksum"] = checksum
+
+    if definitions:
+        # Get non block definitions for saving to the DB.
+        non_block_definitions = _get_non_block_reference_definitions(
+            insert_values["fields"], definitions
+        )
+        if non_block_definitions:
+            insert_values["fields"][
+                "definitions"
+            ] = _get_non_block_reference_definitions(
+                insert_values["fields"], definitions
+            )
+        else:
+            # Prevent storing definitions for blocks. Those are reconstructed on read.
+            insert_values["fields"].pop("definitions", None)
+
+    # Prevent saving block schema references in the block_schema table. They have
+    # they're own table.
     block_schema_references: Dict = insert_values["fields"].pop(
         "block_schema_references", {}
     )
@@ -70,8 +103,13 @@ async def create_block_schema(
         .where(
             db.BlockSchema.checksum == insert_values["checksum"],
         )
+        .order_by(db.BlockSchema.created.desc())
+        .limit(1)
         .execution_options(populate_existing=True)
     )
+
+    if block_schema.version is not None:
+        query = query.where(db.BlockSchema.version == block_schema.version)
 
     result = await session.execute(query)
     created_block_schema = copy(result.scalar())
@@ -164,6 +202,7 @@ async def _register_nested_block_schemas(
                     override=override,
                     definitions=definitions,
                 )
+            # Create a block schema reference linking the nested block schema to its parent.
             await create_block_schema_reference(
                 session=session,
                 block_schema_reference=BlockSchemaReference(
@@ -175,19 +214,28 @@ async def _register_nested_block_schemas(
 
 
 def _get_fields_for_child_schema(
-    definitions, base_fields, reference_name, reference_block_type
+    definitions: Dict,
+    base_fields: Dict,
+    reference_name: str,
+    reference_block_type: BlockType,
 ):
-    if definitions is None:
-        raise ValueError(
-            "Unable to create nested block schema due to missing definitions "
-            "in root block schema fields"
-        )
+    """
+    Returns the field definitions for a child schema. The fields definitions are pulled from the provided `definitions`
+    dictionary based on the information extracted from `base_fields` using the `reference_name`. `reference_block_type`
+    is used to disambiguate fields that have a union type.
+    """
+    from prefect.blocks.core import _collect_nested_reference_strings
+
     spec_reference = base_fields["properties"][reference_name]
     sub_block_schema_fields = None
-    # Looks for the nested schema definition in a union of block schemas
-    if "anyOf" in spec_reference:
-        for reference in spec_reference["anyOf"]:
-            definition_key = reference["$ref"].replace("#/definitions/", "")
+    reference_strings = _collect_nested_reference_strings(spec_reference)
+    if len(reference_strings) == 1:
+        sub_block_schema_fields = definitions.get(
+            reference_strings[0].replace("#/definitions/", "")
+        )
+    else:
+        for reference_string in reference_strings:
+            definition_key = reference_string.replace("#/definitions/", "")
             potential_sub_block_schema_fields = definitions[definition_key]
             # Determines the definition to use when registering a child
             # block schema by verifying that the block type name stored in
@@ -197,16 +245,10 @@ def _get_fields_for_child_schema(
                 definitions[definition_key]["block_type_slug"]
                 == reference_block_type.slug
             ):
-                # Once we've found the matching definition, we not longer
+                # Once we've found the matching definition, we no longer
                 # need to iterate
                 sub_block_schema_fields = potential_sub_block_schema_fields
                 break
-    else:
-        # When a block schema reference is a single block, we can use the
-        # title to directly find the definition for that block schema.
-        sub_block_schema_fields = definitions[
-            spec_reference["$ref"].replace("#/definitions/", "")
-        ]
     return sub_block_schema_fields
 
 
@@ -338,12 +380,21 @@ def _construct_full_block_schema(
     definitions = _construct_block_schema_spec_definitions(
         root_block_schema, block_schemas_with_references
     )
-    if definitions:
-        root_block_schema.fields["definitions"] = definitions
+    # Definitions for non block object may already exist in the block schema OpenAPI
+    # spec, so we need to combine block and non-block definitions.
+    if definitions or root_block_schema.fields.get("definitions"):
+        root_block_schema.fields["definitions"] = {
+            **root_block_schema.fields.get("definitions", {}),
+            **definitions,
+        }
     return root_block_schema
 
 
-def _find_root_block_schema(block_schemas_with_references):
+def _find_root_block_schema(
+    block_schemas_with_references: List[
+        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    ]
+):
     """
     Attempts to find the root block schema from a list of block schemas
     with references. Returns None if a root block schema is not found.
@@ -364,7 +415,10 @@ def _find_root_block_schema(block_schemas_with_references):
 
 
 def _construct_block_schema_spec_definitions(
-    root_block_schema, block_schemas_with_references
+    root_block_schema,
+    block_schemas_with_references: List[
+        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    ],
 ):
     """
     Constructs field definitions for a block schema based on the nested block schemas
@@ -396,7 +450,12 @@ def _construct_block_schema_spec_definitions(
     return definitions
 
 
-def _find_block_schema_via_checksum(block_schemas_with_references, checksum):
+def _find_block_schema_via_checksum(
+    block_schemas_with_references: List[
+        Tuple[BlockSchema, Optional[str], Optional[UUID]]
+    ],
+    checksum: str,
+) -> Optional[BlockSchema]:
     """Attempt to find a block schema via a given checksum. Returns None if not found."""
     return next(
         (
@@ -408,7 +467,9 @@ def _find_block_schema_via_checksum(block_schemas_with_references, checksum):
     )
 
 
-def _add_block_schemas_fields_to_definitions(definitions, child_block_schema):
+def _add_block_schemas_fields_to_definitions(
+    definitions: Dict, child_block_schema: BlockSchema
+):
     """
     Returns a new definitions dict with the fields of a block schema and it's child
     block schemas added to the existing defintions.
@@ -614,6 +675,7 @@ async def read_block_schema_by_checksum(
     session: sa.orm.Session,
     checksum: str,
     db: OrionDBInterface,
+    version: Optional[str] = None,
 ) -> Optional[BlockSchema]:
     """
     Reads a block_schema by checksum. Will reconstruct the block schema's fields
@@ -622,6 +684,7 @@ async def read_block_schema_by_checksum(
     Args:
         session: A database session
         checksum: a block_schema checksum
+        version: A block_schema version
 
     Returns:
         db.BlockSchema: the block_schema
@@ -629,14 +692,25 @@ async def read_block_schema_by_checksum(
     # Construction of a recursive query which returns the specified block schema
     # along with and nested block schemas coupled with the ID of their parent schema
     # the key that they reside under.
+
+    # The same checksum with different versions can occur in the DB. Return only the
+    # most recently created one.
     root_block_schema_query = (
-        sa.select(db.BlockSchema).filter_by(checksum=checksum).cte("root_block_schema")
+        sa.select(db.BlockSchema)
+        .filter_by(checksum=checksum)
+        .order_by(db.BlockSchema.created.desc())
+        .limit(1)
     )
+
+    if version is not None:
+        root_block_schema_query = root_block_schema_query.filter_by(version=version)
+
+    root_block_schema_cte = root_block_schema_query.cte("root_block_schema")
 
     block_schema_references_query = (
         sa.select(db.BlockSchemaReference)
         .select_from(db.BlockSchemaReference)
-        .filter_by(parent_block_schema_id=root_block_schema_query.c.id)
+        .filter_by(parent_block_schema_id=root_block_schema_cte.c.id)
         .cte("block_schema_references", recursive=True)
     )
     block_schema_references_join = (
@@ -668,7 +742,7 @@ async def read_block_schema_by_checksum(
         )
         .filter(
             sa.or_(
-                db.BlockSchema.id == root_block_schema_query.c.id,
+                db.BlockSchema.id == root_block_schema_cte.c.id,
                 recursive_block_schema_references_cte.c.parent_block_schema_id.is_not(
                     None
                 ),
@@ -683,6 +757,15 @@ async def read_block_schema_by_checksum(
 async def read_available_block_capabilities(
     session: sa.orm.Session, db: OrionDBInterface
 ) -> List[str]:
+    """
+    Retrieves a list of all available block capabilities.
+
+    Args:
+        session: A database session.
+
+    Returns:
+        List[str]: List of all available block capabilities.
+    """
     query = sa.select(
         db.json_arr_agg(db.cast_to_json(db.BlockSchema.capabilities.distinct()))
     )
@@ -698,6 +781,16 @@ async def create_block_schema_reference(
     block_schema_reference: schemas.core.BlockSchemaReference,
     db: OrionDBInterface,
 ):
+    """
+    Retrieves a list of all available block capabilities.
+
+    Args:
+        session: A database session.
+        block_schema_reference: A block schema reference object.
+
+    Returns:
+        db.BlockSchemaReference: The created BlockSchemaReference
+    """
     query_stmt = sa.select(db.BlockSchemaReference).where(
         db.BlockSchemaReference.name == block_schema_reference.name,
         db.BlockSchemaReference.parent_block_schema_id

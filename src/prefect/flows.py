@@ -20,6 +20,7 @@ from typing import (
     Iterable,
     List,
     NoReturn,
+    Optional,
     Type,
     TypeVar,
     Union,
@@ -32,16 +33,19 @@ from fastapi.encoders import jsonable_encoder
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import Literal, ParamSpec
 
-from prefect import State
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.exceptions import (
     MissingFlowError,
     ParameterTypeError,
     UnspecifiedFlowError,
 )
+from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.orion.schemas.core import raise_on_invalid_name
+from prefect.results import ResultSerializer, ResultStorage
+from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
@@ -51,6 +55,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import listrepr
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.importtools import import_object
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
@@ -94,6 +99,19 @@ class Flow(Generic[P, R]):
         retries: An optional number of times to retry on flow run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             flow after failure. This is only applicable if `retries` is nonzero.
+        persist_result: An optional toggle indicating whether the result of this flow
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
+            the features being used.
+        result_storage: An optional block to use to perist the result of this flow.
+            This value will be used as the default for any tasks in this flow.
+            If not provided, the local file system will be used unless called as
+            a subflow, at which point the default will be loaded from the parent flow.
+        result_serializer: An optional serializer to use to serialize the result of this
+            flow for persistence. This value will be used as the default for any tasks
+            in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
+            will be used unless called as a subflow, at which point the default will be
+            loaded from the parent flow.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -101,14 +119,19 @@ class Flow(Generic[P, R]):
     def __init__(
         self,
         fn: Callable[P, R],
-        name: str = None,
-        version: str = None,
+        name: Optional[str] = None,
+        version: Optional[str] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
+        persist_result: Optional[bool] = None,
+        result_storage: Optional[ResultStorage] = None,
+        result_serializer: Optional[ResultSerializer] = None,
+        cache_result_in_memory: bool = True,
+        log_prints: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -123,12 +146,14 @@ class Flow(Generic[P, R]):
             task_runner() if isinstance(task_runner, type) else task_runner
         )
 
+        self.log_prints = log_prints
+
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
         self.isasync = is_async_fn(self.fn)
 
-        raise_for_reserved_arguments(self.fn, ["return_state"])
+        raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         # Version defaults to a hash of the function's file
         flow_file = inspect.getsourcefile(self.fn)
@@ -163,6 +188,11 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
+        self.persist_result = persist_result
+        self.result_storage = result_storage
+        self.result_serializer = result_serializer
+        self.cache_result_in_memory = cache_result_in_memory
+
         # Check for collision in the registry
         registry = PrefectObjectRegistry.get()
 
@@ -191,6 +221,11 @@ class Flow(Generic[P, R]):
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
+        persist_result: Optional[bool] = NotSet,
+        result_storage: Optional[ResultStorage] = NotSet,
+        result_serializer: Optional[ResultSerializer] = NotSet,
+        cache_result_in_memory: bool = None,
+        log_prints: Optional[bool] = NotSet,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -204,6 +239,14 @@ class Flow(Generic[P, R]):
                 running.
             validate_parameters: A new value indicating if flow calls should validate
                 given parameters.
+            retries: A new number of times to retry on flow run failure.
+            retry_delay_seconds: A new number of seconds to wait before retrying the
+                flow after failure. This is only applicable if `retries` is nonzero.
+            persist_result: A new option for enabling or disabling result persistence.
+            result_storage: A new storage type to use for results.
+            result_serializer: A new serializer to use for results.
+            cache_result_in_memory: A new value indicating if the flow's result should
+                be cached in memory.
 
         Returns:
             A new `Flow` instance.
@@ -237,6 +280,8 @@ class Flow(Generic[P, R]):
             description=description or self.description,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
+            retries=retries or self.retries,
+            retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
             timeout_seconds=(
                 timeout_seconds if timeout_seconds is not None else self.timeout_seconds
             ),
@@ -245,6 +290,23 @@ class Flow(Generic[P, R]):
                 if validate_parameters is not None
                 else self.should_validate_parameters
             ),
+            persist_result=(
+                persist_result if persist_result is not NotSet else self.persist_result
+            ),
+            result_storage=(
+                result_storage if result_storage is not NotSet else self.result_storage
+            ),
+            result_serializer=(
+                result_serializer
+                if result_serializer is not NotSet
+                else self.result_serializer
+            ),
+            cache_result_in_memory=(
+                cache_result_in_memory
+                if cache_result_in_memory is not None
+                else self.cache_result_in_memory
+            ),
+            log_prints=log_prints if log_prints is not NotSet else self.log_prints,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -256,23 +318,17 @@ class Flow(Generic[P, R]):
             A new dict of parameters that have been cast to the appropriate types
 
         Raises:
-            FlowParameterError: if the provided parameters are not valid
+            ParameterTypeError: if the provided parameters are not valid
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
 
-        validation_err = None
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            validation_err = ParameterTypeError(str(exc))
-
-        if validation_err:
-            # Raise the valdiation error outside of the `except` so the pydandic
-            # internals are not included
-            raise validation_err
+            raise ParameterTypeError.from_validation_error(exc) from None
 
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
@@ -336,6 +392,7 @@ class Flow(Generic[P, R]):
         self,
         *args: "P.args",
         return_state: bool = False,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: "P.kwargs",
     ):
         """
@@ -351,7 +408,8 @@ class Flow(Generic[P, R]):
         Args:
             *args: Arguments to run the flow with.
             return_state: Return a Prefect State containing the result of the
-            flow run.
+                flow run.
+            wait_for: Upstream task futures to wait for before starting the flow if called as a subflow
             **kwargs: Keyword arguments to run the flow with.
 
         Returns:
@@ -388,7 +446,10 @@ class Flow(Generic[P, R]):
         return_type = "state" if return_state else "result"
 
         return enter_flow_run_engine_from_flow_call(
-            self, parameters, return_type=return_type
+            self,
+            parameters,
+            wait_for=wait_for,
+            return_type=return_type,
         )
 
     @overload
@@ -410,6 +471,7 @@ class Flow(Generic[P, R]):
     def _run(
         self,
         *args: "P.args",
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: "P.kwargs",
     ):
         """
@@ -429,7 +491,10 @@ class Flow(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         return enter_flow_run_engine_from_flow_call(
-            self, parameters, return_type="state"
+            self,
+            parameters,
+            wait_for=wait_for,
+            return_type="state",
         )
 
 
@@ -441,14 +506,19 @@ def flow(__fn: Callable[P, R]) -> Flow[P, R]:
 @overload
 def flow(
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -456,14 +526,19 @@ def flow(
 def flow(
     __fn=None,
     *,
-    name: str = None,
-    version: str = None,
+    name: Optional[str] = None,
+    version: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
+    log_prints: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -494,6 +569,23 @@ def flow(
         retries: An optional number of times to retry on flow run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             flow after failure. This is only applicable if `retries` is nonzero.
+        persist_result: An optional toggle indicating whether the result of this flow
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
+            the features being used.
+        result_storage: An optional block to use to perist the result of this flow.
+            This value will be used as the default for any tasks in this flow.
+            If not provided, the local file system will be used unless called as
+            a subflow, at which point the default will be loaded from the parent flow.
+        result_serializer: An optional serializer to use to serialize the result of this
+            flow for persistence. This value will be used as the default for any tasks
+            in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
+            will be used unless called as a subflow, at which point the default will be
+            loaded from the parent flow.
+        log_prints: If set, `print` statements in the flow will be redirected to the
+            Prefect logger for the flow run. Defaults to `None`, which indicates that
+            the value from the parent flow should be used. If this is a parent flow,
+            the default is pulled from the `PREFECT_LOGGING_LOG_PRINTS` setting.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -546,6 +638,11 @@ def flow(
                 validate_parameters=validate_parameters,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                persist_result=persist_result,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
     else:
@@ -561,6 +658,11 @@ def flow(
                 validate_parameters=validate_parameters,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                persist_result=persist_result,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
+                log_prints=log_prints,
             ),
         )
 
@@ -584,14 +686,14 @@ def select_flow(
 
     # Add a leading space if given, otherwise use an empty string
     from_message = (" " + from_message) if from_message else ""
-
     if not flows:
         raise MissingFlowError(f"No flows found{from_message}.")
 
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
             f"Flow {flow_name!r} not found{from_message}. "
-            f"Found the following flows: {listrepr(flows.keys())}"
+            f"Found the following flows: {listrepr(flows.keys())}. "
+            "Check to make sure that your flow function is decorated with `@flow`."
         )
 
     elif not flow_name and len(flows) > 1:
@@ -617,7 +719,6 @@ def load_flows_from_script(path: str) -> List[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-
     return registry_from_script(path).get_instances(Flow)
 
 
@@ -636,13 +737,51 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
         The flow object from the script
 
     Raises:
-        See `load_flows_from_script` and `select_flow`
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If no flows exist in the iterable
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     return select_flow(
         load_flows_from_script(path),
         flow_name=flow_name,
         from_message=f"in script '{path}'",
     )
+
+
+def load_flow_from_entrypoint(entrypoint: str) -> Flow:
+    """
+    Extract a flow object from a script at an entrypoint by running all of the code in the file.
+
+    Args:
+        entrypoint: a string in the format `<path_to_script>:<flow_func_name>`
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+        MissingFlowError: If the flow function specified in the entrypoint does not exist
+    """
+    with PrefectObjectRegistry(
+        block_code_execution=True,
+        capture_failures=True,
+    ) as registry:
+        path, func_name = entrypoint.split(":")
+        try:
+            flow = import_object(entrypoint)
+        except AttributeError as exc:
+            raise MissingFlowError(
+                f"Flow function with name {func_name!r} not found in {path!r}. "
+            ) from exc
+
+        if not isinstance(flow, Flow):
+            raise MissingFlowError(
+                f"Function with name {func_name!r} is not a flow. Make sure that it is "
+                "decorated with '@flow'."
+            )
+
+        return flow
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):

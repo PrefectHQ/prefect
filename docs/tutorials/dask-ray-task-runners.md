@@ -21,7 +21,7 @@ The default task runner is the [`ConcurrentTaskRunner`](/api-ref/prefect/task-ru
 
     To run tasks asynchronously use the `.submit` method when you call them. If you call a task as you would normally in Python code it will run synchronously, even if you are calling the task within a flow that uses the `ConcurrentTaskRunner`, `DaskTaskRunner`, or `RayTaskRunner`.
 
-Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel task execution may be installed as [Prefect Collections](/collections/overview/). 
+Many real-world data workflows benefit from true parallel, distributed task execution. For these use cases, the following Prefect-developed task runners for parallel task execution may be installed as [Prefect Collections](/collections/catalog/). 
 
 - [`DaskTaskRunner`](https://prefecthq.github.io/prefect-dask/) runs tasks requiring parallel execution using [`dask.distributed`](http://distributed.dask.org/). 
 - [`RayTaskRunner`](https://prefecthq.github.io/prefect-ray/) runs tasks requiring parallel execution using [Ray](https://www.ray.io/).
@@ -327,7 +327,7 @@ Now run `ray_flow.py` `RayTaskRunner` automatically creates a local Ray instance
 
 Many workflows include a variety of tasks, and not all of them benefit from parallel execution. You'll most likely want to use the Dask or Ray task runners and spin up their respective resources only for those tasks that need them.
 
-Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/concepts/flows/#subflows) to organize those tasks.
+Because task runners are specified on flows, you can assign different task runners to tasks by using [subflows](/concepts/flows/#composing-flows) to organize those tasks.
 
 This example uses the same tasks as the previous examples, but on the parent flow `greetings()` we use the default `ConcurrentTaskRunner`. Then we call a `ray_greetings()` subflow that uses the `RayTaskRunner` to execute the same tasks in a Ray instance. 
 

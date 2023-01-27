@@ -15,13 +15,16 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocks, BlockDocumentsTable, BlocksPageEmptyState } from '@prefecthq/orion-design'
+  import { PageHeadingBlocks, BlockDocumentsTable, BlocksPageEmptyState, useWorkspaceApi } from '@prefecthq/orion-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { blockDocumentsApi } from '@/services/blockDocumentsApi'
+  import { usePageTitle } from '@/compositions/usePageTitle'
 
-  const blockDocumentsSubscription = useSubscription(blockDocumentsApi.getBlockDocuments)
+  const api = useWorkspaceApi()
+  const blockDocumentsSubscription = useSubscription(api.blockDocuments.getBlockDocuments)
   const blockDocuments = computed(() => blockDocumentsSubscription.response ?? [])
   const empty = computed(() => blockDocumentsSubscription.executed && blockDocuments.value.length == 0)
   const loaded = computed(() => blockDocumentsSubscription.executed)
+
+  usePageTitle('Blocks')
 </script>

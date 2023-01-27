@@ -29,21 +29,34 @@ import asyncpg
 import pytest
 from sqlalchemy.dialects.postgresql.asyncpg import dialect as postgres_dialect
 
+# Improve diff display for assertions in utilities
+# Note: This must occur before import of the module
+pytest.register_assert_rewrite("prefect.testing.utilities")
+
 import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_API_URL,
+    PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
+    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
+    PREFECT_EXPERIMENTAL_WARN_WORK_POOLS,
+    PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_ANALYTICS_ENABLED,
+    PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
+    PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED,
     PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
 )
@@ -272,6 +285,8 @@ def pytest_sessionstart(session):
             # Disable pretty CLI output for easier assertions
             PREFECT_CLI_COLORS: False,
             PREFECT_CLI_WRAP_LINES: False,
+            # Enable future change
+            PREFECT_ASYNC_FETCH_STATE_RESULT: True,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
@@ -282,6 +297,12 @@ def pytest_sessionstart(session):
             PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
             PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
             PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+            PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
+            PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
+            # Disable block auto-registration memoization
+            PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
+            # Disable auto-registration of block types as they can conflict
+            PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
         },
         source=__file__,
     )
@@ -318,7 +339,6 @@ def safety_check_settings():
     assert (
         PREFECT_API_URL.value() is None
     ), "Tests should not be run connected to an external API."
-
     # Safety check for home directory
     assert (
         str(PREFECT_HOME.value()) == TEST_PREFECT_HOME
@@ -344,6 +364,7 @@ async def generate_test_database_connection_url(
         yield None
         return
 
+    print(f"Generating test database connection URL from {original_url!r}")
     scheme, netloc, database, query, fragment = urlsplit(original_url)
     if scheme == "sqlite+aiosqlite":
         # SQLite databases will be scoped by the PREFECT_HOME setting, which will
@@ -351,15 +372,18 @@ async def generate_test_database_connection_url(
         yield None
         return
 
-    if scheme == "postgresql+asyncpg":
+    elif scheme == "postgresql+asyncpg":
         test_db_name = database.strip("/") + f"_tests_{worker_id}"
         quoted_db_name = postgres_dialect().identifier_preparer.quote(test_db_name)
 
         postgres_url = urlunsplit(("postgres", netloc, "postgres", query, fragment))
 
         # Create an empty temporary database for use in the tests
+
+        print(f"Connecting to postgres at {postgres_url!r}")
         connection = await asyncpg.connect(postgres_url)
         try:
+            print(f"Creating test postgres database {quoted_db_name!r}")
             # remove any connections to the test database. For example if a SQL IDE
             # is being used to investigate it, it will block the drop database command.
             await connection.execute(
@@ -378,8 +402,10 @@ async def generate_test_database_connection_url(
 
         new_url = urlunsplit((scheme, netloc, test_db_name, query, fragment))
 
+        print(f"Using test database connection URL {new_url!r}")
         yield new_url
 
+        print("Cleaning up test postgres database")
         # Now drop the temporary database we created
         connection = await asyncpg.connect(postgres_url)
         try:
@@ -394,6 +420,10 @@ async def generate_test_database_connection_url(
             pass
         finally:
             await connection.close()
+    else:
+        raise ValueError(
+            f"Unknown scheme {scheme!r} parsed from database url {original_url!r}."
+        )
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -436,3 +466,39 @@ def reset_registered_blocks():
 
     registry.clear()
     registry.update(before)
+
+
+@pytest.fixture
+def caplog(caplog):
+    """
+    Overrides caplog to apply to all of our loggers that do not propagate and
+    consequently would not be captured by caplog.
+    """
+    from prefect.logging.configuration import PROCESS_LOGGING_CONFIG
+
+    for name, logger_config in PROCESS_LOGGING_CONFIG["loggers"].items():
+        if not logger_config.get("propagate", True):
+            logger = logging.getLogger(name)
+            if caplog.handler not in logger.handlers:
+                logger.handlers.append(caplog.handler)
+
+    yield caplog
+
+
+@pytest.fixture
+def enable_work_pools():
+    with temporary_settings(
+        {
+            PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS: 1,
+            PREFECT_EXPERIMENTAL_WARN_WORK_POOLS: 0,
+        }
+    ):
+        yield
+
+
+@pytest.fixture
+def enable_workers():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
+    ):
+        yield

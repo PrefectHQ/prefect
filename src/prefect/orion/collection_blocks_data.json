@@ -1,0 +1,1172 @@
+{
+  "collections": {
+    "prefect-aws": {
+      "block_types": {
+        "aws-credentials": {
+          "name": "AWS Credentials",
+          "slug": "aws-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials",
+          "description": "Block used to manage authentication with AWS. AWS authentication is\nhandled via the `boto3` module. Refer to the\n[boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)\nfor more info about the possible credential configurations.",
+          "code_example": "Load stored AWS credentials:\n```python\nfrom prefect_aws import AwsCredentials\n\naws_credentials_block = AwsCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:608ea04bddf6b0dbb7b72acf58cec796b50cbdb41cb44872202055315b818083",
+              "fields": {
+                "title": "AwsCredentials",
+                "description": "Block used to manage authentication with AWS. AWS authentication is\nhandled via the `boto3` module. Refer to the\n[boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)\nfor more info about the possible credential configurations.",
+                "type": "object",
+                "properties": {
+                  "aws_access_key_id": {
+                    "title": "Aws Access Key Id",
+                    "description": "A specific AWS access key ID.",
+                    "type": "string"
+                  },
+                  "aws_secret_access_key": {
+                    "title": "Aws Secret Access Key",
+                    "description": "A specific AWS secret access key.",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  },
+                  "aws_session_token": {
+                    "title": "Aws Session Token",
+                    "description": "The session key for your AWS account. This is only needed when you are using temporary credentials.",
+                    "type": "string"
+                  },
+                  "profile_name": {
+                    "title": "Profile Name",
+                    "description": "The profile to use when creating your session.",
+                    "type": "string"
+                  },
+                  "region_name": {
+                    "title": "Region Name",
+                    "description": "The AWS Region where you want to create new connections.",
+                    "type": "string"
+                  }
+                },
+                "block_type_slug": "aws-credentials",
+                "secret_fields": ["aws_secret_access_key"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.1.7"
+            }
+          ]
+        },
+        "ecs-task": {
+          "name": "ECS Task",
+          "slug": "ecs-task",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250",
+          "documentation_url": null,
+          "description": "Run a command as an ECS task.",
+          "code_example": "```python\nfrom prefect_aws.ecs import ECSTask\n\necs_task_block = ECSTask.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:96937dc8f6bd314a1cbeae7623159848872249e742b3bac8d7af39da4e2dfe79",
+              "fields": {
+                "title": "ECSTask",
+                "description": "Run a command as an ECS task.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "title": "Type",
+                    "description": "The slug for this task type.",
+                    "default": "ecs-task",
+                    "enum": ["ecs-task"],
+                    "type": "string"
+                  },
+                  "env": {
+                    "title": "Environment Variables",
+                    "description": "Environment variables to provide to the task run. These variables are set on the Prefect container at task runtime. These will not be set on the task definition.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "labels": {
+                    "title": "Labels",
+                    "description": "Labels applied to the infrastructure for metadata purposes.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "name": {
+                    "title": "Name",
+                    "description": "Name applied to the infrastructure for identification.",
+                    "type": "string"
+                  },
+                  "command": {
+                    "title": "Command",
+                    "description": "The command to run in the infrastructure.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "aws_credentials": {
+                    "title": "AWS Credentials",
+                    "description": "The AWS credentials to use to connect to ECS.",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/AwsCredentials"
+                      }
+                    ]
+                  },
+                  "task_definition_arn": {
+                    "title": "Task Definition Arn",
+                    "description": "An identifier for an existing task definition to use. If fields are set on the `ECSTask` that conflict with the task definition, a new copy will be registered with the required values. Cannot be used with `task_definition`. If not provided, Prefect will generate and register a minimal task definition.",
+                    "type": "string"
+                  },
+                  "task_definition": {
+                    "title": "Task Definition",
+                    "description": "An ECS task definition to use. Prefect may set defaults or override fields on this task definition to match other `ECSTask` fields. Cannot be used with `task_definition_arn`. If not provided, Prefect will generate and register a minimal task definition.",
+                    "type": "object"
+                  },
+                  "image": {
+                    "title": "Image",
+                    "description": "The image to use for the Prefect container in the task. If this value is not null, it will override the value in the task definition. This value defaults to a Prefect base image matching your local versions.",
+                    "type": "string"
+                  },
+                  "auto_deregister_task_definition": {
+                    "title": "Auto Deregister Task Definition",
+                    "description": "If set, any task definitions that are created by this block will be deregistered. Existing task definitions linked by ARN will never be deregistered. Deregistering a task definition does not remove it from your AWS account, instead it will be marked as INACTIVE.",
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "cpu": {
+                    "title": "CPU",
+                    "description": "The amount of CPU to provide to the ECS task. Valid amounts are specified in the AWS documentation. If not provided, a default value of 1024 will be used unless present on the task definition.",
+                    "type": "integer"
+                  },
+                  "memory": {
+                    "title": "Memory",
+                    "description": "The amount of memory to provide to the ECS task. Valid amounts are specified in the AWS documentation. If not provided, a default value of 2048 will be used unless present on the task definition.",
+                    "type": "integer"
+                  },
+                  "execution_role_arn": {
+                    "title": "Execution Role ARN",
+                    "description": "An execution role to use for the task. This controls the permissions of the task when it is launching. If this value is not null, it will override the value in the task definition. An execution role must be provided to capture logs from the container.",
+                    "type": "string"
+                  },
+                  "configure_cloudwatch_logs": {
+                    "title": "Configure Cloudwatch Logs",
+                    "description": "If `True`, the Prefect container will be configured to send its output to the AWS CloudWatch logs service. This functionality requires an execution role with logs:CreateLogStream, logs:CreateLogGroup, and logs:PutLogEvents permissions. The default for this field is `False` unless `stream_output` is set. ",
+                    "type": "boolean"
+                  },
+                  "cloudwatch_logs_options": {
+                    "title": "Cloudwatch Logs Options",
+                    "description": "When `configure_cloudwatch_logs` is enabled, this setting may be used to pass additional options to the CloudWatch logs configuration or override the default options. See the AWS documentation for available options. https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html#create_awslogs_logdriver_options",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "stream_output": {
+                    "title": "Stream Output",
+                    "description": "If `True`, logs will be streamed from the Prefect container to the local console. Unless you have configured AWS CloudWatch logs manually on your task definition, this requires the same prerequisites outlined in `configure_cloudwatch_logs`.",
+                    "type": "boolean"
+                  },
+                  "launch_type": {
+                    "title": "Launch Type",
+                    "description": "The type of ECS task run infrastructure that should be used. Note that 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure the proper capacity provider stategy if set here.",
+                    "default": "FARGATE",
+                    "enum": ["FARGATE", "EC2", "EXTERNAL", "FARGATE_SPOT"],
+                    "type": "string"
+                  },
+                  "vpc_id": {
+                    "title": "VPC ID",
+                    "description": "The AWS VPC to link the task run to. This is only applicable when using the 'awsvpc' network mode for your task. FARGATE tasks require this network  mode, but for EC2 tasks the default network mode is 'bridge'. If using the 'awsvpc' network mode and this field is null, your default VPC will be used. If no default VPC can be found, the task run will fail.",
+                    "type": "string"
+                  },
+                  "cluster": {
+                    "title": "Cluster",
+                    "description": "The ECS cluster to run the task in. The ARN or name may be provided. If not provided, the default cluster will be used.",
+                    "type": "string"
+                  },
+                  "task_role_arn": {
+                    "title": "Task Role ARN",
+                    "description": "A role to attach to the task run. This controls the permissions of the task while it is running.",
+                    "type": "string"
+                  },
+                  "task_customizations": {
+                    "title": "Task Customizations",
+                    "description": "A list of JSON 6902 patches to apply to the task run request.",
+                    "type": "array",
+                    "format": "rfc6902",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "task_start_timeout_seconds": {
+                    "title": "Task Start Timeout Seconds",
+                    "description": "The amount of time to watch for the start of the ECS task before marking it as failed. The task must enter a RUNNING state to be considered started.",
+                    "default": 120,
+                    "type": "integer"
+                  },
+                  "task_watch_poll_interval": {
+                    "title": "Task Watch Poll Interval",
+                    "description": "The amount of time to wait between AWS API calls while monitoring the state of an ECS task.",
+                    "default": 5.0,
+                    "type": "number"
+                  }
+                },
+                "block_type_slug": "ecs-task",
+                "secret_fields": ["aws_credentials.aws_secret_access_key"],
+                "block_schema_references": {
+                  "aws_credentials": {
+                    "block_type_slug": "aws-credentials",
+                    "block_schema_checksum": "sha256:608ea04bddf6b0dbb7b72acf58cec796b50cbdb41cb44872202055315b818083"
+                  }
+                },
+                "definitions": {
+                  "AwsCredentials": {
+                    "title": "AwsCredentials",
+                    "description": "Block used to manage authentication with AWS. AWS authentication is\nhandled via the `boto3` module. Refer to the\n[boto3 docs](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html)\nfor more info about the possible credential configurations.",
+                    "type": "object",
+                    "properties": {
+                      "aws_access_key_id": {
+                        "title": "Aws Access Key Id",
+                        "description": "A specific AWS access key ID.",
+                        "type": "string"
+                      },
+                      "aws_secret_access_key": {
+                        "title": "Aws Secret Access Key",
+                        "description": "A specific AWS secret access key.",
+                        "type": "string",
+                        "writeOnly": true,
+                        "format": "password"
+                      },
+                      "aws_session_token": {
+                        "title": "Aws Session Token",
+                        "description": "The session key for your AWS account. This is only needed when you are using temporary credentials.",
+                        "type": "string"
+                      },
+                      "profile_name": {
+                        "title": "Profile Name",
+                        "description": "The profile to use when creating your session.",
+                        "type": "string"
+                      },
+                      "region_name": {
+                        "title": "Region Name",
+                        "description": "The AWS Region where you want to create new connections.",
+                        "type": "string"
+                      }
+                    },
+                    "block_type_slug": "aws-credentials",
+                    "secret_fields": ["aws_secret_access_key"],
+                    "block_schema_references": {}
+                  }
+                }
+              },
+              "capabilities": ["run-infrastructure"],
+              "version": "0.1.7"
+            }
+          ]
+        }
+      }
+    },
+    "prefect-azure": {
+      "block_types": {
+        "azure-blob-storage-credentials": {
+          "name": "Azure Blob Storage Credentials",
+          "slug": "azure-blob-storage-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCredentials",
+          "description": "Block used to manage Blob Storage authentication with Azure.\nAzure authentication is handled via the `azure` module through\na connection string.",
+          "code_example": "Load stored Azure Blob Storage credentials:\n```python\nfrom prefect_azure import AzureBlobStorageCredentials\nazure_credentials_block = AzureBlobStorageCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:631f7e4fca91d0a55e700aaca79c692fb9bfae2d535d7ff833cfd9544872c1bc",
+              "fields": {
+                "title": "AzureBlobStorageCredentials",
+                "description": "Block used to manage Blob Storage authentication with Azure.\nAzure authentication is handled via the `azure` module through\na connection string.",
+                "type": "object",
+                "properties": {
+                  "connection_string": {
+                    "title": "Connection String",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  }
+                },
+                "required": ["connection_string"],
+                "block_type_slug": "azure-blob-storage-credentials",
+                "secret_fields": ["connection_string"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.2"
+            }
+          ]
+        },
+        "azure-container-instance-credentials": {
+          "name": "Azure Container Instance Credentials",
+          "slug": "azure-container-instance-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials",
+          "description": "Block used to manage Azure Container Instances authentication. Stores Azure Service\nPrincipal authentication data.",
+          "code_example": "```python\nfrom prefect_azure.credentials import AzureContainerInstanceCredentials\n\nazure_container_instance_credentials_block = AzureContainerInstanceCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:80ebd55992587b783c177dfdc292dc8e90c4af82d94c2f4b51e7a78385b913d3",
+              "fields": {
+                "title": "AzureContainerInstanceCredentials",
+                "description": "Block used to manage Azure Container Instances authentication. Stores Azure Service\nPrincipal authentication data.",
+                "type": "object",
+                "properties": {
+                  "client_id": {
+                    "title": "Client ID",
+                    "description": "The service principal client ID.",
+                    "default": "...",
+                    "type": "string"
+                  },
+                  "tenant_id": {
+                    "title": "Tenant ID",
+                    "description": "The service principal tenant ID.",
+                    "type": "string"
+                  },
+                  "client_secret": {
+                    "title": "Client Secret",
+                    "description": "The service principal client secret.",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  }
+                },
+                "required": ["tenant_id", "client_secret"],
+                "block_type_slug": "azure-container-instance-credentials",
+                "secret_fields": ["client_secret"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.2"
+            }
+          ]
+        },
+        "azure-container-instance-job": {
+          "name": "Azure Container Instance Job",
+          "slug": "azure-container-instance-job",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-azure/container_instance/#prefect_azure.container_instance.AzureContainerInstanceJob",
+          "description": "Run tasks using Azure Container Instances. Note this block is experimental. The interface may change without notice.",
+          "code_example": "```python\nfrom prefect_azure.container_instance import AzureContainerInstanceJob\n\nazure_container_instance_job_block = AzureContainerInstanceJob.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:224b0f8bdfbe99d1797485382306a1b469d58c9b38512e4e0cbe8097bd5cf6e8",
+              "fields": {
+                "title": "AzureContainerInstanceJob",
+                "description": "Run tasks using Azure Container Instances. Note this block is experimental. The interface may change without notice.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "title": "Type",
+                    "description": "The slug for this task type.",
+                    "default": "container-instance-job",
+                    "enum": ["container-instance-job"],
+                    "type": "string"
+                  },
+                  "env": {
+                    "title": "Environment Variables",
+                    "description": "Environment variables to provide to the task run. These variables are set on the Prefect container at task runtime. These will not be set on the task definition.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "labels": {
+                    "title": "Labels",
+                    "description": "Labels applied to the infrastructure for metadata purposes.",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "name": {
+                    "title": "Name",
+                    "description": "Name applied to the infrastructure for identification.",
+                    "type": "string"
+                  },
+                  "command": {
+                    "title": "Command",
+                    "description": "The command to run in the infrastructure.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "aci_credentials": {
+                    "$ref": "#/definitions/AzureContainerInstanceCredentials"
+                  },
+                  "resource_group_name": {
+                    "title": "Azure Resource Group Name",
+                    "description": "The name of the Azure Resource Group in which to run Prefect ACI tasks.",
+                    "type": "string"
+                  },
+                  "subscription_id": {
+                    "title": "Azure Subscription ID",
+                    "description": "The ID of the Azure subscription to create containers under.",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  },
+                  "image": {
+                    "title": "Image",
+                    "description": "The image to use for the Prefect container in the task. This value defaults to a Prefect base image matching your local versions.",
+                    "type": "string"
+                  },
+                  "entrypoint": {
+                    "title": "Entrypoint",
+                    "description": "The entrypoint of the container you wish you run. This value defaults to the entrypoint used by Prefect images and should only be changed when using a custom image that is not based on an official Prefect image. Any commands set on deployments will be passed to the entrypoint as parameters.",
+                    "default": "/opt/prefect/entrypoint.sh",
+                    "type": "string"
+                  },
+                  "image_registry": {
+                    "$ref": "#/definitions/DockerRegistry"
+                  },
+                  "cpu": {
+                    "title": "CPU",
+                    "description": "The number of virtual CPUs to assign to the task container. If not provided, a default value of 1.0 will be used.",
+                    "default": 1.0,
+                    "type": "number"
+                  },
+                  "gpu_count": {
+                    "title": "GPU Count",
+                    "description": "The number of GPUs to assign to the task container. If not provided, no GPU will be used.",
+                    "type": "integer"
+                  },
+                  "gpu_sku": {
+                    "title": "GPU SKU",
+                    "description": "The Azure GPU SKU to use. See the ACI documentation for a list of GPU SKUs available in each Azure region.",
+                    "type": "string"
+                  },
+                  "memory": {
+                    "title": "Memory",
+                    "description": "The amount of memory in gigabytes to provide to the ACI task. Valid amounts are specified in the Azure documentation. If not provided, a default value of  1.0 will be used unless present on the task definition.",
+                    "default": 1.0,
+                    "type": "number"
+                  },
+                  "subnet_ids": {
+                    "title": "Subnet IDs",
+                    "description": "A list of Azure subnet IDs the container should be connected to.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "stream_output": {
+                    "title": "Stream Output",
+                    "description": "If `True`, logs will be streamed from the Prefect container to the local console.",
+                    "type": "boolean"
+                  },
+                  "task_start_timeout_seconds": {
+                    "title": "Task Start Timeout Seconds",
+                    "description": "The amount of time to watch for the start of the ACI container. before marking it as failed.",
+                    "default": 240,
+                    "type": "integer"
+                  },
+                  "task_watch_poll_interval": {
+                    "title": "Task Watch Poll Interval",
+                    "description": "The number of seconds to wait between Azure API calls while monitoring the state of an Azure Container Instances task.",
+                    "default": 5.0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "aci_credentials",
+                  "resource_group_name",
+                  "subscription_id"
+                ],
+                "block_type_slug": "azure-container-instance-job",
+                "secret_fields": [
+                  "aci_credentials.client_secret",
+                  "subscription_id",
+                  "image_registry.password"
+                ],
+                "block_schema_references": {
+                  "aci_credentials": {
+                    "block_type_slug": "azure-container-instance-credentials",
+                    "block_schema_checksum": "sha256:80ebd55992587b783c177dfdc292dc8e90c4af82d94c2f4b51e7a78385b913d3"
+                  },
+                  "image_registry": {
+                    "block_type_slug": "docker-registry",
+                    "block_schema_checksum": "sha256:6db1457676eee0b54ca2834b06f80a80f7c90112e64f1bdd26afb2e62fcceed9"
+                  }
+                },
+                "definitions": {
+                  "AzureContainerInstanceCredentials": {
+                    "title": "AzureContainerInstanceCredentials",
+                    "description": "Block used to manage Azure Container Instances authentication. Stores Azure Service\nPrincipal authentication data.",
+                    "type": "object",
+                    "properties": {
+                      "client_id": {
+                        "title": "Client ID",
+                        "description": "The service principal client ID.",
+                        "default": "...",
+                        "type": "string"
+                      },
+                      "tenant_id": {
+                        "title": "Tenant ID",
+                        "description": "The service principal tenant ID.",
+                        "type": "string"
+                      },
+                      "client_secret": {
+                        "title": "Client Secret",
+                        "description": "The service principal client secret.",
+                        "type": "string",
+                        "writeOnly": true,
+                        "format": "password"
+                      }
+                    },
+                    "required": ["tenant_id", "client_secret"],
+                    "block_type_slug": "azure-container-instance-credentials",
+                    "secret_fields": ["client_secret"],
+                    "block_schema_references": {}
+                  },
+                  "DockerRegistry": {
+                    "title": "DockerRegistry",
+                    "description": "Connects to a Docker registry.\n\nRequires a Docker Engine to be connectable.",
+                    "type": "object",
+                    "properties": {
+                      "username": {
+                        "title": "Username",
+                        "description": "The username to log into the registry with.",
+                        "type": "string"
+                      },
+                      "password": {
+                        "title": "Password",
+                        "description": "The password to log into the registry with.",
+                        "type": "string",
+                        "writeOnly": true,
+                        "format": "password"
+                      },
+                      "registry_url": {
+                        "title": "Registry Url",
+                        "description": "The URL to the registry. Generally, \"http\" or \"https\" can be omitted.",
+                        "type": "string"
+                      },
+                      "reauth": {
+                        "title": "Reauth",
+                        "description": "Whether or not to reauthenticate on each interaction.",
+                        "default": true,
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["username", "password", "registry_url"],
+                    "block_type_slug": "docker-registry",
+                    "secret_fields": ["password"],
+                    "block_schema_references": {}
+                  }
+                }
+              },
+              "capabilities": ["run-infrastructure"],
+              "version": "0.2.2"
+            }
+          ]
+        },
+        "azure-cosmos-db-credentials": {
+          "name": "Azure Cosmos DB Credentials",
+          "slug": "azure-cosmos-db-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials",
+          "description": "Block used to manage Cosmos DB authentication with Azure.\nAzure authentication is handled via the `azure` module through\na connection string.",
+          "code_example": "Load stored Azure Cosmos DB credentials:\n```python\nfrom prefect_azure import AzureCosmosDbCredentials\nazure_credentials_block = AzureCosmosDbCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:f9560db7d437c52903b93069a6adc9eca4e8a126d83860276703929ce449553a",
+              "fields": {
+                "title": "AzureCosmosDbCredentials",
+                "description": "Block used to manage Cosmos DB authentication with Azure.\nAzure authentication is handled via the `azure` module through\na connection string.",
+                "type": "object",
+                "properties": {
+                  "connection_string": {
+                    "title": "Connection String",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  }
+                },
+                "required": ["connection_string"],
+                "block_type_slug": "azure-cosmos-db-credentials",
+                "secret_fields": ["connection_string"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.2"
+            }
+          ]
+        },
+        "azureml-credentials": {
+          "name": "AzureML Credentials",
+          "slug": "azureml-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials",
+          "description": "Block used to manage authentication with AzureML. Azure authentication is\nhandled via the `azure` module.",
+          "code_example": "Load stored AzureML credentials:\n```python\nfrom prefect_azure import AzureMlCredentials\nazure_ml_credentials_block = AzureMlCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:419c8794df0ee64ab9a90065194de3f69b08206ec8848ba620bba48d4c973abf",
+              "fields": {
+                "title": "AzureMlCredentials",
+                "description": "Block used to manage authentication with AzureML. Azure authentication is\nhandled via the `azure` module.",
+                "type": "object",
+                "properties": {
+                  "tenant_id": {
+                    "title": "Tenant Id",
+                    "type": "string"
+                  },
+                  "service_principal_id": {
+                    "title": "Service Principal Id",
+                    "type": "string"
+                  },
+                  "service_principal_password": {
+                    "title": "Service Principal Password",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  },
+                  "subscription_id": {
+                    "title": "Subscription Id",
+                    "type": "string"
+                  },
+                  "resource_group": {
+                    "title": "Resource Group",
+                    "type": "string"
+                  },
+                  "workspace_name": {
+                    "title": "Workspace Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenant_id",
+                  "service_principal_id",
+                  "service_principal_password",
+                  "subscription_id",
+                  "resource_group",
+                  "workspace_name"
+                ],
+                "block_type_slug": "azureml-credentials",
+                "secret_fields": ["service_principal_password"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.2"
+            }
+          ]
+        }
+      }
+    },
+    "prefect-databricks": {
+      "block_types": {
+        "databricks-credentials": {
+          "name": "Databricks Credentials",
+          "slug": "databricks-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/5GTHI1PH2dTiantfps6Fnc/1c750fab7f4c14ea1b93a62b9fea6a94/databricks_logo_icon_170295.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-databricks/credentials/#prefect_databricks.credentials.DatabricksCredentials",
+          "description": "Block used to manage Databricks authentication.",
+          "code_example": "Load stored Databricks credentials:\n```python\nfrom prefect_databricks import DatabricksCredentials\ndatabricks_credentials_block = DatabricksCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:b82275051357e4267d9ad459c1a8cb5d9ca9f5154db5238f84211d19963369e1",
+              "fields": {
+                "title": "DatabricksCredentials",
+                "description": "Block used to manage Databricks authentication.",
+                "type": "object",
+                "properties": {
+                  "databricks_instance": {
+                    "title": "Databricks Instance",
+                    "type": "string"
+                  },
+                  "token": {
+                    "title": "Token",
+                    "type": "string",
+                    "writeOnly": true,
+                    "format": "password"
+                  },
+                  "client_kwargs": {
+                    "title": "Client Kwargs",
+                    "type": "object"
+                  }
+                },
+                "required": ["databricks_instance", "token"],
+                "block_type_slug": "databricks-credentials",
+                "secret_fields": ["token"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.1.3"
+            }
+          ]
+        }
+      }
+    },
+    "prefect-gcp": {
+      "block_types": {
+        "gcp-credentials": {
+          "name": "GCP Credentials",
+          "slug": "gcp-credentials",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-gcp/credentials/#prefect_gcp.credentials.GcpCredentials",
+          "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+          "code_example": "Load GCP credentials stored in a `GCP Credentials` Block:\n```python\nfrom prefect_gcp import GcpCredentials\ngcp_credentials_block = GcpCredentials.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:276b3197d186ff97c26b14cbbdc0f4d0c4b1639285c7dcb9cd233f0eefffeb35",
+              "fields": {
+                "title": "GcpCredentials",
+                "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+                "type": "object",
+                "properties": {
+                  "service_account_file": {
+                    "title": "Service Account File",
+                    "description": "Path to the service account JSON keyfile.",
+                    "type": "string",
+                    "format": "path"
+                  },
+                  "service_account_info": {
+                    "title": "Service Account Info",
+                    "description": "The contents of the keyfile as a dict.",
+                    "type": "object"
+                  },
+                  "project": {
+                    "title": "Project",
+                    "description": "The GCP project to use for the client.",
+                    "type": "string"
+                  }
+                },
+                "block_type_slug": "gcp-credentials",
+                "secret_fields": ["service_account_info.*"],
+                "block_schema_references": {}
+              },
+              "capabilities": [],
+              "version": "0.2.1"
+            }
+          ]
+        },
+        "bigquery-warehouse": {
+          "name": "BigQuery Warehouse",
+          "slug": "bigquery-warehouse",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-gcp/bigquery/#prefect_gcp.bigquery.BigQueryWarehouse",
+          "description": "A block for querying a database with BigQuery.\n\nUpon instantiating, a connection to BigQuery is established\nand maintained for the life of the object until the close method is called.\n\nIt is recommended to use this block as a context manager, which will automatically\nclose the connection and its cursors when the context is exited.\n\nIt is also recommended that this block is loaded and consumed within a single task\nor flow because if the block is passed across separate tasks and flows,\nthe state of the block's connection and cursor could be lost.",
+          "code_example": "```python\nfrom prefect_gcp.bigquery import BigQueryWarehouse\n\nbigquery_warehouse_block = BigQueryWarehouse.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:3090c6187d4d855804d22fe2972c1da6de6f9508535a440d261d45034c8fa93a",
+              "fields": {
+                "title": "BigQueryWarehouse",
+                "description": "A block for querying a database with BigQuery.\n\nUpon instantiating, a connection to BigQuery is established\nand maintained for the life of the object until the close method is called.\n\nIt is recommended to use this block as a context manager, which will automatically\nclose the connection and its cursors when the context is exited.\n\nIt is also recommended that this block is loaded and consumed within a single task\nor flow because if the block is passed across separate tasks and flows,\nthe state of the block's connection and cursor could be lost.",
+                "type": "object",
+                "properties": {
+                  "gcp_credentials": { "$ref": "#/definitions/GcpCredentials" },
+                  "fetch_size": {
+                    "title": "Fetch Size",
+                    "description": "The number of rows to fetch at a time.",
+                    "default": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": ["gcp_credentials"],
+                "block_type_slug": "bigquery-warehouse",
+                "secret_fields": ["gcp_credentials.service_account_info.*"],
+                "block_schema_references": {
+                  "gcp_credentials": {
+                    "block_type_slug": "gcp-credentials",
+                    "block_schema_checksum": "sha256:276b3197d186ff97c26b14cbbdc0f4d0c4b1639285c7dcb9cd233f0eefffeb35"
+                  }
+                },
+                "definitions": {
+                  "GcpCredentials": {
+                    "title": "GcpCredentials",
+                    "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+                    "type": "object",
+                    "properties": {
+                      "service_account_file": {
+                        "title": "Service Account File",
+                        "description": "Path to the service account JSON keyfile.",
+                        "type": "string",
+                        "format": "path"
+                      },
+                      "service_account_info": {
+                        "title": "Service Account Info",
+                        "description": "The contents of the keyfile as a dict.",
+                        "type": "object"
+                      },
+                      "project": {
+                        "title": "Project",
+                        "description": "The GCP project to use for the client.",
+                        "type": "string"
+                      }
+                    },
+                    "block_type_slug": "gcp-credentials",
+                    "secret_fields": ["service_account_info.*"],
+                    "block_schema_references": {}
+                  }
+                }
+              },
+              "capabilities": [],
+              "version": "0.2.1"
+            }
+          ]
+        },
+        "cloud-run-job": {
+          "name": "GCP Cloud Run Job",
+          "slug": "cloud-run-job",
+          "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250",
+          "documentation_url": "https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob",
+          "description": "Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice.",
+          "code_example": "```python\nfrom prefect_gcp.cloud_run import CloudRunJob\n\ncloud_run_job_block = CloudRunJob.load(\"BLOCK_NAME\")\n```",
+          "block_schemas": [
+            {
+              "checksum": "sha256:b36163f0b7ddafb972adc351a6c6c37de33d7276074d3805b6b7248158bc5355",
+              "fields": {
+                "title": "CloudRunJob",
+                "description": "Infrastructure block used to run GCP Cloud Run Jobs. Note this block is experimental. The interface may change without notice.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "title": "Type",
+                    "description": "The slug for this task type.",
+                    "default": "cloud-run-job",
+                    "enum": ["cloud-run-job"],
+                    "type": "string"
+                  },
+                  "env": {
+                    "title": "Env",
+                    "description": "Environment variables to be passed to your Cloud Run Job.",
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "labels": {
+                    "title": "Labels",
+                    "description": "Labels applied to the infrastructure for metadata purposes.",
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  },
+                  "name": {
+                    "title": "Name",
+                    "description": "Name applied to the infrastructure for identification.",
+                    "type": "string"
+                  },
+                  "command": {
+                    "title": "Command",
+                    "description": "The command to run in the infrastructure.",
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "image": {
+                    "title": "Image Name",
+                    "description": "The image to use for a new Cloud Run Job. This value must refer to an image within either Google Container Registry or Google Artifact Registry, like `gcr.io/<project_name>/<repo>/`.",
+                    "type": "string"
+                  },
+                  "region": {
+                    "title": "Region",
+                    "description": "The region where the Cloud Run Job resides.",
+                    "type": "string"
+                  },
+                  "credentials": { "$ref": "#/definitions/GcpCredentials" },
+                  "cpu": {
+                    "title": "CPU",
+                    "description": "The amount of compute allocated to the Cloud Run Job. The int must be valid based on the rules specified at https://cloud.google.com/run/docs/configuring/cpu#setting-jobs .",
+                    "type": "integer"
+                  },
+                  "memory": {
+                    "title": "Memory",
+                    "description": "The amount of memory allocated to the Cloud Run Job.",
+                    "type": "integer"
+                  },
+                  "memory_unit": {
+                    "title": "Memory Units",
+                    "description": "The unit of memory. See https://cloud.google.com/run/docs/configuring/memory-limits#setting for additional details.",
+                    "enum": ["G", "Gi", "M", "Mi"],
+                    "type": "string"
+                  },
+                  "args": {
+                    "title": "Args",
+                    "description": "Arguments to be passed to your Cloud Run Job's entrypoint command.",
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "keep_job": {
+                    "title": "Keep Job After Completion",
+                    "description": "Keep the completed Cloud Run Job on Google Cloud Platform.",
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "timeout": {
+                    "title": "Job Timeout",
+                    "description": "The length of time that Prefect will wait for a Cloud Run Job to complete before raising an exception.",
+                    "type": "integer"
+                  }
+                },
+                "required": ["image", "region", "credentials"],
+                "block_type_slug": "cloud-run-job",
+                "secret_fields": ["credentials.service_account_info.*"],
+                "block_schema_references": {
+                  "credentials": {
+                    "block_type_slug": "gcp-credentials",
+                    "block_schema_checksum": "sha256:276b3197d186ff97c26b14cbbdc0f4d0c4b1639285c7dcb9cd233f0eefffeb35"
+                  }
+                },
+                "definitions": {
+                  "GcpCredentials": {
+                    "title": "GcpCredentials",
+                    "description": "Block used to manage authentication with GCP. GCP authentication is\nhandled via the `google.oauth2` module or through the CLI.\nSpecify either one of service `account_file` or `service_account_info`; if both\nare not specified, the client will try to detect the service account info stored\nin the env from the command, `gcloud auth application-default login`. Refer to the\n[Authentication docs](https://cloud.google.com/docs/authentication/production)\nfor more info about the possible credential configurations.",
+                    "type": "object",
+                    "properties": {
+                      "service_account_file": {
+                        "title": "Service Account File",
+                        "description": "Path to the service account JSON keyfile.",
+                        "type": "string",
+                        "format": "path"
+                      },
+                      "service_account_info": {
+                        "title": "Service Account Info",
+                        "description": "The contents of the keyfile as a dict.",
+                        "type": "object"
+                      },
+                      "project": {
+                        "title": "Project",
+                        "description": "The GCP project to use for the client.",
+                        "type": "string"
+                      }
+                    },
+                    "block_type_slug": "gcp-credentials",
+                    "secret_fields": ["service_account_info.*"],
+                    "block_schema_references": {}
+                  }
+                }
+              },
+              "capabilities": ["run-infrastructure"],
+              "version": "0.2.1"
+            }
+          ]
+        }
+      },
+      "prefect-snowflake": {
+        "block_types": {
+          "snowflake-credentials": {
+            "name": "Snowflake Credentials",
+            "slug": "snowflake-credentials",
+            "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/2DxzAeTM9eHLDcRQx1FR34/f858a501cdff918d398b39365ec2150f/snowflake.png?h=250",
+            "documentation_url": "https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials",
+            "description": "Block used to manage authentication with Snowflake.",
+            "code_example": "Load stored Snowflake credentials:\n```python\nfrom prefect_snowflake import SnowflakeCredentials\nsnowflake_credentials_block = SnowflakeCredentials.load(\"BLOCK_NAME\")\n```",
+            "block_schemas": [
+              {
+                "checksum": "sha256:e922f0c0e101abbffbd623c7afd4a6ba41b0043372a9ae3e55071496a4dfd994",
+                "fields": {
+                  "title": "SnowflakeCredentials",
+                  "description": "Block used to manage authentication with Snowflake.",
+                  "type": "object",
+                  "properties": {
+                    "account": {
+                      "title": "Account",
+                      "description": "The snowflake account name",
+                      "type": "string"
+                    },
+                    "user": {
+                      "title": "User",
+                      "description": "The user name used to authenticate",
+                      "type": "string"
+                    },
+                    "password": {
+                      "title": "Password",
+                      "description": "The password used to authenticate",
+                      "type": "string",
+                      "writeOnly": true,
+                      "format": "password"
+                    },
+                    "private_key": {
+                      "title": "Private Key",
+                      "description": "The PEM used to authenticate",
+                      "type": "string",
+                      "writeOnly": true,
+                      "format": "password"
+                    },
+                    "authenticator": {
+                      "title": "Authenticator",
+                      "description": "The type of authenticator to use for initializing connection",
+                      "default": "snowflake",
+                      "enum": [
+                        "snowflake",
+                        "externalbrowser",
+                        "okta_endpoint",
+                        "oauth",
+                        "username_password_mfa"
+                      ],
+                      "type": "string"
+                    },
+                    "token": {
+                      "title": "Token",
+                      "description": "The OAuth or JWT Token to provide when authenticator is set to `oauth`",
+                      "type": "string",
+                      "writeOnly": true,
+                      "format": "password"
+                    },
+                    "endpoint": {
+                      "title": "Endpoint",
+                      "description": "The Okta endpoint to use when authenticator is set to `okta_endpoint`",
+                      "type": "string"
+                    },
+                    "role": {
+                      "title": "Role",
+                      "description": "The name of the default role to use",
+                      "type": "string"
+                    },
+                    "autocommit": {
+                      "title": "Autocommit",
+                      "description": "Whether to automatically commit",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["account", "user"],
+                  "block_type_slug": "snowflake-credentials",
+                  "secret_fields": ["password", "private_key", "token"],
+                  "block_schema_references": {}
+                },
+                "capabilities": [],
+                "version": "0.2.2"
+              }
+            ]
+          },
+          "snowflake-connector": {
+            "name": "Snowflake Connector",
+            "slug": "snowflake-connector",
+            "logo_url": "https://images.ctfassets.net/gm98wzqotmnx/2DxzAeTM9eHLDcRQx1FR34/f858a501cdff918d398b39365ec2150f/snowflake.png?h=250",
+            "documentation_url": "https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector",
+            "description": "Block used to manage connections with Snowflake.",
+            "code_example": "Load stored Snowflake connector:\n```python\nfrom prefect_snowflake.database import SnowflakeConnector\nsnowflake_connector_block = SnowflakeConnector.load(\"BLOCK_NAME\")\n```",
+            "block_schemas": [
+              {
+                "checksum": "sha256:9a9a7b2a57e10b07c780f43ab08e7c57106232e6d9ba89e478daf66e8576857d",
+                "fields": {
+                  "title": "SnowflakeConnector",
+                  "description": "Block used to manage connections with Snowflake.",
+                  "type": "object",
+                  "properties": {
+                    "database": {
+                      "title": "Database",
+                      "descriptions": "The name of the default database to use",
+                      "type": "string"
+                    },
+                    "warehouse": {
+                      "title": "Warehouse",
+                      "description": "The name of the default warehouse to use",
+                      "type": "string"
+                    },
+                    "schema": {
+                      "title": "Schema",
+                      "description": "The name of the default schema to use",
+                      "type": "string"
+                    },
+                    "credentials": {
+                      "$ref": "#/definitions/SnowflakeCredentials"
+                    }
+                  },
+                  "required": [
+                    "database",
+                    "warehouse",
+                    "schema",
+                    "credentials"
+                  ],
+                  "block_type_slug": "snowflake-connector",
+                  "secret_fields": [
+                    "credentials.password",
+                    "credentials.private_key",
+                    "credentials.token"
+                  ],
+                  "block_schema_references": {
+                    "credentials": {
+                      "block_type_slug": "snowflake-credentials",
+                      "block_schema_checksum": "sha256:e922f0c0e101abbffbd623c7afd4a6ba41b0043372a9ae3e55071496a4dfd994"
+                    }
+                  },
+                  "definitions": {
+                    "SnowflakeCredentials": {
+                      "title": "SnowflakeCredentials",
+                      "description": "Block used to manage authentication with Snowflake.",
+                      "type": "object",
+                      "properties": {
+                        "account": {
+                          "title": "Account",
+                          "description": "The snowflake account name",
+                          "type": "string"
+                        },
+                        "user": {
+                          "title": "User",
+                          "description": "The user name used to authenticate",
+                          "type": "string"
+                        },
+                        "password": {
+                          "title": "Password",
+                          "description": "The password used to authenticate",
+                          "type": "string",
+                          "writeOnly": true,
+                          "format": "password"
+                        },
+                        "private_key": {
+                          "title": "Private Key",
+                          "description": "The PEM used to authenticate",
+                          "type": "string",
+                          "writeOnly": true,
+                          "format": "password"
+                        },
+                        "authenticator": {
+                          "title": "Authenticator",
+                          "description": "The type of authenticator to use for initializing connection",
+                          "default": "snowflake",
+                          "enum": [
+                            "snowflake",
+                            "externalbrowser",
+                            "okta_endpoint",
+                            "oauth",
+                            "username_password_mfa"
+                          ],
+                          "type": "string"
+                        },
+                        "token": {
+                          "title": "Token",
+                          "description": "The OAuth or JWT Token to provide when authenticator is set to `oauth`",
+                          "type": "string",
+                          "writeOnly": true,
+                          "format": "password"
+                        },
+                        "endpoint": {
+                          "title": "Endpoint",
+                          "description": "The Okta endpoint to use when authenticator is set to `okta_endpoint`",
+                          "type": "string"
+                        },
+                        "role": {
+                          "title": "Role",
+                          "description": "The name of the default role to use",
+                          "type": "string"
+                        },
+                        "autocommit": {
+                          "title": "Autocommit",
+                          "description": "Whether to automatically commit",
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["account", "user"],
+                      "block_type_slug": "snowflake-credentials",
+                      "secret_fields": ["password", "private_key", "token"],
+                      "block_schema_references": {}
+                    }
+                  }
+                },
+                "capabilities": [],
+                "version": "0.2.2"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

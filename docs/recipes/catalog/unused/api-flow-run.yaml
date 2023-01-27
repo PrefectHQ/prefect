@@ -1,0 +1,8 @@
+recipeName: Trigger Flows via the API
+author: Prefect
+authorUrl: https://prefect.io
+description: Start a flow run from a deployment by calling the Prefect API directly.
+topic: Deployments
+recipeUrl: https://discourse.prefect.io/t/how-to-trigger-a-flow-run-from-a-deployment-via-api-call-using-python-requests-library-or-from-a-terminal-using-curl/1396
+iconUrl: 
+  - /img/collections/python.png

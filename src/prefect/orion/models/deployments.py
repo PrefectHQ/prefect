@@ -11,34 +11,47 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, or_, select
 
-import prefect.orion.schemas as schemas
+from prefect.orion import models, schemas
+from prefect.orion.api.workers import WorkerLookups
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 
 
 @inject_db
-async def _delete_auto_scheduled_runs(
+async def _delete_scheduled_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     db: OrionDBInterface,
+    auto_scheduled_only: bool = False,
 ):
     """
     This utility function deletes all of a deployment's scheduled runs that are
-    still in a Scheduled state and that were  auto-scheduled runs. It should be
-    run any time a deployment is created or modified in order to ensure that
-    future runs comply with the deployment's latest values.
+    still in a Scheduled state It should be run any time a deployment is created or
+    modified in order to ensure that future runs comply with the deployment's latest values.
+
+    Args:
+        deployment_id: the deplyment for which we should delete runs.
+        auto_scheduled_only: if True, only delete auto scheduled runs. Defaults to `False`.
     """
     delete_query = sa.delete(db.FlowRun).where(
         db.FlowRun.deployment_id == deployment_id,
         db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db.FlowRun.auto_scheduled.is_(True),
     )
+
+    if auto_scheduled_only:
+        delete_query = delete_query.where(
+            db.FlowRun.auto_scheduled.is_(True),
+        )
+
     await session.execute(delete_query)
 
 
@@ -72,16 +85,8 @@ async def create_deployment(
             set_={
                 **deployment.dict(
                     shallow=True,
-                    include={
-                        "schedule",
-                        "is_schedule_active",
-                        "description",
-                        "tags",
-                        "parameters",
-                        "updated",
-                        "storage_document_id",
-                        "infrastructure_document_id",
-                    },
+                    exclude_unset=True,
+                    exclude={"id", "created", "created_by"},
                 ),
             },
         )
@@ -102,9 +107,16 @@ async def create_deployment(
     result = await session.execute(query)
     model = result.scalar()
 
+    if model.work_queue_name:
+        await models.work_queues._ensure_work_queue_exists(
+            session=session, name=model.work_queue_name, db=db
+        )
+
     # because this could upsert a different schedule, delete any runs from the old
     # deployment
-    await _delete_auto_scheduled_runs(session=session, deployment_id=model.id, db=db)
+    await _delete_scheduled_runs(
+        session=session, deployment_id=model.id, db=db, auto_scheduled_only=True
+    )
 
     return model
 
@@ -130,7 +142,32 @@ async def update_deployment(
 
     # exclude_unset=True allows us to only update values provided by
     # the user, ignoring any defaults on the model
-    update_data = deployment.dict(shallow=True, exclude_unset=True)
+    update_data = deployment.dict(
+        shallow=True,
+        exclude_unset=True,
+        exclude={"work_pool_name"},
+    )
+    if PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        if deployment.work_pool_name and deployment.work_queue_name:
+            # If a specific pool name/queue name combination was provided, get the
+            # ID for that work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_work_pool_queue_id_from_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+                work_pool_queue_name=deployment.work_queue_name,
+                create_queue_if_not_found=True,
+            )
+        elif deployment.work_pool_name:
+            # If just a pool name was provided, get the ID for its default
+            # work pool queue.
+            update_data[
+                "work_pool_queue_id"
+            ] = await WorkerLookups()._get_default_work_pool_queue_id_from_work_pool_name(
+                session=session,
+                work_pool_name=deployment.work_pool_name,
+            )
 
     update_stmt = (
         sa.update(db.Deployment)
@@ -140,9 +177,15 @@ async def update_deployment(
     result = await session.execute(update_stmt)
 
     # delete any auto scheduled runs that would have reflected the old deployment config
-    await _delete_auto_scheduled_runs(
-        session=session, deployment_id=deployment_id, db=db
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, db=db, auto_scheduled_only=True
     )
+
+    # create work queue if it doesn't exist
+    if update_data.get("work_queue_name"):
+        await models.work_queues._ensure_work_queue_exists(
+            session=session, name=update_data["work_queue_name"], db=db
+        )
 
     return result.rowcount > 0
 
@@ -201,6 +244,8 @@ async def _apply_deployment_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ):
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
@@ -232,6 +277,23 @@ async def _apply_deployment_filters(
 
         query = query.where(exists_clause.exists())
 
+    if work_pool_filter or work_pool_queue_filter:
+        exists_clause = select(db.WorkPoolQueue).where(
+            db.Deployment.work_pool_queue_id == db.WorkPoolQueue.id
+        )
+
+        if work_pool_queue_filter:
+            exists_clause = exists_clause.where(
+                work_pool_queue_filter.as_sql_filter(db)
+            )
+
+        if work_pool_filter:
+            exists_clause = exists_clause.join(
+                db.WorkPool, db.WorkPool.id == db.WorkPoolQueue.work_pool_id
+            ).where(work_pool_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
     return query
 
 
@@ -245,6 +307,9 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
+    sort: schemas.sorting.DeploymentSort = schemas.sorting.DeploymentSort.NAME_ASC,
 ):
     """
     Read deployments.
@@ -257,13 +322,15 @@ async def read_deployments(
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
         deployment_filter: only select deployment that match these filters
-
+        work_pool_filter: only select deployments whose work pools match these criteria
+        work_pool_queue_filter: only select deployments whose work pool queues match these criteria
+        sort: the sort criteria for selected deployments. Defaults to `name` ASC.
 
     Returns:
         List[db.Deployment]: deployments
     """
 
-    query = select(db.Deployment).order_by(db.Deployment.name)
+    query = select(db.Deployment).order_by(sort.as_sql_sort(db=db))
 
     query = await _apply_deployment_filters(
         query=query,
@@ -271,6 +338,8 @@ async def read_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 
@@ -291,6 +360,8 @@ async def count_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
 ) -> int:
     """
     Count deployments.
@@ -301,6 +372,8 @@ async def count_deployments(
         flow_run_filter: only count deployments whose flow runs match these criteria
         task_run_filter: only count deployments whose task runs match these criteria
         deployment_filter: only count deployment that match these filters
+        work_pool_filter: only count deployments that match these work pool filters
+        work_pool_queue_filter: only count deployments that match these work pool queue filters
 
     Returns:
         int: the number of deployments matching filters
@@ -314,6 +387,8 @@ async def count_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        work_pool_filter=work_pool_filter,
+        work_pool_queue_filter=work_pool_queue_filter,
         db=db,
     )
 
@@ -337,11 +412,9 @@ async def delete_deployment(
     """
 
     # delete scheduled runs, both auto- and user- created.
-    delete_query = sa.delete(db.FlowRun).where(
-        db.FlowRun.deployment_id == deployment_id,
-        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+    await _delete_scheduled_runs(
+        session=session, deployment_id=deployment_id, auto_scheduled_only=False
     )
-    await session.execute(delete_query)
 
     result = await session.execute(
         delete(db.Deployment).where(db.Deployment.id == deployment_id)
@@ -354,7 +427,10 @@ async def schedule_runs(
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
+    min_time: datetime.timedelta = None,
+    min_runs: int = None,
     max_runs: int = None,
+    auto_scheduled: bool = True,
 ) -> List[UUID]:
     """
     Schedule flow runs for a deployment
@@ -363,21 +439,38 @@ async def schedule_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected.
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time` + `min_time` is reached
 
     Returns:
         a list of flow run ids scheduled for the deployment
     """
+    if min_runs is None:
+        min_runs = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
     if max_runs is None:
         max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
         start_time = pendulum.now("UTC")
-    start_time = pendulum.instance(start_time)
     if end_time is None:
         end_time = start_time + (
             PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
+    if min_time is None:
+        min_time = PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+
+    start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
 
     runs = await _generate_scheduled_flow_runs(
@@ -385,7 +478,10 @@ async def schedule_runs(
         deployment_id=deployment_id,
         start_time=start_time,
         end_time=end_time,
+        min_time=min_time,
+        min_runs=min_runs,
         max_runs=max_runs,
+        auto_scheduled=auto_scheduled,
     )
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
@@ -396,8 +492,11 @@ async def _generate_scheduled_flow_runs(
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
+    min_time: datetime.timedelta,
+    min_runs: int,
     max_runs: int,
     db: OrionDBInterface,
+    auto_scheduled: bool = True,
 ) -> List[Dict]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -412,8 +511,20 @@ async def _generate_scheduled_flow_runs(
         session: a database session
         deployment_id: the id of the deployment to schedule
         start_time: the time from which to start scheduling runs
-        end_time: a limit on how far in the future runs will be scheduled
+        end_time: runs will be scheduled until at most this time
+        min_time: runs will be scheduled until at least this far in the future
+        min_runs: a minimum amount of runs to schedule
         max_runs: a maximum amount of runs to schedule
+
+    This function will generate the minimum number of runs that satisfy the min
+    and max times, and the min and max counts. Specifically, the following order
+    will be respected.
+
+        - Runs will be generated starting on or after the `start_time`
+        - No more than `max_runs` runs will be generated
+        - No runs will be generated after `end_time` is reached
+        - At least `min_runs` runs will be generated
+        - Runs will be generated until at least `start_time + min_time` is reached
 
     Returns:
         a list of dictionary representations of the `FlowRun` objects to schedule
@@ -423,17 +534,24 @@ async def _generate_scheduled_flow_runs(
     # retrieve the deployment
     deployment = await session.get(db.Deployment, deployment_id)
 
-    if (
-        not deployment
-        or not deployment.manifest_path
-        or not deployment.schedule
-        or not deployment.is_schedule_active
-    ):
+    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
 
-    dates = await deployment.schedule.get_dates(
+    dates = []
+
+    # generate up to `n` dates satisfying the min of `max_runs` and `end_time`
+    for dt in deployment.schedule._get_dates_generator(
         n=max_runs, start=start_time, end=end_time
-    )
+    ):
+        dates.append(dt)
+
+        # at any point, if we satisfy both of the minimums, we can stop
+        if len(dates) >= min_runs and dt >= (start_time + min_time):
+            break
+
+    tags = deployment.tags
+    if auto_scheduled:
+        tags = ["auto-scheduled"] + tags
 
     for date in dates:
         runs.append(
@@ -441,11 +559,13 @@ async def _generate_scheduled_flow_runs(
                 "id": uuid4(),
                 "flow_id": deployment.flow_id,
                 "deployment_id": deployment_id,
+                "work_queue_name": deployment.work_queue_name,
+                "work_pool_queue_id": deployment.work_pool_queue_id,
                 "parameters": deployment.parameters,
                 "infrastructure_document_id": deployment.infrastructure_document_id,
                 "idempotency_key": f"scheduled {deployment.id} {date}",
-                "tags": ["auto-scheduled"] + deployment.tags,
-                "auto_scheduled": True,
+                "tags": tags,
+                "auto_scheduled": auto_scheduled,
                 "state": schemas.states.Scheduled(
                     scheduled_time=date,
                     message="Flow run scheduled",
@@ -536,18 +656,20 @@ async def check_work_queues_for_deployment(
     """
     Get work queues that can pick up the specified deployment.
 
-    Work queues will pick up a deployment when all of the following are met:
-    - the deployment has ALL tags that the work queue has (i.e. the work
-    queue's tags must be a subset of the deployment's tags.)
-    - the work queue's specified deployment IDs match the deployment's ID,
-    or the work queue does NOT have specified deployment IDs
-    - the work queue's specified flow runners match the deployment's flow
-    runner or the work queue does NOT have a specified flow runner
+    Work queues will pick up a deployment when all of the following are met.
+
+    - The deployment has ALL tags that the work queue has (i.e. the work
+    queue's tags must be a subset of the deployment's tags).
+    - The work queue's specified deployment IDs match the deployment's ID,
+    or the work queue does NOT have specified deployment IDs.
+    - The work queue's specified flow runners match the deployment's flow
+    runner or the work queue does NOT have a specified flow runner.
 
     Notes on the query:
-    - our database currently allows either "null" and empty lists as
+
+    - Our database currently allows either "null" and empty lists as
     null values in filters, so we need to catch both cases with "or".
-    - json_contains(A, B) should be interepreted as "True if A
+    - `json_contains(A, B)` should be interepreted as "True if A
     contains B".
 
     Returns:

@@ -7,10 +7,9 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models.deployments import check_work_queues_for_deployment
 from prefect.orion.schemas import filters
 from prefect.orion.schemas.states import StateType
+from prefect.settings import PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS
 
 
 class TestCreateDeployment:
@@ -36,6 +35,61 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo", "bar"]
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
+    async def test_creating_a_deployment_creates_associated_work_queue(
+        self, session, flow
+    ):
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is None
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is not None
+
+    async def test_creating_a_deployment_with_existing_work_queue_is_ok(
+        self, session, flow
+    ):
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="d2", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
+            ),
+        )
+        await session.commit()
+
+    async def test_create_deployment_with_work_pool(
+        self, session, flow, work_pool_queue
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_id=flow.id,
+                work_pool_queue_id=work_pool_queue.id,
+            ),
+        )
+
+        assert deployment.work_pool_queue_id == work_pool_queue.id
+
     async def test_create_deployment_updates_existing_deployment(
         self,
         session,
@@ -44,21 +98,28 @@ class TestCreateDeployment:
         infrastructure_document_id_2,
     ):
 
+        openapi_schema = {
+            "title": "Parameters",
+            "type": "object",
+            "properties": {
+                "foo": {"title": "foo", "default": "Will", "type": "string"}
+            },
+        }
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 infrastructure_document_id=infrastructure_document_id,
+                parameter_openapi_schema=openapi_schema,
             ),
         )
         original_update_time = deployment.updated
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert deployment.parameters == {}
+        assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == []
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
@@ -68,15 +129,20 @@ class TestCreateDeployment:
             interval=datetime.timedelta(days=1)
         )
 
+        openapi_schema["properties"]["new"] = {
+            "title": "new",
+            "default": True,
+            "type": "bool",
+        }
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schedule,
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
+                parameter_openapi_schema=openapi_schema,
                 tags=["foo", "bar"],
                 infrastructure_document_id=infrastructure_document_id_2,
             ),
@@ -84,10 +150,10 @@ class TestCreateDeployment:
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.manifest_path == "file.json"
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
+        assert deployment.parameter_openapi_schema == openapi_schema
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
         assert deployment.infrastructure_document_id == infrastructure_document_id_2
@@ -113,6 +179,84 @@ class TestCreateDeployment:
         assert deployment.manifest_path == "file.json"
         assert deployment.schedule == schedule
         assert deployment.infrastructure_document_id == infrastructure_document_id
+
+    async def test_create_deployment_with_created_by(self, session, flow):
+        created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="A-TYPE", display_value="creator-of-things"
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                created_by=created_by,
+                tags=["tag1"],
+            ),
+        )
+
+        assert deployment.created_by
+        assert deployment.created_by.id == created_by.id
+        assert deployment.created_by.display_value == created_by.display_value
+        assert deployment.created_by.type == created_by.type
+
+        # created_by unaffected by upsert
+        new_created_by = schemas.core.CreatedBy(
+            id=uuid4(), type="B-TYPE", display_value="other-creator-of-things"
+        )
+        updated_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                created_by=new_created_by,
+                tags=["tag2"],
+            ),
+        )
+        # confirm upsert
+        assert deployment.id == updated_deployment.id
+        assert updated_deployment.tags == ["tag2"]
+        # confirm created_by unaffected
+        assert updated_deployment.created_by.id == created_by.id
+        assert updated_deployment.created_by.display_value == created_by.display_value
+        assert updated_deployment.created_by.type == created_by.type
+
+    async def test_create_deployment_with_updated_by(self, session, flow):
+        updated_by = schemas.core.UpdatedBy(
+            id=uuid4(), type="A-TYPE", display_value="updator-of-things"
+        )
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                updated_by=updated_by,
+            ),
+        )
+
+        assert deployment.updated_by
+        assert deployment.updated_by.id == updated_by.id
+        assert deployment.updated_by.display_value == updated_by.display_value
+        assert deployment.updated_by.type == updated_by.type
+
+        # updated_by updated via upsert
+        new_updated_by = schemas.core.UpdatedBy(
+            id=uuid4(), type="B-TYPE", display_value="other-updator-of-things"
+        )
+        updated_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My New Deployment",
+                flow_id=flow.id,
+                updated_by=new_updated_by,
+            ),
+        )
+        # confirm updated_by upsert
+        assert deployment.id == updated_deployment.id
+        assert updated_deployment.updated_by.id == new_updated_by.id
+        assert (
+            updated_deployment.updated_by.display_value == new_updated_by.display_value
+        )
+        assert updated_deployment.updated_by.type == new_updated_by.type
 
 
 class TestReadDeployment:
@@ -455,7 +599,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
@@ -466,7 +610,8 @@ class TestScheduledRuns:
         assert {r.id for r in db_scheduled_runs} == set(scheduled_runs)
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100)
+            pendulum.now("UTC").start_of("day").add(days=i + 1)
+            for i in range(PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value())
         }
 
         actual_times = set()
@@ -481,7 +626,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == 100
+        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         second_scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
@@ -489,7 +634,7 @@ class TestScheduledRuns:
 
         assert len(second_scheduled_runs) == 0
 
-        # only 100 runs were inserted
+        # only max runs runs were inserted
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.flow_id == flow.id,
@@ -498,13 +643,15 @@ class TestScheduledRuns:
         )
 
         db_scheduled_runs = query_result.scalars().all()
-        assert len(db_scheduled_runs) == 100
+        assert (
+            len(db_scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        )
 
     async def test_schedule_n_runs(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
-            session, deployment_id=deployment.id, max_runs=3
+            session, deployment_id=deployment.id, min_runs=5
         )
-        assert len(scheduled_runs) == 3
+        assert len(scheduled_runs) == 5
 
     async def test_schedule_does_not_error_if_theres_no_schedule(
         self, flow, flow_function, session
@@ -570,6 +717,59 @@ class TestScheduledRuns:
             )
             assert run.tags == ["auto-scheduled"] + tags
 
+    @pytest.mark.parametrize("tags", [[], ["foo"]])
+    async def test_schedule_runs_does_not_set_auto_schedule_tags(
+        self, tags, flow, flow_function, session
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                tags=tags,
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            max_runs=2,
+            auto_scheduled=False,
+        )
+        assert len(scheduled_runs) == 2
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            assert run.tags == tags
+            run.auto_scheduled = False
+
+    async def test_schedule_runs_applies_work_queue(self, flow, flow_function, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                manifest_path="file.json",
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                work_queue_name="wq-test-runs",
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=2
+        )
+        assert len(scheduled_runs) == 2
+        for run_id in scheduled_runs:
+            run = await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=run_id
+            )
+            assert run.work_queue_name == "wq-test-runs"
+
     @pytest.mark.parametrize("parameters", [{}, {"foo": "bar"}])
     async def test_schedule_runs_applies_parameters(
         self, parameters, flow, flow_function, session
@@ -601,20 +801,45 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             end_time=pendulum.now("UTC").add(days=17),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
         assert len(scheduled_runs) == 17
+
+    async def test_schedule_runs_with_end_time_but_no_min_runs(
+        self, flow, deployment, session
+    ):
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            end_time=pendulum.now("UTC").add(days=17),
+        )
+        # because min_runs is 3, we should only get 3 runs because it satisfies the constraints
+        assert len(scheduled_runs) == 3
+
+    async def test_schedule_runs_with_min_time(self, flow, deployment, session):
+        scheduled_runs = await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+            min_time=datetime.timedelta(days=17),
+        )
+        assert len(scheduled_runs) == 18
 
     async def test_schedule_runs_with_start_time(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").add(days=100),
-            end_time=pendulum.now("UTC").add(days=150),
+            end_time=pendulum.now("UTC").add(days=110),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 150)
+            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(100, 110)
         }
         actual_times = set()
         for run_id in scheduled_runs:
@@ -653,13 +878,16 @@ class TestScheduledRuns:
             session,
             deployment_id=deployment.id,
             start_time=pendulum.now("UTC").subtract(days=1000),
-            end_time=pendulum.now("UTC").subtract(days=950),
+            end_time=pendulum.now("UTC").subtract(days=990),
+            # set min runs very high to ensure we keep generating runs until we hit the end time
+            # note that end time has precedence over min runs
+            min_runs=100,
         )
-        assert len(scheduled_runs) == 50
+        assert len(scheduled_runs) == 10
 
         expected_times = {
             pendulum.now("UTC").start_of("day").subtract(days=i)
-            for i in range(950, 1000)
+            for i in range(990, 1000)
         }
 
         actual_times = set()
@@ -726,257 +954,79 @@ class TestScheduledRuns:
         assert result.scalar() == 0
 
 
-class TestCheckWorkQueuesForDeployment:
-    async def setup_work_queues_and_deployment(
-        self, session, flow, flow_function, tags=[]
+class TestUpdateDeployment:
+    async def test_updating_deployment_creates_associated_work_queue(
+        self, session, deployment, enable_work_pools
     ):
-        """
-        Create combinations of work queues, and a deployment to make sure that query is working correctly.
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is None
 
-        Returns the ID of the deployment that was created and a random ID that was provided to work queues
-        for testing purposes.
-        """
-        deployment = (
-            await models.deployments.create_deployment(
-                session=session,
-                deployment=schemas.core.Deployment(
-                    name="My Deployment",
-                    manifest_path="file.json",
-                    flow_id=flow.id,
-                    tags=tags,
-                ),
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(work_queue_name="wq-1"),
+        )
+        await session.commit()
+
+        wq = await models.work_queues.read_work_queue_by_name(
+            session=session, name="wq-1"
+        )
+        assert wq is not None
+
+    async def test_update_work_pool_deployment(
+        self, session, deployment, work_pool, work_pool_queue, enable_work_pools
+    ):
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_pool_name=work_pool.name,
+                work_queue_name=work_pool_queue.name,
             ),
         )
-        match_id = deployment[0].id
-        miss_id = uuid4()
 
-        tags = [  # "a" and "b" are matches and "y" and "z" are misses
-            [],
-            ["a"],
-            ["z"],
-            ["a", "b"],
-            ["a", "z"],
-            ["y", "z"],
-        ]
-
-        deployments = [
-            [],
-            [match_id],
-            [miss_id],
-            [match_id, miss_id],
-        ]
-
-        # Generate all combinations of work queues
-        for t in tags:
-            for d in deployments:
-
-                await models.work_queues.create_work_queue(
-                    session=session,
-                    work_queue=schemas.core.WorkQueue(
-                        name=f"{t}:{d}",
-                        filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
-                    ),
-                )
-
-        # return the two IDs needed to compare results
-        return match_id, miss_id
-
-    async def assert_queues_found(self, session, deployment_id, desired_queues):
-        queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=deployment_id
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
         )
-        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
+        assert updated_deployment.work_pool_queue_id == work_pool_queue.id
 
-        for q in desired_queues:
-            assert q in actual_queue_attrs
-
-    async def test_object_not_found_error_raised(self, session):
-        with pytest.raises(ObjectNotFoundError):
-            await check_work_queues_for_deployment(
-                session=session, deployment_id=uuid4()
-            )
-
-    # NO TAG DEPLOYMENTS with no-tag queues
-    async def test_no_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_no_tags_no_runners_with_id_match_q(
-        self, session, flow, flow_function
+    async def test_update_work_pool_deployment_with_only_pool(
+        self, session, deployment, work_pool, work_pool_queue, enable_work_pools
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
         )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_pool_name=work_pool.name,
+            ),
+        )
 
-    async def test_no_tag_picks_up_no_tags_no_id_with_runners_match(
-        self, session, flow, flow_function
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
+        )
+        assert updated_deployment.work_pool_queue_id == default_queue.id
+
+    async def test_update_work_pool_can_create_work_pool_queue(
+        self, session, deployment, work_pool, enable_work_pools
     ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [
-            [[], []],
-            [[], []],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_no_tags_with_id_and_runners_match(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_no_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function
+        await models.deployments.update_deployment(
+            session=session,
+            deployment_id=deployment.id,
+            deployment=schemas.actions.DeploymentUpdate(
+                work_pool_name=work_pool.name,
+                work_queue_name="new-work-pool-queue",
+            ),
         )
 
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
+        updated_deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment.id
         )
-
-        assert len(actual_queues) == 3
-
-    # ONE TAG DEPLOYMENTS with no-tag queues
-    async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
+        work_pool_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=updated_deployment.work_pool_queue_id
         )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_no_tags_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # ONE TAG DEPLOYMENTS with one-tag queues
-    async def test_one_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [[["a"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_one_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-        match_q = [
-            [["a"], [match_id]],
-            [["a"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_one_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a"]
-        )
-
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
-        )
-
-        assert len(actual_queues) == 6
-
-    # TWO TAG DEPLOYMENTS with no-tag queues
-    async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[[], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_no_tags_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [[], [match_id]],
-            [[], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # TWO TAG DEPLOYMENTS with one-tag queues
-    async def test_two_tag_picks_up_one_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[["a"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_one_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a"], [match_id]],
-            [["a"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    # TWO TAG DEPLOYMENTS with two-tag queues
-    async def test_two_tag_picks_up_two_tag_q(self, session, flow, flow_function):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [[["a", "b"], []]]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_two_tag_with_id_match_q(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-        match_q = [
-            [["a", "b"], [match_id]],
-            [["a", "b"], [match_id, miss_id]],
-        ]
-        await self.assert_queues_found(session, match_id, match_q)
-
-    async def test_two_tag_picks_up_only_number_of_expected_queues(
-        self, session, flow, flow_function
-    ):
-        match_id, miss_id = await self.setup_work_queues_and_deployment(
-            session=session, flow=flow, flow_function=flow_function, tags=["a", "b"]
-        )
-
-        actual_queues = await check_work_queues_for_deployment(
-            session=session, deployment_id=match_id
-        )
-
-        assert len(actual_queues) == 9
+        assert work_pool_queue.name == "new-work-pool-queue"

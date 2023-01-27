@@ -7,9 +7,9 @@ Create Date: 2022-07-25 21:47:17.992159
 """
 import sqlalchemy as sa
 from alembic import op
-from slugify import slugify
 
 from prefect.blocks.core import Block
+from prefect.utilities.slugify import slugify
 
 # revision identifiers, used by Alembic.
 revision = "4ff2f2bf81f4"

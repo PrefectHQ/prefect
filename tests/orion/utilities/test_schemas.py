@@ -1,17 +1,53 @@
 import datetime
+import importlib
+import os
+from contextlib import contextmanager
+from typing import Optional, Type
 from uuid import UUID, uuid4
 
 import pendulum
 import pydantic
 import pytest
 
+import prefect.orion.utilities.schemas
 from prefect.orion.utilities.schemas import (
+    DateTimeTZ,
+    FieldFrom,
     IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
+    copy_model_fields,
     pydantic_subclass,
 )
 from prefect.testing.utilities import assert_does_not_warn
+
+
+@contextmanager
+def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
+
+    original_base_model = prefect.orion.utilities.schemas.PrefectBaseModel
+    original_environment = os.environ.get("PREFECT_TEST_MODE")
+    if test_mode_value is not None:
+        os.environ["PREFECT_TEST_MODE"] = test_mode_value
+    else:
+        os.environ.pop("PREFECT_TEST_MODE")
+
+    try:
+        # We must re-execute the module since the setting is configured at base model
+        # definition time
+        importlib.reload(prefect.orion.utilities.schemas)
+
+        from prefect.orion.utilities.schemas import PrefectBaseModel
+
+        yield PrefectBaseModel
+    finally:
+        if original_environment is None:
+            os.environ.pop("PREFECT_TEST_MODE")
+        else:
+            os.environ["PREFECT_TEST_MODE"] = original_environment
+
+        # We must restore this type or `isinstance` checks will fail later
+        prefect.orion.utilities.schemas.PrefectBaseModel = original_base_model
 
 
 class TestExtraForbidden:
@@ -19,7 +55,32 @@ class TestExtraForbidden:
         class Model(PrefectBaseModel):
             x: int
 
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            pydantic.ValidationError, match="extra fields not permitted"
+        ):
+            Model(x=1, y=2)
+
+    @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
+    def test_extra_attributes_are_allowed_outside_test_mode(self, falsey_value):
+
+        with reload_prefect_base_model(falsey_value) as PrefectBaseModel:
+
+            class Model(PrefectBaseModel):
+                x: int
+
+        Model(x=1, y=2)
+
+    @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
+    def test_extra_attributes_are_not_allowed_with_truthy_test_mode(self, truthy_value):
+
+        with reload_prefect_base_model(truthy_value) as PrefectBaseModel:
+
+            class Model(PrefectBaseModel):
+                x: int
+
+        with pytest.raises(
+            pydantic.ValidationError, match="extra fields not permitted"
+        ):
             Model(x=1, y=2)
 
 
@@ -269,3 +330,107 @@ class TestEqualityExcludedFields:
         # if the PBM is the RH operand, the equality check fails
         # because the Pydantic logic of using every field is applied
         assert Y(val=1) != X(val=1)
+
+
+class TestDatetimeTZ:
+    class Model(pydantic.BaseModel):
+        dt: datetime.datetime
+        dtp: pendulum.DateTime
+        dttz: DateTimeTZ
+
+    async def test_tz_adds_timezone(self):
+        model = self.Model(
+            dt=datetime.datetime(2022, 1, 1),
+            dtp=datetime.datetime(2022, 1, 1),
+            dttz=datetime.datetime(2022, 1, 1),
+        )
+
+        assert model.dt.tzinfo is None
+        assert model.dtp.tzinfo is None
+        assert model.dttz.tzinfo.name == "UTC"
+
+    async def test_tz_is_pydantic_object(self):
+        model = self.Model(
+            dt=datetime.datetime(2022, 1, 1),
+            dtp=datetime.datetime(2022, 1, 1),
+            dttz=datetime.datetime(2022, 1, 1),
+        )
+        assert not isinstance(model.dt, pendulum.DateTime)
+        # typing as pendulum datetime doesn't result in pendulum datetime
+        assert not isinstance(model.dtp, pendulum.DateTime)
+        assert isinstance(model.dttz, pendulum.DateTime)
+
+
+class TestCopyModelFields:
+    class MyModel(PrefectBaseModel):
+        my_field: str = pydantic.Field(
+            "", description="Not much going on with this field"
+        )
+        my_constrained_field: str = pydantic.Field(
+            "", description="This string has a limit on it", max_length=100
+        )
+
+        @pydantic.validator("my_field")
+        def validate_my_field(cls, value):
+            if value == "bad":
+                raise ValueError("Value is BAD!")
+            return value
+
+    async def test_from_utility_raises_on_bad_type(self):
+        with pytest.raises(TypeError):
+
+            @copy_model_fields
+            class MyBadTypeModel(PrefectBaseModel):
+                my_field: int = FieldFrom(self.MyModel)
+
+    async def test_from_utility_can_be_used_on_constrained_fields(self):
+        # should not error
+        @copy_model_fields
+        class MyConstrainedModel(PrefectBaseModel):
+            my_constrained_field: str = FieldFrom(self.MyModel)
+
+        # inherited fields should respect the constraint
+        with pytest.raises(pydantic.ValidationError):
+            MyConstrainedModel(my_constrained_field="x" * (100 + 1))
+
+    async def test_validators_are_retained(self):
+        @copy_model_fields
+        class MyValidatedModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+        with pytest.raises(pydantic.ValidationError, match="Value is BAD"):
+            MyValidatedModel(my_field="bad")
+
+    async def test_validators_can_be_added(self):
+        @copy_model_fields
+        class MyValidatedModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+            @pydantic.validator("my_field")
+            def validate_my_field_again(cls, value):
+                if value == "very bad":
+                    raise ValueError("Value is VERY BAD")
+                return value
+
+        # Original validator exists still
+        with pytest.raises(pydantic.ValidationError, match="Value is BAD"):
+            MyValidatedModel(my_field="bad")
+
+        with pytest.raises(pydantic.ValidationError, match="Value is VERY BAD"):
+            MyValidatedModel(my_field="very bad")
+
+    async def test_allows_type_to_be_optional(self):
+        @copy_model_fields
+        class MyOptionalTypeModel(PrefectBaseModel):
+            my_field: Optional[str] = FieldFrom(self.MyModel)
+
+        model = MyOptionalTypeModel(my_field=None)
+        assert model.my_field is None
+
+    async def test_retains_default_values(self):
+        @copy_model_fields
+        class MyOptionalTypeModel(PrefectBaseModel):
+            my_field: str = FieldFrom(self.MyModel)
+
+        model = MyOptionalTypeModel()
+        assert model.my_field == ""

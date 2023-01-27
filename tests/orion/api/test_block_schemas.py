@@ -3,10 +3,12 @@ from uuid import uuid4
 
 import pydantic
 import pytest
+from fastapi import status
 
 from prefect.blocks.core import Block
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import BlockSchemaCreate
+from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
@@ -118,6 +120,7 @@ class TestCreateBlockSchema:
         )
         assert response.status_code == 201
         assert response.json()["checksum"] == EMPTY_OBJECT_CHECKSUM
+        assert response.json()["version"] == DEFAULT_BLOCK_SCHEMA_VERSION
         block_schema_id = response.json()["id"]
 
         block_schema = await models.block_schemas.read_block_schema(
@@ -125,28 +128,26 @@ class TestCreateBlockSchema:
         )
         assert str(block_schema.id) == block_schema_id
 
-    async def test_create_block_schema_with_existing_checksum_fails(
-        self, session, client, block_type_x
-    ):
-        response = await client.post(
+    async def test_create_block_schema_is_idempotent(self, client, block_type_x):
+        response_1 = await client.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
                 json_compatible=True
             ),
         )
-        assert response.status_code == 201
+        assert response_1.status_code == status.HTTP_201_CREATED
 
-        response = await client.post(
+        response_2 = await client.post(
             "/block_schemas/",
             json=BlockSchemaCreate(fields={}, block_type_id=block_type_x.id).dict(
                 json_compatible=True
             ),
         )
-        assert response.status_code == 409
-        assert "Identical block schema already exists." in response.json()["detail"]
+        assert response_2.status_code == status.HTTP_200_OK
+        assert response_1.json() == response_2.json()
 
-    async def test_create_block_schema_for_system_block_type_fails(
-        self, client, system_block_type
+    async def test_create_block_schema_for_system_block_type_succeeds(
+        self, system_block_type, client
     ):
         response = await client.post(
             "/block_schemas/",
@@ -154,18 +155,34 @@ class TestCreateBlockSchema:
                 json_compatible=True
             ),
         )
-        assert response.status_code == 403
-        assert (
-            response.json()["detail"]
-            == "Block schemas for protected block types cannot be created."
+        assert response.status_code == status.HTTP_201_CREATED
+
+    async def test_create_block_schema_with_version(
+        self, session, client, block_type_x
+    ):
+        response = await client.post(
+            "/block_schemas/",
+            json=BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.0.0"
+            ).dict(json_compatible=True),
         )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["checksum"] == EMPTY_OBJECT_CHECKSUM
+        assert response.json()["version"] == "1.0.0"
+        block_schema_id = response.json()["id"]
+
+        block_schema = await models.block_schemas.read_block_schema(
+            session=session, block_schema_id=block_schema_id
+        )
+        assert str(block_schema.id) == block_schema_id
+        assert block_schema.version == "1.0.0"
 
 
 class TestDeleteBlockSchema:
     async def test_delete_block_schema(self, session, client, block_schemas):
         schema_id = block_schemas[0].id
         response = await client.delete(f"/block_schemas/{schema_id}")
-        assert response.status_code == 204
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
         session.expire_all()
 
@@ -176,10 +193,10 @@ class TestDeleteBlockSchema:
 
     async def test_delete_nonexistant_block_schema(self, session, client):
         response = await client.delete(f"/block_schemas/{uuid4()}")
-        assert response.status_code == 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     async def test_delete_block_schema_for_system_block_type_fails(
-        self, session, client, system_block_type
+        self, session, system_block_type, client
     ):
         block_schema = await models.block_schemas.create_block_schema(
             session=session,
@@ -190,7 +207,7 @@ class TestDeleteBlockSchema:
         await session.commit()
 
         response = await client.delete(f"/block_schemas/{block_schema.id}")
-        assert response.status_code == 403
+        assert response.status_code == status.HTTP_403_FORBIDDEN
         assert (
             response.json()["detail"]
             == "Block schemas for protected block types cannot be deleted."
@@ -258,7 +275,7 @@ class TestReadBlockSchema:
     async def test_read_block_schema_by_id(self, session, client, block_schemas):
         schema_id = block_schemas[0].id
         response = await client.get(f"/block_schemas/{schema_id}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         block_schema_response = pydantic.parse_obj_as(
             schemas.core.BlockSchema, response.json()
@@ -269,7 +286,7 @@ class TestReadBlockSchema:
     async def test_read_block_schema_by_checksum(self, session, client, block_schemas):
         schema_checksum = block_schemas[0].checksum
         response = await client.get(f"/block_schemas/checksum/{schema_checksum}")
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_200_OK
 
         block_schema_response = pydantic.parse_obj_as(
             schemas.core.BlockSchema, response.json()
@@ -288,7 +305,7 @@ class TestReadBlockSchema:
             ),
         )
 
-        assert result.status_code == 200
+        assert result.status_code == status.HTTP_200_OK
         block_schemas = pydantic.parse_obj_as(
             List[schemas.core.BlockSchema], result.json()
         )
@@ -300,7 +317,7 @@ class TestReadBlockSchema:
             json=dict(block_schemas=dict(block_capabilities=dict(all_=["fly"]))),
         )
 
-        assert result.status_code == 200
+        assert result.status_code == status.HTTP_200_OK
         block_schemas = pydantic.parse_obj_as(
             List[schemas.core.BlockSchema], result.json()
         )
@@ -315,9 +332,67 @@ class TestReadBlockSchema:
             json=dict(block_schemas=dict(block_capabilities=dict(all_=["swim"]))),
         )
 
-        assert result.status_code == 200
+        assert result.status_code == status.HTTP_200_OK
         block_schemas = pydantic.parse_obj_as(
             List[schemas.core.BlockSchema], result.json()
         )
         assert len(block_schemas) == 1
         assert block_schemas[0].id == block_schemas_with_capabilities[0].id
+
+    async def test_read_block_schema_by_checksum_with_version(
+        self, session, client, block_type_x
+    ):
+        # Create two block schemas with the same checksum, but different versions
+        block_schema_0 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.0.1"
+            ),
+        )
+        await session.commit()
+        block_schema_1 = await models.block_schemas.create_block_schema(
+            session=session,
+            block_schema=schemas.actions.BlockSchemaCreate(
+                fields={}, block_type_id=block_type_x.id, version="1.1.0"
+            ),
+        )
+        await session.commit()
+
+        assert block_schema_0.checksum == block_schema_1.checksum
+        assert block_schema_0.id != block_schema_1.id
+
+        # Read first version with version query parameter
+        response_1 = await client.get(
+            f"/block_schemas/checksum/{block_schema_0.checksum}?version=1.0.1"
+        )
+        assert response_1.status_code == status.HTTP_200_OK
+
+        block_schema_response_1 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_1.json()
+        )
+
+        assert block_schema_response_1.id == block_schema_0.id
+
+        # Read second version with version query parameter
+        response_2 = await client.get(
+            f"/block_schemas/checksum/{block_schema_1.checksum}?version=1.1.0"
+        )
+        assert response_2.status_code == status.HTTP_200_OK
+
+        block_schema_response_2 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_2.json()
+        )
+
+        assert block_schema_response_2.id == block_schema_1.id
+
+        # Read without version. Should return most recently created block schema.
+        response_3 = await client.get(
+            f"/block_schemas/checksum/{block_schema_0.checksum}"
+        )
+        assert response_3.status_code == status.HTTP_200_OK
+
+        block_schema_response_3 = pydantic.parse_obj_as(
+            schemas.core.BlockSchema, response_3.json()
+        )
+
+        assert block_schema_response_3.id == block_schema_1.id

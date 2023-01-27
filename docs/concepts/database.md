@@ -1,9 +1,10 @@
 ---
-description: Learn more about Prefect Orion database use and configuration.
+description: The Prefect Orion database stores deployment and flow run data.
 tags:
     - Orion
     - database
     - metadata
+    - migrations
     - SQLite
     - PostgreSQL
 ---
@@ -23,7 +24,7 @@ The Prefect Orion database persists data used by many features of Prefect to per
 Currently Prefect Orion supports the following databases:
 
 - SQLite: The default in Prefect Orion, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
-- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker).
+- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect Orion uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
 
 ## Using the database
 
@@ -35,7 +36,7 @@ If at any point in your testing you'd like to reset your database, run the CLI c
 
 <div class="terminal">
 ```bash
-$ prefect orion database reset -y
+prefect orion database reset -y
 ```
 </div>
 
@@ -47,7 +48,7 @@ To configure the database location, you can specify a connection URL with the `P
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
 ```
 </div>
 
@@ -57,7 +58,7 @@ To connect Orion to a PostgreSQL database, you can set the following environment
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
 ```
 </div>
 
@@ -73,13 +74,13 @@ If you want to quickly start a PostgreSQL instance that can be used as your Pref
 
 <div class="terminal">
 ```bash
-$ docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
+docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
 ```
 </div>
 
 The above command:
 
-- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.0.
+- Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.
 - Starts a container with the name `orion_postgres`.
 - Creates a database `orion` with a user `postgres` and `yourTopSecretPassword` password.
 - Mounts the PostgreSQL data to a Docker volume called `oriondb` to provide persistence if you ever have to restart or rebuild that container.
@@ -88,7 +89,7 @@ You can inspect your profile to be sure that the environment variable has been s
 
 <div class="terminal">
 ```bash
-$ prefect config view --show-sources
+prefect config view --show-sources
 ```
 </div>
 
@@ -96,7 +97,7 @@ Start the Prefect Orion server and it should from now on use your PostgreSQL dat
 
 <div class="terminal">
 ```bash
-$ prefect orion start
+prefect orion start
 ```
 </div>
 
@@ -108,7 +109,7 @@ To use an in-memory SQLite database, set the following environment variable:
 
 <div class="terminal">
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
+prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
 ```
 </div>
 

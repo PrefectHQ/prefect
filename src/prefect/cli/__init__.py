@@ -1,4 +1,5 @@
 from prefect.cli.root import app
+import prefect.settings
 
 # Import CLI submodules to register them to the app
 # isort: split
@@ -14,5 +15,10 @@ import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.kubernetes
 import prefect.cli.orion
+import prefect.cli.orion_utils
 import prefect.cli.profile
 import prefect.cli.work_queue
+
+# Only load workers CLI if enabled via a setting
+if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
+    import prefect.experimental.cli.worker

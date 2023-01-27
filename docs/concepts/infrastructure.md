@@ -1,5 +1,5 @@
 ---
-description: Prefect infrastructure responsible for creating and monitoring the execution environment for flow runs associated with deployments.
+description: Prefect infrastructure is responsible for creating and monitoring the execution environment for flow runs associated with deployments.
 tags:
     - orchestration
     - infrastructure
@@ -7,6 +7,9 @@ tags:
     - deployments
     - Kubernetes
     - Docker
+    - ECS
+    - Cloud Run
+    - Container Instances
 ---
 
 # Infrastructure
@@ -31,6 +34,9 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
 - [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
 - [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
+- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an Amazon ECS Task.
+- [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
+- [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
 
 !!! question "What about tasks?"
     Flows and tasks can both use configuration objects to manage the environment in which code runs. 
@@ -41,31 +47,34 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 
 ## Using infrastructure
 
-There are two distinct ways to use infrastructure in a deployment: 
+You may create customized infrastructure blocks through the Prefect UI or Prefect Cloud [Blocks](/ui/blocks/) page or create them in code and save them to the API using the blocks [`.save()`](/api-ref/prefect/blocks/core/#prefect.blocks.core.Block.save) method.
+
+Once created, there are two distinct ways to use infrastructure in a deployment: 
 
 - Starting with Prefect defaults &mdash; this is what happens when you pass  the `-i` or `--infra` flag and provide a type when building deployment files.
-- Pre-configure infrastructure settings and base your deployment infrastructure on those settings &mdash; this is what happens when you pass `--infra-block` and a block slug when building deployment files.
+- Pre-configure infrastructure settings as blocks and base your deployment infrastructure on those settings &mdash; by passing `-ib` or `--infra-block` and a block slug when building deployment files.
 
 For example, when creating your deployment files, the supported Prefect infrastrucure types are:
 
 - `process`
 - `docker-container`
 - `kubernetes-job`
+- `ecs-task`
+- `cloud-run-job`
+- `container-instance-job`
 
 <div class="terminal">
 ```bash
 $ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
 Found flow 'my-flow'
-Manifest created at '/Users/terry/test/testflows/infra/my_flow-manifest.json'.
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
 Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
 ```
 </div>
 
-
 In this example we specify the `DockerContainer` infrastructure in addition to a preconfigured AWS S3 bucket [storage](/concepts/storage/) block.
 
-The default `deployment.yaml` filename may be edited as needed to add an infrastructure type or infrastructure settings.
+The default deployment YAML filename may be edited as needed to add an infrastructure type or infrastructure settings.
 
 ```yaml
 ###
@@ -114,10 +123,33 @@ parameter_openapi_schema:
   definitions: null
 ```
 
-!!! note "Editing deployment.yaml"
-    Note the big **DO NOT EDIT** comment in `deployment.yaml`: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
+!!! note "Editing deployment YAML"
+    Note the big **DO NOT EDIT** comment in the deployment YAML: In practice, anything above this block can be freely edited _before_ running `prefect deployment apply` to create the deployment on the API. 
 
 Once the deployment exists, any flow runs that this deployment starts will use `DockerContainer` infrastructure.
+
+You can also create custom infrastructure blocks &mdash; either in the Prefect UI for in code via the API &mdash; and use the settings in the block to configure your infastructure. For example, here we specify settings for Kubernetes infrastructure in a block named `k8sdev`.
+
+```python
+from prefect.infrastructure import KubernetesJob, KubernetesImagePullPolicy
+
+k8s_job = KubernetesJob(
+    namespace="dev",
+    image="prefecthq/prefect:2.0.0-python3.9",
+    image_pull_policy=KubernetesImagePullPolicy.IF_NOT_PRESENT,
+)
+k8s_job.save("k8sdev")
+```
+
+Now we can apply the infrastrucure type and settings in the block by specifying the block slug `kubernetes-job/k8sdev` as the infrastructure type when building a deployment:
+
+<div class="terminal">
+```bash
+prefect deployment build flows/k8s_example.py:k8s_flow --name k8sdev --tag k8s -sb s3/dev -ib kubernetes-job/k8sdev
+```
+</div>
+
+See [Deployments](/concepts/deployments/) for more information about deployment build options.
 
 ## Configuring infrastructure
 
@@ -133,12 +165,13 @@ Current environment variables and Prefect settings will be included in the creat
 
 | Attributes | Description |
 | ---- | ---- |
+| command | A list of strings specifying the command to start the flow run. In most cases you should not override this. |
 | env	| Environment variables to set for the new process. |
-| name	| A name for the process. For display purposes only. |
 | labels	| Labels for the process. Labels are for metadata purposes only and cannot be attached to the process itself. |
+| name	| A name for the process. For display purposes only. |
 
 
-## DockerContainer
+### DockerContainer
 
 [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) infrastructure  executes flow runs in a container.
 
@@ -153,19 +186,22 @@ Requirements for `DockerContainer`:
 
 | Attributes | Description |
 | ---- | ---- |
-| image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. |
+| auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
+| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
+| env	| Environment variables to set for the container. |
+| image | An optional string specifying the tag of a Docker image to use. Defaults to the Prefect image. If the image is stored anywhere other than a public Docker Hub registry, use a corresponding registry block, e.g. `DockerRegistry` or ensure otherwise that your execution layer is authenticated to pull the image from the image registry. |
 | image_pull_policy | Specifies if the image should be pulled. One of 'ALWAYS', 'NEVER', 'IF_NOT_PRESENT'. |
-| network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. | 
-| networks | An optional list of strings specifying Docker networks to connect the container to. |
+| image_registry | A [`DockerRegistry`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) block containing credentials to use if `image` is stored in a private image registry. |
 | labels | An optional dictionary of labels, mapping name to value. |
 | name | An optional name for the container. |
-| auto_remove | Bool indicating whether the container will be removed on completion. If False, the container will remain after exit for inspection. |
-| volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
+| networks | An optional list of strings specifying Docker networks to connect the container to. |
+| network_mode | Set the network mode for the created container. Defaults to 'host' if a local API url is detected, otherwise the Docker default of 'bridge' is used. If 'networks' is set, this cannot be set. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
+| volumes | An optional list of volume mount strings in the format of "local_path:container_path". |
 
 Prefect automatically sets a Docker image matching the Python and Prefect version you're using at deployment time. You can see all available images at [Docker Hub](https://hub.docker.com/r/prefecthq/prefect/tags?page=1&name=2.0).
 
-## Kubernetes flow runner
+### KubernetesJob
 
 [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) infrastructure executes flow runs in a Kubernetes Job.
 
@@ -181,49 +217,108 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 | Attributes | Description |
 | ---- | ---- |
-| name | An optional name for the job. |
+| cluster_config | An optional Kubernetes cluster config to use for this job. |
+| command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| env	| Environment variables to set for the container. |
+| finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
-| namespace | String signifying the Kubernetes namespace to use. |
-| labels | Dictionary of labels to add to the Job. |
-| restart_policy | The Kubernetes restart policy to use for Jobs. |
-| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
-| namespace	| An optional string signifying the Kubernetes namespace to use. |
-| service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | job	| The base manifest for the Kubernetes Job. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
-| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (default 5). |
-| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 5). |
+| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (defaults to None). |
+| labels | Dictionary of labels to add to the Job. |
+| name | An optional name for the job. |
+| namespace | String signifying the Kubernetes namespace to use. |
+| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 60). |
+| restart_policy | The Kubernetes restart policy to use for Jobs. |
+| service_account_name	| An optional string specifying which Kubernetes service account to use. | 
+| stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
+
+### ECSTask
+
+[`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) infrastructure runs your flow in an ECS Task.
+
+Requirements for `ECSTask`:
+
+- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
+- The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
+- You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  
+
+```Dockerfile
+FROM prefecthq/prefect:2-python3.9  # example base image 
+RUN pip install s3fs prefect-aws
+```
+
+To get started using Prefect with ECS, check out the repository template [dataflow-ops](https://github.com/anna-geller/dataflow-ops) demonstrating ECS agent setup and various deployment configurations for using `ECSTask` block. 
+
+
+!!! tip "Make sure to allocate enough CPU and memory to your agent, and consider adding retries"
+    When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
+
+    Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block. 
+    
 
 ## Docker images
 
-Prefect agents rely on Docker images for executing flow runs using `DockerContainer` or `KubernetesJob` infrastructure.
-
 Every release of Prefect comes with a few built-in images. These images are all
-named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect), but have
-a few different tag options:
+named [prefecthq/prefect](https://hub.docker.com/r/prefecthq/prefect) and their
+**tags** are used to identify differences in images.
 
-### Standard Python
+Prefect agents rely on Docker images for executing flow runs using `DockerContainer` or `KubernetesJob` infrastructure. 
+If you do not specify an image, we will use a Prefect image tag that matches your local Prefect and Python versions. 
+If you are [building your own image](#building-your-own-image), you may find it useful to use one of the Prefect images as a base.
+
+!!! tip "Choose image versions wisely"
+    It's a good practice to use Docker images with specific Prefect versions in production.
+    
+    Use care when employing images that automatically update to new versions (such as `prefecthq/prefect:2-python3.9` or `prefecthq/prefect:2-latest`).
+
+### Image tags
+
+When a release is published, images are built for all of Prefect's supported Python versions. 
+These images are tagged to identify the combination of Prefect and Python versions contained. 
+Additionally, we have "convenience" tags which are updated with each release to facilitate automatic updates.
+
+For example, when release `2.1.1` is published:
+
+1. Images with the release packaged are built for each supported Python version (3.7, 3.8, 3.9, 3.10, 3.11) with both standard Python and Conda.
+2. These images are tagged with the full description, e.g. `prefect:2.1.1-python3.7` and `prefect:2.1.1-python3.7-conda`.
+3. For users that want more specific pins, these images are also tagged with the SHA of the git commit of the release, e.g. `sha-88a7ff17a3435ec33c95c0323b8f05d7b9f3f6d2-python3.7`
+4. For users that want to be on the latest `2.1.x` release, receiving patch updates, we update a tag without the patch version to this release, e.g. `prefect.2.1-python3.7`.
+5. For users that want to be on the latest `2.x.y` release, receiving minor version updates, we update a tag without the minor or patch version to this release, e.g. `prefect.2-python3.7`
+6. Finally, for users who want the latest `2.x.y` release without specifying a Python version, we update `2-latest` to the image for our highest supported Python version, which in this case would be equivalent to `prefect:2.1.1-python3.10`.
+
+#### Standard Python
+
+Standard Python images are based on the official Python `slim` images, e.g. `python:3.10-slim`.
 
 | Tag                   |       Prefect Version       | Python Version  |
 | --------------------- | :-------------------------: | -------------:  |
 | 2-latest              | most recent v2 PyPi version |            3.10 |
+| 2-python3.11          | most recent v2 PyPi version |            3.11 |
 | 2-python3.10          | most recent v2 PyPi version |            3.10 |
 | 2-python3.9           | most recent v2 PyPi version |            3.9  |
 | 2-python3.8           | most recent v2 PyPi version |            3.8  |
 | 2-python3.7           | most recent v2 PyPi version |            3.7  |
+| 2.X-python3.11        |             2.X             |            3.11 |
 | 2.X-python3.10        |             2.X             |            3.10 |
 | 2.X-python3.9         |             2.X             |            3.9  |
 | 2.X-python3.8         |             2.X             |            3.8  |
 | 2.X-python3.7         |             2.X             |            3.7  |
-| sha-<hash>-python3.10 |            <hash>           |            3.10 |
-| sha-<hash>-python3.9  |            <hash>           |            3.9  |
-| sha-<hash>-python3.8  |            <hash>           |            3.8  |
-| sha-<hash>-python3.7  |            <hash>           |            3.7  |
-| sha-<hash>-python3.7  |            <hash>           |            3.7  |
+| sha-&lt;hash&gt;-python3.11 |            &lt;hash&gt;           |            3.11 |
+| sha-&lt;hash&gt;-python3.10 |            &lt;hash&gt;           |            3.10 |
+| sha-&lt;hash&gt;-python3.9  |            &lt;hash&gt;           |            3.9  |
+| sha-&lt;hash&gt;-python3.8  |            &lt;hash&gt;           |            3.8  |
+| sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
+| sha-&lt;hash&gt;-python3.7  |            &lt;hash&gt;           |            3.7  |
 
-### Conda-flavored Python
+#### Conda-flavored Python
+
+Conda flavored images are based on `continuumio/miniconda3`. Prefect is installed into a conda environment named `prefect`.
+
+Note, Conda support for Python 3.11 is not available so we cannot build an image yet.
 
 | Tag                         |       Prefect Version       | Python Version  |
 | --------------------------- | :-------------------------: | -------------:  |
@@ -236,11 +331,11 @@ a few different tag options:
 | 2.X-python3.9-conda         |             2.X             |            3.9  |
 | 2.X-python3.8-conda         |             2.X             |            3.8  |
 | 2.X-python3.7-conda         |             2.X             |            3.7  |
-| sha-<hash>-python3.10-conda |            <hash>           |            3.10 |
-| sha-<hash>-python3.9-conda  |            <hash>           |            3.9  |
-| sha-<hash>-python3.8-conda  |            <hash>           |            3.8  |
-| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
-| sha-<hash>-python3.7-conda  |            <hash>           |            3.7  |
+| sha-&lt;hash&gt;-python3.10-conda |            &lt;hash&gt;           |            3.10 |
+| sha-&lt;hash&gt;-python3.9-conda  |            &lt;hash&gt;           |            3.9  |
+| sha-&lt;hash&gt;-python3.8-conda  |            &lt;hash&gt;           |            3.8  |
+| sha-&lt;hash&gt;-python3.7-conda  |            &lt;hash&gt;           |            3.7  |
+| sha-&lt;hash&gt;-python3.7-conda  |            &lt;hash&gt;          |            3.7  |
 
 ### Installing Extra Dependencies at Runtime
 
@@ -266,16 +361,16 @@ own from scratch.
 **Extending the `prefecthq/prefect` image**
 
 Here we provide an example `Dockerfile` for building an image based on
-`prefecthq/prefect:0.14.10`, but with `scikit-learn` installed.
+`prefecthq/prefect:2-latest`, but with `scikit-learn` installed.
 
 ```dockerfile
-FROM prefecthq/prefect:0.14.10
+FROM prefecthq/prefect:2-latest
 
 RUN pip install scikit-learn
 ```
 
 
-## Choosing an Image Strategy
+### Choosing an Image Strategy
 
 The options described above have different complexity (and performance)
 characteristics. For choosing a strategy, we provide the following

@@ -8,6 +8,7 @@ import datetime
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.models as models
 from prefect.orion.database.dependencies import inject_db
@@ -56,27 +57,25 @@ class MarkLateRuns(LoopService):
             seconds=self.mark_late_after.total_seconds()
         )
 
-        session = await db.session()
-        async with session:
-            while True:
-                async with session.begin():
+        while True:
+            async with db.session_context(begin_transaction=True) as session:
 
-                    query = self._get_select_late_flow_runs_query(
-                        scheduled_to_start_before=scheduled_to_start_before, db=db
-                    )
+                query = self._get_select_late_flow_runs_query(
+                    scheduled_to_start_before=scheduled_to_start_before, db=db
+                )
 
-                    result = await session.execute(query)
-                    runs = result.all()
+                result = await session.execute(query)
+                runs = result.all()
 
-                    # mark each run as late
-                    for run in runs:
-                        await self._mark_flow_run_as_late(session=session, flow_run=run)
+                # mark each run as late
+                for run in runs:
+                    await self._mark_flow_run_as_late(session=session, flow_run=run)
 
-                    # if no runs were found, exit the loop
-                    if len(runs) < self.batch_size:
-                        break
+                # if no runs were found, exit the loop
+                if len(runs) < self.batch_size:
+                    break
 
-        self.logger.info(f"Finished monitoring for late runs.")
+        self.logger.info("Finished monitoring for late runs.")
 
     @inject_db
     def _get_select_late_flow_runs_query(
@@ -106,7 +105,7 @@ class MarkLateRuns(LoopService):
         return query
 
     async def _mark_flow_run_as_late(
-        self, session: sa.orm.Session, flow_run: OrionDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
     ) -> None:
         """
         Mark a flow run as late.

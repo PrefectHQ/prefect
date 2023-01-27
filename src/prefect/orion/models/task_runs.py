@@ -18,15 +18,16 @@ from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.orchestration.core_policy import MinimalTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import (
-    OrchestrationResult,
-    TaskOrchestrationContext,
-)
+from prefect.orion.orchestration.rules import TaskOrchestrationContext
+from prefect.orion.schemas.responses import OrchestrationResult
 
 
 @inject_db
 async def create_task_run(
-    session: sa.orm.Session, task_run: schemas.core.TaskRun, db: OrionDBInterface
+    session: sa.orm.Session,
+    task_run: schemas.core.TaskRun,
+    db: OrionDBInterface,
+    orchestration_parameters: dict = None,
 ):
     """
     Creates a new task run.
@@ -48,7 +49,12 @@ async def create_task_run(
     # if a dynamic key exists, we need to guard against conflicts
     insert_stmt = (
         (await db.insert(db.TaskRun))
-        .values(**task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True))
+        .values(
+            created=now,
+            **task_run.dict(
+                shallow=True, exclude={"state", "created"}, exclude_unset=True
+            ),
+        )
         .on_conflict_do_nothing(
             index_elements=db.task_run_unique_upsert_columns,
         )
@@ -70,12 +76,13 @@ async def create_task_run(
     result = await session.execute(query)
     model = result.scalar()
 
-    if model.created >= now and task_run.state:
+    if model.created == now and task_run.state:
         await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=model.id,
             state=task_run.state,
             force=True,
+            orchestration_parameters=orchestration_parameters,
         )
     return model
 
@@ -254,6 +261,7 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
     task_policy: BaseOrchestrationPolicy = None,
+    orchestration_parameters: dict = None,
 ) -> OrchestrationResult:
     """
     Creates a new orchestrated task run state.
@@ -300,6 +308,9 @@ async def set_task_run_state(
         proposed_state=state,
     )
 
+    if orchestration_parameters is not None:
+        context.parameters = orchestration_parameters
+
     # apply orchestration rules and create the new task run state
     async with contextlib.AsyncExitStack() as stack:
         for rule in orchestration_rules:
@@ -308,11 +319,14 @@ async def set_task_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(rule(context))
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
         await context.validate_proposed_state()
 
-    await session.flush()
+    if context.orchestration_error is not None:
+        raise context.orchestration_error
 
     result = OrchestrationResult(
         state=context.validated_state,

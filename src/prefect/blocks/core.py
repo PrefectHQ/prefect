@@ -1,28 +1,52 @@
 import hashlib
 import inspect
-import logging
+import sys
 import warnings
 from abc import ABC
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
-from griffe.dataclasses import Docstring, DocstringSection
-from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSection, DocstringSectionKind
 from griffe.docstrings.parsers import Parser, parse
-from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr
-from slugify import slugify
-from typing_extensions import Self, get_args, get_origin
+from packaging.version import InvalidVersion, Version
+from pydantic import BaseModel, HttpUrl, SecretBytes, SecretStr, ValidationError
+from typing_extensions import ParamSpec, Self, get_args, get_origin
 
 import prefect
-from prefect.orion.schemas.core import BlockDocument, BlockSchema, BlockType
-from prefect.utilities.asyncutils import asyncnullcontext, sync_compatible
-from prefect.utilities.collections import remove_nested_keys
+import prefect.exceptions
+from prefect.blocks.fields import SecretDict
+from prefect.client.utilities import inject_client
+from prefect.logging.loggers import disable_logger
+from prefect.orion.schemas.core import (
+    DEFAULT_BLOCK_SCHEMA_VERSION,
+    BlockDocument,
+    BlockSchema,
+    BlockType,
+)
+from prefect.utilities.asyncutils import sync_compatible
+from prefect.utilities.collections import listrepr, remove_nested_keys
 from prefect.utilities.dispatch import lookup_type, register_base_type
 from prefect.utilities.hashing import hash_objects
+from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client import OrionClient
+    from prefect.client.orion import OrionClient
+
+R = TypeVar("R")
+P = ParamSpec("P")
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -39,50 +63,78 @@ class InvalidBlockRegistration(Exception):
     """
 
 
+def _collect_nested_reference_strings(obj: Dict):
+    """
+    Collects all nested reference strings (e.g. #/definitions/Model) from a given object.
+    """
+    found_reference_strings = []
+    if isinstance(obj, dict):
+        if obj.get("$ref"):
+            found_reference_strings.append(obj.get("$ref"))
+        for value in obj.values():
+            found_reference_strings.extend(_collect_nested_reference_strings(value))
+    if isinstance(obj, list):
+        for item in obj:
+            found_reference_strings.extend(_collect_nested_reference_strings(item))
+    return found_reference_strings
+
+
+def _get_non_block_reference_definitions(object_definition: Dict, definitions: Dict):
+    """
+    Given a definition of an object in a block schema OpenAPI spec and the dictionary
+    of all reference definitions in that same block schema OpenAPI spec, return the
+    definitions for objects that are referenced from the object or any children of
+    the object that do not reference a block.
+    """
+    non_block_definitions = {}
+    reference_strings = _collect_nested_reference_strings(object_definition)
+    for reference_string in reference_strings:
+        definition_key = reference_string.replace("#/definitions/", "")
+        definition = definitions.get(definition_key)
+        if definition and definition.get("block_type_slug") is None:
+            non_block_definitions = {
+                **non_block_definitions,
+                definition_key: definition,
+                **_get_non_block_reference_definitions(definition, definitions),
+            }
+    return non_block_definitions
+
+
+def _is_subclass(cls, parent_cls) -> bool:
+    """
+    Checks if a given class is a subclass of another class. Unlike issubclass,
+    this will not throw an exception if cls is an instance instead of a type.
+    """
+    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+
+
+def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
+    """
+    Recursively collects all secret fields from a given type and adds them to the
+    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
+    mutates the input secrets list, thus does not return anything.
+    """
+    if get_origin(type_) is Union:
+        for union_type in get_args(type_):
+            _collect_secret_fields(name, union_type, secrets)
+        return
+    elif _is_subclass(type_, BaseModel):
+        for field in type_.__fields__.values():
+            _collect_secret_fields(f"{name}.{field.name}", field.type_, secrets)
+        return
+
+    if type_ in (SecretStr, SecretBytes):
+        secrets.append(name)
+    elif type_ == SecretDict:
+        # Append .* to field name to signify that all values under this
+        # field are secret and should be obfuscated.
+        secrets.append(f"{name}.*")
+    elif Block.is_block_class(type_):
+        secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
 @register_base_type
 class Block(BaseModel, ABC):
-    class Config:
-        extra = "allow"
-
-        @staticmethod
-        def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
-            """
-            Customizes Pydantic's schema generation feature to add blocks related information.
-            """
-            schema["block_type_slug"] = model.get_block_type_slug()
-            # Ensures args and code examples aren't included in the schema
-            description = model.get_description()
-            if description:
-                schema["description"] = model.get_description()
-
-            # create a list of secret field names
-            # secret fields include both top-level keys and dot-delimited nested secret keys
-            # for example: ["x", "y", "child.a"]
-            # means the top-level keys "x" and "y" are secret, as is the key "a" of a block
-            # nested under the "child" key. There is no limit to nesting.
-            secrets = schema["secret_fields"] = []
-            for field in model.__fields__.values():
-                if field.type_ in [SecretStr, SecretBytes]:
-                    secrets.append(field.name)
-                elif Block.is_block_class(field.type_):
-                    secrets.extend(
-                        f"{field.name}.{s}"
-                        for s in field.type_.schema()["secret_fields"]
-                    )
-
-            # create block schema references
-            refs = schema["block_schema_references"] = {}
-            for field in model.__fields__.values():
-                if Block.is_block_class(field.type_):
-                    refs[field.name] = field.type_._to_block_schema_reference_dict()
-                if get_origin(field.type_) is Union:
-                    refs[field.name] = []
-                    for type_ in get_args(field.type_):
-                        if Block.is_block_class(type_):
-                            refs[field.name].append(
-                                type_._to_block_schema_reference_dict()
-                            )
-
     """
     A base class for implementing a block that wraps an external service.
 
@@ -99,9 +151,70 @@ class Block(BaseModel, ABC):
     initialization.
     """
 
+    class Config:
+        extra = "allow"
+
+        json_encoders = {SecretDict: lambda v: v.dict()}
+
+        @staticmethod
+        def schema_extra(schema: Dict[str, Any], model: Type["Block"]):
+            """
+            Customizes Pydantic's schema generation feature to add blocks related information.
+            """
+            schema["block_type_slug"] = model.get_block_type_slug()
+            # Ensures args and code examples aren't included in the schema
+            description = model.get_description()
+            if description:
+                schema["description"] = description
+            else:
+                # Prevent the description of the base class from being included in the schema
+                schema.pop("description", None)
+
+            # create a list of secret field names
+            # secret fields include both top-level keys and dot-delimited nested secret keys
+            # A wildcard (*) means that all fields under a given key are secret.
+            # for example: ["x", "y", "z.*", "child.a"]
+            # means the top-level keys "x" and "y", all keys under "z", and the key "a" of a block
+            # nested under the "child" key are all secret. There is no limit to nesting.
+            secrets = schema["secret_fields"] = []
+            for field in model.__fields__.values():
+                _collect_secret_fields(field.name, field.type_, secrets)
+
+            # create block schema references
+            refs = schema["block_schema_references"] = {}
+            for field in model.__fields__.values():
+                if Block.is_block_class(field.type_):
+                    refs[field.name] = field.type_._to_block_schema_reference_dict()
+                if get_origin(field.type_) is Union:
+                    for type_ in get_args(field.type_):
+                        if Block.is_block_class(type_):
+                            if isinstance(refs.get(field.name), list):
+                                refs[field.name].append(
+                                    type_._to_block_schema_reference_dict()
+                                )
+                            elif isinstance(refs.get(field.name), dict):
+                                refs[field.name] = [
+                                    refs[field.name],
+                                    type_._to_block_schema_reference_dict(),
+                                ]
+                            else:
+                                refs[
+                                    field.name
+                                ] = type_._to_block_schema_reference_dict()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.block_initialization()
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr_args__(self):
+        repr_args = super().__repr_args__()
+        data_keys = self.schema()["properties"].keys()
+        return [
+            (key, value) for key, value in repr_args if key is None or key in data_keys
+        ]
 
     def block_initialization(self) -> None:
         pass
@@ -114,6 +227,7 @@ class Block(BaseModel, ABC):
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
+
     # Attributes used to set properties on a block type when registered
     # with Orion.
     _logo_url: Optional[HttpUrl] = None
@@ -126,6 +240,7 @@ class Block(BaseModel, ABC):
     _block_type_id: Optional[UUID] = None
     _block_schema_id: Optional[UUID] = None
     _block_schema_capabilities: Optional[List[str]] = None
+    _block_schema_version: Optional[str] = None
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
@@ -159,6 +274,26 @@ class Block(BaseModel, ABC):
         )
 
     @classmethod
+    def _get_current_package_version(cls):
+        current_module = inspect.getmodule(cls)
+        if current_module:
+            top_level_module = sys.modules[
+                current_module.__name__.split(".")[0] or "__main__"
+            ]
+            try:
+                version = Version(top_level_module.__version__)
+                # Strips off any local version information
+                return version.base_version
+            except (AttributeError, InvalidVersion):
+                # Module does not have a __version__ attribute or is not a parsable format
+                pass
+        return DEFAULT_BLOCK_SCHEMA_VERSION
+
+    @classmethod
+    def get_block_schema_version(cls) -> str:
+        return cls._block_schema_version or cls._get_current_package_version()
+
+    @classmethod
     def _to_block_schema_reference_dict(cls):
         return dict(
             block_type_slug=cls.get_block_type_slug(),
@@ -183,9 +318,17 @@ class Block(BaseModel, ABC):
         block_schema_fields = (
             cls.schema() if block_schema_fields is None else block_schema_fields
         )
-        fields_for_checksum = remove_nested_keys(
-            ["description", "definitions", "secret_fields"], block_schema_fields
-        )
+        fields_for_checksum = remove_nested_keys(["secret_fields"], block_schema_fields)
+        if fields_for_checksum.get("definitions"):
+            non_block_definitions = _get_non_block_reference_definitions(
+                fields_for_checksum, fields_for_checksum["definitions"]
+            )
+            if non_block_definitions:
+                fields_for_checksum["definitions"] = non_block_definitions
+            else:
+                # Pop off definitions entirely instead of empty dict for consistency
+                # with the OpenAPI specification
+                fields_for_checksum.pop("definitions")
         checksum = hash_objects(fields_for_checksum, hash_algo=hashlib.sha256)
         if checksum is None:
             raise ValueError("Unable to compute checksum for block schema")
@@ -232,8 +375,13 @@ class Block(BaseModel, ABC):
                 "No block type ID provided, either as an argument or on the block."
             )
 
-        data_keys = self.schema()["properties"].keys()
-        block_document_data = self.dict(include=data_keys)
+        # The keys passed to `include` must NOT be aliases, else some items will be missed
+        # i.e. must do `self.schema_` vs `self.schema` to get a `schema_ = Field(alias="schema")`
+        # reported from https://github.com/PrefectHQ/prefect-dbt/issues/54
+        data_keys = self.schema(by_alias=False)["properties"].keys()
+
+        # `block_document_data`` must return the aliased version for it to show in the UI
+        block_document_data = self.dict(by_alias=True, include=data_keys)
 
         # Iterate through and find blocks that already have saved block documents to
         # create references to those saved block documents.
@@ -281,6 +429,7 @@ class Block(BaseModel, ABC):
             block_type_id=block_type_id or cls._block_type_id,
             block_type=cls._to_block_type(),
             capabilities=list(cls.get_block_capabilities()),
+            version=cls.get_block_schema_version(),
         )
 
     @classmethod
@@ -291,11 +440,10 @@ class Block(BaseModel, ABC):
         `<module>:11: No type or annotation for parameter 'write_json'`
         because griffe is unable to parse the types from pydantic.BaseModel.
         """
-        griffe_logger = logging.getLogger("griffe.docstrings.google")
-        griffe_logger.disabled = True
-        docstring = Docstring(cls.__doc__)
-        parsed = parse(docstring, Parser.google)
-        griffe_logger.disabled = False
+        with disable_logger("griffe.docstrings.google"):
+            with disable_logger("griffe.agents.nodes"):
+                docstring = Docstring(cls.__doc__)
+                parsed = parse(docstring, Parser.google)
         return parsed
 
     @classmethod
@@ -352,7 +500,29 @@ class Block(BaseModel, ABC):
                         code_example = value.get("description")
                         break
 
+        if code_example is None:
+            # If no code example has been specified or extracted from the class
+            # docstring, generate a sensible default
+            code_example = cls._generate_code_example()
+
         return code_example
+
+    @classmethod
+    def _generate_code_example(cls) -> str:
+        """Generates a default code example for the current class"""
+        qualified_name = to_qualified_name(cls)
+        module_str = ".".join(qualified_name.split(".")[:-1])
+        class_name = cls.__name__
+        block_variable_name = f'{cls.get_block_type_slug().replace("-", "_")}_block'
+
+        return dedent(
+            f"""\
+        ```python
+        from {module_str} import {class_name}
+
+        {block_variable_name} = {class_name}.load("BLOCK_NAME")
+        ```"""
+        )
 
     @classmethod
     def _to_block_type(cls) -> BlockType:
@@ -400,17 +570,6 @@ class Block(BaseModel, ABC):
             # Look up the block class by dispatch
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
-
-        if (
-            block_document.block_schema.checksum
-            != block_cls._calculate_schema_checksum()
-        ):
-            warnings.warn(
-                f"Block document has schema checksum {block_document.block_schema.checksum} "
-                f"which does not match the schema checksum for class {block_cls.__name__!r}. "
-                "This indicates the schema has changed and this block may not load.",
-                stacklevel=2,
-            )
 
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
@@ -461,15 +620,37 @@ class Block(BaseModel, ABC):
 
     @classmethod
     @sync_compatible
-    async def load(cls, name: str):
+    @inject_client
+    async def load(
+        cls,
+        name: str,
+        validate: bool = True,
+        client: "OrionClient" = None,
+    ):
         """
         Retrieves data from the block document with the given name for the block type
         that corresponds with the current class and returns an instantiated version of
         the current class with the data stored in the block document.
 
+        If a block document for a given block type is saved with a different schema
+        than the current class calling `load`, a warning will be raised.
+
+        If the current class schema is a subset of the block document schema, the block
+        can be loaded as normal using the default `validate = True`.
+
+        If the current class schema is a superset of the block document schema, `load`
+        must be called with `validate` set to False to prevent a validation error. In
+        this case, the block attributes will default to `None` and must be set manually
+        and saved to a new block document before the block can be used as expected.
+
         Args:
             name: The name or slug of the block document. A block document slug is a
                 string with the format <block_type_slug>/<block_document_name>
+            validate: If False, the block document will be loaded without Pydantic
+                validating the block schema. This is useful if the block schema has
+                changed client-side since the block document referred to by `name` was saved.
+            client: The client to use to load the block document. If not provided, the
+                default client will be injected.
 
         Raises:
             ValueError: If the requested block document is not found.
@@ -496,30 +677,73 @@ class Block(BaseModel, ABC):
             Custom(message="Hello!").save("my-custom-message")
 
             loaded_block = Block.load("custom/my-custom-message")
+
+            Migrate a block document to a new schema:
+            ```python
+            # original class
+            class Custom(Block):
+                message: str
+
+            Custom(message="Hello!").save("my-custom-message")
+
+            # Updated class with new required field
+            class Custom(Block):
+                message: str
+                number_of_ducks: int
+
+            loaded_block = Custom.load("my-custom-message", validate=False)
+
+            # Prints UserWarning about schema mismatch
+
+            loaded_block.number_of_ducks = 42
+
+            loaded_block.save("my-custom-message", overwrite=True)
+            ```
         """
         if cls.__name__ == "Block":
             block_type_slug, block_document_name = name.split("/", 1)
         else:
             block_type_slug = cls.get_block_type_slug()
             block_document_name = name
-        async with prefect.client.get_client() as client:
-            try:
-                block_document = await client.read_block_document_by_name(
-                    name=block_document_name, block_type_slug=block_type_slug
+
+        try:
+            block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+        except prefect.exceptions.ObjectNotFound as e:
+            raise ValueError(
+                f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
+            ) from e
+
+        try:
+            return cls._from_block_document(block_document)
+        except ValidationError as e:
+            if not validate:
+                missing_fields = tuple(err["loc"][0] for err in e.errors())
+                missing_block_data = {field: None for field in missing_fields}
+                warnings.warn(
+                    f"Could not fully load {block_document_name!r} of block type {cls._block_type_slug!r} - "
+                    "this is likely because one or more required fields were added to the schema "
+                    f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
+                    f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
+                    f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)`, and '
+                    "load this block again before attempting to use it."
                 )
-            except prefect.exceptions.ObjectNotFound as e:
-                raise ValueError(
-                    f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
-                ) from e
-        return cls._from_block_document(block_document)
+                return cls.construct(**block_document.data, **missing_block_data)
+            raise RuntimeError(
+                f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
+                "due to failed validation. To load without validation, try loading again "
+                "with `validate=False`."
+            ) from e
 
     @staticmethod
     def is_block_class(block) -> bool:
-        return inspect.isclass(block) and issubclass(block, Block)
+        return _is_subclass(block, Block)
 
     @classmethod
     @sync_compatible
-    async def register_type_and_schema(cls, client: Optional["OrionClient"] = None):
+    @inject_client
+    async def register_type_and_schema(cls, client: "OrionClient" = None):
         """
         Makes block available for configuration with current Orion server.
         Recursively registers all nested blocks. Registration is idempotent.
@@ -539,53 +763,45 @@ class Block(BaseModel, ABC):
                 "subclass and not on a Block interface class directly."
             )
 
-        # Open a new client if one hasn't been provided. Otherwise,
-        # use the provided client
-        if client is None:
-            client_context = prefect.client.get_client()
-        else:
-            client_context = asyncnullcontext()
+        for field in cls.__fields__.values():
+            if Block.is_block_class(field.type_):
+                await field.type_.register_type_and_schema(client=client)
+            if get_origin(field.type_) is Union:
+                for type_ in get_args(field.type_):
+                    if Block.is_block_class(type_):
+                        await type_.register_type_and_schema(client=client)
 
-        async with client_context as client_from_context:
-            client = client or client_from_context
-            for field in cls.__fields__.values():
-                if Block.is_block_class(field.type_):
-                    await field.type_.register_type_and_schema(client=client)
-                if get_origin(field.type_) is Union:
-                    for type_ in get_args(field.type_):
-                        if Block.is_block_class(type_):
-                            await type_.register_type_and_schema(client=client)
-
-            try:
-                block_type = await client.read_block_type_by_slug(
-                    slug=cls.get_block_type_slug()
-                )
-                await client.update_block_type(
-                    block_type_id=block_type.id, block_type=cls._to_block_type()
-                )
-            except prefect.exceptions.ObjectNotFound:
-                block_type = await client.create_block_type(
-                    block_type=cls._to_block_type()
-                )
-
+        try:
+            block_type = await client.read_block_type_by_slug(
+                slug=cls.get_block_type_slug()
+            )
+            cls._block_type_id = block_type.id
+            await client.update_block_type(
+                block_type_id=block_type.id, block_type=cls._to_block_type()
+            )
+        except prefect.exceptions.ObjectNotFound:
+            block_type = await client.create_block_type(block_type=cls._to_block_type())
             cls._block_type_id = block_type.id
 
-            try:
-                block_schema = await client.read_block_schema_by_checksum(
-                    checksum=cls._calculate_schema_checksum()
-                )
-            except prefect.exceptions.ObjectNotFound:
-                block_schema = await client.create_block_schema(
-                    block_schema=cls._to_block_schema(block_type_id=block_type.id)
-                )
+        try:
+            block_schema = await client.read_block_schema_by_checksum(
+                checksum=cls._calculate_schema_checksum(),
+                version=cls.get_block_schema_version(),
+            )
+        except prefect.exceptions.ObjectNotFound:
+            block_schema = await client.create_block_schema(
+                block_schema=cls._to_block_schema(block_type_id=block_type.id)
+            )
 
-            cls._block_schema_id = block_schema.id
+        cls._block_schema_id = block_schema.id
 
+    @inject_client
     async def _save(
         self,
         name: Optional[str] = None,
         is_anonymous: bool = False,
         overwrite: bool = False,
+        client: "OrionClient" = None,
     ):
         """
         Saves the values of a block as a block document with an option to save as an
@@ -612,38 +828,35 @@ class Block(BaseModel, ABC):
             )
 
         self._is_anonymous = is_anonymous
-        async with prefect.client.get_client() as client:
 
-            # Ensure block type and schema are registered before saving block document.
-            await self.register_type_and_schema(client=client)
+        # Ensure block type and schema are registered before saving block document.
+        await self.register_type_and_schema(client=client)
 
-            try:
-                block_document = await client.create_block_document(
-                    block_document=self._to_block_document(name=name)
+        try:
+            block_document = await client.create_block_document(
+                block_document=self._to_block_document(name=name)
+            )
+        except prefect.exceptions.ObjectAlreadyExists as err:
+            if overwrite:
+                block_document_id = self._block_document_id
+                if block_document_id is None:
+                    existing_block_document = await client.read_block_document_by_name(
+                        name=name, block_type_slug=self.get_block_type_slug()
+                    )
+                    block_document_id = existing_block_document.id
+                await client.update_block_document(
+                    block_document_id=block_document_id,
+                    block_document=self._to_block_document(name=name),
                 )
-            except prefect.exceptions.ObjectAlreadyExists as err:
-                if overwrite:
-                    block_document_id = self._block_document_id
-                    if block_document_id is None:
-                        existing_block_document = (
-                            await client.read_block_document_by_name(
-                                name=name, block_type_slug=self.get_block_type_slug()
-                            )
-                        )
-                        block_document_id = existing_block_document.id
-                    await client.update_block_document(
-                        block_document_id=block_document_id,
-                        block_document=self._to_block_document(name=name),
-                    )
-                    block_document = await client.read_block_document(
-                        block_document_id=block_document_id
-                    )
-                else:
-                    raise ValueError(
-                        "You are attempting to save values with a name that is already in "
-                        "use for this block type. If you would like to overwrite the values that are saved, "
-                        "then save with `overwrite=True`."
-                    ) from err
+                block_document = await client.read_block_document(
+                    block_document_id=block_document_id
+                )
+            else:
+                raise ValueError(
+                    "You are attempting to save values with a name that is already in "
+                    "use for this block type. If you would like to overwrite the values that are saved, "
+                    "then save with `overwrite=True`."
+                ) from err
 
         # Update metadata on block instance for later use.
         self._block_document_name = block_document.name
@@ -651,7 +864,9 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
-    async def save(self, name: str, overwrite: bool = False):
+    async def save(
+        self, name: str, overwrite: bool = False, client: "OrionClient" = None
+    ):
         """
         Saves the values of a block as a block document.
 
@@ -662,6 +877,43 @@ class Block(BaseModel, ABC):
                 the specified name already exists.
 
         """
-        document_id = await self._save(name=name, overwrite=overwrite)
+        document_id = await self._save(name=name, overwrite=overwrite, client=client)
 
         return document_id
+
+    def _iter(self, *, include=None, exclude=None, **kwargs):
+        # Injects the `block_type_slug` into serialized payloads for dispatch
+        for key_value in super()._iter(include=include, exclude=exclude, **kwargs):
+            yield key_value
+
+        # Respect inclusion and exclusion still
+        if include and "block_type_slug" not in include:
+            return
+        if exclude and "block_type_slug" in exclude:
+            return
+
+        yield "block_type_slug", self.get_block_type_slug()
+
+    def __new__(cls: Type[Self], **kwargs) -> Self:
+        """
+        Create an instance of the Block subclass type if a `block_type_slug` is
+        present in the data payload.
+        """
+        block_type_slug = kwargs.pop("block_type_slug", None)
+        if block_type_slug:
+            subcls = lookup_type(cls, dispatch_key=block_type_slug)
+            m = super().__new__(subcls)
+            # NOTE: This is a workaround for an obscure issue where copied models were
+            #       missing attributes. This pattern is from Pydantic's
+            #       `BaseModel._copy_and_set_values`.
+            #       The issue this fixes could not be reproduced in unit tests that
+            #       directly targeted dispatch handling and was only observed when
+            #       copying then saving infrastructure blocks on deployment models.
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m
+        else:
+            m = super().__new__(cls)
+            object.__setattr__(m, "__dict__", kwargs)
+            object.__setattr__(m, "__fields_set__", set(kwargs.keys()))
+            return m

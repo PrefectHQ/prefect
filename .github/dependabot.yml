@@ -5,18 +5,30 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    labels: ["maintenance"]
 
   - package-ecosystem: "npm"
     directory: '/orion-ui/'
     schedule:
       interval: "weekly"
+    labels: ["ui", "maintenance"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    labels: ["maintenance"]
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
+    labels: ["maintenance"]
+
+  # Check for Python updates in v1
+  - package-ecosystem: "pip"
+    target-branch: "1.x"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels: ["maintenance", "v1"]

@@ -8,6 +8,7 @@ from typing_extensions import Literal
 
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.pydantic import (
+    JsonPatch,
     PartialModel,
     add_cloudpickle_reduction,
     add_type_dispatch,
@@ -74,6 +75,10 @@ class TestPartialModel:
         m = p.finalize()
         assert isinstance(m, SimplePydantic)
         assert m == SimplePydantic(x=1, y=2)
+
+    def test_repr(self):
+        p = PartialModel(SimplePydantic, x=1, y=2)
+        assert repr(p) == "PartialModel(cls=SimplePydantic, x=1, y=2)"
 
     def test_init_with_invalid_field(self):
         with pytest.raises(ValueError, match="Field 'z' is not present in the model"):
@@ -299,3 +304,24 @@ class TestTypeDispatchField:
             @add_type_dispatch
             class Base(pydantic.BaseModel):
                 type: int
+
+
+class TestJsonPatch:
+    class PatchModel(pydantic.BaseModel):
+        class Config:
+            arbitrary_types_allowed = True
+
+        patch: JsonPatch = pydantic.Field(default_factory=lambda: JsonPatch([]))
+
+    def test_json_schema(self):
+        schema = TestJsonPatch.PatchModel().schema()
+
+        assert schema["properties"]["patch"] == {
+            "title": "Patch",
+            "type": "array",
+            "format": "rfc6902",
+            "items": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+            },
+        }

@@ -131,6 +131,11 @@ def view(
         "--show-sources/--hide-sources",
         help=(show_sources_help),
     ),
+    show_secrets: Optional[bool] = typer.Option(
+        False,
+        "--show-secrets/--hide-secrets",
+        help="Toggle display of secrets setting values.",
+    ),
 ):
     """
     Display the current settings.
@@ -141,6 +146,12 @@ def view(
     default_settings = prefect.settings.get_default_settings()
     env_settings = prefect.settings.get_settings_from_env()
     current_profile_settings = context.settings
+
+    # Obfuscate secrets
+    if not show_secrets:
+        default_settings = default_settings.with_obfuscated_secrets()
+        env_settings = env_settings.with_obfuscated_secrets()
+        current_profile_settings = current_profile_settings.with_obfuscated_secrets()
 
     # Display the profile first
     app.console.print(f"PREFECT_PROFILE={context.profile.name!r}")

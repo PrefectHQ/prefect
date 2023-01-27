@@ -4,28 +4,27 @@ Utilities for injecting FastAPI dependencies.
 import logging
 
 from fastapi import Body, Depends, Header, HTTPException, status
+from packaging.version import Version
 
-from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.utilities.server import response_scoped_dependency
 from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
 
 
-@response_scoped_dependency
-async def get_session(db: OrionDBInterface = Depends(provide_database_interface)):
-    """
-    Dependency-injected database session.
+def provide_request_api_version(x_prefect_api_version: str = Header(None)):
+    if not x_prefect_api_version:
+        return
 
-    The context manager will automatically handle commits, rollbacks, and closing the
-    connection.
-
-    A `response_scoped_dependency` is used to ensure this session is closed before the
-    response is returned to a client.
-    """
-    session = await db.session()
-    async with session:
-        async with session.begin():
-            yield session
+    # parse version
+    try:
+        major, minor, patch = [int(v) for v in x_prefect_api_version.split(".")]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid X-PREFECT-API-VERSION header format."
+                f"Expected header in format 'x.y.z' but received {x_prefect_api_version}"
+            ),
+        )
+    return Version(x_prefect_api_version)
 
 
 class EnforceMinimumAPIVersion:

@@ -1,0 +1,8 @@
+recipeName: Upstream Task Dependencies
+author: Prefect
+authorUrl: https://prefect.io
+description: Specify that a task depends on a previous task being completed without errors.
+topic: Tasks
+recipeUrl: https://discourse.prefect.io/t/how-to-ensure-that-my-tasks-immediately-fail-if-a-specific-upstream-task-failed/111
+iconUrl: 
+  - /img/collections/python.png

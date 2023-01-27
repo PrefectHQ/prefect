@@ -9,13 +9,13 @@ from fastapi import status
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
 from prefect.settings import (
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
 )
 
 
 class TestCreateDeployment:
-    async def test_create_deployment(
+    async def test_create_oldstyle_deployment(
         self,
         session,
         client,
@@ -26,6 +26,7 @@ class TestCreateDeployment:
     ):
         data = DeploymentCreate(
             name="My Deployment",
+            version="mint",
             manifest_path="file.json",
             flow_id=flow.id,
             tags=["foo"],
@@ -36,6 +37,7 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
         assert response.json()["manifest_path"] == "file.json"
         assert response.json()["storage_document_id"] == str(storage_document_id)
         assert response.json()["infrastructure_document_id"] == str(
@@ -54,6 +56,60 @@ class TestCreateDeployment:
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.storage_document_id == storage_document_id
 
+    async def test_create_deployment(
+        self,
+        session,
+        client,
+        flow,
+        flow_function,
+        infrastructure_document_id,
+        storage_document_id,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            storage_document_id=storage_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
+        assert response.json()["path"] == "/"
+        assert response.json()["entrypoint"] == "/file.py:flow"
+        assert response.json()["storage_document_id"] == str(storage_document_id)
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
+        assert response.json()["infra_overrides"] == {"cpu": 24}
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
+        assert deployment.parameters == {"foo": "bar"}
+        assert deployment.infrastructure_document_id == infrastructure_document_id
+        assert deployment.storage_document_id == storage_document_id
+
+    async def test_default_work_queue_name_is_none(self, session, client, flow):
+
+        data = DeploymentCreate(
+            name="My Deployment", manifest_path="", flow_id=flow.id
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["work_queue_name"] == None
+
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self,
         session,
@@ -65,7 +121,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=False,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -73,14 +128,12 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
-        assert response.json()["manifest_path"] == "file.json"
         deployment_id = response.json()["id"]
 
         # post the same data
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=False,
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -100,7 +153,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
             is_schedule_active=True,  # CHANGED
             infrastructure_document_id=infrastructure_document_id,
             storage_document_id=storage_document_id,
@@ -124,7 +176,6 @@ class TestCreateDeployment:
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            manifest_path="file.json",
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -143,7 +194,6 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
@@ -168,7 +218,6 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 is_schedule_active=True,
             ).dict(json_compatible=True),
         )
@@ -187,7 +236,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -208,7 +257,6 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                manifest_path="file.json",
                 schedule=deployment.schedule,
                 is_schedule_active=False,
             ).dict(json_compatible=True),
@@ -230,7 +278,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -251,7 +299,6 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
-                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(seconds=1),
                     anchor_date=pendulum.datetime(2020, 1, 1),
@@ -268,6 +315,375 @@ class TestCreateDeployment:
         query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
         result = await session.execute(query)
         assert result.scalar() < pendulum.now().add(seconds=100)
+
+    async def test_create_deployment_throws_useful_error_on_missing_blocks(
+        self,
+        client,
+        flow,
+        infrastructure_document_id,
+        storage_document_id,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=uuid4(),
+            storage_document_id=storage_document_id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find infrastructure block with id"
+            in response.json()["detail"]
+        ), "Error message identifies infrastructure block could not be found"
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            storage_document_id=uuid4(),
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_409_CONFLICT
+        assert (
+            "Error creating deployment. Could not find storage block with id"
+            in response.json()["detail"]
+        ), "Error message identifies storage block could not be found."
+
+    # TODO: update this test as more changes are made to work pool deployments
+    async def test_create_deployment_with_pool_and_queue(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+        work_pool_queue,
+        enable_work_pools,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name=work_pool.name,
+            work_queue_name=work_pool_queue.name,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
+        assert response.json()["path"] == "/"
+        assert response.json()["entrypoint"] == "/file.py:flow"
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
+        assert response.json()["infra_overrides"] == {"cpu": 24}
+        assert response.json()["work_pool_name"] == work_pool.name
+        assert response.json()["work_queue_name"] == work_pool_queue.name
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
+        assert deployment.parameters == {"foo": "bar"}
+        assert deployment.infrastructure_document_id == infrastructure_document_id
+        assert deployment.work_pool_queue_id == work_pool_queue.id
+
+    async def test_create_deployment_with_only_work_pool(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+        enable_work_pools,
+    ):
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["version"] == "mint"
+        assert response.json()["path"] == "/"
+        assert response.json()["entrypoint"] == "/file.py:flow"
+        assert response.json()["infrastructure_document_id"] == str(
+            infrastructure_document_id
+        )
+        assert response.json()["infra_overrides"] == {"cpu": 24}
+        assert response.json()["work_pool_name"] == work_pool.name
+        assert response.json()["work_queue_name"] == default_queue.name
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
+        assert deployment.parameters == {"foo": "bar"}
+        assert deployment.infrastructure_document_id == infrastructure_document_id
+        assert deployment.work_pool_queue_id == work_pool.default_queue_id
+
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            }
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with wrong overrides
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_two": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1", "var2"],
+                    },
+                },
+                {"var2": "hello"},  # wrong override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_bad_template_override_combo_fails(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+        enable_work_pools,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Work Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 409
+        assert (
+            "<ValidationError: \"'var1' is a required property\">"
+            in response.json()["detail"]
+        )
+
+    @pytest.mark.parametrize(
+        "template, overrides",
+        [
+            (  # test with no overrides, no required
+                {
+                    "job_configuration": {"thing_one": "{{ var1 }}"},
+                    "variables": {
+                        "properties": {"var1": {"type": "string", "default": "hello"}},
+                        "required": [],
+                    },
+                },
+                {},  # no overrides
+            ),
+            (  # test with override
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+            (  # test with override and multiple variables
+                {
+                    "job_configuration": {
+                        "thing_one": "{{ var1 }}",
+                        "thing_one": "{{ var2 }}",
+                    },
+                    "variables": {
+                        "properties": {
+                            "var1": {
+                                "type": "string",
+                            },
+                            "var2": {"type": "string", "default": "world"},
+                        },
+                        "required": ["var1"],
+                    },
+                },
+                {"var1": "hello"},  # required override
+            ),
+        ],
+    )
+    async def test_create_deployment_with_correct_template_override_combo_succeeds(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        template,
+        overrides,
+        enable_work_pools,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="Test Work Pool", base_job_template=template
+            ),
+        )
+        await session.commit()
+
+        default_queue = await models.workers.read_work_pool_queue(
+            session=session, work_pool_queue_id=work_pool.default_queue_id
+        )
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides=overrides,
+            work_pool_name=work_pool.name,
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+    async def test_create_deployment_can_create_work_pool_queue(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+        enable_work_pools,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name=work_pool.name,
+            work_queue_name="new-work-pool-queue",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        assert response.json()["work_queue_name"] == "new-work-pool-queue"
+        deployment_id = response.json()["id"]
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+
+        work_pool_queue = await models.workers.read_work_pool_queue_by_name(
+            session=session,
+            work_pool_name=work_pool.name,
+            work_pool_queue_name="new-work-pool-queue",
+        )
+
+        assert deployment.work_pool_queue_id == work_pool_queue.id
+
+    async def test_create_deployment_returns_404_for_non_existent_work_pool(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+        enable_work_pools,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name="imaginary-work-pool",
+            work_queue_name="default",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == 'Work pool "imaginary-work-pool" not found.'
 
 
 class TestReadDeployment:
@@ -335,7 +751,6 @@ class TestReadDeploymentByName:
             json=dict(
                 name=name,
                 flow_id=str(flow.id),
-                manifest_path="file.json",
             ),
         )
         deployment_id = response.json()["id"]
@@ -382,7 +797,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_1,
                 name="My Deployment X",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 is_schedule_active=True,
                 infrastructure_document_id=infrastructure_document_id,
@@ -394,7 +808,6 @@ class TestReadDeployments:
             deployment=schemas.core.Deployment(
                 id=deployment_id_2,
                 name="My Deployment Y",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 is_schedule_active=False,
                 infrastructure_document_id=infrastructure_document_id,
@@ -465,6 +878,21 @@ class TestReadDeployments:
         assert len(response.json()) == 1
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
+
+    async def test_read_deployments_sort(self, deployments, client):
+        response = await client.post(
+            "/deployments/filter",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_ASC),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["name"] == "My Deployment X"
+
+        response_desc = await client.post(
+            "/deployments/filter",
+            json=dict(sort=schemas.sorting.DeploymentSort.NAME_DESC),
+        )
+        assert response_desc.status_code == status.HTTP_200_OK
+        assert response_desc.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter")
@@ -630,7 +1058,7 @@ class TestSetScheduleActive:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually
         await models.flow_runs.create_flow_run(
@@ -662,7 +1090,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now(),
             end=pendulum.now()
             + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
@@ -670,12 +1098,12 @@ class TestScheduleDeployment:
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
 
-    async def test_schedule_deployment_max_runs(self, client, session, deployment):
+    async def test_schedule_deployment_provide_runs(self, client, session, deployment):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
         await client.post(
-            f"/deployments/{deployment.id}/schedule", json=dict(max_runs=5)
+            f"/deployments/{deployment.id}/schedule", json=dict(min_runs=5)
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
@@ -699,7 +1127,7 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now().add(days=120),
             end=pendulum.now().add(days=120)
             + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
@@ -713,12 +1141,16 @@ class TestScheduleDeployment:
 
         await client.post(
             f"/deployments/{deployment.id}/schedule",
-            json=dict(end_time=str(pendulum.now("UTC").add(days=7))),
+            json=dict(
+                end_time=str(pendulum.now("UTC").add(days=7)),
+                # schedule a large number of min runs to see the effect of end_time
+                min_runs=100,
+            ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=100,
             start=pendulum.now("UTC"),
             end=pendulum.now("UTC").add(days=7),
         )
@@ -735,12 +1167,13 @@ class TestScheduleDeployment:
             json=dict(
                 start_time=str(pendulum.now("UTC").subtract(days=20)),
                 end_time=str(pendulum.now("UTC")),
+                min_runs=100,
             ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value(),
+            n=100,
             start=pendulum.now("UTC").subtract(days=20),
             end=pendulum.now("UTC"),
         )
@@ -764,6 +1197,18 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             deployment.infrastructure_document_id
         )
+        assert response.json()["work_queue_name"] == "wq"
+
+    async def test_create_flow_run_from_deployment_uses_work_queue_name(
+        self, deployment, client, session
+    ):
+        await client.patch(
+            f"deployments/{deployment.id}", json=dict(work_queue_name="wq-test")
+        )
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run", json={}
+        )
+        assert response.json()["work_queue_name"] == "wq-test"
 
     async def test_create_flow_run_from_deployment_override_params(
         self, deployment, client
@@ -818,7 +1263,6 @@ class TestGetDeploymentWorkQueueCheck:
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
-                manifest_path="file.json",
                 flow_id=flow.id,
                 tags=["a", "b", "c"],
             ),

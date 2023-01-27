@@ -9,33 +9,25 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeploymentEdit, DeploymentForm, IDeploymentRequest } from '@prefecthq/orion-design'
+  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router from '@/router'
-  import { deploymentsApi } from '@/services/deploymentsApi'
 
-  const deploymentId = useRouteParam('id')
+  const api = useWorkspaceApi()
+  const deploymentId = useRouteParam('deploymentId')
   const subscriptionOptions = {
     interval: 300000,
   }
 
-  const deploymentSubscription = useSubscription(deploymentsApi.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
   const deployment = computed(() => deploymentSubscription.response)
 
-  async function submit(deployment: IDeploymentRequest): Promise<void> {
-    if (deployment.parameters) {
-      Object.keys(deployment.parameters).forEach((key) => {
-        const parameter = deployment.parameters?.[key]
-        if (deployment.parameters && parameter instanceof Date) {
-          deployment.parameters[key] = parameter.toString()
-        }
-      })
-    }
-
+  async function submit(deployment: DeploymentUpdate): Promise<void> {
     try {
-      await deploymentsApi.updateDeployment(deploymentId.value, deployment)
+      await api.deployments.updateDeployment(deploymentId.value, deployment)
       showToast('Deployment updated', 'success')
       router.back()
     } catch (error) {
@@ -47,5 +39,13 @@
   function cancel(): void {
     router.back()
   }
+
+  const title = computed(() => {
+    if (!deployment.value) {
+      return 'Edit Deployment'
+    }
+    return `Edit Deployment: ${deployment.value.name}`
+  })
+  usePageTitle(title)
 </script>
 

@@ -1,15 +1,10 @@
-import { getAppPermissions, isFeatureFlagString } from '@prefecthq/orion-design'
-import { reactive } from 'vue'
-import { VITE_PREFECT_CANARY } from '@/utilities/meta'
+import { Can, WorkspacePermission, WorkspaceFeatureFlag } from '@prefecthq/orion-design'
+import { InjectionKey } from 'vue'
 
-export const can = reactive(
-  getAppPermissions(
-    permissionString => {
-      if (isFeatureFlagString(permissionString)) {
-        return VITE_PREFECT_CANARY()
-      }
+const featureFlags = ['access:workers', 'access:work_pools'] as const
 
-      return true
-    },
-  ),
-)
+export type FeatureFlag = typeof featureFlags[number]
+
+export type Permission = FeatureFlag | WorkspacePermission | WorkspaceFeatureFlag
+
+export const canKey: InjectionKey<Can<Permission>> = Symbol('canInjectionKey')

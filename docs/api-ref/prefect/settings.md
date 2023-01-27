@@ -8,8 +8,6 @@ tags:
 ---
 
 ::: prefect.settings
-    selection:
-      inherited_members: true
+    options:
       filters: ["!^_", "!Config", "!copy", "!dict", "!json"]
-    rendering:
       members_order: source

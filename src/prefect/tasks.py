@@ -31,7 +31,9 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
+from prefect.results import ResultSerializer, ResultStorage
 from prefect.states import State
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
 from prefect.utilities.callables import (
     get_call_parameters,
@@ -70,9 +72,31 @@ def task_input_hash(
         # task functions `co_code` bytes to avoid caching when the underlying function
         # changes
         context.task.task_key,
-        context.task.fn.__code__.co_code,
+        context.task.fn.__code__.co_code.hex(),
         arguments,
     )
+
+
+def exponential_backoff(backoff_factor: float) -> Callable[[int], List[float]]:
+    """
+    A task retry backoff utility that configures exponential backoff for task retries.
+    The exponential backoff design matches the urllib3 implementation.
+
+    Arguments:
+        backoff_factor: the base delay for the first retry, subsequent retries will
+            increase the delay time by powers of 2.
+
+    Returns:
+        a callable that can be passed to the task constructor
+    """
+
+    def retry_backoff_callable(retries: int) -> List[float]:
+        # no more than 50 retry delays can be configured on a task
+        retries = min(retries, 50)
+
+        return [backoff_factor * max(0, 2**r) for r in range(retries)]
+
+    return retry_backoff_callable
 
 
 @PrefectObjectRegistry.register_instances
@@ -90,6 +114,7 @@ class Task(Generic[P, R]):
     "Returns" respectively.
 
     Args:
+        fn: The function defining the task.
         name: An optional name for the task; if not provided, the name will be inferred
             from the given function.
         description: An optional string description for the task.
@@ -104,8 +129,33 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         retries: An optional number of times to retry on task run failure.
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            task after failure. This is only applicable if `retries` is nonzero.
+        retry_delay_seconds: Optionally configures how long to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero. This
+            setting can either be a number of seconds, a list of retry delays, or a
+            callable that, given the total number of retries, generates a list of retry
+            delays. If a number of seconds, that delay will be applied to all retries.
+            If a list, each retry will wait for the corresponding delay before retrying.
+            When passing a callable or a list, the number of configured retry delays
+            cannot exceed 50.
+        retry_jitter_factor: An optional factor that defines the factor to which a retry
+            can be jittered in order to avoid a "thundering herd".
+        persist_result: An optional toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
+            the features being used.
+        result_storage: An optional block to use to persist the result of this task.
+            Defaults to the value set in the flow the task is called in.
+        result_serializer: An optional serializer to use to serialize the result of this
+            task for persistence. Defaults to the value set in the flow the task is
+            called in.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the task. If the task exceeds this runtime, it will be marked as failed.
+        log_prints: If set, `print` statements in the task will be redirected to the
+            Prefect logger for the task run. Defaults to `None`, which indicates
+            that the value from the flow should be used.
+        refresh_cache: If set, cached results for the cache key are not used.
+            Defaults to `None`, which indicates that a cached result from a previous
+            execution with matching cache key is used.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -122,7 +172,20 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: datetime.timedelta = None,
         retries: int = 0,
-        retry_delay_seconds: Union[float, int] = 0,
+        retry_delay_seconds: Union[
+            float,
+            int,
+            List[float],
+            Callable[[int], List[float]],
+        ] = 0,
+        retry_jitter_factor: Optional[float] = None,
+        persist_result: Optional[bool] = None,
+        result_storage: Optional[ResultStorage] = None,
+        result_serializer: Optional[ResultSerializer] = None,
+        cache_result_in_memory: bool = True,
+        timeout_seconds: Union[int, float] = None,
+        log_prints: Optional[bool] = False,
+        refresh_cache: Optional[bool] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -132,23 +195,55 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
-        self.name = name or self.fn.__name__
+        if not name:
+            if not hasattr(self.fn, "__name__"):
+                self.name = type(self.fn).__name__
+            else:
+                self.name = self.fn.__name__
+        else:
+            self.name = name
+
         self.version = version
+        self.log_prints = log_prints
 
         raise_for_reserved_arguments(self.fn, ["return_state", "wait_for"])
 
         self.tags = set(tags if tags else [])
-        self.task_key = to_qualified_name(self.fn)
+
+        if not hasattr(self.fn, "__qualname__"):
+            self.task_key = to_qualified_name(type(self.fn))
+        else:
+            self.task_key = to_qualified_name(self.fn)
 
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
+        self.refresh_cache = refresh_cache
 
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
         self.retries = retries
-        self.retry_delay_seconds = retry_delay_seconds
 
+        if callable(retry_delay_seconds):
+            self.retry_delay_seconds = retry_delay_seconds(retries)
+        else:
+            self.retry_delay_seconds = retry_delay_seconds
+
+        if isinstance(self.retry_delay_seconds, list) and (
+            len(self.retry_delay_seconds) > 50
+        ):
+            raise ValueError("Can not configure more than 50 retry delays per task.")
+
+        if retry_jitter_factor is not None and retry_jitter_factor < 0:
+            raise ValueError("`retry_jitter_factor` must be >= 0.")
+
+        self.retry_jitter_factor = retry_jitter_factor
+
+        self.persist_result = persist_result
+        self.result_storage = result_storage
+        self.result_serializer = result_serializer
+        self.cache_result_in_memory = cache_result_in_memory
+        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
         # different function. This is to detect the case where two or more tasks
         # share a name or are lambdas, which should result in a warning, and to
@@ -180,8 +275,21 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
-        retries: int = 0,
-        retry_delay_seconds: Union[float, int] = 0,
+        retries: Optional[int] = NotSet,
+        retry_delay_seconds: Union[
+            float,
+            int,
+            List[float],
+            Callable[[int], List[float]],
+        ] = NotSet,
+        retry_jitter_factor: Optional[float] = NotSet,
+        persist_result: Optional[bool] = NotSet,
+        result_storage: Optional[ResultStorage] = NotSet,
+        result_serializer: Optional[ResultSerializer] = NotSet,
+        cache_result_in_memory: Optional[bool] = None,
+        timeout_seconds: Union[int, float] = None,
+        log_prints: Optional[bool] = NotSet,
+        refresh_cache: Optional[bool] = NotSet,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -194,8 +302,22 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             retries: A new number of times to retry on task run failure.
-            retry_delay_seconds: A new number of seconds to wait before retrying the
-                task after failure. This is only applicable if `retries` is nonzero.
+            retry_delay_seconds: Optionally configures how long to wait before retrying
+                the task after failure. This is only applicable if `retries` is nonzero.
+                This setting can either be a number of seconds, a list of retry delays,
+                or a callable that, given the total number of retries, generates a list
+                of retry delays. If a number of seconds, that delay will be applied to
+                all retries. If a list, each retry will wait for the corresponding delay
+                before retrying. When passing a callable or a list, the number of
+                configured retry delays cannot exceed 50.
+            retry_jitter_factor: An optional factor that defines the factor to which a
+                retry can be jittered in order to avoid a "thundering herd".
+            persist_result: A new option for enabling or disabling result persistence.
+            result_storage: A new storage type to use for results.
+            result_serializer: A new serializer to use for results.
+            timeout_seconds: A new maximum time for the task to complete in seconds.
+            log_prints: A new option for enabling or disabling redirection of `print` statements.
+            refresh_cache: A new option for enabling or disabling cache refresh.
 
         Returns:
             A new `Task` instance.
@@ -241,8 +363,40 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
-            retries=retries or self.retries,
-            retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
+            retries=retries if retries is not NotSet else self.retries,
+            retry_delay_seconds=(
+                retry_delay_seconds
+                if retry_delay_seconds is not NotSet
+                else self.retry_delay_seconds
+            ),
+            retry_jitter_factor=(
+                retry_jitter_factor
+                if retry_jitter_factor is not NotSet
+                else self.retry_jitter_factor
+            ),
+            persist_result=(
+                persist_result if persist_result is not NotSet else self.persist_result
+            ),
+            result_storage=(
+                result_storage if result_storage is not NotSet else self.result_storage
+            ),
+            result_serializer=(
+                result_serializer
+                if result_serializer is not NotSet
+                else self.result_serializer
+            ),
+            cache_result_in_memory=(
+                cache_result_in_memory
+                if cache_result_in_memory is not None
+                else self.cache_result_in_memory
+            ),
+            timeout_seconds=(
+                timeout_seconds if timeout_seconds is not None else self.timeout_seconds
+            ),
+            log_prints=(log_prints if log_prints is not NotSet else self.log_prints),
+            refresh_cache=(
+                refresh_cache if refresh_cache is not NotSet else self.refresh_cache
+            ),
         )
 
     @overload
@@ -407,7 +561,7 @@ class Task(Generic[P, R]):
         Args:
             *args: Arguments to run the task with
             return_state: Return the result of the flow run wrapped in a
-            Prefect State.
+                Prefect State.
             wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
@@ -545,8 +699,9 @@ class Task(Generic[P, R]):
         Must be called within a flow function. If writing an async task, this
         call must be awaited.
 
-        Must be called with an iterable per task function argument. All
-        iterables must be the same length.
+        Must be called with at least one iterable and all iterables must be
+        the same length. Any arguments that are not iterable will be treated as
+        a static value and each task run will recieve the same value.
 
         Will create as many task runs as the length of the iterable(s) in the
         backing API and submit the task runs to the flow's task runner. This
@@ -557,10 +712,11 @@ class Task(Generic[P, R]):
         for sync tasks and they are fully resolved on submission.
 
         Args:
-            *args: Iterable arguments to run the tasks with
+            *args: Iterable and static arguments to run the tasks with
             return_state: Return a list of Prefect States that wrap the results
                 of each task run.
-            wait_for: Upstream task futures to wait for before starting the task
+            wait_for: Upstream task futures to wait for before starting the
+                task
             **kwargs: Keyword iterable arguments to run the task with
 
         Returns:
@@ -576,38 +732,42 @@ class Task(Generic[P, R]):
             >>> def my_task(x):
             >>>     return x + 1
 
-            Run a map in a flow
+            Create mapped tasks
 
             >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
             >>>     my_task.map([1, 2, 3])
 
-            Wait for mapping to finish
+            Wait for all mapped tasks to finish
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
             >>>         future.wait()
+            >>>     # Now all of the mapped tasks have finished
+            >>>     my_task(10)
 
-            Use the result from a map in a flow
+            Use the result from mapped tasks in a flow
 
             >>> @flow
             >>> def my_flow():
             >>>     futures = my_task.map([1, 2, 3])
             >>>     for future in futures:
-            >>>         future.result()
+            >>>         print(future.result())
             >>> my_flow()
-            [2, 3, 4]
+            2
+            3
+            4
 
             Enforce ordering between tasks that do not exchange data
             >>> @task
-            >>> def task_1():
+            >>> def task_1(x):
             >>>     pass
             >>>
             >>> @task
-            >>> def task_2():
+            >>> def task_2(y):
             >>>     pass
             >>>
             >>> @flow
@@ -616,6 +776,34 @@ class Task(Generic[P, R]):
             >>>
             >>>     # task 2 will wait for task_1 to complete
             >>>     y = task_2.map([1, 2, 3], wait_for=[x])
+
+            Use a non-iterable input as a constant across mapped tasks
+            >>> @task
+            >>> def display(prefix, item):
+            >>>    print(prefix, item)
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     display.map("Check it out: ", [1, 2, 3])
+            >>>
+            >>> my_flow()
+            Check it out: 1
+            Check it out: 2
+            Check it out: 3
+
+            Use `unmapped` to treat an iterable argument as a constant
+            >>> from prefect import unmapped
+            >>>
+            >>> @task
+            >>> def add_n_to_items(items, n):
+            >>>     return [item + n for item in items]
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     return add_n_to_items.map(unmapped([10, 20]), n=[1, 2, 3])
+            >>>
+            >>> my_flow()
+            [[11, 21], [12, 22], [13, 23]]
         """
 
         from prefect.engine import enter_task_run_engine
@@ -649,7 +837,20 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
-    retry_delay_seconds: Union[float, int] = 0,
+    retry_delay_seconds: Union[
+        float,
+        int,
+        List[float],
+        Callable[[int], List[float]],
+    ] = 0,
+    retry_jitter_factor: Optional[float] = None,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
+    timeout_seconds: Union[int, float] = None,
+    log_prints: Optional[bool] = None,
+    refresh_cache: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -664,7 +865,20 @@ def task(
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
     retries: int = 0,
-    retry_delay_seconds: Union[float, int] = 0,
+    retry_delay_seconds: Union[
+        float,
+        int,
+        List[float],
+        Callable[[int], List[float]],
+    ] = 0,
+    retry_jitter_factor: Optional[float] = None,
+    persist_result: Optional[bool] = None,
+    result_storage: Optional[ResultStorage] = None,
+    result_serializer: Optional[ResultSerializer] = None,
+    cache_result_in_memory: bool = True,
+    timeout_seconds: Union[int, float] = None,
+    log_prints: Optional[bool] = None,
+    refresh_cache: Optional[bool] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -686,8 +900,33 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         retries: An optional number of times to retry on task run failure
-        retry_delay_seconds: An optional number of seconds to wait before retrying the
-            task after failure. This is only applicable if `retries` is nonzero.
+        retry_delay_seconds: Optionally configures how long to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero. This
+            setting can either be a number of seconds, a list of retry delays, or a
+            callable that, given the total number of retries, generates a list of retry
+            delays. If a number of seconds, that delay will be applied to all retries.
+            If a list, each retry will wait for the corresponding delay before retrying.
+            When passing a callable or a list, the number of configured retry delays
+            cannot exceed 50.
+        retry_jitter_factor: An optional factor that defines the factor to which a retry
+            can be jittered in order to avoid a "thundering herd".
+        persist_result: An optional toggle indicating whether the result of this task
+            should be persisted to result storage. Defaults to `None`, which indicates
+            that Prefect should choose whether the result should be persisted depending on
+            the features being used.
+        result_storage: An optional block to use to persist the result of this task.
+            Defaults to the value set in the flow the task is called in.
+        result_serializer: An optional serializer to use to serialize the result of this
+            task for persistence. Defaults to the value set in the flow the task is
+            called in.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the task. If the task exceeds this runtime, it will be marked as failed.
+        log_prints: If set, `print` statements in the task will be redirected to the
+            Prefect logger for the task run. Defaults to `None`, which indicates
+            that the value from the flow should be used.
+        refresh_cache: If set, cached results for the cache key are not used.
+            Defaults to `None`, which indicates that a cached result from a previous
+            execution with matching cache key is used.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -750,6 +989,14 @@ def task(
                 cache_expiration=cache_expiration,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                retry_jitter_factor=retry_jitter_factor,
+                persist_result=persist_result,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
+                timeout_seconds=timeout_seconds,
+                log_prints=log_prints,
+                refresh_cache=refresh_cache,
             ),
         )
     else:
@@ -765,5 +1012,13 @@ def task(
                 cache_expiration=cache_expiration,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
+                retry_jitter_factor=retry_jitter_factor,
+                persist_result=persist_result,
+                result_storage=result_storage,
+                result_serializer=result_serializer,
+                cache_result_in_memory=cache_result_in_memory,
+                timeout_seconds=timeout_seconds,
+                log_prints=log_prints,
+                refresh_cache=refresh_cache,
             ),
         )

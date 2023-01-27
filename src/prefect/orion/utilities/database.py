@@ -54,15 +54,15 @@ def _generate_uuid_sqlite(element, compiler, **kwargs):
 
     return """
     (
-        lower(hex(randomblob(4))) 
-        || '-' 
-        || lower(hex(randomblob(2))) 
-        || '-4' 
-        || substr(lower(hex(randomblob(2))),2) 
-        || '-' 
-        || substr('89ab',abs(random()) % 4 + 1, 1) 
-        || substr(lower(hex(randomblob(2))),2) 
-        || '-' 
+        lower(hex(randomblob(4)))
+        || '-'
+        || lower(hex(randomblob(2)))
+        || '-4'
+        || substr(lower(hex(randomblob(2))),2)
+        || '-'
+        || substr('89ab',abs(random()) % 4 + 1, 1)
+        || substr(lower(hex(randomblob(2))),2)
+        || '-'
         || lower(hex(randomblob(6)))
     )
     """
@@ -179,6 +179,24 @@ class JSON(TypeDecorator):
             return dialect.type_descriptor(sqlite.JSON(none_as_null=True))
         else:
             return dialect.type_descriptor(sa.JSON(none_as_null=True))
+
+    def process_bind_param(self, value, dialect):
+        """Prepares the given value to be used as a JSON field in a parameter binding"""
+        if not value:
+            return value
+
+        # PostgreSQL does not support the floating point extrema values `NaN`,
+        # `-Infinity`, or `Infinity`
+        # https://www.postgresql.org/docs/current/datatype-json.html#JSON-TYPE-MAPPING-TABLE
+        #
+        # SQLite supports storing and retrieving full JSON values that include
+        # `NaN`, `-Infinity`, or `Infinity`, but any query that requires SQLite to parse
+        # the value (like `json_extract`) will fail.
+        #
+        # Replace any `NaN`, `-Infinity`, or `Infinity` values with `None` in the
+        # returned value.  See more about `parse_constant` at
+        # https://docs.python.org/3/library/json.html#json.load.
+        return json.loads(json.dumps(value), parse_constant=lambda c: None)
 
 
 class Pydantic(TypeDecorator):
@@ -521,7 +539,15 @@ def _json_has_any_key_sqlite(element, compiler, **kwargs):
     return compiler.process(
         sa.select(1)
         .select_from(json_each)
-        .where(sa.literal_column("json_each.value").in_(element.values))
+        .where(
+            sa.literal_column("json_each.value").in_(
+                # manually set the bindparam key because the default will
+                # include the `.` from the literal column name and sqlite params
+                # must be alphanumeric. `unique=True` automatically suffixes the bindparam
+                # if there are overlaps.
+                sa.bindparam(key="json_each_values", value=element.values, unique=True)
+            )
+        )
         .exists(),
         **kwargs,
     )

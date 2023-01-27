@@ -1,9 +1,11 @@
+import contextlib
 import textwrap
 from typing import Iterable, List, Union
 
 from typer.testing import CliRunner, Result
 
 from prefect.cli import app
+from prefect.utilities.asyncutils import in_async_main_thread
 
 
 def check_contains(cli_result: Result, content: str, should_contain: bool):
@@ -47,8 +49,10 @@ def invoke_and_assert(
     expected_output: str = None,
     expected_output_contains: Union[str, Iterable[str]] = None,
     expected_output_does_not_contain: Union[str, Iterable[str]] = None,
+    expected_line_count: int = None,
     expected_code: int = 0,
     echo: bool = True,
+    temp_dir: str = None,
 ) -> Result:
     """
     Test utility for the Prefect CLI application, asserts exact match with CLI output.
@@ -65,10 +69,34 @@ def invoke_and_assert(
             contain the string or strings.
         expected_code: 0 if we expect the app to exit cleanly, else 1 if we expect
             the app to exit with an error.
+        temp_dir: if provided, the CLI command will be run with this as its present
+            working directory.
     """
+    if in_async_main_thread():
+        raise RuntimeError(
+            textwrap.dedent(
+                """
+                You cannot run `invoke_and_assert` directly from an async 
+                function. If you need to run `invoke_and_assert` in an async 
+                function, run it with `run_sync_in_worker_thread`. 
 
+                Example: 
+                    run_sync_in_worker_thread(
+                        invoke_and_assert, 
+                        command=['my', 'command'],
+                        expected_code=0,
+                    )
+                """
+            )
+        )
     runner = CliRunner()
-    result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
+    if temp_dir:
+        ctx = runner.isolated_filesystem(temp_dir=temp_dir)
+    else:
+        ctx = contextlib.nullcontext()
+
+    with ctx:
+        result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
     if echo:
         print("------ CLI output ------")
@@ -105,4 +133,21 @@ def invoke_and_assert(
             for contents in expected_output_does_not_contain:
                 check_contains(result, contents, should_contain=False)
 
+    if expected_line_count is not None:
+        line_count = len(result.stdout.splitlines())
+        assert (
+            expected_line_count == line_count
+        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
+
     return result
+
+
+@contextlib.contextmanager
+def temporary_console_width(console, width):
+    original = console.width
+
+    try:
+        console._width = width
+        yield
+    finally:
+        console._width = original

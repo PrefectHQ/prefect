@@ -5,10 +5,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.client import OrionClient
+from prefect.deprecated.data_documents import DataDocument
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Completed
+from prefect.states import Completed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
 
@@ -18,49 +18,61 @@ mock_client.read_flow_run_states.return_value = [Completed()]
 
 async def test_resolve_futures_transforms_future(task_run):
     future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="foo",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
+    future.task_run = task_run
+    future._submitted.set()
     assert await resolve_futures_to_data(future) == "foo"
 
 
 @pytest.mark.parametrize("typ", [list, tuple, set])
 async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
     future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="foo",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
+    future.task_run = task_run
+    future._submitted.set()
     assert await resolve_futures_to_data(typ(["a", future, "b"])) == typ(
         ["a", "foo", "b"]
     )
 
 
 async def test_resolve_futures_transforms_future_in_generator_type(task_run):
+    future = PrefectFuture(
+        key=str(task_run.id),
+        name="foo",
+        task_runner=None,
+        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+    )
+    future.task_run = task_run
+    future._submitted.set()
+
     def gen():
         yield "a"
-        yield PrefectFuture(
-            task_run=task_run,
-            run_key=str(task_run.id),
-            task_runner=None,
-            _final_state=Completed(data=DataDocument.encode("json", "foo")),
-        )
+        yield future
         yield "b"
 
     assert await resolve_futures_to_data(gen()) == ["a", "foo", "b"]
 
 
 async def test_resolve_futures_transforms_future_in_nested_generator_types(task_run):
+    future = PrefectFuture(
+        key=str(task_run.id),
+        name="foo",
+        task_runner=None,
+        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+    )
+    future.task_run = task_run
+    future._submitted.set()
+
     def gen_a():
-        yield PrefectFuture(
-            task_run=task_run,
-            run_key=str(task_run.id),
-            task_runner=None,
-            _final_state=Completed(data=DataDocument.encode("json", "foo")),
-        )
+        yield future
 
     def gen_b():
         yield range(2)
@@ -73,17 +85,21 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
 async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
     key_future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="foo",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
+    key_future.task_run = task_run
+    key_future._submitted.set()
     value_future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="bar",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
+    value_future.task_run = task_run
+    value_future._submitted.set()
     assert await resolve_futures_to_data(
         typ([("a", 1), (key_future, value_future), ("b", 2)])
     ) == typ([("a", 1), ("foo", "bar"), ("b", 2)])
@@ -97,11 +113,13 @@ async def test_resolve_futures_transforms_future_in_dataclass(task_run):
         b: int = 2
 
     future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="foo",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
+    future.task_run = task_run
+    future._submitted.set()
     assert await resolve_futures_to_data(Foo(a=1, foo=future)) == Foo(
         a=1, foo="bar", b=2
     )
@@ -115,11 +133,13 @@ async def test_resolves_futures_in_nested_collections(task_run):
         nested_dict: dict
 
     future = PrefectFuture(
-        task_run=task_run,
-        run_key=str(task_run.id),
+        key=str(task_run.id),
+        name="foo",
         task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
+    future.task_run = task_run
+    future._submitted.set()
     assert await resolve_futures_to_data(
         Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})

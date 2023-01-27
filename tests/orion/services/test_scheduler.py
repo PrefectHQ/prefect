@@ -1,13 +1,15 @@
 import datetime
 
 import pendulum
+import pytest
 import sqlalchemy as sa
 
+from prefect import states
 from prefect.orion import models, schemas
 from prefect.orion.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
+    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
 )
 
 
@@ -17,7 +19,6 @@ async def test_create_schedules_from_deployment(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -31,8 +32,8 @@ async def test_create_schedules_from_deployment(flow, session):
     service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 100 == service.max_runs
-    expected_dates = await deployment.schedule.get_dates(service.max_runs)
+    assert len(runs) == service.min_runs
+    expected_dates = await deployment.schedule.get_dates(service.min_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
     assert all(
@@ -46,7 +47,6 @@ async def test_create_schedule_respects_max_future_time(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=30),
                 anchor_date=pendulum.now("UTC"),
@@ -78,7 +78,6 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -89,7 +88,6 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test-2",
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=10)
             ),
@@ -100,7 +98,6 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow_2.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=5)
             ),
@@ -114,12 +111,11 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     service = Scheduler(handle_signals=False)
     await service.start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 130
 
     expected_dates = set()
     for deployment in [d1, d2, d3]:
         dep_runs = await deployment.schedule.get_dates(
-            service.max_runs,
+            service.min_runs,
             start=pendulum.now(),
             end=pendulum.now() + service.max_scheduled_time,
         )
@@ -136,7 +132,7 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
     # flow runs in batches of scheduler_insertion_batch_size
     deployments_to_schedule = (
         PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
-        // PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        // PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
     ) + 1
     for i in range(deployments_to_schedule):
         await models.deployments.create_deployment(
@@ -144,11 +140,8 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
             deployment=schemas.core.Deployment(
                 name=f"test_{i}",
                 flow_id=flow.id,
-                manifest_path="file.json",
                 schedule=schemas.schedules.IntervalSchedule(
-                    # assumes this interval is small enough that
-                    # the maximum amount of runs will be scheduled per deployment
-                    interval=datetime.timedelta(minutes=5)
+                    interval=datetime.timedelta(hours=1)
                 ),
             ),
         )
@@ -162,7 +155,7 @@ async def test_create_schedules_from_multiple_deployments_in_batches(flow, sessi
     runs = await models.flow_runs.read_flow_runs(session)
     assert (
         len(runs)
-        == deployments_to_schedule * PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        == deployments_to_schedule * PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
     )
     assert len(runs) > PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
 
@@ -173,7 +166,6 @@ async def test_scheduler_respects_schedule_is_active(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
-            manifest_path="file.json",
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -190,13 +182,65 @@ async def test_scheduler_respects_schedule_is_active(flow, session):
     assert n_runs_2 == 0
 
 
+async def test_scheduler_runs_when_too_few_scheduled_runs_but_doesnt_overwrite(
+    flow, session
+):
+    """
+    Create 3 runs, cancel one, and check that the scheduler doesn't overwrite the cancelled run
+    """
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="test",
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(hours=1)
+            ),
+        ),
+    )
+    await session.commit()
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 0
+
+    # run multiple loops
+    await Scheduler(handle_signals=False).start(loops=1)
+    await Scheduler(handle_signals=False).start(loops=1)
+
+    n_runs = await models.flow_runs.count_flow_runs(session)
+    assert n_runs == 3
+
+    runs = await models.flow_runs.read_flow_runs(
+        session,
+        limit=1,
+        flow_run_filter=schemas.filters.FlowRunFilter(
+            state=dict(type=dict(any_=["SCHEDULED"]))
+        ),
+    )
+
+    # cancel one run
+    await models.flow_runs.set_flow_run_state(
+        session, runs[0].id, state=states.Cancelled()
+    )
+    await session.commit()
+
+    # run scheduler again
+    await Scheduler(handle_signals=False).start(loops=1)
+    runs = await models.flow_runs.read_flow_runs(
+        session,
+        flow_run_filter=schemas.filters.FlowRunFilter(
+            deployment_id=dict(any_=[deployment.id])
+        ),
+    )
+    assert len(runs) == 3
+    assert {r.state_type for r in runs} == {"SCHEDULED", "SCHEDULED", "CANCELLED"}
+
+
 class TestRecentDeploymentsScheduler:
     async def deployment(self, session, flow):
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(
-                name="My Deployment", manifest_path="file.json", flow_id=flow.id
-            ),
+            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
         )
         await session.commit()
         return deployment
@@ -219,7 +263,7 @@ class TestRecentDeploymentsScheduler:
         await recent_scheduler.start(loops=1)
 
         runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == recent_scheduler.max_runs
+        assert runs_count == recent_scheduler.min_runs
 
     async def test_schedules_runs_for_recently_updated_deployments(
         self, deployment, session, db
@@ -245,7 +289,7 @@ class TestRecentDeploymentsScheduler:
         await recent_scheduler.start(loops=1)
 
         runs_count = (await session.execute(count_query)).scalar()
-        assert runs_count == recent_scheduler.max_runs
+        assert runs_count == recent_scheduler.min_runs
 
     async def test_schedules_no_runs_for_deployments_updated_a_while_ago(
         self, deployment, session, db
@@ -272,3 +316,44 @@ class TestRecentDeploymentsScheduler:
 
         runs_count = (await session.execute(count_query)).scalar()
         assert runs_count == 0
+
+
+class TestScheduleRulesWaterfall:
+    @pytest.mark.parametrize(
+        "interval,n",
+        [
+            # schedule until we at least exceed an hour
+            (datetime.timedelta(minutes=1), 61),
+            # schedule at least 3 runs
+            (datetime.timedelta(hours=1), 3),
+            # schedule until we at least exceed an hour
+            (datetime.timedelta(minutes=5), 13),
+            # schedule until at most 100 days
+            (datetime.timedelta(days=60), 2),
+        ],
+    )
+    async def test_create_schedule_respects_max_future_time(
+        self, flow, session, interval, n
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="test",
+                flow_id=flow.id,
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=interval,
+                    anchor_date=pendulum.now("UTC").add(seconds=1),
+                ),
+            ),
+        )
+        await session.commit()
+
+        # assert clean slate
+        assert (await models.flow_runs.count_flow_runs(session)) == 0
+
+        # run scheduler
+        service = Scheduler(handle_signals=False)
+        await service.start(loops=1)
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        assert len(runs) == n

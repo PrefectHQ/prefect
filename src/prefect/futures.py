@@ -4,6 +4,7 @@ Futures represent the execution of a task and allow retrieval of the task run's 
 This module contains the definition for futures as well as utilities for resolving
 futures in nested data structures.
 """
+import asyncio
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -17,11 +18,21 @@ from typing import (
     cast,
     overload,
 )
+from uuid import UUID
 
-from prefect.client import OrionClient, inject_client
-from prefect.orion.schemas.core import TaskRun
-from prefect.orion.schemas.states import State
-from prefect.utilities.asyncutils import A, Async, Sync, sync
+import anyio
+
+from prefect.client.orion import OrionClient
+from prefect.client.utilities import inject_client
+from prefect.states import State
+from prefect.utilities.asyncutils import (
+    A,
+    Async,
+    Sync,
+    run_async_from_worker_thread,
+    run_sync_in_worker_thread,
+    sync,
+)
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
@@ -50,21 +61,21 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()  # PrefectFuture[str, Sync] includes result type
+        >>>     future = my_task.submit()  # PrefectFuture[str, Sync] includes result type
         >>>     future.task_run.id  # UUID for the task run
 
         Wait for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait()
 
         Wait N sconds for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait(0.1)
         >>>     if final_state:
         >>>         ... # Task done
@@ -75,7 +86,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result()
         >>>     assert result == "hello"
 
@@ -83,7 +94,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result(timeout=5)
         >>>     assert result == "hello"
 
@@ -91,24 +102,28 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     state = future.get_state()
     """
 
     def __init__(
         self,
-        task_run: TaskRun,
-        run_key: str,
+        name: str,
+        key: UUID,
         task_runner: "BaseTaskRunner",
         asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.task_run = task_run
-        self.run_key = run_key
+        self.key = key
+        self.name = name
         self.asynchronous = asynchronous
+        self.task_run = None
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._task_runner = task_runner
+        self._submitted = anyio.Event()
+
+        self._loop = asyncio.get_running_loop()
 
     @overload
     def wait(
@@ -155,10 +170,12 @@ class PrefectFuture(Generic[R, A]):
         """
         Async implementation for `wait`
         """
+        await self._wait_for_submission()
+
         if self._final_state:
             return self._final_state
 
-        self._final_state = await self._task_runner.wait(self, timeout)
+        self._final_state = await self._task_runner.wait(self.key, timeout)
         return self._final_state
 
     @overload
@@ -217,7 +234,7 @@ class PrefectFuture(Generic[R, A]):
         final_state = await self._wait(timeout=timeout)
         if not final_state:
             raise TimeoutError("Call timed out before task finished.")
-        return final_state.result(raise_on_failure=raise_on_failure)
+        return await final_state.result(raise_on_failure=raise_on_failure, fetch=True)
 
     @overload
     def get_state(
@@ -233,10 +250,7 @@ class PrefectFuture(Generic[R, A]):
 
     def get_state(self, client: OrionClient = None):
         """
-        Wait for the run to finish and return the final state
-
-        If the timeout is reached before the run reaches a final state,
-        `None` is returned.
+        Get the current state of the task run.
         """
         if self.asynchronous:
             return cast(Awaitable[State[R]], self._get_state(client=client))
@@ -247,6 +261,9 @@ class PrefectFuture(Generic[R, A]):
     async def _get_state(self, client: OrionClient = None) -> State[R]:
         assert client is not None  # always injected
 
+        # We must wait for the task run id to be populated
+        await self._wait_for_submission()
+
         task_run = await client.read_task_run(self.task_run.id)
 
         if not task_run:
@@ -256,11 +273,23 @@ class PrefectFuture(Generic[R, A]):
         self.task_run = task_run
         return task_run.state
 
+    async def _wait_for_submission(self):
+        import asyncio
+
+        # TODO: This spin lock is not performant but is necessary for cases where a
+        #       future is created in a separate event loop i.e. when a sync task is
+        #       called in an async flow
+        if not asyncio.get_running_loop() == self._loop:
+            while not self.task_run:
+                await anyio.sleep(0)
+        else:
+            await self._submitted.wait()
+
     def __hash__(self) -> int:
-        return hash(self.run_key)
+        return hash(self.key)
 
     def __repr__(self) -> str:
-        return f"PrefectFuture({self.run_key!r})"
+        return f"PrefectFuture({self.name!r})"
 
     def __bool__(self) -> bool:
         warnings.warn(
@@ -284,13 +313,15 @@ async def resolve_futures_to_data(
     Unsupported object types will be returned without modification.
     """
 
-    async def visit_fn(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return (await expr._wait()).result(raise_on_failure=False)
+            return run_async_from_worker_thread(expr._result)
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 async def resolve_futures_to_states(
@@ -304,13 +335,15 @@ async def resolve_futures_to_states(
     Unsupported object types will be returned without modification.
     """
 
-    async def visit_fn(expr):
+    def resolve_future(expr):
         if isinstance(expr, PrefectFuture):
-            return await expr._wait()
+            return run_async_from_worker_thread(expr._wait)
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
+    return await run_sync_in_worker_thread(
+        visit_collection, expr, visit_fn=resolve_future, return_data=True
+    )
 
 
 def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:

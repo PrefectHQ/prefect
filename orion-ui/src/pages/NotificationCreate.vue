@@ -1,23 +1,23 @@
 <template>
-  <p-layout-default>
+  <p-layout-default class="notification-create">
     <template #header>
       <PageHeadingNotificationCreate />
     </template>
-    <NotificationForm v-model:notification="notificationCreate" @submit="submit" @cancel="cancel" />
+    <NotificationForm action="Create" @submit="submit" @cancel="cancel" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, PageHeadingNotificationCreate } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationCreate, NotificationCreate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
-  import { ref } from 'vue'
+  import { usePageTitle } from '@/compositions/usePageTitle'
   import router, { routes } from '@/router'
-  import { notificationsApi } from '@/services/notificationsApi'
 
-  const notificationCreate = ref({})
+  const api = useWorkspaceApi()
+
   async function submit(notification: Partial<Notification>): Promise<void> {
     try {
-      await notificationsApi.createNotification(notification)
+      await api.notifications.createNotification(notification as NotificationCreate)
       router.push(routes.notifications())
     } catch (error) {
       showToast('Error creating notification', 'error')
@@ -28,4 +28,6 @@
   function cancel(): void {
     router.push(routes.notifications())
   }
+
+  usePageTitle('Create Notification')
 </script>

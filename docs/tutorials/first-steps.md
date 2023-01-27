@@ -7,25 +7,24 @@ tags:
     - tasks
     - flows
     - subflows
-    - async
 ---
 
 # First steps
 
 If you've never used Prefect before, let's start by exploring the core elements of Prefect workflows: flows and tasks.
 
-If you have used Prefect 1.0 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Prefect 2.0 flows and subflows offer significant new functionality.
+If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps, particularly [Run a flow within a flow](#run-a-flow-within-a-flow). Prefect 2 flows and subflows offer significant new functionality.
 
 ## Prerequisites
 
-These tutorials assume you have [installed Prefect 2.0](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
+These tutorials assume you have [installed Prefect 2](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer. 
 ## Flows, tasks, and subflows
 
 Let's start with the basics, defining the central components of Prefect workflows.
 
 A [flow](/concepts/flows/) is the basis of all Prefect workflows. A flow is a Python function decorated with a `@flow` decorator. 
 
-A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represents distinct pieces of work executed within a flow. 
+A [task](/concepts/tasks/) is a Python function decorated with a `@task` decorator. Tasks represent distinct pieces of work executed within a flow. 
 
 All Prefect workflows are defined within the context of a flow. Every Prefect workflow must contain at least one flow function that serves as the entrypoint for execution of the flow. 
 
@@ -196,7 +195,7 @@ All cats have three sets of long hairs that are sensitive to pressure - whiskers
 
 ## Run a flow within a flow
 
-Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#subflows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Subflows](/concepts/flows/#subflows) section of the Flows documentation for details.
+Not only can you call task functions within a flow, but you can also call other flow functions! Child flows are called [subflows](/concepts/flows/#composing-flows) and allow you to efficiently manage, track, and version common multi-task logic. See the [Composing flows](/concepts/flows/#composing-flows) section of the Flows documentation for details.
 
 Consider the following simple example:
 
@@ -231,7 +230,7 @@ $ prefect orion start
 
 Open the URL for the Orion UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
-![Viewing the orchestrated flow runs in the Orion UI.](/img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Orion UI.](../img/tutorials/first-steps-ui.png)
 
 The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 

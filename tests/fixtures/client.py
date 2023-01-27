@@ -2,7 +2,7 @@ import pytest
 
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.client import get_client
+from prefect.client.orion import get_client
 
 
 @pytest.fixture
@@ -13,7 +13,7 @@ async def orion_client(test_database_connection_url):
 
 @pytest.fixture(scope="session")
 def flow_function():
-    @flow
+    @flow(version="test", description="A test function")
     def client_test_flow(param=1):
         return param
 
@@ -23,6 +23,7 @@ def flow_function():
 @pytest.fixture(scope="module")
 def test_block():
     class x(Block):
+        _block_type_slug = "x-fixture"
         _logo_url = "https://en.wiktionary.org/wiki/File:LetterX.svg"
         _documentation_url = "https://en.wiktionary.org/wiki/X"
         foo: str

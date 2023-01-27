@@ -32,6 +32,7 @@ async def sample_db_data(
     """Adds sample data to the database for testing migrations"""
 
 
+@pytest.mark.flaky(max_runs=3)
 async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     """
     Tests that downgrade migrations work when the database has data in it.
@@ -181,6 +182,79 @@ async def test_backfill_state_name(db, flow):
             assert (
                 expected_task_runs == task_runs
             ), "state_name is backfilled for task runs"
+
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
+    """
+    Tests state_name is backfilled correctly for the flow_run
+    and task_run tables by a specific migration
+    """
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    # get the proper migration revisions
+    if dialect.name == "postgresql":
+        # Not relevant for Postgres
+        return
+    else:
+        revisions = ("7201de756d85", "fe77ad0dda06")
+
+    flow_run_id = uuid4()
+    flow_run_state_1_id = uuid4()
+
+    try:
+        # downgrade to the previous revision
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+        session = await db.session()
+        async with session:
+            # insert some flow and task runs into the database, using raw SQL to avoid
+            # future orm incompatibilities
+            await session.execute(
+                sa.text(
+                    f"INSERT INTO flow_run (id, name, flow_id) values ('{flow_run_id}', 'foo', '{flow.id}');"
+                )
+            )
+
+            await session.execute(
+                sa.text(
+                    f"INSERT INTO flow_run_state (id, flow_run_id, type, name) values ('{flow_run_state_1_id}', '{flow_run_id}', 'SCHEDULED', 'Scheduled');"
+                )
+            )
+            await session.execute(
+                sa.text(
+                    f"UPDATE flow_run SET state_id = '{flow_run_state_1_id}' WHERE id = '{flow_run_id}'"
+                )
+            )
+
+            await session.commit()
+
+        async with session:
+            # Confirm the state_id is populated
+            pre_migration_flow_run_state_id = (
+                await session.execute(
+                    sa.text(f"SELECT state_id FROM flow_run WHERE id = '{flow_run_id}'")
+                )
+            ).scalar()
+
+            assert pre_migration_flow_run_state_id == str(flow_run_state_1_id)
+
+        # run the migration
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        # check to see the revision did not remove state ids
+        session = await db.session()
+        async with session:
+            # Flow runs should still have their state ids
+            post_migration_flow_run_state_id = (
+                await session.execute(
+                    sa.text(f"SELECT state_id FROM flow_run WHERE id = '{flow_run_id}'")
+                )
+            ).scalar()
+
+            assert post_migration_flow_run_state_id == str(flow_run_state_1_id)
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)

@@ -1,9 +1,9 @@
-# ui-next
+# Prefect Orion-UI
 
 ## Project setup
 
 ```
-npm install
+npm ci
 ```
 
 ### Compiles and hot-reloads for development
@@ -24,13 +24,11 @@ npm run build
 npm run test
 ```
 
-
 ### Run your unit tests
 
 ```
 npm run test:unit
 ```
-
 
 ### Run your integration tests
 
@@ -43,7 +41,9 @@ npm run test:integration
 ```
 npm run lint
 ```
+### Components
 
+Many components in the Prefect Orion-UI come from the [orion-design component library](https://github.com/PrefectHQ/orion-design).  
 ### Customize configuration
 
 See [Configuration Reference](https://cli.vuejs.org/config/).

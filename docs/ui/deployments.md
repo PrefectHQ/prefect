@@ -5,6 +5,8 @@ tags:
     - UI
     - deployments
     - flow runs
+    - schedules
+    - parameters
     - Prefect Cloud
 ---
 
@@ -14,7 +16,7 @@ tags:
 
 The **Deployments** page in the UI displays any deployments that have been created on the current API instance or Prefect Cloud workspace.
 
-![Viewing deployments in the Prefect UI](/img/ui/orion-deployments.png)
+![Viewing deployments in the Prefect UI](../img/ui/orion-deployments.png)
 
 Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
@@ -24,7 +26,7 @@ Selecting a flow name displays details about the flow. See [Flows and Tasks](/ui
 
 Selecting a deployment name displays details about the deployment. The **Overview** tab displays general details of the deployment.
 
-![Viewing details of a deployment in the Prefect UI](/img/ui/orion-deployment-details.png)
+![Viewing details of a deployment in the Prefect UI](../img/ui/orion-deployment-details.png)
 
 Selecting the **Run** button starts an ad-hoc flow run for the deployment.
 
@@ -34,6 +36,9 @@ The button next to the toggle provides commands to copy the deployment ID or del
 
 The **Parameters** tab displays any parameters specified for the deployment.
 
-![Viewing parameters of a deployment in the Prefect UI](/img/ui/orion-deployment-params.png)
+![Viewing parameters of a deployment in the Prefect UI](../img/ui/orion-deployment-params.png)
 
-Currently, you cannot edit the deployment within the UI. To change a deployment, edit the deployment specification and use the `prefect deployment create` CLI command. If a deployment already exists for the specification on the API, it will be updated rather than creating a new deployment. See the [Deployments](/concepts/deployments/) documentation for details.
+!!! note "Editing deployments"
+    You may edit or update an existing deployment within the Prefect UI or via the CLI by applying changes from an edited deployment YAML file. 
+    
+    To change a deployment via the CLI, edit the deployment YAML file, then use the `prefect deployment apply` CLI command. If a deployment already exists, it will be updated rather than creating a new deployment. See the [Deployments](/concepts/deployments/) documentation for details.
