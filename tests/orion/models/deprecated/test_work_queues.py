@@ -358,7 +358,7 @@ class TestGetRunsInWorkQueue:
         # the correct deployment_id
         deployment_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment {deployment.name}",
                 filter=schemas.core.QueueFilter(
                     deployment_ids=[deployment.id, uuid4()]
@@ -374,7 +374,7 @@ class TestGetRunsInWorkQueue:
 
         bad_deployment_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(deployment_ids=[uuid4()]),
             ),
@@ -391,7 +391,7 @@ class TestGetRunsInWorkQueue:
         # tags "tb12" will match but the deployment ids should not match any flow runs
         conflicting_filter_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(
                     deployment_ids=[uuid4()], tags=["tb12"]
@@ -535,7 +535,7 @@ class TestCheckWorkQueuesForDeployment:
 
                 await models.work_queues.create_work_queue(
                     session=session,
-                    work_queue=schemas.core.WorkQueue(
+                    work_queue=schemas.actions.WorkQueueCreate(
                         name=f"{t}:{d}",
                         filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
                     ),

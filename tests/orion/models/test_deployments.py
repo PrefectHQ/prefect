@@ -957,24 +957,26 @@ class TestUpdateDeployment:
         self, session, deployment, enable_work_pools
     ):
         wq = await models.work_queues.read_work_queue_by_name(
-            session=session, name="wq-1"
+            session=session, name="new-work-queue-name"
         )
         assert wq is None
 
         await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment.id,
-            deployment=schemas.actions.DeploymentUpdate(work_queue_name="wq-1"),
+            deployment=schemas.actions.DeploymentUpdate(
+                work_queue_name="new-work-queue-name"
+            ),
         )
         await session.commit()
 
         wq = await models.work_queues.read_work_queue_by_name(
-            session=session, name="wq-1"
+            session=session, name="new-work-queue-name"
         )
         assert wq is not None
 
     async def test_update_work_pool_deployment(
-        self, session, deployment, work_pool, work_queue
+        self, session, deployment, work_pool, work_queue, enable_work_pools
     ):
         await models.deployments.update_deployment(
             session=session,

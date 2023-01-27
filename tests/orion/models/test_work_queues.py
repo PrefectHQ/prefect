@@ -106,13 +106,13 @@ class TestReadWorkQueues:
         )
         work_queue_3 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-2 1",
             ),
         )
         work_queue_4 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-3 1",
             ),
         )
@@ -248,7 +248,7 @@ class TestGetRunsInWorkQueue:
     async def work_queue_2(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name="wq-2"),
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
         )
         await session.commit()
         return work_queue
