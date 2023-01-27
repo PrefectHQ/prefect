@@ -11,13 +11,13 @@ class TestGetRunsInQueueQuery:
     @pytest.fixture
     async def work_queue_1(self, session):
         return await models.work_queues.create_work_queue(
-            session=session, work_queue=schemas.core.WorkQueue(name="q1")
+            session=session, work_queue=schemas.actions.WorkQueueCreate(name="q1")
         )
 
     @pytest.fixture
     async def work_queue_2(self, session):
         return await models.work_queues.create_work_queue(
-            session=session, work_queue=schemas.core.WorkQueue(name="q2")
+            session=session, work_queue=schemas.actions.WorkQueueCreate(name="q2")
         )
 
     @pytest.fixture
@@ -98,7 +98,7 @@ class TestGetRunsInQueueQuery:
         runs = result.all()
 
         assert [r[0].id for r in runs] == [fr_1.id, fr_2.id, fr_3.id]
-        assert [r.work_queue_id for r in runs] == [
+        assert [r.wq_id for r in runs] == [
             work_queue_1.id,
             work_queue_1.id,
             work_queue_2.id,

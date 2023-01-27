@@ -199,7 +199,7 @@ class BaseQueryComponents(ABC):
             # return a flow run and work queue id
             sa.select(
                 sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
-                db.WorkQueue.id.label("work_queue_id"),
+                db.WorkQueue.id.label("wq_id"),
             )
             .select_from(db.WorkQueue)
             .join(
