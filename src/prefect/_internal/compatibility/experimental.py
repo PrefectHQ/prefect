@@ -229,6 +229,10 @@ def experimental_field(
             # Perform warning check
             if name in data.keys() and when(data[name]):
                 experimental_check()
+            field = __pydantic_self__.__fields__.get(name)
+            if field is not None:
+                field.field_info.extra["experimental"] = True
+                field.field_info.extra["experimental-group"] = group
 
         # Patch the model's init method
         model_cls.__init__ = __init__
