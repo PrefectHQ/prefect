@@ -2191,7 +2191,24 @@ async def check_api_reachable(client: PrefectClient, fail_message: str):
 
 
 @sync_compatible
-async def checkpoint(raise_on_failure: bool = True):
+async def checkpoint(raise_on_failure: bool = True) -> Optional[State]:
+    """
+    Check the state of the current flow or task run according to the API. If the state
+    is not running, raise an exception. Otherwise, return the state.
+
+    This utility should not be called at a high frequency as it needs to make an API
+    call to check the status of the run. Instead, it should be called intermittently in
+    long-running tasks to ensure they exit gracefully on cancellation.
+
+    Args:
+        raise_on_failure: Determines if an exception should be thrown if the state is
+            not running. If false, the state of the run will be returned.
+
+    Returns:
+        The state of the current run or `None` if not in a current run.
+        Only returns a value if `raise_on_failure` is false.
+
+    """
     flow_run_context = FlowRunContext.get()
     task_run_context = TaskRunContext.get()
 
@@ -2199,7 +2216,7 @@ async def checkpoint(raise_on_failure: bool = True):
         if raise_on_failure:
             raise RuntimeError("checkpoint must be called from within a flow or task.")
         else:
-            return False
+            return None
 
     if flow_run_context:
         flow_run_id = flow_run_context.flow_run.id
@@ -2214,8 +2231,6 @@ async def checkpoint(raise_on_failure: bool = True):
         if not flow_run.state.is_running():
             if raise_on_failure:
                 await raise_state_exception(flow_run.state)
-            else:
-                return False
 
     if task_run_id:
         task_run = await task_run_context.client.read_task_run(task_run_id)
@@ -2223,10 +2238,8 @@ async def checkpoint(raise_on_failure: bool = True):
         if not task_run.state.is_running():
             if raise_on_failure:
                 await raise_state_exception(task_run.state)
-            else:
-                return False
 
-    return True
+    return task_run.state if task_run_context else flow_run.state
 
 
 if __name__ == "__main__":
