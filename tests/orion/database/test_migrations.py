@@ -258,3 +258,141 @@ async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_adding_default_agent_pool_with_existing_default_queue_migration(db):
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    # get the proper migration revisions
+    if dialect.name == "postgresql":
+        revisions = ("9326a6aee18b", "0a1250a5aa25")
+    else:
+        revisions = ("bb38729c471a", "b9bda9f142f1")
+
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+
+        session = await db.session()
+        async with session:
+            # clear the work queue table
+            await session.execute(sa.text("DELETE FROM work_queue;"))
+            await session.commit()
+
+            # insert some work queues into the database
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('default');")
+            )
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('queue-1');")
+            )
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('queue-2');")
+            )
+            await session.commit()
+
+        async with session:
+            # Confirm the work queues are present
+            pre_work_queue_ids = (
+                await session.execute(sa.text("SELECT id FROM work_queue;"))
+            ).fetchall()
+
+            assert len(pre_work_queue_ids) == 3
+
+        # run the migration
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        session = await db.session()
+        async with session:
+            # Check that work queues are assigned to the default agent pool
+            default_pool_id = (
+                await session.execute(
+                    sa.text(
+                        "SELECT id FROM work_pool WHERE name = 'default-agent-pool';"
+                    )
+                )
+            ).scalar()
+
+            work_queue_ids = (
+                await session.execute(
+                    sa.text(
+                        f"SELECT id FROM work_queue WHERE work_pool_id = '{default_pool_id}';"
+                    )
+                )
+            ).fetchall()
+
+            assert len(work_queue_ids) == 3
+            assert set(work_queue_ids) == set(pre_work_queue_ids)
+
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_adding_default_agent_pool_without_existing_default_queue_migration(db):
+    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    # get the proper migration revisions
+    if dialect.name == "postgresql":
+        revisions = ("9326a6aee18b", "0a1250a5aa25")
+    else:
+        revisions = ("bb38729c471a", "b9bda9f142f1")
+
+    try:
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+
+        session = await db.session()
+        async with session:
+            # clear the work queue table
+            await session.execute(sa.text("DELETE FROM work_queue;"))
+            await session.commit()
+
+            # insert some work queues into the database
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('queue-1');")
+            )
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('queue-2');")
+            )
+            await session.execute(
+                sa.text("INSERT INTO work_queue (name) values ('queue-3');")
+            )
+            await session.commit()
+
+        async with session:
+            # Confirm the work queues are present
+            pre_work_queue_names = (
+                await session.execute(sa.text("SELECT name FROM work_queue;"))
+            ).fetchall()
+
+            assert len(pre_work_queue_names) == 3
+
+        # run the migration
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        session = await db.session()
+        async with session:
+            # Check that work queues are assigned to the default agent pool
+            default_pool_id = (
+                await session.execute(
+                    sa.text(
+                        "SELECT id FROM work_pool WHERE name = 'default-agent-pool';"
+                    )
+                )
+            ).scalar()
+
+            work_queue_names = (
+                await session.execute(
+                    sa.text(
+                        f"SELECT name FROM work_queue WHERE work_pool_id = '{default_pool_id}';"
+                    )
+                )
+            ).fetchall()
+
+            assert len(work_queue_names) == 4
+            assert set(work_queue_names) == set(pre_work_queue_names).union(
+                [("default",)]
+            )
+
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
