@@ -92,7 +92,7 @@ def upgrade():
             "work_queue",
             ["default_queue_id"],
             ["id"],
-            ondelete="cascade",
+            ondelete="RESTRICT",
         )
         batch_op.alter_column("type", nullable=False)
 
@@ -102,7 +102,7 @@ def upgrade():
             "work_pool",
             ["work_pool_id"],
             ["id"],
-            ondelete="RESTRICT",
+            ondelete="cascade",
         )
         batch_op.drop_constraint("uq_work_queue__name")
         batch_op.create_unique_constraint(
