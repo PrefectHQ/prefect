@@ -305,6 +305,7 @@ async def read_flow_runs(
 class DependencyResult(PrefectBaseModel):
     id: UUID
     name: str
+    display_name: str
     upstream_dependencies: List[TaskRunResult]
     state: State
     expected_start_time: Optional[datetime.datetime]
@@ -351,6 +352,7 @@ async def read_task_run_dependencies(
                 "state": task_run.state,
                 "expected_start_time": task_run.expected_start_time,
                 "name": task_run.name,
+                "display_name": task_run.task_key.rpartition(".")[-1],
                 "start_time": task_run.start_time,
                 "end_time": task_run.end_time,
                 "total_run_time": task_run.total_run_time,
