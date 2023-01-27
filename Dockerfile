@@ -101,7 +101,7 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install --no-cache-dir pip==21.3.1
+RUN python -m pip install --no-cache-dir pip==22.3.1
 
 # Install the base requirements separately so they cache
 COPY requirements.txt ./
