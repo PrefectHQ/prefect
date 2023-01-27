@@ -743,7 +743,7 @@ class OrionClient:
         try:
             if work_pool_name is not None:
                 response = await self._client.post(
-                    "experimental/work_pools/{work_pool_name}/queues", json=data
+                    f"experimental/work_pools/{work_pool_name}/queues", json=data
                 )
             else:
                 response = await self._client.post("/work_queues/", json=data)

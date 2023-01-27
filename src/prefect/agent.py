@@ -141,8 +141,8 @@ class OrionAgent:
         for name in self.work_queues:
             try:
                 if self.work_pool_name:
-                    work_queue = await self.client.read_work_queue(
-                        work_pool_name=self.work_pool_name, work_queue_name=name
+                    work_queue = await self.client.read_work_queue_by_name(
+                        work_pool_name=self.work_pool_name, name=name
                     )
                 else:
                     work_queue = await self.client.read_work_queue_by_name(name)
@@ -155,8 +155,7 @@ class OrionAgent:
                     try:
                         if self.work_pool_name:
                             work_queue = await self.client.create_work_queue(
-                                work_pool_name=self.work_pool_name,
-                                work_queue=schemas.actions.WorkQueueCreate(name=name),
+                                work_pool_name=self.work_pool_name, name=name
                             )
                             self.logger.info(
                                 f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
