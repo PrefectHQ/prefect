@@ -2,7 +2,7 @@ name: Issue bot
 
 on:
   issues:
-    types: [closed, assigned, unassigned]
+    types: [closed, assigned, unassigned, labeled]
 
 jobs:
   remove_label:
