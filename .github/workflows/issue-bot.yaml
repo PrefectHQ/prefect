@@ -31,3 +31,4 @@ jobs:
         run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
