@@ -16,6 +16,8 @@ down_revision = "f92143d30c27"
 branch_labels = None
 depends_on = None
 
+# Note: Downgrade for this migration is destructive if additional work pools have been created.
+
 
 def upgrade():
     op.execute("PRAGMA foreign_keys=OFF")
@@ -184,6 +186,15 @@ def upgrade():
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
 
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    WORK_POOL = meta_data.tables["work_pool"]
+
+    connection.execute(
+        sa.delete(WORK_POOL).where(WORK_POOL.c.name != "default-agent-pool")
+    )
+
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
         batch_op.drop_index("ix_work_queue__work_pool_id")
@@ -211,9 +222,7 @@ def downgrade():
     meta_data.reflect()
     WORK_POOL = meta_data.tables["work_pool"]
 
-    connection.execute(
-        sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
-    )
+    connection.execute(sa.delete(WORK_POOL))
 
     op.create_table(
         "work_pool_queue",
