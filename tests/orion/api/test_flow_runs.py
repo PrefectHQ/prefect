@@ -281,7 +281,7 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, work_queue, session):
+    async def flow_runs(self, flow, work_queue_1, session):
         flow_2 = await models.flows.create_flow(
             session=session,
             flow=actions.FlowCreate(name="another-test"),
@@ -301,7 +301,7 @@ class TestReadFlowRuns:
                 flow_id=flow_2.id,
                 name="fr3",
                 tags=["blue", "red"],
-                work_queue_id=work_queue.id,
+                work_queue_id=work_queue_1.id,
             ),
         )
         await session.commit()
@@ -391,12 +391,12 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_applies_work_queue_id_filter(
         self,
         flow_runs,
-        work_queue,
+        work_queue_1,
         client,
     ):
         work_pool_filter = dict(
-            work_queues=schemas.filters.WorkQueueFilter(
-                id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
+            work_pool_queues=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue_1.id])
             ).dict(json_compatible=True)
         )
         response = await client.post("/flow_runs/filter", json=work_pool_filter)

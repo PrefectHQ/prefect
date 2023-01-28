@@ -424,26 +424,30 @@ class TestDeleteWorkQueue:
 
 class TestReadWorkQueueStatus:
     @pytest.fixture
-    async def recently_polled_work_queue(self, session):
+    async def recently_polled_work_queue(self, session, work_pool):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.actions.WorkQueueCreate(
+            work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
                 last_polled=pendulum.now("UTC"),
+                work_pool_id=work_pool.id,
+                priority=1,
             ),
         )
         await session.commit()
         return work_queue
 
     @pytest.fixture
-    async def not_recently_polled_work_queue(self, session):
+    async def not_recently_polled_work_queue(self, session, work_pool):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.actions.WorkQueueCreate(
+            work_queue=schemas.core.WorkQueue(
                 name="wq-1",
                 description="All about my work queue",
                 last_polled=pendulum.now("UTC").subtract(days=1),
+                work_pool_id=work_pool.id,
+                priority=2,
             ),
         )
         await session.commit()

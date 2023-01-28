@@ -353,7 +353,6 @@ class TestCreateDeployment:
             in response.json()["detail"]
         ), "Error message identifies storage block could not be found."
 
-    # TODO: update this test as more changes are made to work pool deployments
     async def test_create_deployment_with_pool_and_queue(
         self,
         client,
@@ -361,7 +360,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        work_queue,
+        work_queue_1,
         enable_work_pools,
     ):
         data = DeploymentCreate(
@@ -375,7 +374,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_queue_name=work_queue.name,
+            work_queue_name=work_queue_1.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -388,7 +387,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_queue_name"] == work_queue.name
+        assert response.json()["work_queue_name"] == work_queue_1.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -400,7 +399,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
-        assert deployment.work_queue_id == work_queue.id
+        assert deployment.work_queue_id == work_queue_1.id
 
     async def test_create_deployment_with_only_work_pool(
         self,
@@ -1271,10 +1270,9 @@ class TestGetDeploymentWorkQueueCheck:
 
         response = await client.get(f"deployments/{deployment.id}/work_queue_check")
         assert response.status_code == status.HTTP_200_OK
-        # includes the default work queue for the work pool
         assert len(response.json()) == 3
 
-        q1, q2 = response.json()
-        assert {q1["name"], q2["name"]} == {"First", "Second"}
-        assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
-        assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+        q1, q2, q3 = response.json()
+        assert {q1["name"], q2["name"], q3["name"]} == {"First", "Second", "default"}
+        assert set(q2["filter"]["tags"] + q3["filter"]["tags"]) == {"a", "b"}
+        assert q2["filter"]["deployment_ids"] == q3["filter"]["deployment_ids"] == None
