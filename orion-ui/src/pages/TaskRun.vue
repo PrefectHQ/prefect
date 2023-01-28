@@ -13,7 +13,7 @@
         <TaskRunLogs :task-run="taskRun" />
       </template>
 
-      <template #task-inputs>
+      <template #task-futures>
         <CodeHighlighting language="json" :value="parameters" />
       </template>
     </p-tabs>
