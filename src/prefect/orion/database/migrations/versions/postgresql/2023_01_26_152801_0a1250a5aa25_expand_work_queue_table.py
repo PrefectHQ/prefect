@@ -183,6 +183,9 @@ def downgrade():
     meta_data = sa.MetaData(bind=connection)
     meta_data.reflect()
     WORK_POOL = meta_data.tables["work_pool"]
+    connection.execute(
+        sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
+    )
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
@@ -194,10 +197,6 @@ def downgrade():
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_queue")
         batch_op.alter_column("type", nullable=True)
-
-    connection.execute(
-        sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
-    )
 
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_constraint("fk_deployment__work_queue_id__work_queue")

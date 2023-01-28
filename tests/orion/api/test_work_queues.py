@@ -502,7 +502,7 @@ class TestReadWorkQueueStatus:
         assert response.status_code == status.HTTP_200_OK
 
         parsed_response = pydantic.parse_obj_as(
-            schemas.actions.WorkQueueCreateStatusDetail, response.json()
+            schemas.core.WorkQueueStatusDetail, response.json()
         )
         assert parsed_response.healthy is False
         assert parsed_response.late_runs_count == 0

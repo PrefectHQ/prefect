@@ -46,6 +46,28 @@ def upgrade():
                 "work_pool_id", prefect.orion.utilities.database.UUID(), nullable=True
             )
         )
+        batch_op.create_foreign_key(
+            batch_op.f("fk_work_queue__work_pool_id__work_pool"),
+            "work_pool",
+            ["work_pool_id"],
+            ["id"],
+            ondelete="cascade",
+        )
+        batch_op.drop_constraint("uq_work_queue__name")
+        batch_op.create_unique_constraint(
+            op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
+        )
+
+        batch_op.create_index(
+            op.f("ix_work_queue__work_pool_id"),
+            ["work_pool_id"],
+            unique=False,
+        )
+        batch_op.create_index(
+            op.f("ix_work_queue__work_pool_id_priority"),
+            ["work_pool_id", "priority"],
+            unique=False,
+        )
 
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
         batch_op.add_column(
@@ -98,30 +120,6 @@ def upgrade():
             ondelete="RESTRICT",
         )
         batch_op.alter_column("type", nullable=False)
-
-    with op.batch_alter_table("work_queue", schema=None) as batch_op:
-        batch_op.create_foreign_key(
-            batch_op.f("fk_work_queue__work_pool_id__work_pool"),
-            "work_pool",
-            ["work_pool_id"],
-            ["id"],
-            ondelete="cascade",
-        )
-        batch_op.drop_constraint("uq_work_queue__name")
-        batch_op.create_unique_constraint(
-            op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
-        )
-
-        batch_op.create_index(
-            op.f("ix_work_queue__work_pool_id"),
-            ["work_pool_id"],
-            unique=False,
-        )
-        batch_op.create_index(
-            op.f("ix_work_queue__work_pool_id_priority"),
-            ["work_pool_id", "priority"],
-            unique=False,
-        )
 
     # Create default agent work pool and associate all existing queues with it
     connection = op.get_bind()
@@ -186,17 +184,14 @@ def upgrade():
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
 
-    connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
-    WORK_POOL = meta_data.tables["work_pool"]
-
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
         batch_op.drop_index("ix_work_queue__work_pool_id")
         batch_op.drop_constraint("uq_work_queue__work_pool_id_name")
         batch_op.create_unique_constraint("uq_work_queue__name", ["name"])
         batch_op.drop_constraint("fk_work_queue__work_pool_id__work_pool")
+        batch_op.drop_column("work_pool_id")
+        batch_op.drop_column("priority")
 
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
         batch_op.drop_constraint("fk_work_pool__default_queue_id__work_queue")
@@ -211,9 +206,10 @@ def downgrade():
         batch_op.drop_index("ix_flow_run__work_queue_id")
         batch_op.drop_column("work_queue_id")
 
-    with op.batch_alter_table("work_queue", schema=None) as batch_op:
-        batch_op.drop_column("work_pool_id")
-        batch_op.drop_column("priority")
+    connection = op.get_bind()
+    meta_data = sa.MetaData(bind=connection)
+    meta_data.reflect()
+    WORK_POOL = meta_data.tables["work_pool"]
 
     connection.execute(
         sa.delete(WORK_POOL).where(WORK_POOL.c.name == "default-agent-pool")
