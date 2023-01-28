@@ -181,6 +181,7 @@ class FlowRunResponse(ORMBaseModel):
     def from_orm(cls, orm_flow_run: "prefect.orion.database.orm_models.ORMFlowRun"):
         response = super().from_orm(orm_flow_run)
         if orm_flow_run.work_queue:
+            response.work_queue_name = orm_flow_run.work_queue.name
             response.work_pool_name = orm_flow_run.work_queue.work_pool.name
 
         return response
@@ -235,6 +236,7 @@ class DeploymentResponse(ORMBaseModel):
     ):
         response = super().from_orm(orm_deployment)
         if orm_deployment.work_queue:
+            response.work_queue_name = orm_deployment.work_queue.name
             response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
         return response

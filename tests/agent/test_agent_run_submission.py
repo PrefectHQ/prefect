@@ -1008,9 +1008,9 @@ async def test_agent_with_work_pool(
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue(
+    work_queue = await orion_client.read_work_queue_by_name(
         work_pool_name=work_pool.name,
-        work_queue_name=work_queue_1.name,
+        name=work_queue_1.name,
     )
     responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
@@ -1074,9 +1074,9 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     flow_run_ids = [run.id for run in flow_runs]
 
     # Pull runs from the work queue to get expected runs
-    work_queue = await orion_client.read_work_queue(
+    work_queue = await orion_client.read_work_queue_by_name(
         work_pool_name=work_pool.name,
-        work_queue_name=work_queue_1.name,
+        name=work_queue_1.name,
     )
     responses = await orion_client.get_scheduled_flow_runs_for_work_pool(
         work_pool_name=work_pool.name,
