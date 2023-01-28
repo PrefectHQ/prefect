@@ -37,7 +37,7 @@
   const api = useWorkspaceApi()
 
   const tabs = computed(() => {
-    const values = ['Logs', 'Task Inputs']
+    const values = ['Logs']
 
     if (!media.xl) {
       values.push('Details')
