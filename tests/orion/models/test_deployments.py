@@ -976,21 +976,21 @@ class TestUpdateDeployment:
         assert wq is not None
 
     async def test_update_work_pool_deployment(
-        self, session, deployment, work_pool, work_queue, enable_work_pools
+        self, session, deployment, work_pool, work_queue_1, enable_work_pools
     ):
         await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
                 work_pool_name=work_pool.name,
-                work_queue_name=work_queue.name,
+                work_queue_name=work_queue_1.name,
             ),
         )
 
         updated_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
-        assert updated_deployment.work_queue_id == work_queue.id
+        assert updated_deployment.work_queue_id == work_queue_1.id
 
     async def test_update_work_pool_deployment_with_only_pool(
         self, session, deployment, work_pool, work_queue, enable_work_pools

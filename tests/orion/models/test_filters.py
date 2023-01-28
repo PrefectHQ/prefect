@@ -36,7 +36,7 @@ def adjust_kwargs_for_client(kwargs):
         elif k == "work_pool_filter":
             k = "work_pools"
         elif k == "work_queue_filter":
-            k = "work_queues"
+            k = "work_pool_queues"
         else:
             raise ValueError("Unrecognized filter")
         adjusted_kwargs[k] = v

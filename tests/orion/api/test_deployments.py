@@ -1271,7 +1271,8 @@ class TestGetDeploymentWorkQueueCheck:
 
         response = await client.get(f"deployments/{deployment.id}/work_queue_check")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 2
+        # includes the default work queue for the work pool
+        assert len(response.json()) == 3
 
         q1, q2 = response.json()
         assert {q1["name"], q2["name"]} == {"First", "Second"}

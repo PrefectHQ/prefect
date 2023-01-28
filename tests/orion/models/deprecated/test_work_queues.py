@@ -548,7 +548,12 @@ class TestCheckWorkQueuesForDeployment:
         queues = await check_work_queues_for_deployment(
             session=session, deployment_id=deployment_id
         )
-        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
+        # default work queue for work pool is made without a filter
+        actual_queue_attrs = [
+            [q.filter.tags, q.filter.deployment_ids]
+            for q in queues
+            if q.name != "default"
+        ]
 
         for q in desired_queues:
             assert q in actual_queue_attrs
@@ -616,7 +621,7 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 3
+        assert len(actual_queues) == 4
 
     # ONE TAG DEPLOYMENTS with no-tag queues
     async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
@@ -669,7 +674,7 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 6
+        assert len(actual_queues) == 7
 
     # TWO TAG DEPLOYMENTS with no-tag queues
     async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
@@ -742,4 +747,4 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 9
+        assert len(actual_queues) == 10

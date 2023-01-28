@@ -188,7 +188,7 @@ async def _apply_flow_run_filters(
 
     if work_pool_filter:
         exists_clause = select(db.WorkPool).where(
-            db.WorkQueue_id,
+            db.WorkQueue.id == db.FlowRun.work_queue_id,
             db.WorkPool.id == db.WorkQueue.work_pool_id,
             work_pool_filter.as_sql_filter(db),
         )

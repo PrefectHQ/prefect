@@ -1236,6 +1236,21 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
         return filters
 
 
+class WorkQueueFilterId(PrefectFilterBaseModel):
+    """Filter by `WorkQueue.id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None,
+        description="A list of work queue ids to include",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.WorkQueue.id.in_(self.any_))
+        return filters
+
+
 class WorkQueueFilterName(PrefectFilterBaseModel):
     """Filter by `WorkQueue.name`."""
 
@@ -1272,6 +1287,10 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
     """Filter work queues. Only work queues matching all criteria will be
     returned"""
 
+    id: Optional[WorkQueueFilterId] = Field(
+        default=None, description="Filter criteria for `WorkQueue.id`"
+    )
+
     name: Optional[WorkQueueFilterName] = Field(
         default=None, description="Filter criteria for `WorkQueue.name`"
     )
@@ -1279,6 +1298,8 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
 
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
 

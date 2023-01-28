@@ -1489,7 +1489,7 @@ class OrionClient:
                 if work_pool_filter
                 else None
             ),
-            "work_queues": (
+            "work_pool_queues": (
                 work_queue_filter.dict(json_compatible=True)
                 if work_queue_filter
                 else None
@@ -1611,7 +1611,7 @@ class OrionClient:
                 if work_pool_filter
                 else None
             ),
-            "work_queues": (
+            "work_pool_queues": (
                 work_queue_filter.dict(json_compatible=True)
                 if work_queue_filter
                 else None
