@@ -200,6 +200,10 @@ def downgrade():
         "WORK QUEUES NAMES: ",
         connection.execute(sa.select([WORK_QUEUE.c.name])).fetchall(),
     )
+    print(
+        "WORK POOL NAMES: ",
+        connection.execute(sa.select([WORK_POOL.c.name])).fetchall(),
+    )
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
