@@ -105,11 +105,10 @@ async def read_work_pool_by_name(
 
 async def get_or_create_default_agent_work_pool(session: AsyncSession):
     """
-    Reads a WorkPool by name.
+    Gets or creates the default agent work pool.
 
     Args:
         session (AsyncSession): A database session
-        work_pool_name (str): a WorkPool name
 
     Returns:
         db.WorkPool: the WorkPool

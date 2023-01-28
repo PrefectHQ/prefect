@@ -292,7 +292,7 @@ async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(
-    session, monkeypatch, prefect_caplog
+    session, monkeypatch, prefect_caplog, work_pool, enable_work_pools
 ):
     """
     Mimics a race condition in which multiple agents were started against the
@@ -301,22 +301,22 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     others would get an error because it already exists. In that case, we want to handle the error gracefully.
     """
     name = "hello-there"
-    assert not await models.work_queues.read_work_queue_by_name(
-        session=session, name=name
+    assert not await models.workers.read_work_queue_by_name(
+        session=session, work_queue_name=name, work_pool_name=work_pool.name
     )
 
     # prevent work queue creation
-    async def bad_create(self, name):
+    async def bad_create(self, **kwargs):
         raise ValueError("No!")
 
     monkeypatch.setattr("prefect.client.OrionClient.create_work_queue", bad_create)
 
-    async with OrionAgent(work_queues=[name]) as agent:
+    async with OrionAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
         await agent.get_and_submit_flow_runs()
 
     # work queue was not created
-    assert not await models.work_queues.read_work_queue_by_name(
-        session=session, name=name
+    assert not await models.workers.read_work_queue_by_name(
+        session=session, work_queue_name=name, work_pool_name=work_pool.name
     )
 
     assert "No!" in prefect_caplog.text

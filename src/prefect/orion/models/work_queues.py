@@ -41,10 +41,10 @@ async def create_work_queue(
     data = work_queue.dict(exclude={"priority"})
 
     if data.get("work_pool_id") is None:
-        default_agent_pool = await models.workers.get_or_create_default_agent_work_pool(
+        default_work_pool = await models.workers.get_or_create_default_agent_work_pool(
             session=session
         )
-        data["work_pool_id"] = default_agent_pool.id
+        data["work_pool_id"] = default_work_pool.id
 
     max_priority_query = sa.select(
         sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)

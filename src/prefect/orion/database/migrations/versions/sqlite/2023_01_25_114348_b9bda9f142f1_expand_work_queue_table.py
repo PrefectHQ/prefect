@@ -192,6 +192,16 @@ def downgrade():
     WORK_POOL = meta_data.tables["work_pool"]
     WORK_QUEUE = meta_data.tables["work_queue"]
 
+    # Delete all non-default queues and pools
+    default_pool_id_result = connection.execute(
+        sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
+    ).fetchone()
+    if default_pool_id_result:
+        default_pool_id = default_pool_id_result[0]
+        connection.execute(
+            sa.delete(WORK_QUEUE).where(WORK_QUEUE.c.work_pool_id != default_pool_id)
+        )
+
     connection.execute(
         sa.delete(WORK_POOL).where(WORK_POOL.c.name != "default-agent-pool")
     )

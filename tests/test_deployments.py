@@ -574,9 +574,20 @@ async def test_deployment(patch_import, tmp_path):
 
 class TestDeploymentApply:
     async def test_deployment_apply_updates_concurrency_limit(
-        self, patch_import, tmp_path, orion_client
+        self,
+        patch_import,
+        tmp_path,
+        orion_client,
+        work_pool,
+        work_queue_1,
+        enable_work_pools,
     ):
-        d = Deployment(name="TEST", flow_name="fn")
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+            work_pool_name=work_pool.name,
+            work_queue_name=work_queue_1.name,
+        )
         deployment_id = await d.apply(work_queue_concurrency=424242)
         queue_name = d.work_queue_name
         work_queue = await orion_client.read_work_queue_by_name(queue_name)
