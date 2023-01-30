@@ -209,7 +209,7 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect Orion API won't work with Docker and Kubernetes. You must have an Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
 
 The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
@@ -230,10 +230,50 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | name | An optional name for the job. |
 | namespace | String signifying the Kubernetes namespace to use. |
 | pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 60). |
-| restart_policy | The Kubernetes restart policy to use for Jobs. |
 | service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
+#### KubernetesJob overrides and customizations
+
+When creating deployments using `KubernetesJob` infrastructure, the `-infra_overrides` option expects a dict, but `customizations` expects a list. As a result, `customizations` should not be applied via CLI. As a good practice, you can build the deployment YAML, then edit `infra_overrides:{}` in the deployment YAML directly, including any `customizations`.
+
+Containers expect a list of objects, even if there is only one. For any patches applying to the container, the `path` value should be a list, for example: `/spec/templates/spec/containers/0/resources`.
+
+In the deployment YAML, this would look like:
+
+```yaml
+infra_overrides={ 
+	"customizations": [
+			{
+                "op": "add",
+                "path": "/spec/template/spec/containers/0/resources",
+                "value": {
+                    "requests": {
+                        "cpu": "2000m",
+                        "memory": "4gi"
+                    },
+                    "limits": {
+                        "cpu": "4000m",
+                        "memory": 8Gi",
+                        "nvidia.com/gpu": "1"
+                }
+            },
+        }
+    ]
+}
+```
+
+A `Kubernetes-Job` infrastructure block defined in Python:
+
+```python
+customizations=[
+	{
+        "op": "add",
+        "path": "/spec/template/spec/containers/0/resources",
+        "value": {"limits": {"cpu": "4000m", "memory": "8Gi", "nvidia.com/gpu": "1"}},
+    }
+]
+```
 
 ### ECSTask
 
