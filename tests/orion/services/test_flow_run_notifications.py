@@ -82,7 +82,7 @@ async def test_service_clears_queue(
     assert queued_notifications_query.scalars().fetchall() == []
 
 
-async def test_service_sends_notifications(
+async def test_service_sends_notification(
     session, db, flow, flow_run, completed_policy, capsys
 ):
     # set a completed state
@@ -97,6 +97,117 @@ async def test_service_sends_notifications(
     assert (
         f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
         in captured.out
+    )
+
+
+async def test_service_sends_multiple_notifications(
+    session, db, flow, flow_run, completed_policy, failed_policy, capsys
+):
+    # set a completed state
+    await models.flow_runs.set_flow_run_state(
+        session=session, flow_run_id=flow_run.id, state=schemas.states.Completed()
+    )
+    # and set a failed state
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=flow_run.id,
+        state=schemas.states.Failed(),
+        force=True,
+    )
+    await session.commit()
+
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
+
+    captured = capsys.readouterr()
+    assert (
+        f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
+        in captured.out
+    )
+    assert (
+        f"Flow run {flow.name}/{flow_run.name} entered state `Failed`" in captured.out
+    )
+
+
+async def test_service_does_not_send_notifications_without_policy(
+    session, db, flow, flow_run, capsys
+):
+    # set a completed state
+    await models.flow_runs.set_flow_run_state(
+        session=session, flow_run_id=flow_run.id, state=schemas.states.Completed()
+    )
+    await session.commit()
+
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
+
+    captured = capsys.readouterr()
+    assert (
+        f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
+        not in captured.out
+    )
+
+
+async def test_service_sends_many_notifications_and_clears_queue(
+    session, db, flow_run, completed_policy, capsys, flow
+):
+    COUNT = 200
+
+    for _ in range(COUNT):
+        # set a completed state repeatedly
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=schemas.states.Completed(),
+            force=True,
+        )
+
+    queued_notifications_query = await session.execute(
+        sa.select(db.FlowRunNotificationQueue)
+    )
+    assert len(queued_notifications_query.scalars().fetchall()) == COUNT
+    await session.commit()
+
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
+
+    # no notifications in queue
+    queued_notifications_query = await session.execute(
+        sa.select(db.FlowRunNotificationQueue)
+    )
+    assert queued_notifications_query.scalars().fetchall() == []
+
+    captured = capsys.readouterr()
+    assert (
+        captured.out.count(
+            f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
+        )
+        == COUNT
+    )
+
+
+async def test_service_only_sends_notifications_for_matching_policy(
+    session, db, flow, flow_run, failed_policy, capsys
+):
+    # set a completed state
+    await models.flow_runs.set_flow_run_state(
+        session=session, flow_run_id=flow_run.id, state=schemas.states.Completed()
+    )
+    # and set a failed state
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=flow_run.id,
+        state=schemas.states.Failed(),
+        force=True,
+    )
+    await session.commit()
+
+    await FlowRunNotifications(handle_signals=False).start(loops=1)
+
+    captured = capsys.readouterr()
+    assert (
+        f"Flow run {flow.name}/{flow_run.name} entered state `Completed`"
+        not in captured.out
+    )
+    assert (
+        f"Flow run {flow.name}/{flow_run.name} entered state `Failed`" in captured.out
     )
 
 

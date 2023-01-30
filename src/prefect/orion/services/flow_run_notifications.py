@@ -45,6 +45,12 @@ class FlowRunNotifications(LoopService):
                 if not notifications:
                     break
 
+                # all retrieved notifications are deleted, assert that we only got one
+                # since we only send the first notification returned
+                assert (
+                    len(notifications) == 1
+                ), "Expected one notification; query limit not respected."
+
                 try:
                     await self.send_flow_run_notification(
                         session=session, db=db, notification=notifications[0]
