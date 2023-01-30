@@ -27,7 +27,7 @@
     interval: 30000,
   }
 
-  const flowsCountSubscription = useSubscription(api.flows.getFlowsCount, [{}], subscriptionOptions)
+  const flowsCountSubscription = useSubscription(api.flows.getFlowsCount, [], subscriptionOptions)
   const flowsCount = computed(() => flowsCountSubscription.response ?? 0)
   const empty = computed(() => flowsCountSubscription.executed && flowsCount.value === 0)
   const loaded = computed(() => flowsCountSubscription.executed)
