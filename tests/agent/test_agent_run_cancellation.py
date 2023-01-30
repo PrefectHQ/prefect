@@ -315,6 +315,35 @@ async def test_agent_cancel_run_updates_state_type(
     assert post_flow_run.state.type == StateType.CANCELLED
 
 
+@pytest.mark.usefixtures("mock_infrastructure_kill")
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
+async def test_agent_cancel_run_preserves_other_state_properties(
+    orion_client: OrionClient,
+    deployment: ORMDeployment,
+    cancelling_constructor,
+):
+    expected_changed_fields = {"type", "name", "timestamp", "id"}
+
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=cancelling_constructor(message="test"),
+    )
+
+    await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
+
+    async with OrionAgent(
+        work_queues=[deployment.work_queue_name], prefetch_seconds=10
+    ) as agent:
+        await agent.check_for_cancelled_flow_runs()
+
+    post_flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert post_flow_run.state.dict(
+        exclude=expected_changed_fields
+    ) == flow_run.state.dict(exclude=expected_changed_fields)
+
+
 @pytest.mark.parametrize(
     "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
 )

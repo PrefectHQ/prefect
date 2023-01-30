@@ -375,7 +375,9 @@ class OrionAgent:
         self, flow_run: FlowRun, state_updates: Optional[dict] = None
     ) -> None:
         state_updates = state_updates or {}
-        state = Cancelled(**state_updates)
+        state_updates.setdefault("name", "Cancelled")
+        state_updates.setdefault("type", StateType.CANCELLED)
+        state = flow_run.state.copy(update=state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
