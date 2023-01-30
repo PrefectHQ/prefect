@@ -34,7 +34,7 @@ from prefect.orion.schemas.filters import (
     FlowRunFilterWorkQueueName,
 )
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
+from prefect.states import Cancelled, Crashed, Pending, StateType, exception_to_failed_state
 
 
 class OrionAgent:
@@ -369,8 +369,7 @@ class OrionAgent:
         self, flow_run: FlowRun, state_updates: Optional[dict] = None
     ) -> None:
         state_updates = state_updates or {}
-        state_updates.setdefault("name", "Cancelled")
-        state = flow_run.state.copy(update=state_updates)
+        state = Cancelled(**state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
 
