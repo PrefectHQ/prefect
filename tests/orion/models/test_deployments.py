@@ -956,7 +956,7 @@ class TestScheduledRuns:
 
 class TestUpdateDeployment:
     async def test_updating_deployment_creates_associated_work_queue(
-        self, session, deployment
+        self, session, deployment, enable_work_pools
     ):
         wq = await models.work_queues.read_work_queue_by_name(
             session=session, name="wq-1"
@@ -976,14 +976,14 @@ class TestUpdateDeployment:
         assert wq is not None
 
     async def test_update_work_pool_deployment(
-        self, session, deployment, work_pool, work_pool_queue
+        self, session, deployment, work_pool, work_pool_queue, enable_work_pools
     ):
         await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
                 work_pool_name=work_pool.name,
-                work_pool_queue_name=work_pool_queue.name,
+                work_queue_name=work_pool_queue.name,
             ),
         )
 
@@ -993,7 +993,7 @@ class TestUpdateDeployment:
         assert updated_deployment.work_pool_queue_id == work_pool_queue.id
 
     async def test_update_work_pool_deployment_with_only_pool(
-        self, session, deployment, work_pool, work_pool_queue
+        self, session, deployment, work_pool, work_pool_queue, enable_work_pools
     ):
         default_queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
@@ -1012,14 +1012,14 @@ class TestUpdateDeployment:
         assert updated_deployment.work_pool_queue_id == default_queue.id
 
     async def test_update_work_pool_can_create_work_pool_queue(
-        self, session, deployment, work_pool
+        self, session, deployment, work_pool, enable_work_pools
     ):
         await models.deployments.update_deployment(
             session=session,
             deployment_id=deployment.id,
             deployment=schemas.actions.DeploymentUpdate(
                 work_pool_name=work_pool.name,
-                work_pool_queue_name="new-work-pool-queue",
+                work_queue_name="new-work-pool-queue",
             ),
         )
 

@@ -362,6 +362,7 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_pool_queue,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -374,7 +375,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_pool_queue_name=work_pool_queue.name,
+            work_queue_name=work_pool_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -387,7 +388,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_pool_queue_name"] == work_pool_queue.name
+        assert response.json()["work_queue_name"] == work_pool_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -408,6 +409,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         default_queue = await models.workers.read_work_pool_queue(
             session=session, work_pool_queue_id=work_pool.default_queue_id
@@ -435,7 +437,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_pool_queue_name"] == default_queue.name
+        assert response.json()["work_queue_name"] == default_queue.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -496,11 +498,12 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
+        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
-                name="Test Worker Pool", base_job_template=template
+                name="Test Work Pool", base_job_template=template
             ),
         )
         await session.commit()
@@ -586,11 +589,12 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
+        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
-                name="Test Worker Pool", base_job_template=template
+                name="Test Work Pool", base_job_template=template
             ),
         )
         await session.commit()
@@ -622,6 +626,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -634,12 +639,12 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_pool_queue_name="new-work-pool-queue",
+            work_queue_name="new-work-pool-queue",
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
 
-        assert response.json()["work_pool_queue_name"] == "new-work-pool-queue"
+        assert response.json()["work_queue_name"] == "new-work-pool-queue"
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -661,6 +666,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
+        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -673,7 +679,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name="imaginary-work-pool",
-            work_pool_queue_name="default",
+            work_queue_name="default",
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_404_NOT_FOUND

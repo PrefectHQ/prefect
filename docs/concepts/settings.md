@@ -48,7 +48,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 
 ### PREFECT_API_KEY
 
-The `PREFECT_API_KEY` value specifies the [API key](/ui/cloud-getting-started/#create-an-api-key) used to authenticate with your Prefect Cloud workspace.
+The `PREFECT_API_KEY` value specifies the [API key](/ui/cloud-api-keys/#create-an-api-key) used to authenticate with your Prefect Cloud workspace.
 
 ```bash
 PREFECT_API_KEY="[API-KEY]"

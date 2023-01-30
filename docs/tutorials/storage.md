@@ -69,17 +69,17 @@ Most users will find it easiest to configure new storage blocks through the Pref
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page.
 
-![Viewing a list of previously configured storage blocks in the Prefect UI](/img/tutorials/storage-blocks.png)
+![Viewing a list of previously configured storage blocks in the Prefect UI](../img/tutorials/storage-blocks.png)
 
 To create a new block, select the **+** button on this page, or if you haven't previously created any blocks, **New Block**. Prefect displays a page of available block types.
 
-![Viewing a list of block types in the Prefect UI](/img/tutorials/choose-blocks.png)
+![Viewing a list of block types in the Prefect UI](../img/tutorials/choose-blocks.png)
 
 For this tutorial example, we'll use the AWS S3 block as an example. If you use a different cloud storage service or solution, feel free to use the appropriate block type. The process is similar for all blocks, though the configuration options are slightly different, reflecting the authentication requirements of different cloud services.
 
 Scroll down the list of blocks and find the **S3** block, then select **Add +** to configure a new storage block based on this block type. Prefect displays a **Create** page that enables specifying storage settings.
 
-![Configurating an S3 storage block in the Prefect UI](/img/tutorials/s3-block-configuration.png)
+![Configuring an S3 storage block in the Prefect UI](../img/tutorials/s3-block-configuration.png)
 
 Enter the configuration for your storage.
 
@@ -100,7 +100,10 @@ In this example we've specified a storage location that could be used by the flo
 
 Select **Create** to create the new storage block. Prefect displays the details of the new block, including a code example for using the block within your flow code.
 
-![Viewing details of a new S3 storage block in the Prefect UI](/img/tutorials/new-storage-block.png)
+![Viewing details of a new S3 storage block in the Prefect UI](../img/tutorials/new-storage-block.png)
+
+!!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
+    Note that, if you ran through this tutorial on a local Prefect Orion server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
 
 ## Using storage blocks with deployments
 
@@ -165,13 +168,13 @@ Most users will find it easiest to configure new infrastructure blocks through t
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 
-![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/infrastructure-blocks.png)
+![Viewing a list of infrastructure block types in the Prefect UI](../img/tutorials/infrastructure-blocks.png)
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
 For example, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
-![Viewing a list of infrastructure block types in the Prefect UI](/img/tutorials/docker-infrastructure.png)
+![Viewing a list of infrastructure block types in the Prefect UI](../img/tutorials/docker-infrastructure.png)
 
 We're not going to create a custom infrastructure block until a later tutorial, so select **Cancel** to close the form.
 

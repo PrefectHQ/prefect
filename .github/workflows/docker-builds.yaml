@@ -1,4 +1,4 @@
-name: Build prefect docker images
+name: Docker images
 
 # Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
 
@@ -14,7 +14,7 @@ on:
 
 jobs:
   publish-docker-images:
-    name: Build Docker images
+    name: Build and publish to DockerHub
     runs-on: ubuntu-latest
     environment: ${{ ( github.event_name == 'release' && 'prod' ) || 'dev' }}
     strategy:
@@ -54,15 +54,17 @@ jobs:
       - name: Generate tags for prefecthq/prefect-dev
         id: metadata-dev
         uses: docker/metadata-action@v4
+        # do not generate the development tags on release events
+        if: ${{ github.event_name != 'release' }}
         with:
           images: prefecthq/prefect-dev
           tags: |
-            type=raw,enable=${{ github.event_name != 'release' }},value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
+            type=raw,value=${{ github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
           flavor: |
             latest=false
 
-      - name: Export LATEST_TAG
+      - name: Determine latest tag
         # https://stackoverflow.com/a/75079768/5511061
         run: |
           echo "LATEST_TAG=$(curl -qsSL \
@@ -75,9 +77,10 @@ jobs:
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
         uses: docker/metadata-action@v4
+        # only generate the production tags on release events
+        if: ${{ github.event_name == 'release' }}
         with:
-          # only generate the production tags on release events
-          images: prefecthq/prefect,enable=${{ github.event_name == 'release' }}
+          images: prefecthq/prefect
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
           # push `latest` and `X` tags only when the release is marked as latest
           tags: |
@@ -88,7 +91,7 @@ jobs:
           flavor: |
             latest=false
 
-      - name: Build image
+      - name: Build and push image
         uses: docker/build-push-action@v3
         env:
           CACHE_TO_STRING: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max
@@ -100,7 +103,7 @@ jobs:
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
-          push: false
+          push: true
           pull: true
           # multi-stage cache manifests (mode=max) need a separate tag because they are not usable for runtime ref https://github.com/moby/buildkit#export-cache
           cache-from: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }}

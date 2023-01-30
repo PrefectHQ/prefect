@@ -258,7 +258,7 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
 
 
 async def test_agent_creates_work_pool_queue_if_doesnt_exist(
-    session, work_pool, prefect_caplog, enable_workers
+    session, work_pool, prefect_caplog, enable_work_pools
 ):
     name = "hello-there"
     assert not await models.workers.read_work_pool_queue_by_name(
@@ -912,7 +912,7 @@ async def test_agent_with_work_pool_queue(
     deployment: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_pool_queue: schemas.core.WorkPoolQueue,
-    enable_workers,
+    enable_work_pools,
 ):
     @flow
     def foo():
@@ -979,7 +979,7 @@ async def test_agent_with_work_pool(
     deployment: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_pool_queue: schemas.core.WorkPoolQueue,
-    enable_workers,
+    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1045,7 +1045,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     deployment: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_pool_queue: schemas.core.WorkPoolQueue,
-    enable_workers,
+    enable_work_pools,
 ):
     @flow
     def foo():

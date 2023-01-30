@@ -1,10 +1,12 @@
 import asyncio
+import os
+import signal
 import statistics
 import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import anyio
@@ -23,6 +25,7 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
@@ -34,6 +37,7 @@ from prefect.exceptions import (
     Pause,
     PausedRun,
     SignatureMismatchError,
+    TerminationSignal,
 )
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.actions import FlowRunCreate
@@ -1427,6 +1431,20 @@ class TestFlowRunCrashes:
         await anyio.sleep(1)
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
+
+    async def test_report_flow_run_crashes_handles_sigterm(
+        self, flow_run, orion_client, monkeypatch
+    ):
+        original_handler = Mock()
+        signal.signal(signal.SIGTERM, original_handler)
+
+        with pytest.raises(TerminationSignal):
+            async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
+                assert signal.getsignal(signal.SIGTERM) != original_handler
+                os.kill(os.getpid(), signal.SIGTERM)
+
+        original_handler.assert_called_once()
+        assert signal.getsignal(signal.SIGTERM) == original_handler
 
 
 class TestTaskRunCrashes:

@@ -31,11 +31,11 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 On the **Task Run Concurrency** page, you can set concurrency limits on as few or as many tags as you wish. 
 
-![Viewing task run concurrency limits in the Prefect Orion UI](/img/ui/task-run-concurrency.png)
+![Viewing task run concurrency limits in the Prefect Orion UI](../img/ui/task-run-concurrency.png)
 
 Select the **+** button to create a new task run concurrency limit. You'll be able to specify the tag and maximum number of concurrent task runs.
 
-![Adding a new task run concurrency limit in the Prefect Orion UI](/img/ui/add-concurrency-limit.png)
+![Adding a new task run concurrency limit in the Prefect Orion UI](../img/ui/add-concurrency-limit.png)
 
 !!! note "Removing concurrency limits"
     Currently, to remove a task run concurrency limit, you must use the CLI or Python client. See the [Configuring concurrency limits](/concepts/tasks/#configuring-concurrency-limits) documentation for details.
