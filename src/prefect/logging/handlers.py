@@ -283,11 +283,11 @@ class OrionHandler(logging.Handler):
     def handleError(self, record: logging.LogRecord) -> None:
         _, exc, _ = sys.exc_info()
 
-        # Warn when a logger is used outside of a run context, the stack level here
-        # gets us to the user logging call
         if isinstance(exc, MissingContextError):
             if PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW.value() == "warn":
-                warnings.warn(str(exc), stacklevel=8)
+                # Warn when a logger is used outside of a run context, the stack level here
+                # gets us to the user logging call
+                warnings.warn(str(exc))
                 return
             elif PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW.value() == "ignore":
                 return

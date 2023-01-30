@@ -53,7 +53,6 @@ from typing import (
     Generic,
     Iterable,
     List,
-    Literal,
     Mapping,
     Optional,
     Set,
@@ -65,6 +64,7 @@ from typing import (
 import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from typing_extensions import Literal
 
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
