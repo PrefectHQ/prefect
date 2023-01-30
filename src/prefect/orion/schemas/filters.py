@@ -1236,6 +1236,21 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
         return filters
 
 
+class WorkQueueFilterId(PrefectFilterBaseModel):
+    """Filter by `WorkQueue.id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None,
+        description="A list of work queue ids to include",
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.WorkQueue.id.in_(self.any_))
+        return filters
+
+
 class WorkQueueFilterName(PrefectFilterBaseModel):
     """Filter by `WorkQueue.name`."""
 
@@ -1272,6 +1287,10 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
     """Filter work queues. Only work queues matching all criteria will be
     returned"""
 
+    id: Optional[WorkQueueFilterId] = Field(
+        default=None, description="Filter criteria for `WorkQueue.id`"
+    )
+
     name: Optional[WorkQueueFilterName] = Field(
         default=None, description="Filter criteria for `WorkQueue.name`"
     )
@@ -1279,6 +1298,8 @@ class WorkQueueFilter(PrefectOperatorFilterBaseModel):
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
 
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
         if self.name is not None:
             filters.append(self.name.as_sql_filter(db))
 
@@ -1348,72 +1369,6 @@ class WorkPoolFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.name.as_sql_filter(db))
         if self.type is not None:
             filters.append(self.type.as_sql_filter(db))
-
-        return filters
-
-
-class WorkPoolQueueFilterId(PrefectFilterBaseModel):
-    """Filter by `WorkPoolQueue.id`."""
-
-    any_: Optional[List[UUID]] = Field(
-        default=None, description="A list of work pool queue ids to include"
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(db.WorkPoolQueue.id.in_(self.any_))
-        return filters
-
-
-class WorkPoolQueueFilterName(PrefectFilterBaseModel):
-    """Filter by `WorkPoolQueue.name`."""
-
-    any_: Optional[List[str]] = Field(
-        default=None, description="A list of work pool queue names to include"
-    )
-    startswith_: Optional[List[str]] = Field(
-        default=None,
-        description=(
-            "A list of case-insensitive starts-with matches. For example, "
-            " passing 'marvin' will match "
-            "'marvin', and 'Marvin-robot', but not 'sad-marvin'."
-        ),
-        example=["marvin", "Marvin-robot"],
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(db.WorkPoolQueue.name.in_(self.any_))
-        if self.startswith_ is not None:
-            filters.append(
-                sa.or_(
-                    *[
-                        db.WorkPoolQueue.name.ilike(f"{item}%")
-                        for item in self.startswith_
-                    ]
-                )
-            )
-        return filters
-
-
-class WorkPoolQueueFilter(PrefectOperatorFilterBaseModel):
-
-    id: Optional[WorkPoolQueueFilterId] = Field(
-        default=None, description="Filter criteria for `WorkPoolQueue.id`"
-    )
-    name: Optional[WorkPoolQueueFilterName] = Field(
-        default=None, description="Filter criteria for `WorkPoolQueue.name`"
-    )
-
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
-        filters = []
-
-        if self.id is not None:
-            filters.append(self.id.as_sql_filter(db))
-        if self.name is not None:
-            filters.append(self.name.as_sql_filter(db))
 
         return filters
 

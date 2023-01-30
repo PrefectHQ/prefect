@@ -8,7 +8,7 @@ from fastapi import status
 import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkPoolCreate
-from prefect.orion.schemas.core import WorkPool, WorkPoolQueue
+from prefect.orion.schemas.core import WorkPool, WorkQueue
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS, temporary_settings
 
 RESERVED_POOL_NAMES = [
@@ -408,20 +408,20 @@ class TestReadWorkPools:
         assert [r.name for r in result] == ["B", "C"]
 
 
-class TestCreateWorkPoolQueue:
-    async def test_create_work_pool_queue(self, client, work_pool):
+class TestCreateWorkQueue:
+    async def test_create_work_queue(self, client, work_pool):
         response = await client.post(
             f"/experimental/work_pools/{work_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
         )
         assert response.status_code == status.HTTP_201_CREATED
-        result = pydantic.parse_obj_as(WorkPoolQueue, response.json())
+        result = pydantic.parse_obj_as(WorkQueue, response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
 
 
-class TestReadWorkPoolQueue:
-    async def test_read_work_pool_queue(self, client, work_pool):
+class TestReadWorkQueue:
+    async def test_read_work_queue(self, client, work_pool):
         # Create work pool queue
         create_response = await client.post(
             f"/experimental/work_pools/{work_pool.name}/queues",
@@ -433,20 +433,20 @@ class TestReadWorkPoolQueue:
             f"/experimental/work_pools/{work_pool.name}/queues/test-queue"
         )
         assert read_response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(WorkPoolQueue, read_response.json())
+        result = pydantic.parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "test-queue"
         assert result.description == "test queue"
 
 
-class TestUpdateWorkPoolQueue:
-    async def test_update_work_pool_queue(self, client, work_pool):
+class TestUpdateWorkQueue:
+    async def test_update_work_queue(self, client, work_pool):
         # Create work pool queue
         create_response = await client.post(
             f"/experimental/work_pools/{work_pool.name}/queues",
             json=dict(name="test-queue", description="test queue"),
         )
         assert create_response.status_code == status.HTTP_201_CREATED
-        create_result = pydantic.parse_obj_as(WorkPoolQueue, create_response.json())
+        create_result = pydantic.parse_obj_as(WorkQueue, create_response.json())
         assert not create_result.is_paused
 
         # Update work pool queue
@@ -465,7 +465,7 @@ class TestUpdateWorkPoolQueue:
             f"/experimental/work_pools/{work_pool.name}/queues/updated-test-queue"
         )
         assert read_response.status_code == status.HTTP_200_OK
-        result = pydantic.parse_obj_as(WorkPoolQueue, read_response.json())
+        result = pydantic.parse_obj_as(WorkQueue, read_response.json())
         assert result.name == "updated-test-queue"
         assert result.description == "updated test queue"
         assert result.is_paused
@@ -555,50 +555,50 @@ class TestGetScheduledRuns:
         )
 
         # create three different work queues for each config
-        wq_aa = await models.workers.create_work_pool_queue(
+        wq_aa = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_a.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AA"),
+            work_queue=schemas.actions.WorkQueueCreate(name="AA"),
         )
-        wq_ab = await models.workers.create_work_pool_queue(
+        wq_ab = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_a.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AB"),
+            work_queue=schemas.actions.WorkQueueCreate(name="AB"),
         )
-        wq_ac = await models.workers.create_work_pool_queue(
+        wq_ac = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_a.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="AC"),
+            work_queue=schemas.actions.WorkQueueCreate(name="AC"),
         )
-        wq_ba = await models.workers.create_work_pool_queue(
+        wq_ba = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_b.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BA"),
+            work_queue=schemas.actions.WorkQueueCreate(name="BA"),
         )
-        wq_bb = await models.workers.create_work_pool_queue(
+        wq_bb = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_b.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BB"),
+            work_queue=schemas.actions.WorkQueueCreate(name="BB"),
         )
-        wq_bc = await models.workers.create_work_pool_queue(
+        wq_bc = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_b.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="BC"),
+            work_queue=schemas.actions.WorkQueueCreate(name="BC"),
         )
-        wq_ca = await models.workers.create_work_pool_queue(
+        wq_ca = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_c.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CA"),
+            work_queue=schemas.actions.WorkQueueCreate(name="CA"),
         )
-        wq_cb = await models.workers.create_work_pool_queue(
+        wq_cb = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_c.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CB"),
+            work_queue=schemas.actions.WorkQueueCreate(name="CB"),
         )
-        wq_cc = await models.workers.create_work_pool_queue(
+        wq_cc = await models.workers.create_work_queue(
             session=session,
             work_pool_id=wp_c.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="CC"),
+            work_queue=schemas.actions.WorkQueueCreate(name="CC"),
         )
 
         # create flow runs
@@ -609,7 +609,7 @@ class TestGetScheduledRuns:
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
                     state=prefect.states.Running(),
-                    work_pool_queue_id=wq.id,
+                    work_queue_id=wq.id,
                 ),
             )
 
@@ -619,7 +619,7 @@ class TestGetScheduledRuns:
                 flow_run=schemas.core.FlowRun(
                     flow_id=flow.id,
                     state=prefect.states.Pending(),
-                    work_pool_queue_id=wq.id,
+                    work_queue_id=wq.id,
                 ),
             )
 
@@ -634,14 +634,14 @@ class TestGetScheduledRuns:
                         state=prefect.states.Scheduled(
                             scheduled_time=pendulum.now().add(hours=i)
                         ),
-                        work_pool_queue_id=wq.id,
+                        work_queue_id=wq.id,
                     ),
                 )
         await session.commit()
 
         return dict(
             work_pools=dict(wp_a=wp_a, wp_b=wp_b, wp_c=wp_c),
-            work_pool_queues=dict(
+            work_queues=dict(
                 wq_aa=wq_aa,
                 wq_ab=wq_ab,
                 wq_ac=wq_ac,
@@ -659,8 +659,8 @@ class TestGetScheduledRuns:
         return setup["work_pools"]
 
     @pytest.fixture
-    def work_pool_queues(self, setup):
-        return setup["work_pool_queues"]
+    def work_queues(self, setup):
+        return setup["work_queues"]
 
     async def test_get_all_runs(self, client, work_pools):
         response = await client.post(
@@ -687,10 +687,10 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 7
 
-    async def test_get_all_runs_wq_aa(self, client, work_pools, work_pool_queues):
+    async def test_get_all_runs_wq_aa(self, client, work_pools, work_queues):
         response = await client.post(
             f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(work_pool_queue_names=[work_pool_queues["wq_aa"].name]),
+            json=dict(work_queue_names=[work_queues["wq_aa"].name]),
         )
 
         data = pydantic.parse_obj_as(
@@ -698,13 +698,13 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 5
 
-    async def test_get_all_runs_wq_aa_wq_ab(self, client, work_pools, work_pool_queues):
+    async def test_get_all_runs_wq_aa_wq_ab(self, client, work_pools, work_queues):
         response = await client.post(
             f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(
-                work_pool_queue_names=[
-                    work_pool_queues["wq_aa"].name,
-                    work_pool_queues["wq_ab"].name,
+                work_queue_names=[
+                    work_queues["wq_aa"].name,
+                    work_queues["wq_ab"].name,
                 ]
             ),
         )
@@ -714,19 +714,15 @@ class TestGetScheduledRuns:
         )
         assert len(data) == 10
 
-    async def test_get_all_runs_wq_ba_wrong_pool(
-        self, client, work_pools, work_pool_queues
-    ):
+    async def test_get_all_runs_wq_ba_wrong_pool(self, client, work_pools, work_queues):
         response = await client.post(
             f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
-            json=dict(work_pool_queue_names=[work_pool_queues["wq_ba"].name]),
+            json=dict(work_queue_names=[work_queues["wq_ba"].name]),
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_get_all_runs_scheduled_before(
-        self, client, work_pools, work_pool_queues
-    ):
+    async def test_get_all_runs_scheduled_before(self, client, work_pools, work_queues):
         response = await client.post(
             f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
             json=dict(scheduled_before=str(pendulum.now())),

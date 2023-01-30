@@ -8,7 +8,9 @@ from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
+from prefect.orion.utilities.database import get_dialect
 from prefect.settings import (
+    PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
 )
@@ -353,7 +355,6 @@ class TestCreateDeployment:
             in response.json()["detail"]
         ), "Error message identifies storage block could not be found."
 
-    # TODO: update this test as more changes are made to work pool deployments
     async def test_create_deployment_with_pool_and_queue(
         self,
         client,
@@ -361,7 +362,7 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        work_pool_queue,
+        work_queue_1,
         enable_work_pools,
     ):
         data = DeploymentCreate(
@@ -375,7 +376,7 @@ class TestCreateDeployment:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides={"cpu": 24},
             work_pool_name=work_pool.name,
-            work_queue_name=work_pool_queue.name,
+            work_queue_name=work_queue_1.name,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -388,7 +389,7 @@ class TestCreateDeployment:
         )
         assert response.json()["infra_overrides"] == {"cpu": 24}
         assert response.json()["work_pool_name"] == work_pool.name
-        assert response.json()["work_queue_name"] == work_pool_queue.name
+        assert response.json()["work_queue_name"] == work_queue_1.name
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -400,7 +401,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
-        assert deployment.work_pool_queue_id == work_pool_queue.id
+        assert deployment.work_queue_id == work_queue_1.id
 
     async def test_create_deployment_with_only_work_pool(
         self,
@@ -411,8 +412,8 @@ class TestCreateDeployment:
         work_pool,
         enable_work_pools,
     ):
-        default_queue = await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool.default_queue_id
+        default_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_pool.default_queue_id
         )
         data = DeploymentCreate(
             name="My Deployment",
@@ -449,7 +450,7 @@ class TestCreateDeployment:
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
-        assert deployment.work_pool_queue_id == work_pool.default_queue_id
+        assert deployment.work_queue_id == work_pool.default_queue_id
 
     @pytest.mark.parametrize(
         "template, overrides",
@@ -508,8 +509,8 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool.default_queue_id
+        default_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_pool.default_queue_id
         )
 
         data = DeploymentCreate(
@@ -599,8 +600,8 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool.default_queue_id
+        default_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_pool.default_queue_id
         )
 
         data = DeploymentCreate(
@@ -619,7 +620,7 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
 
-    async def test_create_deployment_can_create_work_pool_queue(
+    async def test_create_deployment_can_create_work_queue(
         self,
         client,
         flow,
@@ -651,13 +652,13 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment_id
         )
 
-        work_pool_queue = await models.workers.read_work_pool_queue_by_name(
+        work_queue = await models.workers.read_work_queue_by_name(
             session=session,
             work_pool_name=work_pool.name,
-            work_pool_queue_name="new-work-pool-queue",
+            work_queue_name="new-work-pool-queue",
         )
 
-        assert deployment.work_pool_queue_id == work_pool_queue.id
+        assert deployment.work_queue_id == work_queue.id
 
     async def test_create_deployment_returns_404_for_non_existent_work_pool(
         self,
@@ -1246,14 +1247,14 @@ class TestGetDeploymentWorkQueueCheck:
     ):
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"First",
                 filter=schemas.core.QueueFilter(tags=["a"]),
             ),
         )
         await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Second",
                 filter=schemas.core.QueueFilter(tags=["b"]),
             ),
@@ -1271,9 +1272,32 @@ class TestGetDeploymentWorkQueueCheck:
 
         response = await client.get(f"deployments/{deployment.id}/work_queue_check")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 2
 
-        q1, q2 = response.json()
-        assert {q1["name"], q2["name"]} == {"First", "Second"}
-        assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
-        assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+        connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+        dialect = get_dialect(connection_url)
+
+        if dialect.name == "postgresql":
+
+            assert len(response.json()) == 2
+
+            q1, q2 = response.json()
+            assert {q1["name"], q2["name"]} == {"First", "Second"}
+            assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
+            assert (
+                q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+            )
+
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(response.json()) == 3
+
+            q1, q2, q3 = response.json()
+            assert {q1["name"], q2["name"], q3["name"]} == {
+                "First",
+                "Second",
+                "default",
+            }
+            assert set(q2["filter"]["tags"] + q3["filter"]["tags"]) == {"a", "b"}
+            assert (
+                q2["filter"]["deployment_ids"] == q3["filter"]["deployment_ids"] == None
+            )
