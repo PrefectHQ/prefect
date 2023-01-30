@@ -95,7 +95,8 @@ def test_printing_the_agent_manifest_with_no_args():
     assert manifests
 
     for manifest in manifests:
-        assert manifest["metadata"]["namespace"] == "default"
+        if manifest["kind"] not in ["ClusterRole", "ClusterRoleBinding"]:
+            assert manifest["metadata"]["namespace"] == "default"
 
         if manifest["kind"] == "Deployment":
             assert manifest["metadata"]["name"] == "prefect-agent"
@@ -160,7 +161,8 @@ def test_printing_the_agent_manifest_with_namespace():
     assert manifests
 
     for manifest in manifests:
-        assert manifest["metadata"]["namespace"] == "test_namespace"
+        if manifest["kind"] not in ["ClusterRole", "ClusterRoleBinding"]:
+            assert manifest["metadata"]["namespace"] == "test_namespace"
 
 
 def test_printing_the_job_base_manifest():

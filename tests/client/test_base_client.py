@@ -71,6 +71,7 @@ class TestPrefectHttpxClient:
         [
             httpx.RemoteProtocolError,
             httpx.ReadError,
+            httpx.WriteError,
             httpx.LocalProtocolError,
             httpx.PoolTimeout,
             httpx.ReadTimeout,

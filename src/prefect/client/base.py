@@ -237,6 +237,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 httpx.PoolTimeout,
                 # `ConnectionResetError` when reading socket raises as a `ReadError`
                 httpx.ReadError,
+                # Sockets can be closed during writes resulting in a `WriteError`
+                httpx.WriteError,
                 # Uvicorn bug, see https://github.com/PrefectHQ/prefect/issues/7512
                 httpx.RemoteProtocolError,
                 # HTTP2 bug, see https://github.com/PrefectHQ/prefect/issues/7442

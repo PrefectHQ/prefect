@@ -1,4 +1,4 @@
-import sys
+import subprocess
 from contextlib import nullcontext
 from textwrap import dedent
 from unittest.mock import MagicMock
@@ -183,11 +183,9 @@ class TestCurrentEnvironmentCondaRequirements:
     def test_unmocked_retrieval_succeeds(self, options):
         # Check that we actually parsed environment errors correctly on systems without
         # conda
-        raises = (
-            pytest.raises(CondaError)
-            if "conda" not in sys.executable
-            else nullcontext()
-        )
+        in_conda_env = subprocess.run(["conda", "env", "export"]).returncode == 0
+
+        raises = pytest.raises(CondaError) if not in_conda_env else nullcontext()
         with raises as should_raise:
             result = current_environment_conda_requirements(**options)
 

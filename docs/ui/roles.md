@@ -46,9 +46,10 @@ The following built-in roles have permissions within a given workspace in Prefec
 
 | Role | Abilities |
 | --- | --- |
-| Owner | &bull; Run flows. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete blocks within a workspace. <br> &bull; Create, view, edit, and delete notifications within a workspace. <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
-| Collaborator | &bull; Run flows within a workspace. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete all blocks within a workspace. <br> &bull; Create, view, edit, and delete notifications within a workspace. <br> &bull; View workspace setting within a workspace. |
-| Read-only collaborator | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all Work Queues. <br> &bull; View all Blocks. <br> &bull; View all Notifications. <br> &bull; View workspace settings (handle & description currently). |
+| Owner | &bull; Run flows. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
+| Developer | &bull; Run flows within a workspace. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; View workspace setting within a workspace. |
+| Runner | &bull; View flow runs within a workspace. <br> &bull; View and run deployments within a workspace. <br> &bull; View all work queues within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
+| Viewer | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all work queues within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
 
 ## Custom workspace roles
 
@@ -70,18 +71,26 @@ Custom roles created using an inherited role will follow Prefect's default works
 
 To configure an inherited role when configuring a custom role, select the **Inherit permission from a default role** check box, then select the role from which the new role should inherit permissions.
 
-![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](/img/ui/org-inherited-role.png)
+![Creating a custom role for a workspace using inherited permissions in Prefect Cloud](../img/ui/org-inherited-role.png)
 
 ## Workspace role permissions
 
 The following permissions are available for custom roles.
+
+### Automations
+
+| Permission | Description |
+| --- | --- |
+| View automations | User can see configured automations within a workspace. |
+| Create, edit, and delete automations | User can create, edit, and delete automations within a workspace. Includes permissions of **View automations**. |
 
 ### Blocks
 
 | Permission | Description |
 | --- | --- |
 | View blocks | User can see configured blocks within a workspace. |
-| Create, edit, and delete blocks | User can create, edit, and delete blocks within a workspace. Includes permissions of **View blocks**. |
+| View secret block data | User can see configured blocks and their secrets within a workspace. Includes permissions of **View blocks**. |
+| Create, edit, and delete blocks | User can create, edit, and delete blocks within a workspace. Includes permissions of **View blocks** and **View secret block data**. |
 
 ### Deployments
 

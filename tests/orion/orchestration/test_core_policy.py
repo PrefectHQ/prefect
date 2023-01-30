@@ -15,6 +15,7 @@ from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
+    HandleCancellingStateTransitions,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
@@ -43,6 +44,7 @@ ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))
     # Set the key to sort the `None` state
 )
+CANONICAL_STATES = list(states.StateType)
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
 
 
@@ -1048,7 +1050,7 @@ class TestRenameRetryingStates:
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestTransitionsFromTerminalStatesRule:
-    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, CANONICAL_STATES))
     terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
 
     # Cast to sorted lists for deterministic ordering.
@@ -1121,6 +1123,7 @@ class TestTransitionsFromTerminalStatesRule:
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestPreventingRedundantTransitionsRule:
     active_states = (
+        states.StateType.CANCELLING,
         states.StateType.RUNNING,
         states.StateType.PENDING,
         states.StateType.SCHEDULED,
@@ -1278,6 +1281,113 @@ class TestTaskConcurrencyLimits:
         # the first task run will transition into a completed state, yielding a
         # concurrency slot
         assert task1_completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        # the second task tries to run again, this time the transition will be accepted
+        # now that a concurrency slot has been freed
+        task2_run_retry_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=task2_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_run_retry_ctx = await stack.enter_async_context(
+                    rule(task2_run_retry_ctx, *running_transition)
+                )
+            await task2_run_retry_ctx.validate_proposed_state()
+
+        assert task2_run_retry_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+    async def test_concurrency_limit_cancelling_transition(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "some tag", 1)
+        concurrency_policy = [SecureTaskConcurrencySlots, ReleaseTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        cancelling_transition = (states.StateType.RUNNING, states.StateType.CANCELLING)
+        cancelled_transition = (states.StateType.CANCELLING, states.StateType.CANCELLED)
+
+        # before any runs, no active concurrency slots are in use
+        assert (await self.count_concurrency_slots(session, "some tag")) == 0
+
+        task1_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_running_ctx = await stack.enter_async_context(
+                    rule(task1_running_ctx, *running_transition)
+                )
+            await task1_running_ctx.validate_proposed_state()
+
+        # a first task run against a concurrency limited tag will be accepted
+        assert task1_running_ctx.response_status == SetStateStatus.ACCEPT
+
+        task2_running_ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["some tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task2_running_ctx = await stack.enter_async_context(
+                    rule(task2_running_ctx, *running_transition)
+                )
+            await task2_running_ctx.validate_proposed_state()
+
+        # the first task hasn't completed, so the concurrently running second task is
+        # told to wait
+        assert task2_running_ctx.response_status == SetStateStatus.WAIT
+
+        # the number of slots occupied by active runs is equal to the concurrency limit
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+        task1_cancelling_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *cancelling_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_cancelling_ctx = await stack.enter_async_context(
+                    rule(task1_cancelling_ctx, *cancelling_transition)
+                )
+            await task1_cancelling_ctx.validate_proposed_state()
+
+        # the first task run will transition into a cancelling state, but
+        # maintain a hold on the concurrency slot
+        assert task1_cancelling_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "some tag")) == 1
+
+        task1_cancelled_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *cancelled_transition,
+            run_override=task1_running_ctx.run,
+            run_tags=["some tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                task1_cancelled_ctx = await stack.enter_async_context(
+                    rule(task1_cancelled_ctx, *cancelled_transition)
+                )
+            await task1_cancelled_ctx.validate_proposed_state()
+
+        # the first task run will transition into a cancelled state, yielding a
+        # concurrency slot
+        assert task1_cancelled_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "some tag")) == 0
 
         # the second task tries to run again, this time the transition will be accepted
@@ -1728,7 +1838,12 @@ class TestTaskConcurrencyLimits:
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
-                        - {initial_state.type, proposed_state.type}
+                        - {
+                            initial_state.type,
+                            proposed_state.type,
+                            states.StateType.RUNNING,
+                            states.StateType.CANCELLING,
+                        }
                     )
                 )
                 await self.reject_transition(
@@ -1812,7 +1927,11 @@ class TestTaskConcurrencyLimits:
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
-                        - {initial_state.type, proposed_state.type}
+                        - {
+                            initial_state.type,
+                            proposed_state.type,
+                            states.StateType.CANCELLING,
+                        }
                     )
                 )
                 await self.reject_transition(
@@ -2424,3 +2543,59 @@ class TestPreventRunningTasksFromStoppedFlows:
         else:
             assert ctx.response_status == SetStateStatus.ABORT
             assert ctx.validated_state.is_pending()
+
+
+class TestHandleCancellingStateTransitions:
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_rejects_cancelling_to_anything_but_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(set(ALL_ORCHESTRATION_STATES) - {states.StateType.CANCELLED, None})
+        ),
+    )
+    async def test_rejects_cancelled_cancelling_to_anything_but_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        initial_state_type = states.StateType.CANCELLING
+        intended_transition = (initial_state_type, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING

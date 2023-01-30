@@ -3,7 +3,7 @@ Functions for interacting with worker ORM objects.
 Intended for internal use by the Orion API.
 """
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional
 from uuid import UUID
 
 import pendulum
@@ -16,10 +16,12 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkPoolQueue
 
+DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
+
 # -----------------------------------------------------
 # --
 # --
-# -- Worker Pools
+# -- Work Pools
 # --
 # --
 # -----------------------------------------------------
@@ -232,7 +234,7 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 # --
 # --
-# -- work pool queues
+# -- Work Pool Queues
 # --
 # --
 # -----------------------------------------------------
@@ -333,6 +335,9 @@ async def read_work_pool_queues(
     session: AsyncSession,
     work_pool_id: UUID,
     db: OrionDBInterface,
+    work_pool_queue_filter: Optional[schemas.filters.WorkPoolQueueFilter] = None,
+    offset: Optional[int] = None,
+    limit: Optional[int] = None,
 ) -> List[ORMWorkPoolQueue]:
     """
     Read all work pool queues for a work pool. Results are ordered by ascending priority.
@@ -340,6 +345,10 @@ async def read_work_pool_queues(
     Args:
         session (AsyncSession): a database session
         work_pool_id (UUID): a work pool id
+        work_pool_queue_filter: Filter criteria for work pool queues
+        offset: Query offset
+        limit: Query limit
+
 
     Returns:
         List[db.WorkPoolQueue]: the WorkPoolQueues
@@ -350,6 +359,14 @@ async def read_work_pool_queues(
         .where(db.WorkPoolQueue.work_pool_id == work_pool_id)
         .order_by(db.WorkPoolQueue.priority.asc())
     )
+
+    if work_pool_queue_filter is not None:
+        query = query.where(work_pool_queue_filter.as_sql_filter(db))
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
     result = await session.execute(query)
     return result.scalars().unique().all()
 
