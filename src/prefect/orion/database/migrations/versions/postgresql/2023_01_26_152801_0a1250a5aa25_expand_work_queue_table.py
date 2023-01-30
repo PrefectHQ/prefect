@@ -124,57 +124,100 @@ def upgrade():
 
     # Create default agent work pool and associate all existing queues with it
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
-    WORK_POOL = meta_data.tables["work_pool"]
-    WORK_QUEUE = meta_data.tables["work_queue"]
 
     connection.execute(
-        sa.insert(WORK_POOL).values(name="default-agent-pool", type="prefect-agent")
+        sa.text(
+            "INSERT INTO work_pool (name, type) VALUES ('default-agent-pool', 'prefect-agent')"
+        )
     )
 
     default_pool_id = connection.execute(
-        sa.select([WORK_POOL.c.id]).where(WORK_POOL.c.name == "default-agent-pool")
+        sa.text("SELECT id FROM work_pool WHERE name = 'default-agent-pool'")
     ).fetchone()[0]
 
     default_queue = connection.execute(
-        sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.name == "default")
+        sa.text("SELECT id FROM work_queue WHERE name = 'default'")
     ).fetchone()
 
     if not default_queue:
         connection.execute(
-            sa.insert(WORK_QUEUE).values(name="default", work_pool_id=default_pool_id)
+            sa.text(
+                f"INSERT INTO work_queue (name, work_pool_id) VALUES ('default', :default_pool_id)"
+            ).params({"default_pool_id": default_pool_id}),
         )
 
     connection.execute(
-        sa.update(WORK_QUEUE)
-        .where(WORK_QUEUE.c.work_pool_id.is_(None))
-        .values(work_pool_id=default_pool_id)
+        sa.text(
+            "UPDATE work_queue SET work_pool_id = :default_pool_id WHERE work_pool_id IS NULL"
+        ).params({"default_pool_id": default_pool_id}),
     )
 
     default_queue_id = connection.execute(
-        sa.select([WORK_QUEUE.c.id]).where(
-            WORK_QUEUE.c.name == "default", WORK_QUEUE.c.work_pool_id == default_pool_id
-        )
+        sa.text(
+            "SELECT id FROM work_queue WHERE name = 'default' and work_pool_id = :default_pool_id"
+        ).params({"default_pool_id": default_pool_id}),
     ).fetchone()[0]
 
     connection.execute(
-        sa.update(WORK_POOL)
-        .where(WORK_POOL.c.id == default_pool_id)
-        .values(default_queue_id=default_queue_id)
+        sa.text(
+            "UPDATE work_pool SET default_queue_id = :default_queue_id WHERE id = :default_pool_id"
+        ).params(
+            {"default_pool_id": default_pool_id, "default_queue_id": default_queue_id}
+        ),
     )
 
-    # Set priority on all queues
+    # Set priority on all queues and update flow runs and deployments
     queue_rows = connection.execute(
-        sa.select([WORK_QUEUE.c.id]).where(WORK_QUEUE.c.work_pool_id == default_pool_id)
+        sa.text(
+            "SELECT id, name FROM work_queue WHERE work_pool_id = :default_pool_id"
+        ).params({"default_pool_id": default_pool_id}),
     ).fetchall()
 
-    for enumeration, row in enumerate(queue_rows):
-        connection.execute(
-            sa.update(WORK_QUEUE)
-            .where(WORK_QUEUE.c.id == row[0])
-            .values(priority=enumeration + 1)
-        )
+    with op.get_context().autocommit_block():
+        for enumeration, row in enumerate(queue_rows):
+            connection.execute(
+                sa.text(
+                    "UPDATE work_queue SET priority = :priority WHERE id = :id"
+                ).params({"priority": enumeration + 1, "id": row[0]}),
+            )
+
+            batch_size = 250
+
+            while True:
+                result = connection.execute(
+                    sa.text(
+                        """
+                        UPDATE flow_run 
+                        SET work_queue_id=:id 
+                        WHERE flow_run.id in (
+                            SELECT id 
+                            FROM flow_run 
+                            WHERE flow_run.work_queue_id IS NULL and flow_run.work_queue_name=:name 
+                            LIMIT :batch_size
+                        )
+                        """
+                    ).params({"id": row[0], "name": row[1], "batch_size": batch_size}),
+                )
+                if result.rowcount <= 0:
+                    break
+
+            while True:
+                result = connection.execute(
+                    sa.text(
+                        """
+                        UPDATE deployment 
+                        SET work_queue_id=:id 
+                        WHERE deployment.id in (
+                            SELECT id 
+                            FROM deployment 
+                            WHERE deployment.work_queue_id IS NULL and deployment.work_queue_name=:name 
+                            LIMIT :batch_size
+                        )
+                        """
+                    ).params({"id": row[0], "name": row[1], "batch_size": batch_size}),
+                )
+                if result.rowcount <= 0:
+                    break
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.alter_column("work_pool_id", nullable=False)
@@ -182,12 +225,9 @@ def upgrade():
 
 def downgrade():
     connection = op.get_bind()
-    meta_data = sa.MetaData(bind=connection)
-    meta_data.reflect()
-    WORK_POOL = meta_data.tables["work_pool"]
 
     connection.execute(
-        sa.delete(WORK_POOL).where(WORK_POOL.c.name != "default-agent-pool")
+        sa.text("DELETE FROM work_pool WHERE name != 'default-agent-pool'")
     )
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
@@ -215,7 +255,7 @@ def downgrade():
         batch_op.drop_column("work_pool_id")
         batch_op.drop_column("priority")
 
-    connection.execute(sa.delete(WORK_POOL))
+    connection.execute(sa.text("DELETE FROM work_pool"))
 
     op.create_table(
         "work_pool_queue",

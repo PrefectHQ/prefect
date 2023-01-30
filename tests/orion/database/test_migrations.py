@@ -260,7 +260,9 @@ async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
-async def test_adding_default_agent_pool_with_existing_default_queue_migration(db):
+async def test_adding_default_agent_pool_with_existing_default_queue_migration(
+    db, flow
+):
     connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
     dialect = get_dialect(connection_url)
 
@@ -288,6 +290,20 @@ async def test_adding_default_agent_pool_with_existing_default_queue_migration(d
             )
             await session.execute(
                 sa.text("INSERT INTO work_queue (name) values ('queue-2');")
+            )
+            await session.commit()
+
+            # Insert a flow run and deployment to check if they are correctly assigned a work queue ID
+            flow_run_id = uuid4()
+            await session.execute(
+                sa.text(
+                    f"INSERT INTO flow_run (id, name, flow_id, work_queue_name) values ('{flow_run_id}', 'foo', '{flow.id}', 'queue-1');"
+                )
+            )
+            await session.execute(
+                sa.text(
+                    f"INSERT INTO deployment (name, flow_id, work_queue_name) values ('my-deployment', '{flow.id}', 'queue-1');"
+                )
             )
             await session.commit()
 
@@ -323,6 +339,30 @@ async def test_adding_default_agent_pool_with_existing_default_queue_migration(d
 
             assert len(work_queue_ids) == 3
             assert set(work_queue_ids) == set(pre_work_queue_ids)
+
+            # Check that the flow run and deployment are assigned to the correct work queue
+            queue_1 = (
+                await session.execute(
+                    sa.text("SELECT id FROM work_queue WHERE name = 'queue-1';")
+                )
+            ).fetchone()
+            flow_run = (
+                await session.execute(
+                    sa.text(
+                        f"SELECT work_queue_id FROM flow_run WHERE id = '{flow_run_id}';"
+                    )
+                )
+            ).fetchone()
+            deployment = (
+                await session.execute(
+                    sa.text(
+                        f"SELECT work_queue_id FROM deployment WHERE name = 'my-deployment';"
+                    )
+                )
+            ).fetchone()
+
+            assert queue_1[0] == flow_run[0]
+            assert queue_1[0] == deployment[0]
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
