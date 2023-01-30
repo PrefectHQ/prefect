@@ -53,6 +53,7 @@ from typing import (
     Generic,
     Iterable,
     List,
+    Literal,
     Mapping,
     Optional,
     Set,
@@ -582,6 +583,20 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     default=1_000_000,
 )
 """The maximum size in bytes for a single log."""
+
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Literal["warn", "error", "ignore"],
+    default="warn",
+)
+"""
+Controls the behavior when logs are attempted to be sent to Orion without a flow run id.
+The Orion log handler can only send logs within flow run contexts unless the flow run id is
+manually provided.
+
+"warn": Log a warning message.
+"error": Raise an error.
+"ignore": Do not log a warning message or raise an error.
+"""
 
 PREFECT_LOGGING_COLORS = Setting(
     bool,
