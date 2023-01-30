@@ -16,6 +16,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.states import StateType
 
 
@@ -90,11 +91,16 @@ async def read_work_queue_by_name(
     Returns:
         db.WorkQueue: the WorkQueue
     """
-    default_work_pool = await models.workers.get_or_create_default_agent_work_pool(
-        session
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
     )
-
-    query = select(db.WorkQueue).filter_by(name=name, work_pool_id=default_work_pool.id)
+    # Logic to make sure this functionality doesn't break during migration
+    if default_work_pool is not None:
+        query = select(db.WorkQueue).filter_by(
+            name=name, work_pool_id=default_work_pool.id
+        )
+    else:
+        query = select(db.WorkQueue).filter_by(name=name)
     result = await session.execute(query)
     return result.scalar()
 
