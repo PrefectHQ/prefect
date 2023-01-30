@@ -338,7 +338,7 @@ async def _ensure_work_queue_exists(
             )
         else:
             work_queue = await models.work_queues.read_work_queue(
-                session=session, work_queue_id=default_pool.default_work_id
+                session=session, work_queue_id=default_pool.default_queue_id
             )
 
     return work_queue
