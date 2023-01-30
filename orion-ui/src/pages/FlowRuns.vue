@@ -69,9 +69,7 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, exist } = useFlowRunsFilterFromRoute({
-    sort: 'START_TIME_ASC',
-  })
+  const { filter, exist } = useFlowRunsFilterFromRoute()
 
   const sort = computed({
     get() {
