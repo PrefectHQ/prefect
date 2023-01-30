@@ -73,6 +73,7 @@ theme:
             icon: material/weather-night
             name: Switch to light mode
 plugins:
+    mike:
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -114,7 +115,7 @@ nav:
                 - tutorials/deployments.md
                 - tutorials/storage.md
                 - tutorials/docker.md
-                - Prefect Cloud: ui/cloud-getting-started.md
+                - Prefect Cloud Quickstart: ui/cloud-quickstart.md
             - Advanced Tutorials:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
@@ -140,7 +141,12 @@ nav:
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - Prefect UI & Prefect Cloud:
-        - Orion UI Overview: ui/overview.md
+        - Prefect UI Overview: ui/overview.md
+        - Prefect Cloud Overview: ui/cloud.md
+        - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+        - Prefect Cloud Concepts: 
+            - Manage API keys: ui/cloud-api-keys.md
+            - Configure Local Environments: ui/cloud-local-environment.md
         - ui/flow-runs.md
         - ui/flows.md
         - ui/deployments.md
@@ -148,8 +154,6 @@ nav:
         - ui/blocks.md
         - ui/notifications.md
         - ui/task-concurrency.md
-        - Prefect Cloud Overview: ui/cloud.md
-        - Prefect Cloud Quickstart: ui/cloud-getting-started.md
         - Workspaces: ui/workspaces.md
         - Automations: ui/automations.md
         - Organizations: ui/organizations.md
@@ -266,6 +270,8 @@ nav:
         - Troubleshooting: contributing/common-mistakes.md
 
 extra:
+    version:
+        provider: mike
     analytics:
         provider: google
         property: G-3M31G9B0QJ

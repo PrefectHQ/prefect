@@ -276,6 +276,21 @@ class Pause(PrefectSignal):
     """
 
 
+class ExternalSignal(BaseException):
+    """
+    Base type for external signal-like exceptions that should never be caught by users.
+    """
+
+
+class TerminationSignal(ExternalSignal):
+    """
+    Raised when a flow run receives a termination signal.
+    """
+
+    def __init__(self, signal: int):
+        self.signal = signal
+
+
 class PrefectHTTPStatusError(HTTPStatusError):
     """
     Raised when client receives a `Response` that contains an HTTPStatusError.
