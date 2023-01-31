@@ -325,7 +325,7 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
 async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
     work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
 
-    async def read_queue(name):
+    async def read_queue(name, work_pool_name=None):
         return work_queue
 
     mock = AsyncMock(side_effect=read_queue)

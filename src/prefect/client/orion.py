@@ -39,6 +39,8 @@ from prefect.orion.schemas.filters import (
     LogFilter,
     WorkPoolFilter,
     WorkQueueFilter,
+    WorkPoolFilter,
+    WorkPoolQueueFilter,
 )
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
