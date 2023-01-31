@@ -15,6 +15,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -22,7 +23,9 @@ work_app = PrefectTyper(
 app.add_typer(work_app, aliases=["work-queues"])
 
 
-async def _get_work_queue_id_from_name_or_id(name_or_id: Union[UUID, str]):
+async def _get_work_queue_id_from_name_or_id(
+    name_or_id: Union[UUID, str], work_pool_name: Optional[str] = None
+) -> UUID:
     """
     For backwards-compatibility, the main argument of the work queue CLI can be
     either a name (preferred) or an ID (legacy behavior).
@@ -40,7 +43,10 @@ async def _get_work_queue_id_from_name_or_id(name_or_id: Union[UUID, str]):
     except (AttributeError, ValueError):
         async with get_client() as client:
             try:
-                work_queue = await client.read_work_queue_by_name(name=name_or_id)
+                work_queue = await client.read_work_queue_by_name(
+                    name=name_or_id,
+                    work_pool_name=work_pool_name,
+                )
                 return work_queue.id
             except ObjectNotFound:
                 exit_with_error(f"No work queue named {name_or_id!r} found.")
@@ -82,31 +88,19 @@ async def create(
         )
 
     async with get_client() as client:
-        if pool:
-            try:
-                work_pool_queue_create = WorkPoolQueueCreate(
-                    name=name,
+        try:
+            result = await client.create_work_queue(
+                name=name,
+                tags=tags or None,
+                work_pool_name=pool,
+            )
+            if limit is not None:
+                await client.update_work_queue(
+                    id=result.id,
                     concurrency_limit=limit,
                 )
-                result = await client.create_work_pool_queue(
-                    work_pool_name=pool,
-                    work_pool_queue=work_pool_queue_create,
-                )
-            except Exception as exc:
-                exit_with_error(exc)
-        else:
-            try:
-                result = await client.create_work_queue(
-                    name=name,
-                    tags=tags or None,
-                )
-                if limit is not None:
-                    await client.update_work_queue(
-                        id=result.id,
-                        concurrency_limit=limit,
-                    )
-            except ObjectAlreadyExists:
-                exit_with_error(f"Work queue with name: {name!r} already exists.")
+        except ObjectAlreadyExists:
+            exit_with_error(f"Work queue with name: {name!r} already exists.")
 
     if tags:
         tags_message = f"tags - {', '.join(sorted(tags))}\n" or ""
@@ -160,36 +154,31 @@ async def set_concurrency_limit(
     """
     Set a concurrency limit on a work queue.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
 
-        async with get_client() as client:
-            try:
-                await client.update_work_queue(
-                    id=queue_id,
-                    concurrency_limit=limit,
+    async with get_client() as client:
+        try:
+            await client.update_work_queue(
+                id=queue_id,
+                concurrency_limit=limit,
+            )
+        except ObjectNotFound:
+            if pool:
+                error_message = (
+                    f"No work queue named {name!r} found in work pool {pool!r}."
                 )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
+            else:
+                error_message = f"No work queue named {name!r} found."
+            exit_with_error(error_message)
 
-        exit_with_success(f"Concurrency limit of {limit} set on work queue {name!r}")
-
+    if pool:
+        success_message = f"Concurrency limit of {limit} set on work queue {name!r} in work pool {pool!r}"
     else:
-        async with get_client() as client:
-            try:
-                await client.update_work_pool_queue(
-                    work_pool_name=pool,
-                    work_pool_queue_name=name,
-                    work_pool_queue=WorkPoolQueueUpdate(
-                        concurrency_limit=limit,
-                    ),
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
-
-        exit_with_success(
-            f"Concurrency limit of {limit} set on work queue {name!r} in work pool {pool!r}"
-        )
+        success_message = f"Concurrency limit of {limit} set on work queue {name!r}"
+    exit_with_success(success_message)
 
 
 @work_app.command()
@@ -205,34 +194,30 @@ async def clear_concurrency_limit(
     """
     Clear any concurrency limits from a work queue.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-        async with get_client() as client:
-            try:
-                await client.update_work_queue(
-                    id=queue_id,
-                    concurrency_limit=None,
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
+    async with get_client() as client:
+        try:
+            await client.update_work_queue(
+                id=queue_id,
+                concurrency_limit=None,
+            )
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
 
-        exit_with_success(f"Concurrency limits removed on work queue {name!r}")
-    else:
-        async with get_client() as client:
-            try:
-                await client.update_work_pool_queue(
-                    work_pool_name=pool,
-                    work_pool_queue_name=name,
-                    work_pool_queue=WorkPoolQueueUpdate(
-                        concurrency_limit=None,
-                    ),
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
-
-        exit_with_success(
+    if pool:
+        success_message = (
             f"Concurrency limits removed on work queue {name!r} in work pool {pool!r}"
         )
+    else:
+        success_message = f"Concurrency limits removed on work queue {name!r}"
+    exit_with_success(success_message)
 
 
 @work_app.command()
@@ -248,33 +233,29 @@ async def pause(
     """
     Pause a work queue.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
 
-        async with get_client() as client:
-            try:
-                await client.update_work_queue(
-                    id=queue_id,
-                    is_paused=True,
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
+    async with get_client() as client:
+        try:
+            await client.update_work_queue(
+                id=queue_id,
+                is_paused=True,
+            )
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
 
-        exit_with_success(f"Paused work queue {name!r}")
+    if pool:
+        success_message = f"Work queue {name!r} in work pool {pool!r} paused"
     else:
-        async with get_client() as client:
-            try:
-                await client.update_work_pool_queue(
-                    work_pool_name=pool,
-                    work_pool_queue_name=name,
-                    work_pool_queue=WorkPoolQueueUpdate(
-                        is_paused=True,
-                    ),
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
-
-        exit_with_success(f"Paused work queue {name!r} in work pool {pool!r}")
+        success_message = f"Work queue {name!r} paused"
+    exit_with_success(success_message)
 
 
 @work_app.command()
@@ -290,33 +271,29 @@ async def resume(
     """
     Resume a paused work queue.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
 
-        async with get_client() as client:
-            try:
-                await client.update_work_queue(
-                    id=queue_id,
-                    is_paused=False,
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
+    async with get_client() as client:
+        try:
+            await client.update_work_queue(
+                id=queue_id,
+                is_paused=False,
+            )
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
 
-        exit_with_success(f"Resumed work queue {name!r}")
+    if pool:
+        success_message = f"Work queue {name!r} in work pool {pool!r} resumed"
     else:
-        async with get_client() as client:
-            try:
-                await client.update_work_pool_queue(
-                    work_pool_name=pool,
-                    work_pool_queue_name=name,
-                    work_pool_queue=WorkPoolQueueUpdate(
-                        is_paused=False,
-                    ),
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
-
-        exit_with_success(f"Resumed work queue {name!r} in work pool {pool!r}")
+        success_message = f"Work queue {name!r} resumed"
+    exit_with_success(success_message)
 
 
 @work_app.command()
@@ -334,25 +311,21 @@ async def inspect(
     """
     Inspect a work queue by ID.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-        async with get_client() as client:
-            try:
-                result = await client.read_work_queue(id=queue_id)
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
+    async with get_client() as client:
+        try:
+            result = await client.read_work_queue(id=queue_id)
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
 
-        app.console.print(Pretty(result))
-    else:
-        async with get_client() as client:
-            try:
-                result = await client.read_work_pool_queue(
-                    work_pool_name=pool, work_pool_queue_name=name
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
-
-        app.console.print(Pretty(result))
+    app.console.print(Pretty(result))
 
 
 @work_app.command()
@@ -530,22 +503,24 @@ async def delete(
     """
     Delete a work queue by ID.
     """
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-        async with get_client() as client:
-            try:
-                await client.delete_work_queue_by_id(id=queue_id)
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
 
-        exit_with_success(f"Deleted work queue {name!r}")
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name,
+        work_pool_name=pool,
+    )
+    async with get_client() as client:
+        try:
+            await client.delete_work_queue_by_id(id=queue_id)
+        except ObjectNotFound:
+            if pool:
+                error_message = f"No work queue found: {name!r} in work pool {pool!r}"
+            else:
+                error_message = f"No work queue found: {name!r}"
+            exit_with_error(error_message)
+    if pool:
+        success_message = (
+            f"Successfully deleted work queue {name!r} in work pool {pool!r}"
+        )
     else:
-        async with get_client() as client:
-            try:
-                await client.delete_work_pool_queue(
-                    work_pool_name=pool, work_pool_queue_name=name
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
-
-        exit_with_success(f"Deleted work queue {name!r} from work pool {pool!r}")
+        success_message = f"Successfully deleted work queue {name!r}"
+    exit_with_success(success_message)

@@ -1,8 +1,7 @@
 import pytest
 
 import prefect.exceptions
-from prefect.orion.models.workers_migration import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.orion.schemas.actions import WorkPoolQueueUpdate
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -10,13 +9,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 
 @sync_compatible
 async def read_queue(orion_client, name, pool=None):
-    if not pool:
-        return await orion_client.read_work_queue_by_name(name)
-    else:
-        return await orion_client.read_work_pool_queue(
-            work_pool_name=pool,
-            work_pool_queue_name=name,
-        )
+    return await orion_client.read_work_queue_by_name(name=name, work_pool_name=pool)
 
 
 @pytest.fixture(autouse=True)
@@ -122,19 +115,19 @@ class TestSetConcurrencyLimit:
         assert q.concurrency_limit == 5
 
     def test_set_concurrency_limit_with_pool_with_name(
-        self, orion_client, work_pool_queue
+        self, orion_client, work_queue_1
     ):
-        assert work_pool_queue.concurrency_limit is None
+        assert work_queue_1.concurrency_limit is None
         cmd = (
-            f"work-queue set-concurrency-limit {work_pool_queue.name} 5 "
-            f"-p {work_pool_queue.work_pool.name}"
+            f"work-queue set-concurrency-limit {work_queue_1.name} 5 "
+            f"-p {work_queue_1.work_pool.name}"
         )
         invoke_and_assert(
             command=cmd,
             expected_code=0,
         )
         q = read_queue(
-            orion_client, work_pool_queue.name, pool=work_pool_queue.work_pool.name
+            orion_client, work_queue_1.name, pool=work_queue_1.work_pool.name
         )
         assert q.concurrency_limit == 5
 
@@ -159,23 +152,18 @@ class TestClearConcurrencyLimit:
             command=f"work-queue clear-concurrency-limit {work_queue.id}",
             expected_code=0,
         )
+
         q = read_queue(orion_client, work_queue.name)
         assert q.concurrency_limit is None
 
-    async def test_clear_concurrency_limit_with_pool(
-        self, orion_client, work_pool_queue
-    ):
-        pool_name = work_pool_queue.work_pool.name
+    async def test_clear_concurrency_limit_with_pool(self, orion_client, work_queue_1):
+        pool_name = work_queue_1.work_pool.name
 
-        await orion_client.update_work_pool_queue(
-            work_pool_name=pool_name,
-            work_pool_queue_name=work_pool_queue.name,
-            work_pool_queue=WorkPoolQueueUpdate(concurrency_limit=5),
-        )
+        await orion_client.update_work_queue(id=work_queue_1.id, concurrency_limit=5)
 
         work_pool_queue = await read_queue(
             orion_client,
-            name=work_pool_queue.name,
+            name=work_queue_1.name,
             pool=pool_name,
         )
         assert work_pool_queue.concurrency_limit == 5
@@ -189,7 +177,7 @@ class TestClearConcurrencyLimit:
             command=cmd,
             expected_code=0,
         )
-        q = await read_queue(orion_client, work_pool_queue.name, pool=pool_name)
+        q = await read_queue(orion_client, work_queue_1.name, pool=pool_name)
         assert q.concurrency_limit is None
 
 
@@ -212,11 +200,10 @@ class TestPauseWorkQueue:
         q = read_queue(orion_client, work_queue.name)
         assert q.is_paused
 
-    def test_pause_with_pool(self, orion_client, work_pool_queue):
-        assert not work_pool_queue.is_paused
+    def test_pause_with_pool(self, orion_client, work_queue_1):
+        assert not work_queue_1.is_paused
         cmd = (
-            f"work-queue pause {work_pool_queue.name} "
-            f"-p {work_pool_queue.work_pool.name}"
+            f"work-queue pause {work_queue_1.name} " f"-p {work_queue_1.work_pool.name}"
         )
         invoke_and_assert(
             command=cmd,
@@ -224,8 +211,8 @@ class TestPauseWorkQueue:
         )
         q = read_queue(
             orion_client,
-            name=work_pool_queue.name,
-            pool=work_pool_queue.work_pool.name,
+            name=work_queue_1.name,
+            pool=work_queue_1.work_pool.name,
         )
         assert q.is_paused
 
@@ -249,29 +236,27 @@ class TestResumeWorkQueue:
         q = read_queue(orion_client, work_queue.name)
         assert not q.is_paused
 
-    async def test_resume_with_pool(self, orion_client, work_pool_queue):
-        pool_name = work_pool_queue.work_pool.name
-
-        await orion_client.update_work_pool_queue(
-            work_pool_name=pool_name,
-            work_pool_queue_name=work_pool_queue.name,
-            work_pool_queue=WorkPoolQueueUpdate(is_paused=True),
+    async def test_resume_with_pool(self, orion_client, work_queue_1):
+        pool_name = work_queue_1.work_pool.name
+        await orion_client.update_work_queue(
+            id=work_queue_1.id,
+            is_paused=True,
         )
 
         work_pool_queue = await read_queue(
             orion_client,
-            name=work_pool_queue.name,
+            name=work_queue_1.name,
             pool=pool_name,
         )
         assert work_pool_queue.is_paused
 
-        cmd = f"work-queue resume {work_pool_queue.name} " f"-p {pool_name}"
+        cmd = f"work-queue resume {work_queue_1.name} " f"-p {pool_name}"
         res = await run_sync_in_worker_thread(
             invoke_and_assert,
             command=cmd,
             expected_code=0,
         )
-        q = await read_queue(orion_client, work_pool_queue.name, pool=pool_name)
+        q = await read_queue(orion_client, work_queue_1.name, pool=pool_name)
         assert not q.is_paused
 
 
@@ -296,16 +281,16 @@ class TestInspectWorkQueue:
             expected_code=0,
         )
 
-    def test_inspect_with_pool(self, work_pool_queue):
+    def test_inspect_with_pool(self, work_queue_1):
         cmd = (
-            f"work-queue inspect {work_pool_queue.name} "
-            f"-p {work_pool_queue.work_pool.name}"
+            f"work-queue inspect {work_queue_1.name} "
+            f"-p {work_queue_1.work_pool.name}"
         )
         invoke_and_assert(
             command=cmd,
             expected_output_contains=[
-                f"id='{work_pool_queue.id}'",
-                f"name={work_pool_queue.name!r}",
+                f"id='{work_queue_1.id}'",
+                f"name={work_queue_1.name!r}",
             ],
             expected_code=0,
         )
@@ -328,15 +313,15 @@ class TestDelete:
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             read_queue(orion_client, work_queue.name)
 
-    def test_delete_with_pool(self, orion_client, work_pool_queue):
-        pool_name = work_pool_queue.work_pool.name
-        cmd = f"work-queue delete {work_pool_queue.name} " f"-p {pool_name}"
+    def test_delete_with_pool(self, orion_client, work_queue_1):
+        pool_name = work_queue_1.work_pool.name
+        cmd = f"work-queue delete {work_queue_1.name} " f"-p {pool_name}"
         invoke_and_assert(
             command=cmd,
             expected_code=0,
         )
         with pytest.raises(prefect.exceptions.ObjectNotFound):
-            read_queue(orion_client, work_pool_queue.name, pool=pool_name)
+            read_queue(orion_client, work_queue_1.name, pool=pool_name)
 
 
 class TestPreview:
