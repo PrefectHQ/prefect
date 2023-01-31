@@ -129,7 +129,6 @@ def downgrade():
     default_pool_id = connection.execute(
         sa.text("SELECT id FROM work_pool WHERE name = 'default-agent-pool'")
     ).fetchone()[0]
-    default_pool_id = default_pool_id_result[0]
     connection.execute(
         sa.text("DELETE FROM work_queue WHERE work_pool_id != :default_pool_id").params(
             {"default_pool_id": default_pool_id}
