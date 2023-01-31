@@ -32,3 +32,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update issue status if the issue is closed as completed
+        if: github.event.action == 'closed' && contains(github.event.issue.body, 'closed as completed')
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress" --add-label "status:new-release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
