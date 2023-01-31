@@ -290,7 +290,7 @@ class OrionHandler(logging.Handler):
             if log_handling_when_missing_flow == "warn":
                 # Warn when a logger is used outside of a run context, the stack level here
                 # gets us to the user logging call
-                warnings.warn(str(exc))
+                warnings.warn(exc, stacklevel=8)
                 return
             elif log_handling_when_missing_flow == "ignore":
                 return
