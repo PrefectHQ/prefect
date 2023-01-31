@@ -589,7 +589,7 @@ PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
     default="warn",
 )
 """
-Controls the behavior when logs are attempted to be sent to Orion without a flow run id.
+Controls the behavior when loggers attempt to send logs to Orion without a flow run id.
 The Orion log handler can only send logs within flow run contexts unless the flow run id is
 manually provided.
 
