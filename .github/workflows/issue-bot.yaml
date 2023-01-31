@@ -34,7 +34,7 @@ jobs:
 
       - name: Update issue status if the issue is closed as completed
         if: github.event.action == 'closed' && contains(github.event.issue.body, 'closed as completed')
-        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress"  --remove-label "status:in-progress"
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress"  --remove-label "status:accepted"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
