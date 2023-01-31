@@ -16,6 +16,20 @@ depends_on = None
 
 
 def upgrade():
+    # Create temporary indexes for migration
+    with op.batch_alter_table("flow_run", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_flow_run__work_queue_id_work_queue_name"),
+            ["work_queue_id", "work_queue_name"],
+            unique=False,
+        )
+    with op.batch_alter_table("deployment", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_deployment__work_queue_id_work_queue_name"),
+            ["work_queue_id", "work_queue_name"],
+            unique=False,
+        )
+
     # Create default agent work pool and associate all existing queues with it
     connection = op.get_bind()
 
@@ -118,8 +132,28 @@ def upgrade():
             op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
         )
 
+    with op.batch_alter_table("flow_run", schema=None) as batch_op:
+        batch_op.drop_index("ix_flow_run__work_queue_id_work_queue_name")
+
+    with op.batch_alter_table("deployment", schema=None) as batch_op:
+        batch_op.drop_index("ix_deployment__work_queue_id_work_queue_name")
+
 
 def downgrade():
+    # Create temporary indexes for migration
+    with op.batch_alter_table("flow_run", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_flow_run__work_queue_id_work_queue_name"),
+            ["work_queue_id", "work_queue_name"],
+            unique=False,
+        )
+    with op.batch_alter_table("deployment", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_deployment__work_queue_id_work_queue_name"),
+            ["work_queue_id", "work_queue_name"],
+            unique=False,
+        )
+
     connection = op.get_bind()
 
     # Delete all non-default queues and pools
@@ -184,3 +218,9 @@ def downgrade():
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_constraint("uq_work_queue__work_pool_id_name")
         batch_op.create_unique_constraint("uq_work_queue__name", ["name"])
+
+    with op.batch_alter_table("flow_run", schema=None) as batch_op:
+        batch_op.drop_index("ix_flow_run__work_queue_id_work_queue_name")
+
+    with op.batch_alter_table("deployment", schema=None) as batch_op:
+        batch_op.drop_index("ix_deployment__work_queue_id_work_queue_name")
