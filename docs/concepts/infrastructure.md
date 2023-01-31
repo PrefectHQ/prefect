@@ -235,17 +235,11 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 #### KubernetesJob overrides and customizations
 
-When creating deployments using `KubernetesJob` infrastructure, the `-infra_overrides` option expects a dict, but `customizations` expects a list. As a result, `customizations` should not be applied via CLI. As a good practice, you can build the deployment YAML, then edit `infra_overrides:{}` in the deployment YAML directly, including any `customizations`.
-
-Containers expect a list of objects, even if there is only one. For any patches applying to the container, the `path` value should be a list, for example: `/spec/templates/spec/containers/0/resources`.
-
-In the deployment YAML, this would look like:
-
-When creating deployments using KubernetesJob infrastructure, the -infra_overrides option expects a dict, but customizations expects a list. 
+When creating deployments using `KubernetesJob` infrastructure, the `infra_overrides` parameter expects a dictionary. For a `KubernetesJob`, the `customizations` parameter expects a list. 
 
 Containers expect a list of objects, even if there is only one.
 For any patches applying to the container, the path value should be a list, for example:
-	/spec/templates/spec/containers/0/resources
+  `/spec/templates/spec/containers/0/resources`
 
 A `Kubernetes-Job` infrastructure block defined in Python:
 
