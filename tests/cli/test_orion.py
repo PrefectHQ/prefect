@@ -73,7 +73,7 @@ def test_start_from_cli_with_keep_alive(mock_run_process: AsyncMock):
     assert command[command.index("--timeout-keep-alive") + 1] == "100"
 
 
-def test_ephemeral_api():
+def test_orion_status_ephemeral_api():
     invoke_and_assert(
         ["orion", "status"],
         expected_output_contains="PREFECT_API_URL not set for the currently active profile",
