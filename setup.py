@@ -41,7 +41,7 @@ orchestration_extras = {
     "git": ["dulwich >= 0.19.7"],
     "github": ["PyGithub >= 1.51"],
     "gitlab": ["python-gitlab >= 2.5.0"],
-    "kubernetes": ["kubernetes >= 9.0.0a1.0"],
+    "kubernetes": ["kubernetes >= 9.0.0a1"],
 }
 
 extras = {
