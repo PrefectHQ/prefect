@@ -31,7 +31,9 @@ As an example, to register the blocks available in `prefect-aws`:
 prefect block register -m prefect_aws
 ```
 
-**Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
+**Note**, if you install an updated Prefect collection that adds fields to a block type, you will need to re-register that Block type.
+
+**Note**, to use the load method on a Block, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
 
 Learn more about Blocks [here](/concepts/blocks)!
 
