@@ -52,6 +52,7 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW,
     PREFECT_LOGGING_SETTINGS_PATH,
     temporary_settings,
 )
@@ -490,7 +491,7 @@ class TestOrionHandler:
 
         mock_log_worker().enqueue.assert_not_called()
 
-    def test_does_not_send_logs_outside_of_run_context(
+    def test_does_not_send_logs_outside_of_run_context_with_default_setting(
         self, logger, mock_log_worker, capsys
     ):
         # Warns in the main process
@@ -498,6 +499,56 @@ class TestOrionHandler:
             UserWarning, match="attempted to send logs .* without a flow run id"
         ):
             logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+
+        # No stderr output
+        output = capsys.readouterr()
+        assert output.err == ""
+
+    def test_does_not_send_logs_outside_of_run_context_with_error_setting(
+        self, logger, mock_log_worker, capsys
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "error"},
+        ):
+            with pytest.raises(
+                MissingContextError,
+                match="attempted to send logs .* without a flow run id",
+            ):
+                logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+
+        # No stderr output
+        output = capsys.readouterr()
+        assert output.err == ""
+
+    def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
+        self, logger, mock_log_worker, capsys
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "ignore"},
+        ):
+            logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+
+        # No stderr output
+        output = capsys.readouterr()
+        assert output.err == ""
+
+    def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
+        self, logger, mock_log_worker, capsys
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "warn"},
+        ):
+            # Warns in the main process
+            with pytest.warns(
+                UserWarning, match="attempted to send logs .* without a flow run id"
+            ):
+                logger.info("test")
 
         mock_log_worker().enqueue.assert_not_called()
 
@@ -517,7 +568,7 @@ class TestOrionHandler:
             logger.info("test")
             lineno = getframeinfo(currentframe()).lineno - 1
             # The above dynamic collects the line number so that added tests do not
-            # break this tests
+            # break this test
 
         mock_log_worker().enqueue.assert_not_called()
         assert warnings.pop().lineno == lineno
