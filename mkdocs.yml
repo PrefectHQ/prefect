@@ -274,7 +274,7 @@ extra:
         provider: mike
     analytics:
         provider: google
-        property: G-3M31G9B0QJ
+        property: G-CP29SJK4E7
     social:
         - icon: fontawesome/brands/slack
           link: https://www.prefect.io/slack/
