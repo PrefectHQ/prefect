@@ -241,10 +241,52 @@ Containers expect a list of objects, even if there is only one. For any patches 
 
 In the deployment YAML, this would look like:
 
-```yaml
+When creating deployments using KubernetesJob infrastructure, the -infra_overrides option expects a dict, but customizations expects a list. 
+
+Containers expect a list of objects, even if there is only one.
+For any patches applying to the container, the path value should be a list, for example:
+	/spec/templates/spec/containers/0/resources
+
+A `Kubernetes-Job` infrastructure block defined in Python:
+
+```python
+customizations = [
+	{
+	    "op": "add",
+	    "path": "/spec/template/spec/containers/0/resources",
+	    "value": {
+	        "requests": {
+	            "cpu": "2000m",
+	            "memory": "4gi"
+	        },
+	        "limits": {
+	            "cpu": "4000m",
+	            "memory": 8Gi",
+	            "nvidia.com/gpu": "1"
+	    	}
+		},
+	}
+]
+
+k8s_job = KubernetesJob(
+        namespace=namespace,
+        image=image_name,
+        image_pull_policy=KubernetesImagePullPolicy.ALWAYS,
+        finished_job_ttl=300,
+        job_watch_timeout_seconds=600,
+        pod_watch_timeout_seconds=600,
+        service_account_name="prefect-server",
+        customizations=customizations,
+    )
+k8s_job.save("devk8s")
+```
+
+A `Deployment` with infra-overrides defined in Python:
+
+```python
 infra_overrides={ 
-	"customizations": [
-			{
+    "customizations": [
+            {
                 "op": "add",
                 "path": "/spec/template/spec/containers/0/resources",
                 "value": {
@@ -261,18 +303,21 @@ infra_overrides={
         }
     ]
 }
-```
 
-A `Kubernetes-Job` infrastructure block defined in Python:
+# Load an already created K8s Block
+k8sjob = k8s_job.load("devk8s")
 
-```python
-customizations=[
-	{
-        "op": "add",
-        "path": "/spec/template/spec/containers/0/resources",
-        "value": {"limits": {"cpu": "4000m", "memory": "8Gi", "nvidia.com/gpu": "1"}},
-    }
-]
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="s3-example",
+    version=2,
+    work_queue_name="aws",
+    infrastructure=k8sjob,
+    storage=storage,
+    infra_overrides=infra_overrides,
+)
+
+deployment.apply()
 ```
 
 ### ECSTask
