@@ -255,7 +255,7 @@ customizations = [
 	        },
 	        "limits": {
 	            "cpu": "4000m",
-	            "memory": 8Gi",
+	            "memory": "8Gi",
 	            "nvidia.com/gpu": "1"
 	    	}
 		},
