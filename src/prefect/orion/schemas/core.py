@@ -750,6 +750,16 @@ class BlockDocumentReference(ORMBaseModel):
         default=..., description="The name that the reference is nested under"
     )
 
+    @root_validator
+    def validate_parent_and_ref_are_different(cls, values):
+        parent_id = values.get("parent_block_document_id")
+        ref_id = values.get("reference_block_document_id")
+        if parent_id and ref_id and parent_id == ref_id:
+            raise ValueError(
+                "`parent_block_document_id` and `reference_block_document_id` cannot be the same"
+            )
+        return values
+
 
 class Configuration(ORMBaseModel):
     """An ORM representation of account info."""
@@ -954,7 +964,7 @@ class WorkPool(ORMBaseModel):
     description: Optional[str] = Field(
         default=None, description="A description of the work pool."
     )
-    type: Optional[str] = Field(None, description="The work pool type.")
+    type: str = Field(description="The work pool type.")
     base_job_template: Dict[str, Any] = Field(
         default_factory=dict, description="The work pool's base job template."
     )
@@ -1070,3 +1080,32 @@ class WorkPoolQueue(ORMBaseModel):
 
 Flow.update_forward_refs()
 FlowRun.update_forward_refs()
+
+
+class Artifact(ORMBaseModel):
+    key: Optional[str] = Field(
+        default=None, description="An optional unique reference key for this artifact."
+    )
+    type: Optional[str] = Field(
+        default=None,
+        description="An identifier for how this artifact is persisted.",
+    )
+    data: Optional[Any] = Field(
+        default=None,
+        description=(
+            "Data associated with the artifact, e.g. a result. "
+            "Content must be storable as JSON."
+        ),
+    )
+    metadata_: Optional[Any] = Field(
+        default=None,
+        description=(
+            "Artifact metadata used for the UI. " "Content must be storable as JSON."
+        ),
+    )
+    flow_run_id: Optional[UUID] = Field(
+        default=None, description="The flow run associated with the artifact."
+    )
+    task_run_id: Optional[UUID] = Field(
+        default=None, description="The task run associated with the artifact."
+    )

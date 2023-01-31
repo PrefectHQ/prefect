@@ -15,17 +15,17 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 def error_404_if_workers_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_WORKERS:
-        raise HTTPException(status_code=404, detail="Workers are not enabled")
+    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS:
+        raise HTTPException(status_code=404, detail="Work pools are not enabled")
 
 
 router = OrionRouter(
     prefix="/experimental/work_pools",
-    tags=["Worker Pools"],
+    tags=["Work Pools"],
     dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
@@ -55,7 +55,7 @@ class WorkerLookups:
         if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{work_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
         return work_pool.id
@@ -75,13 +75,17 @@ class WorkerLookups:
         if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{work_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
         return work_pool.default_queue_id
 
     async def _get_work_pool_queue_id_from_name(
-        self, session: AsyncSession, work_pool_name: str, work_pool_queue_name: str
+        self,
+        session: AsyncSession,
+        work_pool_name: str,
+        work_pool_queue_name: str,
+        create_queue_if_not_found: bool = False,
     ) -> UUID:
         """
         Given a work pool name and work pool queue name, return the ID of the
@@ -94,9 +98,20 @@ class WorkerLookups:
             work_pool_queue_name=work_pool_queue_name,
         )
         if not work_pool_queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Worker queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+            if not create_queue_if_not_found:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+                )
+            work_pool_id = await self._get_work_pool_id_from_name(
+                session=session, work_pool_name=work_pool_name
+            )
+            work_pool_queue = await models.workers.create_work_pool_queue(
+                session=session,
+                work_pool_id=work_pool_id,
+                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+                    name=work_pool_queue_name
+                ),
             )
 
         return work_pool_queue.id
@@ -124,7 +139,7 @@ async def create_work_pool(
     if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use.",
+            detail="Work pools starting with 'Prefect' are reserved for internal use.",
         )
 
     try:
@@ -135,7 +150,7 @@ async def create_work_pool(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A worker with this name already exists.",
+            detail="A work pool with this name already exists.",
         )
 
     return model
@@ -148,7 +163,7 @@ async def read_work_pool(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPool:
     """
-    Read a worker by name
+    Read a work pool by name
     """
 
     async with db.session_context() as session:
@@ -168,7 +183,7 @@ async def read_work_pools(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkPool]:
     """
-    Read multiple workers
+    Read multiple work pools
     """
     async with db.session_context() as session:
         return await models.workers.read_work_pools(
@@ -198,7 +213,7 @@ async def update_work_pool(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use "
+            detail="Work pools starting with 'Prefect' are reserved for internal use "
             "and can only be updated to set concurrency limits or pause.",
         )
 
@@ -227,7 +242,7 @@ async def delete_work_pool(
     if work_pool_name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
+            detail="Work pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
         )
 
     async with db.session_context(begin_transaction=True) as session:
@@ -293,7 +308,7 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 # --
 # --
-# -- Worker Queues
+# -- Work Pool Queues
 # --
 # --
 # -----------------------------------------------------
@@ -327,7 +342,7 @@ async def create_work_pool_queue(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A worker with this name already exists.",
+            detail="A work queue with this name already exists in work pool {work_pool_name!r}.",
         )
 
     return model
@@ -358,9 +373,12 @@ async def read_work_pool_queue(
         )
 
 
-@router.get("/{work_pool_name}/queues")
+@router.post("/{work_pool_name}/queues/filter")
 async def read_work_pool_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
+    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    limit: int = dependencies.LimitBody(),
+    offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkPoolQueue]:
@@ -373,7 +391,12 @@ async def read_work_pool_queues(
             work_pool_name=work_pool_name,
         )
         return await models.workers.read_work_pool_queues(
-            session=session, work_pool_id=work_pool_id, db=db
+            session=session,
+            work_pool_id=work_pool_id,
+            work_pool_queue_filter=work_pool_queues,
+            limit=limit,
+            offset=offset,
+            db=db,
         )
 
 

@@ -42,6 +42,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             HandleFlowTerminalStateTransitions,
+            HandleCancellingStateTransitions,
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
@@ -173,7 +174,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
 
 class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
     """
-    Releases any concurrency slots held by a run upon exiting a Running state.
+    Releases any concurrency slots held by a run upon exiting a Running or
+    Cancelling state.
     """
 
     async def after_transition(
@@ -183,7 +185,10 @@ class ReleaseTaskConcurrencySlots(BaseUniversalTransform):
         if self.nullified_transition():
             return
 
-        if not context.validated_state.is_running():
+        if context.validated_state.type not in [
+            states.StateType.RUNNING,
+            states.StateType.CANCELLING,
+        ]:
             filtered_limits = (
                 await concurrency_limits.filter_concurrency_limits_for_orchestration(
                     context.session, tags=context.run.tags
@@ -724,10 +729,23 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
         StateType.SCHEDULED: 1,
         StateType.PENDING: 2,
         StateType.RUNNING: 3,
+        StateType.CANCELLING: 4,
     }
 
-    FROM_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
-    TO_STATES = [StateType.SCHEDULED, StateType.PENDING, StateType.RUNNING, None]
+    FROM_STATES = [
+        StateType.SCHEDULED,
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.CANCELLING,
+        None,
+    ]
+    TO_STATES = [
+        StateType.SCHEDULED,
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.CANCELLING,
+        None,
+    ]
 
     async def before_transition(
         self,
@@ -737,6 +755,7 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
     ) -> None:
         initial_state_type = initial_state.type if initial_state else None
         proposed_state_type = proposed_state.type if proposed_state else None
+
         if (
             self.STATE_PROGRESS[proposed_state_type]
             <= self.STATE_PROGRESS[initial_state_type]
@@ -778,3 +797,27 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
             await self.abort_transition(
                 reason=f"The enclosing flow must be running to begin task execution.",
             )
+
+
+class HandleCancellingStateTransitions(BaseOrchestrationRule):
+    """
+    Rejects transitions from Cancelling to any terminal state except for Cancelled.
+    """
+
+    FROM_STATES = {StateType.CANCELLED, StateType.CANCELLING}
+    TO_STATES = ALL_ORCHESTRATION_STATES - {StateType.CANCELLED}
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        await self.reject_transition(
+            state=None,
+            reason=(
+                "Cannot transition flows that are cancelling to a state other "
+                "than Cancelled."
+            ),
+        )
+        return

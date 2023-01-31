@@ -111,6 +111,8 @@ class DockerRegistry(BaseDockerLogin):
     """
 
     _block_type_name = "Docker Registry"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry"
+
     username: str = Field(
         default=..., description="The username to log into the registry with."
     )
@@ -158,6 +160,8 @@ class DockerContainer(Infrastructure):
 
     Requires a Docker Engine to be connectable. Docker settings will be retrieved from
     the environment.
+
+    Click [here](https://docs.prefect.io/tutorials/docker/) to see a tutorial.
 
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,
@@ -260,6 +264,7 @@ class DockerContainer(Infrastructure):
 
     _block_type_name = "Docker Container"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")
     def convert_labels_to_docker_format(cls, labels: Dict[str, str]):

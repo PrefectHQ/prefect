@@ -4,7 +4,7 @@ State schemas.
 
 import datetime
 import warnings
-from typing import Any, Generic, Optional, Type, TypeVar
+from typing import Any, Generic, Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum
@@ -27,6 +27,7 @@ class StateType(AutoEnum):
     CANCELLED = AutoEnum.auto()
     CRASHED = AutoEnum.auto()
     PAUSED = AutoEnum.auto()
+    CANCELLING = AutoEnum.auto()
 
 
 TERMINAL_STATES = {
@@ -52,7 +53,27 @@ class StateDetails(PrefectBaseModel):
     refresh_cache: bool = None
 
 
-class State(IDBaseModel, Generic[R]):
+class StateBaseModel(IDBaseModel):
+    def orm_dict(
+        self, *args, shallow: bool = False, json_compatible: bool = False, **kwargs
+    ) -> dict:
+        """
+        This method is used as a convenience method for constructing fixtues by first
+        building a `State` schema object and converting it into an ORM-compatible
+        format. Because the `data` field is not writable on ORM states, this method
+        omits the `data` field entirely for the purposes of constructing an ORM model.
+        If state data is required, an artifact must be created separately.
+        """
+
+        schema_dict = self.dict(
+            *args, shallow=shallow, json_compatible=json_compatible, **kwargs
+        )
+        # remove the data field in order to construct a state ORM model
+        schema_dict.pop("data", None)
+        return schema_dict
+
+
+class State(StateBaseModel, Generic[R]):
     """Represents the state of a run."""
 
     class Config:
@@ -70,6 +91,35 @@ class State(IDBaseModel, Generic[R]):
         ),
     )
     state_details: StateDetails = Field(default_factory=StateDetails)
+
+    @classmethod
+    def from_orm_without_result(
+        cls,
+        orm_state: Union[
+            "prefect.orion.database.orm_models.ORMFlowRunState",
+            "prefect.orion.database.orm_models.ORMTaskRunState",
+        ],
+        with_data: Optional[Any] = None,
+    ):
+        """
+        During orchestration, ORM states can be instantiated prior to inserting results
+        into the artifact table and the `data` field will not be eagerly loaded. In
+        these cases, sqlalchemy will attept to lazily load the the relationship, which
+        will fail when called within a synchronous pydantic method.
+
+        This method will construct a `State` object from an ORM model without a loaded
+        artifact and attach data passed using the `with_data` argument to the `data`
+        field.
+        """
+
+        field_keys = cls.schema()["properties"].keys()
+        state_data = {
+            field: getattr(orm_state, field, None)
+            for field in field_keys
+            if field != "data"
+        }
+        state_data["data"] = with_data
+        return cls(**state_data)
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
@@ -266,6 +316,15 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
         State: a Crashed state
     """
     return cls(type=StateType.CRASHED, **kwargs)
+
+
+def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelling` states.
+
+    Returns:
+        State: a Cancelling state
+    """
+    return cls(type=StateType.CANCELLING, **kwargs)
 
 
 def Cancelled(cls: Type[State] = State, **kwargs) -> State:

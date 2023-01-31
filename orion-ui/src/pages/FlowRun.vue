@@ -24,7 +24,7 @@
       </template>
 
       <template #parameters>
-        <JsonView :value="parameters" />
+        <CodeHighlighting language="json" :value="parameters" />
       </template>
     </p-tabs>
 
@@ -44,7 +44,7 @@
     FlowRunTaskRuns,
     FlowRunTimeline,
     FlowRunSubFlows,
-    JsonView,
+    CodeHighlighting,
     useFavicon,
     useWorkspaceApi,
     useDeployment,

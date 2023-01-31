@@ -174,7 +174,7 @@ class BaseQueryComponents(ABC):
                 db.FlowRun,
                 sa.and_(
                     self._flow_run_work_queue_join_clause(db.FlowRun, db.WorkQueue),
-                    db.FlowRun.state_type.in_(["RUNNING", "PENDING"]),
+                    db.FlowRun.state_type.in_(["RUNNING", "PENDING", "CANCELLING"]),
                 ),
                 isouter=True,
             )
@@ -598,6 +598,19 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ) -> List:
 
+        # including this as a subquery in the where clause of the
+        # `queued_notifications` statement below, leads to errors where the limit
+        # is not respected if it is 1. pulling this out into a CTE statement
+        # prevents this. see link for more details:
+        # https://www.postgresql.org/message-id/16497.1553640836%40sss.pgh.pa.us
+        queued_notifications_ids = (
+            sa.select(db.FlowRunNotificationQueue.id)
+            .select_from(db.FlowRunNotificationQueue)
+            .order_by(db.FlowRunNotificationQueue.updated)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        ).cte("queued_notifications_ids")
+
         queued_notifications = (
             sa.delete(db.FlowRunNotificationQueue)
             .returning(
@@ -606,13 +619,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 db.FlowRunNotificationQueue.flow_run_state_id,
             )
             .where(
-                db.FlowRunNotificationQueue.id.in_(
-                    sa.select(db.FlowRunNotificationQueue.id)
-                    .select_from(db.FlowRunNotificationQueue)
-                    .order_by(db.FlowRunNotificationQueue.updated)
-                    .limit(limit)
-                    .with_for_update(skip_locked=True)
-                )
+                db.FlowRunNotificationQueue.id.in_(sa.select(queued_notifications_ids))
             )
             .cte("queued_notifications")
         )

@@ -218,7 +218,7 @@ async def nonblocking_paused_flow_run(session, flow, deployment):
 
 @pytest.fixture
 async def flow_run_state(session, flow_run, db):
-    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
+    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return flow_run.state
 
@@ -237,7 +237,7 @@ async def task_run(session, flow_run):
 
 @pytest.fixture
 async def task_run_state(session, task_run, db):
-    task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
+    task_run.set_state(db.TaskRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return task_run.state
 
@@ -377,6 +377,7 @@ async def work_pool(session):
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
             name="Test Worker Pool",
+            type="test",
             base_job_template={
                 "job_configuration": {"command": "{{ command }}"},
                 "variables": {
@@ -401,7 +402,7 @@ async def work_pool_queue(session, work_pool):
     model = await models.workers.create_work_pool_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="Test Queue"),
+        work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="wq"),
     )
     await session.commit()
     return model

@@ -1,0 +1,34 @@
+name: Issue bot
+
+on:
+  issues:
+    types: [closed, assigned, unassigned, labeled]
+
+jobs:
+  remove_label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove triage label on close
+        if: github.event.action == 'closed'
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update issue status when assigned
+        if: github.event.action == 'assigned'
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --add-label "status:in-progress"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update issue status when unassigned
+        if: github.event.action == 'unassigned'
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove triage label on status change
+        if: github.event.action == 'labeled' && startsWith(github.event.label.name, 'status:') && github.event.label.name != 'status:triage'
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
