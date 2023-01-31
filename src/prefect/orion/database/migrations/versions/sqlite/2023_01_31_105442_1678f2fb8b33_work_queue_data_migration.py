@@ -114,7 +114,11 @@ def upgrade():
                 if result.rowcount <= batch_size:
                     break
 
-    # ### end Alembic commands ###
+    with op.batch_alter_table("work_queue", schema=None) as batch_op:
+        batch_op.drop_constraint("uq_work_queue__name")
+        batch_op.create_unique_constraint(
+            op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
+        )
 
 
 def downgrade():
@@ -179,3 +183,7 @@ def downgrade():
     connection.execute(sa.text("UPDATE work_queue SET work_pool_id = NULL"))
 
     connection.execute(sa.text("DELETE FROM work_pool"))
+
+    with op.batch_alter_table("work_queue", schema=None) as batch_op:
+        batch_op.drop_constraint("uq_work_queue__work_pool_id_name")
+        batch_op.create_unique_constraint("uq_work_queue__name", ["name"])
