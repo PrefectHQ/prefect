@@ -1,5 +1,9 @@
 # Using script based flow storage
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 As of Prefect version `0.12.5` all storage options support storing flows as
 source files instead of pickled objects. This means that flow code can change
 in between (or even during) runs without needing to be re-registered. As long as

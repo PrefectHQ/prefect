@@ -1,5 +1,9 @@
 # Results
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect allows data to be represented by a first-class Prefect object called a `Result`. The Prefect pipeline uses result objects to pass data between Tasks as a first class operation. Users may also use Prefect's result objects to write or read any arbitrary data in their task with a single abstraction.
 
 At a high level, all `State` objects produced by the Prefect pipeline have a `Result` object associated with them. That `Result` object may be a subclass specifying a storage backend, such as `S3Result` or `GCSResult`, which specifies how the outputs of that Task should be handled if they need to be persisted for any reason.

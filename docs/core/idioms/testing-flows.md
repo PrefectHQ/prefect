@@ -1,5 +1,9 @@
 # Testing Prefect flows and tasks
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Since Prefect flows are Python objects they can be tested in any way you would normally test your Python code! This means that it is common for users to test their flows in unit tests with libraries like [pytest](https://docs.pytest.org/en/latest/). Below runs through a few ways to test your flows and if you want further examples Prefect's [tests directory](https://github.com/PrefectHQ/prefect/tree/master/tests) has thousands of tests that could serve as inspiration for testing your [flows](https://github.com/PrefectHQ/prefect/blob/master/tests/core/test_flow.py) and [tasks](https://github.com/PrefectHQ/prefect/blob/master/tests/core/test_task.py).
 
 Use the following flow as an example:

@@ -1,5 +1,9 @@
 # Caching and Persisting Data
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect provides a few ways to work with cached data between tasks or flows. In-memory caching of task **inputs** is automatically applied by the Prefect pipeline to optimize retries or other times when Prefect can anticipate rerunning the same task in the future. Users can also configure to cache the **output** of a prior run of a task and use it as the output of a future run of that task or even as the output of a run of a different task.
 
 Out of the box, Prefect Core does not persist cached data in a permanent fashion. All data, results, _and_ cached states are only stored in memory within the

@@ -1,5 +1,9 @@
 # Release Checklist
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 There are a few steps we need to take when cutting a new Prefect release; this document serves as a checklist for what needs to happen for a successful release:
 
 - [ ] Update the [CHANGELOG.md](https://github.com/PrefectHQ/prefect/blob/master/CHANGELOG.md) section headers

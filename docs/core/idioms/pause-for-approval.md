@@ -1,5 +1,9 @@
 # Pause for Approval
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 There are many situations when a workflow contains tasks that require some form of manual approval to continue. Prefect has two built-in mechanisms for achieving this pattern:
 
 - a manual-only trigger that can be configured on a per task basis, and unconditionally prevents the task from running unless a user approves it

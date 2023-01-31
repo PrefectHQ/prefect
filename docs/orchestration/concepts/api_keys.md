@@ -1,5 +1,9 @@
 # API Keys <Badge text="Cloud"/>
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 API keys are how clients authenticate with the Prefect Cloud API.  They encapsulate the identity of a User or a service account.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API key as a Bearer Token included in the request header.
 
 See our [API documentation](api.html) more information on how to use these keys to interact with the GraphQL API.

@@ -4,11 +4,9 @@ sidebarDepth: 0
 
 # Introduction to ETL
 
-::: tip Prefect 2
-With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
-
-If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
-:::
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
 
 Before we even `import prefect`, let's begin by reviewing a typical real-life ETL workflow.
 

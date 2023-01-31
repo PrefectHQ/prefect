@@ -1,5 +1,9 @@
 # Executors
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 A flow's `Executor` is responsible for running tasks in a flow. During
 execution of a flow run, a flow's executor will be initialized, used to execute
 all tasks in the flow, then shutdown.

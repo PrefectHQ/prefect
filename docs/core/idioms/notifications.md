@@ -1,5 +1,9 @@
 # Configuring notifications
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Sending notifications based on events in Prefect is a common pattern. Types of notifications generally include functionality such as posting state of runs to Slack, sending a text message on failure, etc. There are many places in Prefect to hook in notification systems and this idiom will go over three possibilities.
 
 ### Downstream tasks

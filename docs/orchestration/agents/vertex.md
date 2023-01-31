@@ -1,5 +1,9 @@
 # Vertex Agent
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 The Vertex Agent executes flow runs as [Vertex Custom Jobs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job).
 Vertex describes these as "training" jobs, but they can be used to run any kind of flow.
 

@@ -1,5 +1,9 @@
 # Upgrading to Prefect 1.0
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect 1.0 includes some important changes that may require updates to your flow and task definitions. 
 
 Importantly, many features previously marked as deprecated have been removed. This means flows using deprecated features will encounter errors rather than warnings.

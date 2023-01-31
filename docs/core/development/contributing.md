@@ -1,5 +1,9 @@
 # Contributing
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 ## Documentation
 
 Contributing to Prefect's docs is just as important as adding new code! We welcome your help, whether fixing a simple typo or writing a new tutorial. For new users, this can be an excellent way to get involved.

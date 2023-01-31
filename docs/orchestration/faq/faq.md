@@ -1,5 +1,9 @@
 # Frequently Asked Questions
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 The questions listed here are specific to using Prefect to orchestrate flows. The [FAQ in the Core section](/core/faq.html) is for people looking to learn more about Prefect in general.
 
 [[toc]]

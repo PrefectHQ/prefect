@@ -1,5 +1,9 @@
 # Overview
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 The Prefect task library is a constantly growing list of pre-defined tasks that provide off-the-shelf
 functionality for working with a wide range of tools anywhere from shell script execution to kubernetes
 job management to sending tweets. A majority of the task library is community supported and thus opens

@@ -1,5 +1,9 @@
 # Configuration
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect's settings are stored in a configuration file called `config.toml`. In general, you should not edit this file directly to modify Prefect's settings. Instead, you should use [environment variables](#environment-variables) for temporary settings, or create a [user configuration file](#user-configuration) for permanent settings.
 
 The configuration file is parsed when Prefect is first imported and is available as a live object in `prefect.config`. To access any value, use dot-notation (for example, `prefect.config.tasks.defaults.checkpoint`).
