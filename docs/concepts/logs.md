@@ -99,7 +99,7 @@ Prefect automatically uses the flow run logger based on the flow context. If you
 The default flow run log formatter uses the flow run name for log messages.
 
 !!! note
-        Starting in 2.7.11, if you are using a custom logger, a warning (rather than an error) will surface if you attempt to send logs to Orion outside of a flow run context. You can supress this warning by setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW="ignore"`. To raise rather than warn, set this value to `"error"`.
+        Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW="ignore"` or have the logger raise an error by setting the value to `"error"`.
 
 ### Logging in tasks
 
