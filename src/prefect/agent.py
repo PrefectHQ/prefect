@@ -140,12 +140,9 @@ class OrionAgent:
 
         for name in self.work_queues:
             try:
-                if self.work_pool_name:
-                    work_queue = await self.client.read_work_queue_by_name(
-                        work_pool_name=self.work_pool_name, name=name
-                    )
-                else:
-                    work_queue = await self.client.read_work_queue_by_name(name)
+                work_queue = await self.client.read_work_queue_by_name(
+                    work_pool_name=self.work_pool_name, name=name
+                )
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
@@ -153,15 +150,14 @@ class OrionAgent:
                     # do not attempt to create work queues if the agent is polling for
                     # queues using a regex
                     try:
+                        work_queue = await self.client.create_work_queue(
+                            work_pool_name=self.work_pool_name, name=name
+                        )
                         if self.work_pool_name:
-                            work_queue = await self.client.create_work_queue(
-                                work_pool_name=self.work_pool_name, name=name
-                            )
                             self.logger.info(
                                 f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
                             )
                         else:
-                            work_queue = await self.client.create_work_queue(name=name)
                             self.logger.info(f"Created work queue '{name}'.")
 
                     # if creating it raises an exception, it was probably just
@@ -211,16 +207,7 @@ class OrionAgent:
 
                 else:
                     try:
-                        if self.work_pool_name:
-                            responses = (
-                                await self.client.get_scheduled_flow_runs_for_work_pool(
-                                    work_pool_name=self.work_pool_name,
-                                    work_queue_names=[work_queue.name],
-                                    scheduled_before=before,
-                                )
-                            )
-                            queue_runs = [response.flow_run for response in responses]
-                        else:
+                        if not self.work_pool_name:
                             queue_runs = await self.client.get_runs_in_work_queue(
                                 id=work_queue.id, limit=10, scheduled_before=before
                             )
