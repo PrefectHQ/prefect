@@ -16,13 +16,13 @@ jobs:
 
       - name: Update issue status when assigned
         if: github.event.action == 'assigned'
-        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --add-label "status:in-progress"
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:accepted" --add-label "status:in-progress"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update issue status when unassigned
         if: github.event.action == 'unassigned'
-        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress"
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:in-progress" --add-label "status:accepted"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
