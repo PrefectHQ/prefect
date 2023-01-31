@@ -4,9 +4,11 @@ sidebarDepth: 1
 
 # Why Not Airflow?
 
-:::tip Read the original post
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 You can view the original version of this post [on our blog](https://medium.com/the-prefect-blog/why-not-airflow-4cfa423299c4).
-:::
 
 > Why should I choose Prefect over Airflow?
 

@@ -3,14 +3,6 @@
 </p>
 
 <p align="center">
-<a href=https://circleci.com/gh/PrefectHQ/prefect/tree/master>
-    <img src="https://circleci.com/gh/PrefectHQ/prefect/tree/master.svg?style=shield&circle-token=28689a55edc3c373486aaa5f11a1af3e5fc53344">
-</a>
-
-<a href=https://github.com/ambv/black>
-    <img src="https://img.shields.io/badge/code%20style-black-000000.svg">
-</a>
-
 <a href="https://pypi.org/project/prefect/">
     <img src="https://static.pepy.tech/badge/prefect/month">
 </a>
@@ -23,21 +15,19 @@
     <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20slack&color=27b1ff&style=flat">
 </a>
 
-
 <a href="https://discourse.prefect.io/">
     <img src="https://img.shields.io/static/v1.svg?label=chat&message=on%20discourse&color=27b1ff&style=flat">
 </a>
-
-
 </p>
 
-<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
-Looking for the latest <a href="https://docs.prefect.io/">Prefect 2.0</a> release? Prefect 2.0 and <a href="https://app.prefect.cloud">Prefect Cloud 2.0</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
-</div>
 
-Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.0.
+<p style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</p>
 
-If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/migration-guide/).
+Prefect 1 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.
+
+If you're ready to start migrating your workflows to Prefect 2, see our [migration guide](https://docs.prefect.io/migration-guide/).
 
 If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
 

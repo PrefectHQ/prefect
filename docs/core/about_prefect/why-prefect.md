@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # Why Prefect?
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 ## Details matter
 
 Prefect is a workflow engine, which means that users need absolute confidence that 1) it works and 2) it works well. For that reason, Prefect's design is backed by a strong philosophy of data engineering and we hold its code to a high standard.

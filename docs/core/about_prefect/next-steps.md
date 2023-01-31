@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # Next Steps
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 In the [introduction](thinking-prefectly.md), we took a look at creating tasks and combining them into flows. Prefect's functional and imperative APIs make that easy, but the result was a fairly vanilla data pipeline. In this section, we're going to explore how Prefect enables advanced mechanisms for overlaying complex business logic on your workflow.
 
 
