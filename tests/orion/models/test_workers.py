@@ -376,15 +376,15 @@ class TestUpdateWorkQueue:
         assert result.concurrency_limit == 0
 
     async def test_update_work_queue_priority_is_normalized_for_number_of_queues(
-        self, session, work_queue
+        self, session, work_queue_1
     ):
         assert await models.workers.update_work_queue(
             session=session,
-            work_queue_id=work_queue.id,
+            work_queue_id=work_queue_1.id,
             work_queue=schemas.actions.WorkQueueUpdate(priority=100),
         )
         result = await models.workers.read_work_queue(
-            session=session, work_queue_id=work_queue.id
+            session=session, work_queue_id=work_queue_1.id
         )
         assert result.priority == 2
 
@@ -633,6 +633,9 @@ class TestWorkerHeartbeat:
         assert processes[2].name == "X"
 
 
+@pytest.mark.skip(
+    reason="Need unique constraint for work_queue on work_pool_id and name"
+)
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):

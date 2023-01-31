@@ -578,15 +578,10 @@ class TestDeploymentApply:
         patch_import,
         tmp_path,
         orion_client,
-        work_pool,
-        work_queue_1,
-        enable_work_pools,
     ):
         d = Deployment(
             name="TEST",
             flow_name="fn",
-            work_pool_name=work_pool.name,
-            work_queue_name=work_queue_1.name,
         )
         deployment_id = await d.apply(work_queue_concurrency=424242)
         queue_name = d.work_queue_name

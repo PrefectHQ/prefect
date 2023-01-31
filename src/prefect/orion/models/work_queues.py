@@ -42,17 +42,21 @@ async def create_work_queue(
     data = work_queue.dict(exclude={"priority"})
 
     if data.get("work_pool_id") is None:
-        default_work_pool = await models.workers.get_or_create_default_agent_work_pool(
-            session=session
+        default_agent_work_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
-        data["work_pool_id"] = default_work_pool.id
+        if default_agent_work_pool:
+            data["work_pool_id"] = default_agent_work_pool.id
 
-    max_priority_query = sa.select(
-        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
-    ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
-    priority = (await session.execute(max_priority_query)).scalar()
+    if data.get("work_pool_id"):
+        max_priority_query = sa.select(
+            sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+        ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
+        priority = (await session.execute(max_priority_query)).scalar()
 
-    model = db.WorkQueue(**data, priority=priority)
+        model = db.WorkQueue(**data, priority=priority)
+    else:
+        model = db.WorkQueue(**data, priority=1)
     session.add(model)
     await session.flush()
 
@@ -325,21 +329,27 @@ async def _ensure_work_queue_exists(
         session=session, name=name
     )
     if not work_queue:
-        default_pool = await models.workers.get_or_create_default_agent_work_pool(
-            session=session,
+        default_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
 
-        if name != "default":
+        if default_pool is None:
             work_queue = await models.work_queues.create_work_queue(
                 session=session,
-                work_queue=schemas.core.WorkQueue(
-                    name=name, priority=1, work_pool_id=default_pool.id
-                ),
+                work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
             )
         else:
-            work_queue = await models.work_queues.read_work_queue(
-                session=session, work_queue_id=default_pool.default_queue_id
-            )
+            if name != "default":
+                work_queue = await models.work_queues.create_work_queue(
+                    session=session,
+                    work_queue=schemas.actions.WorkQueueCreate(
+                        name=name, priority=1, work_pool_id=default_pool.id
+                    ),
+                )
+            else:
+                work_queue = await models.work_queues.read_work_queue(
+                    session=session, work_queue_id=default_pool.default_queue_id
+                )
 
     return work_queue
 

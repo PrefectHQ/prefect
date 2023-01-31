@@ -839,7 +839,8 @@ class WorkQueue(ORMBaseModel):
         ...,
         description="The queue's priority. Lower values are higher priority (1 is the highest).",
     )
-    work_pool_id: UUID = Field(
+    # Will be required after a future migration
+    work_pool_id: Optional[UUID] = Field(
         description="The work pool with which the queue is associated."
     )
     filter: Optional[QueueFilter] = Field(

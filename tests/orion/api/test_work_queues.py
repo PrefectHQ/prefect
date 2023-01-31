@@ -39,6 +39,7 @@ class TestCreateWorkQueue:
             name=work_queue.name,
         ).dict(json_compatible=True)
         response = await client.post("/work_queues/", json=data)
+        response = await client.post("/work_queues/", json=data)
         assert response.status_code == status.HTTP_409_CONFLICT
 
     @pytest.mark.parametrize(
@@ -174,7 +175,7 @@ class TestReadWorkQueues:
         response = await client.post("/work_queues/filter")
         assert response.status_code == status.HTTP_200_OK
         # includes default work queue
-        assert len(response.json()) == 4
+        assert len(response.json()) == 3
 
     async def test_read_work_queues_applies_limit(self, work_queues, client):
         response = await client.post("/work_queues/filter", json=dict(limit=1))
@@ -184,11 +185,10 @@ class TestReadWorkQueues:
     async def test_read_work_queues_offset(self, work_queues, client, session):
         response = await client.post("/work_queues/filter", json=dict(offset=1))
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 3
+        assert len(response.json()) == 2
         # ordered by name by default
-        assert response.json()[0]["name"] == "wq-1 X"
-        assert response.json()[1]["name"] == "wq-1 Y"
-        assert response.json()[2]["name"] == "wq-2 Y"
+        assert response.json()[0]["name"] == "wq-1 Y"
+        assert response.json()[1]["name"] == "wq-2 Y"
 
     async def test_read_work_queues_by_name(self, work_queues, client, session):
         response = await client.post(
