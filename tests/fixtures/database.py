@@ -331,7 +331,7 @@ async def deployment(
     flow_function,
     infrastructure_document_id,
     storage_document_id,
-    work_queue_1,
+    work_queue,
 ):
     def hello(name: str):
         pass
@@ -352,7 +352,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
-            work_queue_id=work_queue_1.id,
+            work_queue_id=work_queue.id,
         ),
     )
     await session.commit()
