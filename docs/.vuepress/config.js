@@ -22,11 +22,8 @@ module.exports = {
   title: 'Prefect Docs',
   description: "Don't Panic.",
   head: [
-    'link',
-    {
-      rel: 'icon',
-      href: '/favicon.ico'
-    }
+    ['link', { rel: 'icon', href: '/favicon.ico' }],
+    ['meta', { name: 'robots', content: 'noindex' }]
   ],
   extraWatchFiles: ['.vuepress/highlightLines.js'],
   plugins: [
