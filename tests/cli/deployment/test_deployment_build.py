@@ -7,6 +7,8 @@ from unittest.mock import Mock
 import pendulum
 import pytest
 
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 from prefect import flow
 from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.deployments import Deployment
@@ -130,6 +132,21 @@ def mock_build_from_flow(monkeypatch):
     )
 
     return mock_build_from_flow
+
+
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
 
 
 class TestSchedules:

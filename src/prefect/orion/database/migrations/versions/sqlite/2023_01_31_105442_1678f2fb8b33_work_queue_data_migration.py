@@ -17,18 +17,12 @@ depends_on = None
 
 def upgrade():
     # Create temporary indexes for migration
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_flow_run__work_queue_id_work_queue_name"),
-            ["work_queue_id", "work_queue_name"],
-            unique=False,
-        )
-    with op.batch_alter_table("deployment", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_deployment__work_queue_id_work_queue_name"),
-            ["work_queue_id", "work_queue_name"],
-            unique=False,
-        )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON flow_run (work_queue_id, work_queue_name)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON deployment (work_queue_id, work_queue_name)"
+    )
 
     # Create default agent work pool and associate all existing queues with it
     connection = op.get_bind()
@@ -132,29 +126,24 @@ def upgrade():
         batch_op.create_unique_constraint(
             op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
         )
+        batch_op.alter_column("work_pool_id", nullable=False)
 
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.drop_index("ix_flow_run__work_queue_id_work_queue_name")
-
-    with op.batch_alter_table("deployment", schema=None) as batch_op:
-        batch_op.drop_index("ix_deployment__work_queue_id_work_queue_name")
+    op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
+    op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
 
 
 def downgrade():
     connection = op.get_bind()
     # Create temporary indexes for migration
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_flow_run__work_queue_id_work_queue_name"),
-            ["work_queue_id", "work_queue_name"],
-            unique=False,
-        )
-    with op.batch_alter_table("deployment", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_deployment__work_queue_id_work_queue_name"),
-            ["work_queue_id", "work_queue_name"],
-            unique=False,
-        )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON flow_run (work_queue_id, work_queue_name)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON deployment (work_queue_id, work_queue_name)"
+    )
+
+    with op.batch_alter_table("work_queue", schema=None) as batch_op:
+        batch_op.alter_column("work_pool_id", nullable=True)
 
     # Delete all non-default queues and pools
     default_pool_id_result = connection.execute(
@@ -219,8 +208,5 @@ def downgrade():
         batch_op.drop_constraint("uq_work_queue__work_pool_id_name")
         batch_op.create_unique_constraint("uq_work_queue__name", ["name"])
 
-    with op.batch_alter_table("flow_run", schema=None) as batch_op:
-        batch_op.drop_index("ix_flow_run__work_queue_id_work_queue_name")
-
-    with op.batch_alter_table("deployment", schema=None) as batch_op:
-        batch_op.drop_index("ix_deployment__work_queue_id_work_queue_name")
+    op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
+    op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
