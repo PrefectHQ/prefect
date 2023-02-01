@@ -1276,8 +1276,7 @@ class TestGetDeploymentWorkQueueCheck:
         connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
-        # sqlite picks up the default queue because it has no filter
-        assert len(response.json()) == 3
+        assert len(response.json()) == 2
 
         q1, q2, q3 = response.json()
         assert {q1["name"], q2["name"], q3["name"]} == {
