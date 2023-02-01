@@ -8,7 +8,7 @@ import pytest
 import prefect
 from prefect.blocks.notifications import (
     AppriseNotificationBlock,
-    MatterMostWebhook,
+    MattermostWebhook,
     OpsgenieWebhook,
     PagerDutyWebHook,
     PrefectNotifyType,
@@ -90,7 +90,7 @@ class TestAppriseNotificationBlock:
         assert isinstance(unpickled, block_class)
 
 
-class TestMatterMostWebhook:
+class TestMattermostWebhook:
     async def test_notify_async(self):
         with patch("apprise.Apprise", autospec=True) as AppriseMock:
             reload_modules()
@@ -98,7 +98,11 @@ class TestMatterMostWebhook:
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
-            mm_block = MatterMostWebhook(hostname="example.com", token="token")
+            mm_block = MattermostWebhook(
+                hostname="example.com",
+                token="token",
+                include_image=True,
+            )
             await mm_block.notify("test")
 
             AppriseMock.assert_called_once()
@@ -117,24 +121,49 @@ class TestMatterMostWebhook:
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
-            mm_block = MatterMostWebhook(hostname="example.com", token="token")
+            mm_block = MattermostWebhook(hostname="example.com", token="token")
             mm_block.notify("test")
 
             AppriseMock.assert_called_once()
             apprise_instance_mock.add.assert_called_once_with(
                 f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
             )
+            apprise_instance_mock.async_notify.assert_called_once_with(
+                body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
+            )
+
+    def test_notify_with_multiple_channels(self):
+        with patch("apprise.Apprise", autospec=True) as AppriseMock:
+            reload_modules()
+
+            apprise_instance_mock = AppriseMock.return_value
+            apprise_instance_mock.async_notify = AsyncMock()
+
+            mm_block = MattermostWebhook(
+                hostname="example.com",
+                token="token",
+                channels=["general", "death-metal-anonymous"],
+            )
+            mm_block.notify("test")
+
+            AppriseMock.assert_called_once()
+            apprise_instance_mock.add.assert_called_once_with(
+                f"mmost://{mm_block.hostname}/{mm_block.token.get_secret_value()}/"
+                "?image=no&format=text&overflow=upstream&rto=4.0&cto=4.0&verify=yes"
+                "&channel=death-metal-anonymous%2Cgeneral"
+            )
+
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PrefectNotifyType.DEFAULT
             )
 
     def test_is_picklable(self):
         reload_modules()
-        block = MatterMostWebhook(token="token", hostname="example.com")
+        block = MattermostWebhook(token="token", hostname="example.com")
         pickled = cloudpickle.dumps(block)
         unpickled = cloudpickle.loads(pickled)
-        assert isinstance(unpickled, MatterMostWebhook)
+        assert isinstance(unpickled, MattermostWebhook)
 
 
 class TestOpsgenieWebhook:
