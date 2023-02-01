@@ -10,7 +10,6 @@ from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
@@ -58,7 +57,7 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(db: OrionDBInterface):
+async def clear_db(db):
     """
     Delete all data from all tables after running each test.
     """

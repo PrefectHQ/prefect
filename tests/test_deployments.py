@@ -26,6 +26,9 @@ from prefect.utilities.slugify import slugify
 
 @pytest.fixture(autouse=True)
 async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
     default_work_pool = await models.workers.read_work_pool_by_name(
         session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
     )
