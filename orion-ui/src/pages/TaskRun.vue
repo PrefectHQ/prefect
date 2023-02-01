@@ -14,7 +14,7 @@
       </template>
 
       <template #task-inputs>
-        <CodeHighlighting language="json" :value="parameters" />
+        <CodeSnippet language="json" :snippet="parameters" />
       </template>
     </p-tabs>
     <template #well>
@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeHighlighting, useFavicon, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
