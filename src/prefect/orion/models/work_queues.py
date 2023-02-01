@@ -47,6 +47,14 @@ async def create_work_queue(
         )
         if default_agent_work_pool:
             data["work_pool_id"] = default_agent_work_pool.id
+        else:
+            default_agent_work_pool = await models.workers.create_work_pool(
+                session=session,
+                work_pool=schemas.actions.WorkPoolCreate(
+                    name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+                ),
+            )
+            data["work_pool_id"] = default_agent_work_pool.id
 
     if data.get("work_pool_id"):
         max_priority_query = sa.select(
@@ -340,11 +348,10 @@ async def _ensure_work_queue_exists(
             )
         else:
             if name != "default":
-                work_queue = await models.work_queues.create_work_queue(
+                work_queue = await models.workers.create_work_queue(
                     session=session,
-                    work_queue=schemas.actions.WorkQueueCreate(
-                        name=name, priority=1, work_pool_id=default_pool.id
-                    ),
+                    work_pool_id=default_pool.id,
+                    work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
                 )
             else:
                 work_queue = await models.work_queues.read_work_queue(
