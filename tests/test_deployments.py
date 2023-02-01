@@ -8,6 +8,8 @@ import yaml
 from httpx import Response
 from pydantic.error_wrappers import ValidationError
 
+import prefect.orion.models as models
+import prefect.orion.schemas as schemas
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
@@ -20,6 +22,24 @@ from prefect.orion.schemas import states
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.slugify import slugify
+
+
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
 
 
 class TestDeploymentBasicInterface:
@@ -574,9 +594,15 @@ async def test_deployment(patch_import, tmp_path):
 
 class TestDeploymentApply:
     async def test_deployment_apply_updates_concurrency_limit(
-        self, patch_import, tmp_path, orion_client
+        self,
+        patch_import,
+        tmp_path,
+        orion_client,
     ):
-        d = Deployment(name="TEST", flow_name="fn")
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
         deployment_id = await d.apply(work_queue_concurrency=424242)
         queue_name = d.work_queue_name
         work_queue = await orion_client.read_work_queue_by_name(queue_name)

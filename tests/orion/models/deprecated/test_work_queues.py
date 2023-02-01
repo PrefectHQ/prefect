@@ -7,13 +7,15 @@ import pytest
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models.deployments import check_work_queues_for_deployment
+from prefect.orion.utilities.database import get_dialect
+from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
 
 @pytest.fixture
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
+        work_queue=schemas.actions.WorkQueueCreate(
             name="My WorkQueue",
             description="All about my work queue",
             # filters for all runs
@@ -28,7 +30,7 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_succeeds(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="My WorkQueue", filter=schemas.core.QueueFilter()
             ),
         )
@@ -61,7 +63,7 @@ class TestGetRunsInWorkQueue:
     async def tb12_work_queue(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="TB12",
                 description="The GOAT",
                 filter=schemas.core.QueueFilter(tags=["tb12"]),
@@ -358,7 +360,7 @@ class TestGetRunsInWorkQueue:
         # the correct deployment_id
         deployment_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment {deployment.name}",
                 filter=schemas.core.QueueFilter(
                     deployment_ids=[deployment.id, uuid4()]
@@ -374,7 +376,7 @@ class TestGetRunsInWorkQueue:
 
         bad_deployment_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(deployment_ids=[uuid4()]),
             ),
@@ -391,7 +393,7 @@ class TestGetRunsInWorkQueue:
         # tags "tb12" will match but the deployment ids should not match any flow runs
         conflicting_filter_work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name=f"Work Queue for Deployment that doesnt exist",
                 filter=schemas.core.QueueFilter(
                     deployment_ids=[uuid4()], tags=["tb12"]
@@ -535,7 +537,7 @@ class TestCheckWorkQueuesForDeployment:
 
                 await models.work_queues.create_work_queue(
                     session=session,
-                    work_queue=schemas.core.WorkQueue(
+                    work_queue=schemas.actions.WorkQueueCreate(
                         name=f"{t}:{d}",
                         filter=schemas.core.QueueFilter(tags=t, deployment_ids=d),
                     ),
@@ -548,7 +550,12 @@ class TestCheckWorkQueuesForDeployment:
         queues = await check_work_queues_for_deployment(
             session=session, deployment_id=deployment_id
         )
-        actual_queue_attrs = [[q.filter.tags, q.filter.deployment_ids] for q in queues]
+        # default work queue for work pool is made without a filter
+        actual_queue_attrs = [
+            [q.filter.tags, q.filter.deployment_ids]
+            for q in queues
+            if q.name != "default"
+        ]
 
         for q in desired_queues:
             assert q in actual_queue_attrs
@@ -616,7 +623,14 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 3
+        connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+        dialect = get_dialect(connection_url)
+
+        if dialect.name == "postgresql":
+            assert len(actual_queues) == 3
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(actual_queues) == 4
 
     # ONE TAG DEPLOYMENTS with no-tag queues
     async def test_one_tag_picks_up_no_filter_q(self, session, flow, flow_function):
@@ -669,7 +683,14 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 6
+        connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+        dialect = get_dialect(connection_url)
+
+        if dialect.name == "postgresql":
+            assert len(actual_queues) == 6
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(actual_queues) == 7
 
     # TWO TAG DEPLOYMENTS with no-tag queues
     async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
@@ -742,4 +763,11 @@ class TestCheckWorkQueuesForDeployment:
             session=session, deployment_id=match_id
         )
 
-        assert len(actual_queues) == 9
+        connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+        dialect = get_dialect(connection_url)
+
+        if dialect.name == "postgresql":
+            assert len(actual_queues) == 9
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(actual_queues) == 10

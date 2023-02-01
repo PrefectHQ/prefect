@@ -35,7 +35,7 @@ def adjust_kwargs_for_client(kwargs):
             k = "deployments"
         elif k == "work_pool_filter":
             k = "work_pools"
-        elif k == "work_pool_queue_filter":
+        elif k == "work_queue_filter":
             k = "work_pool_queues"
         else:
             raise ValueError("Unrecognized filter")
@@ -99,7 +99,7 @@ async def data(flow_function, db):
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
-                work_pool_queue_id=wp.default_queue_id,
+                work_queue_id=wp.default_queue_id,
             )
         )
 
@@ -182,7 +182,7 @@ async def data(flow_function, db):
                 tags=[],
                 state=states.Completed(),
                 deployment_id=d_3_1.id,
-                work_pool_queue_id=wp.default_queue_id,
+                work_queue_id=wp.default_queue_id,
             )
         )
 
@@ -580,18 +580,14 @@ class TestCountFlowRunModels:
         ],
         [
             dict(
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                )
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"]))
             ),
             1,
         ],
         [
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             1,
         ],
@@ -600,16 +596,14 @@ class TestCountFlowRunModels:
                 work_pool_filter=filters.WorkPoolFilter(
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             0,
         ],
         [
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                work_queue_filter=filters.WorkQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
             ),
@@ -919,18 +913,14 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                )
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"]))
             ),
             1,
         ],
         [
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             1,
         ],
@@ -939,16 +929,14 @@ class TestCountDeploymentModels:
                 work_pool_filter=filters.WorkPoolFilter(
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
-                    name=dict(any_=["default"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             0,
         ],
         [
             dict(
                 work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
-                work_pool_queue_filter=filters.WorkPoolQueueFilter(
+                work_queue_filter=filters.WorkQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
             ),
