@@ -47,7 +47,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](/img/ui/orion-flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](../img/ui/orion-flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -97,6 +97,9 @@ Prefect automatically uses the flow run logger based on the flow context. If you
 </div>
 
 The default flow run log formatter uses the flow run name for log messages.
+
+!!! note
+        Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore` or have the logger raise an error by setting the value to `error`.
 
 ### Logging in tasks
 

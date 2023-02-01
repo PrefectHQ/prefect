@@ -17,6 +17,8 @@ from packaging.version import Version
 from pydantic import BaseModel, Field, SecretField
 from pydantic.json import custom_pydantic_encoder
 
+from prefect._internal.compatibility.experimental import experiment_enabled
+
 T = TypeVar("T")
 
 
@@ -265,6 +267,22 @@ class PrefectBaseModel(BaseModel):
         Returns:
             dict
         """
+
+        experimental_fields = [
+            field
+            for _, field in self.__fields__.items()
+            if field.field_info.extra.get("experimental")
+        ]
+        experimental_fields_to_exclude = [
+            field.name
+            for field in experimental_fields
+            if not experiment_enabled(field.field_info.extra["experimental-group"])
+        ]
+
+        if experimental_fields_to_exclude:
+            kwargs["exclude"] = (kwargs.get("exclude") or set()).union(
+                experimental_fields_to_exclude
+            )
 
         if json_compatible and shallow:
             raise ValueError(

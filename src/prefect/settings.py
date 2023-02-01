@@ -64,6 +64,7 @@ from typing import (
 import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from typing_extensions import Literal
 
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
@@ -583,6 +584,20 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
 )
 """The maximum size in bytes for a single log."""
 
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Literal["warn", "error", "ignore"],
+    default="warn",
+)
+"""
+Controls the behavior when loggers attempt to send logs to Orion without a flow run id.
+The Orion log handler can only send logs within flow run contexts unless the flow run id is
+manually provided.
+
+"warn": Log a warning message.
+"error": Raise an error.
+"ignore": Do not log a warning message or raise an error.
+"""
+
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
@@ -842,6 +857,21 @@ PREFECT_ORION_API_PORT = Setting(
     default=4200,
 )
 """The API's port address (defaults to `4200`)."""
+
+PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
+    int,
+    default=5,
+)
+"""
+The API's keep alive timeout (defaults to `5`).
+Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+When the API is hosted behind a load balancer, you may want to set this to a value
+greater than the load balancer's idle timeout.
+
+Note this setting only applies when calling `prefect orion start`; if hosting the
+API with another tool you will need to configure this there instead.
+"""
 
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,

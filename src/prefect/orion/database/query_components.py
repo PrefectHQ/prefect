@@ -199,7 +199,7 @@ class BaseQueryComponents(ABC):
             # return a flow run and work queue id
             sa.select(
                 sa.orm.aliased(db.FlowRun, scheduled_flow_runs),
-                db.WorkQueue.id.label("work_queue_id"),
+                db.WorkQueue.id.label("wq_id"),
             )
             .select_from(db.WorkQueue)
             .join(
@@ -285,7 +285,7 @@ class BaseQueryComponents(ABC):
         worker_limit: Optional[int] = None,
         queue_limit: Optional[int] = None,
         work_pool_ids: Optional[List[UUID]] = None,
-        work_pool_queue_ids: Optional[List[UUID]] = None,
+        work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
         scheduled_after: Optional[datetime.datetime] = None,
         respect_queue_priorities: bool = False,
@@ -298,7 +298,7 @@ class BaseQueryComponents(ABC):
         raw_query = sa.text(
             template.render(
                 work_pool_ids=work_pool_ids,
-                work_pool_queue_ids=work_pool_queue_ids,
+                work_queue_ids=work_queue_ids,
                 respect_queue_priorities=respect_queue_priorities,
                 scheduled_before=scheduled_before,
                 scheduled_after=scheduled_after,
@@ -329,13 +329,13 @@ class BaseQueryComponents(ABC):
                 )
             )
 
-        # if work pool queue IDs were provided, bind them
-        if work_pool_queue_ids:
-            assert all(isinstance(i, UUID) for i in work_pool_queue_ids)
+        # if work queue IDs were provided, bind them
+        if work_queue_ids:
+            assert all(isinstance(i, UUID) for i in work_queue_ids)
             bindparams.append(
                 sa.bindparam(
-                    "work_pool_queue_ids",
-                    work_pool_queue_ids,
+                    "work_queue_ids",
+                    work_queue_ids,
                     expanding=True,
                     type_=UUIDTypeDecorator,
                 )
@@ -351,7 +351,7 @@ class BaseQueryComponents(ABC):
         orm_query = (
             sa.select(
                 sa.column("run_work_pool_id"),
-                sa.column("run_work_pool_queue_id"),
+                sa.column("run_work_queue_id"),
                 db.FlowRun,
             ).from_statement(query)
             # indicate that the state relationship isn't being loaded
@@ -363,7 +363,7 @@ class BaseQueryComponents(ABC):
         return [
             schemas.responses.WorkerFlowRunResponse(
                 work_pool_id=r.run_work_pool_id,
-                work_pool_queue_id=r.run_work_pool_queue_id,
+                work_queue_id=r.run_work_queue_id,
                 flow_run=schemas.core.FlowRun.from_orm(r.FlowRun),
             )
             for r in result
@@ -598,6 +598,19 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         self, session: AsyncSession, db: "OrionDBInterface", limit: int
     ) -> List:
 
+        # including this as a subquery in the where clause of the
+        # `queued_notifications` statement below, leads to errors where the limit
+        # is not respected if it is 1. pulling this out into a CTE statement
+        # prevents this. see link for more details:
+        # https://www.postgresql.org/message-id/16497.1553640836%40sss.pgh.pa.us
+        queued_notifications_ids = (
+            sa.select(db.FlowRunNotificationQueue.id)
+            .select_from(db.FlowRunNotificationQueue)
+            .order_by(db.FlowRunNotificationQueue.updated)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        ).cte("queued_notifications_ids")
+
         queued_notifications = (
             sa.delete(db.FlowRunNotificationQueue)
             .returning(
@@ -606,13 +619,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 db.FlowRunNotificationQueue.flow_run_state_id,
             )
             .where(
-                db.FlowRunNotificationQueue.id.in_(
-                    sa.select(db.FlowRunNotificationQueue.id)
-                    .select_from(db.FlowRunNotificationQueue)
-                    .order_by(db.FlowRunNotificationQueue.updated)
-                    .limit(limit)
-                    .with_for_update(skip_locked=True)
-                )
+                db.FlowRunNotificationQueue.id.in_(sa.select(queued_notifications_ids))
             )
             .cte("queued_notifications")
         )
