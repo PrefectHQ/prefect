@@ -26,6 +26,10 @@
         <ParametersTable :deployment="deployment" />
       </template>
 
+      <template #infra-overrides>
+        <CodeHighlighting v-if="deployment" language="json" :value="overrides" />
+      </template>
+
       <template #details>
         <DeploymentDetails :deployment="deployment" @update="deploymentSubscription.refresh" />
       </template>
@@ -47,7 +51,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunsFilter, useTabs, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi, CodeHighlighting } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
@@ -71,6 +75,7 @@
     { label: 'Description' },
     { label: 'Runs' },
     { label: 'Parameters', hidden: deployment.value?.deprecated },
+    { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
   ])
   const tabs = useTabs(computedTabs)
 
@@ -81,11 +86,11 @@
     router.push(routes.deployments())
   }
 
-  const { filter: deploymentFilter } = useRecentFlowRunsFilter({
-    deployments: {
-      id: deploymentIds,
-    },
+  const overrides = computed(() => {
+    return deployment.value?.infrastructureOverrides ? JSON.stringify(deployment.value.infrastructureOverrides, undefined, 2) : '{}'
   })
+
+  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
 
   const title = computed(() => {
     if (!deployment.value) {
