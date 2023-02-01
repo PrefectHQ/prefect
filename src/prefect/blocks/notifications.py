@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from apprise.plugins.NotifyMattermost import NotifyMattermost
 from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 from apprise.plugins.NotifyTwilio import NotifyTwilio
@@ -397,6 +398,78 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
                 entity=self.entity,
                 batch=self.batch,
                 tags=self.tags,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
+class MatterMostWebhook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided MatterMost webhook.
+    See [Apprise notify_mattermost docs](https://github.com/caronc/apprise/wiki/Notify_mattermost) # noqa
+
+
+    Examples:
+        Load a saved MatterMost webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import MatterMostWebhook
+        mattermost_webhook_block = MatterMostWebhook.load("BLOCK_NAME")
+        mattermost_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided MatterMost webhook."
+    _block_type_name = "MatterMost Webhook"
+    _block_type_slug = "mattermost-webhook"
+    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/3mlbsJDAmK402ER1sf0zUF/a48ac43fa38f395dd5f56c6ed29f22bb/mattermost-logo-png-transparent.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MatterMostWebhook"
+
+    hostname: str = Field(
+        default=...,
+        description="The hostname of your MatterMost server.",
+        example="mattermost.example.com",
+    )
+
+    token: SecretStr = Field(
+        default=...,
+        description="The token associated with your MatterMost webhook.",
+    )
+
+    botname: Optional[str] = Field(
+        default=None,
+        description="The name of the bot that will send the message.",
+    )
+
+    channels: Optional[List[str]] = Field(
+        default=None,
+        description="The channel(s) you wish to notify.",
+    )
+
+    include_image: bool = Field(
+        default=True,
+        description="Whether to include the Apprise status image in the message.",
+    )
+
+    fullpath: Optional[str] = Field(
+        default=None,
+        description="The path of your MatterMost server.",
+    )
+
+    port: int = Field(
+        default=8065,
+        description="The port of your MatterMost server.",
+    )
+
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyMattermost(
+                token=self.token.get_secret_value(),
+                fullpath=self.fullpath,
+                host=self.hostname,
+                botname=self.botname,
+                channels=self.channels,
+                include_image=self.include_image,
+                port=self.port,
             ).url()
         )
         self._start_apprise_client(url)
