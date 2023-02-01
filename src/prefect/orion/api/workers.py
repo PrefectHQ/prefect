@@ -4,6 +4,7 @@ Routes for interacting with work queue objects.
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -304,7 +305,7 @@ async def get_scheduled_flow_runs(
         background_tasks.add_task(
             _record_work_queue_polls,
             db=db,
-            work_pool_name=work_pool_name,
+            work_pool_id=work_pool_id,
             work_queue_names=work_queue_names,
         )
 
@@ -313,7 +314,7 @@ async def get_scheduled_flow_runs(
 
 async def _record_work_queue_polls(
     db: OrionDBInterface,
-    work_pool_id: str,
+    work_pool_id: UUID,
     work_queue_names: List[str],
 ):
     """
