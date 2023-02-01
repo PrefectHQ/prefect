@@ -102,10 +102,6 @@ def upgrade():
             ["id"],
             ondelete="cascade",
         )
-        # batch_op.drop_constraint("uq_work_queue__name")
-        # batch_op.create_unique_constraint(
-        #     op.f("uq_work_queue__work_pool_id_name"), ["work_pool_id", "name"]
-        # )
 
         batch_op.create_index(
             op.f("ix_work_queue__work_pool_id"),
@@ -123,8 +119,6 @@ def downgrade():
     with op.batch_alter_table("work_queue", schema=None) as batch_op:
         batch_op.drop_index("ix_work_queue__work_pool_id_priority")
         batch_op.drop_index("ix_work_queue__work_pool_id")
-        # batch_op.drop_constraint("uq_work_queue__work_pool_id_name")
-        # batch_op.create_unique_constraint("uq_work_queue__name", ["name"])
         batch_op.drop_constraint("fk_work_queue__work_pool_id__work_pool")
 
     with op.batch_alter_table("work_pool", schema=None) as batch_op:
