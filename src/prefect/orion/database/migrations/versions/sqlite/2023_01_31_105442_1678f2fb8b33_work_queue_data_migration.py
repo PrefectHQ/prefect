@@ -16,6 +16,8 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     # Create temporary indexes for migration
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON flow_run (work_queue_id, work_queue_name)"
@@ -131,8 +133,12 @@ def upgrade():
     op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
     op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
 
+    op.execute("PRAGMA foreign_keys=ON")
+
 
 def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
+
     connection = op.get_bind()
     # Create temporary indexes for migration
     op.execute(
@@ -210,3 +216,5 @@ def downgrade():
 
     op.execute("DROP INDEX IF EXISTS ix_flow_run__work_queue_id_work_queue_name")
     op.execute("DROP INDEX IF EXISTS ix_deployment__work_queue_id_work_queue_name")
+
+    op.execute("PRAGMA foreign_keys=ON")
