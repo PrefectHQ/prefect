@@ -743,8 +743,8 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool.default_queue_id
+        default_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_pool.default_queue_id
         )
 
         data = DeploymentCreate(
@@ -834,8 +834,8 @@ class TestCreateDeployment:
         )
         await session.commit()
 
-        default_queue = await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool.default_queue_id
+        default_queue = await models.workers.read_work_queue(
+            session=session, work_queue_id=work_pool.default_queue_id
         )
 
         data = DeploymentCreate(
@@ -854,7 +854,7 @@ class TestCreateDeployment:
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
 
-    async def test_create_deployment_can_create_work_pool_queue(
+    async def test_create_deployment_can_create_work_queue(
         self,
         client,
         flow,
@@ -886,13 +886,13 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment_id
         )
 
-        work_pool_queue = await models.workers.read_work_pool_queue_by_name(
+        work_queue = await models.workers.read_work_queue_by_name(
             session=session,
             work_pool_name=work_pool.name,
-            work_pool_queue_name="new-work-pool-queue",
+            work_queue_name="new-work-pool-queue",
         )
 
-        assert deployment.work_pool_queue_id == work_pool_queue.id
+        assert deployment.work_queue_id == work_queue.id
 
     async def test_create_deployment_returns_404_for_non_existent_work_pool(
         self,

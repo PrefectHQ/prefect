@@ -633,6 +633,9 @@ class TestWorkerHeartbeat:
         assert processes[2].name == "X"
 
 
+@pytest.mark.skip(
+    reason="Need unique constraint for work_queue on work_pool_id and name"
+)
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):

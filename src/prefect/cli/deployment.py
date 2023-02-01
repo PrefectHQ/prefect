@@ -619,15 +619,6 @@ async def apply(
             app.console.print(
                 f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
             )
-        elif deployment.work_pool_name is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the {deployment.work_pool_name!r} work pool:"
-            )
-            app.console.print(
-                f"$ prefect agent start --pool {deployment.work_pool_name!r}",
-                style="blue",
-            )
         else:
             app.console.print(
                 "\nThis deployment does not specify a work queue name, which means agents "

@@ -18,7 +18,6 @@ from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.utilities.database import json_contains
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
     PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
