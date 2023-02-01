@@ -8,9 +8,9 @@ jobs:
   remove_label:
     runs-on: ubuntu-latest
     steps:
-      - name: Remove triage label on close
+      - name: Remove status labels on close
         if: github.event.action == 'closed'
-        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage"
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage" --remove "status:in-progress" --remove "status:accepted"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -31,4 +31,3 @@ jobs:
         run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

@@ -16,6 +16,7 @@ import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.states import StateType
 
 
@@ -38,8 +39,24 @@ async def create_work_queue(
         db.WorkQueue: the newly-created or updated WorkQueue
 
     """
+    data = work_queue.dict(exclude={"priority"})
 
-    model = db.WorkQueue(**work_queue.dict())
+    if data.get("work_pool_id") is None:
+        default_agent_work_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+        )
+        if default_agent_work_pool:
+            data["work_pool_id"] = default_agent_work_pool.id
+
+    if data.get("work_pool_id"):
+        max_priority_query = sa.select(
+            sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+        ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
+        priority = (await session.execute(max_priority_query)).scalar()
+
+        model = db.WorkQueue(**data, priority=priority)
+    else:
+        model = db.WorkQueue(**data, priority=1)
     session.add(model)
     await session.flush()
 
@@ -78,8 +95,16 @@ async def read_work_queue_by_name(
     Returns:
         db.WorkQueue: the WorkQueue
     """
-
-    query = select(db.WorkQueue).filter_by(name=name)
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    # Logic to make sure this functionality doesn't break during migration
+    if default_work_pool is not None:
+        query = select(db.WorkQueue).filter_by(
+            name=name, work_pool_id=default_work_pool.id
+        )
+    else:
+        query = select(db.WorkQueue).filter_by(name=name)
     result = await session.execute(query)
     return result.scalar()
 
@@ -304,10 +329,27 @@ async def _ensure_work_queue_exists(
         session=session, name=name
     )
     if not work_queue:
-        work_queue = await models.work_queues.create_work_queue(
-            session=session,
-            work_queue=schemas.core.WorkQueue(name=name),
+        default_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
+
+        if default_pool is None:
+            work_queue = await models.work_queues.create_work_queue(
+                session=session,
+                work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
+            )
+        else:
+            if name != "default":
+                work_queue = await models.work_queues.create_work_queue(
+                    session=session,
+                    work_queue=schemas.actions.WorkQueueCreate(
+                        name=name, priority=1, work_pool_id=default_pool.id
+                    ),
+                )
+            else:
+                work_queue = await models.work_queues.read_work_queue(
+                    session=session, work_queue_id=default_pool.default_queue_id
+                )
 
     return work_queue
 
