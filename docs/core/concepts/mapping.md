@@ -1,5 +1,9 @@
 # Mapping
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect introduces a flexible map/reduce model for dynamically executing tasks across an iterable input. This, in turn, gives you the ability to execute mapped tasks in a distributed or parallel manner using an executor like the DaskExecutor.
 
 Classic "map/reduce" is a powerful two-stage programming model that can be used to distribute and parallelize work (the "map" phase) before collecting and processing all the results (the "reduce" phase).

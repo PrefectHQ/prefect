@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # Contents
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 These tutorials are intended to help the reader get acquainted with the many features of Prefect and its vocabulary. All code examples
 are locally executable in any Python version supported by Prefect (3.7+). Note that all features presented here are run without
 the Prefect server.

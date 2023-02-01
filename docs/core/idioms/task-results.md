@@ -1,5 +1,9 @@
 # Accessing task results locally
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 When working on your flows locally Prefect makes it easy to retrieve the [results](/core/concepts/results.html) from your individual tasks in the flow. This is done by grabbing the `.result` attribute from [states](/core/concepts/states.html). Calling `flow.run` returns the flow's final state which can be used to retrieve results from all of the tasks in the flow.
 
 ::: warning Local Only

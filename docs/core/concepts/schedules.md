@@ -1,5 +1,9 @@
 # Schedules
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 ## Overview
 
 Prefect assumes that flows can be run at any time, for any reason. However, it is often useful to automate flow runs at certain times. Simple schedules can be attached to Flows via the `schedule` keyword argument. For more detailed or complex schedules, Prefect provides a versatile `Schedule` object which allows for subtle date time adjustments and filtering, along with updating `Parameter` values based on the scheduled time.

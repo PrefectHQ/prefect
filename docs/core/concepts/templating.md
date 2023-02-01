@@ -1,5 +1,9 @@
 # Templating names
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 There are several places within Prefect where names can be templated at runtime to create a value relevant to that specific run.
 These names can be passed as literal strings, e.g. `"my_foo_task"`, but to get dynamic values based on the current state, we'll need to use _template_ strings.
 Here, we take advantage of Python's [format string](https://www.python.org/dev/peps/pep-3101/#format-strings) and provide various arguments.

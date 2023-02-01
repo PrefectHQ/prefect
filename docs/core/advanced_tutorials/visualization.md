@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 ## Flow Visualization
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 It is a common mantra that the first thing data professionals should do when trying to understand a dataset is to _visualize_ it; similarly, when designing workflows it is always a good idea to visually inspect what you've created.
 
 Prefect provides multiple tools for building, inspecting and testing your flows locally. In this tutorial we will cover some ways you can _visualize_ your flow and its execution. Everything we discuss will require Prefect to be installed with either the `"viz"` or `"dev"` extras:

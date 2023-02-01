@@ -1,6 +1,10 @@
 
 # Cloud Hooks
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 *Psst! We have recently added [Automations](/orchestration/concepts/automations.html) which offer more functionality than Cloud Hooks and will eventually replace them.*
 
 Cloud Hooks allow you to send notifications to certain endpoints when your flow enters a given state. For example, you can send a Slack message to your team when a production-critical flow has failed, along with the reason for the failure, so you can respond immediately. The Prefect backend API currently supports hooks for Slack, Twilio, Pager Duty, email, and a more general Webhook.

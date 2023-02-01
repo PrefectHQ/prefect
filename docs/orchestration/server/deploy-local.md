@@ -1,5 +1,9 @@
 # Deploying to a single node
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect Server can be deployed on a single node using [docker-compose](https://docs.docker.com/compose/). 
 
 The easiest way accomplish this is to use the built-in command in the Prefect CLI.

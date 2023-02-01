@@ -1,5 +1,9 @@
 # Scheduling flow runs
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 If a flow has a schedule attached, then the Prefect backend can [automatically create new flow runs](#scheduled-flow-run-creation) according to that schedule.
 
 ::: tip

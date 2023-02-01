@@ -1,5 +1,9 @@
 # Prefect Idioms
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 - [Running dependent flows](flow-to-flow.html)
 - [Using conditional logic in a flow](conditional.html)
 - [Use task mapping to map over a specific set of arguments](mapping.html)

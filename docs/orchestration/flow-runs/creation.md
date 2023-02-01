@@ -1,5 +1,9 @@
 # Creating flow runs
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Creating a flow run indicates to the backend that you'd like your flow to be executed. The backend will then place your flow run into a queue that agents poll. When your flow run is ready to execute, the agent will deploy the flow run to its infrastructure and the flow run will report its status to the backend.
 
 If you're looking for documentation on how to set up a _schedule_ that creates a flow run repeatedly, see the [scheduling documentation](./scheduling.md)

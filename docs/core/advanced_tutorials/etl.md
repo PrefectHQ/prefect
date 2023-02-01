@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # ETL
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 > The "hello, world!" of the data engineering world
 
 ETL ("extract, transform, load") is a basic data workflow, but can be surprisingly complicated to set up in most data engineering frameworks.

@@ -3,6 +3,10 @@ sidebarDepth: 2
 ---
 # Debugging Flows running with a Prefect API
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
  [[toc]]
 
 ## My flow is stuck in a `Scheduled` state!

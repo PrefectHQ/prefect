@@ -1,5 +1,9 @@
 # Local Agent
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 The local agent starts flow runs as processes local to the same machine it is
 running on. It's useful for running lightweight workflows on standalone
 machines, testing flows locally, or quickly getting acclimated with the Prefect

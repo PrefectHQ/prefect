@@ -1,5 +1,9 @@
 # Data Handling in the Hybrid Model
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Prefect Cloud's innovative hybrid execution model was designed to satisfy the majority of on-prem needs while still offering a managed platform. In order to achieve this, Prefect was designed to allow users the ability to ensure both their _code_ and their _data_ never leaves their internal ecosystem. This guide will focus on how _data_ moves between tasks and flows in the Prefect Cloud execution model, as well as call out any caveats that might result in data being exposed to Prefect Cloud.
 
 All data being referenced here are the inputs and outputs of Prefect tasks. Note that _all task execution_ occurs in user-controlled infrastructure; consequently, when a task passes data to a downstream task, this data passage occurs _entirely in the user's infrastructure_ as well. The only time data might leave the user's execution infrastructure is when task data is persisted.

@@ -23,12 +23,12 @@ footer: Copyright © 2018-present Prefect Technologies, Inc.
 </div>
 
 <div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
-Looking for the latest <a href="https://docs.prefect.io/">Prefect 2.0</a> release? Prefect 2.0 and <a href="https://app.prefect.cloud">Prefect Cloud 2.0</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
 </div>
 
-Prefect 1.0 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while migrating users to Prefect 2.0.
+Prefect 1 Core, Server, and Cloud are our first-generation workflow and orchestration tools. You can continue to use them and we'll continue to support them while users migrate to Prefect 2.
 
-If you're ready to start migrating your workflows to Prefect 2.0, see our [migration guide](https://docs.prefect.io/migration-guide/).
+If you're ready to start migrating your workflows to Prefect 2, see our [migration guide](https://docs.prefect.io/migration-guide/).
 
 We recommend starting new projects with [Prefect 2](https://docs.prefect.io/). If you have questions about specific use cases, see our [Prefect Discourse](https://discourse.prefect.io/) discussions for more information.
 
