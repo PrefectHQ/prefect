@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Expands Work Queue Table
+SQLite: `b9bda9f142f1`
+Postgres: `0a1250a5aa25`
+
 # State data migration cleanup
 SQLite: `f92143d30c27`
 Postgres: `2882cd2df466`

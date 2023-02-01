@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkPoolQueue
+from prefect.orion.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 
@@ -51,10 +51,10 @@ async def create_work_pool(
     session.add(pool)
     await session.flush()
 
-    default_queue = await create_work_pool_queue(
+    default_queue = await create_work_queue(
         session=session,
         work_pool_id=pool.id,
-        work_pool_queue=schemas.actions.WorkPoolQueueCreate(
+        work_queue=schemas.actions.WorkQueueCreate(
             name="default", description="The work pool's default queue."
         ),
     )
@@ -191,7 +191,7 @@ async def delete_work_pool(
 async def get_scheduled_flow_runs(
     session: AsyncSession,
     work_pool_ids: List[UUID] = None,
-    work_pool_queue_ids: List[UUID] = None,
+    work_queue_ids: List[UUID] = None,
     scheduled_before: datetime.datetime = None,
     scheduled_after: datetime.datetime = None,
     limit: int = None,
@@ -204,7 +204,7 @@ async def get_scheduled_flow_runs(
     Args:
         session (AsyncSession): a database session
         work_pool_ids (List[UUID]): a list of work pool ids
-        work_pool_queue_ids (List[UUID]): a list of work pool queue ids
+        work_queue_ids (List[UUID]): a list of work pool queue ids
         scheduled_before (datetime.datetime): a datetime to filter runs scheduled before
         scheduled_after (datetime.datetime): a datetime to filter runs scheduled after
         respect_queue_priorities (bool): whether or not to respect queue priorities
@@ -223,7 +223,7 @@ async def get_scheduled_flow_runs(
         session=session,
         db=db,
         work_pool_ids=work_pool_ids,
-        work_pool_queue_ids=work_pool_queue_ids,
+        work_queue_ids=work_queue_ids,
         scheduled_before=scheduled_before,
         scheduled_after=scheduled_after,
         respect_queue_priorities=respect_queue_priorities,
@@ -241,32 +241,32 @@ async def get_scheduled_flow_runs(
 
 
 @inject_db
-async def create_work_pool_queue(
+async def create_work_queue(
     session: AsyncSession,
     work_pool_id: UUID,
-    work_pool_queue: schemas.actions.WorkPoolQueueCreate,
+    work_queue: schemas.actions.WorkQueueCreate,
     db: OrionDBInterface,
-) -> ORMWorkPoolQueue:
+) -> ORMWorkQueue:
     """
     Creates a work pool queue.
 
     Args:
         session (AsyncSession): a database session
         work_pool_id (UUID): a work pool id
-        work_pool_queue (schemas.actions.WorkPoolQueueCreate): a WorkPoolQueue action model
+        work_queue (schemas.actions.WorkQueueCreate): a WorkQueue action model
 
     Returns:
-        db.WorkPoolQueue: the newly-created WorkPoolQueue
+        db.WorkQueue: the newly-created WorkQueue
 
     """
 
     max_priority_query = sa.select(
-        sa.func.coalesce(sa.func.max(db.WorkPoolQueue.priority), 0)
-    ).where(db.WorkPoolQueue.work_pool_id == work_pool_id)
+        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+    ).where(db.WorkQueue.work_pool_id == work_pool_id)
     priority = (await session.execute(max_priority_query)).scalar()
 
-    model = db.WorkPoolQueue(
-        **work_pool_queue.dict(exclude={"priority"}),
+    model = db.WorkQueue(
+        **work_queue.dict(exclude={"priority", "work_pool_id"}),
         work_pool_id=work_pool_id,
         # initialize the priority as the current max priority + 1
         priority=priority + 1
@@ -275,18 +275,18 @@ async def create_work_pool_queue(
     session.add(model)
     await session.flush()
 
-    if work_pool_queue.priority:
-        await bulk_update_work_pool_queue_priorities(
+    if work_queue.priority:
+        await bulk_update_work_queue_priorities(
             session=session,
             work_pool_id=work_pool_id,
-            new_priorities={model.id: work_pool_queue.priority},
+            new_priorities={model.id: work_queue.priority},
             db=db,
         )
     return model
 
 
 @inject_db
-async def bulk_update_work_pool_queue_priorities(
+async def bulk_update_work_queue_priorities(
     session: AsyncSession,
     work_pool_id: UUID,
     new_priorities: Dict[UUID, int],
@@ -308,60 +308,58 @@ async def bulk_update_work_pool_queue_priorities(
     if len(set(new_priorities.values())) != len(new_priorities):
         raise ValueError("Duplicate target priorities provided")
 
-    work_pool_queues_query = (
-        sa.select(db.WorkPoolQueue)
-        .where(db.WorkPoolQueue.work_pool_id == work_pool_id)
-        .order_by(db.WorkPoolQueue.priority.asc())
+    work_queues_query = (
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.work_pool_id == work_pool_id)
+        .order_by(db.WorkQueue.priority.asc())
     )
-    result = await session.execute(work_pool_queues_query)
-    all_work_pool_queues = result.scalars().all()
+    result = await session.execute(work_queues_query)
+    all_work_queues = result.scalars().all()
 
-    work_pool_queues = [
-        wq for wq in all_work_pool_queues if wq.id not in new_priorities
-    ]
-    updated_queues = [wq for wq in all_work_pool_queues if wq.id in new_priorities]
+    work_queues = [wq for wq in all_work_queues if wq.id not in new_priorities]
+    updated_queues = [wq for wq in all_work_queues if wq.id in new_priorities]
 
     for queue in sorted(updated_queues, key=lambda wq: new_priorities[wq.id]):
-        work_pool_queues.insert(new_priorities[queue.id] - 1, queue)
+        work_queues.insert(new_priorities[queue.id] - 1, queue)
 
-    for i, queue in enumerate(work_pool_queues):
+    for i, queue in enumerate(work_queues):
         queue.priority = i + 1
 
     await session.flush()
 
 
 @inject_db
-async def read_work_pool_queues(
+async def read_work_queues(
     session: AsyncSession,
     work_pool_id: UUID,
     db: OrionDBInterface,
-    work_pool_queue_filter: Optional[schemas.filters.WorkPoolQueueFilter] = None,
+    work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
-) -> List[ORMWorkPoolQueue]:
+) -> List[ORMWorkQueue]:
     """
     Read all work pool queues for a work pool. Results are ordered by ascending priority.
 
     Args:
         session (AsyncSession): a database session
         work_pool_id (UUID): a work pool id
-        work_pool_queue_filter: Filter criteria for work pool queues
+        work_queue_filter: Filter criteria for work pool queues
         offset: Query offset
         limit: Query limit
 
 
     Returns:
-        List[db.WorkPoolQueue]: the WorkPoolQueues
+        List[db.WorkQueue]: the WorkQueues
 
     """
     query = (
-        sa.select(db.WorkPoolQueue)
-        .where(db.WorkPoolQueue.work_pool_id == work_pool_id)
-        .order_by(db.WorkPoolQueue.priority.asc())
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.work_pool_id == work_pool_id)
+        .order_by(db.WorkQueue.priority.asc())
     )
 
-    if work_pool_queue_filter is not None:
-        query = query.where(work_pool_queue_filter.as_sql_filter(db))
+    if work_queue_filter is not None:
+        query = query.where(work_queue_filter.as_sql_filter(db))
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:
@@ -372,49 +370,49 @@ async def read_work_pool_queues(
 
 
 @inject_db
-async def read_work_pool_queue(
+async def read_work_queue(
     session: AsyncSession,
-    work_pool_queue_id: UUID,
+    work_queue_id: UUID,
     db: OrionDBInterface,
-) -> ORMWorkPoolQueue:
+) -> ORMWorkQueue:
     """
     Read a specific work pool queue.
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a work pool queue id
+        work_queue_id (UUID): a work pool queue id
 
     Returns:
-        db.WorkPoolQueue: the WorkPoolQueue
+        db.WorkQueue: the WorkQueue
 
     """
-    return await session.get(db.WorkPoolQueue, work_pool_queue_id)
+    return await session.get(db.WorkQueue, work_queue_id)
 
 
 @inject_db
-async def read_work_pool_queue_by_name(
+async def read_work_queue_by_name(
     session: AsyncSession,
     work_pool_name: str,
-    work_pool_queue_name: str,
+    work_queue_name: str,
     db: OrionDBInterface,
-) -> ORMWorkPoolQueue:
+) -> ORMWorkQueue:
     """
-    Reads a WorkPoolQueue by name.
+    Reads a WorkQueue by name.
 
     Args:
         session (AsyncSession): A database session
         work_pool_name (str): a WorkPool name
-        work_pool_queue_name (str): a WorkPoolQueue name
+        work_queue_name (str): a WorkQueue name
 
     Returns:
-        db.WorkPoolQueue: the WorkPoolQueue
+        db.WorkQueue: the WorkQueue
     """
     query = (
-        sa.select(db.WorkPoolQueue)
-        .join(db.WorkPool, db.WorkPool.id == db.WorkPoolQueue.work_pool_id)
+        sa.select(db.WorkQueue)
+        .join(db.WorkPool, db.WorkPool.id == db.WorkQueue.work_pool_id)
         .where(
             db.WorkPool.name == work_pool_name,
-            db.WorkPoolQueue.name == work_pool_queue_name,
+            db.WorkQueue.name == work_queue_name,
         )
         .limit(1)
     )
@@ -423,10 +421,10 @@ async def read_work_pool_queue_by_name(
 
 
 @inject_db
-async def update_work_pool_queue(
+async def update_work_queue(
     session: AsyncSession,
-    work_pool_queue_id: UUID,
-    work_pool_queue: schemas.actions.WorkPoolQueueUpdate,
+    work_queue_id: UUID,
+    work_queue: schemas.actions.WorkQueueUpdate,
     db: OrionDBInterface,
 ) -> bool:
     """
@@ -434,35 +432,35 @@ async def update_work_pool_queue(
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a work pool queue ID
-        work_pool_queue (schemas.actions.WorkPoolQueueUpdate): a WorkPoolQueue model
+        work_queue_id (UUID): a work pool queue ID
+        work_queue (schemas.actions.WorkQueueUpdate): a WorkQueue model
 
     Returns:
-        bool: whether or not the WorkPoolQueue was updated
+        bool: whether or not the WorkQueue was updated
 
     """
-    update_values = work_pool_queue.dict(shallow=True, exclude_unset=True)
+    update_values = work_queue.dict(shallow=True, exclude_unset=True)
     update_stmt = (
-        sa.update(db.WorkPoolQueue)
-        .where(db.WorkPoolQueue.id == work_pool_queue_id)
+        sa.update(db.WorkQueue)
+        .where(db.WorkQueue.id == work_queue_id)
         .values(update_values)
     )
     result = await session.execute(update_stmt)
 
     if result.rowcount > 0 and "priority" in update_values:
-        work_pool_queue = await session.get(db.WorkPoolQueue, work_pool_queue_id)
-        await bulk_update_work_pool_queue_priorities(
+        work_queue = await session.get(db.WorkQueue, work_queue_id)
+        await bulk_update_work_queue_priorities(
             session,
-            work_pool_id=work_pool_queue.work_pool_id,
-            new_priorities={work_pool_queue_id: update_values["priority"]},
+            work_pool_id=work_queue.work_pool_id,
+            new_priorities={work_queue_id: update_values["priority"]},
         )
     return result.rowcount > 0
 
 
 @inject_db
-async def delete_work_pool_queue(
+async def delete_work_queue(
     session: AsyncSession,
-    work_pool_queue_id: UUID,
+    work_queue_id: UUID,
     db: OrionDBInterface,
 ) -> bool:
     """
@@ -470,17 +468,17 @@ async def delete_work_pool_queue(
 
     Args:
         session (AsyncSession): a database session
-        work_pool_queue_id (UUID): a work pool queue ID
+        work_queue_id (UUID): a work pool queue ID
 
     Returns:
-        bool: whether or not the WorkPoolQueue was deleted
+        bool: whether or not the WorkQueue was deleted
 
     """
-    work_pool_queue = await session.get(db.WorkPoolQueue, work_pool_queue_id)
-    if work_pool_queue is None:
+    work_queue = await session.get(db.WorkQueue, work_queue_id)
+    if work_queue is None:
         return False
 
-    await session.delete(work_pool_queue)
+    await session.delete(work_queue)
     try:
         await session.flush()
 
@@ -490,9 +488,9 @@ async def delete_work_pool_queue(
             raise ValueError("Can't delete a pool's default queue.")
         raise
 
-    await bulk_update_work_pool_queue_priorities(
+    await bulk_update_work_queue_priorities(
         session,
-        work_pool_id=work_pool_queue.work_pool_id,
+        work_pool_id=work_queue.work_pool_id,
         new_priorities={},
     )
     return True

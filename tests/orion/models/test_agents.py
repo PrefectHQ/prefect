@@ -11,7 +11,7 @@ from prefect.orion import models, schemas
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
+        work_queue=schemas.actions.WorkQueueCreate(
             name="My WorkQueue",
             description="All about my work queue",
         ),
