@@ -423,7 +423,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     _description = "Enables sending notifications via a provided Mattermost webhook."
     _block_type_name = "Mattermost Webhook"
     _block_type_slug = "Mattermost-webhook"
-    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/3mlbsJDAmK402ER1sf0zUF/a48ac43fa38f395dd5f56c6ed29f22bb/Mattermost-logo-png-transparent.png?h=250"
+    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/3mlbsJDAmK402ER1sf0zUF/a48ac43fa38f395dd5f56c6ed29f22bb/mattermost-logo-png-transparent.png?h=250"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MattermostWebhook"
 
     hostname: str = Field(
