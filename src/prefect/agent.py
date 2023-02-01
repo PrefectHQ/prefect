@@ -356,6 +356,7 @@ class OrionAgent:
     ) -> None:
         state_updates = state_updates or {}
         state_updates.setdefault("name", "Cancelled")
+        state_updates.setdefault("type", StateType.CANCELLED)
         state = flow_run.state.copy(update=state_updates)
 
         await self.client.set_flow_run_state(flow_run.id, state, force=True)
