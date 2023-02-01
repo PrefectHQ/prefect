@@ -224,9 +224,6 @@ class TestGetRunsInQueueQuery:
         assert len(result2) == 0
 
 
-@pytest.mark.skip(
-    reason="Need unique constraint for work_queue on work_pool_id and name"
-)
 class TestGetRunsFromWorkQueueQuery:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):

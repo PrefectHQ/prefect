@@ -6,6 +6,7 @@ import pydantic
 import pytest
 from pydantic import Field
 
+import prefect.orion.schemas as schemas
 from prefect.client.orion import OrionClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
@@ -16,7 +17,6 @@ from prefect.experimental.workers.base import (
 )
 from prefect.flows import flow
 from prefect.orion import models
-from prefect.orion.schemas.core import WorkPool
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
@@ -52,6 +52,24 @@ def auto_enable_work_pools(enable_work_pools):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
+
+
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
 
 
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
@@ -421,7 +439,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -475,7 +493,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     response = await client.post(
         "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 

@@ -44,19 +44,6 @@ class TestCreateWorkQueue:
                 ),
             )
 
-    async def test_create_work_queue_throws_exception_on_name_conflict(
-        self,
-        session,
-        work_queue,
-    ):
-        with pytest.raises(IntegrityError):
-            await models.work_queues.create_work_queue(
-                session=session,
-                work_queue=schemas.actions.WorkQueueCreate(
-                    name=work_queue.name,
-                ),
-            )
-
 
 class TestReadWorkQueue:
     async def test_read_work_queue_by_id(self, session, work_queue):
@@ -121,11 +108,11 @@ class TestReadWorkQueues:
 
     async def test_read_work_queue(self, work_queues, session):
         read_work_queue = await models.work_queues.read_work_queues(session=session)
-        assert len(read_work_queue) == len(work_queues)
+        assert len(read_work_queue) == len(work_queues) + 1  # +1 for default queue
 
     async def test_read_work_queue_applies_limit(self, work_queues, session):
         read_work_queue = await models.work_queues.read_work_queues(
-            session=session, limit=1
+            session=session, limit=1, offset=1
         )
         assert {queue.id for queue in read_work_queue} == {work_queues[0].id}
 
@@ -134,6 +121,7 @@ class TestReadWorkQueues:
             session=session, offset=1
         )
         assert {queue.id for queue in read_work_queue} == {
+            work_queues[0].id,
             work_queues[1].id,
             work_queues[2].id,
             work_queues[3].id,
