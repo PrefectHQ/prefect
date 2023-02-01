@@ -183,7 +183,7 @@ class KubernetesJob(Infrastructure):
 
     @validator("customizations", pre=True)
     def cast_customizations_to_a_json_patch(
-        cls, value: Union[List[Dict], JsonPatch]
+        cls, value: Union[List[Dict], JsonPatch, str]
     ) -> JsonPatch:
         if isinstance(value, list):
             return JsonPatch(value)
