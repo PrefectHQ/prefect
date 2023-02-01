@@ -211,9 +211,9 @@ class DockerContainer(Infrastructure):
         default_factory=get_prefect_image_name,
         description="Tag of a Docker image to use. Defaults to the Prefect image.",
     )
-    extra_kwargs: Optional[Dict[str, Any]] = Field(
+    extra_options: Optional[Dict[str, Any]] = Field(
         default=None,
-        description='Any additional keyword arguments to pass to the Docker SDK Client',
+        description='Any additional options to pass to the Docker SDK Client',
     )
     image_pull_policy: Optional[ImagePullPolicy] = Field(
         default=None, description="Specifies if the image should be pulled."
@@ -372,7 +372,7 @@ class DockerContainer(Infrastructure):
         docker_client: "DockerClient",
     ) -> Dict:
         network_mode = self._get_network_mode()
-        return {**self.extra_kwargs or dict(), **dict(
+        options = dict(
             image=self.image,
             network=self.networks[0] if self.networks else None,
             network_mode=network_mode,
@@ -386,7 +386,14 @@ class DockerContainer(Infrastructure):
             mem_limit=self.mem_limit,
             memswap_limit=self.memswap_limit,
             privileged=self.privileged,
-        )}
+        )
+        extra_options = self.extra_options or dict()
+        common_keys = set(extra_options).intersection(set(options))
+        if common_keys:
+            warnings.warn("The following keys are defined in 'extra_options' and "
+                          "explicitly in the container settings:\n\t{list(common_keys)}"
+                          "\nUsing the ones defined in 'extra_options'.")
+        return {**options, **extra_options}
 
     def _create_and_start_container(self) -> "Container":
         if self.image_registry:
