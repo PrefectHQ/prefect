@@ -12,16 +12,18 @@ from prefect.events import Event
 class EventsClient(abc.ABC):
     """The abstract interface for all Prefect Events clients"""
 
-    @abc.abstractmethod
-    async def emit(self, event: Event) -> None:  # pragma: no cover
+    async def emit(self, event: Event) -> None:
         """Emit a single event"""
-
-    def _require_context(self) -> None:
         if not hasattr(self, "_in_context"):
             raise TypeError(
                 "Events may only be emitted while this client is being used as a "
                 "context manager"
             )
+        return await self._emit(event)
+
+    @abc.abstractmethod
+    async def _emit(self, event: Event) -> None:  # pragma: no cover
+        ...
 
     async def __aenter__(self) -> "EventsClient":
         self._in_context = True
@@ -40,9 +42,8 @@ class EventsClient(abc.ABC):
 class NullEventsClient(EventsClient):
     """A Prefect Events client implementation that does nothing"""
 
-    async def emit(self, event: Event) -> None:
-        """Emit a single event"""
-        self._require_context()
+    async def _emit(self, event: Event) -> None:
+        pass
 
 
 class AssertingEventsClient(EventsClient):
@@ -68,9 +69,7 @@ class AssertingEventsClient(EventsClient):
         cls.last = None
         cls.all = []
 
-    async def emit(self, event: Event) -> None:
-        """Emit a single event"""
-        self._require_context()
+    async def _emit(self, event: Event) -> None:
         self.events.append(event)
 
     async def __aenter__(self) -> "AssertingEventsClient":
@@ -163,8 +162,7 @@ class PrefectCloudEventsClient(EventsClient):
         # don't clear the list, just the ones that we are sure of.
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
 
-    async def emit(self, event: Event) -> None:
-        self._require_context()
+    async def _emit(self, event: Event) -> None:
         assert self._websocket
 
         for i in range(self._reconnection_attempts + 1):
