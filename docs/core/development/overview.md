@@ -5,6 +5,10 @@ title: Overview
 
 # Development Overview
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 Thanks for contributing to Prefect! This section of the docs is designed to help you become familiar with how we work, the standards we apply, and how to ensure your contribution is successful.
 
 If you're stuck, don't be shy about asking for help [on GitHub](https://github.com/PrefectHQ/prefect/issues/new/choose) or in the `#prefect-contributors` channel of our [Slack community](https://www.prefect.io/slack). You can also ask us any question in our [Discourse](https://discourse.prefect.io) forum.

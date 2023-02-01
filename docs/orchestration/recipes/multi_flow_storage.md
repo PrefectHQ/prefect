@@ -1,6 +1,10 @@
 
 # Multi Flow Storage
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 This recipe is for storing multiple flows inside a single [Docker storage object](/api/latest/storage.html#docker). This is useful when you have a suite of flows that registers off of a CI/CD process or if you want to reduce the number of images stored in a container registry. For this recipe we are going to put two example flows — [ETL](/core/advanced_tutorials/etl.html) and [Map Reduce](/core/concepts/mapping.html#reduce) — inside of the same Docker storage object.
 
 [[toc]]

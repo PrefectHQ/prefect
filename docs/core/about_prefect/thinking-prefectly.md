@@ -4,6 +4,10 @@ sidebarDepth: 0
 
 # Thinking Prefectly
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 This page will give you a gentle introduction to Prefect's core concepts. If you are keen to get started we have a [Getting Started guide](/core/getting_started/quick-start.html) and [ETL tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
 
 Prefect is a tool for building **data workflows**. A workflow is a series of steps that are performed in a certain order.

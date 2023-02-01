@@ -5,6 +5,10 @@ editLink: false
 
 # Overview
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 When a flow is run with Prefect Core, it executes locally and its state is not persisted. When a flow is run with a Prefect backend i.e. Prefect Cloud, information about the flow's execution is streamed to the backend for live inspection of your flow's status. This information is persisted for later access. In the Prefect backend, a flow run represents the full picture of your flow's execution from scheduling to completion.
 
 ## Creating flow runs

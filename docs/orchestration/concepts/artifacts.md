@@ -1,5 +1,9 @@
 # Artifacts
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 The [Artifacts API](/api/latest/backend/artifacts.html) enables you to publish data from task runs that is rendered natively in the Prefect UI, both Prefect Cloud and Prefect Server. 
 
 Using the Artifacts API, you can easily publish information directly to the Prefect UI. These published artifacts are linked to specific task runs and flow runs, and artifacts can render more sophisticated information than you'd typically log, such as reports, tables, charts, images, and links to external data.

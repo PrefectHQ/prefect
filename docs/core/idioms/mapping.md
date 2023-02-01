@@ -1,5 +1,9 @@
 # Use task mapping to map over a specific set of arguments
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 [Mapping](/core/concepts/mapping.html) in Prefect is a great way for dynamic task creation and parallel execution. Sometimes you may want to pass extra arguments to functions that you're using to map over inputs but you don't want to map over those extra arguments. This is where Prefect's [`unmapped`](/api/latest/utilities/tasks.html#unmapped) operator can come into play.
 
 In this example let's take a flow where we want to pass in a [Parameter](/core/concepts/parameters.html) `multiple` to be multiplied against a random list of numbers also specified with a `total` Parameter. This random list of numbers will be generated at runtime. If your tasks map over iterables that are generated at runtime then Prefect will dynamically build the DAG based on those values.

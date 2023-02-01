@@ -1,5 +1,9 @@
 # Overview
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 This is a Quick Start guide to help you get a basic Prefect flow registered and running on one of our Prefect Cloud or Prefect Core server orchestration layers.  
 
 Because it is a foundational part of running a flow, this guide includes an overview of what is needed to get started with Prefect Core.  If you already have a solid understanding of Prefect Core and want to move on to orchestration, go straight to [using Prefect Cloud or Prefect Core server](/orchestration/getting-started/set-up.md).  

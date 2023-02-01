@@ -1,5 +1,9 @@
 # Flow Configuration
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 So far we've been using the default [flow
 configuration](/orchestration/flow_config/overview.md). When using a Prefect Backend,
 each flow is configured with:

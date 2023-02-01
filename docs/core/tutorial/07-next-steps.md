@@ -1,8 +1,8 @@
 # Next Steps
 
-::: tip Prefect 2
-With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
-:::
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
 
 In this tutorial we showed how Prefect can be used to improve the behavior of your workflow. However, there is a lot more to Prefect that we didn't cover!
 

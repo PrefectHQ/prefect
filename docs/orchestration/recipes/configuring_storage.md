@@ -1,5 +1,9 @@
 # Configuring Docker Storage
 
+<div style="border: 2px solid #27b1ff; border-radius: 10px; padding: 1em;">
+Looking for the latest <a href="https://docs.prefect.io/">Prefect 2</a> release? Prefect 2 and <a href="https://app.prefect.cloud">Prefect Cloud 2</a> have been released for General Availability. See <a href="https://docs.prefect.io/">https://docs.prefect.io/</a> for details.
+</div>
+
 This recipe is for configuring your Flow's [Docker storage object](/api/latest/storage.html#docker) to handle potentially complicated non-Python dependencies. This is useful to understand for Flows which rely on complex environments to run successfully; for example if your Flow uses:
 - database drivers
 - reliance on C bindings for file-types such as HDF files
