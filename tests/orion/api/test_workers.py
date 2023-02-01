@@ -377,9 +377,6 @@ class TestReadWorkPool:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-@pytest.mark.skip(
-    reason="Need unique constraint for work_queue on work_pool_id and name"
-)
 class TestReadWorkPools:
     @pytest.fixture(autouse=True)
     async def create_work_pools(self, client):
@@ -533,9 +530,6 @@ class TestWorkerProcess:
         assert workers_response.json()[0]["name"] == "another-worker"
 
 
-@pytest.mark.skip(
-    reason="Need unique constraint for work_queue on work_pool_id and name"
-)
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)
     async def setup(self, session, flow):
@@ -763,3 +757,88 @@ class TestGetScheduledRuns:
             List[schemas.responses.WorkerFlowRunResponse], response.json()
         )
         assert len(data) == 0
+
+    async def test_updates_last_polled_on_a_single_work_queue(
+        self, client, work_queues, work_pools
+    ):
+        now = pendulum.now()
+        poll_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
+            json=dict(work_queue_names=[work_queues["wq_aa"].name]),
+        )
+        assert poll_response.status_code == status.HTTP_200_OK
+
+        work_queue_response = await client.get(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/queues/{work_queues['wq_aa'].name}"
+        )
+        assert work_queue_response.status_code == status.HTTP_200_OK
+
+        work_queue = pydantic.parse_obj_as(WorkQueue, work_queue_response.json())
+        work_queues_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/queues/filter"
+        )
+        assert work_queues_response.status_code == status.HTTP_200_OK
+
+        work_queues = pydantic.parse_obj_as(
+            List[WorkQueue], work_queues_response.json()
+        )
+
+        for work_queue in work_queues:
+            if work_queue.name == "AA":
+                assert work_queue.last_polled is not None
+                assert work_queue.last_polled > now
+            else:
+                assert work_queue.last_polled is None
+
+    async def test_updates_last_polled_on_a_multiple_work_queues(
+        self, client, work_queues, work_pools
+    ):
+        now = pendulum.now()
+        poll_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
+            json=dict(
+                work_queue_names=[
+                    work_queues["wq_aa"].name,
+                    work_queues["wq_ab"].name,
+                ]
+            ),
+        )
+        assert poll_response.status_code == status.HTTP_200_OK
+
+        work_queues_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/queues/filter"
+        )
+        assert work_queues_response.status_code == status.HTTP_200_OK
+
+        work_queues = pydantic.parse_obj_as(
+            List[WorkQueue], work_queues_response.json()
+        )
+
+        for work_queue in work_queues:
+            if work_queue.name == "AA" or work_queue.name == "AB":
+                assert work_queue.last_polled is not None
+                assert work_queue.last_polled > now
+            else:
+                assert work_queue.last_polled is None
+
+    async def test_updates_last_polled_on_a_full_work_pool(
+        self, client, work_queues, work_pools
+    ):
+        now = pendulum.now()
+        poll_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/get_scheduled_flow_runs",
+        )
+        assert poll_response.status_code == status.HTTP_200_OK
+
+        work_queues_response = await client.post(
+            f"/experimental/work_pools/{work_pools['wp_a'].name}/queues/filter"
+        )
+        assert work_queues_response.status_code == status.HTTP_200_OK
+
+        work_queues = pydantic.parse_obj_as(
+            List[WorkQueue], work_queues_response.json()
+        )
+
+        for work_queue in work_queues:
+            assert work_queue.last_polled is not None
+            assert work_queue.last_polled > now

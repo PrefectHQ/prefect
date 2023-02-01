@@ -622,6 +622,7 @@ class TestCheckWorkQueuesForDeployment:
         actual_queues = await check_work_queues_for_deployment(
             session=session, deployment_id=match_id
         )
+
         connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
@@ -685,7 +686,11 @@ class TestCheckWorkQueuesForDeployment:
         connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
-        assert len(actual_queues) == 6
+        if dialect.name == "postgresql":
+            assert len(actual_queues) == 6
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(actual_queues) == 7
 
     # TWO TAG DEPLOYMENTS with no-tag queues
     async def test_two_tag_picks_up_no_filter_q(self, session, flow, flow_function):
@@ -761,4 +766,8 @@ class TestCheckWorkQueuesForDeployment:
         connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
-        assert len(actual_queues) == 9
+        if dialect.name == "postgresql":
+            assert len(actual_queues) == 9
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(actual_queues) == 10

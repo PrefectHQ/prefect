@@ -1,7 +1,6 @@
 import pytest
 
 import prefect.exceptions
-from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -89,7 +88,6 @@ class TestCreateWorkQueue:
         queue = read_queue(
             orion_client,
             name=queue_name,
-            pool=DEFAULT_AGENT_WORK_POOL_NAME,
         )
         assert queue.name == queue_name
         assert queue.work_pool_id is not None
