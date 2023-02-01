@@ -32,14 +32,14 @@
             <template v-if="media.md">
               <SearchInput v-model="filter.flowRuns.nameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
-            <FlowRunsSort v-model="sort" />
+            <FlowRunsSort v-model="filter.sort" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>
-              <template v-if="exist" #actions>
+              <template v-if="isCustomFilter" #actions>
                 <p-button size="sm" secondary @click="clear">
                   Clear Filters
                 </p-button>
@@ -53,7 +53,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useFlowRunsFilterFromRoute } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunsFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
@@ -69,7 +69,7 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, exist } = useFlowRunsFilterFromRoute()
+  const { filter, isCustomFilter } = useFlowRunsFilterFromRoute()
 
   const sort = computed({
     get() {
