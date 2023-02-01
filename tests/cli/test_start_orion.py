@@ -1,5 +1,4 @@
 import os
-import re
 import signal
 import sys
 import tempfile
@@ -106,8 +105,10 @@ class TestUvicornSignalForwarding:
         if "KeyboardInterrupt" in out:
             pass  # SIGKILL came too late, main PID already closing
         else:
-            assert re.search(
-                r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
+            first = out.index("Sending SIGTERM")
+            second = out.index("Sending SIGKILL")
+            assert (
+                first < second
             ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
@@ -124,10 +125,12 @@ class TestUvicornSignalForwarding:
         out = orion_process.out.read().decode()
 
         if "KeyboardInterrupt" in out:
-            pass  # SIGKILL received before SIGTERM (sys.exit) could finish
+            pass  # SIGKILL came too late, main PID already closing
         else:
-            assert re.search(
-                r"(Sending SIGTERM)(.|\s)*(Sending SIGKILL)", out
+            first = out.index("Sending SIGTERM")
+            second = out.index("Sending SIGKILL")
+            assert (
+                first < second
             ), f"When sending two SIGTERM shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
@@ -141,8 +144,8 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert re.search(
-            r"Sending SIGTERM", out
+        assert (
+            "Sending SIGTERM" in out
         ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
 
     @pytest.mark.skipif(
@@ -156,6 +159,6 @@ class TestUvicornSignalForwarding:
         orion_process.out.seek(0)
         out = orion_process.out.read().decode()
 
-        assert re.search(
-            r"Sending CTRL_BREAK_EVENT", out
+        assert (
+            "Sending CTRL_BREAK_EVENT" in out
         ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:{out}"
