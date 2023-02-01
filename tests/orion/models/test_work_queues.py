@@ -12,7 +12,7 @@ from prefect.orion.exceptions import ObjectNotFoundError
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
+        work_queue=schemas.actions.WorkQueueCreate(
             name="wq-1",
             description="All about my work queue",
         ),
@@ -25,7 +25,7 @@ class TestCreateWorkQueue:
     async def test_create_work_queue_succeeds(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name="wq-1"),
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
         )
         assert work_queue.name == "wq-1"
         # deprecated field
@@ -39,7 +39,7 @@ class TestCreateWorkQueue:
         with pytest.raises(IntegrityError):
             await models.work_queues.create_work_queue(
                 session=session,
-                work_queue=schemas.core.WorkQueue(
+                work_queue=schemas.actions.WorkQueueCreate(
                     name=work_queue.name,
                 ),
             )
@@ -52,7 +52,7 @@ class TestCreateWorkQueue:
         with pytest.raises(IntegrityError):
             await models.work_queues.create_work_queue(
                 session=session,
-                work_queue=schemas.core.WorkQueue(
+                work_queue=schemas.actions.WorkQueueCreate(
                     name=work_queue.name,
                 ),
             )
@@ -94,25 +94,25 @@ class TestReadWorkQueues:
 
         work_queue_1 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1 1",
             ),
         )
         work_queue_2 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-1 2",
             ),
         )
         work_queue_3 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-2 1",
             ),
         )
         work_queue_4 = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(
+            work_queue=schemas.actions.WorkQueueCreate(
                 name="wq-3 1",
             ),
         )
@@ -248,7 +248,7 @@ class TestGetRunsInWorkQueue:
     async def work_queue_2(self, session):
         work_queue = await models.work_queues.create_work_queue(
             session=session,
-            work_queue=schemas.core.WorkQueue(name="wq-2"),
+            work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
         )
         await session.commit()
         return work_queue
