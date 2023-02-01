@@ -68,6 +68,20 @@ class TestBlockDocument:
         )
 
 
+class TestBlockDocumentReference:
+    async def test_block_document_reference_different_parent_and_ref(self):
+        same_id = uuid4()
+        with pytest.raises(
+            ValueError,
+            match="`parent_block_document_id` and `reference_block_document_id` cannot be the same",
+        ):
+            schemas.core.BlockDocumentReference(
+                parent_block_document_id=same_id,
+                reference_block_document_id=same_id,
+                name="name",
+            )
+
+
 class TestFlowRunNotificationPolicy:
     async def test_message_template_variables_are_validated(self):
         with pytest.raises(
@@ -292,14 +306,60 @@ class TestWorkQueueHealthPolicy:
         )
 
 
-class TestWorkerPool:
-    def test_more_helpful_validation_message_for_worker_pools(self):
+class TestWorkPool:
+    def test_more_helpful_validation_message_for_work_pools(self):
         with pytest.raises(
             pydantic.ValidationError, match="`default_queue_id` is a required field."
         ):
-            schemas.core.WorkerPool(name="test")
+            schemas.core.WorkPool(name="test")
 
-    async def test_valid_worker_pool_default_queue_id(self):
+    async def test_valid_work_pool_default_queue_id(self):
         qid = uuid4()
-        wp = schemas.core.WorkerPool(name="test", default_queue_id=qid)
+        wp = schemas.core.WorkPool(name="test", type="test", default_queue_id=qid)
         assert wp.default_queue_id == qid
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"wrong_variable": {}},
+                    "required": [],
+                },
+            }
+        ],
+    )
+    async def test_validate_base_job_template_fails(self, template):
+        """Test that error is raised if base_job_template job_configuration
+        expects a variable that is not provided in variables."""
+        qid = uuid4()
+        with pytest.raises(
+            ValueError,
+            match=".*Your job expects the following variables: {'expected_variable'}, but your template provides: {'wrong_variable'}",
+        ):
+            wp = schemas.core.WorkPool(
+                name="test", default_queue_id=qid, base_job_template=template
+            )
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            dict(),
+            {
+                "job_configuration": {"thing_one": "{{ expected_variable }}"},
+                "variables": {
+                    "properties": {"expected_variable": {}},
+                    "required": [],
+                },
+            },
+        ],
+    )
+    async def test_validate_base_job_template_succeeds(self, template):
+        """Test that no error is raised if all variables expected by job_configuration
+        are provided in variables."""
+        qid = uuid4()
+        wp = schemas.core.WorkPool(
+            name="test", type="test", default_queue_id=qid, base_job_template=template
+        )
+        assert wp

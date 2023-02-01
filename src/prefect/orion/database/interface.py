@@ -134,6 +134,11 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.TaskRunState
 
     @property
+    def Artifact(self):
+        """An artifact orm model"""
+        return self.orm.Artifact
+
+    @property
     def TaskRunStateCache(self):
         """A task run state cache orm model"""
         return self.orm.TaskRunStateCache
@@ -149,14 +154,9 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.SavedSearch
 
     @property
-    def WorkerPool(self):
-        """A worker pool orm model"""
-        return self.orm.WorkerPool
-
-    @property
-    def WorkerPoolQueue(self):
-        """A worker pool queue orm model"""
-        return self.orm.WorkerPoolQueue
+    def WorkPool(self):
+        """A work pool orm model"""
+        return self.orm.WorkPool
 
     @property
     def Worker(self):

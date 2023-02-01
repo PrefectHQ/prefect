@@ -2,18 +2,22 @@
 Reduced schemas for accepting API actions.
 """
 import re
+import warnings
+from copy import copy
 from typing import Any, Dict, Generator, List, Optional, Union
 from uuid import UUID
 
+import jsonschema
 from pydantic import Field, root_validator, validator
 
 import prefect.orion.schemas as schemas
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.orion.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
     PrefectBaseModel,
     copy_model_fields,
-    orjson_dumps_non_str_keys,
+    orjson_dumps_extra_compatible,
 )
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
@@ -73,27 +77,56 @@ class FlowUpdate(ActionBaseModel):
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
 
+@experimental_field(
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None,
+)
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
     """Data used by the Orion API to create a deployment."""
 
+    @root_validator(pre=True)
+    def remove_old_fields(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
+        # and work_queue_name. This validator removes old fields provided
+        # by older clients to avoid 422 errors.
+        values_copy = copy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        worker_pool_name = values_copy.pop("worker_pool_name", None)
+        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead.",
+                UserWarning,
+            )
+        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
+            warnings.warn(
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
+
     name: str = FieldFrom(schemas.core.Deployment)
     flow_id: UUID = FieldFrom(schemas.core.Deployment)
-    is_schedule_active: bool = FieldFrom(schemas.core.Deployment)
+    is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    worker_pool_name: Optional[str] = Field(
+    work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool.",
-        example="my-worker-pool",
-    )
-    worker_pool_queue_name: Optional[str] = Field(
-        default=None,
-        description="The name of the deployment's worker pool queue.",
-        example="my-worker-pool-queue",
+        description="The name of the deployment's work pool.",
+        example="my-work-pool",
     )
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
@@ -109,10 +142,57 @@ class DeploymentCreate(ActionBaseModel):
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
 
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that the combination of base_job_template defaults
+        and infra_overrides conforms to the specified schema.
+        """
+        variables_schema = base_job_template.get("variables")
+        if variables_schema is not None:
+            schema = {
+                "type": "object",
+                "properties": variables_schema["properties"],
+                "required": variables_schema["required"],
+            }
+            jsonschema.validate(self.infra_overrides, schema)
 
+
+@experimental_field(
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None,
+)
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
     """Data used by the Orion API to update a deployment."""
+
+    @root_validator(pre=True)
+    def remove_old_fields(cls, values):
+        # 2.7.7 removed worker_pool_queue_id in lieu of worker_pool_name and
+        # worker_pool_queue_name. Those fields were later renamed to work_pool_name
+        # and work_queue_name. This validator removes old fields provided
+        # by older clients to avoid 422 errors.
+        values_copy = copy(values)
+        worker_pool_queue_id = values_copy.pop("worker_pool_queue_id", None)
+        worker_pool_name = values_copy.pop("worker_pool_name", None)
+        worker_pool_queue_name = values_copy.pop("worker_pool_queue_name", None)
+        work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
+        if worker_pool_queue_id:
+            warnings.warn(
+                "`worker_pool_queue_id` is no longer supported for updating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead.",
+                UserWarning,
+            )
+        if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
+            warnings.warn(
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead.",
+                UserWarning,
+            )
+        return values_copy
 
     version: Optional[str] = FieldFrom(schemas.core.Deployment)
     schedule: Optional[schemas.schedules.SCHEDULE_TYPES] = FieldFrom(
@@ -123,15 +203,10 @@ class DeploymentUpdate(ActionBaseModel):
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)
-    worker_pool_name: Optional[str] = Field(
+    work_pool_name: Optional[str] = Field(
         default=None,
-        description="The name of the deployment's worker pool.",
-        example="my-worker-pool",
-    )
-    worker_pool_queue_name: Optional[str] = Field(
-        default=None,
-        description="The name of the deployment's worker pool queue.",
-        example="my-worker-pool-queue",
+        description="The name of the deployment's work pool.",
+        example="my-work-pool",
     )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
     infra_overrides: Optional[Dict[str, Any]] = FieldFrom(schemas.core.Deployment)
@@ -139,6 +214,19 @@ class DeploymentUpdate(ActionBaseModel):
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
     infrastructure_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)
+
+    def check_valid_configuration(self, base_job_template: dict):
+        """Check that the combination of base_job_template defaults
+        and infra_overrides conforms to the specified schema.
+        """
+        variables_schema = base_job_template.get("variables")
+        if variables_schema is not None:
+            schema = {
+                "type": "object",
+                "properties": variables_schema["properties"],
+                "required": variables_schema["required"],
+            }
+            jsonschema.validate(self.infra_overrides, schema)
 
 
 @copy_model_fields
@@ -227,7 +315,7 @@ class FlowRunCreate(ActionBaseModel):
     idempotency_key: Optional[str] = FieldFrom(schemas.core.FlowRun)
 
     class Config(ActionBaseModel.Config):
-        json_dumps = orjson_dumps_non_str_keys
+        json_dumps = orjson_dumps_extra_compatible
 
 
 @copy_model_fields
@@ -362,47 +450,25 @@ class LogCreate(ActionBaseModel):
 
 
 @copy_model_fields
-class WorkerPoolCreate(ActionBaseModel):
-    """Data used by the Orion API to create a worker pool."""
+class WorkPoolCreate(ActionBaseModel):
+    """Data used by the Orion API to create a work pool."""
 
-    name: str = FieldFrom(schemas.core.WorkerPool)
-    description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
-    type: Optional[str] = FieldFrom(schemas.core.WorkerPool)
-    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkerPool)
-    is_paused: bool = FieldFrom(schemas.core.WorkerPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
-
-
-@copy_model_fields
-class WorkerPoolUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a worker pool."""
-
-    description: Optional[str] = FieldFrom(schemas.core.WorkerPool)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkerPool)
-    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkerPool)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPool)
+    name: str = FieldFrom(schemas.core.WorkPool)
+    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    type: str = Field(description="The work pool type.", default="prefect-agent")
+    base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
+    is_paused: bool = FieldFrom(schemas.core.WorkPool)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
 
 
 @copy_model_fields
-class WorkerPoolQueueCreate(ActionBaseModel):
-    """Data used by the Orion API to create a worker pool queue."""
+class WorkPoolUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a work pool."""
 
-    name: str = FieldFrom(schemas.core.WorkerPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkerPoolQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkerPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
-
-
-@copy_model_fields
-class WorkerPoolQueueUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a worker pool queue."""
-
-    name: str = FieldFrom(schemas.core.WorkerPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkerPoolQueue)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkerPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkerPoolQueue)
+    description: Optional[str] = FieldFrom(schemas.core.WorkPool)
+    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
+    base_job_template: Optional[Dict[str, Any]] = FieldFrom(schemas.core.WorkPool)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
 
 
 @copy_model_fields
@@ -413,6 +479,7 @@ class WorkQueueCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
 
@@ -427,9 +494,11 @@ class WorkQueueCreate(ActionBaseModel):
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Orion API to update a work queue."""
 
+    name: str = FieldFrom(schemas.core.WorkQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
@@ -437,11 +506,6 @@ class WorkQueueUpdate(ActionBaseModel):
     filter: Optional[schemas.core.QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
-    name: Optional[str] = Field(
-        default=None,
-        description="DEPRECATED: The name of the work queue.",
         deprecated=True,
     )
 

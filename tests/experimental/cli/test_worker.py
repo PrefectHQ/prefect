@@ -3,6 +3,7 @@ import pytest
 import prefect
 from prefect.client.orion import OrionClient
 from prefect.settings import (
+    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     temporary_settings,
@@ -22,6 +23,14 @@ def auto_enable_workers(enable_workers):
     import prefect.experimental.cli.worker  # noqa
 
 
+@pytest.fixture(autouse=True)
+def auto_enable_work_pools(enable_work_pools):
+    """
+    Enable work pools for testing
+    """
+    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
+
+
 def test_start_worker_run_once_with_name():
     invoke_and_assert(
         command=[
@@ -29,7 +38,7 @@ def test_start_worker_run_once_with_name():
             "start",
             "--run-once",
             "-p",
-            "test-worker-pool",
+            "test-work-pool",
             "-n",
             "test-worker",
         ],
@@ -41,7 +50,7 @@ def test_start_worker_run_once_with_name():
     )
 
 
-async def test_start_worker_creates_worker_pool(orion_client: OrionClient):
+async def test_start_worker_creates_work_pool(orion_client: OrionClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],
@@ -49,10 +58,10 @@ async def test_start_worker_creates_worker_pool(orion_client: OrionClient):
         expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
     )
 
-    worker_pool = await orion_client.read_worker_pool("not-yet-created-pool")
-    assert worker_pool is not None
-    assert worker_pool.name == "not-yet-created-pool"
-    assert worker_pool.default_queue_id is not None
+    work_pool = await orion_client.read_work_pool("not-yet-created-pool")
+    assert work_pool is not None
+    assert work_pool.name == "not-yet-created-pool"
+    assert work_pool.default_queue_id is not None
 
 
 def test_start_worker_with_prefetch_seconds(monkeypatch):
@@ -74,7 +83,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     )
     mock_worker.assert_called_once_with(
         name=None,
-        worker_pool_name="test",
+        work_pool_name="test",
         prefetch_seconds=30,
         limit=None,
     )
@@ -98,7 +107,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         )
     mock_worker.assert_called_once_with(
         name=None,
-        worker_pool_name="test",
+        work_pool_name="test",
         prefetch_seconds=100,
         limit=None,
     )
@@ -123,13 +132,13 @@ def test_start_worker_with_limit(monkeypatch):
     )
     mock_worker.assert_called_once_with(
         name=None,
-        worker_pool_name="test",
+        work_pool_name="test",
         prefetch_seconds=10,
         limit=5,
     )
 
 
-async def test_worker_joins_existing_pool(worker_pool, orion_client: OrionClient):
+async def test_worker_joins_existing_pool(work_pool, orion_client: OrionClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -137,7 +146,7 @@ async def test_worker_joins_existing_pool(worker_pool, orion_client: OrionClient
             "start",
             "--run-once",
             "-p",
-            worker_pool.name,
+            work_pool.name,
             "-n",
             "test-worker",
         ],
@@ -148,7 +157,7 @@ async def test_worker_joins_existing_pool(worker_pool, orion_client: OrionClient
         ],
     )
 
-    workers = await orion_client.read_workers_for_worker_pool(
-        worker_pool_name=worker_pool.name
+    workers = await orion_client.read_workers_for_work_pool(
+        work_pool_name=work_pool.name
     )
     assert workers[0].name == "test-worker"

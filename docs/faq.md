@@ -54,7 +54,7 @@ To achieve this, we've leveraged the familiar tools of native Python: first clas
 
 ### If I’m using Prefect Cloud 2, do I still need to run Orion locally?
 
-No, Prefect Cloud 2 hosts an instance of Orion for you. In fact, each workspace in Prefect Could 2 corresponds directly to a single instance of Prefect Orion. See [Getting Started with Prefect Cloud](/ui/cloud-getting-started/) for more information.
+No, Prefect Cloud 2 hosts an instance of Orion for you. In fact, each workspace in Prefect Cloud 2 corresponds directly to a single instance of Prefect Orion. See the [Prefect Cloud Overview](/ui/cloud/) for more information.
 
 
 ## Features

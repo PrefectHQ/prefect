@@ -31,10 +31,14 @@ from prefect.orion.schemas.core import (
     BlockType,
     FlowRunNotificationPolicy,
     QueueFilter,
-    WorkerPool,
-    WorkerPoolQueue,
+    WorkPool,
+    WorkQueue,
 )
-from prefect.orion.schemas.filters import FlowRunNotificationPolicyFilter, LogFilter
+from prefect.orion.schemas.filters import (
+    FlowRunNotificationPolicyFilter,
+    LogFilter,
+    WorkQueueFilter,
+)
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
@@ -301,8 +305,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
+        work_pool_filter: schemas.filters.WorkPoolFilter = None,
+        work_queue_filter: schemas.filters.WorkQueueFilter = None,
         sort: schemas.sorting.FlowSort = None,
         limit: int = None,
         offset: int = 0,
@@ -316,8 +320,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
-            worker_pool_filter: filter criteria for worker pools
-            worker_pool_queue_filter: filter criteria for worker pool queues
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
             sort: sort criteria for the flows
             limit: limit for the flow query
             offset: offset for the flow query
@@ -338,14 +342,14 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
-            "worker_pools": (
-                worker_pool_filter.dict(json_compatible=True)
-                if worker_pool_filter
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
                 else None
             ),
-            "worker_pool_queues": (
-                worker_pool_queue_filter.dict(json_compatible=True)
-                if worker_pool_queue_filter
+            "work_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
                 else None
             ),
             "sort": sort,
@@ -689,7 +693,14 @@ class OrionClient:
                 raise
 
     async def create_work_queue(
-        self, name: str, tags: List[str] = None
+        self,
+        name: str,
+        tags: Optional[List[str]] = None,
+        description: Optional[str] = None,
+        is_paused: Optional[bool] = None,
+        concurrency_limit: Optional[int] = None,
+        priority: Optional[int] = None,
+        work_pool_name: Optional[str] = None,
     ) -> schemas.core.WorkQueue:
         """
         Create a work queue.
@@ -698,6 +709,11 @@ class OrionClient:
             name: a unique name for the work queue
             tags: DEPRECATED: an optional list of tags to filter on; only work scheduled with these tags
                 will be included in the queue. This option will be removed on 2023-02-23.
+            description: An optional description for the work queue.
+            is_paused: Whether or not the work queue is paused.
+            concurrency_limit: An optional concurrency limit for the work queue.
+            priority: The queue's priority. Lower values are higher priority (1 is the highest).
+            work_pool_name: The name of the work pool to use for this queue.
 
         Raises:
             prefect.exceptions.ObjectAlreadyExists: If request returns 409
@@ -714,9 +730,23 @@ class OrionClient:
             filter = QueueFilter(tags=tags)
         else:
             filter = None
+        create_model = WorkQueueCreate(name=name, filter=filter)
+        if description is not None:
+            create_model.description = description
+        if is_paused is not None:
+            create_model.is_paused = is_paused
+        if concurrency_limit is not None:
+            create_model.concurrency_limit = concurrency_limit
+        if priority is not None:
+            create_model.priority = priority
         data = WorkQueueCreate(name=name, filter=filter).dict(json_compatible=True)
         try:
-            response = await self._client.post("/work_queues/", json=data)
+            if work_pool_name is not None:
+                response = await self._client.post(
+                    f"experimental/work_pools/{work_pool_name}/queues", json=data
+                )
+            else:
+                response = await self._client.post("/work_queues/", json=data)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
@@ -724,12 +754,18 @@ class OrionClient:
                 raise
         return schemas.core.WorkQueue.parse_obj(response.json())
 
-    async def read_work_queue_by_name(self, name: str) -> schemas.core.WorkQueue:
+    async def read_work_queue_by_name(
+        self,
+        name: str,
+        work_pool_name: Optional[str] = None,
+    ) -> schemas.core.WorkQueue:
         """
         Read a work queue by name.
 
         Args:
             name (str): a unique name for the work queue
+            work_pool_name (str, optional): the name of the work pool
+                the queue belongs to.
 
         Raises:
             prefect.exceptions.ObjectNotFound: if no work queue is found
@@ -739,7 +775,12 @@ class OrionClient:
             schemas.core.WorkQueue: a work queue API object
         """
         try:
-            response = await self._client.get(f"/work_queues/name/{name}")
+            if work_pool_name is not None:
+                response = await self._client.get(
+                    f"/experimental/work_pools/{work_pool_name}/queues/{name}"
+                )
+            else:
+                response = await self._client.get(f"/work_queues/name/{name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -839,36 +880,6 @@ class OrionClient:
             else:
                 raise
         return schemas.core.WorkQueue.parse_obj(response.json())
-
-    async def read_work_queues(
-        self,
-        limit: int = None,
-        offset: int = 0,
-        work_queue_filter: schemas.filters.WorkQueueFilter = None,
-    ) -> List[schemas.core.WorkQueue]:
-        """
-        Query Orion for work queues.
-
-        Args:
-            limit: a limit for the query
-            offset: an offset for the query
-            work_queue_filter: filter crieteria for work queues
-
-        Returns:
-            a list of WorkQueue model representations
-                of the work queues
-        """
-        body = {
-            "limit": limit,
-            "offset": offset,
-            "work_queues": (
-                work_queue_filter.dict(json_compatible=True)
-                if work_queue_filter
-                else None
-            ),
-        }
-        response = await self._client.post(f"/work_queues/filter", json=body)
-        return pydantic.parse_obj_as(List[schemas.core.WorkQueue], response.json())
 
     async def match_work_queues(
         self,
@@ -1247,7 +1258,7 @@ class OrionClient:
             A list of block documents
         """
         response = await self._client.post(
-            f"/block_documents/filter",
+            "/block_documents/filter",
             json=dict(
                 block_schema_type=block_schema_type,
                 offset=offset,
@@ -1266,8 +1277,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         description: str = None,
         work_queue_name: str = None,
-        worker_pool_name: str = None,
-        worker_pool_queue_name: str = None,
+        work_pool_name: str = None,
         tags: List[str] = None,
         storage_document_id: UUID = None,
         manifest_path: str = None,
@@ -1276,6 +1286,7 @@ class OrionClient:
         infrastructure_document_id: UUID = None,
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
+        is_schedule_active: Optional[bool] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1305,8 +1316,6 @@ class OrionClient:
             parameters=dict(parameters or {}),
             tags=list(tags or []),
             work_queue_name=work_queue_name,
-            worker_pool_name=worker_pool_name,
-            worker_pool_queue_name=worker_pool_queue_name,
             description=description,
             storage_document_id=storage_document_id,
             path=path,
@@ -1315,10 +1324,26 @@ class OrionClient:
             infrastructure_document_id=infrastructure_document_id,
             infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
+            is_schedule_active=is_schedule_active,
         )
 
+        if work_pool_name is not None:
+            deployment_create.work_pool_name = work_pool_name
+
+        # Exclude newer fields that are not set to avoid compatibility issues
+        exclude = {
+            field
+            for field in ["work_pool_name", "work_queue_name"]
+            if field not in deployment_create.__fields_set__
+        }
+
+        if deployment_create.is_schedule_active is None:
+            exclude.add("is_schedule_active")
+
+        json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
-            "/deployments/", json=deployment_create.dict(json_compatible=True)
+            "/deployments/",
+            json=json,
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
@@ -1422,8 +1447,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
+        work_pool_filter: schemas.filters.WorkPoolFilter = None,
+        work_queue_filter: schemas.filters.WorkQueueFilter = None,
         limit: int = None,
         sort: schemas.sorting.DeploymentSort = None,
         offset: int = 0,
@@ -1437,8 +1462,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
-            worker_pool_filter: filter criteria for worker pools
-            worker_pool_queue_filter: filter criteria for worker pool queues
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
             limit: a limit for the deployment query
             offset: an offset for the deployment query
 
@@ -1459,14 +1484,14 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
-            "worker_pools": (
-                worker_pool_filter.dict(json_compatible=True)
-                if worker_pool_filter
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
                 else None
             ),
-            "worker_pool_queues": (
-                worker_pool_queue_filter.dict(json_compatible=True)
-                if worker_pool_queue_filter
+            "work_pool_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
                 else None
             ),
             "limit": limit,
@@ -1543,8 +1568,8 @@ class OrionClient:
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
         deployment_filter: schemas.filters.DeploymentFilter = None,
-        worker_pool_filter: schemas.filters.WorkerPoolFilter = None,
-        worker_pool_queue_filter: schemas.filters.WorkerPoolQueueFilter = None,
+        work_pool_filter: schemas.filters.WorkPoolFilter = None,
+        work_queue_filter: schemas.filters.WorkQueueFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
         limit: int = None,
         offset: int = 0,
@@ -1558,8 +1583,8 @@ class OrionClient:
             flow_run_filter: filter criteria for flow runs
             task_run_filter: filter criteria for task runs
             deployment_filter: filter criteria for deployments
-            worker_pool_filter: filter criteria for worker pools
-            worker_pool_queue_filter: filter criteria for worker pool queues
+            work_pool_filter: filter criteria for work pools
+            work_queue_filter: filter criteria for work pool queues
             sort: sort criteria for the flow runs
             limit: limit for the flow run query
             offset: offset for the flow run query
@@ -1581,14 +1606,14 @@ class OrionClient:
                 if deployment_filter
                 else None
             ),
-            "worker_pools": (
-                worker_pool_filter.dict(json_compatible=True)
-                if worker_pool_filter
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
                 else None
             ),
-            "worker_pool_queues": (
-                worker_pool_queue_filter.dict(json_compatible=True)
-                if worker_pool_queue_filter
+            "work_pool_queues": (
+                work_queue_filter.dict(json_compatible=True)
+                if work_queue_filter
                 else None
             ),
             "sort": sort,
@@ -1949,38 +1974,38 @@ class OrionClient:
 
         return await resolve_inner(datadoc)
 
-    async def send_worker_heartbeat(self, worker_pool_name: str, worker_name: str):
+    async def send_worker_heartbeat(self, work_pool_name: str, worker_name: str):
         """
-        Sends a worker heartbeat for a given worker pool.
+        Sends a worker heartbeat for a given work pool.
 
         Args:
-            worker_pool_name: The name of the worker pool to heartbeat against.
+            work_pool_name: The name of the work pool to heartbeat against.
             worker_name: The name of the worker sending the heartbeat.
         """
         await self._client.post(
-            f"/experimental/worker_pools/{worker_pool_name}/workers/heartbeat",
+            f"/experimental/work_pools/{work_pool_name}/workers/heartbeat",
             json={"name": worker_name},
         )
 
-    async def read_workers_for_worker_pool(
+    async def read_workers_for_work_pool(
         self,
-        worker_pool_name: str,
+        work_pool_name: str,
         worker_filter: Optional[schemas.filters.WorkerFilter] = None,
         offset: Optional[int] = None,
         limit: Optional[int] = None,
     ) -> List[schemas.core.Worker]:
         """
-        Reads workers for a given worker pool.
+        Reads workers for a given work pool.
 
         Args:
-            worker_pool_name: The name of the worker pool for which to get
+            work_pool_name: The name of the work pool for which to get
                 member workers.
             worker_filter: Criteria by which to filter workers.
             limit: Limit for the worker query.
             offset: Limit for the worker query.
         """
         response = await self._client.post(
-            f"/experimental/worker_pools/{worker_pool_name}/workers/filter",
+            f"/experimental/work_pools/{work_pool_name}/workers/filter",
             json={
                 "worker_filter": (
                     worker_filter.dict(json_compatible=True, exclude_unset=True)
@@ -1994,121 +2019,111 @@ class OrionClient:
 
         return pydantic.parse_obj_as(List[schemas.core.Worker], response.json())
 
-    async def read_worker_pool(self, worker_pool_name: str) -> schemas.core.WorkerPool:
+    async def read_work_pool(self, work_pool_name: str) -> schemas.core.WorkPool:
         """
-        Reads information for a given worker pool
+        Reads information for a given work pool
 
         Args:
-            worker_pool_name: The name of the worker pool to for which to get
+            work_pool_name: The name of the work pool to for which to get
                 information.
 
         Returns:
-            Information about the requested worker pool.
+            Information about the requested work pool.
         """
         try:
             response = await self._client.get(
-                f"/experimental/worker_pools/{worker_pool_name}"
+                f"/experimental/work_pools/{work_pool_name}"
             )
-            return pydantic.parse_obj_as(WorkerPool, response.json())
+            return pydantic.parse_obj_as(WorkPool, response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
 
-    async def create_worker_pool(
+    async def create_work_pool(
         self,
-        worker_pool: schemas.actions.WorkerPoolCreate,
-    ) -> schemas.core.WorkerPool:
+        work_pool: schemas.actions.WorkPoolCreate,
+    ) -> schemas.core.WorkPool:
         """
-        Creates a worker pool with the provided configuration.
+        Creates a work pool with the provided configuration.
 
         Args:
-            worker_pool: Desired configuration for the new worker pool.
+            work_pool: Desired configuration for the new work pool.
 
         Returns:
-            Information about the newly created worker pool.
+            Information about the newly created work pool.
         """
         response = await self._client.post(
-            "/experimental/worker_pools/",
-            json=worker_pool.dict(json_compatible=True, exclude_unset=True),
+            "/experimental/work_pools/",
+            json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
-        return pydantic.parse_obj_as(WorkerPool, response.json())
+        return pydantic.parse_obj_as(WorkPool, response.json())
 
-    async def read_worker_pool_queues(
-        self, worker_pool_name: str
-    ) -> List[schemas.core.WorkerPoolQueue]:
-        """
-        Retrieves queues for a worker pool.
-
-        Args:
-            worker_pool_name: Name of the worker pool for which to get queues.
-
-        Returns:
-            List of queues for the specified worker pool.
-        """
-        response = await self._client.get(
-            f"/experimental/worker_pools/{worker_pool_name}/queues"
-        )
-
-        return pydantic.parse_obj_as(List[WorkerPoolQueue], response.json())
-
-    async def create_worker_pool_queue(
+    async def update_work_pool(
         self,
-        worker_pool_name: str,
-        worker_pool_queue: schemas.actions.WorkerPoolQueueCreate,
-    ) -> schemas.core.WorkerPoolQueue:
-        """
-        Creates a queue for a given worker pool
-
-        Args:
-            worker_pool_name: Name of the worker pool to create the queue under.
-            worker_pool_queue: Desired configuration for the new queue.
-
-        Returns:
-            Information about the newly created queue.
-        """
-        response = await self._client.post(
-            f"/experimental/worker_pools/{worker_pool_name}/queues",
-            json=worker_pool_queue.dict(json_compatible=True, exclude_unset=True),
-        )
-
-        return pydantic.parse_obj_as(WorkerPoolQueue, response.json())
-
-    async def update_worker_pool_queue(
-        self,
-        worker_pool_name: str,
-        worker_pool_queue_name: str,
-        worker_pool_queue: schemas.actions.WorkerPoolQueueUpdate,
+        work_pool_name: str,
+        work_pool: schemas.actions.WorkPoolUpdate,
     ):
-        """
-        Creates a queue for a given worker pool
 
-        Args:
-            worker_pool_name: Name of the worker pool in which the queue resides.
-            worker_pool_queue_name: Name of the worker pool queue to update
-            worker_pool_queue: Desired updates for the queue.
-
-        """
         await self._client.patch(
-            f"/experimental/worker_pools/{worker_pool_name}/queues/{worker_pool_queue_name}",
-            json=worker_pool_queue.dict(json_compatible=True, exclude_unset=True),
+            f"/experimental/work_pools/{work_pool_name}",
+            json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
-    async def get_scheduled_flow_runs_for_worker_pool_queues(
+    async def read_work_queues(
         self,
-        worker_pool_name: str,
-        worker_pool_queue_names: Optional[List[str]] = None,
+        work_pool_name: Optional[str] = None,
+        work_queue_filter: Optional[WorkQueueFilter] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[schemas.core.WorkQueue]:
+        """
+        Retrieves queues for a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool for which to get queues.
+            work_queue_filter: Criteria by which to filter queues.
+            limit: Limit for the queue query.
+            offset: Limit for the queue query.
+
+        Returns:
+            List of queues for the specified work pool.
+        """
+        json = {
+            "work_queues": work_queue_filter.dict(
+                json_compatible=True, exclude_unset=True
+            )
+            if work_queue_filter
+            else None,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        if work_pool_name:
+            response = await self._client.post(
+                f"/experimental/work_pools/{work_pool_name}/queues/filter",
+                json=json,
+            )
+        else:
+            response = await self._client.post(f"/work_queues/filter", json=json)
+
+        return pydantic.parse_obj_as(List[WorkQueue], response.json())
+
+    async def get_scheduled_flow_runs_for_work_pool(
+        self,
+        work_pool_name: str,
+        work_queue_names: Optional[List[str]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
     ) -> List[WorkerFlowRunResponse]:
         """
-        Retrieves scheduled flow runs for the provided set of worker pool queues.
+        Retrieves scheduled flow runs for the provided set of work pool queues.
 
         Args:
-            worker_pool_name: The name of the worker pool that the worker pool
+            work_pool_name: The name of the work pool that the work pool
                 queues are associated with.
-            worker_pool_queue_names: The names of the worker pool queues from which
+            work_queue_names: The names of the work pool queues from which
                 to get scheduled flow runs.
             scheduled_before: Datetime used to filter returned flow runs. Flow runs
                 scheduled for after the given datetime string will not be returned.
@@ -2118,13 +2133,13 @@ class OrionClient:
             retrieved flow runs.
         """
         body: Dict[str, Any] = {}
-        if worker_pool_queue_names is not None:
-            body["worker_pool_queue_names"] = worker_pool_queue_names
+        if work_queue_names is not None:
+            body["work_queue_names"] = list(work_queue_names)
         if scheduled_before:
             body["scheduled_before"] = str(scheduled_before)
 
         response = await self._client.post(
-            f"/experimental/worker_pools/{worker_pool_name}/get_scheduled_flow_runs",
+            f"/experimental/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
 

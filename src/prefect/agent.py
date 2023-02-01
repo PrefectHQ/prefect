@@ -3,7 +3,7 @@ The agent is responsible for checking for flow runs that are ready to run and st
 their execution.
 """
 import inspect
-from typing import Iterator, List, Optional, Set, Union
+from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
 
 import anyio
@@ -11,6 +11,7 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
+from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
 from prefect.engine import propose_state
@@ -22,6 +23,7 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
+from prefect.orion import schemas
 from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
 from prefect.orion.schemas.filters import (
     FlowRunFilter,
@@ -36,10 +38,14 @@ from prefect.states import Crashed, Pending, StateType, exception_to_failed_stat
 
 
 class OrionAgent:
+    @experimental_parameter(
+        "work_pool_name", group="work_pools", when=lambda y: y is not None
+    )
     def __init__(
         self,
         work_queues: List[str] = None,
         work_queue_prefix: Union[str, List[str]] = None,
+        work_pool_name: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
@@ -52,6 +58,7 @@ class OrionAgent:
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
+        self.work_pool_name = work_pool_name
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.cancelling_flow_run_ids = set()
@@ -84,7 +91,19 @@ class OrionAgent:
 
     async def update_matched_agent_work_queues(self):
         if self.work_queue_prefix:
-            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
+            if self.work_pool_name:
+                matched_queues = await self.client.read_work_queues(
+                    work_pool_name=self.work_pool_name,
+                    work_queue_filter=schemas.filters.WorkQueueFilter(
+                        name=schemas.filters.WorkQueueFilterName(
+                            startswith_=self.work_queue_prefix
+                        )
+                    ),
+                )
+            else:
+                matched_queues = await self.client.match_work_queues(
+                    self.work_queue_prefix
+                )
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
@@ -99,7 +118,7 @@ class OrionAgent:
                     )
             self.work_queues = matched_queues
 
-    async def get_work_queues(self) -> Iterator[WorkQueue]:
+    async def get_work_queues(self) -> AsyncIterator[WorkQueue]:
         """
         Loads the work queue objects corresponding to the agent's target work
         queues. If any of them don't exist, they are created.
@@ -121,7 +140,9 @@ class OrionAgent:
 
         for name in self.work_queues:
             try:
-                work_queue = await self.client.read_work_queue_by_name(name)
+                work_queue = await self.client.read_work_queue_by_name(
+                    work_pool_name=self.work_pool_name, name=name
+                )
             except ObjectNotFound:
 
                 # if the work queue wasn't found, create it
@@ -129,8 +150,15 @@ class OrionAgent:
                     # do not attempt to create work queues if the agent is polling for
                     # queues using a regex
                     try:
-                        work_queue = await self.client.create_work_queue(name=name)
-                        self.logger.info(f"Created work queue '{name}'.")
+                        work_queue = await self.client.create_work_queue(
+                            work_pool_name=self.work_pool_name, name=name
+                        )
+                        if self.work_pool_name:
+                            self.logger.info(
+                                f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
+                            )
+                        else:
+                            self.logger.info(f"Created work queue '{name}'.")
 
                     # if creating it raises an exception, it was probably just
                     # created by some other agent; rather than entering a re-read
@@ -159,27 +187,37 @@ class OrionAgent:
 
         submittable_runs: List[FlowRun] = []
 
-        # load runs from each work queue
-        async for work_queue in self.get_work_queues():
+        if self.work_pool_name:
+            responses = await self.client.get_scheduled_flow_runs_for_work_pool(
+                work_pool_name=self.work_pool_name,
+                work_queue_names=[wq.name async for wq in self.get_work_queues()],
+                scheduled_before=before,
+            )
+            submittable_runs.extend([response.flow_run for response in responses])
 
-            # print a nice message if the work queue is paused
-            if work_queue.is_paused:
-                self.logger.info(
-                    f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
-                )
+        else:
+            # load runs from each work queue
+            async for work_queue in self.get_work_queues():
 
-            else:
-                try:
-                    queue_runs = await self.client.get_runs_in_work_queue(
-                        id=work_queue.id, limit=10, scheduled_before=before
+                # print a nice message if the work queue is paused
+                if work_queue.is_paused:
+                    self.logger.info(
+                        f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
                     )
-                    submittable_runs.extend(queue_runs)
-                except ObjectNotFound:
-                    self.logger.error(
-                        f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
-                    )
-                except Exception as exc:
-                    self.logger.exception(exc)
+
+                else:
+                    try:
+                        if not self.work_pool_name:
+                            queue_runs = await self.client.get_runs_in_work_queue(
+                                id=work_queue.id, limit=10, scheduled_before=before
+                            )
+                        submittable_runs.extend(queue_runs)
+                    except ObjectNotFound:
+                        self.logger.error(
+                            f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                        )
+                    except Exception as exc:
+                        self.logger.exception(exc)
 
         submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
@@ -219,7 +257,7 @@ class OrionAgent:
         async for work_queue in self.get_work_queues():
             work_queue_names.add(work_queue.name)
 
-        cancelling_flow_runs = await self.client.read_flow_runs(
+        named_cancelling_flow_runs = await self.client.read_flow_runs(
             flow_run_filter=FlowRunFilter(
                 state=FlowRunFilterState(
                     type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
@@ -230,6 +268,19 @@ class OrionAgent:
                 id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
             ),
         )
+
+        typed_cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
+            ),
+        )
+
+        cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
 
         if cancelling_flow_runs:
             self.logger.info(

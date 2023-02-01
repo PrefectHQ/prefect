@@ -1,5 +1,148 @@
 # Prefect Release Notes
 
+## Release 2.7.10
+
+### Flow run cancellation enhancements
+
+We're excited to announce an upgrade to our flow run cancellation feature, resolving common issues.
+
+We added SIGTERM handling to the flow run engine. When cancellation is requested, the agent sends a termination signal to the flow run infrastructure. Previously, this signal resulted in the immediate exit of the flow run. Now, the flow run will detect the signal and attempt to shut down gracefully. This gives the run an opportunity to clean up any resources it is managing. If the flow run does not gracefully exit in a reasonable time (this differs per infrastructure type), it will be killed.
+
+We improved our handling of runs that are in the process of cancelling. When a run is cancelled, it's first placed in a "cancelling" state then moved to a "cancelled" state when cancellation is complete. Previously, concurrency slots were released as soon as cancellation was requested. Now, the flow run will continue to occupy concurrency slots until a "cancelled" state is reached.
+
+We added cleanup of tasks and subflows belonging to cancelled flow runs. Previously, these tasks and subflows could be left in a "running" state. This can cause problems with concurrency slot consumption and restarts, so we've added a service that updates the states of the children of recently cancelled flow runs. 
+
+See https://github.com/PrefectHQ/prefect/pull/8126 for implementation details.
+
+
+### Multiarchitecture Docker builds
+
+In 2.7.8, we announced that we were publishing development Docker images, including multiarchitecture images. This was the first step in the incremental rollout of multiarchitecture Docker images. We're excited to announce we will be publishing multiarchitecture Docker images starting with this release.
+
+You can try one of the new images by including the `--platform` specifier, e.g.:
+
+```bash
+$ docker run --platform linux/arm64 --pull always prefecthq/prefect:2-latest prefect version
+```
+
+We will be publishing images for the following architectures:
+
+- linux/amd64
+- linux/arm64
+
+This should provide a significant speedup to anyone running containers on ARM64 machines (I'm looking at you, Apple M1 chips!) and reduce the complexity for our users that are deploying on different platforms. The workflow for building our images was rewritten from scratch, and it'll be easy for us to expand support to include other common platforms.
+
+Shoutout to [@ddelange](https://github.com/ddelange) who led implementation of the feature.
+See https://github.com/PrefectHQ/prefect/pull/7902 for details.
+
+### Enhancements
+- Add [`is_schedule_active` option](https://docs.prefect.io/api-ref/prefect/deployments/#prefect.deployments.Deployment) to `Deployment` class to allow control of automatic scheduling — https://github.com/PrefectHQ/prefect/pull/7430
+
+- Add documentation links to blocks in UI — https://github.com/PrefectHQ/prefect/pull/8210
+- Add Kubernetes kube-system permissions to Prefect agent template for retrieving UUID from kube-system namespace — https://github.com/PrefectHQ/prefect/pull/8205
+- Add support for obscuring secrets in nested block fields in the UI — https://github.com/PrefectHQ/prefect/pull/8246
+- Enable publish of multiarchitecture Docker builds on release — https://github.com/PrefectHQ/prefect/pull/7902
+- Add `CANCELLING` state type — https://github.com/PrefectHQ/prefect/pull/7794
+- Add graceful shutdown of engine on `SIGTERM` — https://github.com/PrefectHQ/prefect/pull/7887
+- Add cancellation cleanup service — https://github.com/PrefectHQ/prefect/pull/8093
+- Add `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` setting to allow configuration of Uvicorn `timeout-keep-alive` setting - https://github.com/PrefectHQ/prefect/pull/8190
+
+### Fixes
+- Fix server compatibility with clients on 2.7.8 - https://github.com/PrefectHQ/prefect/pull/8272
+- Fix tracking of long-running Kubernetes jobs and add handling for connection failures - https://github.com/PrefectHQ/prefect/pull/8189
+
+### Experimental
+- Add functionality to specify a work pool when starting an agent — https://github.com/PrefectHQ/prefect/pull/8222
+- Disable `Work Queues` tab view when work pools are enabled — https://github.com/PrefectHQ/prefect/pull/8257
+- Fix property for `WorkersTable` in UI — https://github.com/PrefectHQ/prefect/pull/8232
+
+### Documentation
+- [Add Prefect Cloud Quickstart tutorial](https://docs.prefect.io/ui/cloud-getting-started/) — https://github.com/PrefectHQ/prefect/pull/8227
+- Add `project_urls` to `setup.py` — https://github.com/PrefectHQ/prefect/pull/8224
+- Add configuration to `mkdocs.yml` to enable versioning at a future time - https://github.com/PrefectHQ/prefect/pull/8204
+- Improve [contributing documentation](https://docs.prefect.io/contributing/overview/) with venv instructions — https://github.com/PrefectHQ/prefect/pull/8247
+- Update documentation on [KubernetesJob options](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob) — https://github.com/PrefectHQ/prefect/pull/8261
+- Update documentation on [workspace-level roles](https://docs.prefect.io/ui/roles/#workspace-level-roles) — https://github.com/PrefectHQ/prefect/pull/8263
+
+### Collections
+- Add [prefect-openai](https://prefecthq.github.io/prefect-openai/) to [Collections catalog](https://docs.prefect.io/collections/catalog/) — https://github.com/PrefectHQ/prefect/pull/8236
+
+### Contributors
+- @ddelange
+- @imsurat
+- @Laerte
+
+## Release 2.7.9
+
+### Enhancements
+- Add `--head` flag to `flow-run logs` CLI command to limit the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add `--num_logs` option to `flow-run logs` CLI command to specify the number of logs returned — https://github.com/PrefectHQ/prefect/pull/8003
+- Add option to filter out `.git` files when reading files with the GitHub storage block — https://github.com/PrefectHQ/prefect/pull/8193
+
+### Fixes
+- Fix bug causing failures when spawning Windows subprocesses - https://github.com/PrefectHQ/prefect/pull/8184
+- Fix possible recursive loop when blocks label themselves as both their own parent and reference — https://github.com/PrefectHQ/prefect/pull/8197
+
+### Documentation
+- Add [recipe contribution page](https://docs.prefect.io/recipes/recipes/#contributing-recipes) and [AWS Chalice](https://docs.prefect.io/recipes/recipes/#recipe-catalog) recipe — https://github.com/PrefectHQ/prefect/pull/8183
+- Add new `discourse` and `blog` admonition types — https://github.com/PrefectHQ/prefect/pull/8202
+- Update Automations and Notifications documentation — https://github.com/PrefectHQ/prefect/pull/8140
+- Fix minor API docstring formatting issues — https://github.com/PrefectHQ/prefect/pull/8196
+
+### Collections
+- [`prefect-openai` 0.1.0](https://github.com/PrefectHQ/prefect-openai) newly released with support for authentication and completions
+
+### Experimental
+- Add ability for deployment create and deployment update to create work pool queues — https://github.com/PrefectHQ/prefect/pull/8129
+
+## New Contributors
+* @mj0nez made their first contribution in https://github.com/PrefectHQ/prefect/pull/8201
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.8...2.7.9
+
+## Release 2.7.8
+
+### Flow run timeline view
+
+We're excited to announce that a new timeline graph has been added to the flow run page. 
+This view helps visualize how execution of your flow run takes place in time, an alternative to the radar view that focuses on the structure of dependencies between task runs.
+
+This feature is currently in beta and we have lots of improvements planned in the near future! We're looking forward to your feedback.
+
+![The timeline view visualizes execution of your flow run over time](https://user-images.githubusercontent.com/6200442/212138540-78586356-89bc-4401-a700-b80b15a17020.png)
+
+### Enhancements
+- Add [task option `refresh_cache`](https://docs.prefect.io/concepts/tasks/#refreshing-the-cache) to update the cached data for a task run — https://github.com/PrefectHQ/prefect/pull/7856
+- Add logs when a task run receives an abort signal and is in a non-final state — https://github.com/PrefectHQ/prefect/pull/8097
+- Add [publishing of multiarchitecture Docker images](https://hub.docker.com/r/prefecthq/prefect-dev) for development builds  — https://github.com/PrefectHQ/prefect/pull/7900
+- Add `httpx.WriteError` to client retryable exceptions — https://github.com/PrefectHQ/prefect/pull/8145
+- Add support for memory limits and privileged containers to `DockerContainer` — https://github.com/PrefectHQ/prefect/pull/8033
+
+### Fixes
+- Add support for `allow_failure` to mapped task arguments — https://github.com/PrefectHQ/prefect/pull/8135
+- Update conda requirement regex to support channel and build hashes — https://github.com/PrefectHQ/prefect/pull/8137
+- Add numpy array support to orjson serialization — https://github.com/PrefectHQ/prefect/pull/7912
+
+### Experimental
+- Rename "Worker pools" to "Work pools" — https://github.com/PrefectHQ/prefect/pull/8107
+- Rename default work pool queue — https://github.com/PrefectHQ/prefect/pull/8117
+- Add worker configuration — https://github.com/PrefectHQ/prefect/pull/8100
+- Add `BaseWorker` and `ProcessWorker` — https://github.com/PrefectHQ/prefect/pull/7996
+
+### Documentation
+- Add YouTube video to welcome page - https://github.com/PrefectHQ/prefect/pull/8090
+- Add social links - https://github.com/PrefectHQ/prefect/pull/8088
+- Increase visibility of Prefect Cloud and Orion REST API documentation - https://github.com/PrefectHQ/prefect/pull/8134
+
+## New Contributors
+* @muddi900 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8101
+* @ddelange made their first contribution in https://github.com/PrefectHQ/prefect/pull/7900
+* @toro-berlin made their first contribution in https://github.com/PrefectHQ/prefect/pull/7856
+* @Ewande made their first contribution in https://github.com/PrefectHQ/prefect/pull/7912
+* @brandonreid made their first contribution in https://github.com/PrefectHQ/prefect/pull/8153
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.7...2.7.8
+
 ## Release 2.7.7
 
 ### Improved reference documentation

@@ -1,12 +1,13 @@
 import abc
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Type, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
+import httpx
 import pendulum
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orion import OrionClient, get_client
@@ -16,6 +17,7 @@ from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.orion import schemas
+from prefect.orion.schemas.actions import WorkPoolUpdate
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -23,6 +25,88 @@ from prefect.settings import (
 )
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+
+
+class BaseJobConfiguration(BaseModel):
+    command: Optional[List[str]] = Field(template="{{ command }}")
+
+    @validator("command")
+    def validate_command(cls, v):
+        """Make sure that empty strings are treated as None"""
+        if not v:
+            return None
+        return v
+
+    @staticmethod
+    def _get_base_config_defaults(variables: dict) -> dict:
+        """Get default values from base config for all variables that have them."""
+        defaults = dict()
+        for variable_name, attrs in variables.items():
+            if "default" in attrs:
+                defaults[variable_name] = attrs["default"]
+
+        return defaults
+
+    @classmethod
+    def from_template_and_overrides(
+        cls, base_job_template: dict, deployment_overrides: dict
+    ):
+        """Creates a valid worker configuration object from the provided base
+        configuration and overrides.
+
+        Important: this method expects that the base_job_template was already
+        validated server-side.
+        """
+        job_config = base_job_template["job_configuration"]
+        variables_schema = base_job_template["variables"]
+        variables = cls._base_variables_from_variable_properties(
+            variables_schema["properties"]
+        )
+        variables.update(deployment_overrides)
+
+        populated_configuration = cls._apply_variables(job_config, variables)
+        return cls(**populated_configuration)
+
+    @classmethod
+    def json_template(cls) -> dict:
+        """Returns a dict with job configuration as keys and the corresponding templates as values
+
+        Defaults to using the job configuration parameter name as the template variable name.
+
+        e.g.
+        {
+            key1: '{{ key1 }}',     # default variable template
+            key2: '{{ template2 }}', # `template2` specifically provide as template
+        }
+        """
+        configuration = {}
+        properties = cls.schema()["properties"]
+        for k, v in properties.items():
+            if v.get("template"):
+                template = v["template"]
+            else:
+                template = "{{ " + k + " }}"
+            configuration[k] = template
+
+        return configuration
+
+    @staticmethod
+    def _apply_variables(job_config, variables):
+        """Apply variables to configuration template."""
+        job_config.update(variables)
+        return job_config
+
+    @classmethod
+    def _base_variables_from_variable_properties(cls, variable_properties):
+        """Get base template variables."""
+        default_variables = cls._get_base_config_defaults(variable_properties)
+        variables = {key: None for key in variable_properties.keys()}
+        variables.update(default_variables)
+        return variables
+
+
+class BaseVariables(BaseModel):
+    command: Optional[List[str]] = None
 
 
 class BaseWorkerResult(BaseModel, abc.ABC):
@@ -36,11 +120,13 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
+    job_configuration: Type[BaseJobConfiguration]
+    job_configuration_variables: Optional[Type[BaseVariables]] = None
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
         self,
-        worker_pool_name: str,
+        work_pool_name: str,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
@@ -56,14 +142,14 @@ class BaseWorker(abc.ABC):
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            worker_pool_name: The name of the worker pool to use. If not
+            work_pool_name: The name of the work pool to use. If not
                 provided, the default will be used.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             workflow_storage_path: The filesystem path to workflow storage for
                 this worker.
-            create_pool_if_not_found: Whether to create the worker pool
+            create_pool_if_not_found: Whether to create the work pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
-                ensure that worker pools are not created accidentally.
+                ensure that work pools are not created accidentally.
             limit: The maximum number of flow runs this worker should be running at
                 a given time.
         """
@@ -74,7 +160,7 @@ class BaseWorker(abc.ABC):
 
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
-        self._worker_pool_name = worker_pool_name
+        self._work_pool_name = work_pool_name
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -83,7 +169,7 @@ class BaseWorker(abc.ABC):
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
-        self._worker_pool: Optional[schemas.core.WorkerPool] = None
+        self._work_pool: Optional[schemas.core.WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[OrionClient] = None
         self._limit = limit
@@ -92,7 +178,10 @@ class BaseWorker(abc.ABC):
 
     @abc.abstractmethod
     async def run(
-        self, flow_run: FlowRun, task_status: Optional[anyio.abc.TaskStatus] = None
+        self,
+        flow_run: FlowRun,
+        configuration: BaseJobConfiguration,
+        task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
         """
         Runs a given flow run on the current worker.
@@ -101,7 +190,7 @@ class BaseWorker(abc.ABC):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     async def verify_submitted_deployment(self, deployment: Deployment):
         """
         Checks that scheduled flow runs for a submitted deployment can be run by the
@@ -141,7 +230,6 @@ class BaseWorker(abc.ABC):
         self._logger.debug("Tearing down worker...")
         self.is_setup = False
         if self._runs_task_group:
-            self._runs_task_group.cancel_scope.cancel()
             await self._runs_task_group.__aexit__(*exc_info)
         if self._client:
             await self._client.__aexit__(*exc_info)
@@ -152,48 +240,54 @@ class BaseWorker(abc.ABC):
         runs_response = await self._get_scheduled_flow_runs()
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def _update_local_worker_pool_info(self):
+    async def _update_local_work_pool_info(self):
         try:
-            worker_pool = await self._client.read_worker_pool(
-                worker_pool_name=self._worker_pool_name
+            work_pool = await self._client.read_work_pool(
+                work_pool_name=self._work_pool_name
             )
         except ObjectNotFound:
             if self._create_pool_if_not_found:
-                worker_pool = await self._client.create_worker_pool(
-                    worker_pool=schemas.actions.WorkerPoolCreate(
-                        name=self._worker_pool_name, type=self.type
+                work_pool = await self._client.create_work_pool(
+                    work_pool=schemas.actions.WorkPoolCreate(
+                        name=self._work_pool_name, type=self.type
                     )
                 )
-                self._logger.info(f"Worker pool {self._worker_pool_name!r} created.")
+                self._logger.info(f"Worker pool {self._work_pool_name!r} created.")
             else:
-                self._logger.warning(
-                    f"Worker pool {self._worker_pool_name!r} not found!"
-                )
+                self._logger.warning(f"Worker pool {self._work_pool_name!r} not found!")
                 return
 
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
-        if getattr(self._worker_pool, "type", 0) != worker_pool.type:
-            if worker_pool.type != self.__class__.type:
+        if getattr(self._work_pool, "type", 0) != work_pool.type:
+            if work_pool.type != self.__class__.type:
                 self._logger.warning(
                     f"Worker type mismatch! This worker process expects type "
-                    f"{self.type!r} but received {worker_pool.type!r}"
+                    f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
-        self._worker_pool = worker_pool
+
+        # once the work pool is loaded, verify that it has a `base_job_template` and
+        # set it if not
+        if not work_pool.base_job_template:
+            job_template = self._create_job_template()
+            await self._set_work_pool_template(work_pool, job_template)
+            work_pool.base_job_template = job_template
+
+        self._work_pool = work_pool
 
     async def _send_worker_heartbeat(self):
-        if self._worker_pool:
+        if self._work_pool:
             await self._client.send_worker_heartbeat(
-                worker_pool_name=self._worker_pool_name, worker_name=self.name
+                work_pool_name=self._work_pool_name, worker_name=self.name
             )
 
     async def sync_with_backend(self):
         """
-        Updates the worker's local information about it's current worker pool and
+        Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
-        await self._update_local_worker_pool_info()
+        await self._update_local_work_pool_info()
 
         await self._send_worker_heartbeat()
 
@@ -250,7 +344,14 @@ class BaseWorker(abc.ABC):
                 "Validation of deployment manifest %s failed.",
                 deployment_manifest_path,
             )
-        except Exception:
+        except httpx.HTTPStatusError as exc:
+            self._logger.exception(
+                "Failed to apply deployment %s/%s: %s",
+                deployment.flow_name,
+                deployment.name,
+                exc.response.json().get("detail"),
+            )
+        except Exception as exc:
             self._logger.exception(
                 "Unexpected error occurred while attempting to register discovered deployment."
             )
@@ -259,7 +360,7 @@ class BaseWorker(abc.ABC):
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
         """
-        Retrieve scheduled flow runs from the worker pool's queues.
+        Retrieve scheduled flow runs from the work pool's queues.
         """
         scheduled_before = pendulum.now("utc").add(seconds=int(self._prefetch_seconds))
         self._logger.debug(
@@ -267,8 +368,8 @@ class BaseWorker(abc.ABC):
         )
         try:
             scheduled_flow_runs = (
-                await self._client.get_scheduled_flow_runs_for_worker_pool_queues(
-                    worker_pool_name=self._worker_pool_name,
+                await self._client.get_scheduled_flow_runs_for_work_pool(
+                    work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
                 )
             )
@@ -356,7 +457,11 @@ class BaseWorker(abc.ABC):
         try:
             # TODO: Add functionality to handle base job configuration and
             # job configuration variables when kicking off a flow run
-            result = await self.run(flow_run=flow_run, task_status=task_status)
+            result = await self.run(
+                flow_run=flow_run,
+                task_status=task_status,
+                configuration=await self._get_configuration(flow_run),
+            )
         except Exception as exc:
             if not task_status._future.done():
                 # This flow run was being submitted and did not start successfully
@@ -398,18 +503,26 @@ class BaseWorker(abc.ABC):
     def get_status(self):
         """
         Retrieves the status of the current worker including its name, current worker
-        pool, the worker pool queues it is polling, and its local settings.
+        pool, the work pool queues it is polling, and its local settings.
         """
         return {
             "name": self.name,
-            "worker_pool": self._worker_pool.dict(json_compatible=True)
-            if self._worker_pool is not None
+            "work_pool": self._work_pool.dict(json_compatible=True)
+            if self._work_pool is not None
             else None,
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
                 "workflow_storage_path": self._workflow_storage_path,
             },
         }
+
+    async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
+        deployment = await self._client.read_deployment(flow_run.deployment_id)
+        configuration = self.job_configuration.from_template_and_overrides(
+            base_job_template=self._work_pool.base_job_template,
+            deployment_overrides=deployment.infra_overrides,
+        )
+        return configuration
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
@@ -475,6 +588,35 @@ class BaseWorker(abc.ABC):
                     f"Reported flow run '{flow_run.id}' as crashed: {message}"
                 )
 
+    async def _set_work_pool_template(self, work_pool, job_template):
+        """Updates the `base_job_template` for the worker's workerpool server side."""
+        await self._client.update_work_pool(
+            work_pool_name=work_pool.name,
+            work_pool=WorkPoolUpdate(
+                base_job_template=job_template,
+            ),
+        )
+
+    def _create_job_template(self) -> dict:
+        """Create a job template from a worker's configuration components."""
+        if self.job_configuration_variables is None:
+            schema = self.job_configuration.schema()
+            # remove "template" key from all dicts in schema['properties'] because it is not a
+            # relevant field
+            for key, value in schema["properties"].items():
+                if isinstance(value, dict):
+                    schema["properties"][key].pop("template", None)
+            variables = schema
+        else:
+            variables = self.job_configuration_variables.schema()
+        return {
+            "job_configuration": self.job_configuration.json_template(),
+            "variables": {
+                "properties": variables["properties"],
+                "required": variables.get("required", []),
+            },
+        }
+
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
         await self.setup()
@@ -485,4 +627,4 @@ class BaseWorker(abc.ABC):
         await self.teardown(*exc_info)
 
     def __repr__(self):
-        return f"Worker(pool={self._worker_pool_name!r}, name={self.name!r})"
+        return f"Worker(pool={self._work_pool_name!r}, name={self.name!r})"

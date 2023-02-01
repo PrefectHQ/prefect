@@ -18,6 +18,9 @@ class BlockStandardTestSuite(ABC):
     def test_has_a_description(self, block: Type[Block]):
         assert block.get_description()
 
+    def test_has_a_documentation_url(self, block: Type[Block]):
+        assert block._documentation_url
+
     def test_all_fields_have_a_description(self, block: Type[Block]):
         for name, field in block.__fields__.items():
             if Block.is_block_class(field.type_):

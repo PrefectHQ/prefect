@@ -16,6 +16,8 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import logging
+import os
+import signal
 import sys
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
@@ -47,6 +49,7 @@ from prefect.exceptions import (
     NotPausedError,
     Pause,
     PausedRun,
+    TerminationSignal,
     UpstreamTaskError,
 )
 from prefect.flows import Flow
@@ -66,7 +69,11 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
-from prefect.settings import PREFECT_DEBUG_MODE, PREFECT_LOGGING_LOG_PRINTS
+from prefect.settings import (
+    PREFECT_DEBUG_MODE,
+    PREFECT_LOGGING_LOG_PRINTS,
+    PREFECT_TASKS_REFRESH_CACHE,
+)
 from prefect.states import (
     Paused,
     Pending,
@@ -94,7 +101,6 @@ from prefect.utilities.asyncutils import (
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import isiterable, visit_collection
-from prefect.utilities.hashing import stable_hash
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -953,7 +959,13 @@ async def begin_task_map(
 
     iterable_parameters = {}
     static_parameters = {}
+    annotated_parameters = {}
     for key, val in parameters.items():
+        if isinstance(val, allow_failure):
+            # Unwrap annotated parameters to determine if they are iterable
+            annotated_parameters[key] = val
+            val = val.unwrap()
+
         if isinstance(val, unmapped):
             static_parameters[key] = val.value
         elif isiterable(val):
@@ -983,6 +995,11 @@ async def begin_task_map(
     for i in range(map_length):
         call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
         call_parameters.update({key: value for key, value in static_parameters.items()})
+
+        # Re-apply annotations to each key again
+        for key, annotation in annotated_parameters.items():
+            call_parameters[key] = annotation.rewrap(call_parameters[key])
+
         task_runs.append(
             partial(
                 get_task_call_return_value,
@@ -1079,7 +1096,7 @@ async def create_task_run_future(
 
     # Generate a name for the future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
-    task_run_name = f"{task.name}-{stable_hash(task.task_key)[:8]}-{dynamic_key}"
+    task_run_name = f"{task.name}-{dynamic_key}"
 
     # Generate a future
     future = PrefectFuture(
@@ -1316,13 +1333,28 @@ async def begin_task_run(
                 # loss if the process exits
                 OrionHandler.flush(block=True)
 
-        except (Abort, Pause):
-            # Task run already completed, just fetch its state
+        except Abort as abort:
+            # Task run probably already completed, fetch its state
             task_run = await client.read_task_run(task_run.id)
-            task_run_logger(task_run).info(
-                f"Task run '{task_run.id}' already finished."
-            )
+
+            if task_run.state.is_final():
+                task_run_logger(task_run).info(
+                    f"Task run '{task_run.id}' already finished."
+                )
+            else:
+                # TODO: This is a concerning case; we should determine when this occurs
+                #       1. This can occur when the flow run is not in a running state
+                task_run_logger(task_run).warning(
+                    f"Task run '{task_run.id}' received abort during orchestration: "
+                    f"{abort} Task run is in {task_run.state.type.value} state."
+                )
             state = task_run.state
+
+        except Pause:
+            task_run_logger(task_run).info(
+                "Task run encountered a pause signal during orchestration."
+            )
+            state = Paused()
 
         return state
 
@@ -1397,10 +1429,20 @@ async def orchestrate_task_run(
         else None
     )
 
+    # Ignore the cached results for a cache key, default = false
+    # Setting on task level overrules the Prefect setting (env var)
+    refresh_cache = (
+        task.refresh_cache
+        if task.refresh_cache is not None
+        else PREFECT_TASKS_REFRESH_CACHE.value()
+    )
+
     # Transition from `PENDING` -> `RUNNING`
     state = await propose_state(
         client,
-        Running(state_details=StateDetails(cache_key=cache_key)),
+        Running(
+            state_details=StateDetails(cache_key=cache_key, refresh_cache=refresh_cache)
+        ),
         task_run_id=task_run.id,
     )
 
@@ -1566,6 +1608,17 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
     This context _must_ reraise the exception to properly exit the run.
     """
+
+    def cancel_flow_run(*args):
+        raise TerminationSignal(signal=signal.SIGTERM)
+
+    original_term_handler = None
+    try:
+        original_term_handler = signal.signal(signal.SIGTERM, cancel_flow_run)
+    except ValueError:
+        # Signals only work in the main thread
+        pass
+
     try:
         yield
     except (Abort, Pause):
@@ -1580,14 +1633,24 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
             await client.set_flow_run_state(
                 state=state,
                 flow_run_id=flow_run.id,
-                force=True,
             )
             engine_logger.debug(
                 f"Reported crashed flow run {flow_run.name!r} successfully!"
             )
 
+        if isinstance(exc, TerminationSignal):
+            # Termination signals are swapped out during a flow run to perform
+            # a graceful shutdown and raise this exception. This `os.kill` call
+            # ensures that the previous handler, likely the Python default,
+            # gets called as well.
+            signal.signal(exc.signal, original_term_handler)
+            os.kill(os.getpid(), exc.signal)
+
         # Reraise the exception
         raise exc from None
+    finally:
+        if original_term_handler is not None:
+            signal.signal(signal.SIGTERM, original_term_handler)
 
 
 @asynccontextmanager

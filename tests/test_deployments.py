@@ -348,12 +348,14 @@ class TestDeploymentBuild:
             tags=["A", "B"],
             description="foobar",
             version="12",
+            is_schedule_active=False,
         )
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.description == "foobar"
         assert d.tags == ["A", "B"]
         assert d.version == "12"
+        assert d.is_schedule_active == False
 
     async def test_build_from_flow_doesnt_load_existing(self, flow_function):
         d = await Deployment.build_from_flow(
@@ -381,6 +383,23 @@ class TestDeploymentBuild:
         assert d.tags != ["A", "B"]
         assert d.version == "12"
 
+    @pytest.mark.parametrize(
+        "is_active",
+        [True, False, None],
+    )
+    async def test_deployment_schedule_active_behaviors(self, flow_function, is_active):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+            is_schedule_active=is_active,
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.is_schedule_active == is_active
+
 
 class TestYAML:
     def test_deployment_yaml_roundtrip(self, tmp_path):
@@ -398,11 +417,38 @@ class TestYAML:
         d.to_yaml(yaml_path)
 
         new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == d.name
         assert new_d.name == "yaml"
         assert new_d.tags == ["A", "B"]
         assert new_d.flow_name == "test"
         assert new_d.storage == storage
         assert new_d.infrastructure == infrastructure
+
+    @pytest.mark.parametrize(
+        "is_schedule_active",
+        [True, False, None],
+    )
+    def test_deployment_yaml_roundtrip_for_schedule_active(
+        self, tmp_path, is_schedule_active
+    ):
+        storage = LocalFileSystem(basepath=".")
+        infrastructure = Process()
+
+        d = Deployment(
+            name="yaml",
+            flow_name="test",
+            storage=storage,
+            infrastructure=infrastructure,
+            tags=["A", "B"],
+            is_schedule_active=is_schedule_active,
+        )
+        yaml_path = str(tmp_path / "dep.yaml")
+        d.to_yaml(yaml_path)
+
+        new_d = Deployment.load_from_yaml(yaml_path)
+        assert new_d.name == d.name
+        assert new_d.name == "yaml"
+        assert new_d.is_schedule_active == is_schedule_active
 
     async def test_deployment_yaml_roundtrip_handles_secret_values(self, tmp_path):
         storage = S3(
@@ -526,14 +572,44 @@ async def test_deployment(patch_import, tmp_path):
     return d, deployment_id
 
 
-async def test_deployment_apply_updates_concurrency_limit(
-    patch_import, tmp_path, orion_client
-):
-    d = Deployment(name="TEST", flow_name="fn")
-    deployment_id = await d.apply(work_queue_concurrency=424242)
-    queue_name = d.work_queue_name
-    work_queue = await orion_client.read_work_queue_by_name(queue_name)
-    assert work_queue.concurrency_limit == 424242
+class TestDeploymentApply:
+    async def test_deployment_apply_updates_concurrency_limit(
+        self,
+        patch_import,
+        tmp_path,
+        orion_client,
+    ):
+        d = Deployment(
+            name="TEST",
+            flow_name="fn",
+        )
+        deployment_id = await d.apply(work_queue_concurrency=424242)
+        queue_name = d.work_queue_name
+        work_queue = await orion_client.read_work_queue_by_name(queue_name)
+        assert work_queue.concurrency_limit == 424242
+
+    @pytest.mark.parametrize(
+        "provided, expected",
+        [(True, True), (False, False), (None, True)],
+    )
+    async def test_deployment_is_active_behaves_as_expected(
+        self, flow_function, provided, expected, orion_client
+    ):
+        d = await Deployment.build_from_flow(
+            flow_function,
+            name="foo",
+            tags=["A", "B"],
+            description="foobar",
+            version="12",
+            is_schedule_active=provided,
+        )
+        assert d.flow_name == flow_function.name
+        assert d.name == "foo"
+        assert d.is_schedule_active is provided
+
+        dep_id = await d.apply()
+        dep = await orion_client.read_deployment(dep_id)
+        assert dep.is_schedule_active == expected
 
 
 class TestRunDeployment:

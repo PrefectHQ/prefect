@@ -33,10 +33,10 @@ def adjust_kwargs_for_client(kwargs):
             k = "task_runs"
         elif k == "deployment_filter":
             k = "deployments"
-        elif k == "worker_pool_filter":
-            k = "worker_pools"
-        elif k == "worker_pool_queue_filter":
-            k = "worker_pool_queues"
+        elif k == "work_pool_filter":
+            k = "work_pools"
+        elif k == "work_queue_filter":
+            k = "work_pool_queues"
         else:
             raise ValueError("Unrecognized filter")
         adjusted_kwargs[k] = v
@@ -62,8 +62,8 @@ async def data(flow_function, db):
             session=session, task_run=task_run
         )
 
-        wp = await models.workers.create_worker_pool(
-            session=session, worker_pool=actions.WorkerPoolCreate(name="Test Pool")
+        wp = await models.workers.create_work_pool(
+            session=session, work_pool=actions.WorkPoolCreate(name="Test Pool")
         )
 
         f_1 = await create_flow(flow=core.Flow(name="f-1", tags=["db", "blue"]))
@@ -99,7 +99,7 @@ async def data(flow_function, db):
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
                 is_schedule_active=True,
-                worker_pool_queue_id=wp.default_queue_id,
+                work_queue_id=wp.default_queue_id,
             )
         )
 
@@ -182,7 +182,7 @@ async def data(flow_function, db):
                 tags=[],
                 state=states.Completed(),
                 deployment_id=d_3_1.id,
-                worker_pool_queue_id=wp.default_queue_id,
+                work_queue_id=wp.default_queue_id,
             )
         )
 
@@ -285,8 +285,8 @@ async def data(flow_function, db):
     # ----------------- clear data
 
     async with db.session_context(begin_transaction=True) as session:
-        # worker pool has a circular dependency on pool queue; delete it first
-        await session.execute(db.WorkerPool.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
 
         for table in reversed(db.Base.metadata.sorted_tables):
             await session.execute(table.delete())
@@ -574,48 +574,36 @@ class TestCountFlowRunModels:
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                )
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
             ),
             1,
         ],
         [
             dict(
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                )
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"]))
             ),
             1,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             1,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
+                work_pool_filter=filters.WorkPoolFilter(
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             0,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_queue_filter=filters.WorkQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
             ),
@@ -919,48 +907,36 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                )
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"]))
             ),
             1,
         ],
         [
             dict(
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                )
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"]))
             ),
             1,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                ),
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             1,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
+                work_pool_filter=filters.WorkPoolFilter(
                     name=dict(any_=["A pool that doesn't exist"])
                 ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
-                    name=dict(any_=["Default Queue"])
-                ),
+                work_queue_filter=filters.WorkQueueFilter(name=dict(any_=["default"])),
             ),
             0,
         ],
         [
             dict(
-                worker_pool_filter=filters.WorkerPoolFilter(
-                    name=dict(any_=["Test Pool"])
-                ),
-                worker_pool_queue_filter=filters.WorkerPoolQueueFilter(
+                work_pool_filter=filters.WorkPoolFilter(name=dict(any_=["Test Pool"])),
+                work_queue_filter=filters.WorkQueueFilter(
                     name=dict(any_=["a queue that doesn't exist"])
                 ),
             ),

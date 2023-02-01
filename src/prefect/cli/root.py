@@ -1,6 +1,7 @@
 """
 Base `prefect` command-line application
 """
+import asyncio
 import platform
 import sys
 from typing import Optional
@@ -83,6 +84,14 @@ def main(
         # can cause logging configuration conflicts. Logging is set up in conftest
         # during tests.
         setup_logging()
+
+    # When running on Windows we need to ensure that the correct event loop policy is
+    # in place or we will not be able to spawn subprocesses. Sometimes this policy is
+    # changed by other libraries, but here in our CLI we should have ownership of the
+    # process and be able to safely force it to be the correct policy.
+    # https://github.com/PrefectHQ/prefect/issues/8206
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 @app.command()

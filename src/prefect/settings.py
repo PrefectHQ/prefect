@@ -64,6 +64,7 @@ from typing import (
 import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from typing_extensions import Literal
 
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
@@ -478,6 +479,14 @@ The default setting for persisting results when not otherwise specified. If enab
 flow and task results will be persisted unless they opt out.
 """
 
+PREFECT_TASKS_REFRESH_CACHE = Setting(
+    bool,
+    default=False,
+)
+"""
+If `True`, enables a refresh of cached results: re-executing the
+task will refresh the cached results. Defaults to `False`.
+"""
 
 PREFECT_LOCAL_STORAGE_PATH = Setting(
     Path,
@@ -574,6 +583,20 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     default=1_000_000,
 )
 """The maximum size in bytes for a single log."""
+
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Literal["warn", "error", "ignore"],
+    default="warn",
+)
+"""
+Controls the behavior when loggers attempt to send logs to Orion without a flow run id.
+The Orion log handler can only send logs within flow run contexts unless the flow run id is
+manually provided.
+
+"warn": Log a warning message.
+"error": Raise an error.
+"ignore": Do not log a warning message or raise an error.
+"""
 
 PREFECT_LOGGING_COLORS = Setting(
     bool,
@@ -807,6 +830,14 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
 this often. Defaults to `5`.
 """
 
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
+    float,
+    default=20,
+)
+"""The cancellation cleanup service will look non-terminal tasks and subflows
+this often. Defaults to `20`.
+"""
+
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
     int,
     default=200,
@@ -826,6 +857,21 @@ PREFECT_ORION_API_PORT = Setting(
     default=4200,
 )
 """The API's port address (defaults to `4200`)."""
+
+PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
+    int,
+    default=5,
+)
+"""
+The API's keep alive timeout (defaults to `5`).
+Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+When the API is hosted behind a load balancer, you may want to set this to a value
+greater than the load balancer's idle timeout.
+
+Note this setting only applies when calling `prefect orion start`; if hosting the
+API with another tool you will need to configure this there instead.
+"""
 
 PREFECT_ORION_UI_ENABLED = Setting(
     bool,
@@ -888,6 +934,23 @@ PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
 """
 The maximum number of characters allowed for a task run cache key.
 This setting cannot be changed client-side, it must be set on the server.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect work pools.
+"""
+PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect work pools are used.
+"""
+PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the cancellation cleanup service in the Orion
+application. If disabled, task runs and subflow runs belonging to cancelled flows may
+remain in non-terminal states.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)

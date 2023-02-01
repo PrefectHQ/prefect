@@ -15,17 +15,17 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 def error_404_if_workers_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_WORKERS:
-        raise HTTPException(status_code=404, detail="Workers are not enabled")
+    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS:
+        raise HTTPException(status_code=404, detail="Work pools are not enabled")
 
 
 router = OrionRouter(
-    prefix="/experimental/worker_pools",
-    tags=["Worker Pools"],
+    prefix="/experimental/work_pools",
+    tags=["Work Pools"],
     dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
@@ -40,66 +40,79 @@ router = OrionRouter(
 
 
 class WorkerLookups:
-    async def _get_worker_pool_id_from_name(
-        self, session: AsyncSession, worker_pool_name: str
+    async def _get_work_pool_id_from_name(
+        self, session: AsyncSession, work_pool_name: str
     ) -> UUID:
         """
-        Given a worker pool name, return its ID. Used for translating
+        Given a work pool name, return its ID. Used for translating
         user-facing APIs (which are name-based) to internal ones (which are
         id-based).
         """
-        worker_pool = await models.workers.read_worker_pool_by_name(
+        work_pool = await models.workers.read_work_pool_by_name(
             session=session,
-            worker_pool_name=worker_pool_name,
+            work_pool_name=work_pool_name,
         )
-        if not worker_pool:
+        if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{worker_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        return worker_pool.id
+        return work_pool.id
 
-    async def _get_default_worker_pool_queue_id_from_worker_pool_name(
-        self, session: AsyncSession, worker_pool_name: str
+    async def _get_default_work_queue_id_from_work_pool_name(
+        self, session: AsyncSession, work_pool_name: str
     ):
         """
-        Given a worker pool name, return the ID of its default queue.
+        Given a work pool name, return the ID of its default queue.
         Used for translating user-facing APIs (which are name-based)
         to internal ones (which are id-based).
         """
-        worker_pool = await models.workers.read_worker_pool_by_name(
+        work_pool = await models.workers.read_work_pool_by_name(
             session=session,
-            worker_pool_name=worker_pool_name,
+            work_pool_name=work_pool_name,
         )
-        if not worker_pool:
+        if not work_pool:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Worker pool "{worker_pool_name}" not found.',
+                detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        return worker_pool.default_queue_id
+        return work_pool.default_queue_id
 
-    async def _get_worker_pool_queue_id_from_name(
-        self, session: AsyncSession, worker_pool_name: str, worker_pool_queue_name: str
+    async def _get_work_queue_id_from_name(
+        self,
+        session: AsyncSession,
+        work_pool_name: str,
+        work_queue_name: str,
+        create_queue_if_not_found: bool = False,
     ) -> UUID:
         """
-        Given a worker pool name and worker pool queue name, return the ID of the
+        Given a work pool name and work pool queue name, return the ID of the
         queue. Used for translating user-facing APIs (which are name-based) to
         internal ones (which are id-based).
         """
-        worker_pool_queue = await models.workers.read_worker_pool_queue_by_name(
+        work_queue = await models.workers.read_work_queue_by_name(
             session=session,
-            worker_pool_name=worker_pool_name,
-            worker_pool_queue_name=worker_pool_queue_name,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
         )
-        if not worker_pool_queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Worker queue '{worker_pool_name}/{worker_pool_queue_name}' not found.",
+        if not work_queue:
+            if not create_queue_if_not_found:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Work pool queue '{work_pool_name}/{work_queue_name}' not found.",
+                )
+            work_pool_id = await self._get_work_pool_id_from_name(
+                session=session, work_pool_name=work_pool_name
+            )
+            work_queue = await models.workers.create_work_queue(
+                session=session,
+                work_pool_id=work_pool_id,
+                work_queue=schemas.actions.WorkQueueCreate(name=work_queue_name),
             )
 
-        return worker_pool_queue.id
+        return work_queue.id
 
 
 # -----------------------------------------------------
@@ -112,139 +125,139 @@ class WorkerLookups:
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_worker_pool(
-    worker_pool: schemas.actions.WorkerPoolCreate,
+async def create_work_pool(
+    work_pool: schemas.actions.WorkPoolCreate,
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkerPool:
+) -> schemas.core.WorkPool:
     """
-    Creates a new worker pool. If a worker pool with the same
+    Creates a new work pool. If a work pool with the same
     name already exists, an error will be raised.
     """
 
-    if worker_pool.name.lower().startswith("prefect"):
+    if work_pool.name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use.",
+            detail="Work pools starting with 'Prefect' are reserved for internal use.",
         )
 
     try:
         async with db.session_context(begin_transaction=True) as session:
-            model = await models.workers.create_worker_pool(
-                session=session, worker_pool=worker_pool, db=db
+            model = await models.workers.create_work_pool(
+                session=session, work_pool=work_pool, db=db
             )
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A worker with this name already exists.",
+            detail="A work pool with this name already exists.",
         )
 
     return model
 
 
 @router.get("/{name}")
-async def read_worker_pool(
-    worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+async def read_work_pool(
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkerPool:
+) -> schemas.core.WorkPool:
     """
-    Read a worker by name
+    Read a work pool by name
     """
 
     async with db.session_context() as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
-        return await models.workers.read_worker_pool(
-            session=session, worker_pool_id=worker_pool_id, db=db
+        return await models.workers.read_work_pool(
+            session=session, work_pool_id=work_pool_id, db=db
         )
 
 
 @router.post("/filter")
-async def read_worker_pools(
-    worker_pools: schemas.filters.WorkerPoolFilter = None,
+async def read_work_pools(
+    work_pools: schemas.filters.WorkPoolFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkerPool]:
+) -> List[schemas.core.WorkPool]:
     """
-    Read multiple workers
+    Read multiple work pools
     """
     async with db.session_context() as session:
-        return await models.workers.read_worker_pools(
+        return await models.workers.read_work_pools(
             db=db,
             session=session,
-            worker_pool_filter=worker_pools,
+            work_pool_filter=work_pools,
             offset=offset,
             limit=limit,
         )
 
 
 @router.patch("/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_worker_pool(
-    worker_pool: schemas.actions.WorkerPoolUpdate,
-    worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+async def update_work_pool(
+    work_pool: schemas.actions.WorkPoolUpdate,
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Update a worker pool
+    Update a work pool
     """
 
     # Reserved pools can only updated pause / concurrency
-    update_values = worker_pool.dict(exclude_unset=True)
-    if worker_pool_name.lower().startswith("prefect") and (
+    update_values = work_pool.dict(exclude_unset=True)
+    if work_pool_name.lower().startswith("prefect") and (
         set(update_values).difference({"is_paused", "concurrency_limit"})
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use "
+            detail="Work pools starting with 'Prefect' are reserved for internal use "
             "and can only be updated to set concurrency limits or pause.",
         )
 
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
-        await models.workers.update_worker_pool(
+        await models.workers.update_work_pool(
             session=session,
-            worker_pool_id=worker_pool_id,
-            worker_pool=worker_pool,
+            work_pool_id=work_pool_id,
+            work_pool=work_pool,
             db=db,
         )
 
 
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_worker_pool(
-    worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
+async def delete_work_pool(
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Delete a worker pool
+    Delete a work pool
     """
 
-    if worker_pool_name.lower().startswith("prefect"):
+    if work_pool_name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Worker pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
+            detail="Work pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
         )
 
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
 
-        await models.workers.delete_worker_pool(
-            session=session, worker_pool_id=worker_pool_id, db=db
+        await models.workers.delete_work_pool(
+            session=session, work_pool_id=work_pool_id, db=db
         )
 
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
-    worker_pool_name: str = Path(..., description="The worker pool name", alias="name"),
-    worker_pool_queue_names: List[str] = Body(
-        None, description="The names of worker pool queues"
+    work_pool_name: str = Path(..., description="The work pool name", alias="name"),
+    work_queue_names: List[str] = Body(
+        None, description="The names of work pool queues"
     ),
     scheduled_before: DateTimeTZ = Body(
         None, description="The maximum time to look for scheduled flow runs"
@@ -260,28 +273,28 @@ async def get_scheduled_flow_runs(
     Load scheduled runs for a worker
     """
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
 
-        if worker_pool_queue_names is None:
-            worker_pool_queue_ids = None
+        if work_queue_names is None:
+            work_queue_ids = None
         else:
-            worker_pool_queue_ids = []
-            for qn in worker_pool_queue_names:
-                worker_pool_queue_ids.append(
-                    await worker_lookups._get_worker_pool_queue_id_from_name(
+            work_queue_ids = []
+            for qn in work_queue_names:
+                work_queue_ids.append(
+                    await worker_lookups._get_work_queue_id_from_name(
                         session=session,
-                        worker_pool_name=worker_pool_name,
-                        worker_pool_queue_name=qn,
+                        work_pool_name=work_pool_name,
+                        work_queue_name=qn,
                     )
                 )
 
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
             db=db,
-            worker_pool_ids=[worker_pool_id],
-            worker_pool_queue_ids=worker_pool_queue_ids,
+            work_pool_ids=[work_pool_id],
+            work_queue_ids=work_queue_ids,
             scheduled_before=scheduled_before,
             scheduled_after=scheduled_after,
             limit=limit,
@@ -293,145 +306,151 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 # --
 # --
-# -- Worker Queues
+# -- Work Pool Queues
 # --
 # --
 # -----------------------------------------------------
 
 
-@router.post("/{worker_pool_name}/queues", status_code=status.HTTP_201_CREATED)
-async def create_worker_pool_queue(
-    worker_pool_queue: schemas.actions.WorkerPoolQueueCreate,
-    worker_pool_name: str = Path(..., description="The worker pool name"),
+@router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
+async def create_work_queue(
+    work_queue: schemas.actions.WorkQueueCreate,
+    work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkerPoolQueue:
+) -> schemas.core.WorkQueue:
     """
-    Creates a new worker pool queue. If a worker pool queue with the same
+    Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
     """
 
     try:
         async with db.session_context(begin_transaction=True) as session:
-            worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
+            work_pool_id = await worker_lookups._get_work_pool_id_from_name(
                 session=session,
-                worker_pool_name=worker_pool_name,
+                work_pool_name=work_pool_name,
             )
 
-            model = await models.workers.create_worker_pool_queue(
+            model = await models.workers.create_work_queue(
                 session=session,
-                worker_pool_id=worker_pool_id,
-                worker_pool_queue=worker_pool_queue,
+                work_pool_id=work_pool_id,
+                work_queue=work_queue,
                 db=db,
             )
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A worker with this name already exists.",
+            detail="A work queue with this name already exists in work pool {work_pool_name!r}.",
         )
 
     return model
 
 
-@router.get("/{worker_pool_name}/queues/{name}")
-async def read_worker_pool_queue(
-    worker_pool_name: str = Path(..., description="The worker pool name"),
-    worker_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+@router.get("/{work_pool_name}/queues/{name}")
+async def read_work_queue(
+    work_pool_name: str = Path(..., description="The work pool name"),
+    work_queue_name: str = Path(
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkerPoolQueue:
+) -> schemas.core.WorkQueue:
     """
-    Read a worker pool queue
+    Read a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_queue_id = await worker_lookups._get_worker_pool_queue_id_from_name(
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             session=session,
-            worker_pool_name=worker_pool_name,
-            worker_pool_queue_name=worker_pool_queue_name,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
         )
 
-        return await models.workers.read_worker_pool_queue(
-            session=session, worker_pool_queue_id=worker_pool_queue_id, db=db
+        return await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id, db=db
         )
 
 
-@router.get("/{worker_pool_name}/queues")
-async def read_worker_pool_queues(
-    worker_pool_name: str = Path(..., description="The worker pool name"),
+@router.post("/{work_pool_name}/queues/filter")
+async def read_work_queues(
+    work_pool_name: str = Path(..., description="The work pool name"),
+    work_queues: schemas.filters.WorkQueueFilter = None,
+    limit: int = dependencies.LimitBody(),
+    offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkerPoolQueue]:
+) -> List[schemas.core.WorkQueue]:
     """
-    Read all worker pool queues
+    Read all work pool queues
     """
     async with db.session_context() as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session,
-            worker_pool_name=worker_pool_name,
+            work_pool_name=work_pool_name,
         )
-        return await models.workers.read_worker_pool_queues(
-            session=session, worker_pool_id=worker_pool_id, db=db
+        return await models.workers.read_work_queues(
+            session=session,
+            work_pool_id=work_pool_id,
+            work_queue_filter=work_queues,
+            limit=limit,
+            offset=offset,
+            db=db,
         )
 
 
-@router.patch(
-    "/{worker_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
-)
-async def update_worker_pool_queue(
-    worker_pool_queue: schemas.actions.WorkerPoolQueueUpdate,
-    worker_pool_name: str = Path(..., description="The worker pool name"),
-    worker_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+@router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_work_queue(
+    work_queue: schemas.actions.WorkQueueUpdate,
+    work_pool_name: str = Path(..., description="The work pool name"),
+    work_queue_name: str = Path(
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Update a worker pool queue
+    Update a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_queue_id = await worker_lookups._get_worker_pool_queue_id_from_name(
-            worker_pool_name=worker_pool_name,
-            worker_pool_queue_name=worker_pool_queue_name,
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
             session=session,
         )
 
-        await models.workers.update_worker_pool_queue(
+        await models.workers.update_work_queue(
             session=session,
-            worker_pool_queue_id=worker_pool_queue_id,
-            worker_pool_queue=worker_pool_queue,
+            work_queue_id=work_queue_id,
+            work_queue=work_queue,
             db=db,
         )
 
 
 @router.delete(
-    "/{worker_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
+    "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_worker_pool_queue(
-    worker_pool_name: str = Path(..., description="The worker pool name"),
-    worker_pool_queue_name: str = Path(
-        ..., description="The worker pool queue name", alias="name"
+async def delete_work_queue(
+    work_pool_name: str = Path(..., description="The work pool name"),
+    work_queue_name: str = Path(
+        ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     """
-    Delete a worker pool queue
+    Delete a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_queue_id = await worker_lookups._get_worker_pool_queue_id_from_name(
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             session=session,
-            worker_pool_name=worker_pool_name,
-            worker_pool_queue_name=worker_pool_queue_name,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
         )
 
-        await models.workers.delete_worker_pool_queue(
-            session=session, worker_pool_queue_id=worker_pool_queue_id, db=db
+        await models.workers.delete_work_queue(
+            session=session, work_queue_id=work_queue_id, db=db
         )
 
 
@@ -445,31 +464,31 @@ async def delete_worker_pool_queue(
 
 
 @router.post(
-    "/{worker_pool_name}/workers/heartbeat",
+    "/{work_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def worker_heartbeat(
-    worker_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     name: str = Body(..., description="The worker process name", embed=True),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
 
         await models.workers.worker_heartbeat(
             session=session,
-            worker_pool_id=worker_pool_id,
+            work_pool_id=work_pool_id,
             worker_name=name,
             db=db,
         )
 
 
-@router.post("/{worker_pool_name}/workers/filter")
+@router.post("/{work_pool_name}/workers/filter")
 async def read_workers(
-    worker_pool_name: str = Path(..., description="The worker pool name"),
+    work_pool_name: str = Path(..., description="The work pool name"),
     workers: schemas.filters.WorkerFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
@@ -480,12 +499,12 @@ async def read_workers(
     Read all worker processes
     """
     async with db.session_context() as session:
-        worker_pool_id = await worker_lookups._get_worker_pool_id_from_name(
-            session=session, worker_pool_name=worker_pool_name
+        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+            session=session, work_pool_name=work_pool_name
         )
         return await models.workers.read_workers(
             session=session,
-            worker_pool_id=worker_pool_id,
+            work_pool_id=work_pool_id,
             worker_filter=workers,
             limit=limit,
             offset=offset,

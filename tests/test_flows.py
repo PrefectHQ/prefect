@@ -866,7 +866,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(2)
+            time.sleep(3)
             canary_file.touch()
 
         t0 = time.perf_counter()
@@ -875,9 +875,9 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
-        assert t1 - t0 < 2, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 3, f"The engine returns without waiting; took {t1-t0}s"
 
-        time.sleep(2)
+        time.sleep(3)
         assert not canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
@@ -1312,12 +1312,12 @@ class TestFlowRunLogs:
 
     async def test_repeated_flow_calls_send_logs_to_orion(self, orion_client):
         @flow
-        def my_flow(i):
+        async def my_flow(i):
             logger = get_run_logger()
             logger.info(f"Hello {i}")
 
-        my_flow(1)
-        my_flow(2)
+        await my_flow(1)
+        await my_flow(2)
 
         logs = await orion_client.read_logs()
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})

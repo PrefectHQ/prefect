@@ -17,6 +17,8 @@ from packaging.version import Version
 from pydantic import BaseModel, Field, SecretField
 from pydantic.json import custom_pydantic_encoder
 
+from prefect._internal.compatibility.experimental import experiment_enabled
+
 T = TypeVar("T")
 
 
@@ -124,15 +126,18 @@ def orjson_dumps(v: Any, *, default: Any) -> str:
     return orjson.dumps(v, default=default).decode()
 
 
-def orjson_dumps_non_str_keys(v: Any, *, default: Any) -> str:
+def orjson_dumps_extra_compatible(v: Any, *, default: Any) -> str:
     """
-    Utility for dumping a value to JSON using orjson, but allows for non-string keys.
-    This is helpful for situations like pandas dataframes, which can result in
-    non-string keys.
+    Utility for dumping a value to JSON using orjson, but allows for
+    1) non-string keys: this is helpful for situations like pandas dataframes,
+    which can result in non-string keys
+    2) numpy types: for serializing numpy arrays
 
     orjson.dumps returns bytes, to match standard json.dumps we need to decode.
     """
-    return orjson.dumps(v, default=default, option=orjson.OPT_NON_STR_KEYS).decode()
+    return orjson.dumps(
+        v, default=default, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
+    ).decode()
 
 
 class PrefectBaseModel(BaseModel):
@@ -262,6 +267,22 @@ class PrefectBaseModel(BaseModel):
         Returns:
             dict
         """
+
+        experimental_fields = [
+            field
+            for _, field in self.__fields__.items()
+            if field.field_info.extra.get("experimental")
+        ]
+        experimental_fields_to_exclude = [
+            field.name
+            for field in experimental_fields
+            if not experiment_enabled(field.field_info.extra["experimental-group"])
+        ]
+
+        if experimental_fields_to_exclude:
+            kwargs["exclude"] = (kwargs.get("exclude") or set()).union(
+                experimental_fields_to_exclude
+            )
 
         if json_compatible and shallow:
             raise ValueError(

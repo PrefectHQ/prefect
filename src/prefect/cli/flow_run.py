@@ -28,6 +28,9 @@ flow_run_app = PrefectTyper(
 )
 app.add_typer(flow_run_app, aliases=["flow-runs"])
 
+LOGS_DEFAULT_PAGE_SIZE = 200
+LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
+
 
 @flow_run_app.command()
 async def inspect(id: UUID):
@@ -122,7 +125,7 @@ async def delete(id: UUID):
 async def cancel(id: UUID):
     """Cancel a flow fun by ID."""
     async with get_client() as client:
-        cancelling_state = State(type=StateType.CANCELLED, name="Cancelling")
+        cancelling_state = State(type=StateType.CANCELLING)
         try:
             result = await client.set_flow_run_state(
                 flow_run_id=id, state=cancelling_state
@@ -139,13 +142,36 @@ async def cancel(id: UUID):
 
 
 @flow_run_app.command()
-async def logs(id: UUID):
+async def logs(
+    id: UUID,
+    head: bool = typer.Option(
+        False,
+        "--head",
+        "-h",
+        help=f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.",
+    ),
+    num_logs: int = typer.Option(
+        None,
+        "--num-logs",
+        "-n",
+        help=f"Number of logs to show when using the --head flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.",
+        min=1,
+    ),
+):
     """
     View logs for a flow run.
     """
-    page_size = 200
+    # Pagination - API returns max 200 (LOGS_DEFAULT_PAGE_SIZE) logs at a time
     offset = 0
     more_logs = True
+    num_logs_returned = 0
+
+    # If head is specified, we need to stop after we've retrieved enough logs
+    if head or num_logs:
+        user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+    else:
+        user_specified_num_logs = None
+
     log_filter = LogFilter(flow_run_id={"any_": [id]})
 
     async with get_client() as client:
@@ -156,9 +182,15 @@ async def logs(id: UUID):
             exit_with_error(f"Flow run {str(id)!r} not found!")
 
         while more_logs:
+            num_logs_to_return_from_page = (
+                LOGS_DEFAULT_PAGE_SIZE
+                if user_specified_num_logs is None
+                else min(LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs)
+            )
+
             # Get the next page of logs
             page_logs = await client.read_logs(
-                log_filter=log_filter, limit=page_size, offset=offset
+                log_filter=log_filter, limit=num_logs_to_return_from_page, offset=offset
             )
 
             # Print the logs
@@ -169,8 +201,11 @@ async def logs(id: UUID):
                     soft_wrap=True,
                 )
 
-            if len(page_logs) == page_size:
-                offset += page_size
+            # Update the number of logs retrieved
+            num_logs_returned += num_logs_to_return_from_page
+
+            if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
+                offset += LOGS_DEFAULT_PAGE_SIZE
             else:
                 # No more logs to show, exit
                 more_logs = False

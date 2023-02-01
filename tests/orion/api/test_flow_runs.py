@@ -281,7 +281,7 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, worker_pool_queue, session):
+    async def flow_runs(self, flow, work_queue_1, session):
         flow_2 = await models.flows.create_flow(
             session=session,
             flow=actions.FlowCreate(name="another-test"),
@@ -301,7 +301,7 @@ class TestReadFlowRuns:
                 flow_id=flow_2.id,
                 name="fr3",
                 tags=["blue", "red"],
-                worker_pool_queue_id=worker_pool_queue.id,
+                work_queue_id=work_queue_1.id,
             ),
         )
         await session.commit()
@@ -316,8 +316,8 @@ class TestReadFlowRuns:
             List[schemas.responses.FlowRunResponse], response.json()
         )
 
-    async def test_read_flow_runs_worker_pool_fields(
-        self, flow_runs, client, worker_pool, worker_pool_queue
+    async def test_read_flow_runs_work_pool_fields(
+        self, flow_runs, client, work_pool, work_queue_1, enable_work_pools
     ):
         response = await client.post("/flow_runs/filter")
         assert response.status_code == status.HTTP_200_OK
@@ -328,8 +328,8 @@ class TestReadFlowRuns:
             ),
             key=lambda fr: fr.name,
         )
-        assert response[2].worker_pool_name == worker_pool.name
-        assert response[2].worker_pool_queue_name == worker_pool_queue.name
+        assert response[2].work_pool_name == work_pool.name
+        assert response[2].work_queue_name == work_queue_1.name
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
@@ -375,31 +375,31 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
-    async def test_read_flow_runs_applies_worker_pool_name_filter(
-        self, flow_runs, client, worker_pool
+    async def test_read_flow_runs_applies_work_pool_name_filter(
+        self, flow_runs, client, work_pool
     ):
-        worker_pool_filter = dict(
-            worker_pools=schemas.filters.WorkerPoolFilter(
-                name=schemas.filters.WorkerPoolFilterName(any_=[worker_pool.name])
+        work_pool_filter = dict(
+            work_pools=schemas.filters.WorkPoolFilter(
+                name=schemas.filters.WorkPoolFilterName(any_=[work_pool.name])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flow_runs/filter", json=worker_pool_filter)
+        response = await client.post("/flow_runs/filter", json=work_pool_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[2].id)
 
-    async def test_read_flow_runs_applies_worker_pool_queue_id_filter(
+    async def test_read_flow_runs_applies_work_queue_id_filter(
         self,
         flow_runs,
-        worker_pool_queue,
+        work_queue_1,
         client,
     ):
-        worker_pool_filter = dict(
-            worker_pool_queues=schemas.filters.WorkerPoolQueueFilter(
-                id=schemas.filters.WorkerPoolQueueFilterId(any_=[worker_pool_queue.id])
+        work_pool_filter = dict(
+            work_pool_queues=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue_1.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flow_runs/filter", json=worker_pool_filter)
+        response = await client.post("/flow_runs/filter", json=work_pool_filter)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[2].id)

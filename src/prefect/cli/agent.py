@@ -60,6 +60,12 @@ async def start(
             "for example `dev-` will match all work queues with a name that starts with `dev-`"
         ),
     ),
+    work_pool_name: str = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="A work pool name for the agent to pull from.",
+    ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
     run_once: bool = typer.Option(
@@ -101,12 +107,16 @@ async def start(
             style="blue",
         )
 
-    if not work_queues and not tags and not work_queue_prefix:
+    if not work_queues and not tags and not work_queue_prefix and not work_pool_name:
         exit_with_error("No work queues provided!", style="red")
     elif bool(work_queues) + bool(tags) + bool(work_queue_prefix) > 1:
         exit_with_error(
             "Only one of `work_queues`, `match`, or `tags` can be provided.",
             style="red",
+        )
+    if work_pool_name and tags:
+        exit_with_error(
+            "`tag` and `pool` options cannot be used together.", style="red"
         )
 
     if tags:
@@ -145,12 +155,18 @@ async def start(
     async with OrionAgent(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
+        work_pool_name=work_pool_name,
         prefetch_seconds=prefetch_seconds,
         limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            if work_queue_prefix:
+            if work_pool_name:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"work pool '{work_pool_name}'..."
+                )
+            elif work_queue_prefix:
                 app.console.print(
                     "Agent started! Looking for work from "
                     f"queue(s) that start with the prefix: {work_queue_prefix}..."
