@@ -78,6 +78,32 @@ class TestTaskName:
         assert my_task.name == "another_name"
 
 
+class TestTaskRunName:
+    def test_run_name_default(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.task_run_name is None
+
+    def test_run_name_from_kwarg(self):
+        @task(task_run_name="another_name")
+        def my_task():
+            pass
+
+        assert my_task.task_run_name == "another_name"
+
+    def test_run_name_from_options(self):
+        @task(task_run_name="first_name")
+        def my_task():
+            pass
+
+        assert my_task.task_run_name == "first_name"
+
+        new_task = my_task.with_options(task_run_name="second_name")
+        assert new_task.task_run_name == "second_name"
+
+
 class TestTaskCall:
     def test_task_called_outside_flow_raises(self):
         @task

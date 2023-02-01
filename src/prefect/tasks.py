@@ -128,6 +128,7 @@ class Task(Generic[P, R]):
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
+        task_run_name: An optional name to distinguish runs of this task
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -171,6 +172,7 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
+        task_run_name: str = None,
         retries: int = 0,
         retry_delay_seconds: Union[
             float,
@@ -203,6 +205,7 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
+        self.task_run_name = task_run_name
         self.version = version
         self.log_prints = log_prints
 
@@ -274,6 +277,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
+        task_run_name: str = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[
@@ -301,6 +305,7 @@ class Task(Generic[P, R]):
                 not merged.
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
+            task_run_name: A name to distinguish runs of this task
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -363,6 +368,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
+            task_run_name=task_run_name,
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
@@ -836,6 +842,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
+    task_run_name: str = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -864,6 +871,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
+    task_run_name: str = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -899,6 +907,7 @@ def task(
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
+        task_run_name: A name to distinguish runs of this task
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -987,6 +996,7 @@ def task(
                 version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
+                task_run_name=task_run_name,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
@@ -1010,6 +1020,7 @@ def task(
                 version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
+                task_run_name=task_run_name,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
