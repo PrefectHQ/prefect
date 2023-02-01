@@ -1,5 +1,6 @@
 import copy
 import enum
+import json
 import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
@@ -186,6 +187,13 @@ class KubernetesJob(Infrastructure):
     ) -> JsonPatch:
         if isinstance(value, list):
             return JsonPatch(value)
+        elif isinstance(value, str):
+            try:
+                return JsonPatch(json.loads(value))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Unable to parse customizations as JSON: {value}. Please make sure that the provided value is a valid JSON string."
+                ) from exc
         return value
 
     @root_validator
