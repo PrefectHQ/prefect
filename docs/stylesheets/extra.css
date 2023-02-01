@@ -60,6 +60,12 @@ img {
     margin-bottom: 0;
 }
 
+.video-wrapper {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0.2rem 0.2rem 0.3rem rgba(0,0,0,0.2))
+}
+
 /* push "go to prefect cloud" */
 .cloud-link {
     margin-left: auto;
