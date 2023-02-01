@@ -414,15 +414,15 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         ```python
         from prefect.blocks.notifications import MattermostWebhook
 
-        Mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
+        mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
 
-        Mattermost_webhook_block.notify("Hello from Prefect!")
+        mattermost_webhook_block.notify("Hello from Prefect!")
         ```
     """
 
     _description = "Enables sending notifications via a provided Mattermost webhook."
     _block_type_name = "Mattermost Webhook"
-    _block_type_slug = "Mattermost-webhook"
+    _block_type_slug = "mattermost-webhook"
     _logo_url = "https://images.ctfassets.net/zscdif0zqppk/3mlbsJDAmK402ER1sf0zUF/a48ac43fa38f395dd5f56c6ed29f22bb/mattermost-logo-png-transparent.png?h=250"
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MattermostWebhook"
 
@@ -438,6 +438,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
     )
 
     botname: Optional[str] = Field(
+        title="Bot name",
         default=None,
         description="The name of the bot that will send the message.",
     )
@@ -452,9 +453,9 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         description="Whether to include the Apprise status image in the message.",
     )
 
-    fullpath: Optional[str] = Field(
+    path: Optional[str] = Field(
         default=None,
-        description="The path of your Mattermost server.",
+        description="An optional sub-path specification to append to the hostname.",
     )
 
     port: int = Field(
@@ -466,7 +467,7 @@ class MattermostWebhook(AbstractAppriseNotificationBlock):
         url = SecretStr(
             NotifyMattermost(
                 token=self.token.get_secret_value(),
-                fullpath=self.fullpath,
+                fullpath=self.path,
                 host=self.hostname,
                 botname=self.botname,
                 channels=self.channels,
