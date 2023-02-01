@@ -259,7 +259,7 @@ class FlowRun(ORMBaseModel):
         default=None,
         description="Optional information about the creator of this flow run.",
     )
-    work_pool_queue_id: Optional[UUID] = Field(
+    work_queue_id: Optional[UUID] = Field(
         default=None, description="The id of the run's work pool queue."
     )
 
@@ -549,7 +549,7 @@ class Deployment(ORMBaseModel):
         default=None,
         description="Optional information about the updater of this deployment.",
     )
-    work_pool_queue_id: UUID = Field(
+    work_queue_id: UUID = Field(
         default=None,
         description="The id of the work pool queue to which this deployment is assigned.",
     )
@@ -832,8 +832,16 @@ class WorkQueue(ORMBaseModel):
     is_paused: bool = Field(
         default=False, description="Whether or not the work queue is paused."
     )
-    concurrency_limit: Optional[int] = Field(
+    concurrency_limit: Optional[conint(ge=0)] = Field(
         default=None, description="An optional concurrency limit for the work queue."
+    )
+    priority: conint(ge=1) = Field(
+        ...,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
+    # Will be required after a future migration
+    work_pool_id: Optional[UUID] = Field(
+        description="The work pool with which the queue is associated."
     )
     filter: Optional[QueueFilter] = Field(
         default=None,
@@ -992,7 +1000,7 @@ class WorkPool(ORMBaseModel):
         """
         Default queue ID is required because all pools must have a default queue
         ID, but it represents a circular foreign key relationship to a
-        WorkPoolQueue (which can't be created until the work pool exists).
+        WorkQueue (which can't be created until the work pool exists).
         Therefore, while this field can *technically* be null, it shouldn't be.
         This should only be an issue when creating new pools, as reading
         existing ones will always have this field populated. This custom error
@@ -1047,35 +1055,6 @@ class Worker(ORMBaseModel):
     last_heartbeat_time: datetime.datetime = Field(
         None, description="The last time the worker process sent a heartbeat."
     )
-
-
-class WorkPoolQueue(ORMBaseModel):
-    """An ORM representation of a work pool queue"""
-
-    work_pool_id: UUID = Field(
-        description="The work pool with which the queue is associated."
-    )
-    name: str = Field(
-        description="The name of the queue.",
-    )
-    description: Optional[str] = Field(
-        default=None, description="A description of the queue."
-    )
-    is_paused: bool = Field(
-        default=False, description="Pausing the queue stops the delivery of all work."
-    )
-    concurrency_limit: Optional[conint(ge=0)] = Field(
-        default=None, description="A concurrency limit for the queue."
-    )
-    priority: conint(ge=1) = Field(
-        ...,
-        description="The queue's priority. Lower values are higher priority (1 is the highest).",
-    )
-
-    @validator("name", check_fields=False)
-    def validate_name_characters(cls, v):
-        raise_on_invalid_name(v)
-        return v
 
 
 Flow.update_forward_refs()

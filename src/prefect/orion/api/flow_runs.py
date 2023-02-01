@@ -92,7 +92,7 @@ async def count_flow_runs(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
@@ -106,7 +106,7 @@ async def count_flow_runs(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_pool_queue_filter=work_pool_queues,
+            work_queue_filter=work_pool_queues,
         )
 
 
@@ -251,7 +251,7 @@ async def read_flow_runs(
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
-    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
@@ -265,7 +265,7 @@ async def read_flow_runs(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            work_pool_queue_filter=work_pool_queues,
+            work_queue_filter=work_pool_queues,
             offset=offset,
             limit=limit,
             sort=sort,

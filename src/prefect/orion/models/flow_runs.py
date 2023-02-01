@@ -93,9 +93,7 @@ async def create_flow_run(
             .limit(1)
             .execution_options(populate_existing=True)
             .options(
-                joinedload(db.FlowRun.work_pool_queue).joinedload(
-                    db.WorkPoolQueue.work_pool
-                )
+                joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool)
             )
         )
         result = await session.execute(query)
@@ -158,11 +156,7 @@ async def read_flow_run(session: AsyncSession, flow_run_id: UUID, db: OrionDBInt
     result = await session.execute(
         sa.select(db.FlowRun)
         .where(db.FlowRun.id == flow_run_id)
-        .options(
-            joinedload(db.FlowRun.work_pool_queue).joinedload(
-                db.WorkPoolQueue.work_pool
-            )
-        )
+        .options(joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool))
     )
     return result.scalar()
 
@@ -176,7 +170,7 @@ async def _apply_flow_run_filters(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ):
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
@@ -194,17 +188,17 @@ async def _apply_flow_run_filters(
 
     if work_pool_filter:
         exists_clause = select(db.WorkPool).where(
-            db.WorkPoolQueue.id == db.FlowRun.work_pool_queue_id,
-            db.WorkPool.id == db.WorkPoolQueue.work_pool_id,
+            db.WorkQueue.id == db.FlowRun.work_queue_id,
+            db.WorkPool.id == db.WorkQueue.work_pool_id,
             work_pool_filter.as_sql_filter(db),
         )
 
         query = query.where(exists_clause.exists())
 
-    if work_pool_queue_filter:
-        exists_clause = select(db.WorkPoolQueue).where(
-            db.WorkPoolQueue.id == db.FlowRun.work_pool_queue_id,
-            work_pool_queue_filter.as_sql_filter(db),
+    if work_queue_filter:
+        exists_clause = select(db.WorkQueue).where(
+            db.WorkQueue.id == db.FlowRun.work_queue_id,
+            work_queue_filter.as_sql_filter(db),
         )
         query = query.where(exists_clause.exists())
 
@@ -246,7 +240,7 @@ async def read_flow_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
@@ -271,11 +265,7 @@ async def read_flow_runs(
     query = (
         select(db.FlowRun)
         .order_by(sort.as_sql_sort(db))
-        .options(
-            joinedload(db.FlowRun.work_pool_queue).joinedload(
-                db.WorkPoolQueue.work_pool
-            )
-        )
+        .options(joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool))
     )
 
     if columns:
@@ -288,7 +278,7 @@ async def read_flow_runs(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
-        work_pool_queue_filter=work_pool_queue_filter,
+        work_queue_filter=work_queue_filter,
         db=db,
     )
 
@@ -371,7 +361,7 @@ async def count_flow_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
-    work_pool_queue_filter: schemas.filters.WorkPoolQueueFilter = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ) -> int:
     """
     Count flow runs.
@@ -396,7 +386,7 @@ async def count_flow_runs(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
-        work_pool_queue_filter=work_pool_queue_filter,
+        work_queue_filter=work_queue_filter,
         db=db,
     )
 

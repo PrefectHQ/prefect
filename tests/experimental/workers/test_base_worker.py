@@ -252,9 +252,7 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         assert len(await orion_client.read_deployments()) == 0
 
 
-async def test_worker_with_work_pool_queue(
-    orion_client: OrionClient, deployment, work_pool
-):
+async def test_worker_with_work_queue(orion_client: OrionClient, deployment, work_pool):
     @flow
     def test_flow():
         pass
@@ -292,7 +290,7 @@ async def test_worker_with_work_pool_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
 
 
-async def test_worker_with_work_pool_queue_and_limit(
+async def test_worker_with_work_queue_and_limit(
     orion_client: OrionClient, deployment, work_pool
 ):
     @flow
