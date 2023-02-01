@@ -728,9 +728,15 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
         command=["echo", "hello"],
         pod_watch_timeout_seconds=42,
     )
+    expected_job_call_kwargs = dict(
+        func=mock_k8s_batch_client.list_namespaced_job,
+        namespace=mock.ANY,
+        field_selector=mock.ANY,
+    )
 
     if job_timeout is not None:
         k8s_job_args["job_watch_timeout_seconds"] = job_timeout
+        expected_job_call_kwargs["timeout_seconds"] = job_timeout
 
     KubernetesJob(**k8s_job_args).run(MagicMock())
 
@@ -742,12 +748,7 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
                 label_selector=mock.ANY,
                 timeout_seconds=42,
             ),
-            mock.call(
-                func=mock_k8s_batch_client.list_namespaced_job,
-                namespace=mock.ANY,
-                field_selector=mock.ANY,
-                timeout_seconds=job_timeout,
-            ),
+            mock.call(**expected_job_call_kwargs),
         ]
     )
 
@@ -771,13 +772,12 @@ def test_watches_the_right_namespace(
                 func=mock_k8s_client.list_namespaced_pod,
                 namespace="my-awesome-flows",
                 label_selector=mock.ANY,
-                timeout_seconds=mock.ANY,
+                timeout_seconds=60,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 namespace="my-awesome-flows",
                 field_selector=mock.ANY,
-                timeout_seconds=mock.ANY,
             ),
         ]
     )
