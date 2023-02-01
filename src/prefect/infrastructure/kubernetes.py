@@ -610,24 +610,29 @@ class KubernetesJob(Infrastructure):
                 self.job_watch_timeout_seconds is not None
                 and elapsed > self.job_watch_timeout_seconds
             ):
-                self.logger.error(f"Job {job_name!r}: Job timed out after {elapsed}s.")
+                self.logger.error(
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {self.job_watch_timeout_seconds}s."
+                )
                 return -1
 
             watch = kubernetes.watch.Watch()
             with self.get_batch_client() as batch_client:
-                remaining_timeout = (
-                    (  # subtract previous watch time
-                        self.job_watch_timeout_seconds - elapsed
-                    )
+                # The kubernetes library will disable retries if the timeout kwarg is
+                # present regardless of the value so we do not pass it unless given
+                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+                timeout_seconds = (
+                    # subtract previous watch time to get remaining timeout
+                    {"timeout_seconds": self.job_watch_timeout_seconds - elapsed}
                     if self.job_watch_timeout_seconds
-                    else None
+                    else {}
                 )
 
                 for event in watch.stream(
                     func=batch_client.list_namespaced_job,
                     field_selector=f"metadata.name={job_name}",
                     namespace=self.namespace,
-                    timeout_seconds=remaining_timeout,
+                    **timeout_seconds,
                 ):
                     if event["object"].status.completion_time:
                         if not event["object"].status.succeeded:
@@ -636,12 +641,6 @@ class KubernetesJob(Infrastructure):
                         completed = True
                         watch.stop()
                         break
-                else:
-                    self.logger.error(
-                        f"Job {job_name!r}: Job did not complete within "
-                        f"timeout of {self.job_watch_timeout_seconds}s."
-                    )
-                    return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
