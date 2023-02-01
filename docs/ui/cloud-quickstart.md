@@ -21,6 +21,12 @@ Get signed in and using Prefect Cloud, including running a flow observed by Pref
 1. [Log into Prefect Cloud](#log-into-prefect-cloud-from-a-terminal) from a local terminal session.
 1. [Run a flow](#run-a-flow-with-prefect-cloud) locally and view flow run execution in Prefect Cloud.
 
+Prefer to follow this tutorial in a video? We've got exactly what you need. Happy engineering!
+
+<div class="video-wrapper">
+  <iframe width="100%" height="500" src="https://www.youtube.com/embed/vOpmE5w0XuU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+
 ## Sign in or register
 
 To sign in with an existing account or register an account, go to [https://app.prefect.cloud/](https://app.prefect.cloud/).
