@@ -24,7 +24,7 @@
       </template>
 
       <template #parameters>
-        <CodeHighlighting language="json" :value="parameters" />
+        <CodeSnippet language="json" :snippet="parameters" />
       </template>
     </p-tabs>
 
@@ -44,7 +44,7 @@
     FlowRunTaskRuns,
     FlowRunTimeline,
     FlowRunSubFlows,
-    CodeHighlighting,
+    CodeSnippet,
     useFavicon,
     useWorkspaceApi,
     useDeployment,
@@ -109,6 +109,10 @@
 </script>
 
 <style>
+.flow-run { @apply
+  items-start
+}
+
 .flow-run__logs { @apply
   max-h-screen
 }
