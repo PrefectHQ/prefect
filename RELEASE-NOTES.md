@@ -37,6 +37,10 @@
 - Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
 - Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
 
+### Collections
+- Add `ShellOperation` implementing `JobBlock` in `v0.1.4` release of `prefect-shell` - https://github.com/PrefectHQ/prefect-shell/pull/55
+- Add `CensusSync` implementing `JobBlock` in `v0.1.1` release of `prefect-census` - https://github.com/PrefectHQ/prefect-census/pull/15
+
 ### Contributors
 - @chiaberry
 - @hozn
