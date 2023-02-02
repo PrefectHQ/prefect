@@ -38,7 +38,7 @@ async def read_flow_run(flow_run_id):
         return await client.read_flow_run(flow_run_id)
 
 
-if __name__ == "__main__":
+def main():
     # Create deployment
     if Version(prefect.__version__) < Version("2.1.0"):
         deployment = Deployment(
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             "is running 2.7+ and the server is running 2.6 checks for cancelled flows "
             "will fail. This is a known incompatibility."
         )
-        exit(0)
+        return
     elif Version(prefect.__version__) < Version("2.6"):
         # --run-once is not available so just run for a bit
         try:
@@ -92,3 +92,7 @@ if __name__ == "__main__":
 
     flow_run = anyio.run(read_flow_run, flow_run.id)
     assert flow_run.state.is_completed()
+
+
+if __name__ == "__main__":
+    main()
