@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 
 
 @pytest.fixture
@@ -43,6 +44,24 @@ class TestCreateWorkQueue:
                     name=work_queue.name,
                 ),
             )
+
+    async def test_create_work_queue_when_no_default_pool(self, session):
+        pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+        )
+        await models.workers.delete_work_pool(session=session, work_pool_id=pool.id)
+        await session.commit()
+
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="default"),
+        )
+
+        pool_after = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+        )
+        assert pool_after is not None
+        assert pool_after.default_queue_id == work_queue.id
 
 
 class TestReadWorkQueue:
