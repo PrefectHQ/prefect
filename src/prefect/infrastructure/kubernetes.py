@@ -604,7 +604,7 @@ class KubernetesJob(Infrastructure):
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
         deadline = (
             (time.time() + self.job_watch_timeout_seconds)
-            if self.job_watch_timeout_seconds
+            if self.job_watch_timeout_seconds is not None
             else None
         )
         completed = False
