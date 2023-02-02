@@ -37,7 +37,7 @@
   const flowId = useRouteParam('flowId')
   const router = useRouter()
   const tabs = computed(() => {
-    const values = ['Deployments', 'Runs']
+    const values = ['Runs', 'Deployments']
 
     if (!media.xl) {
       values.unshift('Details')
