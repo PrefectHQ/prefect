@@ -17,12 +17,11 @@
 
 ### Experimental
 - We're working on work pools, groups of work queues. Together, work pools & queues give you greater flexibility and control in organizing and prioritizing work.
-- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274
-- Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
-- Add clean up migration — https://github.com/PrefectHQ/prefect/pull/8331
-- Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
-- Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
-- Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+     - Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
+     - Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
+     - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+     - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
+- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274, https://github.com/PrefectHQ/prefect/pull/8331
 
 ### Documentation
 - Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
