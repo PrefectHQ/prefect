@@ -34,7 +34,7 @@ We're excited to announce the release of work pools, a new feature that allows y
 - Add role permissions regarding block secrets — https://github.com/PrefectHQ/prefect/pull/8309
 - Add getting started tutorial video to Prefect Cloud Quickstart — https://github.com/PrefectHQ/prefect/pull/8336
 - Add tips for re-registering blocks from Prefect Collections — https://github.com/PrefectHQ/prefect/pull/8333
-- Add examples and corrections for Kubernetes infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/8312
+- Improve examples for Kubernetes infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/8312
 - Add mention of reverse proxy for `PREFECT_API_URL` config — https://github.com/PrefectHQ/prefect/pull/8240
 - Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
 - Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
