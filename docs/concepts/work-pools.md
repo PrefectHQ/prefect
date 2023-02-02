@@ -91,7 +91,7 @@ Agent started! Looking for work from work pool 'my-pool'...
 
 </div>
 
-In this case, Prefect automatically created a new `my-pool` work pool.
+In this case, Prefect automatically created a new `my-queue` work queue.
 
 By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
