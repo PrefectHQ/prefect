@@ -1,11 +1,11 @@
 import copy
 import enum
 import os
+import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
-import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
@@ -602,14 +602,15 @@ class KubernetesJob(Infrastructure):
                     )
 
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        start_time = pendulum.now("utc")
+        deadline = (
+            (time.time() + self.job_watch_timeout_seconds)
+            if self.job_watch_timeout_seconds
+            else None
+        )
         completed = False
         while not completed:
-            elapsed = (pendulum.now("utc") - start_time).in_seconds()
-            if (
-                self.job_watch_timeout_seconds is not None
-                and elapsed > self.job_watch_timeout_seconds
-            ):
+            remaining_time = deadline - time.time() if deadline else None
+            if deadline and remaining_time <= 0:
                 self.logger.error(
                     f"Job {job_name!r}: Job did not complete within "
                     f"timeout of {self.job_watch_timeout_seconds}s."
@@ -622,10 +623,7 @@ class KubernetesJob(Infrastructure):
                 # present regardless of the value so we do not pass it unless given
                 # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
                 timeout_seconds = (
-                    # subtract previous watch time to get remaining timeout
-                    {"timeout_seconds": self.job_watch_timeout_seconds - elapsed}
-                    if self.job_watch_timeout_seconds
-                    else {}
+                    {"timeout_seconds": remaining_time} if deadline else {}
                 )
 
                 for event in watch.stream(
