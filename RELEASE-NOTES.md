@@ -2,11 +2,13 @@
 
 ## Release 2.7.11
 
-### Exciting New Features 🎉
-- Add refactor of results into a standalone artifact table — https://github.com/PrefectHQ/prefect/pull/8164
-- Add Prefect Cloud Events schema and clients. — https://github.com/PrefectHQ/prefect/pull/8357
+### Work pools are here!
+
+We're excited to announce the release of work pools, a new feature that allows you to create logical groups for your work queues. Work pools are a great way to organize your work queues and ensure that your most important work is always prioritized. You can read more about work pools in our [documentation](https://docs.prefect.io/concepts/work-pools/).
 
 ### Enhancements
+- Add refactor of results into a standalone artifact table — https://github.com/PrefectHQ/prefect/pull/8164
+- Add Prefect Cloud Events schema and clients. — https://github.com/PrefectHQ/prefect/pull/8357
 - Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Add functionality that updates preinstalled packages in Docker images — https://github.com/PrefectHQ/prefect/pull/8288
