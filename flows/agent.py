@@ -68,7 +68,7 @@ if __name__ == "__main__":
     elif (
         Version(prefect.__version__) > Version("2.6")
         and TEST_SERVER_VERSION
-        and Version(TEST_SERVER_VERSION) < Version(2.6)
+        and Version(TEST_SERVER_VERSION) < Version("2.6")
         and Version(TEST_SERVER_VERSION) > Version("2.5")
     ):
         print(
