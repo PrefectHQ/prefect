@@ -521,7 +521,7 @@ if __name__ == "__main__":
 ``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [agents and work queues](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
+    You'll need to configure [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
