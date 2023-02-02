@@ -16,6 +16,7 @@
 - Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
 
 ### Experimental
+- We're working on work pools, groups of work queues. Together, work pools & queues give you greater flexibility and control in organizing and prioritizing work.
 - Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274
 - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
 - Add clean up migration — https://github.com/PrefectHQ/prefect/pull/8331
