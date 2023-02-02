@@ -44,11 +44,11 @@
     FlowRunTaskRuns,
     FlowRunTimeline,
     FlowRunSubFlows,
-    CodeSnippet,
     useFavicon,
     useWorkspaceApi,
     useDeployment,
-    getSchemaValuesWithDefaultsJson
+    getSchemaValuesWithDefaultsJson,
+    CodeSnippet
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
