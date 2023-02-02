@@ -3,7 +3,6 @@
 ## Release 2.7.11
 
 ### Enhancements
-- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 - Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Add functionality that updates preinstalled packages in Docker images — https://github.com/PrefectHQ/prefect/pull/8288
@@ -22,6 +21,7 @@
      - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
      - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
 - Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274, https://github.com/PrefectHQ/prefect/pull/8331
+- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 
 ### Documentation
 - Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
