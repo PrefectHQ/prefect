@@ -714,7 +714,7 @@ def test_uses_cluster_config_if_not_in_cluster(
     mock_cluster_config.load_kube_config.assert_called_once()
 
 
-@pytest.mark.parametrize("job_timeout", [24, None])
+@pytest.mark.parametrize("job_timeout", [24, 100])
 def test_allows_configurable_timeouts_for_pod_and_job_watches(
     mock_k8s_client,
     mock_watch,
@@ -749,6 +749,41 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
                 timeout_seconds=42,
             ),
             mock.call(**expected_job_call_kwargs),
+        ]
+    )
+
+
+@pytest.mark.parametrize("job_timeout", [None])
+def test_excludes_timeout_from_job_watches_when_null(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    job_timeout,
+):
+    mock_watch.stream = mock.Mock(
+        side_effect=_mock_pods_stream_that_returns_running_pod
+    )
+    k8s_job_args = dict(
+        command=["echo", "hello"],
+        job_watch_timeout_seconds=job_timeout,
+    )
+
+    KubernetesJob(**k8s_job_args).run(MagicMock())
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                namespace=mock.ANY,
+                field_selector=mock.ANY,
+                # Note: timeout_seconds is excluded here
+            ),
         ]
     )
 
