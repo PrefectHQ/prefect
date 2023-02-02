@@ -1446,6 +1446,9 @@ async def orchestrate_task_run(
         task_run_id=task_run.id,
     )
 
+    # flag to ensure we only update the task run name once
+    run_name_set = False
+
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
         # Need to create timeout_context from inside of loop so that a
@@ -1465,6 +1468,14 @@ async def orchestrate_task_run(
                     timeout_scope=timeout_scope
                 )
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+
+                # update task run name
+                if not run_name_set and task.task_run_name:
+                    task_run_name = task.task_run_name.format(**resolved_parameters)
+                    await client.set_task_run_name(
+                        task_run_id=task_run.id, name=task_run_name
+                    )
+                    run_name_set = True
 
                 if PREFECT_DEBUG_MODE.value():
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
