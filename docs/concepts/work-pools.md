@@ -37,7 +37,7 @@ It is possible for multiple agent processes to be started for a single work pool
 
 ### Agent options
 
-Agents are configured to pull work from one or more work pools. If the agent references a work pool that doesn't exist, it will be created automatically.
+Agents are configured to pull work from one or more work pool queues. If the agent references a work queue that doesn't exist, it will be created automatically.
 
 Configuration parameters you can specify when starting an agent include:
 
