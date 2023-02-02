@@ -239,6 +239,7 @@ description: null
 version: c0fc95308d8137c50d2da51af138aa23
 # The work queue that will handle this deployment's runs
 work_queue_name: test
+work_pool_name: null
 tags: []
 parameters: {}
 schedule: null

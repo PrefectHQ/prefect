@@ -105,7 +105,7 @@ What did we do here? Let's break down the command:
 - `-n log-flow-docker` specifies a name for the deployment. For ease of identification, the name includes a reference to the Docker infrastructure.
 - `-sb s3/log-test` specifies a storage block by type and name. If you used a different storage block type or block name, your command may be different.
 - `-ib docker-container/log-tutorial` specifies an infrastructure block by type and name.
-- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-q test` specifies a work queue for the deployment. Work pools direct scheduled runs to agents.
 - `-o log-flow-docker-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
 ## Apply the deployment

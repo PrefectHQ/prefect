@@ -34,7 +34,7 @@ If you want to start running flows on a schedule, via the API, from the Prefect 
 - Create a [deployment](/tutorials/deployments/) for a flow, giving the API metadata about where your flow's code is stored and how your flow should be run.
 - [Start an agent](/concepts/work-pools/#agent-overview) that can execute scheduled or ad-hoc flow runs from your deployments.
 
-If you have used Prefect 1 and are familiar with Prefect workflows, we recommend reading through the [Prefect 2 tutorials](/tutorials/first-steps/). Prefect 2 flows and subflows offer new functionality, and running deployments with [agents and work queues](/tutorials/deployments/) reflects a significant change in how you configure orchestration components.
+If you have used Prefect 1 and are familiar with Prefect workflows, we recommend reading through the [Prefect 2 tutorials](/tutorials/first-steps/). Prefect 2 flows and subflows offer new functionality, and running deployments with [agents and work pools](/tutorials/deployments/) reflects a significant change in how you configure orchestration components.
 
 ## Migrating from Prefect 1
 

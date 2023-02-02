@@ -24,7 +24,7 @@ Once you are comfortable writing and running workflows interactively or manually
 
 - [Deployments](/concepts/deployments/)
 - [Storage](/concepts/storage/)
-- [Work queues & agents](/concepts/work-pools/)
+- [Work pools & agents](/concepts/work-pools/)
 - [Scheduling](/concepts/schedules/)
 
 ## Advanced Concepts
