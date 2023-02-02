@@ -11,7 +11,6 @@
 ### Fixes
 - Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
 - Fix bug where Kubernetes job monitoring exited early when no timeout was given — https://github.com/PrefectHQ/prefect/pull/8350
-- Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
 
 ### Experimental
 - We're working on work pools, groups of work queues. Together, work pools & queues give you greater flexibility and control in organizing and prioritizing work.
