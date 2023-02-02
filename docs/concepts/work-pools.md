@@ -128,7 +128,7 @@ In addition, users can control aspects of work pool behavior, like how many runs
 
 You can configure work pools by using:
 
-- Prefect UI [**Work pools**](/ui/work-pools/) page
+- Prefect UI [**Work Pools**](/ui/work-pools/) page
 - Prefect CLI commands
 - Prefect Python API
 
