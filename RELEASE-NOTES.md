@@ -3,11 +3,10 @@
 ## Release 2.7.11
 
 ### Enhancements
-- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 - Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
-- Add functionality that updates preinstalled packages in Docker images — https://github.com/PrefectHQ/prefect/pull/8288
-- Add `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` setting to handle error raised when logger called outside of flow run context — https://github.com/PrefectHQ/prefect/pull/8311
+- Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
+- Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
 
 ### Fixes
 - Fix cancellation bug — https://github.com/PrefectHQ/prefect/pull/8315
@@ -23,6 +22,7 @@
 - Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
 - Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
 - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 
 ### Documentation
 - Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
