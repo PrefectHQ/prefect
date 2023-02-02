@@ -86,8 +86,7 @@ Starting agent with ephemeral API...
  |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
-Agent started! Looking for work from queue(s): my-pool...
-08:31:57.197 | INFO    | prefect.agent - Created work pool 'my-pool'.
+Agent started! Looking for work from work pool 'my-pool'...
 ```
 
 </div>
