@@ -62,7 +62,7 @@ async def create_work_queue(
         ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
         priority = (await session.execute(max_priority_query)).scalar()
 
-        model = db.WorkQueue(**data, priority=priority)
+        model = db.WorkQueue(**data, priority=priority + 1)
     else:
         model = db.WorkQueue(**data, priority=1)
     session.add(model)
