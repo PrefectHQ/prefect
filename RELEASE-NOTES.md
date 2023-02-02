@@ -3,7 +3,7 @@
 ## Release 2.7.11
 
 ### Enhancements
-- Add Prefect Cloud Events schema and clients. — https://github.com/PrefectHQ/prefect/pull/8357
+- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 - Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Add functionality that updates preinstalled packages in Docker images — https://github.com/PrefectHQ/prefect/pull/8288
