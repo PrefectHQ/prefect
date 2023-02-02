@@ -10,7 +10,7 @@ tags:
     - concurrency limits
 ---
 
-# Agents and Work Pools
+# Agents, Work Pools, & Work Queues
 
 Agents and work pools bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
 
