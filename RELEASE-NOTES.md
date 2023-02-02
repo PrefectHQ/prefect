@@ -1,5 +1,52 @@
 # Prefect Release Notes
 
+## Release preview
+
+### Exciting New Features 🎉
+- Add refactor of results into a standalone artifact table — https://github.com/PrefectHQ/prefect/pull/8164
+- Add Prefect Cloud Events schema and clients. — https://github.com/PrefectHQ/prefect/pull/8357
+
+### Enhancements
+- Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
+- Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
+- Add functionality that updates preinstalled packages in Docker images — https://github.com/PrefectHQ/prefect/pull/8288
+- Add `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` setting to handle error raised when logger called outside of flow run context — https://github.com/PrefectHQ/prefect/pull/8311
+
+### Fixes
+- Fix cancellation bug — https://github.com/PrefectHQ/prefect/pull/8315
+- Fix Kubernetes job watch exit when no timeout given — https://github.com/PrefectHQ/prefect/pull/8350
+- Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
+- Fix UI to use recentFlowRunFilter instead of flowRunFilter — https://github.com/PrefectHQ/prefect/pull/8380
+
+### Experimental
+- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274
+- Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
+- Add clean up migration — https://github.com/PrefectHQ/prefect/pull/8331
+- Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
+- Add CLI support for work-pools — https://github.com/PrefectHQ/prefect/pull/8259
+- Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+
+### Documentation
+- Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
+- Add retry_delay_seconds and exponential_backoff examples to Tasks retries documentation — https://github.com/PrefectHQ/prefect/pull/8280
+- Add role permissions regarding block secrets — https://github.com/PrefectHQ/prefect/pull/8309
+- Add getting started tutorial video to Prefect Cloud Quickstart — https://github.com/PrefectHQ/prefect/pull/8336
+- Add tips for re-registering blocks from Prefect Collections — https://github.com/PrefectHQ/prefect/pull/8333
+- Add examples and corrections for Kubernetes infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/8312
+- Add mention of reverse proxy for PREFECT_API_URL config — https://github.com/PrefectHQ/prefect/pull/8240
+- Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
+- Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
+
+### Uncategorized
+
+### Contributors
+- @chiaberry
+- @hozn
+- @manic-miner
+- @space-age-pete
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.10...2.7.11
+
 ## Release 2.7.10
 
 ### Flow run cancellation enhancements
