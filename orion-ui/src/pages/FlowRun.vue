@@ -24,7 +24,7 @@
       </template>
 
       <template #parameters>
-        <CodeHighlighting language="json" :value="parameters" />
+        <CodeSnippet language="json" :snippet="parameters" />
       </template>
     </p-tabs>
 
@@ -44,11 +44,11 @@
     FlowRunTaskRuns,
     FlowRunTimeline,
     FlowRunSubFlows,
-    CodeHighlighting,
     useFavicon,
     useWorkspaceApi,
     useDeployment,
-    getSchemaValuesWithDefaultsJson
+    getSchemaValuesWithDefaultsJson,
+    CodeSnippet
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
