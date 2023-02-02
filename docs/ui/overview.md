@@ -67,7 +67,7 @@ The following sections provide details about Prefect UI pages and visualizations
 - [Flow Runs](/ui/flow-runs/) page provides a high-level overview of your flow runs.
 - [Flows](/ui/flows/) provides an overview of specific flows tracked by by the API.
 - [Deployments](/ui/deployments/) provides an overview of flow deployments that you've created on the API.
-- [Work pools](/ui/work-pools/) enable you to create and manage work pools that distribute flow runs to agents.
+- [Work Pools](/ui/work-pools/) enable you to create and manage work pools that distribute flow runs to agents.
 - [Blocks](/ui/blocks/) enable you to create and manage configuration for [blocks](/concepts/blocks/) such as [storage](/concepts/storage/).
 - [Notifications](/ui/notifications/) enable you to create and manage alerts based on flow run states and tags.
 - [Task Run Concurrency Limits](/ui/task-concurrency/) enable you to restrict the number of certain tasks that can run simultaneously.
