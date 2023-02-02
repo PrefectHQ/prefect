@@ -44,14 +44,17 @@ if __name__ == "__main__":
         deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
         deployment_id = deployment.apply()
 
-    # Update deployment
-    deployment.tags = ["test"]
-    if Version(prefect.__version__) >= Version("2.1.0"):
-        deployment_id = deployment.apply()
-
+    # Create a flow run
     flow_run = anyio.run(create_flow_run, deployment_id)
 
-    if Version(prefect.__version__) < Version("2.6"):
+    if Version(prefect.__version__) < Version("2.1"):
+        # work queue is positional instead of a flag and requires creation
+        subprocess.run(["prefect", "work-queue", "create", "default"])
+        try:
+            subprocess.run(["prefect", "agent", "start", "default"], timeout=30)
+        except subprocess.TimeoutExpired:
+            pass
+    elif Version(prefect.__version__) < Version("2.6"):
         # --run-once is not available so just run for a bit
         try:
             subprocess.run(
