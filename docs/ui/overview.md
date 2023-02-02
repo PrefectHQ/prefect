@@ -81,7 +81,7 @@ Use the left side of the Prefect UI to navigate between pages.
 | **Flow Runs**      | Displays the **Flow Runs** dashboard displaying flow run status for the current API server or Prefect Cloud workspace. From this dashboard you can create [filters](/ui/flow-runs/#filters) to display only certain flow runs, or click into details about specific flows or flow runs. |
 | **Flows**          | Displays a searchable list of flows tracked by the API. |
 | **Deployments**    | Displays flow [deployments](/concepts/deployments/) created on the API. |
-| **Work pools** | Displays configured [work pools](/ui/work-pools/) and enables creating new work pools. |
+| **Work Pools** | Displays configured [work pools](/ui/work-pools/) and enables creating new work pools. |
 | **Blocks**         | Displays a list of [blocks](/ui/blocks/) configured on the API and enables configuring new blocks. |
 | **Notifications**  | Displays a list of configured [notifications](/ui/notifications/) and enables configuring new notifications. |
 | <span class="no-wrap">**Task Run Concurrency**</span> | Displays a list of configured [task run concurrency limits](/ui/task-concurrency/) and enables configuring new limits. |
