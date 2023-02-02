@@ -21,7 +21,7 @@
 - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
 - Add clean up migration — https://github.com/PrefectHQ/prefect/pull/8331
 - Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
-- Add CLI support for work-pools — https://github.com/PrefectHQ/prefect/pull/8259
+- Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
 - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
 
 ### Documentation
@@ -34,8 +34,6 @@
 - Add mention of reverse proxy for PREFECT_API_URL config — https://github.com/PrefectHQ/prefect/pull/8240
 - Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
 - Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
-
-### Uncategorized
 
 ### Contributors
 - @chiaberry
