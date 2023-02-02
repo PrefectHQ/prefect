@@ -31,7 +31,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, useFlowRunFilter, FlowRunFilteredList } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, useRecentFlowRunFilter, FlowRunFilteredList } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -52,7 +52,7 @@
   const workPoolWorkerName = computed(() => workPoolWorkers.value[0]?.name ?? '<worker name>')
   const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --queue ${workPoolQueueName.value}`)
 
-  const flowRunFilter = useFlowRunFilter({ workPoolQueueName: [workPoolQueueName.value], workPoolName: [workPoolName.value] })
+  const flowRunFilter = useRecentFlowRunFilter({ workPoolQueueName: [workPoolQueueName.value], workPoolName: [workPoolName.value] })
 
   const tabs = computed(() => {
     const values = ['Upcoming Runs', 'Runs']
