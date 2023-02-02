@@ -461,8 +461,12 @@ async def preview(
     """
     Preview a work queue.
     """
+    if pool:
+        title = f"Preview of Work Queue {name!r} in Work Pool {pool!r}"
+    else:
+        title = f"Preview of Work Queue {name!r}"
 
-    table = Table(caption="(**) denotes a late run", caption_style="red")
+    table = Table(title=title, caption="(**) denotes a late run", caption_style="red")
     table.add_column(
         "Scheduled Start Time", justify="left", style="yellow", no_wrap=True
     )
@@ -476,14 +480,24 @@ async def preview(
         name_or_id=name, work_pool_name=pool
     )
     async with get_client() as client:
-        try:
-            runs = await client.get_runs_in_work_queue(
-                queue_id,
-                limit=10,
-                scheduled_before=window,
-            )
-        except ObjectNotFound:
-            exit_with_error(f"No work queue found: {name!r}")
+        if pool:
+            try:
+                responses = await client.get_scheduled_flow_runs_for_work_pool(
+                    work_pool_name=pool,
+                    work_queue_names=[name],
+                )
+                runs = [response.flow_run for response in responses]
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+        else:
+            try:
+                runs = await client.get_runs_in_work_queue(
+                    queue_id,
+                    limit=10,
+                    scheduled_before=window,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"No work queue found: {name!r}")
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
 
