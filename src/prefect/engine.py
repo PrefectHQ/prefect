@@ -15,7 +15,6 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
-import inspect
 import logging
 import os
 import signal
@@ -225,20 +224,10 @@ async def create_then_begin_flow_run(
                 message="Validation of flow parameters failed with error:"
             )
 
-    if flow.flow_run_name:
-        sig = inspect.signature(flow.fn)
-        for kwarg, val in sig.parameters.items():
-            if val.default is not val.empty:
-                parameters.setdefault(kwarg, val.default)
-        flow_run_name = flow.flow_run_name.format(**parameters)
-    else:
-        flow_run_name = None
-
     flow_run = await client.create_flow_run(
         flow,
         # Send serialized parameters to the backend
         parameters=flow.serialize_parameters(parameters),
-        name=flow_run_name,
         state=state,
         tags=TagsContext.get().current_tags,
     )
@@ -589,6 +578,7 @@ async def orchestrate_flow_run(
     Returns:
         The final state of the run
     """
+
     logger = flow_run_logger(flow_run, flow)
 
     flow_run_context = None
@@ -607,6 +597,15 @@ async def orchestrate_flow_run(
             # update the state name
             force=flow_run.state.is_pending(),
         )
+
+    if flow.flow_run_name:
+        flow_run_name = flow.flow_run_name.format(**parameters)
+        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
+        logger.extra["flow_run_name"] = flow_run_name
+        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
+        flow_run.name = flow_run_name
+    else:
+        flow_run_name = None
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
@@ -1482,10 +1481,6 @@ async def orchestrate_task_run(
 
                 # update task run name
                 if not run_name_set and task.task_run_name:
-                    sig = inspect.signature(task.fn)
-                    for kwarg, val in sig.parameters.items():
-                        if val.default is not val.empty:
-                            resolved_parameters.setdefault(kwarg, val.default)
                     task_run_name = task.task_run_name.format(**resolved_parameters)
                     await client.set_task_run_name(
                         task_run_id=task_run.id, name=task_run_name
