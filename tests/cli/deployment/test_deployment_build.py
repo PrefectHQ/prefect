@@ -10,7 +10,6 @@ import pytest
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect import flow
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process

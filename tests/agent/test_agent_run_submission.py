@@ -257,7 +257,7 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
-async def test_agent_creates_work_queue_if_doesnt_exist(
+async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
     session,
     work_pool,
     prefect_caplog,
