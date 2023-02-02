@@ -60,9 +60,9 @@ def main():
 
     if Version(prefect.__version__) < Version("2.1"):
         # work queue is positional instead of a flag and requires creation
-        subprocess.run(["prefect", "work-queue", "create", "default"])
+        subprocess.run(["prefect", "work-queue", "create", "test"])
         try:
-            subprocess.run(["prefect", "agent", "start", "default"], timeout=30)
+            subprocess.run(["prefect", "agent", "start", "test"], timeout=30)
         except subprocess.TimeoutExpired:
             pass
     elif (
