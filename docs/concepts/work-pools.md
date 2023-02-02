@@ -119,7 +119,7 @@ Work pools organize work that [agents](#agent-overview) pick up for execution. D
 !!! tip "Work pools are like pub/sub topics"
     It's helpful to think of work pools as a way to coordinate (potentially many) deployments with (potentially many) agents through a known channel: the pool itself. This is similar to how "topics" are used to connect producers and consumers in a pub/sub or message-based system. By switching a deployment's work pool, users can quickly change the agent that will execute their runs, making it easy to promote runs through environments or even debug locally.
 
-In addition, users can control aspects of work pool behavior like how many runs the pool allows to be run concurrently or pausing delivery entirely. These options can be modified at any time, and any agent processes requesting work for a specific pool will only see matching flow runs.
+In addition, users can control aspects of work pool behavior, like how many runs the pool allows to be run concurrently or pausing delivery entirely. These options can be modified at any time, and any agent processes requesting work for a specific pool will only see matching flow runs.
 
 ### Work pool configuration
 
@@ -267,6 +267,14 @@ When using the `prefect work-pool` Prefect CLI command to configure a work pool,
 
 - `set-concurrency-limit`  sets a concurrency limit on a work pool.
 - `clear-concurrency-limit` clears any concurrency limits from a work pool.
+
+### Work queues
+
+Each work pool has a "default" queue that all work will be sent to by default. Additional queues can be added to a work pool. Work queues enable greater control over work delivery through fine grained priority and concurrency. Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work. Accordingly, new queues can be added without changing the rank of the higher-priority queues (e.g. no matter how many queues you add, the queue with priority `1` will always be the highest priority).
+
+Work queues can also have thier own concurrency limits. Note that work in each queue is also subject to the global work pool concurrency limit, which cannot be exceeded.
+
+Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
