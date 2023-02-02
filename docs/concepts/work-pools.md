@@ -106,7 +106,7 @@ $ prefect agent start --match "foo-"
 
 </div>
 
-This example will poll every work pool that starts with "foo-".
+This example will poll every work queue that starts with "foo-".
 
 ### Configuring prefetch
 
