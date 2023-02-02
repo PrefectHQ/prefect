@@ -780,7 +780,7 @@ class OrionClient:
         try:
             if work_pool_name is not None:
                 response = await self._client.get(
-                    f"/experimental/work_pools/{work_pool_name}/queues/{name}"
+                    f"/work_pools/{work_pool_name}/queues/{name}"
                 )
             else:
                 response = await self._client.get(f"/work_queues/name/{name}")
@@ -1993,7 +1993,7 @@ class OrionClient:
             worker_name: The name of the worker sending the heartbeat.
         """
         await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/workers/heartbeat",
+            f"/work_pools/{work_pool_name}/workers/heartbeat",
             json={"name": worker_name},
         )
 
@@ -2015,7 +2015,7 @@ class OrionClient:
             offset: Limit for the worker query.
         """
         response = await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/workers/filter",
+            f"/work_pools/{work_pool_name}/workers/filter",
             json={
                 "worker_filter": (
                     worker_filter.dict(json_compatible=True, exclude_unset=True)
@@ -2041,9 +2041,7 @@ class OrionClient:
             Information about the requested work pool.
         """
         try:
-            response = await self._client.get(
-                f"/experimental/work_pools/{work_pool_name}"
-            )
+            response = await self._client.get(f"/work_pools/{work_pool_name}")
             return pydantic.parse_obj_as(WorkPool, response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2095,7 +2093,7 @@ class OrionClient:
             Information about the newly created work pool.
         """
         response = await self._client.post(
-            "/experimental/work_pools/",
+            "/work_pools/",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -2108,7 +2106,7 @@ class OrionClient:
     ):
 
         await self._client.patch(
-            f"/experimental/work_pools/{work_pool_name}",
+            f"/work_pools/{work_pool_name}",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -2162,7 +2160,7 @@ class OrionClient:
         if work_pool_name:
             try:
                 response = await self._client.post(
-                    f"/experimental/work_pools/{work_pool_name}/queues/filter",
+                    f"/work_pools/{work_pool_name}/queues/filter",
                     json=json,
                 )
             except httpx.HTTPStatusError as e:
@@ -2203,7 +2201,7 @@ class OrionClient:
             body["scheduled_before"] = str(scheduled_before)
 
         response = await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/get_scheduled_flow_runs",
+            f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
 

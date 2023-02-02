@@ -258,7 +258,9 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
 
 
 async def test_agent_creates_work_queue_if_doesnt_exist(
-    session, work_pool, prefect_caplog, enable_work_pools
+    session,
+    work_pool,
+    prefect_caplog,
 ):
     name = "hello-there"
     assert not await models.workers.read_work_queue_by_name(
@@ -292,7 +294,10 @@ async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(
-    session, monkeypatch, prefect_caplog, work_pool, enable_work_pools
+    session,
+    monkeypatch,
+    prefect_caplog,
+    work_pool,
 ):
     """
     Mimics a race condition in which multiple agents were started against the
@@ -912,7 +917,6 @@ async def test_agent_with_work_queue_and_work_pool(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -975,7 +979,6 @@ async def test_agent_with_work_pool(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1041,7 +1044,6 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
