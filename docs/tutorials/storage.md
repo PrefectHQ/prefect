@@ -22,7 +22,7 @@ In Prefect, [blocks](/concepts/blocks/) are a primitive that enable you to speci
 
 [Storage](/concepts/storage/) blocks contain configuration for interacting with file storage such as a remote filesystem, AWS S3, and so on.
 
-[Infrastructure](/concepts/infrastructure/) blocks contain settings that [agents](/concepts/work-queues/) use to stand up execution infrastructure for a flow run.
+[Infrastructure](/concepts/infrastructure/) blocks contain settings that [agents](/concepts/work-pools/) use to stand up execution infrastructure for a flow run.
 
 ## Prerequisites
 
@@ -156,7 +156,7 @@ When you create flow runs from this deployment, the agent pulls the flow script 
 
 ## Infrastructure
 
-Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
+Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-pools/) use to create an execution environment for a flow run.
 
 Infrastructure includes configuration for environments such as:
 

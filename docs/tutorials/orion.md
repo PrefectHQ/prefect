@@ -37,7 +37,7 @@ Creating and running _orchestrated_ workflows takes advantage of some additional
 - [Prefect database](#prefect-database) provides a persistent metadata store that holds flow and task run history.
 - [Prefect UI](#prefect-ui-and-prefect-cloud) provides a control plane for monitoring, configuring, analyzing, and coordinating runs of your workflows.
 - [Storage](#storage-for-flow-and-task-data) for flow and task data lets you configure a persistent store for flow code and flow and task results.
-- [Agents and work queues](#agents-and-work-queues) bridge the Prefect orchestration engine with a your execution environments, organizing work that agents can pick up to execute.
+- [Agents and work queues](#agents-and-work-pools) bridge the Prefect orchestration engine with a your execution environments, organizing work that agents can pick up to execute.
 
 These Prefect components and services enable you to form what we call a dedicated _coordination and orchestration environment_. The same components and services enable you to coordinate flows with either the open-source Prefect Orion API server and orchestration engine or Prefect Cloud.
 
@@ -104,7 +104,7 @@ When the Prefect API server is running (either in a local environment or using P
 
 - Creating [deployments](/concepts/deployments/)
 - [Scheduling](/concepts/schedules/) flow runs
-- Configuring [agents and work queues](/concepts/work-queues/)
+- Configuring [agents and work queues](/concepts/work-pools/)
 - Executing [ad hoc flow runs from deployments](/tutorials/deployments/)
 
 During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#prefect-ui-and-prefect-cloud). Most users will spin up everything all at once with `prefect orion start`.
@@ -201,10 +201,10 @@ Agents and work queues bridge the Prefect Orion orchestration engine and API wit
 
 You can create work queues:
 
-- [Using CLI commands](/concepts/work-queues/#work-queue-configuration)
-- [Using the Prefect UI](/ui/work-queues/)
+- [Using CLI commands](/concepts/work-pools/#work-queue-configuration)
+- [Using the Prefect UI](/ui/work-pools/)
 
-Agents are configured to pull work from a specific work queue. You'll use the CLI to [start an agent](/concepts/work-queues/#agent-configuration) in your execution environment. If you configure work queues in the Prefect UI, the work queue panel provides the CLI command: you can simply copy the entire command and run it in your execution environment.
+Agents are configured to pull work from a specific work queue. You'll use the CLI to [start an agent](/concepts/work-pools/#agent-configuration) in your execution environment. If you configure work queues in the Prefect UI, the work queue panel provides the CLI command: you can simply copy the entire command and run it in your execution environment.
 
 !!! tip "Next steps: Deployments"
     Continue on to the [Deployments](/tutorials/deployments/) tutorial to start seeing flow orchestration with Prefect in action.

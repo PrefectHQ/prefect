@@ -36,7 +36,7 @@ Your list of available workspaces may include:
     - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
     - [Flows](/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
     - [Deployments](/concepts/deployments/)
-    - [Work queues](/concepts/work-queues/)
+    - [Work queues](/concepts/work-pools/)
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
     - [Notifications](/ui/notifications/)
 

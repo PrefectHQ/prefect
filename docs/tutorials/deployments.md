@@ -31,7 +31,7 @@ You need just a few ingredients to turn a flow definition into a deployment:
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
 - Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect Orion server started with `prefect orion start`.
-- An [agent and work queue](/concepts/work-queues/).
+- An [agent and work queue](/concepts/work-pools/).
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
 
@@ -460,7 +460,7 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
 
 As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
 
-[Agents and work queues](/concepts/work-queues/) are the mechanisms by which Prefect orchestrates deployment flow runs in remote execution environments.
+[Agents and work queues](/concepts/work-pools/) are the mechanisms by which Prefect orchestrates deployment flow runs in remote execution environments.
 
 Work queues let you organize flow runs into queues for execution. Agents pick up work from one or more queues and execute the runs.
 
