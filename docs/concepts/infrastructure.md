@@ -209,7 +209,7 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect Orion API won't work with Docker and Kubernetes. You must have an Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
 
 The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
@@ -230,10 +230,89 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | name | An optional name for the job. |
 | namespace | String signifying the Kubernetes namespace to use. |
 | pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 60). |
-| restart_policy | The Kubernetes restart policy to use for Jobs. |
 | service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
+#### KubernetesJob overrides and customizations
+
+When creating deployments using `KubernetesJob` infrastructure, the `infra_overrides` parameter expects a dictionary. For a `KubernetesJob`, the `customizations` parameter expects a list. 
+
+Containers expect a list of objects, even if there is only one.
+For any patches applying to the container, the path value should be a list, for example:
+  `/spec/templates/spec/containers/0/resources`
+
+A `Kubernetes-Job` infrastructure block defined in Python:
+
+```python
+customizations = [
+	{
+	    "op": "add",
+	    "path": "/spec/template/spec/containers/0/resources",
+	    "value": {
+	        "requests": {
+	            "cpu": "2000m",
+	            "memory": "4gi"
+	        },
+	        "limits": {
+	            "cpu": "4000m",
+	            "memory": "8Gi",
+	            "nvidia.com/gpu": "1"
+	    	}
+		},
+	}
+]
+
+k8s_job = KubernetesJob(
+        namespace=namespace,
+        image=image_name,
+        image_pull_policy=KubernetesImagePullPolicy.ALWAYS,
+        finished_job_ttl=300,
+        job_watch_timeout_seconds=600,
+        pod_watch_timeout_seconds=600,
+        service_account_name="prefect-server",
+        customizations=customizations,
+    )
+k8s_job.save("devk8s")
+```
+
+A `Deployment` with infra-overrides defined in Python:
+
+```python
+infra_overrides={ 
+    "customizations": [
+            {
+                "op": "add",
+                "path": "/spec/template/spec/containers/0/resources",
+                "value": {
+                    "requests": {
+                        "cpu": "2000m",
+                        "memory": "4gi"
+                    },
+                    "limits": {
+                        "cpu": "4000m",
+                        "memory": "8Gi",
+                        "nvidia.com/gpu": "1"
+                }
+            },
+        }
+    ]
+}
+
+# Load an already created K8s Block
+k8sjob = k8s_job.load("devk8s")
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="s3-example",
+    version=2,
+    work_queue_name="aws",
+    infrastructure=k8sjob,
+    storage=storage,
+    infra_overrides=infra_overrides,
+)
+
+deployment.apply()
+```
 
 ### ECSTask
 
