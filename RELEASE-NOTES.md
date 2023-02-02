@@ -4,7 +4,6 @@
 
 ### Work pools are here!
 
-We're excited to announce the release of work pools, a new feature that allows you to create logical groups for your work queues. Work pools are a great way to organize your work queues and ensure that your most important work is always prioritized. You can read more about work pools in our [documentation](https://docs.prefect.io/concepts/work-pools/).
 
 ### Enhancements
 - Add refactor of results into a standalone artifact table — https://github.com/PrefectHQ/prefect/pull/8164
