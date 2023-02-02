@@ -9,19 +9,17 @@
 - Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
 
 ### Fixes
-- Fix cancellation bug — https://github.com/PrefectHQ/prefect/pull/8315
-- Fix Kubernetes job watch exit when no timeout given — https://github.com/PrefectHQ/prefect/pull/8350
-- Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
-- Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
+- Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
+- Fix bug where Kubernetes job monitoring exited early when no timeout was given — https://github.com/PrefectHQ/prefect/pull/8350
 
 ### Experimental
 - We're working on work pools, groups of work queues. Together, work pools & queues give you greater flexibility and control in organizing and prioritizing work.
-- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274
-- Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
-- Add clean up migration — https://github.com/PrefectHQ/prefect/pull/8331
-- Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
-- Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
-- Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+     - Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
+     - Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
+     - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+     - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
+     - Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
+- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274, https://github.com/PrefectHQ/prefect/pull/8331
 - Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 
 ### Documentation
