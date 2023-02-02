@@ -836,7 +836,7 @@ class WorkQueue(ORMBaseModel):
         default=None, description="An optional concurrency limit for the work queue."
     )
     priority: conint(ge=1) = Field(
-        ...,
+        default=1,
         description="The queue's priority. Lower values are higher priority (1 is the highest).",
     )
     # Will be required after a future migration
