@@ -120,7 +120,7 @@ jobs:
 
           # 2.6 containers have a bad version of httpcore installed
           - prefect-version: "2.6"
-            extra_docker_run_options: '--env PIP_EXTRA_PACKAGES="httpcore>=0.16.2"'
+            extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
 
       fail-fast: false
 

@@ -42,6 +42,7 @@ async def create_work_queue(
     data = work_queue.dict(exclude={"priority"})
 
     if data.get("work_pool_id") is None:
+        # If no work pool is provided, get or create the default agent work pool
         default_agent_work_pool = await models.workers.read_work_pool_by_name(
             session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
@@ -54,17 +55,24 @@ async def create_work_queue(
                     name=DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
                 ),
             )
+            if work_queue.name == "default":
+                # If the desired work queue name is default, it was created when the
+                # work pool was created. We can just return it.
+                return await models.workers.read_work_queue(
+                    session=session,
+                    work_queue_id=default_agent_work_pool.default_queue_id,
+                )
             data["work_pool_id"] = default_agent_work_pool.id
 
-    if data.get("work_pool_id"):
-        max_priority_query = sa.select(
-            sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
-        ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
-        priority = (await session.execute(max_priority_query)).scalar()
+    # Set the priority to be the max priority + 1
+    # This will make the new queue the lowest priority
+    max_priority_query = sa.select(
+        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+    ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
+    priority = (await session.execute(max_priority_query)).scalar()
 
-        model = db.WorkQueue(**data, priority=priority)
-    else:
-        model = db.WorkQueue(**data, priority=1)
+    model = db.WorkQueue(**data, priority=priority + 1)
+
     session.add(model)
     await session.flush()
 

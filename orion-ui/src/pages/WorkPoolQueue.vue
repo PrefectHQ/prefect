@@ -31,7 +31,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useFlowRunsFilter } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useFlowRunsFilter, useRecentFlowRunsFilter } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
@@ -48,9 +48,9 @@
 
   const workPoolQueuesSubscription = useSubscription(api.workPoolQueues.getWorkPoolQueueByName, [workPoolName.value, workPoolQueueName.value], subscriptionOptions)
   const workPoolQueue = computed(() => workPoolQueuesSubscription.response)
-  const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --queue ${workPoolQueueName.value}`)
+  const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
 
-  const { filter: flowRunFilter } = useFlowRunsFilter({
+  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
     workPoolQueues: {
       name: workPoolQueueNames,
     },
