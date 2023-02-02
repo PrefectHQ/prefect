@@ -1475,6 +1475,11 @@ async def orchestrate_task_run(
                     await client.set_task_run_name(
                         task_run_id=task_run.id, name=task_run_name
                     )
+                    logger.extra["task_run_name"] = task_run_name
+                    logger.debug(
+                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
+                    )
+                    task_run.name = task_run_name
                     run_name_set = True
 
                 if PREFECT_DEBUG_MODE.value():
