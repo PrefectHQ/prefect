@@ -11,7 +11,6 @@
 ### Fixes
 - Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
 - Fix bug where Kubernetes job monitoring exited early when no timeout was given — https://github.com/PrefectHQ/prefect/pull/8350
-- Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
 - Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
 
 ### Experimental
@@ -20,6 +19,7 @@
      - Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
      - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
      - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
+     - Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
 - Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274, https://github.com/PrefectHQ/prefect/pull/8331
 - Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
 
