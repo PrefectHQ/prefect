@@ -465,7 +465,7 @@ As mentioned at the beginning of this tutorial, you still need two more items to
 
 work pools let you organize flow runs into queues for execution. Agents pick up work from one or more queues and execute the runs.
 
-In the Prefect UI, you can create a work pool by selecting the **work pools** page, then creating a new work pool. However, in our case you don't need to manually create a work pool because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
+In the Prefect UI, you can create a work pool by selecting the **Work Pools** page, then creating a new work pool. However, in our case you don't need to manually create a work pool because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
 Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work pool. 
 
