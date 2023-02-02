@@ -150,3 +150,13 @@ class TestDelete:
         assert res.exit_code == 0
         with pytest.raises(ObjectNotFound):
             await orion_client.read_work_pool(work_pool.name)
+
+
+class TestLS:
+    async def test_ls(self, orion_client, work_pool):
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool ls",
+        )
+        assert res.exit_code == 0
+        assert work_pool.name in res.output

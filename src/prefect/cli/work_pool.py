@@ -80,9 +80,6 @@ async def ls(
     \b
     Examples:
         $ prefect work-pool ls
-        Name                    ID      Concurrency Limit
-        my-pool            process      None
-        my-pool-2          process      10
     """
     table = Table(
         title="Work Pools", caption="(**) denotes a paused pool", caption_style="red"
@@ -92,7 +89,7 @@ async def ls(
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Concurrency Limit", style="blue", no_wrap=True)
     if verbose:
-        table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
+        table.add_column("Base Job Template", style="magenta", no_wrap=True)
 
     async with get_client() as client:
         pools = await client.read_work_pools()
@@ -109,8 +106,8 @@ async def ls(
             if pool.concurrency_limit
             else "[blue]None",
         ]
-        if verbose and pool.filter is not None:
-            row.append(pool.filter.json())
+        if verbose:
+            row.append(str(pool.base_job_template))
         table.add_row(*row)
 
     app.console.print(table)
@@ -236,7 +233,9 @@ async def set_concurrency_limit(
         except ObjectNotFound as exc:
             exit_with_error(exc)
 
-        exit_with_success(f"Updated work pool {name!r}")
+        exit_with_success(
+            f"Set concurrency limit for work pool {name!r} to {concurrency_limit}"
+        )
 
 
 @work_pool_app.command()
@@ -262,7 +261,7 @@ async def clear_concurrency_limit(
         except ObjectNotFound as exc:
             exit_with_error(exc)
 
-        exit_with_success(f"Updated work pool {name!r}")
+        exit_with_success(f"Cleared concurrency limit for work pool {name!r}")
 
 
 @work_pool_app.command()
@@ -288,12 +287,13 @@ async def preview(
 
     async with get_client() as client:
         try:
-            runs = await client.get_scheduled_flow_runs_for_work_pool_queues(
+            responses = await client.get_scheduled_flow_runs_for_work_pool(
                 work_pool_name=name,
             )
         except ObjectNotFound as exc:
             exit_with_error(exc)
 
+    runs = [response.flow_run for response in responses]
     table = Table(caption="(**) denotes a late run", caption_style="red")
 
     table.add_column(
@@ -307,7 +307,6 @@ async def preview(
 
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
-
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
             f"{run.expected_start_time} [red](**)"
