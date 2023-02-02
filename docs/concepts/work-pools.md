@@ -86,8 +86,7 @@ Starting agent with ephemeral API...
  |  _/   / _|| _|| _| (__  | |    / _ \ (_ | _|| .` | | |
  |_| |_|_\___|_| |___\___| |_|   /_/ \_\___|___|_|\_| |_|
 
-Agent started! Looking for work from queue(s): my-pool...
-08:31:57.197 | INFO    | prefect.agent - Created work pool 'my-pool'.
+Agent started! Looking for work from work pool 'my-pool'...
 ```
 
 </div>
@@ -96,7 +95,7 @@ In this case, Prefect automatically created a new `my-pool` work pool.
 
 By default, the agent polls the API specified by the `PREFECT_API_URL` environment variable. To configure the agent to poll from a different server location, use the `--api` flag, specifying the URL of the server.
 
-In addition, agents can match multiple work pools by providing a `--match` string instead of specifying all of the work pools. The agent will poll every work pool with a name that starts with the given string. New pools matching this prefix will be found by the agent without needing to restart it.
+In addition, agents can match multiple queues in a work pool by providing a `--match` string instead of specifying all of the queues. The agent will poll every queue with a name that starts with the given string. New queues matching this prefix will be found by the agent without needing to restart it.
 
 For example:
 <div class="terminal">
@@ -107,7 +106,7 @@ $ prefect agent start --match "foo-"
 
 </div>
 
-This example will poll every work pool that starts with "foo-".
+This example will poll every work queue that starts with "foo-".
 
 ### Configuring prefetch
 
