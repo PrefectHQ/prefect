@@ -51,9 +51,18 @@ if __name__ == "__main__":
 
     flow_run = anyio.run(create_flow_run, deployment_id)
 
-    subprocess.check_call(
-        ["prefect", "agent", "start", "--run-once", "--work-queue", "default"],
-    )
+    if Version(prefect.__version__) < Version("2.6"):
+        # --run-once is not available so just run for a bit
+        try:
+            subprocess.run(
+                ["prefect", "agent", "start", "--work-queue", "default"], timeout=30
+            )
+        except subprocess.TimeoutExpired:
+            pass
+    else:
+        subprocess.check_call(
+            ["prefect", "agent", "start", "--run-once", "--work-queue", "default"],
+        )
 
     flow_run = anyio.run(read_flow_run, flow_run.id)
     assert flow_run.state.is_completed()
