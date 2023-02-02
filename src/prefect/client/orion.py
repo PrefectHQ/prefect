@@ -37,6 +37,7 @@ from prefect.orion.schemas.core import (
 from prefect.orion.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
+    WorkPoolFilter,
     WorkQueueFilter,
 )
 from prefect.orion.schemas.responses import WorkerFlowRunResponse
@@ -750,6 +751,8 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            elif e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
         return schemas.core.WorkQueue.parse_obj(response.json())
@@ -2041,6 +2044,36 @@ class OrionClient:
             else:
                 raise
 
+    async def read_work_pools(
+        self,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        work_pool_filter: Optional[WorkPoolFilter] = None,
+    ) -> List[WorkPool]:
+        """
+        Reads work pools.
+
+        Args:
+            limit: Limit for the work pool query.
+            offset: Offset for the work pool query.
+            work_pool_filter: Criteria by which to filter work pools.
+
+        Returns:
+            A list of work pools.
+        """
+
+        body = {
+            "limit": limit,
+            "offset": offset,
+            "work_pools": (
+                work_pool_filter.dict(json_compatible=True)
+                if work_pool_filter
+                else None
+            ),
+        }
+        response = await self._client.post("/experimental/work_pools/filter", json=body)
+        return pydantic.parse_obj_as(List[WorkPool], response.json())
+
     async def create_work_pool(
         self,
         work_pool: schemas.actions.WorkPoolCreate,
@@ -2072,6 +2105,24 @@ class OrionClient:
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
+    async def delete_work_pool(
+        self,
+        work_pool_name: str,
+    ):
+        """
+        Deletes a work pool.
+
+        Args:
+            work_pool_name: Name of the work pool to delete.
+        """
+        try:
+            await self._client.delete(f"/experimental/work_pools/{work_pool_name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def read_work_queues(
         self,
         work_pool_name: Optional[str] = None,
@@ -2102,10 +2153,16 @@ class OrionClient:
         }
 
         if work_pool_name:
-            response = await self._client.post(
-                f"/experimental/work_pools/{work_pool_name}/queues/filter",
-                json=json,
-            )
+            try:
+                response = await self._client.post(
+                    f"/experimental/work_pools/{work_pool_name}/queues/filter",
+                    json=json,
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+                else:
+                    raise
         else:
             response = await self._client.post(f"/work_queues/filter", json=json)
 
