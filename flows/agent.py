@@ -1,3 +1,4 @@
+import pathlib
 import subprocess
 
 import anyio
@@ -13,10 +14,15 @@ def hello(name: str = "world"):
     prefect.get_run_logger().info(f"Hello {name}!")
 
 
-async def apply_deployment(deployment):
+async def apply_deployment_20(deployment):
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(deployment.flow_name)
-        return await client.create_deployment(flow_id=flow_id, name=deployment.name)
+        return await client.create_deployment(
+            flow_id=flow_id,
+            name=deployment.name,
+            path=deployment.path,
+            entrypoint=deployment.entrypoint,
+        )
 
 
 async def create_flow_run(deployment_id):
@@ -38,8 +44,10 @@ if __name__ == "__main__":
             name="test-deployment",
             flow_name=hello.name,
             parameter_openapi_schema=parameter_schema(hello),
+            path=str(pathlib.Path(__file__).parent),
+            entrypoint=f"{__file__}:hello",
         )
-        deployment_id = anyio.run(apply_deployment, deployment)
+        deployment_id = anyio.run(apply_deployment_20, deployment)
     else:
         deployment = Deployment.build_from_flow(flow=hello, name="test-deployment")
         deployment_id = deployment.apply()
