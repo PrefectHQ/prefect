@@ -29,6 +29,8 @@ Log inside a regular function
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
 - Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
+- Display Runs before Deployments on flow pages - https://github.com/PrefectHQ/prefect/pull/8386
+- Clearify output CLI message when switching profiles - https://github.com/PrefectHQ/prefect/pull/8383
 
 ### Fixes
 - Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
