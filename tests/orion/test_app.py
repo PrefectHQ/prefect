@@ -28,7 +28,10 @@ def test_app_exposes_ui_settings():
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
-    assert response.json() == {"api_url": PREFECT_ORION_UI_API_URL.value(), "flags": []}
+    assert response.json() == {
+        "api_url": PREFECT_ORION_UI_API_URL.value(),
+        "flags": ["work_pools"],
+    }
 
 
 @pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
@@ -39,5 +42,5 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     response.raise_for_status()
     assert response.json() == {
         "api_url": PREFECT_ORION_UI_API_URL.value(),
-        "flags": ["test"],
+        "flags": ["test", "work_pools"],
     }

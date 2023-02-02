@@ -9,7 +9,7 @@ import prefect
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import WorkPoolCreate
 from prefect.orion.schemas.core import WorkPool, WorkQueue
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS, temporary_settings
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 RESERVED_POOL_NAMES = [
     "Prefect",
@@ -29,23 +29,6 @@ def auto_enable_work_pools(enable_work_pools):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-
-
-class TestEnableWorkPoolsFlag:
-    async def test_flag_defaults_to_false(self):
-        with temporary_settings(
-            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS}
-        ):
-            assert not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-
-    async def test_404_when_flag_disabled(self, client):
-        with temporary_settings(
-            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS}
-        ):
-            response = await client.post(
-                "/experimental/work_pools/", json=dict(name="Pool 1")
-            )
-            assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 class TestCreateWorkPool:
