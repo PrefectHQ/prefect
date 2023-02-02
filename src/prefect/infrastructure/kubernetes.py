@@ -60,6 +60,9 @@ class KubernetesJob(Infrastructure):
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         env: Environment variables to set for the container.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
         image: An optional string specifying the image reference of a container image
             to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
             behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
@@ -75,9 +78,6 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
-        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
-            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
-            manually removed.
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
