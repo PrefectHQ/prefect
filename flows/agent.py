@@ -76,7 +76,7 @@ if __name__ == "__main__":
             "is running 2.7+ and the server is running 2.6 checks for cancelled flows "
             "will fail. This is a known incompatibility."
         )
-        return
+        exit(0)
     elif Version(prefect.__version__) < Version("2.6"):
         # --run-once is not available so just run for a bit
         try:
