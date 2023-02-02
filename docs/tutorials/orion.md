@@ -201,7 +201,7 @@ Agents and work pools bridge the Prefect Orion orchestration engine and API with
 
 You can create work pools:
 
-- [Using CLI commands](/concepts/work-pools/#work-queue-configuration)
+- [Using CLI commands](/concepts/work-pools/#work-pool-configuration)
 - [Using the Prefect UI](/ui/work-pools/)
 
 Agents are configured to pull work from a specific work pool. You'll use the CLI to [start an agent](/concepts/work-pools/#agent-configuration) in your execution environment. If you configure work pools in the Prefect UI, the work pool panel provides the CLI command: you can simply copy the entire command and run it in your execution environment.
