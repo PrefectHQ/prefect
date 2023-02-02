@@ -353,7 +353,7 @@ When you run a deployed flow with Prefect Orion, the following happens:
 !!! note "Scheduled flow runs"
     Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`.
 
-    Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-pools/) are configured.
+    Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
 ## Create a deployment from a Python object
 
