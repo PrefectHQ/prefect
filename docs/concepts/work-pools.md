@@ -176,7 +176,7 @@ On success, the command returns the details of the newly created work pool, whic
 
 At any time, users can see and edit configured work pools in the Prefect UI.
 
-![The UI displays a list of configured work pools](/img/ui/work-pool-list.png)
+![The UI displays a list of configured work pools](../img/ui/work-pool-list.png)
 
 To view work pools with the Prefect CLI, you can:
 
