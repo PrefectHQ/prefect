@@ -29,9 +29,6 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 )
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
-    pool_type: str = typer.Option(
-        None, "-t", "--type", help="The infrastructure type of the work pool."
-    ),
     paused: Optional[bool] = typer.Option(
         False,
         "--paused",
@@ -43,27 +40,20 @@ async def create(
 
     \b
     Examples:
-        $ prefect work-pool create "my-pool" --type "process" --paused
+        $ prefect work-pool create "my-pool" --paused
     """
-    if not pool_type:
-        exit_with_error(
-            "Please provide a pool type. "
-            "See `prefect work-pool create --help` for more information."
-        )
     # will always be an empty dict until workers added
     base_job_template = dict()
     async with get_client() as client:
         try:
             wp = WorkPoolCreate(
                 name=name,
-                type=pool_type,
+                type="prefect-agent",
                 base_job_template=base_job_template,
                 is_paused=paused,
             )
             work_pool = await client.create_work_pool(work_pool=wp)
-            exit_with_success(
-                f"Created work pool {work_pool.name!r} with infrastructure type {work_pool.type!r}."
-            )
+            exit_with_success(f"Created work pool {work_pool.name!r}.")
         except ObjectAlreadyExists:
             exit_with_error(
                 f"Work pool {name} already exists. Please choose a different name."
