@@ -2076,7 +2076,7 @@ class OrionClient:
                 else None
             ),
         }
-        response = await self._client.post("/experimental/work_pools/filter", json=body)
+        response = await self._client.post("/work_pools/filter", json=body)
         return pydantic.parse_obj_as(List[WorkPool], response.json())
 
     async def create_work_pool(
@@ -2121,7 +2121,7 @@ class OrionClient:
             work_pool_name: Name of the work pool to delete.
         """
         try:
-            await self._client.delete(f"/experimental/work_pools/{work_pool_name}")
+            await self._client.delete(f"/work_pools/{work_pool_name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e

@@ -1,7 +1,6 @@
 import pytest
 
 import prefect.exceptions
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 
@@ -9,16 +8,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compati
 @sync_compatible
 async def read_queue(orion_client, name, pool=None):
     return await orion_client.read_work_queue_by_name(name=name, work_pool_name=pool)
-
-
-@pytest.fixture(autouse=False)
-def enable_work_pools(enable_work_pools):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-    # Import to register worker CLI
-    import prefect.experimental.cli.worker  # noqa
 
 
 class TestCreateWorkQueue:

@@ -463,4 +463,4 @@ def test_enabled_experiments_with_opt_in():
 
 
 def test_enabled_experiments_without_opt_in():
-    assert enabled_experiments() == set("work_pools")
+    assert enabled_experiments() == set(["work_pools"])
