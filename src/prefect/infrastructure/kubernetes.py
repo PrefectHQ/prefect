@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
-import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
