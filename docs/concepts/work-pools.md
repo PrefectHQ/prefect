@@ -33,7 +33,7 @@ To run deployments, you must configure at least one agent (and its associated wo
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
 
-It is possible for multiple agent processes to be started for a single work pool, or for one agent to pull work from multiple work pools. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
+It is possible for multiple agent processes to be started for a single work pool. Each agent process sends a unique ID to the server to help disambiguate themselves and let users know how many agents are active.
 
 ### Agent options
 
@@ -149,7 +149,6 @@ Optional configuration parameters you can specify to filter work on the pool inc
 
 | Option      | Description                                                         |
 | ----------- | ------------------------------------------------------------------- |
-| -t, --type  | The infrastructure type of the work pool.                           |
 | --paused    | If provided, the work pool will be created in a paused state.       |
 
 For example, to create a work pool called `test-pool`, you would run this command: 
@@ -195,9 +194,9 @@ prefect work-pool ls
 ┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
 ┃ Name       ┃    Type       ┃     ID ┃ Concurrency Limit ┃
 ┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-│ barbeque  │ process  │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
-│ k8s-pool  │  process │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
-│ test-pool  │  process │ a51adf8c-58bb-4949-abe6-1b87af46eabd │ None              │
+│ barbeque  │ prefect-agent  │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
+│ k8s-pool  │  prefect-agent │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
+│ test-pool  │  prefect-agent │ a51adf8c-58bb-4949-abe6-1b87af46eabd │ None              │
 └────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
                     ```
