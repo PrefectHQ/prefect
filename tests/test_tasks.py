@@ -2993,3 +2993,37 @@ class TestTaskConstructorValidation:
             @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
             async def insanity():
                 raise RuntimeError("try again!")
+
+
+async def test_task_run_name_is_set(orion_client):
+    @task(task_run_name="fixed-name")
+    def my_task(name):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="chris")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "fixed-name"
+
+
+async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client):
+    @task(task_run_name="{name}-wuz-{where}")
+    def my_task(name, where="here"):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="chris")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "chris-wuz-here"

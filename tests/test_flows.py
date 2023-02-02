@@ -2013,3 +2013,27 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     assert res == "woof!"
     flow_runs = await orion_client.read_flows()
     assert len(flow_runs) == 1
+
+
+async def test_sets_run_name_when_provided(orion_client):
+    @flow(flow_run_name="hi")
+    def flow_with_name(foo: str = "bar", bar: int = 1):
+        pass
+
+    state = flow_with_name(return_state=True)
+
+    assert state.type == StateType.COMPLETED
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    assert flow_run.name == "hi"
+
+
+async def test_sets_run_name_with_params_including_defaults(orion_client):
+    @flow(flow_run_name="hi-{foo}-{bar}")
+    def flow_with_name(foo: str = "one", bar: str = "1"):
+        pass
+
+    state = flow_with_name(bar="two", return_state=True)
+
+    assert state.type == StateType.COMPLETED
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    assert flow_run.name == "hi-one-two"
