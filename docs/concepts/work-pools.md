@@ -271,7 +271,7 @@ When using the `prefect work-pool` Prefect CLI command to configure a work pool,
 
 Each work pool has a "default" queue that all work will be sent to by default. Additional queues can be added to a work pool. Work queues enable greater control over work delivery through fine grained priority and concurrency. Each work queue has a priority indicated by a unique positive integer. Lower numbers take greater priority in the allocation of work. Accordingly, new queues can be added without changing the rank of the higher-priority queues (e.g. no matter how many queues you add, the queue with priority `1` will always be the highest priority).
 
-Work queues can also have thier own concurrency limits. Note that work in each queue is also subject to the global work pool concurrency limit, which cannot be exceeded.
+Work queues can also have their own concurrency limits. Note that each queue is also subject to the global work pool concurrency limit, which cannot be exceeded.
 
 Together work queue priority and concurrency enable precise control over work. For example, a pool may have three queues: A "low" queue with priority `10` and no concurrency limit, a "high" queue with priority `5` and a concurrency limit of `3`, and a "critical" queue with priority `1` and a concurrency limit of `1`. This arrangement would enable a pattern in which there are two levels of priority, "high" and "low" for regularly scheduled flow runs, with the remaining "critical" queue for unplanned, urgent work, such as a backfill.
 
