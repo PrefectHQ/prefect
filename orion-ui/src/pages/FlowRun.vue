@@ -109,6 +109,10 @@
 </script>
 
 <style>
+.flow-run { @apply
+  items-start
+}
+
 .flow-run__logs { @apply
   max-h-screen
 }
