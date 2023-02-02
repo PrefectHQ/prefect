@@ -14,7 +14,7 @@
 - Fix cancellation bug — https://github.com/PrefectHQ/prefect/pull/8315
 - Fix Kubernetes job watch exit when no timeout given — https://github.com/PrefectHQ/prefect/pull/8350
 - Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
-- Fix UI to use recentFlowRunFilter instead of flowRunFilter — https://github.com/PrefectHQ/prefect/pull/8380
+- Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
 
 ### Experimental
 - Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274
@@ -26,12 +26,12 @@
 
 ### Documentation
 - Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
-- Add retry_delay_seconds and exponential_backoff examples to Tasks retries documentation — https://github.com/PrefectHQ/prefect/pull/8280
+- Add `retry_delay_seconds` and `exponential_backoff` examples to Tasks retries documentation — https://github.com/PrefectHQ/prefect/pull/8280
 - Add role permissions regarding block secrets — https://github.com/PrefectHQ/prefect/pull/8309
 - Add getting started tutorial video to Prefect Cloud Quickstart — https://github.com/PrefectHQ/prefect/pull/8336
 - Add tips for re-registering blocks from Prefect Collections — https://github.com/PrefectHQ/prefect/pull/8333
 - Add examples and corrections for Kubernetes infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/8312
-- Add mention of reverse proxy for PREFECT_API_URL config — https://github.com/PrefectHQ/prefect/pull/8240
+- Add mention of reverse proxy for `PREFECT_API_URL` config — https://github.com/PrefectHQ/prefect/pull/8240
 - Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
 - Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
 
