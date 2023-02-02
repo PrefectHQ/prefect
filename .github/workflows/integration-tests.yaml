@@ -164,7 +164,6 @@ jobs:
         if: ${{ ! matrix.server-incompatible }}
         run: >
           TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
-
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           TEST_CLIENT_VERSION=${{ matrix.client_version }}
           ./scripts/run-integration-flows.py
