@@ -49,8 +49,9 @@ class TestCreateWorkQueue:
         pool = await models.workers.read_work_pool_by_name(
             session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
-        await models.workers.delete_work_pool(session=session, work_pool_id=pool.id)
-        await session.commit()
+        if pool is not None:
+            await models.workers.delete_work_pool(session=session, work_pool_id=pool.id)
+            await session.commit()
 
         work_queue = await models.work_queues.create_work_queue(
             session=session,
