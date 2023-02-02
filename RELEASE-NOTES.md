@@ -9,7 +9,7 @@
 - Add `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` setting to handle error raised when logger called outside of flow run context — https://github.com/PrefectHQ/prefect/pull/8311
 
 ### Fixes
-- Fix cancellation bug — https://github.com/PrefectHQ/prefect/pull/8315
+- Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
 - Fix Kubernetes job watch exit when no timeout given — https://github.com/PrefectHQ/prefect/pull/8350
 - Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
 - Fix UI to use `recentFlowRunFilter` instead of `flowRunFilter` — https://github.com/PrefectHQ/prefect/pull/8380
