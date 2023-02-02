@@ -57,18 +57,15 @@ async def create_work_queue(
             )
             data["work_pool_id"] = default_agent_work_pool.id
 
-    if data.get("work_pool_id"):
-        # Set the priority to be the max priority + 1
-        # This will make the new queue the lowest priority
-        max_priority_query = sa.select(
-            sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
-        ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
-        priority = (await session.execute(max_priority_query)).scalar()
+    # Set the priority to be the max priority + 1
+    # This will make the new queue the lowest priority
+    max_priority_query = sa.select(
+        sa.func.coalesce(sa.func.max(db.WorkQueue.priority), 0)
+    ).where(db.WorkQueue.work_pool_id == data["work_pool_id"])
+    priority = (await session.execute(max_priority_query)).scalar()
 
-        model = db.WorkQueue(**data, priority=priority + 1)
-    else:
-        # Legacy case to handle if there is no work pool
-        model = db.WorkQueue(**data, priority=1)
+    model = db.WorkQueue(**data, priority=priority + 1)
+
     session.add(model)
     await session.flush()
 
