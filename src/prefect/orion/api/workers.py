@@ -20,7 +20,6 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
-    dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
 
