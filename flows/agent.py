@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 
@@ -55,6 +56,8 @@ if __name__ == "__main__":
     # Create a flow run
     flow_run = anyio.run(create_flow_run, deployment_id)
 
+    TEST_SERVER_VERSION = os.environ.get("TEST_SERVER_VERSION")
+
     if Version(prefect.__version__) < Version("2.1"):
         # work queue is positional instead of a flag and requires creation
         subprocess.run(["prefect", "work-queue", "create", "default"])
@@ -62,6 +65,18 @@ if __name__ == "__main__":
             subprocess.run(["prefect", "agent", "start", "default"], timeout=30)
         except subprocess.TimeoutExpired:
             pass
+    elif (
+        Version(prefect.__version__) > Version("2.6")
+        and TEST_SERVER_VERSION
+        and Version(TEST_SERVER_VERSION) < Version(2.6)
+        and Version(TEST_SERVER_VERSION) > Version("2.5")
+    ):
+        print(
+            "A CANCELLING state type was added in 2.7 so when the agent (client) "
+            "is running 2.7+ and the server is running 2.6 checks for cancelled flows "
+            "will fail. This is a known incompatibility."
+        )
+        return
     elif Version(prefect.__version__) < Version("2.6"):
         # --run-once is not available so just run for a bit
         try:
