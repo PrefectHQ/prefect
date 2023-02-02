@@ -34,4 +34,5 @@ sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 2.0
 toml >= 0.10.0
 typer >= 0.4.2
 typing_extensions >= 4.1.0
-uvicorn  >= 0.14.0
+uvicorn >= 0.14.0
+websockets >= 10.4
