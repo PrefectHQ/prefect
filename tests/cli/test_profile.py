@@ -198,7 +198,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "ephemeral-orion"],
-            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'.",
+            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'",
             expected_code=0,
         )
 
