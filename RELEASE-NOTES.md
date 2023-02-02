@@ -2,6 +2,28 @@
 
 ## Release 2.7.11
 
+### Support for using loggers outside of flows
+
+Prefect now supports a new setting which defaults to raising warnings instead of errors when attempting to use loggers outside of flows. This allows for other handlers to still receive logs from the called logger. The warnings can also be silenced entirely. This behavior is configured using the environment variable `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` with the options of `ignore`, `warn`, or `error`.
+
+```
+$ prefect config set PREFECT_LOGGING_EXTRA_LOGGERS="my-logger"
+Set 'PREFECT_LOGGING_EXTRA_LOGGERS' to 'my-logger'.
+Updated profile 'default'.
+
+$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=warn
+Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+Updated profile 'default'.
+
+$ python my_flow.py
+Log inside a regular function
+/Users/bean/code/prefect/my_flow.py:8: UserWarning: Logger 'my-logger' attempted to send logs to Orion without a flow run id. The Orion log handler can only send logs within flow run contexts unless the flow run id is manually provided.
+  logger.debug("debug")
+[DEBUG 2023-01-30 12:11:00,153 my_flow.py:8] debug
+12:11:00.153 | DEBUG   | my-logger - debug
+...
+```
+
 ### Enhancements
 - Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
