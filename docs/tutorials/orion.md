@@ -196,7 +196,7 @@ Prefect [blocks](/concepts/blocks/) enable you to create storage configurations 
 
 Agents and work pools bridge the Prefect Orion orchestration engine and API with your local execution environments.
 
-- work pools are configured on the server. They contain logic that determines which flow runs a given queue will serve to waiting agents. 
+- Work pools are configured on the server. They contain logic that determines which flow runs a given queue will serve to waiting agents. 
 - Agents run in a local execution environment. They pick up work from a specific work pool and execute those flow runs. 
 
 You can create work pools:
