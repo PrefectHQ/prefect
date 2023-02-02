@@ -751,6 +751,8 @@ class OrionClient:
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_409_CONFLICT:
                 raise prefect.exceptions.ObjectAlreadyExists(http_exc=e) from e
+            elif e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
             else:
                 raise
         return schemas.core.WorkQueue.parse_obj(response.json())
@@ -2151,10 +2153,16 @@ class OrionClient:
         }
 
         if work_pool_name:
-            response = await self._client.post(
-                f"/experimental/work_pools/{work_pool_name}/queues/filter",
-                json=json,
-            )
+            try:
+                response = await self._client.post(
+                    f"/experimental/work_pools/{work_pool_name}/queues/filter",
+                    json=json,
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                    raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+                else:
+                    raise
         else:
             response = await self._client.post(f"/work_queues/filter", json=json)
 

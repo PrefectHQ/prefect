@@ -50,7 +50,12 @@ async def _get_work_queue_id_from_name_or_id(
                 )
                 return work_queue.id
             except ObjectNotFound:
-                exit_with_error(f"No work queue named {name_or_id!r} found.")
+                if not work_pool_name:
+                    exit_with_error(f"No work queue named {name_or_id!r} found.")
+
+                exit_with_error(
+                    f"No work queue named {name_or_id!r} found in work pool {work_pool_name!r}."
+                )
 
 
 @work_app.command()
@@ -102,6 +107,8 @@ async def create(
                 )
         except ObjectAlreadyExists:
             exit_with_error(f"Work queue with name: {name!r} already exists.")
+        except ObjectNotFound:
+            exit_with_error(f"Work pool with name: {pool!r} not found.")
 
     if tags:
         tags_message = f"tags - {', '.join(sorted(tags))}\n" or ""
@@ -401,7 +408,10 @@ async def ls(
             table.add_column("Description", style="cyan", no_wrap=False)
 
         async with get_client() as client:
-            queues = await client.read_work_queues(work_pool_name=pool)
+            try:
+                queues = await client.read_work_queues(work_pool_name=pool)
+            except ObjectNotFound:
+                exit_with_error(f"No work pool found: {pool!r}")
 
             sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
@@ -453,28 +463,18 @@ async def preview(
 
     window = pendulum.now("utc").add(hours=hours or 1)
 
-    if not pool:
-        queue_id = await _get_work_queue_id_from_name_or_id(name_or_id=name)
-        async with get_client() as client:
-            try:
-                runs = await client.get_runs_in_work_queue(
-                    queue_id, limit=10, scheduled_before=window
-                )
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r}")
-    else:
-        async with get_client() as client:
-            try:
-                runs_response = (
-                    await client.get_scheduled_flow_runs_for_work_pool_queues(
-                        work_pool_name=pool,
-                        work_pool_queue_names=[name],
-                        scheduled_before=window,
-                    )
-                )
-                runs = [r.flow_run for r in runs_response]
-            except ObjectNotFound:
-                exit_with_error(f"No work queue found: {name!r} in work pool {pool!r}")
+    queue_id = await _get_work_queue_id_from_name_or_id(
+        name_or_id=name, work_pool_name=pool
+    )
+    async with get_client() as client:
+        try:
+            runs = await client.get_runs_in_work_queue(
+                queue_id,
+                limit=10,
+                scheduled_before=window,
+            )
+        except ObjectNotFound:
+            exit_with_error(f"No work queue found: {name!r}")
     now = pendulum.now("utc")
     sort_by_created_key = lambda r: now - r.created
 

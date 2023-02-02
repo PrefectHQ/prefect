@@ -166,3 +166,12 @@ class TestLS:
             f"work-pool ls --verbose",
         )
         assert res.exit_code == 0
+
+
+class TestPreview:
+    async def test_preview(self, orion_client, work_pool):
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            f"work-pool preview {work_pool.name}",
+        )
+        assert res.exit_code == 0
