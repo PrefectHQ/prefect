@@ -12,7 +12,7 @@ tags:
 
 # Agents and Work Pools
 
-Agents and work pools bridge the Prefect _orchestration environment_ with a user’s _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
+Agents and work pools bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
 
 Work pools are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. However, advanced users will find that work pools can be configured to enable a greater degree of control over work delivery.
 
