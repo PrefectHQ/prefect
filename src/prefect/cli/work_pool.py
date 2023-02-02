@@ -9,6 +9,7 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
+from prefect._internal.compatibility.experimental import experimental
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -22,6 +23,10 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
     pool_type: str = typer.Option(
@@ -66,6 +71,10 @@ async def create(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def ls(
     verbose: bool = typer.Option(
         False,
@@ -114,6 +123,10 @@ async def ls(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def inspect(
     name: str = typer.Argument(..., help="The name of the work pool to inspect."),
 ):
@@ -135,6 +148,10 @@ async def inspect(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def pause(
     name: str = typer.Argument(..., help="The name of the work pool to pause."),
 ):
@@ -161,6 +178,10 @@ async def pause(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def resume(
     name: str = typer.Argument(..., help="The name of the work pool to resume."),
 ):
@@ -187,6 +208,10 @@ async def resume(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def delete(
     name: str = typer.Argument(..., help="The name of the work pool to delete."),
 ):
@@ -208,6 +233,10 @@ async def delete(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def set_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
     concurrency_limit: int = typer.Argument(
@@ -239,6 +268,10 @@ async def set_concurrency_limit(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def clear_concurrency_limit(
     name: str = typer.Argument(..., help="The name of the work pool to update."),
 ):
@@ -265,6 +298,10 @@ async def clear_concurrency_limit(
 
 
 @work_pool_app.command()
+@experimental(
+    feature="The Work Pool CLI",
+    group="work_pools",
+)
 async def preview(
     name: str = typer.Argument(None, help="The name or ID of the work pool to preview"),
     hours: int = typer.Option(
