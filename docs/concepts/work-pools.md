@@ -188,13 +188,13 @@ To view work pools with the Prefect CLI, you can:
 $ prefect work-pool ls
 prefect work-pool ls
                                Work pools
-┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
-┃ Name       ┃    Type       ┃     ID ┃ Concurrency Limit ┃
-┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
-│ barbeque  │ prefect-agent  │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
-│ k8s-pool  │  prefect-agent │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Name       ┃    Type        ┃                                   ID ┃ Concurrency Limit ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ barbeque   │ prefect-agent  │ 72c0a101-b3e2-4448-b5f8-a8c5184abd17 │ None              │
+│ k8s-pool   │  prefect-agent │ 7b6e3523-d35b-4882-84a7-7a107325bb3f │ None              │
 │ test-pool  │  prefect-agent │ a51adf8c-58bb-4949-abe6-1b87af46eabd │ None              │
-└────────────┴──────────────────────────────────────┴───────────────────┘
+└────────────┴────────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
 </div>
 
