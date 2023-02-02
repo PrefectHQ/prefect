@@ -479,7 +479,10 @@ class WorkQueueCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = Field(
+        default=None,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
 
     # DEPRECATED
 
