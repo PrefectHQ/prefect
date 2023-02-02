@@ -1,5 +1,7 @@
 # Prefect Release Notes
 
+## Release 2.7.11
+
 ### Exciting New Features 🎉
 - Add refactor of results into a standalone artifact table — https://github.com/PrefectHQ/prefect/pull/8164
 - Add Prefect Cloud Events schema and clients. — https://github.com/PrefectHQ/prefect/pull/8357
