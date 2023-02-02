@@ -950,7 +950,7 @@ class TestOrchestrateTaskRun:
         task_run = await orion_client.read_task_run(task_run.id)
         assert task_run.name == "fixed-name"
 
-    async def test_task_run_name_is_set_with_kwargs(
+    async def test_task_run_name_is_set_with_kwargs_including_defaults(
         self, orion_client, flow_run, result_factory, local_filesystem
     ):
         # the flow run must be running prior to running tasks
@@ -962,8 +962,8 @@ class TestOrchestrateTaskRun:
         # Define a mock to ensure the task was not run
         mock = MagicMock()
 
-        @task(task_run_name="{name}-wuz-here")
-        def my_task(name):
+        @task(task_run_name="{name}-wuz-{where}")
+        def my_task(name, where="here"):
             return name
 
         # Create a task run to test
@@ -1906,6 +1906,38 @@ class TestCreateThenBeginFlowRun:
         )
         assert state.type == StateType.COMPLETED
         assert await state.result() == ("bar", 1)
+
+    async def test_sets_run_name_when_provided(self, orion_client):
+        @flow(flow_run_name="hi")
+        def flow_with_name(foo: str = "bar", bar: int = 1):
+            pass
+
+        state = await create_then_begin_flow_run(
+            flow=flow_with_name,
+            parameters={},
+            wait_for=None,
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi"
+
+    async def test_sets_run_name_with_params_including_defaults(self, orion_client):
+        @flow(flow_run_name="hi-{foo}-{bar}")
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        state = await create_then_begin_flow_run(
+            flow=flow_with_name,
+            parameters={"bar": "two"},
+            wait_for=None,
+            return_type="state",
+            client=orion_client,
+        )
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi-one-two"
 
     async def test_handles_other_errors(
         self, orion_client, parameterized_flow, monkeypatch

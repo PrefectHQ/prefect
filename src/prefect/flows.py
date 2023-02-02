@@ -83,6 +83,8 @@ class Flow(Generic[P, R]):
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+            as a string template with the flow's parameters as variables
         task_runner: An optional task runner to use for task execution within the flow;
             if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
@@ -121,6 +123,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: Optional[str] = None,
         version: Optional[str] = None,
+        flow_run_name: Optional[str] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
@@ -141,6 +144,7 @@ class Flow(Generic[P, R]):
             raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
+        self.flow_run_name = flow_run_name
         task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
@@ -218,6 +222,7 @@ class Flow(Generic[P, R]):
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         description: str = None,
+        flow_run_name: str = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
@@ -234,6 +239,8 @@ class Flow(Generic[P, R]):
             name: A new name for the flow.
             version: A new version for the flow.
             description: A new description for the flow.
+            flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+                as a string template with the flow's parameters as variables
             task_runner: A new task runner for the flow.
             timeout_seconds: A new number of seconds to fail the flow after if still
                 running.
@@ -278,6 +285,7 @@ class Flow(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
+            flow_run_name=flow_run_name,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries or self.retries,
@@ -508,6 +516,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
+    flow_run_name: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -528,6 +537,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
+    flow_run_name: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -553,6 +563,8 @@ def flow(
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+            as a string template with the flow's parameters as variables
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
@@ -632,6 +644,7 @@ def flow(
                 fn=__fn,
                 name=name,
                 version=version,
+                flow_run_name=flow_run_name,
                 task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,
@@ -652,6 +665,7 @@ def flow(
                 flow,
                 name=name,
                 version=version,
+                flow_run_name=flow_run_name,
                 task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,

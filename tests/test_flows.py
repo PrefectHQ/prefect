@@ -44,11 +44,18 @@ from prefect.utilities.hashing import file_hash
 
 class TestFlow:
     def test_initializes(self):
-        f = Flow(name="test", fn=lambda **kwargs: 42, version="A", description="B")
+        f = Flow(
+            name="test",
+            fn=lambda **kwargs: 42,
+            version="A",
+            description="B",
+            flow_run_name="hi",
+        )
         assert f.name == "test"
         assert f.fn() == 42
         assert f.version == "A"
         assert f.description == "B"
+        assert f.flow_run_name == "hi"
 
     def test_initializes_with_default_version(self):
         f = Flow(name="test", fn=lambda **kwargs: 42)
@@ -144,7 +151,7 @@ class TestFlow:
 class TestDecorator:
     def test_flow_decorator_initializes(self):
         # TODO: We should cover initialization with a task runner once introduced
-        @flow(name="foo", version="B")
+        @flow(name="foo", version="B", flow_run_name="hi")
         def my_flow():
             return "bar"
 
@@ -152,6 +159,7 @@ class TestDecorator:
         assert my_flow.name == "foo"
         assert my_flow.version == "B"
         assert my_flow.fn() == "bar"
+        assert my_flow.flow_run_name == "hi"
 
     def test_flow_decorator_sets_default_version(self):
         my_flow = flow(flatdict_to_dict)
@@ -164,6 +172,7 @@ class TestFlowWithOptions:
         @flow(
             name="Initial flow",
             description="Flow before with options",
+            flow_run_name="OG",
             task_runner=ConcurrentTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
@@ -178,6 +187,7 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
             description="A copied flow",
+            flow_run_name="new-name",
             task_runner=SequentialTaskRunner,
             retries=3,
             retry_delay_seconds=20,
@@ -191,6 +201,7 @@ class TestFlowWithOptions:
 
         assert flow_with_options.name == "Copied flow"
         assert flow_with_options.description == "A copied flow"
+        assert flow_with_options.flow_run_name == "new-name"
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 5
         assert flow_with_options.retries == 3

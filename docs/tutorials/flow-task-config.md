@@ -80,6 +80,20 @@ def my_flow():
 
 You don't have to supply a version for your flow. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined to automatically detect when your code changes.  However, this computation is not always possible and so, depending on your setup, you may see that your flow has a version of `None`.
 
+You can also distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime.datetime):
+    pass
+
+# creates a flow run called 'marvin-on-Thursday'
+my_flow(name="marvin", date=datetime.datetime.utcnow())
+```
+
 ## Basic task configuration
 
 By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.
