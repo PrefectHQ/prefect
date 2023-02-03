@@ -38,3 +38,13 @@ class TestWebhook:
         send_mock.assert_called_with(
             method="GET", url="http://google.com", headers={"foo": "bar"}, json=None
         )
+
+    async def test_save_and_load_webhook(self):
+        await Webhook(
+            method="GET", url="http://google.com", headers={"foo": "bar"}
+        ).save(name="webhook-test")
+
+        webhook = await Webhook.load(name="webhook-test")
+        assert webhook.url.get_secret_value() == "http://google.com"
+        assert webhook.method == "GET"
+        assert webhook.headers.get_secret_value() == {"foo": "bar"}
