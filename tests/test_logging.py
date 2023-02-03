@@ -516,13 +516,13 @@ class TestAPILogHandler:
             logger.info("test")
         except TypeError:
             pytest.fail(
-                "Raised TypeError when logging outside of context with default 'warn' setting."
+                "Raised TypeError when logging outside of context with default `warn` setting."
             )
         except UserWarning:
             pass
         except Exception:
             pytest.fail(
-                "Raised unexpected exception when logging outside of context with default 'warn' setting."
+                "Raised unexpected exception when logging outside of context with default `warn` setting."
             )
 
     def test_does_not_send_logs_outside_of_run_context_with_error_setting(
@@ -554,13 +554,13 @@ class TestAPILogHandler:
                 logger.info("test")
             except UserWarning:
                 pytest.fail(
-                    "Raised UserWarning when logging outside of context with 'error' setting."
+                    "Raised UserWarning when logging outside of context with `error` setting."
                 )
             except MissingContextError:
                 pass
             except Exception:
                 pytest.fail(
-                    "Raised unexpected exception when logging outside of context with 'error' setting."
+                    "Raised unexpected exception when logging outside of context with `error` setting."
                 )
 
     def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
@@ -588,15 +588,15 @@ class TestAPILogHandler:
                 logger.info("test")
             except TypeError:
                 pytest.fail(
-                    "Raised TypeError when logging outside of context with 'ignore' setting."
+                    "Raised TypeError when logging outside of context with `ignore` setting."
                 )
             except UserWarning:
                 pytest.fail(
-                    "Raised UserWarning when logging outside of context with 'ignore' setting."
+                    "Raised UserWarning when logging outside of context with `ignore` setting."
                 )
             except Exception:
                 pytest.fail(
-                    "Raised unexpected exception when logging outside of context with 'ignore' setting."
+                    "Raised unexpected exception when logging outside of context with `ignore` setting."
                 )
 
     def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
@@ -628,13 +628,13 @@ class TestAPILogHandler:
                 logger.info("test")
             except TypeError:
                 pytest.fail(
-                    "Raised TypeError when logging outside of context with 'warn' setting."
+                    "Raised TypeError when logging outside of context with `warn` setting."
                 )
             except UserWarning:
                 pass
             except Exception:
                 pytest.fail(
-                    "Raised unexpected exception when logging outside of context with 'warn' setting."
+                    "Raised unexpected exception when logging outside of context with `warn` setting."
                 )
 
     def test_missing_context_warning_refers_to_caller_lineno(
