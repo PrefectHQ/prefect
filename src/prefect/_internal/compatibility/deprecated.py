@@ -4,6 +4,10 @@ Utilities for deprecated items.
 When an deprecated item is used, a warning will be displayed. Warnings may not be
 disabled with Prefect settings. Instead, the standard Python warnings filters can be
 used.
+
+Deprecated items require a start or end date. If a start date is given, the end date 
+will be calculated 6 months later. Start and end dates are always in the format MMM YYYY
+e.g. Jan 2023.
 """
 import functools
 import warnings
