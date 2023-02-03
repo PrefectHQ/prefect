@@ -7,10 +7,10 @@ from fastapi import APIRouter, status, testclient
 
 from prefect.orion.api.server import (
     API_ROUTERS,
+    ORION_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
     method_paths_from_routes,
-    ORION_API_VERSION,
 )
 from prefect.settings import (
     PREFECT_MEMO_STORE_PATH,
