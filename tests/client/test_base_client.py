@@ -5,7 +5,7 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient, Request, Response
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxClient, PrefectResponse
 from prefect.testing.utilities import AsyncMock
 
 RESPONSE_429_RETRY_AFTER_0 = Response(
@@ -258,3 +258,16 @@ class TestPrefectHttpxClient:
             await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
 
         mock_anyio_sleep.assert_not_called()
+
+    async def test_prefect_httpx_client_returns_prefect_response(self, monkeypatch):
+        """Test that the PrefectHttpxClient returns a PrefectResponse"""
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.return_value = RESPONSE_200
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert isinstance(response, PrefectResponse)
