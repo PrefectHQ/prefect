@@ -104,6 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
+| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables. |
 | `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
@@ -130,6 +131,20 @@ You can also provide the description as the docstring on the flow function.
 def my_flow():
     """My flow using SequentialTaskRunner"""
     return
+```
+
+You can distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime.datetime):
+    pass
+
+# creates a flow run called 'marvin-on-Thursday'
+my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
