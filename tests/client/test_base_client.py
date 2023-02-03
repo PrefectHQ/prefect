@@ -274,11 +274,10 @@ class TestPrefectHttpxClient:
         )
         assert isinstance(response, PrefectResponse)
 
-    # test that PrefectResponse info is contained when error response is returned
-    async def test_prefect_httpx_client_returns_prefect_response_with_error(
+    #
+    async def test_prefect_httpx_client_raises_prefect_http_status_error(
         self, monkeypatch
     ):
-        """Test that the PrefectHttpxClient returns a PrefectResponse"""
 
         RESPONSE_400 = Response(
             status.HTTP_400_BAD_REQUEST,
