@@ -5,26 +5,43 @@
 ### Using loggers outside of flows
 
 Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
+
+```python
+from prefect import flow
+import logging
+
+my_logger = logging.getLogger("my-logger")
+my_logger.info("outside the flow")
+
+@flow
+def foo():
+    my_logger.info("inside the flow")
+
+if __name__ == "__main__":
+    foo()
 ```
-$ prefect config set PREFECT_LOGGING_EXTRA_LOGGERS="my-logger"
-Set 'PREFECT_LOGGING_EXTRA_LOGGERS' to 'my-logger'.
-Updated profile 'default'.
 
-$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=warn
-Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'warn'.
-Updated profile 'default'.
+We want to see messages from `my-logger` in the UI. We can do this with `PREFECT_LOGGING_EXTRA_LOGGERS`.
 
-$ python my_flow.py
-Log inside a regular function
-/Users/bean/code/prefect/my_flow.py:8: UserWarning: Logger 'my-logger' attempted to send logs to Orion without a flow run id. The Orion log handler can only send logs within flow run contexts unless the flow run id is manually provided.
-  logger.debug("debug")
-[DEBUG 2023-01-30 12:11:00,153 my_flow.py:8] debug
-12:11:00.153 | DEBUG   | my-logger - debug
-...
+```
+$ PREFECT_LOGGING_EXTRA_LOGGERS="my-logger" python example.py
+example.py:6: UserWarning: Logger 'my-logger' attempted to send logs to Orion without a flow run id. The Orion log handler can only send logs within flow run contexts unless the flow run id is manually provided.
+  my_logger.info("outside the flow")
+18:09:30.518 | INFO    | my-logger - outside the flow
+18:09:31.028 | INFO    | prefect.engine - Created flow run 'elated-curassow' for flow 'foo'
+18:09:31.104 | INFO    | my-logger - inside the flow
+18:09:31.179 | INFO    | Flow run 'elated-curassow' - Finished in state Completed()
+```
+
+Notice, we got a warning. This helps avoid confusion when certain logs don't appear in the UI, but if you understand that you can turn it off:
+
+```
+$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore
+Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+Updated profile 'default'.
 ```
 
 ### Enhancements
-- Update pinned pip version in Docker images — https://github.com/PrefectHQ/prefect/pull/8289
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
 - Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
