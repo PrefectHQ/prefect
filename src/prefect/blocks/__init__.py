@@ -4,4 +4,4 @@ import prefect.blocks.notifications
 import prefect.blocks.system
 import prefect.blocks.webhook
 
-__all__ = ["notifications", "storage", "system", "webhook"]
+__all__ = ["notifications", "system", "webhook"]
