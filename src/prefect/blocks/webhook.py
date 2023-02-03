@@ -18,8 +18,6 @@ class Webhook(Block):
 
     _block_type_name = "Webhook"
     _logo_url = "http://todo.jpg"  # type: ignore
-    # Overwrite default code example because this block cannot be used client side
-    _code_example = ""
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
         default="POST", description="The webhook request method. Defaults to `POST`"
