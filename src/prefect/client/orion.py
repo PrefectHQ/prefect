@@ -668,6 +668,31 @@ class OrionClient:
             List[schemas.core.ConcurrencyLimit], response.json()
         )
 
+    async def reset_concurrency_limit_by_tag(
+        self,
+        tag: str,
+    ):
+        """
+        Resets the concurrency limit slots set on a specific tag.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        """
+        try:
+            await self._client.post(
+                f"/concurrency_limits/reset/tag/{tag}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def delete_concurrency_limit_by_tag(
         self,
         tag: str,
