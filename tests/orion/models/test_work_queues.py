@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from prefect.orion import models, schemas
 from prefect.orion.exceptions import ObjectNotFoundError
+from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 
 
 @pytest.fixture
@@ -44,18 +45,24 @@ class TestCreateWorkQueue:
                 ),
             )
 
-    async def test_create_work_queue_throws_exception_on_name_conflict(
-        self,
-        session,
-        work_queue,
-    ):
-        with pytest.raises(IntegrityError):
-            await models.work_queues.create_work_queue(
-                session=session,
-                work_queue=schemas.actions.WorkQueueCreate(
-                    name=work_queue.name,
-                ),
-            )
+    async def test_create_work_queue_when_no_default_pool(self, session):
+        pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+        )
+        if pool is not None:
+            await models.workers.delete_work_pool(session=session, work_pool_id=pool.id)
+            await session.commit()
+
+        work_queue = await models.work_queues.create_work_queue(
+            session=session,
+            work_queue=schemas.actions.WorkQueueCreate(name="default"),
+        )
+
+        pool_after = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
+        )
+        assert pool_after is not None
+        assert pool_after.default_queue_id == work_queue.id
 
 
 class TestReadWorkQueue:
@@ -121,11 +128,11 @@ class TestReadWorkQueues:
 
     async def test_read_work_queue(self, work_queues, session):
         read_work_queue = await models.work_queues.read_work_queues(session=session)
-        assert len(read_work_queue) == len(work_queues)
+        assert len(read_work_queue) == len(work_queues) + 1  # +1 for default queue
 
     async def test_read_work_queue_applies_limit(self, work_queues, session):
         read_work_queue = await models.work_queues.read_work_queues(
-            session=session, limit=1
+            session=session, limit=1, offset=1
         )
         assert {queue.id for queue in read_work_queue} == {work_queues[0].id}
 
@@ -134,6 +141,7 @@ class TestReadWorkQueues:
             session=session, offset=1
         )
         assert {queue.id for queue in read_work_queue} == {
+            work_queues[0].id,
             work_queues[1].id,
             work_queues[2].id,
             work_queues[3].id,

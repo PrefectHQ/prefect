@@ -124,7 +124,7 @@ async def use(name: str):
         ),
         ConnectionStatus.EPHEMERAL: (
             exit_with_success,
-            f"No Prefect Orion instance specified using profile {name!r}. Flow run metadata will be stored at the locally configured database: {prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL.value()}",
+            f"No Prefect Orion instance specified using profile {name!r} - the API will run in ephemeral mode.",
         ),
         ConnectionStatus.INVALID_API: (
             exit_with_error,

@@ -1,11 +1,12 @@
 """
 Routes for interacting with work queue objects.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.api.dependencies as dependencies
@@ -175,7 +176,7 @@ async def read_work_pool(
 
 @router.post("/filter")
 async def read_work_pools(
-    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: OrionDBInterface = Depends(provide_database_interface),
@@ -255,6 +256,7 @@ async def delete_work_pool(
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
+    background_tasks: BackgroundTasks,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
@@ -300,7 +302,49 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_pool_id=work_pool_id,
+            work_queue_names=work_queue_names,
+        )
+
         return queue_response
+
+
+async def _record_work_queue_polls(
+    db: OrionDBInterface,
+    work_pool_id: UUID,
+    work_queue_names: List[str],
+):
+    """
+    Records that a set of work queues have been polled.
+
+    If no work queue names are provided, all work queues in the work pool are recorded as polled.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+
+        work_queue_filter = (
+            schemas.filters.WorkQueueFilter(
+                name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)
+            )
+            if work_queue_names
+            else None
+        )
+        work_queues = await models.workers.read_work_queues(
+            session=session,
+            work_pool_id=work_pool_id,
+            work_queue_filter=work_queue_filter,
+        )
+
+        for work_queue in work_queues:
+            await models.workers.update_work_queue(
+                session=session,
+                work_queue_id=work_queue.id,
+                work_queue=schemas.actions.WorkQueueUpdate(
+                    last_polled=pendulum.now("UTC")
+                ),
+            )
 
 
 # -----------------------------------------------------

@@ -1276,12 +1276,28 @@ class TestGetDeploymentWorkQueueCheck:
         connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
-        assert len(response.json()) == 2
+        if dialect.name == "postgresql":
 
-        q1, q2 = response.json()
-        assert {q1["name"], q2["name"]} == {
-            "First",
-            "Second",
-        }
-        assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
-        assert q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+            assert len(response.json()) == 2
+
+            q1, q2 = response.json()
+            assert {q1["name"], q2["name"]} == {"First", "Second"}
+            assert set(q1["filter"]["tags"] + q2["filter"]["tags"]) == {"a", "b"}
+            assert (
+                q1["filter"]["deployment_ids"] == q2["filter"]["deployment_ids"] == None
+            )
+
+        else:
+            # sqlite picks up the default queue because it has no filter
+            assert len(response.json()) == 3
+
+            q1, q2, q3 = response.json()
+            assert {q1["name"], q2["name"], q3["name"]} == {
+                "First",
+                "Second",
+                "default",
+            }
+            assert set(q2["filter"]["tags"] + q3["filter"]["tags"]) == {"a", "b"}
+            assert (
+                q2["filter"]["deployment_ids"] == q3["filter"]["deployment_ids"] == None
+            )

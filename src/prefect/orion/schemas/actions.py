@@ -294,6 +294,13 @@ class TaskRunCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class TaskRunUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a task run"""
+
+    name: str = FieldFrom(schemas.core.TaskRun)
+
+
+@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Orion API to create a flow run."""
 
@@ -479,7 +486,10 @@ class WorkQueueCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = Field(
+        default=None,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
 
     # DEPRECATED
 
