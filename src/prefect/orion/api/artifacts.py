@@ -7,16 +7,24 @@ from uuid import UUID
 import pendulum
 from fastapi import Depends, HTTPException, Path, Response, status
 
-from prefect.logging import get_logger
 from prefect.orion import models
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.schemas import actions, core
 from prefect.orion.utilities.server import OrionRouter
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
-logger = get_logger("orion.api")
 
-router = OrionRouter(prefix="/artifacts", tags=["Artifacts"])
+def error_404_if_artifacts_not_enabled():
+    if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS:
+        raise HTTPException(status_code=404, detail="Artifacts are not enabled")
+
+
+router = OrionRouter(
+    prefix="/experimental/artifacts",
+    tags=["Artifacts"],
+    dependencies=[Depends(error_404_if_artifacts_not_enabled)],
+)
 
 
 @router.post("/")

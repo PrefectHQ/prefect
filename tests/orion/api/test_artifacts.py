@@ -5,6 +5,15 @@ from fastapi import status
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas import actions
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS, temporary_settings
+
+
+@pytest.fixture(autouse=True)
+def auto_enable_artifacts(enable_artifacts):
+    """
+    Enable artifacts for testing
+    """
+    assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
 
 @pytest.fixture
@@ -19,10 +28,27 @@ async def artifact(session):
     yield artifact
 
 
+class TestEnableArtifactsFlag:
+    async def test_flag_defaults_to_false(self):
+        with temporary_settings(
+            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS}
+        ):
+            assert not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
+
+    async def test_404_when_flag_disabled(self, client):
+        with temporary_settings(
+            restore_defaults={PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS}
+        ):
+            response = await client.post(
+                "/experimental/artifacts/", json=dict(key="black-lotus")
+            )
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
 class TestCreateArtifact:
     async def test_create_artifact(self, flow_run, task_run, client):
         response = await client.post(
-            "/artifacts/",
+            "/experimental/artifacts/",
             json=actions.ArtifactCreate(
                 key="voltaic",
                 data=1,
@@ -42,9 +68,9 @@ class TestCreateArtifact:
 
 class TestReadArtifact:
     async def test_read_artifact(self, artifact, client):
-        response = await client.get(f"/artifacts/{artifact.id}")
+        response = await client.get(f"/experimental/artifacts/{artifact.id}")
         assert response.status_code == status.HTTP_200_OK
 
     async def test_read_artifact_not_found(self, client):
-        response = await client.get(f"/artifacts/{uuid4()}")
+        response = await client.get(f"/experimental/artifacts/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
