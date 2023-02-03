@@ -60,6 +60,23 @@ async def create_task_run(
     return model
 
 
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_task_run(
+    task_run: schemas.actions.TaskRunUpdate,
+    task_run_id: UUID = Path(..., description="The task run id", alias="id"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    """
+    Updates a task run.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.task_runs.update_task_run(
+            session=session, task_run=task_run, task_run_id=task_run_id
+        )
+    if not result:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task run not found")
+
+
 @router.post("/count")
 async def count_task_runs(
     db: OrionDBInterface = Depends(provide_database_interface),
