@@ -81,6 +81,10 @@ When you first log into Prefect Cloud and create your workspace, it will most li
 
 Prefect Cloud [automations](/ui/automations/) provide the same notification capabilities as the open-source Prefect Orion server, and also enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
 
+## Automations
+
+Prefect Cloud [automations](/ui/automations/) provide the same notification capabilities as the open-source Prefect Orion server, and also enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
+
 ## Organizations <span class="badge orgs"></span>
 
 A Prefect Cloud [organization](/ui/organizations/) is a type of account available on Prefect Cloud that enables more extensive and granular control over workspace collaboration. Within an organization account you can:
