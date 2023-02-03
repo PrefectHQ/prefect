@@ -9,6 +9,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -85,6 +86,34 @@ async def create_task_run(
             orchestration_parameters=orchestration_parameters,
         )
     return model
+
+
+@inject_db
+async def update_task_run(
+    session: AsyncSession,
+    task_run_id: UUID,
+    task_run: schemas.actions.TaskRunUpdate,
+    db: OrionDBInterface,
+) -> bool:
+    """
+    Updates a task run.
+
+    Args:
+        session: a database session
+        task_run_id: the task run id to update
+        task_run: a task run model
+
+    Returns:
+        bool: whether or not matching rows were found to update
+    """
+    update_stmt = (
+        sa.update(db.TaskRun).where(db.TaskRun.id == task_run_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
+        .values(**task_run.dict(shallow=True, exclude_unset=True))
+    )
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 @inject_db

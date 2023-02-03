@@ -294,6 +294,13 @@ class TaskRunCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class TaskRunUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a task run"""
+
+    name: str = FieldFrom(schemas.core.TaskRun)
+
+
+@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Orion API to create a flow run."""
 

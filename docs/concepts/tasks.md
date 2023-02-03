@@ -84,14 +84,15 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 
 | Argument | Description |
 | --- | --- |
-| name | An optional name for the task. If not provided, the name will be inferred from the function name. |
-| description | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
-| tags | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
-| cache_key_fn | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
-| cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
-| retries | An optional number of times to retry on task run failure. |
-| retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
-| version | An optional string specifying the version of this task definition. |
+| `name` | An optional name for the task. If not provided, the name will be inferred from the function name. |
+| `description` | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
+| `tags` | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
+| `cache_key_fn` | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
+| `cache_expiration` | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
+| `task_run_name` | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables. |
+| `retries` | An optional number of times to retry on task run failure. |
+| `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
+| `version` | An optional string specifying the version of this task definition. |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -100,6 +101,24 @@ For example, you can provide a `name` value for the task. Here we've used the op
       description="This task says hello.")
 def my_task():
     print("Hello, I'm a task")
+```
+
+You can distinguish runs of this task by providing a `task_run_name`; this setting accepts a string that can optionally contain templated references to the keyword arguments of your task. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow, task
+
+@task(name="My Example Task", 
+      description="An example task for a tutorial.",
+      task_run_name="hello-{name}-on-{date:%A}")
+def my_task(name, date):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "hello-marvin-on-Thursday"
+    my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
 
 ## Tags
