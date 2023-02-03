@@ -2145,32 +2145,6 @@ class OrionClient:
 
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
 
-    async def create_artifact(
-        self,
-        artifact: schemas.actions.ArtifactCreate,
-    ) -> schemas.core.Artifact:
-        """
-        Create an artifact.
-
-        Args:
-            artifact: An artifact to create
-        """
-        response = await self._client.post("/artifacts", json=artifact.dict())
-        return schemas.core.Artifact.parse_obj(response.json())
-
-    async def read_artifact(self, artifact_id: UUID) -> schemas.core.Artifact:
-        """
-        Query Orion for an artifact by id.
-
-        Args:
-            artifact_id: the artifact ID of interest
-
-        Returns:
-            an Artifact model representation of the artifact
-        """
-        response = await self._client.get(f"/artifacts/{artifact_id}")
-        return schemas.core.Artifact.parse_obj(response.json())
-
     async def __aenter__(self):
         """
         Start the client.
