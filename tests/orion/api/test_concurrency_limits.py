@@ -1,6 +1,7 @@
+from uuid import uuid4
+
 import pytest
 from fastapi import status
-from uuid import uuid4
 
 from prefect.orion import schemas
 from prefect.orion.models import concurrency_limits
@@ -96,10 +97,10 @@ class TestConcurrencyLimits:
         cl_id = concurrency_limit_with_active_slots.id
 
         pre_reset = await client.get(f"/concurrency_limits/{cl_id}")
-        assert len(pre_reset.json()['active_slots']) == 50
+        assert len(pre_reset.json()["active_slots"]) == 50
 
         reset_response = await client.post(f"/concurrency_limits/reset/tag/{tag}")
         assert reset_response.status_code == status.HTTP_200_OK
 
         post_reset = await client.get(f"/concurrency_limits/{cl_id}")
-        assert len(post_reset.json()['active_slots']) == 0
+        assert len(post_reset.json()["active_slots"]) == 0
