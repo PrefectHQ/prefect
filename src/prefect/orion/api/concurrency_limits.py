@@ -107,6 +107,21 @@ async def read_concurrency_limits(
         )
 
 
+@router.post("/reset/tag/{tag}")
+async def reset_concurrency_limit_by_tag(
+    tag: str = Path(..., description="The tag name"),
+    db: OrionDBInterface = Depends(provide_database_interface),
+):
+    async with db.session_context(begin_transaction=True) as session:
+        model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
+            session=session, tag=tag
+        )
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+        )
+
+
 @router.delete("/{id}")
 async def delete_concurrency_limit(
     concurrency_limit_id: UUID = Path(
