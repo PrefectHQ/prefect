@@ -532,3 +532,15 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
         schemas.core.FlowRunNotificationPolicy
     )
     message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+
+
+@copy_model_fields
+class ArtifactCreate(ActionBaseModel):
+    """Data used by the Orion API to create an artifact."""
+
+    key: Optional[str] = FieldFrom(schemas.core.Artifact)
+    type: Optional[str] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Any] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Any] = FieldFrom(schemas.core.Artifact)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
