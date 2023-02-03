@@ -1,7 +1,23 @@
+import pytest
 from fastapi import status
+from uuid import uuid4
 
 from prefect.orion import schemas
+from prefect.orion.models import concurrency_limits
 from prefect.orion.schemas.actions import ConcurrencyLimitCreate
+
+
+@pytest.fixture
+async def concurrency_limit_with_active_slots(session):
+    concurrency_limit = await concurrency_limits.create_concurrency_limit(
+        session=session,
+        concurrency_limit=schemas.core.ConcurrencyLimit(
+            tag="that's some tag", concurrency_limit=100
+        ),
+    )
+    concurrency_limit.active_slots = [str(uuid4()) for _ in range(50)]
+    await session.commit()
+    return concurrency_limit
 
 
 class TestConcurrencyLimits:
@@ -72,3 +88,18 @@ class TestConcurrencyLimits:
         assert str(concurrency_limit.id) == cl_id
         assert concurrency_limit.concurrency_limit == 4242
         assert concurrency_limit.active_slots == []
+
+    async def test_resetting_concurrency_limits_by_tag(
+        self, session, client, concurrency_limit_with_active_slots
+    ):
+        tag = "that's some tag"
+        cl_id = concurrency_limit_with_active_slots.id
+
+        pre_reset = await client.get(f"/concurrency_limits/{cl_id}")
+        assert len(pre_reset.json()['active_slots']) == 50
+
+        reset_response = await client.post(f"/concurrency_limits/reset/tag/{tag}")
+        assert reset_response.status_code == status.HTTP_200_OK
+
+        post_reset = await client.get(f"/concurrency_limits/{cl_id}")
+        assert len(post_reset.json()['active_slots']) == 0
