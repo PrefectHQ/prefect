@@ -4,6 +4,7 @@ import pytest
 from fastapi import status
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas import actions
 
 
 @pytest.fixture
@@ -20,14 +21,16 @@ async def artifact(session):
 
 class TestCreateArtifact:
     async def test_create_artifact(self, flow_run, task_run, client):
-        artifact_data = {
-            "key": "voltaic",
-            "data": 1,
-            "metadata_": "opens many doors",
-            "flow_run_id": str(flow_run.id),
-            "task_run_id": str(task_run.id),
-        }
-        response = await client.post("/artifacts/", json=artifact_data)
+        response = await client.post(
+            "/artifacts/",
+            json=actions.ArtifactCreate(
+                key="voltaic",
+                data=1,
+                metadata_="opens many doors",
+                flow_run_id=flow_run.id,
+                task_run_id=task_run.id,
+            ).dict(json_compatible=True),
+        )
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["key"] == "voltaic"
