@@ -604,8 +604,6 @@ async def orchestrate_flow_run(
         logger.extra["flow_run_name"] = flow_run_name
         logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
         flow_run.name = flow_run_name
-    else:
-        flow_run_name = None
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
