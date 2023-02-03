@@ -366,7 +366,11 @@ class TestSettingAccess:
     def test_prefect_cloud_url_deprecated_on_access(self):
         with pytest.raises(
             DeprecationWarning,
-            match="`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+            match=(
+                "Setting 'PREFECT_CLOUD_URL' has been deprecated. "
+                "It will not be available after Jun 2023. "
+                "Use `PREFECT_CLOUD_API_URL` instead."
+            ),
         ):
             PREFECT_CLOUD_URL.value()
 
