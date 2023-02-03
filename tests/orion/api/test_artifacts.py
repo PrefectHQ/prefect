@@ -19,7 +19,7 @@ async def artifact(session):
 
 
 class TestCreateArtifact:
-    async def test_create_artifact(self, flow_run, task_run, session, client):
+    async def test_create_artifact(self, flow_run, task_run, client):
         artifact_data = {
             "key": "voltaic",
             "data": 1,
