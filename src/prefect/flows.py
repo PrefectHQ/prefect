@@ -84,7 +84,7 @@ class Flow(Generic[P, R]):
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-            as a string template with the flow's parameters as variables
+            as a string template with the flow's parameters as variables.
         task_runner: An optional task runner to use for task execution within the flow;
             if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
@@ -240,7 +240,7 @@ class Flow(Generic[P, R]):
             version: A new version for the flow.
             description: A new description for the flow.
             flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-                as a string template with the flow's parameters as variables
+                as a string template with the flow's parameters as variables.
             task_runner: A new task runner for the flow.
             timeout_seconds: A new number of seconds to fail the flow after if still
                 running.
@@ -564,7 +564,7 @@ def flow(
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-            as a string template with the flow's parameters as variables
+            as a string template with the flow's parameters as variables.
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the

@@ -129,7 +129,7 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables
+            as a string template with the task's keyword arguments as variables.
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -307,7 +307,7 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             task_run_name: An optional name to distinguish runs of this task; this name can be provided
-                as a string template with the task's keyword arguments as variables
+                as a string template with the task's keyword arguments as variables.
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -910,7 +910,7 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables
+            as a string template with the task's keyword arguments as variables.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
