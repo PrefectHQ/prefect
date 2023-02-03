@@ -2,10 +2,9 @@
 
 ## Release 2.7.11
 
-### Support for using loggers outside of flows
+### Using loggers outside of flows
 
-Prefect now supports a new setting which defaults to raising warnings instead of errors when attempting to use loggers outside of flows. This allows for other handlers to still receive logs from the called logger. The warnings can also be silenced entirely. This behavior is configured using the environment variable `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` with the options of `ignore`, `warn`, or `error`.
-
+Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
 ```
 $ prefect config set PREFECT_LOGGING_EXTRA_LOGGERS="my-logger"
 Set 'PREFECT_LOGGING_EXTRA_LOGGERS' to 'my-logger'.
