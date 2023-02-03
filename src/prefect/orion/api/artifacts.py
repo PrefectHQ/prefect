@@ -25,10 +25,6 @@ async def create_artifact(
     response: Response = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
-    """
-    Create an artifact. If an artifact with the same artifact_id and key
-    already exists, the existing artifact will be returned.
-    """
     artifact = core.Artifact(**artifact.dict())
 
     now = pendulum.now("UTC")

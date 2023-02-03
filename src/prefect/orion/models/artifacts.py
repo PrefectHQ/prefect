@@ -43,6 +43,8 @@ async def read_artifact(
     """
     Reads an artifact by id.
     """
+
     query = sa.select(db.Artifact).where(db.Artifact.id == artifact_id)
+
     result = await session.execute(query)
     return result.scalar()

@@ -6,7 +6,6 @@ from fastapi import status
 from prefect.orion import models, schemas
 
 
-# create a fixture for the artifact so that test_read_artifact works
 @pytest.fixture
 async def artifact(session):
     artifact_schema = schemas.core.Artifact(
@@ -15,6 +14,7 @@ async def artifact(session):
     artifact = await models.artifacts.create_artifact(
         session=session, artifact=artifact_schema
     )
+    await session.commit()
     yield artifact
 
 
@@ -38,17 +38,6 @@ class TestCreateArtifact:
 
 
 class TestReadArtifact:
-    @pytest.fixture
-    async def artifact(self, session):
-        artifact = await models.artifacts.create_artifact(
-            session=session,
-            artifact=schemas.core.Artifact(
-                key="voltaic", data=1, metadata_="opens many doors"
-            ),
-        )
-        await session.commit()
-        yield artifact
-
     async def test_read_artifact(self, artifact, client):
         response = await client.get(f"/artifacts/{artifact.id}")
         assert response.status_code == status.HTTP_200_OK
