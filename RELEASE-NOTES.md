@@ -12,7 +12,7 @@ Set 'PREFECT_LOGGING_EXTRA_LOGGERS' to 'my-logger'.
 Updated profile 'default'.
 
 $ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=warn
-Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'warn'.
 Updated profile 'default'.
 
 $ python my_flow.py
