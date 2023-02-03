@@ -1,7 +1,8 @@
-from typing import Literal, Optional
+from typing import Optional
 
 from httpx import AsyncClient, AsyncHTTPTransport, Response
 from pydantic import Field, SecretStr
+from typing_extensions import Literal
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
