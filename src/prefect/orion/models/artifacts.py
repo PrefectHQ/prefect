@@ -2,9 +2,11 @@ from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy import select
 
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.schemas import filters, sorting
 from prefect.orion.schemas.core import Artifact
 
 
@@ -48,3 +50,75 @@ async def read_artifact(
 
     result = await session.execute(query)
     return result.scalar()
+
+
+@inject_db
+async def _apply_artifact_filters(
+    query,
+    db: OrionDBInterface,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+    artifact_filter: filters.ArtifactFilter = None,
+):
+    """Applies filters to an artifact query as a combination of EXISTS subqueries."""
+    if artifact_filter:
+        query = query.where(artifact_filter.as_sql_filter(db))
+
+    if flow_run_filter or task_run_filter:
+        exists_clause = select(db.FlowRun).where(
+            db.Deployment.id == db.FlowRun.deployment_id
+        )
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
+        if task_run_filter:
+            exists_clause = exists_clause.join(
+                db.TaskRun,
+                db.TaskRun.flow_run_id == db.FlowRun.id,
+            ).where(task_run_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
+    return query
+
+
+@inject_db
+async def read_artifacts(
+    session: sa.orm.Session,
+    db: OrionDBInterface,
+    offset: int = None,
+    limit: int = None,
+    artifact_filter: filters.ArtifactFilter = None,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+    sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
+):
+    """
+    Reads artifacts.
+
+    Args:
+        session: A database session
+        offset: Query offset
+        limit: Query limit
+        artifact_filter: Only select artifacts matching this filter
+        flow_run_filter: Only select artifacts whose flow runs matching this filter
+        task_run_filter: Only select artifacts whose task runs matching this filter
+    """
+
+    query = sa.select(db.Artifact).order_by(sort.as_sql_sort(db))
+
+    query = await _apply_artifact_filters(
+        query,
+        db=db,
+        artifact_filter=artifact_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
+
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()

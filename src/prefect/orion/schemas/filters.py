@@ -1426,3 +1426,90 @@ class WorkerFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.last_heartbeat_time.as_sql_filter(db))
 
         return filters
+
+
+class ArtifactFilterId(PrefectFilterBaseModel):
+    """Filter by `Artifact.id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of artifact ids to include"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.id.in_(self.any_))
+        return filters
+
+
+class ArtifactFilterKey(PrefectFilterBaseModel):
+    """Filter by `Artifact.key`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact keys to include"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.key.in_(self.any_))
+        return filters
+
+
+class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
+    """Filter by `Artifact.flow_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of flow run IDs to include"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.flow_run_id.in_(self.any_))
+        return filters
+
+
+class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
+    """Filter by `Artifact.task_run_id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of task run IDs to include"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.task_run_id.in_(self.any_))
+        return filters
+
+
+class ArtifactFilter(PrefectOperatorFilterBaseModel):
+    """Filter artifacts. Only artifacts matching all criteria will be returned"""
+
+    id: Optional[ArtifactFilterId] = Field(
+        default=None, description="Filter criteria for `Artifact.id`"
+    )
+    key: Optional[ArtifactFilterKey] = Field(
+        default=None, description="Filter criteria for `Artifact.key`"
+    )
+    flow_run_id: Optional[ArtifactFilterFlowRunId] = Field(
+        default=None, description="Filter criteria for `Artifact.flow_run_id`"
+    )
+    task_run_id: Optional[ArtifactFilterTaskRunId] = Field(
+        default=None, description="Filter criteria for `Artifact.task_run_id`"
+    )
+
+    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+        filters = []
+
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
+        if self.key is not None:
+            filters.append(self.key.as_sql_filter(db))
+        if self.flow_run_id is not None:
+            filters.append(self.flow_run_id.as_sql_filter(db))
+        if self.task_run_id is not None:
+            filters.append(self.task_run_id.as_sql_filter(db))
+
+        return filters
