@@ -39,7 +39,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS, PREFECT_UI_URL
 from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
@@ -95,11 +95,15 @@ async def get_deployment(client: OrionClient, name, deployment_id):
 async def create_work_queue_and_set_concurrency_limit(
     work_queue_name, work_pool_name, work_queue_concurrency
 ):
-    await check_work_pool_exists(work_pool_name)
+    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        # Set work_pool_name to `None` to use default agent pool
+        # via the 'legacy' work queue API
+        work_pool_name = None
     async with get_client() as client:
         if work_queue_concurrency is not None and work_queue_name:
             try:
                 try:
+                    await check_work_pool_exists(work_pool_name)
                     res = await client.create_work_queue(
                         name=work_queue_name, work_pool_name=work_pool_name
                     )
@@ -108,17 +112,29 @@ async def create_work_queue_and_set_concurrency_limit(
                         name=work_queue_name, work_pool_name=work_pool_name
                     )
                     if res.concurrency_limit != work_queue_concurrency:
-                        app.console.print(
-                            f"Work queue {work_queue_name!r} in work pool {work_pool_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
-                            style="red",
-                        )
+                        if work_pool_name is None:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
+                        else:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} in work pool {work_pool_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
-                app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r} to {work_queue_concurrency}",
-                    style="green",
-                )
+                if work_pool_name is None:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
+                else:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
             except Exception as exc:
                 exit_with_error(
                     f"Failed to set concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r}."
@@ -130,7 +146,7 @@ async def create_work_queue_and_set_concurrency_limit(
 
 
 async def check_work_pool_exists(work_pool_name: Optional[str]):
-    if work_pool_name is not None:
+    if work_pool_name is not None and PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
         async with get_client() as client:
             try:
                 await client.read_work_pool(work_pool_name=work_pool_name)

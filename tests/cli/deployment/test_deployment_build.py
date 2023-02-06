@@ -144,13 +144,14 @@ async def ensure_default_agent_pool_exists(session):
         session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
     )
     if default_work_pool is None:
-        await models.workers.create_work_pool(
+        default_work_pool = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(
                 name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
             ),
         )
         await session.commit()
+    assert default_work_pool is not None
 
 
 class TestSchedules:
