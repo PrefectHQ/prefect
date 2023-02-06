@@ -10,9 +10,9 @@ Both tasks and flows now expose a mechanism for customizing the names of runs! T
 from datetime import datetime
 from prefect import flow, task
 
-@task(task_run_name=“custom-static-name”)
+@task(task_run_name="custom-static-name")
 def my_task(name):
-  print(f”hi {name}”)
+  print(f"hi {name}")
 
 @flow(flow_run_name="custom-but-fixed-name")
 def my_flow(name: str, date: datetime):
