@@ -35,14 +35,14 @@ def upgrade():
     def populate_flow_has_data_in_batches(batch_size):
         return f"""
             UPDATE flow_run_state
-            SET has_data = (data IS NOT NULL AND data IS NOT 'null')
+            SET has_data = (data IS NOT NULL AND data != 'null')
             WHERE flow_run_state.id in (SELECT id FROM flow_run_state WHERE (has_data IS NULL) LIMIT {batch_size});
         """
 
     def populate_task_has_data_in_batches(batch_size):
         return f"""
             UPDATE task_run_state
-            SET has_data = (data IS NOT NULL AND data IS NOT 'null')
+            SET has_data = (data IS NOT NULL AND data != 'null')
             WHERE task_run_state.id in (SELECT id FROM task_run_state WHERE (has_data IS NULL) LIMIT {batch_size});
         """
 
