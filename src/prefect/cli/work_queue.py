@@ -11,14 +11,16 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import experimental_parameter
+from prefect._internal.compatibility.experimental import (
+    experiment_enabled,
+    experimental_parameter,
+)
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.orion.schemas.filters import WorkPoolFilter, WorkPoolFilterId
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -366,7 +368,7 @@ async def ls(
     """
     View all work queues.
     """
-    if not pool and PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() is False:
+    if not pool and not experiment_enabled("work_pools"):
         table = Table(
             title="Work Queues",
             caption="(**) denotes a paused queue",
