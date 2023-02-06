@@ -637,10 +637,12 @@ class Deployment(BaseModel):
 
             if self.work_queue_name and work_queue_concurrency is not None:
                 try:
-                    res = await client.create_work_queue(name=self.work_queue_name)
+                    res = await client.create_work_queue(
+                        name=self.work_queue_name, work_pool_name=self.work_pool_name
+                    )
                 except ObjectAlreadyExists:
                     res = await client.read_work_queue_by_name(
-                        name=self.work_queue_name
+                        name=self.work_queue_name, work_pool_name=self.work_pool_name
                     )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency

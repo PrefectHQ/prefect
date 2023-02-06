@@ -39,7 +39,7 @@ from prefect.orion.schemas.schedules import (
     IntervalSchedule,
     RRuleSchedule,
 )
-from prefect.settings import PREFECT_UI_URL
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS, PREFECT_UI_URL
 from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
@@ -93,35 +93,74 @@ async def get_deployment(client: OrionClient, name, deployment_id):
 
 
 async def create_work_queue_and_set_concurrency_limit(
-    work_queue_name, work_queue_concurrency
+    work_queue_name, work_pool_name, work_queue_concurrency
 ):
+    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        # Set work_pool_name to `None` to use default agent pool
+        # via the 'legacy' work queue API
+        work_pool_name = None
     async with get_client() as client:
         if work_queue_concurrency is not None and work_queue_name:
             try:
                 try:
-                    res = await client.create_work_queue(name=work_queue_name)
+                    await check_work_pool_exists(work_pool_name)
+                    res = await client.create_work_queue(
+                        name=work_queue_name, work_pool_name=work_pool_name
+                    )
                 except ObjectAlreadyExists:
-                    res = await client.read_work_queue_by_name(name=work_queue_name)
+                    res = await client.read_work_queue_by_name(
+                        name=work_queue_name, work_pool_name=work_pool_name
+                    )
                     if res.concurrency_limit != work_queue_concurrency:
-                        app.console.print(
-                            f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
-                            style="red",
-                        )
+                        if work_pool_name is None:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
+                        else:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} in work pool {work_pool_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
-                app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
-                    style="green",
-                )
+                if work_pool_name is None:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
+                else:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
             except Exception as exc:
                 exit_with_error(
-                    f"Failed to set concurrency limit on work queue {work_queue_name}."
+                    f"Failed to set concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r}."
                 )
         elif work_queue_concurrency:
             app.console.print(
                 f"No work queue set! The concurrency limit cannot be updated."
             )
+
+
+async def check_work_pool_exists(work_pool_name: Optional[str]):
+    if work_pool_name is not None and PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value():
+        async with get_client() as client:
+            try:
+                await client.read_work_pool(work_pool_name=work_pool_name)
+            except ObjectNotFound:
+                app.console.print(
+                    f"\nThis deployment specifies a work pool name of {work_pool_name!r}, but no such "
+                    "work pool exists.\n",
+                    style="red ",
+                )
+                app.console.print("To create a work pool via the CLI:\n")
+                app.console.print(
+                    f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
+                )
+                exit_with_error("Work pool not found!")
 
 
 class RichTextIO:
@@ -571,7 +610,9 @@ async def apply(
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
         await create_work_queue_and_set_concurrency_limit(
-            deployment.work_queue_name, work_queue_concurrency
+            deployment.work_queue_name,
+            deployment.work_pool_name,
+            work_queue_concurrency,
         )
 
         if upload:
@@ -590,7 +631,7 @@ async def apply(
                     f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
                     style="red",
                 )
-
+        await check_work_pool_exists(deployment.work_pool_name)
         deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
@@ -958,7 +999,7 @@ async def build(
     )
 
     await create_work_queue_and_set_concurrency_limit(
-        deployment.work_queue_name, work_queue_concurrency
+        deployment.work_queue_name, deployment.work_pool_name, work_queue_concurrency
     )
 
     # we process these separately for informative output
@@ -980,12 +1021,23 @@ async def build(
             )
 
     if _apply:
+        await check_work_pool_exists(deployment.work_pool_name)
         deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
-        if deployment.work_queue_name is not None:
+        if deployment.work_pool_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the {deployment.work_pool_name!r} work pool:"
+            )
+            app.console.print(
+                f"$ prefect agent start -p {deployment.work_pool_name!r}",
+                style="blue",
+            )
+
+        elif deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
                 f"that pulls work from the {deployment.work_queue_name!r} work queue:"
