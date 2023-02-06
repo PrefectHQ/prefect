@@ -193,8 +193,8 @@ You may specify additional options to further customize your deployment.
 | `--apply` | When provided, automatically registers the resulting deployment with the API. |
 | `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
 | `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
-| `--param` | An optional parameter override, values are parsed as JSON strings. For example, `--param question=ultimate --param answer=42` |
-| `--params` | An optional parameter override in a JSON string format. For example, `--params=\'{"question": "ultimate", "answer": 42}\'` |
+| `--param` | An optional parameter override, values are parsed as JSON strings. For example, `--param question=ultimate --param answer=42`. |
+| `--params` | An optional parameter override in a JSON string format. For example, `--params=\'{"question": "ultimate", "answer": 42}\'`. |
 
 ### Block identifiers
 
