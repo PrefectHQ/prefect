@@ -21,7 +21,7 @@ def my_flow(name: str, date: datetime):
 my_flow()
 ```
 
-This is great, but doesn’t help distinguish between multiple runs of the same task / flow. In order to make these names dynamic, you can template them using the parameter names of the task / flow function, using all of the basic rules of Python string formatting as follows:
+This is great, but doesn’t help distinguish between multiple runs of the same task or flow. In order to make these names dynamic, you can template them using the parameter names of the task or flow function, using all of the basic rules of Python string formatting as follows:
 
 ```python
 from datetime import datetime
