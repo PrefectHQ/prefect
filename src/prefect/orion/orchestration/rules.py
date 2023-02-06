@@ -18,6 +18,7 @@ single line of user code.
 """
 
 import contextlib
+import hashlib
 from types import TracebackType
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
@@ -237,11 +238,12 @@ class FlowOrchestrationContext(OrchestrationContext):
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            logger.exception("Encountered error during state validation")
+            error_key = hashlib.md5(str(exc))
+            error_msg = f"Internal server error while validating state ({error_key}"
+            logger.exception(error_msg)
             self.proposed_state = None
-            reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
-            self.response_details = StateAbortDetails(reason=reason)
+            self.response_details = StateAbortDetails(reason=error_msg)
 
     @inject_db
     async def _validate_proposed_state(
