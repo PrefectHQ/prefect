@@ -1,7 +1,7 @@
 """
 Routes for interacting with concurrency limit objects.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 import pendulum
@@ -110,11 +110,16 @@ async def read_concurrency_limits(
 @router.post("/reset/tag/{tag}")
 async def reset_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
+    slot_override: Optional[List[str]] = Body(
+        None,
+        embed=True,
+        description=("Manual override for active concurrency limit slots.",),
+    ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
-            session=session, tag=tag
+            session=session, tag=tag, slot_override=slot_override
         )
     if not model:
         raise HTTPException(
