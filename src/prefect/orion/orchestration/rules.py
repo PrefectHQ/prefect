@@ -372,13 +372,17 @@ class TaskOrchestrationContext(OrchestrationContext):
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            self.proposed_state = None
-
+            # Avoid capturing timeout errors so they can be raised as a 503 in Cloud
             if "statement timeout" in str(exc):
                 raise
 
             logger.exception("Encountered error during state validation")
             reason = f"Error validating state: {exc!r}"
+            # TODO: We should not ABORT here in all cases, sometimes we should throw
+            #       the error and let the server return a 5xx. However, we'll need to
+            #       add handling to undo side-effects and ABORT is the only way to do
+            #       that right now
+            self.proposed_state = None
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)
 
