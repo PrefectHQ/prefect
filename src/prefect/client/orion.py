@@ -671,6 +671,7 @@ class OrionClient:
     async def reset_concurrency_limit_by_tag(
         self,
         tag: str,
+        slot_override: Optional[List[Union[UUID, str]]] = None,
     ):
         """
         Resets the concurrency limit slots set on a specific tag.
@@ -683,9 +684,13 @@ class OrionClient:
             httpx.RequestError: If request fails
 
         """
+        if slot_override is not None:
+            slot_override = [str(slot) for slot in slot_override]
+
         try:
             await self._client.post(
                 f"/concurrency_limits/reset/tag/{tag}",
+                json=dict(slot_override=slot_override),
             )
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
