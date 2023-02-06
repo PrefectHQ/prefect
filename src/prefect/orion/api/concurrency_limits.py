@@ -113,7 +113,7 @@ async def reset_concurrency_limit_by_tag(
     slot_override: Optional[List[str]] = Body(
         None,
         embed=True,
-        description=("Manual override for active concurrency limit slots.",),
+        description=("Manual override for active concurrency limit slots."),
     ),
     db: OrionDBInterface = Depends(provide_database_interface),
 ):
