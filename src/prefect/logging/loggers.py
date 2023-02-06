@@ -3,7 +3,7 @@ import logging
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
@@ -55,7 +55,9 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def get_run_logger(
+    context: "RunContext" = None, **kwargs: str
+) -> Union[logging.Logger, logging.LoggerAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
 
