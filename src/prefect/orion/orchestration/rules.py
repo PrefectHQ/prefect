@@ -238,7 +238,7 @@ class FlowOrchestrationContext(OrchestrationContext):
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            error_key = hashlib.md5(str(exc))
+            error_key = hashlib.md5(str(exc).encode())
             error_msg = f"Internal server error while validating state ({error_key}"
             logger.exception(error_msg)
             self.proposed_state = None
@@ -374,7 +374,7 @@ class TaskOrchestrationContext(OrchestrationContext):
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            error_key = hashlib.md5(str(exc))
+            error_key = hashlib.md5(str(exc).encode())
             error_msg = f"Internal server error while validating state ({error_key}"
             logger.exception(error_msg)
             self.proposed_state = None
