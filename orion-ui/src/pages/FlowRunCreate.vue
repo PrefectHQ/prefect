@@ -4,53 +4,30 @@
       <PageHeadingFlowRunCreate :deployment="deployment" />
     </template>
 
-    <FlowRunCreateForm :deployment="deployment" :flow-run="flowRun" @submit="createFlowRun" @cancel="goBack" />
+    <FlowRunCreateForm :deployment="deployment" :parameters="parameters" @submit="createFlowRun" @cancel="goBack" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
   import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
-  import { useSubscriptionWithDependencies, useRouteParam } from '@prefecthq/vue-compositions'
+  import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, h } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
+  import { FlowRunParametersRouteParam } from '@/utilities/parameters'
 
   const api = useWorkspaceApi()
   const deploymentId = useRouteParam('deploymentId')
-  const flowRunId = useRouteParam('flowRunId')
   const router = useRouter()
+  const parameters = useRouteQueryParam('parameters', FlowRunParametersRouteParam, {})
 
-  const flowRunArgs = computed<[string] | null>(() => {
-    if (!flowRunId.value) {
-      return null
-    }
-
-    return [flowRunId.value]
-  })
-
-  const flowRunSubscription = useSubscriptionWithDependencies(api.flowRuns.getFlowRun, flowRunArgs)
-  const flowRun = computed(() => flowRunSubscription.response)
-
-  const deploymentArgs = computed<[string] | null>(() => {
-    if (flowRun.value?.deploymentId) {
-      return [flowRun.value.deploymentId]
-    }
-
-    if (deploymentId.value) {
-      return [deploymentId.value]
-    }
-
-    return null
-  })
-
-  const deploymentSubscription = useSubscriptionWithDependencies(api.deployments.getDeployment, deploymentArgs)
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
   const deployment = computed(() => deploymentSubscription.response)
 
   const createFlowRun = async (deploymentFlowRun: DeploymentFlowRunCreate): Promise<void> => {
     try {
-      const deploymentId = computed(() => deployment.value!.id)
       const flowRun = await api.deployments.createDeploymentFlowRun(deploymentId.value, deploymentFlowRun)
       const startTime = deploymentFlowRun.state?.stateDetails?.scheduledTime ?? undefined
       const immediate = !startTime
