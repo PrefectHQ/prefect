@@ -45,6 +45,7 @@ See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-co
 
 ### Fixes
 - Fix artifact migration to only include states that have non-null data — https://github.com/PrefectHQ/prefect/pull/8420
+- Fix error when using `prefect work-queue ls` without enabling work pools — https://github.com/PrefectHQ/prefect/pull/8427
 
 ### Experimental
 - Add error when attempting to apply a deployment to a work pool that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
