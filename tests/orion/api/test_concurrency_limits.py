@@ -1,10 +1,8 @@
 from uuid import uuid4
 
-import pytest
 from fastapi import status
 
 from prefect.orion import schemas
-from prefect.orion.models import concurrency_limits
 from prefect.orion.schemas.actions import ConcurrencyLimitCreate
 
 
