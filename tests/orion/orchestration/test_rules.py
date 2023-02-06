@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.database.dependencies import provide_database_interface
@@ -1497,7 +1498,7 @@ class TestOrchestrationContext:
         list(permutations([*states.StateType, None], 2)),
         ids=transition_names,
     )
-    async def test_context_state_validation_encounters_exception(
+    async def test_context_state_validation_returns_abort_on_exception(
         self, session, run_type, intended_transition, initialize_orchestration
     ):
         initial_state_type, proposed_state_type = intended_transition
@@ -1545,6 +1546,64 @@ class TestOrchestrationContext:
             ctx.response_details.reason
             == "Error validating state: RuntimeError('One time error!')"
         )
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(permutations([*states.StateType, None], 2)),
+        ids=transition_names,
+    )
+    async def test_context_state_validation_raises_database_timeout(
+        self,
+        session,
+        run_type,
+        intended_transition,
+        initialize_orchestration,
+        db_dialect,
+    ):
+        if db_dialect != "postgresql":
+            pytest.skip(
+                f"Database backend {db_dialect!r} does not have query timeouts."
+            )
+
+        initial_state_type, proposed_state_type = intended_transition
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_hook = MagicMock()
+
+        class MockRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                before_transition_hook(initial_state, proposed_state, context)
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook(initial_state, validated_state, context)
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_hook(initial_state, validated_state, context)
+
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        # Set the statement timeout for postgres to 1ms to get a cancelled error
+        await session.execute("set statement_timeout=1")
+
+        with pytest.raises(sa.exc.DBAPIError):
+            async with contextlib.AsyncExitStack() as stack:
+                mock_rule = MockRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(mock_rule)
+                await ctx.validate_proposed_state()
+
+        before_transition_hook.assert_called_once()
+        if proposed_state_type is not None:
+            after_transition_hook.assert_not_called()
+            cleanup_hook.assert_called_once(), "Cleanup should be called when trasition is aborted"
+        else:
+            after_transition_hook.assert_called_once(), "Rule expected no transition"
+            cleanup_hook.assert_not_called()
+
+        assert ctx.proposed_state is None
+        assert ctx.response_status is None
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])

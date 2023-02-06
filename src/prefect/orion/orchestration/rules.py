@@ -372,8 +372,12 @@ class TaskOrchestrationContext(OrchestrationContext):
             await self._validate_proposed_state()
             return
         except Exception as exc:
-            logger.exception("Encountered error during state validation")
             self.proposed_state = None
+
+            if "statement timeout" in str(exc):
+                raise
+
+            logger.exception("Encountered error during state validation")
             reason = f"Error validating state: {exc!r}"
             self.response_status = SetStateStatus.ABORT
             self.response_details = StateAbortDetails(reason=reason)

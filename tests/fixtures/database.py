@@ -15,12 +15,18 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
+from prefect.orion.utilities.database import get_dialect
 from prefect.utilities.callables import parameter_schema
 
 
 @pytest.fixture(scope="session", autouse=True)
 def db(test_database_connection_url, safety_check_settings):
     return provide_database_interface()
+
+
+@pytest.fixture
+def db_dialect(test_database_connection_url):
+    return get_dialect(test_database_connection_url).name
 
 
 @pytest.fixture(scope="session", autouse=True)
