@@ -151,11 +151,16 @@ async def check_work_pool_exists(work_pool_name: Optional[str]):
             try:
                 await client.read_work_pool(work_pool_name=work_pool_name)
             except ObjectNotFound:
-                exit_with_error(
-                    f"This deployment specifies a work pool name of {work_pool_name!r}, but no such "
-                    "work pool exists. To create a work pool, visit the UI and create "
-                    f"a new work pool with the name {work_pool_name!r}."
+                app.console.print(
+                    "\nThis deployment specifies a work pool name of {work_pool_name!r}, but no such "
+                    "work pool exists.\n",
+                    style="red ",
                 )
+                app.console.print("To create a work pool via the CLI:\n")
+                app.console.print(
+                    f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
+                )
+                exit_with_error("Work pool not found!")
 
 
 class RichTextIO:
