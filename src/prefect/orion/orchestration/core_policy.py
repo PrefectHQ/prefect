@@ -42,6 +42,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
         return [
             HandleFlowTerminalStateTransitions,
             HandleCancellingStateTransitions,
+            HandleCancellingScheduledFlowRuns,
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
@@ -808,6 +809,30 @@ class HandleCancellingStateTransitions(BaseOrchestrationRule):
             reason=(
                 "Cannot transition flows that are cancelling to a state other "
                 "than Cancelled."
+            ),
+        )
+        return
+
+
+class HandleCancellingScheduledFlowRuns(BaseOrchestrationRule):
+    """
+    Rejects transitions from Scheduled to Cancelling and set the state to Cancelled.
+    """
+
+    FROM_STATES = {StateType.SCHEDULED}
+    TO_STATES = {StateType.CANCELLING}
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        await self.reject_transition(
+            state=states.Cancelled(),
+            reason=(
+                "Scheduled flows are transitioned immediately to Cancelled because there is no "
+                "infrastructure to shut down."
             ),
         )
         return

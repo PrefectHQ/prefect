@@ -15,6 +15,7 @@ from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
+    HandleCancellingScheduledFlowRuns,
     HandleCancellingStateTransitions,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
@@ -2598,4 +2599,55 @@ class TestHandleCancellingStateTransitions:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
+
+
+class TestHandleCancellingScheduledFlows:
+    async def test_rejects_cancelling_scheduled_flow_and_sets_to_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Scheduled flows should skip the cancelling state and be set immediately to cancelled
+        because they don't have infra to shut down.
+        """
+
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "initial_state_type",
+        [s for s in ALL_ORCHESTRATION_STATES if s != states.StateType.SCHEDULED],
+    )
+    async def test_allows_all_other_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        initial_state_type,
+    ):
+        """All other transitions should be left alone by this policy."""
+
+        intended_transition = (initial_state_type, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
