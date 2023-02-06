@@ -31,7 +31,7 @@ from prefect import flow, task
 def my_task(name):
   print(f"hi {name}")
 
-@flow(flow_run_name=“{name}-on-{date:%A}")
+@flow(flow_run_name="{name}-on-{date:%A}")
 def my_flow(name: str, date: datetime):
   return my_task(name)
 
