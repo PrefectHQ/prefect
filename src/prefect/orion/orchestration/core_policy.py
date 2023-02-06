@@ -815,8 +815,11 @@ class HandleCancellingStateTransitions(BaseOrchestrationRule):
 
 
 class HandleCancellingScheduledFlowRuns(BaseOrchestrationRule):
-    """
-    Rejects transitions from Scheduled to Cancelling and set the state to Cancelled.
+    """Rejects transitions from Scheduled and Late to Cancelling and set the state to Cancelled.
+
+    The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
+    to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
+    a `Scheduled` state that may have associated infrastructure.
     """
 
     FROM_STATES = {StateType.SCHEDULED}
@@ -826,13 +829,14 @@ class HandleCancellingScheduledFlowRuns(BaseOrchestrationRule):
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
-        context: TaskOrchestrationContext,
+        context: FlowOrchestrationContext,
     ) -> None:
-        await self.reject_transition(
-            state=states.Cancelled(),
-            reason=(
-                "Scheduled flows are transitioned immediately to Cancelled because there is no "
-                "infrastructure to shut down."
-            ),
-        )
-        return
+
+        if not context.run.infrastructure_pid:
+            await self.reject_transition(
+                state=states.Cancelled(),
+                reason=(
+                    "Scheduled flows are transitioned immediately to Cancelled because there is no "
+                    "infrastructure to shut down."
+                ),
+            )

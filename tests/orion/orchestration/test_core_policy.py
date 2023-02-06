@@ -2651,3 +2651,27 @@ class TestHandleCancellingScheduledFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
+
+    async def test_accepts_cancelling_flow_run_awaiting_retry(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """Flow runs awaiting retry should still go into a cancelling state even though they.
+        are technically "Scheduled".
+        """
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with HandleCancellingScheduledFlowRuns(
+            ctx, *(states.AwaitingRetry(), states.StateType.CANCELLING)
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.CANCELLING
