@@ -67,6 +67,31 @@ class TestResettingConcurrencyLimits:
         )
         assert len(limit_before_reset.active_slots) == 0
 
+    async def test_resetting_concurrency_limit_with_override(self, session):
+        concurrency_limit = await models.concurrency_limits.create_concurrency_limit(
+            session=session,
+            concurrency_limit=schemas.core.ConcurrencyLimit(
+                tag="this bad boy", concurrency_limit=100
+            ),
+        )
+        concurrency_limit.active_slots = [str(uuid4()) for _ in range(50)]
+        limit_before_reset = (
+            await models.concurrency_limits.read_concurrency_limit_by_tag(
+                session, "this bad boy"
+            )
+        )
+        assert len(limit_before_reset.active_slots) == 50
+
+        await models.concurrency_limits.reset_concurrency_limit_by_tag(
+            session, "this bad boy", slot_override=[str(uuid4()) for _ in range(42)]
+        )
+        limit_after_reset = (
+            await models.concurrency_limits.read_concurrency_limit_by_tag(
+                session, "this bad boy"
+            )
+        )
+        assert len(limit_before_reset.active_slots) == 42
+
     async def test_resetting_limit_returns_limit(self, session):
         concurrency_limit = await models.concurrency_limits.create_concurrency_limit(
             session=session,
