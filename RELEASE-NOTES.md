@@ -48,7 +48,7 @@ See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-co
 
 ### Experimental
 - Add error when attempting to apply a deployment to a work pool that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
-- Creates queues in the correct work pool when applying a deployment for a queue that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
+- Create queues in the correct work pool when applying a deployment for a queue that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
 
 ### Contributors
 - @NodeJSmith
