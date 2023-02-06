@@ -16,12 +16,12 @@
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { FlowRunParametersRouteParam } from '@/utilities/parameters'
+  import { JSONRouteParam } from '@/utilities/parameters'
 
   const api = useWorkspaceApi()
   const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
-  const parameters = useRouteQueryParam('parameters', FlowRunParametersRouteParam, {})
+  const parameters = useRouteQueryParam('parameters', JSONRouteParam, {})
 
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
   const deployment = computed(() => deploymentSubscription.response)
