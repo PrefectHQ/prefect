@@ -139,9 +139,11 @@ class TestOutputMessages:
             ],
             expected_code=1,
             expected_output_contains=(
-                "This deployment specifies a work pool name of 'gibberish', but no such "
-                "work pool exists. To create a work pool, visit the UI and create "
-                "a new work pool with the name 'gibberish'."
+                [
+                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    "To create a work pool via the CLI:",
+                    "$ prefect work-pool create 'gibberish'",
+                ]
             ),
         )
 

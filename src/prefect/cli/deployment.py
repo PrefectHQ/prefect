@@ -152,7 +152,7 @@ async def check_work_pool_exists(work_pool_name: Optional[str]):
                 await client.read_work_pool(work_pool_name=work_pool_name)
             except ObjectNotFound:
                 app.console.print(
-                    "\nThis deployment specifies a work pool name of {work_pool_name!r}, but no such "
+                    f"\nThis deployment specifies a work pool name of {work_pool_name!r}, but no such "
                     "work pool exists.\n",
                     style="red ",
                 )
