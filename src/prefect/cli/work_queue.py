@@ -17,6 +17,8 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.orion.schemas.filters import WorkPoolFilter, WorkPoolFilterId
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -364,7 +366,7 @@ async def ls(
     """
     View all work queues.
     """
-    if not pool:
+    if not pool and PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS.value() is False:
         table = Table(
             title="Work Queues",
             caption="(**) denotes a paused queue",
@@ -396,6 +398,45 @@ async def ls(
                 if verbose and queue.filter is not None:
                     row.append(queue.filter.json())
                 table.add_row(*row)
+    elif not pool:
+        table = Table(
+            title="Work Queues",
+            caption="(**) denotes a paused queue",
+            caption_style="red",
+        )
+        table.add_column("Name", style="green", no_wrap=True)
+        table.add_column("Pool", style="magenta", no_wrap=True)
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Concurrency Limit", style="blue", no_wrap=True)
+        if verbose:
+            table.add_column("Filter (Deprecated)", style="magenta", no_wrap=True)
+
+        async with get_client() as client:
+            if work_queue_prefix is not None:
+                queues = await client.match_work_queues([work_queue_prefix])
+            else:
+                queues = await client.read_work_queues()
+
+            pool_ids = [q.work_pool_id for q in queues]
+            wp_filter = WorkPoolFilter(id=WorkPoolFilterId(any_=pool_ids))
+            pools = await client.read_work_pools(work_pool_filter=wp_filter)
+            pool_id_name_map = {p.id: p.name for p in pools}
+            sort_by_created_key = lambda q: pendulum.now("utc") - q.created
+
+            for queue in sorted(queues, key=sort_by_created_key):
+
+                row = [
+                    f"{queue.name} [red](**)" if queue.is_paused else queue.name,
+                    pool_id_name_map[queue.work_pool_id],
+                    str(queue.id),
+                    f"[red]{queue.concurrency_limit}"
+                    if queue.concurrency_limit
+                    else "[blue]None",
+                ]
+                if verbose and queue.filter is not None:
+                    row.append(queue.filter.json())
+                table.add_row(*row)
+
     else:
         table = Table(
             title=f"Work Queues in Work Pool {pool!r}",
