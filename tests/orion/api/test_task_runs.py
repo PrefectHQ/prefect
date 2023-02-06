@@ -474,7 +474,6 @@ class TestSetTaskRunState:
 
         # Set the statement timeout for postgres to 1ms to get a cancelled error
         await session.execute("set statement_timeout=1")
-        await session.flush()
 
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
