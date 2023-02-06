@@ -4,7 +4,39 @@
 
 ### Custom flow and task run names 🎉
 
-...
+Both tasks and flows now expose a mechanism for customizing the names of runs! This new keyword argument (`flow_run_name` for flows, `task_run_name` for tasks) accepts a string that will be used to create a run name for each run of the function. The most basic usage is as follows:
+
+```python
+from datetime import datetime
+from prefect import flow, task
+
+@task(task_run_name=“custom-static-name”)
+def my_task(name):
+  print(f”hi {name}”)
+
+@flow(flow_run_name="custom-but-fixed-name")
+def my_flow(name: str, date: datetime):
+  return my_task(name)
+
+my_flow()
+```
+
+This is great, but doesn’t help distinguish between multiple runs of the same task / flow. In order to make these names dynamic, you can template them using the parameter names of the task / flow function, using all of the basic rules of Python string formatting as follows:
+
+```python
+from datetime import datetime
+from prefect import flow, task
+
+@task(task_run_name=“{name}”)
+def my_task(name):
+  print(f”hi {name}”)
+
+@flow(flow_run_name=“{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime):
+  return my_task(name)
+
+my_flow()
+```
 
 See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
 
