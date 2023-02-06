@@ -624,7 +624,7 @@ def get_dialect(
     """
     if isinstance(obj, sa.orm.Session):
         url = obj.bind.url
-    elif isinstance(obj, sa.engine.Engine):
+    elif isinstance(obj, sa.ext.asyncio.AsyncEngine):
         url = obj.url
     else:
         url = sa.engine.url.make_url(obj)

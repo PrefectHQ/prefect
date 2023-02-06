@@ -25,8 +25,8 @@ def db(test_database_connection_url, safety_check_settings):
 
 
 @pytest.fixture
-def db_dialect(test_database_connection_url):
-    return get_dialect(test_database_connection_url).name
+def db_dialect(database_engine):
+    return get_dialect(database_engine).name
 
 
 @pytest.fixture(scope="session", autouse=True)
