@@ -11,8 +11,8 @@ async def read_queue(orion_client, name, pool=None):
     return await orion_client.read_work_queue_by_name(name=name, work_pool_name=pool)
 
 
-@pytest.fixture(autouse=True)
-def auto_enable_work_pools(enable_work_pools):
+@pytest.fixture(autouse=False)
+def enable_work_pools(enable_work_pools):
     """
     Enable workers for testing
     """
@@ -53,7 +53,9 @@ class TestCreateWorkQueue:
             expected_code=0,
         )
 
-    def test_create_work_queue_with_pool(self, orion_client, work_pool):
+    def test_create_work_queue_with_pool(
+        self, orion_client, work_pool, enable_work_pools
+    ):
         queue_name = "q-name"
         res = invoke_and_assert(
             command=f"work-queue create {queue_name} -p {work_pool.name}",
@@ -68,7 +70,7 @@ class TestCreateWorkQueue:
         assert queue.work_pool_id == work_pool.id
         assert queue.name == queue_name
 
-    def test_work_queue_with_pool_and_tag_errors(self, work_pool):
+    def test_work_queue_with_pool_and_tag_errors(self, work_pool, enable_work_pools):
         res = invoke_and_assert(
             command=f"work-queue create q-name -p {work_pool.name} -t dog",
             expected_code=1,
@@ -92,7 +94,9 @@ class TestCreateWorkQueue:
         assert queue.name == queue_name
         assert queue.work_pool_id is not None
 
-    def test_create_work_queue_with_bad_pool_name(self, orion_client):
+    def test_create_work_queue_with_bad_pool_name(
+        self, orion_client, enable_work_pools
+    ):
         queue_name = "q-name"
         res = invoke_and_assert(
             command=f"work-queue create {queue_name} -p bad-pool",
@@ -121,7 +125,7 @@ class TestSetConcurrencyLimit:
         assert q.concurrency_limit == 5
 
     def test_set_concurrency_limit_with_pool_with_name(
-        self, orion_client, work_queue_1
+        self, orion_client, work_queue_1, enable_work_pools
     ):
         assert work_queue_1.concurrency_limit is None
         cmd = (
@@ -150,7 +154,7 @@ class TestSetConcurrencyLimit:
             expected_code=1,
         )
 
-    def test_set_concurrency_limit_bad_pool_name(self, work_queue):
+    def test_set_concurrency_limit_bad_pool_name(self, work_queue, enable_work_pools):
         invoke_and_assert(
             command=f"work-queue set-concurrency-limit {work_queue.name} 5 -p bad-pool",
             expected_code=1,
@@ -181,7 +185,9 @@ class TestClearConcurrencyLimit:
         q = read_queue(orion_client, work_queue.name)
         assert q.concurrency_limit is None
 
-    async def test_clear_concurrency_limit_with_pool(self, orion_client, work_queue_1):
+    async def test_clear_concurrency_limit_with_pool(
+        self, orion_client, work_queue_1, enable_work_pools
+    ):
         pool_name = work_queue_1.work_pool.name
 
         await orion_client.update_work_queue(id=work_queue_1.id, concurrency_limit=5)
@@ -218,7 +224,7 @@ class TestClearConcurrencyLimit:
             expected_code=1,
         )
 
-    def test_clear_concurrency_limit_bad_pool_name(self, work_queue):
+    def test_clear_concurrency_limit_bad_pool_name(self, work_queue, enable_work_pools):
         invoke_and_assert(
             command=f"work-queue clear-concurrency-limit {work_queue.name} -p bad-pool",
             expected_code=1,
@@ -244,7 +250,7 @@ class TestPauseWorkQueue:
         q = read_queue(orion_client, work_queue.name)
         assert q.is_paused
 
-    def test_pause_with_pool(self, orion_client, work_queue_1):
+    def test_pause_with_pool(self, orion_client, work_queue_1, enable_work_pools):
         assert not work_queue_1.is_paused
         cmd = (
             f"work-queue pause {work_queue_1.name} " f"-p {work_queue_1.work_pool.name}"
@@ -273,7 +279,7 @@ class TestPauseWorkQueue:
             expected_code=1,
         )
 
-    def test_pause_bad_pool_name(self, work_queue):
+    def test_pause_bad_pool_name(self, work_queue, enable_work_pools):
         invoke_and_assert(
             command=f"work-queue pause {work_queue.name} -p bad-pool",
             expected_code=1,
@@ -299,7 +305,9 @@ class TestResumeWorkQueue:
         q = read_queue(orion_client, work_queue.name)
         assert not q.is_paused
 
-    async def test_resume_with_pool(self, orion_client, work_queue_1):
+    async def test_resume_with_pool(
+        self, orion_client, work_queue_1, enable_work_pools
+    ):
         pool_name = work_queue_1.work_pool.name
         await orion_client.update_work_queue(
             id=work_queue_1.id,
@@ -335,7 +343,7 @@ class TestResumeWorkQueue:
             expected_code=1,
         )
 
-    def test_resume_bad_pool_name(self, work_queue):
+    def test_resume_bad_pool_name(self, work_queue, enable_work_pools):
         invoke_and_assert(
             command=f"work-queue resume {work_queue.name} -p bad-pool",
             expected_code=1,
@@ -363,7 +371,7 @@ class TestInspectWorkQueue:
             expected_code=0,
         )
 
-    def test_inspect_with_pool(self, work_queue_1):
+    def test_inspect_with_pool(self, work_queue_1, enable_work_pools):
         cmd = (
             f"work-queue inspect {work_queue_1.name} "
             f"-p {work_queue_1.work_pool.name}"
@@ -390,7 +398,7 @@ class TestInspectWorkQueue:
             expected_code=1,
         )
 
-    def test_inspect_bad_input_work_pool(self, work_queue_1):
+    def test_inspect_bad_input_work_pool(self, work_queue_1, enable_work_pools):
         cmd = (
             f"work-queue inspect {work_queue_1.name} "
             f"-p {work_queue_1.work_pool.name}-bad"
@@ -418,7 +426,7 @@ class TestDelete:
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             read_queue(orion_client, work_queue.name)
 
-    def test_delete_with_pool(self, orion_client, work_queue_1):
+    def test_delete_with_pool(self, orion_client, work_queue_1, enable_work_pools):
         pool_name = work_queue_1.work_pool.name
         cmd = f"work-queue delete {work_queue_1.name} " f"-p {pool_name}"
         invoke_and_assert(
@@ -429,7 +437,7 @@ class TestDelete:
             read_queue(orion_client, work_queue_1.name, pool=pool_name)
 
     # Tests all of the above, but with bad input
-    def test_delete_with_bad_pool(self, orion_client, work_queue_1):
+    def test_delete_with_bad_pool(self, orion_client, work_queue_1, enable_work_pools):
         pool_name = work_queue_1.work_pool.name
         cmd = f"work-queue delete {work_queue_1.name} " f"-p {pool_name}bad"
         invoke_and_assert(
@@ -459,7 +467,7 @@ class TestPreview:
             expected_code=0,
         )
 
-    def test_preview_with_pool(self, work_queue_1):
+    def test_preview_with_pool(self, work_queue_1, enable_work_pools):
         cmd = (
             f"work-queue preview {work_queue_1.name} "
             f"-p {work_queue_1.work_pool.name}"
@@ -482,7 +490,7 @@ class TestPreview:
             expected_code=1,
         )
 
-    def test_preview_bad_pool(self, work_queue_1):
+    def test_preview_bad_pool(self, work_queue_1, enable_work_pools):
         cmd = (
             f"work-queue preview {work_queue_1.name} "
             f"-p {work_queue_1.work_pool.name}-bad"
@@ -500,14 +508,14 @@ class TestLS:
             expected_code=0,
         )
 
-    def test_ls_with_pool(self, work_queue_1):
+    def test_ls_with_pool(self, work_queue_1, enable_work_pools):
         cmd = f"work-queue ls -p {work_queue_1.work_pool.name}"
         invoke_and_assert(
             command=cmd,
             expected_code=0,
         )
 
-    def test_ls_with_bad_pool(self, work_queue_1):
+    def test_ls_with_bad_pool(self, work_queue_1, enable_work_pools):
         cmd = f"work-queue ls -p {work_queue_1.work_pool.name}-bad"
         res = invoke_and_assert(
             command=cmd,
