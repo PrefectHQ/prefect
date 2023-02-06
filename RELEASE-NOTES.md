@@ -1,5 +1,30 @@
 # Prefect Release Notes
 
+## Release 2.7.12
+
+### Custom flow and task run names 🎉
+
+...
+
+See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
+
+### Enhancements
+- Update the deployment page to show the runs tab before the description — https://github.com/PrefectHQ/prefect/pull/8398
+
+### Fixes
+- Fix artifact migration to only include states that have non-null data — https://github.com/PrefectHQ/prefect/pull/8420
+
+### Experimental
+- Add error when attempting to apply a deployment to a work pool that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
+- Creates queues in the correct work pool when applying a deployment for a queue that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
+
+### Contributors
+- @NodeJSmith
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.11...2.7.12
+
+
+
 ## Release 2.7.11
 
 ### Using loggers outside of flows
