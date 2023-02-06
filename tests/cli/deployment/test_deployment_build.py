@@ -16,6 +16,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture
@@ -678,6 +679,38 @@ class TestWorkPool:
             deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
             assert deployment.work_pool_name == "test-pool"
 
+    async def test_creates_work_queue_in_work_pool(
+        self, patch_import, tmp_path, work_pool, session, enable_work_pools
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-p",
+                work_pool.name,
+                "-q",
+                "new-queue",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--apply",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = await Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.work_queue_name == "new-queue"
+
+        work_queue = await models.workers.read_work_queue_by_name(
+            session=session, work_pool_name=work_pool.name, work_queue_name="new-queue"
+        )
+        assert work_queue is not None
+
 
 class TestAutoApply:
     def test_auto_apply_flag(self, patch_import, tmp_path):
@@ -702,6 +735,31 @@ class TestAutoApply:
             expected_output_contains=[
                 f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
             ],
+            temp_dir=tmp_path,
+        )
+
+    def test_auto_apply_work_pool_does_not_exist(
+        self, patch_import, tmp_path, enable_work_pools
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                "gibberish",
+                "--apply",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "This deployment specifies a work pool name of 'gibberish', but no such "
+                "work pool exists. To create a work pool, visit the UI and create "
+                "a new work pool with the name 'gibberish'."
+            ),
             temp_dir=tmp_path,
         )
 

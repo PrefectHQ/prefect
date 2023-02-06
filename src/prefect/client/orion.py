@@ -1344,6 +1344,7 @@ class OrionClient:
             exclude.add("is_schedule_active")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
+        print(json)
         response = await self._client.post(
             "/deployments/",
             json=json,
