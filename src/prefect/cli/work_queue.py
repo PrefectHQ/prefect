@@ -17,7 +17,6 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.orion.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
-from prefect.orion.schemas.filters import WorkPoolFilter, WorkPoolFilterId
 
 work_app = PrefectTyper(
     name="work-queue", help="Commands for working with work queues."
@@ -372,7 +371,6 @@ async def ls(
             caption_style="red",
         )
         table.add_column("Name", style="green", no_wrap=True)
-        table.add_column("Pool", style="magenta", no_wrap=True)
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
         table.add_column("Concurrency Limit", style="blue", no_wrap=True)
         if verbose:
@@ -384,17 +382,12 @@ async def ls(
             else:
                 queues = await client.read_work_queues()
 
-            pool_ids = [q.work_pool_id for q in queues]
-            wp_filter = WorkPoolFilter(id=WorkPoolFilterId(any_=pool_ids))
-            pools = await client.read_work_pools(work_pool_filter=wp_filter)
-            pool_id_name_map = {p.id: p.name for p in pools}
             sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
 
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
-                    pool_id_name_map[queue.work_pool_id],
                     str(queue.id),
                     f"[red]{queue.concurrency_limit}"
                     if queue.concurrency_limit
