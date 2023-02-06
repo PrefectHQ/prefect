@@ -18,7 +18,7 @@ class Webhook(Block):
     """
 
     _block_type_name = "Webhook"
-    _logo_url = "http://todo.jpg"  # type: ignore
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6ciCsTFsvUAiiIvTllMfOU/627e9513376ca457785118fbba6a858d/webhook_icon_138018.png?h=250"  # type: ignore
     _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook"
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
