@@ -19,20 +19,22 @@ class Webhook(Block):
 
     _block_type_name = "Webhook"
     _logo_url = "http://todo.jpg"  # type: ignore
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook"
 
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"] = Field(
-        default="POST", description="The webhook request method. Defaults to `POST`"
+        default="POST", description="The webhook request method. Defaults to `POST`."
     )
 
     url: SecretStr = Field(
         default=...,
         title="Webhook URL",
-        description="The webhook URL",
+        description="The webhook URL.",
         example="https://hooks.slack.com/XXX",
     )
 
     headers: SecretDict = Field(
         default_factory=lambda: SecretDict(dict()),
+        title="Webhook Headers",
         description="A dictionary of headers to send with the webhook request.",
     )
 
