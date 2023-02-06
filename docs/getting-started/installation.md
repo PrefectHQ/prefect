@@ -264,7 +264,7 @@ pip3 install prefect
 
 ## Using Prefect in an environment with HTTP proxies
 
-If you are using Prefect Cloud or hosting your own Orion instance, the Prefect library
+If you are using Prefect Cloud or hosting your own Prefect server instance, the Prefect library
 will connect to the API via any proxies you have listed in the `HTTP_PROXY`,
 `HTTPS_PROXY`, or `ALL_PROXY` environment variables.  You may also use the `NO_PROXY`
 environment variable to specify which hosts should not be sent through the proxy.
@@ -292,7 +292,7 @@ You don't need to recreate any deployments or pause your schedules &mdash; stopp
 
 ### Upgrading to 2.0a10
 
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database.
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect database.
 
 Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 

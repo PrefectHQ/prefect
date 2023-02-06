@@ -14,9 +14,9 @@ Blocks enable you to store configuration and provide an interface for interactin
 
 Blocks are the underlying components behind familiar Prefect concepts like [deployments](/concepts/deployments/) and [storage](/concepts/storage/). To learn more about creating and using blocks programmatically, see the [Blocks](/concepts/blocks/) documentation.
 
-You can create, edit, and manage blocks in the Prefect UI and Prefect Cloud. On a Prefect Orion API server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
+You can create, edit, and manage blocks in the Prefect UI and Prefect Cloud. On a Prefect server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
 
-Select the **Blocks** page to see all blocks currently defined on your Prefect Orion API server or Prefect Cloud workspace.
+Select the **Blocks** page to see all blocks currently defined on your Prefect server instance or Prefect Cloud workspace.
 
 ![Viewing configured blocks in the Prefect UI](../img/ui/orion-blocks.png)
 

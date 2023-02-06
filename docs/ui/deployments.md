@@ -1,7 +1,6 @@
 ---
 description: Manage flow deployments from the Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - deployments
     - flow runs

@@ -10,7 +10,7 @@ tags:
 
 # Configure a Local Execution Environment
 
-In order to create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect Orion server as the backend API server, you must: 
+In order to create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you must: 
 
 - Configure the execution environment with the location of the API. 
 - Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
@@ -78,9 +78,9 @@ $ prefect cloud login --workspace "prefect/my-workspace"
 
 ## Manually configure Prefect API settings
 
-You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect Orion server API.
+You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect server API.
 
-Go to your terminal session and run this command to set the API URL to point to a Prefect Orion instance:
+Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
 
 <div class='terminal'>
 ```bash

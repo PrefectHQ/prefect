@@ -1,7 +1,6 @@
 ---
 description: Prefect work queues route deployment flow runs to agents. Prefect agents poll work queues for new runs to execute.
 tags:
-    - Orion
     - work queues
     - agents
     - orchestration
@@ -13,7 +12,7 @@ tags:
 
 # Agents and Work Queues
 
-Agents and work queues bridge the Prefect Orion _orchestration environment_ with a user’s _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work queue for scheduling. Agents running in the execution environment poll their respective work queues for new runs to execute.
+Agents and work queues bridge the Prefect _orchestration environment_ with a user’s _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work queue for scheduling. Agents running in the execution environment poll their respective work queues for new runs to execute.
 
 Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be enough and users will not have to manually configure their work queues at all. However, advanced users will find that work queues enable a greater degree of control over work delivery.
 
@@ -43,13 +42,13 @@ Agents are configured to pull work from one or more work queues. If the agent re
 Configuration parameters you can specify when starting an agent include:
 
 | Option               | Description |
-|---|---|
-| -q, --work-queue     | One or more work queues that the agent will poll for work.                                                                                 |
-| --api TEXT           | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`.                                                       |
-| --run-once           | Only run agent polling once. By default, the agent runs forever.                                                                           |
+| --- | --- |
+| -q, --work-queue     | One or more work queues that the agent will poll for work. |
+| --api TEXT           | The API URL for the Prefect server. Default is the value of `PREFECT_API_URL`. |
+| --run-once           | Only run agent polling once. By default, the agent runs forever. |
 | --prefetch-seconds   | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
-| --hide-welcome       | Do not display the startup ASCII art for the agent process.                                                                                |
-| --match QUEUE_PREFIX | Polls for queues matching the given QUEUE_PREFIX. Note: this option overrides anything passed with `-q` or `--work-queue`.                 |                  
+| --hide-welcome       | Do not display the startup ASCII art for the agent process. |
+| --match QUEUE_PREFIX | Polls for queues matching the given QUEUE_PREFIX. Note: this option overrides anything passed with `-q` or `--work-queue`. |                  
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
 
@@ -59,7 +58,7 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "`PREFECT_API_URL` setting for agents"
     `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
 
-    If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+    If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 ### Starting an agent
 
@@ -139,7 +138,7 @@ You can configure work queues by using:
 - Prefect CLI commands
 - Prefect Python API
 
-![Creating a new work queue in the Orion UI](../img/ui/work-queue-create.png)
+![Creating a new work queue in the Prefect UI](../img/ui/work-queue-create.png)
 
 
 To configure a work queue via the Prefect CLI, use the `prefect work-queue create` command:

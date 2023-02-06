@@ -123,7 +123,7 @@ Prefect Technologies is SOC2 Type II compliant and our enterprise product makes 
 
 **A user friendly, interactive dashboard for your dataflows**
 
-In the [Prefect Orion UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
+In the [Prefect UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
 
 **Faster and easier than building from scratch**
 

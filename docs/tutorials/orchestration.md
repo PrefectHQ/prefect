@@ -1,7 +1,6 @@
 ---
-description: Learn about the Prefect Orion orchestration engine and API.
+description: Learn about the Prefect orchestration engine and API.
 tags:
-    - Orion
     - work queues
     - agents
     - orchestration
@@ -13,7 +12,7 @@ tags:
 
 # Flow orchestration with Prefect
 
-Up to this point, we've demonstrated running Prefect flows and tasks in a local environment using the ephemeral Prefect Orion API. As you've seen, it's possible to run flexible, sophisticated workflows in this way without any further configuration.
+Up to this point, we've demonstrated running Prefect flows and tasks in a local environment using the ephemeral Prefect API. As you've seen, it's possible to run flexible, sophisticated workflows in this way without any further configuration.
 
 Many users find running flows locally is useful for development, testing, and one-off or occasional workflow execution.
 
@@ -33,23 +32,23 @@ Designing workflows with Prefect starts with a few basic building blocks that yo
 
 Creating and running _orchestrated_ workflows takes advantage of some additional Prefect components. 
 
-- [Prefect Orion API server](#prefect-orion-api-server) and orchestration engine receives state information from workflows and provides flow run instructions for executing deployments.
+- [Prefect API server](#prefect-orion-api-server) and orchestration engine receives state information from workflows and provides flow run instructions for executing deployments.
 - [Prefect database](#prefect-database) provides a persistent metadata store that holds flow and task run history.
 - [Prefect UI](#prefect-ui-and-prefect-cloud) provides a control plane for monitoring, configuring, analyzing, and coordinating runs of your workflows.
 - [Storage](#storage-for-flow-and-task-data) for flow and task data lets you configure a persistent store for flow code and flow and task results.
 - [Agents and work queues](#agents-and-work-queues) bridge the Prefect orchestration engine with a your execution environments, organizing work that agents can pick up to execute.
 
-These Prefect components and services enable you to form what we call a dedicated _coordination and orchestration environment_. The same components and services enable you to coordinate flows with either the open-source Prefect Orion API server and orchestration engine or Prefect Cloud.
+These Prefect components and services enable you to form what we call a dedicated _coordination and orchestration environment_. The same components and services enable you to coordinate flows with either the open-source Prefect server and orchestration engine or Prefect Cloud.
 
 Let's take a closer look at each component.
 
-## Prefect Orion API server
+## Prefect API server
 
-The Prefect Orion API server and orchestration engine is the central component of your Prefect workflow environment. 
+The Prefect server and orchestration engine is the central component of your Prefect workflow environment. 
 
 Without you having to configure or run anything other than your flow code, the ephemeral Prefect API keeps track of the state of your Prefect flow and task runs. 
 
-When you run Prefect Orion  with `prefect orion start`, the Prefect Orion orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
+When you run a Prefect server with `prefect orion start`, the Prefect orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
 
 - Create and manage deployments
 - Create and manage configuration for storage and services used by your flows
@@ -61,11 +60,11 @@ When you run Prefect Orion  with `prefect orion start`, the Prefect Orion orches
 
 ...on top of monitoring the state of your flows and tasks.
 
-If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefect's orchestration-as-a-service platform provides all the capabilities of the Prefect Orion orchestration engine in a hosted manner.
+If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefect's orchestration-as-a-service platform provides all the capabilities of the Prefect orchestration engine in a hosted manner.
 
 ### Running the Prefect server
 
-To take full advantage of the Prefect Orion orchestration engine and API server, you can spin up an instance at any time with the `prefect orion start` CLI command:
+To take full advantage of the Prefect orchestration engine and API server, you can spin up an instance at any time with the `prefect orion start` CLI command:
 
 <div class='terminal'>
 ```bash
@@ -86,9 +85,9 @@ Check out the dashboard at http://127.0.0.1:4200
 </div>
 
 !!! note "Set the `PREFECT_API_URL` for your server"
-    Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect Orion server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
+    Note the message to set `PREFECT_API_URL` &mdash; configuring the URL of your Prefect server or Prefect Cloud makes sure that you're coordinating flows with the correct API instance.
 
-    Go to your terminal session and run this command to set the API URL to point to the Prefect Orion instance you just started:
+    Go to your terminal session and run this command to set the API URL to point to the Prefect server instance you just started:
 
     <div class='terminal'>
     ```bash
@@ -115,7 +114,7 @@ There are numerous ways to begin exploring the API:
 - Navigate to [http://127.0.0.1:4200/redoc](http://127.0.0.1:4200/redoc) (or your corresponding API URL) to see the autogenerated Redoc API documentation.
 - Instantiate [an asynchronous `OrionClient`][/api-ref/prefect/client/orion/#prefect.client.orion.OrionClient] within Python to send requests to the API.
 
-To stop an instance of the Orion API server, simply **CTRL+C** to end the process in your terminal, or close the terminal session.
+To stop an instance of the Prefect server, simply **CTRL+C** to end the process in your terminal, or close the terminal session.
 
 !!! note "Scheduled flow runs require an Prefect API service"
 
@@ -160,17 +159,17 @@ $ prefect orion database reset
 
 This will completely clear all data and reapply the schema.
 
-See the [Database](/concepts/database/) documentation for further details on choosing and configuring the Prefect database.
+See the Prefect [Database](/concepts/database/) documentation for further details on choosing and configuring the Prefect database.
 
 ## Prefect UI and Prefect Cloud
 
-The [Prefect UI](/ui/overview/) comes prepackaged with the Prefect Orion API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
+The [Prefect UI](/ui/overview/) comes prepackaged with the Prefect server API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
 
-![Prefect Orion UI dashboard.](../img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/orion-dashboard.png)
 
-The UI enables you to track and manage your flows, runs, and deployments and additionally allows you to filter by names, tags, and other metadata to quickly find the information you are looking for.
+The Prefect UI enables you to track and manage your flows, runs, and deployments and additionally allows you to filter by names, tags, and other metadata to quickly find the information you are looking for.
 
-The UI displays many useful insights about your flow runs, including:
+The Prefect UI displays many useful insights about your flow runs, including:
 
 - Flow run summaries
 - Deployed flow details
@@ -182,7 +181,7 @@ The UI displays many useful insights about your flow runs, including:
 
 You can also use the Prefect UI to create ad hoc flow runs from deployments, configure and manage work queues, and more.
 
-See the [Prefect UI & Cloud](/ui/overview/) documentation for more information about using the Prefect UI.
+See the [Prefect UI & Prefect Cloud](/ui/overview/) documentation for more information about using the Prefect UI.
 
 ## Storage for flow and task data
 
@@ -194,7 +193,7 @@ Prefect [blocks](/concepts/blocks/) enable you to create storage configurations 
 
 ## Agents and work queues
 
-Agents and work queues bridge the Prefect Orion orchestration engine and API with your local execution environments.
+Agents and work queues bridge the Prefect orchestration engine and API with your local execution environments.
 
 - Work queues are configured on the server. They contain logic that determines which flow runs a given queue will serve to waiting agents. 
 - Agents run in a local execution environment. They pick up work from a specific work queue and execute those flow runs. 
