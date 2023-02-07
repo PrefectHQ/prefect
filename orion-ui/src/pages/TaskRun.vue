@@ -18,7 +18,8 @@
         <ExtraInfoModal title="Task Inputs">
           <template #default>
             <p>
-              Task inputs show the relationship between task runs.
+              Task inputs represent inputs to task runs, which
+              could include, constants, parameter keys, or other task runs.
             </p>
           </template>
         </ExtraInfoModal>
