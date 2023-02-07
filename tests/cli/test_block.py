@@ -6,7 +6,11 @@ from prefect.blocks import system
 from prefect.client import OrionClient
 from prefect.exceptions import ObjectNotFound
 from prefect.orion import models
-from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
+from prefect.settings import (
+    PREFECT_ORION_BLOCKS_REGISTER_ON_START,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
@@ -30,16 +34,31 @@ async def install_system_block_types(session):
     )
 
 
-def test_register_blocks_from_module():
-    invoke_and_assert(
-        ["block", "register", "-m", "prefect.blocks.core"],
-        expected_code=0,
-        expected_output_contains=[
-            "Successfully registered",
-            "blocks",
-            "blocks/catalog",
-        ],
-    )
+def test_register_blocks_from_module_with_ui_url():
+    with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.core"],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered",
+                "blocks",
+                "Prefect UI: https://app.prefect.cloud/blocks/catalog",
+            ],
+        )
+
+
+def test_register_blocks_from_module_without_ui_url():
+    with temporary_settings(set_defaults={PREFECT_UI_URL: None}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.core"],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered",
+                "blocks",
+                "Prefect UI.",
+            ],
+            expected_output_does_not_contain=["Prefect UI: https://"],
+        )
 
 
 def test_register_blocks_from_nonexistent_module():
@@ -70,11 +89,15 @@ def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
-    invoke_and_assert(
-        ["block", "register", "-f", str(test_file_path)],
-        expected_code=0,
-        expected_output_contains=["Successfully registered 1 block", "blocks/catalog"],
-    )
+    with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
+        invoke_and_assert(
+            ["block", "register", "-f", str(test_file_path)],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered 1 block",
+                "blocks/catalog",
+            ],
+        )
 
     block_type = asyncio.run(
         orion_client.read_block_type_by_slug(slug="testforfileregister")
