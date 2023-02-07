@@ -415,7 +415,7 @@ View all of the parameters for the `Deployment` object in the [Python API docume
 
 ## Deployment API representation
 
-When you create a Prefect deployment, it is constructed from deployment definition data you provide and additional properties calculated by client-side utilities.
+When you create a deployment, it is constructed from deployment definition data you provide and additional properties set by client-side utilities.
 
 Deployment properties include:
 

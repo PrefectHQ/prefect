@@ -27,7 +27,7 @@ Currently Prefect supports the following databases:
 
 ## Using the database
 
-A local SQLite database is the default for Prefect, and a local SQLite database is configured on installation.
+A local SQLite database is the default for Prefect. A local SQLite database is configured on installation.
 
 When you first install Prefect, your database will be located at `~/.prefect/orion.db`.
 

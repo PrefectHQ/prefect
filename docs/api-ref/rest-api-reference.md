@@ -8,7 +8,7 @@ hide:
     - toc
 ---
 
-Both Prefect Cloud and locally run Prefect servers host a REST API that gives you access to many observability, coordination, and account management functions of the platform.
+Both Prefect Cloud and locally hosted Prefect servers expose a REST API that gives you access to many observability, coordination, and account management functions of the platform.
 
 Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
 
