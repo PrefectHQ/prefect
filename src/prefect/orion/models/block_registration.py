@@ -18,6 +18,7 @@ async def _install_protected_system_blocks(session):
     """Install block types that the system expects to be present"""
 
     for block in [
+        prefect.blocks.webhook.Webhook,
         prefect.blocks.system.JSON,
         prefect.blocks.system.DateTime,
         prefect.blocks.system.Secret,
