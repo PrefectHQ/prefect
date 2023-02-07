@@ -28,7 +28,7 @@ DEPRECATED_MOVED_WARNING = (
     "{name} has moved to {new_location}. It will not be available at the old import "
     "path after {end_date}. {help}"
 )
-DEPRECATED_DATEFMT = "MMM YYYY"
+DEPRECATED_DATEFMT = "MMM YYYY"  # e.g. Feb 2023
 
 
 class PrefectDeprecationWarning(DeprecationWarning):
