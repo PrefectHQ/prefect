@@ -1,6 +1,7 @@
 from typing import List
 from uuid import uuid4
 
+import pendulum
 import pydantic
 import pytest
 from fastapi import status
@@ -8,6 +9,24 @@ from fastapi import status
 from prefect.orion import models, schemas
 from prefect.orion.schemas import actions
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS, temporary_settings
+
+
+@pytest.fixture
+async def create_artifacts(flow_run, task_run, client):
+    artifact_1 = actions.ArtifactCreate(
+        key="artifact-1", data=1, flow_run_id=flow_run.id, task_run_id=task_run.id
+    ).dict(json_compatible=True)
+    await client.post("/experimental/artifacts/", json=artifact_1)
+
+    artifact_2 = actions.ArtifactCreate(
+        key="artifact-2", flow_run_id=flow_run.id, task_run_id=task_run.id
+    ).dict(json_compatible=True)
+    await client.post("/experimental/artifacts/", json=artifact_2)
+
+    artifact_3 = actions.ArtifactCreate(key="artifact-3", flow_run_id=flow_run.id).dict(
+        json_compatible=True
+    )
+    await client.post("/experimental/artifacts/", json=artifact_3)
 
 
 @pytest.fixture(autouse=True)
@@ -83,23 +102,6 @@ class TestReadArtifact:
 
 
 class TestReadArtifacts:
-    @pytest.fixture
-    async def create_artifacts(self, flow_run, task_run, client):
-        artifact_1 = actions.ArtifactCreate(
-            key="artifact-1", data=1, flow_run_id=flow_run.id, task_run_id=task_run.id
-        ).dict(json_compatible=True)
-        await client.post("/experimental/artifacts/", json=artifact_1)
-
-        artifact_2 = actions.ArtifactCreate(
-            key="artifact-2", flow_run_id=flow_run.id, task_run_id=task_run.id
-        ).dict(json_compatible=True)
-        await client.post("/experimental/artifacts/", json=artifact_2)
-
-        artifact_3 = actions.ArtifactCreate(
-            key="artifact-3", flow_run_id=flow_run.id
-        ).dict(json_compatible=True)
-        await client.post("/experimental/artifacts/", json=artifact_3)
-
     async def test_read_artifacts(self, create_artifacts, client):
         response = await client.post("/experimental/artifacts/filter")
         assert response.status_code == status.HTTP_200_OK
@@ -214,3 +216,64 @@ class TestReadArtifacts:
         response = await client.post("/experimental/artifacts/filter")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
+
+
+class TestUpdateArtifact:
+    async def test_update_artifact_succeeds(self, create_artifacts, client):
+        response = await client.post("/experimental/artifacts/filter")
+        now = pendulum.now("utc")
+        assert response.status_code == status.HTTP_200_OK
+        artifact_id = response.json()[0]["id"]
+        artifact_key = response.json()[0]["key"]
+        artifact_flow_run_id = response.json()[0]["flow_run_id"]
+
+        response = await client.patch(
+            f"/experimental/artifacts/{artifact_id}",
+            json={"data": {"new": "data"}},
+        )
+
+        assert response.status_code == 204
+
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        updated_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        assert updated_artifact.data == {"new": "data"}
+        assert updated_artifact.key == artifact_key
+        assert str(updated_artifact.flow_run_id) == artifact_flow_run_id
+        assert updated_artifact.created < now
+        assert updated_artifact.updated > now
+
+    async def test_update_artifact_does_not_update_if_fields_are_not_set(
+        self, create_artifacts, client
+    ):
+        response = await client.post("/experimental/artifacts/filter")
+        now = pendulum.now("utc")
+        assert response.status_code == status.HTTP_200_OK
+        artifact_id = response.json()[0]["id"]
+        artifact_key = response.json()[0]["key"]
+        artifact_flow_run_id = response.json()[0]["flow_run_id"]
+        artifact_data = response.json()[0]["data"]
+
+        response = await client.patch(
+            f"/experimental/artifacts/{artifact_id}",
+            json={},
+        )
+
+        assert response.status_code == 204
+
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        updated_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+        assert updated_artifact.data == artifact_data
+        assert updated_artifact.key == artifact_key
+        assert str(updated_artifact.flow_run_id) == artifact_flow_run_id
+        assert updated_artifact.created < now
+        assert updated_artifact.updated > now
+
+    async def test_update_artifact_raises_error_if_artifact_not_found(
+        self, create_artifacts, client
+    ):
+        response = await client.patch(
+            f"/experimental/artifacts/{str(uuid4())}",
+            json={"data": {"new": "data"}},
+        )
+
+        assert response.status_code == 404

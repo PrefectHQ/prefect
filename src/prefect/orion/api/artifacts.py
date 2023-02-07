@@ -92,3 +92,24 @@ async def read_artifacts(
             limit=limit,
             sort=sort,
         )
+
+
+@router.patch("/{id}", status_code=204)
+async def update_artifact(
+    artifact: actions.ArtifactUpdate,
+    artifact_id: UUID = Path(
+        ..., description="The ID of the artifact to update.", alias="id"
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Update an artifact in the database.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.artifacts.update_artifact(
+            session=session,
+            artifact_id=artifact_id,
+            artifact=artifact,
+        )
+    if not result:
+        raise HTTPException(status_code=404, detail="Artifact not found.")

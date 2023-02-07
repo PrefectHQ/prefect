@@ -544,3 +544,11 @@ class ArtifactCreate(ActionBaseModel):
     metadata_: Optional[Any] = FieldFrom(schemas.core.Artifact)
     flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+
+
+@copy_model_fields
+class ArtifactUpdate(ActionBaseModel):
+    """Data used by the Orion API to update an artifact."""
+
+    data: Optional[Any] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Any] = FieldFrom(schemas.core.Artifact)

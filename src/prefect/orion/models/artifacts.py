@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.schemas import filters, sorting
+from prefect.orion.schemas import actions, filters, sorting
 from prefect.orion.schemas.core import Artifact
 
 
@@ -122,3 +122,33 @@ async def read_artifacts(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@inject_db
+async def update_artifact(
+    session: sa.orm.Session,
+    artifact_id: UUID,
+    artifact: actions.ArtifactUpdate,
+    db: OrionDBInterface,
+) -> bool:
+    """
+    Updates an artifact by id.
+
+    Args:
+        session: A database session
+        artifact_id (UUID): The artifact id to update
+        artifact: An artifact model
+
+    Returns:
+        bool: True if the update was successful, False otherwise
+    """
+    update_data = artifact.dict(shallow=True, exclude_unset=True)
+
+    update_stmt = (
+        sa.update(db.Artifact)
+        .where(db.Artifact.id == artifact_id)
+        .values(**update_data)
+    )
+
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
