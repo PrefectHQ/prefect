@@ -107,7 +107,7 @@ async def read_concurrency_limits(
         )
 
 
-@router.post("/reset/tag/{tag}")
+@router.post("/tag/{tag}/reset")
 async def reset_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
     slot_override: Optional[List[UUID]] = Body(

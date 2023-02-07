@@ -689,7 +689,7 @@ class OrionClient:
 
         try:
             await self._client.post(
-                f"/concurrency_limits/reset/tag/{tag}",
+                f"/concurrency_limits/tag/{tag}/reset",
                 json=dict(slot_override=slot_override),
             )
         except httpx.HTTPStatusError as e:

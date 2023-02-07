@@ -86,7 +86,7 @@ class TestConcurrencyLimits:
         cl_id = create_response.json()["id"]
 
         override_response = await client.post(
-            f"/concurrency_limits/reset/tag/{tag}",
+            f"/concurrency_limits/tag/{tag}/reset",
             json=dict(slot_override=[str(uuid4()) for _ in range(50)]),
         )
         assert override_response.status_code == status.HTTP_200_OK
