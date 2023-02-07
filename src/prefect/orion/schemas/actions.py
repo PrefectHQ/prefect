@@ -294,6 +294,13 @@ class TaskRunCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class TaskRunUpdate(ActionBaseModel):
+    """Data used by the Orion API to update a task run"""
+
+    name: str = FieldFrom(schemas.core.TaskRun)
+
+
+@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
     """Data used by the Orion API to create a flow run."""
 
@@ -455,7 +462,7 @@ class WorkPoolCreate(ActionBaseModel):
 
     name: str = FieldFrom(schemas.core.WorkPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
-    type: str = FieldFrom(schemas.core.WorkPool)
+    type: str = Field(description="The work pool type.", default="prefect-agent")
     base_job_template: Dict[str, Any] = FieldFrom(schemas.core.WorkPool)
     is_paused: bool = FieldFrom(schemas.core.WorkPool)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPool)
@@ -472,28 +479,6 @@ class WorkPoolUpdate(ActionBaseModel):
 
 
 @copy_model_fields
-class WorkPoolQueueCreate(ActionBaseModel):
-    """Data used by the Orion API to create a work pool queue."""
-
-    name: str = FieldFrom(schemas.core.WorkPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)
-    is_paused: bool = FieldFrom(schemas.core.WorkPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-
-
-@copy_model_fields
-class WorkPoolQueueUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a work pool queue."""
-
-    name: str = FieldFrom(schemas.core.WorkPoolQueue)
-    description: Optional[str] = FieldFrom(schemas.core.WorkPoolQueue)
-    is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPoolQueue)
-    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkPoolQueue)
-
-
-@copy_model_fields
 class WorkQueueCreate(ActionBaseModel):
     """Data used by the Orion API to create a work queue."""
 
@@ -501,6 +486,10 @@ class WorkQueueCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = Field(
+        default=None,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
 
     # DEPRECATED
 
@@ -515,9 +504,11 @@ class WorkQueueCreate(ActionBaseModel):
 class WorkQueueUpdate(ActionBaseModel):
     """Data used by the Orion API to update a work queue."""
 
+    name: str = FieldFrom(schemas.core.WorkQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
 
     # DEPRECATED
@@ -525,11 +516,6 @@ class WorkQueueUpdate(ActionBaseModel):
     filter: Optional[schemas.core.QueueFilter] = Field(
         None,
         description="DEPRECATED: Filter criteria for the work queue.",
-        deprecated=True,
-    )
-    name: Optional[str] = Field(
-        default=None,
-        description="DEPRECATED: The name of the work queue.",
         deprecated=True,
     )
 

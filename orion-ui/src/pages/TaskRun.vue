@@ -25,7 +25,7 @@
         </ExtraInfoModal>
       </template>
       <template #task-inputs>
-        <CodeHighlighting v-if="taskRun" language="json" :value="parameters" />
+        <CodeSnippet language="json" :snippet="parameters" />
       </template>
     </p-tabs>
     <template #well>
@@ -35,7 +35,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeHighlighting, useFavicon, useWorkspaceApi, ExtraInfoModal } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi, ExtraInfoModal } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

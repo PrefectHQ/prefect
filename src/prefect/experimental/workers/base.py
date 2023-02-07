@@ -368,7 +368,7 @@ class BaseWorker(abc.ABC):
         )
         try:
             scheduled_flow_runs = (
-                await self._client.get_scheduled_flow_runs_for_work_pool_queues(
+                await self._client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
                 )

@@ -26,6 +26,7 @@ from prefect.settings import (
     PREFECT_LOGGING_ORION_BATCH_SIZE,
     PREFECT_LOGGING_ORION_ENABLED,
     PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW,
 )
 
 
@@ -282,11 +283,19 @@ class OrionHandler(logging.Handler):
     def handleError(self, record: logging.LogRecord) -> None:
         _, exc, _ = sys.exc_info()
 
-        # Warn when a logger is used outside of a run context, the stack level here
-        # gets us to the user logging call
         if isinstance(exc, MissingContextError):
-            warnings.warn(exc, stacklevel=8)
-            return
+            log_handling_when_missing_flow = (
+                PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW.value()
+            )
+            if log_handling_when_missing_flow == "warn":
+                # Warn when a logger is used outside of a run context, the stack level here
+                # gets us to the user logging call
+                warnings.warn(str(exc), stacklevel=8)
+                return
+            elif log_handling_when_missing_flow == "ignore":
+                return
+            else:
+                raise exc
 
         # Display a longer traceback for other errors
         return super().handleError(record)

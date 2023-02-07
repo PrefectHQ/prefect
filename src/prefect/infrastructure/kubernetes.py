@@ -1,11 +1,11 @@
 import copy
 import enum
 import os
+import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
-import pendulum
 import yaml
 from pydantic import Field, root_validator, validator
 from typing_extensions import Literal
@@ -60,6 +60,9 @@ class KubernetesJob(Infrastructure):
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         env: Environment variables to set for the container.
+        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
+            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
+            manually removed.
         image: An optional string specifying the image reference of a container image
             to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
             behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
@@ -75,9 +78,6 @@ class KubernetesJob(Infrastructure):
         pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
         service_account_name: An optional string specifying which Kubernetes service account to use.
         stream_output: If set, stream output from the job to local standard output.
-        finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
-            be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
-            manually removed.
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
@@ -602,32 +602,35 @@ class KubernetesJob(Infrastructure):
                     )
 
         self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        start_time = pendulum.now("utc")
+        deadline = (
+            (time.time() + self.job_watch_timeout_seconds)
+            if self.job_watch_timeout_seconds is not None
+            else None
+        )
         completed = False
         while not completed:
-            elapsed = (pendulum.now("utc") - start_time).in_seconds()
-            if (
-                self.job_watch_timeout_seconds is not None
-                and elapsed > self.job_watch_timeout_seconds
-            ):
-                self.logger.error(f"Job {job_name!r}: Job timed out after {elapsed}s.")
+            remaining_time = deadline - time.time() if deadline else None
+            if deadline and remaining_time <= 0:
+                self.logger.error(
+                    f"Job {job_name!r}: Job did not complete within "
+                    f"timeout of {self.job_watch_timeout_seconds}s."
+                )
                 return -1
 
             watch = kubernetes.watch.Watch()
             with self.get_batch_client() as batch_client:
-                remaining_timeout = (
-                    (  # subtract previous watch time
-                        self.job_watch_timeout_seconds - elapsed
-                    )
-                    if self.job_watch_timeout_seconds
-                    else None
+                # The kubernetes library will disable retries if the timeout kwarg is
+                # present regardless of the value so we do not pass it unless given
+                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+                timeout_seconds = (
+                    {"timeout_seconds": remaining_time} if deadline else {}
                 )
 
                 for event in watch.stream(
                     func=batch_client.list_namespaced_job,
                     field_selector=f"metadata.name={job_name}",
                     namespace=self.namespace,
-                    timeout_seconds=remaining_timeout,
+                    **timeout_seconds,
                 ):
                     if event["object"].status.completion_time:
                         if not event["object"].status.succeeded:
@@ -636,12 +639,6 @@ class KubernetesJob(Infrastructure):
                         completed = True
                         watch.stop()
                         break
-                else:
-                    self.logger.error(
-                        f"Job {job_name!r}: Job did not complete within "
-                        f"timeout of {self.job_watch_timeout_seconds}s."
-                    )
-                    return -1
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
