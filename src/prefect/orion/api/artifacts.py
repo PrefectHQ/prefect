@@ -113,3 +113,22 @@ async def update_artifact(
         )
     if not result:
         raise HTTPException(status_code=404, detail="Artifact not found.")
+
+
+@router.delete("/{id}", status_code=204)
+async def delete_artifact(
+    artifact_id: UUID = Path(
+        ..., description="The ID of the artifact to delete.", alias="id"
+    ),
+    db: OrionDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Delete an artifact from the database.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        result = await models.artifacts.delete_artifact(
+            session=session,
+            artifact_id=artifact_id,
+        )
+    if not result:
+        raise HTTPException(status_code=404, detail="Artifact not found.")

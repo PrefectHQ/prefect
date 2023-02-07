@@ -152,3 +152,25 @@ async def update_artifact(
 
     result = await session.execute(update_stmt)
     return result.rowcount > 0
+
+
+@inject_db
+async def delete_artifact(
+    session: sa.orm.Session,
+    artifact_id: UUID,
+    db: OrionDBInterface,
+) -> bool:
+    """
+    Deletes an artifact by id.
+
+    Args:
+        session: A database session
+        artifact_id (UUID): The artifact id to delete
+
+    Returns:
+        bool: True if the delete was successful, False otherwise
+    """
+    delete_stmt = sa.delete(db.Artifact).where(db.Artifact.id == artifact_id)
+
+    result = await session.execute(delete_stmt)
+    return result.rowcount > 0

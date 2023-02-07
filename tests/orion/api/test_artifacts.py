@@ -277,3 +277,25 @@ class TestUpdateArtifact:
         )
 
         assert response.status_code == 404
+
+
+class TestDeleteArtifact:
+    async def test_delete_artifact_succeeds(self, create_artifacts, session, client):
+        response = await client.post("/experimental/artifacts/filter")
+        assert response.status_code == status.HTTP_200_OK
+        artifact_id = response.json()[0]["id"]
+
+        response = await client.delete(f"/experimental/artifacts/{artifact_id}")
+        assert response.status_code == 204
+
+        artifact = await models.artifacts.read_artifact(
+            session=session, artifact_id=artifact_id
+        )
+        assert artifact is None
+
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        assert response.status_code == 404
+
+    async def test_delete_artifact_returns_404_if_does_not_exist(self, client):
+        response = await client.delete(f"/experimental/artifacts/{str(uuid4())}")
+        assert response.status_code == 404
