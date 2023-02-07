@@ -7,6 +7,7 @@ from fastapi import APIRouter, status, testclient
 
 from prefect.orion.api.server import (
     API_ROUTERS,
+    ORION_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
     method_paths_from_routes,
@@ -52,11 +53,18 @@ async def test_health_check_route(client):
     assert response.status_code == status.HTTP_200_OK
 
 
+async def test_version_route(client):
+    response = await client.get("/version")
+    assert response.json() == ORION_API_VERSION
+    assert response.status_code == status.HTTP_200_OK
+
+
 class TestCreateOrionAPI:
 
     BUILTIN_ROUTES = {
         "GET /redoc",
         "GET /health",
+        "GET /version",
         "HEAD /docs",
         "GET /openapi.json",
         "GET /docs/oauth2-redirect",
