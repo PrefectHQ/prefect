@@ -32,7 +32,7 @@ Designing workflows with Prefect starts with a few basic building blocks that yo
 
 Creating and running _orchestrated_ workflows takes advantage of some additional Prefect components. 
 
-- [Prefect API server](#prefect-orion-api-server) and orchestration engine receives state information from workflows and provides flow run instructions for executing deployments.
+- [Prefect API server](#prefect-api-server) and orchestration engine receives state information from workflows and provides flow run instructions for executing deployments.
 - [Prefect database](#prefect-database) provides a persistent metadata store that holds flow and task run history.
 - [Prefect UI](#prefect-ui-and-prefect-cloud) provides a control plane for monitoring, configuring, analyzing, and coordinating runs of your workflows.
 - [Storage](#storage-for-flow-and-task-data) for flow and task data lets you configure a persistent store for flow code and flow and task results.
@@ -165,7 +165,7 @@ See the Prefect [Database](/concepts/database/) documentation for further detail
 
 The [Prefect UI](/ui/overview/) comes prepackaged with the Prefect server API when you serve it. By default it can be found at `http://127.0.0.1:4200/`:
 
-![Prefect UI](../img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/prefect-dashboard.png)
 
 The Prefect UI enables you to track and manage your flows, runs, and deployments and additionally allows you to filter by names, tags, and other metadata to quickly find the information you are looking for.
 

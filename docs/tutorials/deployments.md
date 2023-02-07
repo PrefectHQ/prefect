@@ -538,7 +538,7 @@ With a work queue and agent in place, you can also create a flow run for `log_si
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect server instance.
 
-![The Deployments page displays a list of deployments created in Prefect](../img/tutorials/orion-deployments.png)
+![The Deployments page displays a list of deployments created in Prefect](../img/tutorials/deployments.png)
 
 Now select **log-flow/log-simple** to see details for the deployment you just created.
 

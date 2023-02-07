@@ -33,7 +33,7 @@ To run a deployed flow in a Docker container, you'll need the following:
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
 !!! note "Run a Prefect server"
-    This tutorial assumes you're already running a Prefect server with `prefect orion start`, as described in the [Deployments](/tutorials/deployments/#run-a-prefect-orion-server) tutorial. 
+    This tutorial assumes you're already running a Prefect server with `prefect orion start`, as described in the [Deployments](/tutorials/deployments/) tutorial. 
     
     If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect server with the `prefect orion start` CLI command.
 
