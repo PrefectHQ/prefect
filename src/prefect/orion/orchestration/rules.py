@@ -392,6 +392,12 @@ class TaskOrchestrationContext(OrchestrationContext):
         db: OrionDBInterface,
     ):
         if self.proposed_state is None:
+            # If the run has no state and needs to stay in the same state, there is
+            # nothing to do here
+            if self.run.state is None:
+                self.validated_state = None
+                return
+
             validated_orm_state = self.run.state
             state_data = None
         else:
@@ -414,12 +420,10 @@ class TaskOrchestrationContext(OrchestrationContext):
         self.run.set_state(validated_orm_state)
 
         await self.session.flush()
-        if validated_orm_state:
-            self.validated_state = states.State.from_orm_without_result(
-                validated_orm_state, with_data=state_data
-            )
-        else:
-            self.validated_state = None
+
+        self.validated_state = states.State.from_orm_without_result(
+            validated_orm_state, with_data=state_data
+        )
 
     def safe_copy(self):
         """
