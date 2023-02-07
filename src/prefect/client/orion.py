@@ -1678,6 +1678,13 @@ class OrionClient:
         )
         return pydantic.parse_obj_as(List[prefect.states.State], response.json())
 
+    async def set_task_run_name(self, task_run_id: UUID, name: str):
+        task_run_data = schemas.actions.TaskRunUpdate(name=name)
+        return await self._client.patch(
+            f"/task_runs/{task_run_id}",
+            json=task_run_data.dict(json_compatible=True, exclude_unset=True),
+        )
+
     async def create_task_run(
         self,
         task: "Task",

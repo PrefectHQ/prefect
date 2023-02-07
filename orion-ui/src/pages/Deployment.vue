@@ -72,10 +72,10 @@
 
   const computedTabs = computed(() => [
     { label: 'Details', hidden: media.xl },
-    { label: 'Description' },
     { label: 'Runs' },
     { label: 'Parameters', hidden: deployment.value?.deprecated },
     { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
+    { label: 'Description' },
   ])
   const tabs = useTabs(computedTabs)
 

@@ -13,7 +13,7 @@
         <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
       </template>
 
-      <template #queues>
+      <template #work-queues>
         <WorkPoolQueuesTable :work-pool-name="workPoolName" />
       </template>
     </p-tabs>
@@ -35,7 +35,7 @@
   const workPoolName = useRouteParam('workPoolName')
 
   const tabs = computed(() => {
-    const values = ['Runs', 'Queues']
+    const values = ['Runs', 'Work Queues']
 
     if (!media.xl) {
       values.unshift('Details')
