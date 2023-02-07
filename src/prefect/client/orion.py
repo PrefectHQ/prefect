@@ -678,6 +678,10 @@ class OrionClient:
 
         Args:
             tag: a tag the concurrency limit is applied to
+            slot_override: a list of task run IDs that are currently using a
+                concurrency slot, please check that any task run IDs included in
+                `slot_override` are currently running, otherwise those concurrency
+                slots will never be released.
 
         Raises:
             prefect.exceptions.ObjectNotFound: If request returns 404
