@@ -55,9 +55,12 @@ def generate_deprecation_message(
         parsed_start_date = pendulum.from_format(start_date, DEPRECATED_DATEFMT)
         parsed_end_date = parsed_start_date.add(months=6)
         end_date = parsed_end_date.format(DEPRECATED_DATEFMT)
+    else:
+        # Validate format
+        pendulum.from_format(end_date, DEPRECATED_DATEFMT)
 
     message = DEPRECATED_WARNING.format(name=name, end_date=end_date, help=help)
-    return message
+    return message.rstrip()
 
 
 def deprecated_callable(
