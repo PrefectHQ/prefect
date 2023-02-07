@@ -14,7 +14,6 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   deployment: () => import('@/pages/Deployment.vue'),
   deploymentEdit: () => import('@/pages/DeploymentEdit.vue'),
   deploymentFlowRunCreate: () => import('@/pages/FlowRunCreate.vue'),
-  customFlowRunCreate: () => import('@/pages/FlowRunCreate.vue'),
   workQueues: () => import('@/pages/WorkQueues.vue'),
   workQueue: () => import('@/pages/WorkQueue.vue'),
   workQueueCreate: () => import('@/pages/WorkQueueCreate.vue'),
