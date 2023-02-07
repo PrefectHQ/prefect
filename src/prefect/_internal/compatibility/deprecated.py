@@ -1,7 +1,7 @@
 """
 Utilities for deprecated items.
 
-When an deprecated item is used, a warning will be displayed. Warnings may not be
+When a deprecated item is used, a warning will be displayed. Warnings may not be
 disabled with Prefect settings. Instead, the standard Python warnings filters can be
 used.
 
