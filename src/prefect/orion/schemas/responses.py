@@ -242,3 +242,26 @@ class DeploymentResponse(ORMBaseModel):
                 response.work_pool_name = orm_deployment.work_queue.work_pool.name
 
         return response
+
+
+@copy_model_fields
+class WorkQueueResponse(ORMBaseModel):
+    name: str = FieldFrom(schemas.core.WorkQueue)
+    description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
+    is_paused: bool = FieldFrom(schemas.core.WorkQueue)
+    concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: int = FieldFrom(schemas.core.WorkQueue)
+    work_pool_id: UUID = FieldFrom(schemas.core.WorkQueue)
+    work_pool_name: str = Field(
+        default=...,
+        description="The name of the work queue's work pool.",
+    )
+    filter: Optional[schemas.core.QueueFilter] = FieldFrom(schemas.core.WorkQueue)
+    last_polled: Optional[DateTimeTZ] = FieldFrom(schemas.core.WorkQueue)
+
+    @classmethod
+    def from_orm(cls, orm_work_queue: "prefect.orion.database.orm_models.ORMWorkQueue"):
+        orm_work_queue.work_pool_name = orm_work_queue.work_pool.name
+
+        response = super().from_orm(orm_work_queue)
+        return response

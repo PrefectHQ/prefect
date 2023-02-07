@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from pydantic import parse_obj_as
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -76,7 +77,14 @@ async def create_work_queue(
     session.add(model)
     await session.flush()
 
-    return model
+    # Reread the queue to get the joined work pool
+    queue = await session.execute(
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.id == model.id)
+        .options(joinedload("work_pool"))
+    )
+
+    return queue.scalar()
 
 
 @inject_db
@@ -94,7 +102,12 @@ async def read_work_queue(
         db.WorkQueue: the WorkQueue
     """
 
-    return await session.get(db.WorkQueue, work_queue_id)
+    queue = await session.execute(
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.id == work_queue_id)
+        .options(joinedload(db.WorkQueue.work_pool))
+    )
+    return queue.scalar()
 
 
 @inject_db
@@ -116,8 +129,10 @@ async def read_work_queue_by_name(
     )
     # Logic to make sure this functionality doesn't break during migration
     if default_work_pool is not None:
-        query = select(db.WorkQueue).filter_by(
-            name=name, work_pool_id=default_work_pool.id
+        query = (
+            select(db.WorkQueue)
+            .filter_by(name=name, work_pool_id=default_work_pool.id)
+            .options(joinedload(db.WorkQueue.work_pool))
         )
     else:
         query = select(db.WorkQueue).filter_by(name=name)
@@ -145,8 +160,11 @@ async def read_work_queues(
         List[db.WorkQueue]: WorkQueues
     """
 
-    query = select(db.WorkQueue).order_by(db.WorkQueue.name)
-
+    query = (
+        select(db.WorkQueue)
+        .order_by(db.WorkQueue.name)
+        .options(joinedload(db.WorkQueue.work_pool))
+    )
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:

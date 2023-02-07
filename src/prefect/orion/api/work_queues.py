@@ -23,7 +23,7 @@ router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work queue.
 
@@ -68,7 +68,7 @@ async def update_work_queue(
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
     """
@@ -87,7 +87,7 @@ async def read_work_queue_by_name(
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
     """
@@ -175,7 +175,7 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     work_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
+) -> List[schemas.responses.WorkQueueResponse]:
     """
     Query for work queues.
     """

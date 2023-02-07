@@ -10,6 +10,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 import prefect.orion.schemas as schemas
 from prefect.orion.database.dependencies import inject_db
@@ -282,7 +283,12 @@ async def create_work_queue(
             new_priorities={model.id: work_queue.priority},
             db=db,
         )
-    return model
+    queue = await session.execute(
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.id == model.id)
+        .options(joinedload(db.WorkQueue.work_pool))
+    )
+    return queue.scalar()
 
 
 @inject_db
@@ -356,6 +362,7 @@ async def read_work_queues(
         sa.select(db.WorkQueue)
         .where(db.WorkQueue.work_pool_id == work_pool_id)
         .order_by(db.WorkQueue.priority.asc())
+        .options(joinedload(db.WorkQueue.work_pool))
     )
 
     if work_queue_filter is not None:
@@ -386,7 +393,12 @@ async def read_work_queue(
         db.WorkQueue: the WorkQueue
 
     """
-    return await session.get(db.WorkQueue, work_queue_id)
+    queue = await session.execute(
+        sa.select(db.WorkQueue)
+        .where(db.WorkQueue.id == work_queue_id)
+        .options(joinedload(db.WorkQueue.work_pool))
+    )
+    return queue.scalar()
 
 
 @inject_db
@@ -414,6 +426,7 @@ async def read_work_queue_by_name(
             db.WorkPool.name == work_pool_name,
             db.WorkQueue.name == work_queue_name,
         )
+        .options(joinedload(db.WorkQueue.work_pool))
         .limit(1)
     )
     result = await session.execute(query)

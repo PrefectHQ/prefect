@@ -362,7 +362,7 @@ async def create_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
@@ -398,7 +398,7 @@ async def read_work_queue(
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkQueue:
+) -> schemas.responses.WorkQueueResponse:
     """
     Read a work pool queue
     """
@@ -423,7 +423,7 @@ async def read_work_queues(
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkQueue]:
+) -> List[schemas.responses.WorkQueueResponse]:
     """
     Read all work pool queues
     """
