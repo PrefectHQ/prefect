@@ -93,6 +93,7 @@ class Setting(Generic[T]):
         deprecated_start_date: Optional[str] = None,
         deprecated_end_date: Optional[str] = None,
         deprecated_help: str = "",
+        deprecated_when_message: str = "",
         deprecated_when: Optional[Callable[[Any], bool]] = None,
         value_callback: Callable[["Settings", T], T] = None,
         is_secret: bool = False,
@@ -108,7 +109,19 @@ class Setting(Generic[T]):
         self.deprecated_end_date = deprecated_end_date
         self.deprecated_help = deprecated_help
         self.deprecated_when = deprecated_when or (lambda _: True)
+        self.deprecated_when_message = deprecated_when_message
         self.__doc__ = self.field.description
+
+        # Validate the deprecation settings, will throw an error at setting definition
+        # time if the developer has not configured it correctly
+        if deprecated:
+            generate_deprecation_message(
+                name=f"Setting {self.name!r}",
+                start_date=self.deprecated_start_date,
+                end_date=self.deprecated_end_date,
+                help=self.deprecated_help,
+                when=self.deprecated_when_message,
+            )
 
     def value(self, bypass_callback: bool = False) -> T:
         """
@@ -141,6 +154,7 @@ class Setting(Generic[T]):
                     start_date=self.deprecated_start_date,
                     end_date=self.deprecated_end_date,
                     help=self.deprecated_help,
+                    when=self.deprecated_when_message,
                 ),
                 PrefectDeprecationWarning,
                 stacklevel=2,

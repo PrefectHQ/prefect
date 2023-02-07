@@ -23,9 +23,7 @@ T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=pydantic.BaseModel)
 
 
-DEPRECATED_WARNING = (
-    "{name} has been deprecated. It will not be available after {end_date}. {help}"
-)
+DEPRECATED_WARNING = "{name} has been deprecated{when}. It will not be available after {end_date}. {help}"
 DEPRECATED_MOVED_WARNING = (
     "{name} has moved to {new_location}. It will not be available at the old import "
     "path after {end_date}. {help}"
@@ -44,6 +42,7 @@ def generate_deprecation_message(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     help: str = "",
+    when: str = "",
 ):
     if not start_date and not end_date:
         raise ValueError(
@@ -59,7 +58,12 @@ def generate_deprecation_message(
         # Validate format
         pendulum.from_format(end_date, DEPRECATED_DATEFMT)
 
-    message = DEPRECATED_WARNING.format(name=name, end_date=end_date, help=help)
+    if when:
+        when = " when " + when
+
+    message = DEPRECATED_WARNING.format(
+        name=name, when=when, end_date=end_date, help=help
+    )
     return message.rstrip()
 
 
@@ -96,6 +100,7 @@ def deprecated_parameter(
     stacklevel: int = 2,
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
+    when_message: str = "",
 ) -> Callable[[T], T]:
     """
     Mark a parameter in a callable as deprecated.
@@ -119,6 +124,7 @@ def deprecated_parameter(
             start_date=start_date,
             end_date=end_date,
             help=help,
+            when=when_message,
         )
 
         @functools.wraps(fn)
@@ -144,6 +150,7 @@ def deprecated_field(
     *,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    when_message: str = "",
     help: str = "",
     when: Optional[Callable[[Any], bool]] = None,
     stacklevel: int = 2,
@@ -173,6 +180,7 @@ def deprecated_field(
             start_date=start_date,
             end_date=end_date,
             help=help,
+            when=when_message,
         )
 
         cls_init = model_cls.__init__
