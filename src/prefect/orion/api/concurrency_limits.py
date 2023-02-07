@@ -110,7 +110,7 @@ async def read_concurrency_limits(
 @router.post("/reset/tag/{tag}")
 async def reset_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
-    slot_override: Optional[List[str]] = Body(
+    slot_override: Optional[List[UUID]] = Body(
         None,
         embed=True,
         description=("Manual override for active concurrency limit slots."),

@@ -94,7 +94,7 @@ async def reset_concurrency_limit_by_tag(
     session: sa.orm.Session,
     tag: str,
     db: OrionDBInterface,
-    slot_override: Optional[List[str]] = None,
+    slot_override: Optional[List[UUID]] = None,
 ):
     """
     Resets a concurrency limit by tag.
@@ -104,7 +104,7 @@ async def reset_concurrency_limit_by_tag(
     concurrency_limit = result.scalar()
     if concurrency_limit:
         if slot_override is not None:
-            concurrency_limit.active_slots = slot_override
+            concurrency_limit.active_slots = [str(slot) for slot in slot_override]
         else:
             concurrency_limit.active_slots = []
     return concurrency_limit

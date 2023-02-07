@@ -83,7 +83,7 @@ class TestResettingConcurrencyLimits:
         assert len(limit_before_reset.active_slots) == 50
 
         await models.concurrency_limits.reset_concurrency_limit_by_tag(
-            session, "this bad boy", slot_override=[str(uuid4()) for _ in range(42)]
+            session, "this bad boy", slot_override=[uuid4() for _ in range(42)]
         )
         limit_after_reset = (
             await models.concurrency_limits.read_concurrency_limit_by_tag(
