@@ -37,6 +37,7 @@ class TestRunAutoRegistration:
             "secret",
             "local-file-system",
             "process",
+            "webhook",
         }
 
         starting_block_types = await read_block_types(session)
