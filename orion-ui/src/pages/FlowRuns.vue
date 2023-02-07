@@ -30,7 +30,7 @@
             </div>
 
             <template v-if="media.md">
-              <SearchInput v-model="filter.flowRuns.nameLike" placeholder="Search by run name" label="Search by run name" />
+              <SearchInput v-model="flowRunNameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
             <FlowRunsSort v-model="filter.sort" />
           </div>
@@ -55,7 +55,7 @@
 <script lang="ts" setup>
   import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunsFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/orion-design'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -69,14 +69,11 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, isCustomFilter } = useFlowRunsFilterFromRoute()
-
-  const sort = computed({
-    get() {
-      return filter.sort!
-    },
-    set(value) {
-      filter.sort = value
+  const flowRunNameLike = ref<string>()
+  const flowRunNameLikeDebounced = useDebouncedRef(flowRunNameLike, 1200)
+  const { filter, isCustomFilter } = useFlowRunsFilterFromRoute({
+    flowRuns: {
+      nameLike: flowRunNameLikeDebounced,
     },
   })
 
