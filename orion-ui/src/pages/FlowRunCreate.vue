@@ -4,12 +4,12 @@
       <PageHeadingFlowRunCreate :deployment="deployment" />
     </template>
 
-    <FlowRunCreateForm :deployment="deployment" :parameters="parameters" @submit="createFlowRun" @cancel="goBack" />
+    <FlowRunCreateForm :deployment="deployment" :parameters="mappedParameters" @submit="createFlowRun" @cancel="goBack" />
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, mapper, SchemaValues } from '@prefecthq/orion-design'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, h } from 'vue'
@@ -22,6 +22,13 @@
   const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
   const parameters = useRouteQueryParam('parameters', JSONRouteParam, {})
+
+  const mappedParameters = computed(() => {
+    if (!deployment.value || !parameters.value) {
+      return {}
+    }
+    return mapper.map('SchemaValuesResponse', { schema: deployment.value.parameterOpenApiSchema, values: parameters.value as SchemaValues }, 'SchemaValues')
+  })
 
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
   const deployment = computed(() => deploymentSubscription.response)
