@@ -464,7 +464,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_set_task_run_state_returns_503_on_database_timeout(
+    async def test_set_task_run_state_returns_abort_on_database_timeout(
         self, session, task_run, client, db_dialect
     ):
         if db_dialect != "postgresql":
@@ -472,15 +472,26 @@ class TestSetTaskRunState:
                 f"Database backend {db_dialect!r} does not have query timeouts."
             )
 
+        # The flow run must be running to orchestrate the task
+        await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=task_run.flow_run_id,
+            state=states.Running(),
+            force=True,
+        )
+        session.expunge_all()
+
         # Set the statement timeout for postgres to 1ms to get a cancelled error
         await session.execute("set statement_timeout=1")
+        await session.flush()
 
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type="RUNNING")),
         )
-        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
         assert response.json() == "..."
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
 class TestTaskRunHistory:
