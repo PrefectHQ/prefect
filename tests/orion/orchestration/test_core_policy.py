@@ -2652,7 +2652,7 @@ class TestHandleCancellingScheduledFlows:
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.CANCELLING
 
-    async def test_accepts_cancelling_flow_run_awaiting_retry(
+    async def test_accepts_cancelling_flow_run_with_pid(
         self,
         session,
         initialize_orchestration,
@@ -2662,15 +2662,29 @@ class TestHandleCancellingScheduledFlows:
         """
         intended_transition = (states.StateType.SCHEDULED, states.StateType.CANCELLING)
 
+        # Make sure that the transition is rejected with the PID
         ctx = await initialize_orchestration(
             session,
             "flow",
             *intended_transition,
         )
 
-        async with HandleCancellingScheduledFlowRuns(
-            ctx, *(states.AwaitingRetry(), states.StateType.CANCELLING)
-        ) as ctx:
+        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
+        # Check that providing the run a PID will allow the transition to continue
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        ctx.run.infrastructure_pid = "my-pid-42"
+
+        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
