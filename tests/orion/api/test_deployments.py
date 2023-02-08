@@ -363,7 +363,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_queue_1,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -410,7 +409,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         default_queue = await models.workers.read_work_queue(
             session=session, work_queue_id=work_pool.default_queue_id
@@ -459,7 +457,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -537,7 +534,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
-        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -628,7 +624,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
-        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -665,7 +660,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -705,7 +699,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",

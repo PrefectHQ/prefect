@@ -10,7 +10,6 @@ import pytest
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
 from prefect import flow
-from prefect._internal.compatibility.experimental import ExperimentalFeature
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
@@ -657,31 +656,12 @@ class TestWorkQueue:
 
 
 class TestWorkPool:
-    def test_warns_when_work_pool_name_provided(self, patch_import, tmp_path):
-        with pytest.warns(
-            ExperimentalFeature, match="The field 'work_pool_name' is experimental."
-        ):
-            invoke_and_assert(
-                [
-                    "deployment",
-                    "build",
-                    "fake-path.py:fn",
-                    "-n",
-                    "TEST",
-                    "-p",
-                    "test-pool",
-                    "-o",
-                    str(tmp_path / "test.yaml"),
-                ],
-                expected_code=0,
-                temp_dir=tmp_path,
-            )
-
-            deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
-            assert deployment.work_pool_name == "test-pool"
-
     async def test_creates_work_queue_in_work_pool(
-        self, patch_import, tmp_path, work_pool, session, enable_work_pools
+        self,
+        patch_import,
+        tmp_path,
+        work_pool,
+        session,
     ):
         await run_sync_in_worker_thread(
             invoke_and_assert,
@@ -740,7 +720,9 @@ class TestAutoApply:
         )
 
     def test_auto_apply_work_pool_does_not_exist(
-        self, patch_import, tmp_path, enable_work_pools
+        self,
+        patch_import,
+        tmp_path,
     ):
         invoke_and_assert(
             [

@@ -1532,7 +1532,7 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
 
 
 class TestWorkPools:
-    async def test_read_work_pools(self, enable_work_pools, orion_client):
+    async def test_read_work_pools(self, orion_client):
         # default pool shows up when running the test class or individuals, but not when running
         # test as a module
         pools = await orion_client.read_work_pools()
@@ -1557,7 +1557,7 @@ class TestWorkPools:
             work_pool_2.id,
         }
 
-    async def test_delete_work_pool(self, enable_work_pools, orion_client, work_pool):
+    async def test_delete_work_pool(self, orion_client, work_pool):
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)

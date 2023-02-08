@@ -122,7 +122,9 @@ class TestOutputMessages:
         )
 
     def test_message_with_missing_nonexistent_work_pool(
-        self, patch_import, tmp_path, enable_work_pools
+        self,
+        patch_import,
+        tmp_path,
     ):
         Deployment.build_from_flow(
             flow=my_flow,

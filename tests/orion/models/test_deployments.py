@@ -954,7 +954,9 @@ class TestScheduledRuns:
 
 class TestUpdateDeployment:
     async def test_updating_deployment_creates_associated_work_queue(
-        self, session, deployment, enable_work_pools
+        self,
+        session,
+        deployment,
     ):
         wq = await models.work_queues.read_work_queue_by_name(
             session=session, name="new-work-queue-name"
@@ -976,7 +978,11 @@ class TestUpdateDeployment:
         assert wq is not None
 
     async def test_update_work_pool_deployment(
-        self, session, deployment, work_pool, work_queue_1, enable_work_pools
+        self,
+        session,
+        deployment,
+        work_pool,
+        work_queue_1,
     ):
         await models.deployments.update_deployment(
             session=session,
@@ -993,7 +999,11 @@ class TestUpdateDeployment:
         assert updated_deployment.work_queue_id == work_queue_1.id
 
     async def test_update_work_pool_deployment_with_only_pool(
-        self, session, deployment, work_pool, work_queue, enable_work_pools
+        self,
+        session,
+        deployment,
+        work_pool,
+        work_queue,
     ):
         default_queue = await models.workers.read_work_queue(
             session=session, work_queue_id=work_pool.default_queue_id
@@ -1012,7 +1022,10 @@ class TestUpdateDeployment:
         assert updated_deployment.work_queue_id == default_queue.id
 
     async def test_update_work_pool_can_create_work_queue(
-        self, session, deployment, work_pool, enable_work_pools
+        self,
+        session,
+        deployment,
+        work_pool,
     ):
         await models.deployments.update_deployment(
             session=session,

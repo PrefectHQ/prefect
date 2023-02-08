@@ -16,18 +16,10 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-
-
-def error_404_if_workers_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS:
-        raise HTTPException(status_code=404, detail="Work pools are not enabled")
-
 
 router = OrionRouter(
-    prefix="/experimental/work_pools",
+    prefix="/work_pools",
     tags=["Work Pools"],
-    dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
 
