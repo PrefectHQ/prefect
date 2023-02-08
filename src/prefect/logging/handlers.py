@@ -1,4 +1,5 @@
 import atexit
+import json
 import logging
 import queue
 import sys
@@ -6,7 +7,7 @@ import threading
 import time
 import traceback
 import warnings
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import anyio
 import pendulum
@@ -38,7 +39,7 @@ class OrionLogWorker:
     def __init__(self, profile_context: prefect.context.SettingsContext) -> None:
         self.profile_context = profile_context.copy()
 
-        self._queue: queue.Queue[dict] = queue.Queue()
+        self._queue: queue.Queue[Tuple[Dict[str, Any], int]] = queue.Queue()
 
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
@@ -135,9 +136,9 @@ class OrionLogWorker:
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
                 while self._pending_size < max_batch_size:
-                    log = self._queue.get_nowait()
+                    log, log_size = self._queue.get_nowait()
                     self._pending_logs.append(log)
-                    self._pending_size += sys.getsizeof(log)
+                    self._pending_size += log_size
 
             except queue.Empty:
                 done = True
@@ -193,12 +194,12 @@ class OrionLogWorker:
             f"    Pending log batch size: {self._pending_size}\n"
         )
 
-    def enqueue(self, log: LogCreate):
+    def enqueue(self, log: Dict[str, Any], log_size: int):
         if self._stopped:
             raise RuntimeError(
                 "Logs cannot be enqueued after the Orion log worker is stopped."
             )
-        self._queue.put(log)
+        self._queue.put((log, log_size))
 
     def flush(self, block: bool = False) -> None:
         with self._lock:
@@ -276,7 +277,8 @@ class OrionHandler(logging.Handler):
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
 
-            self.get_worker(profile).enqueue(self.prepare(record, profile.settings))
+            log, log_size = self.prepare(record, profile.settings)
+            self.get_worker(profile).enqueue(log, log_size)
         except Exception:
             self.handleError(record)
 
@@ -302,7 +304,7 @@ class OrionHandler(logging.Handler):
 
     def prepare(
         self, record: logging.LogRecord, settings: prefect.settings.Settings
-    ) -> LogCreate:
+    ) -> Tuple[Dict[str, Any], int]:
         """
         Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
 
@@ -351,14 +353,14 @@ class OrionHandler(logging.Handler):
             message=self.format(record),
         ).dict(json_compatible=True)
 
-        log_size = sys.getsizeof(log)
+        log_size = self.get_log_size(log)
         if log_size > PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
                 f"{PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value()}"
             )
 
-        return log
+        return (log, log_size)
 
     def close(self) -> None:
         """
@@ -369,6 +371,9 @@ class OrionHandler(logging.Handler):
             worker.flush()
 
         return super().close()
+
+    def get_log_size(self, log: Dict[str, Any]) -> int:
+        return len(json.dumps(log).encode())
 
 
 class PrefectConsoleHandler(logging.StreamHandler):
