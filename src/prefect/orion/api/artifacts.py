@@ -17,7 +17,7 @@ from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
 
 def error_404_if_artifacts_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS:
+    if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
         raise HTTPException(status_code=404, detail="Artifacts are not enabled")
 
 
