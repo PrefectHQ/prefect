@@ -8,7 +8,7 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
-# Add on-delete behavior to Artifact foreign key constraints
+# Remove Artifact foreign keys
 SQLite: `8d148e44e669`
 Postgres: `cfdfec5d7557`
 

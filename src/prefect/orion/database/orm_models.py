@@ -290,7 +290,6 @@ class ORMArtifact:
     def task_run_id(cls):
         return sa.Column(
             UUID(),
-            sa.ForeignKey("task_run.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
         )
@@ -299,7 +298,6 @@ class ORMArtifact:
     def flow_run_id(cls):
         return sa.Column(
             UUID(),
-            sa.ForeignKey("flow_run.id", ondelete="SET NULL"),
             nullable=True,
             index=True,
         )

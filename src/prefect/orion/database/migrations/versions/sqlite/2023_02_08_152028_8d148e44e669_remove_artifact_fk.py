@@ -1,4 +1,4 @@
-"""Fix ondelete behavior for Artifact foreign keys
+"""Remove Artifact foreign keys
 
 Revision ID: 8d148e44e669
 Revises: bfe42b7090d6
