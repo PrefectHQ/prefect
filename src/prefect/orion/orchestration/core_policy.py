@@ -815,7 +815,8 @@ class HandleCancellingStateTransitions(BaseOrchestrationRule):
 
 
 class HandleCancellingScheduledFlowRuns(BaseOrchestrationRule):
-    """Rejects transitions from Scheduled and Late to Cancelling and set the state to Cancelled.
+    """Rejects transitions from Scheduled to Cancelling, and sets the state to Cancelled, if
+    the flow run has no associated infrastructure process ID.
 
     The `Cancelling` state is used to clean up infrastructure. If there is not infrastructure
     to clean up, we can transition directly to `Cancelled`. Runs that are `AwaitingRetry` are
