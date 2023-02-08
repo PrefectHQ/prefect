@@ -94,7 +94,7 @@ class TestConcurrencyLimits:
         pre_reset = await client.get(f"/concurrency_limits/{cl_id}")
         assert len(pre_reset.json()["active_slots"]) == 50
 
-        reset_response = await client.post(f"/concurrency_limits/reset/tag/{tag}")
+        reset_response = await client.post(f"/concurrency_limits/tag/{tag}/reset")
         assert reset_response.status_code == status.HTTP_200_OK
 
         post_reset = await client.get(f"/concurrency_limits/{cl_id}")
