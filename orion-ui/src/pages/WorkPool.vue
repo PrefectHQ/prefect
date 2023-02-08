@@ -49,9 +49,8 @@
   }
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
-  const workPoolId = computed(() => workPool.value ? [workPool.value.id] : [])
 
-  const flowRunFilter = useRecentFlowRunFilter({ workPools: workPoolId.value })
+  const flowRunFilter = useRecentFlowRunFilter({ workPoolName: [workPoolName.value] })
 
   const title = computed(() => {
     if (!workPool.value) {
