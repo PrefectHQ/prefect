@@ -13,10 +13,7 @@ from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
 from prefect.orion.schemas.core import WorkPool
 from prefect.orion.schemas.states import StateDetails, StateType
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-)
+from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock, MagicMock
 
 
@@ -26,14 +23,6 @@ def auto_enable_workers(enable_workers):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_work_pools(enable_work_pools):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 @flow

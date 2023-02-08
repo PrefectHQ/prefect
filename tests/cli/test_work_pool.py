@@ -3,19 +3,8 @@ import pytest
 from prefect.exceptions import ObjectNotFound
 from prefect.orion.schemas.actions import WorkPoolUpdate
 from prefect.orion.schemas.core import WorkPool
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_work_pools(enable_work_pools):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-    # Import to register worker CLI
-    import prefect.experimental.cli.worker  # noqa
 
 
 class TestCreate:
