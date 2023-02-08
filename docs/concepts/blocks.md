@@ -23,64 +23,74 @@ Blocks can also be created by anyone and shared with the community. You'll find 
 
 | Collection | Block | Slug |
 | --- | --- | --- |
-| prefect | Docker Container | docker-container |
-| prefect | Kubernetes Cluster Config | kubernetes-cluster-config |
-| prefect | Kubernetes Job | kubernetes-job |
-| prefect | Process | process |
-| prefect-airbyte | Airbyte Connection | airbyte-connection |
-| prefect-airbyte | Airbyte Server | airbyte-server |
-| prefect-aws | AWS Credentials | aws-credentials |
-| prefect-aws | ECS Task | ecs-task |
-| prefect-aws | MinIO Credentials | minio-credentials |
-| prefect-aws | S3 Bucket | s3-bucket |
-| prefect-azure | Azure Blob Storage Credentials | azure-blob-storage-credentials |
-| prefect-azure | Azure Container Instance Credentials | azure-container-instance-credentials |
-| prefect-azure | Azure Container Instance Job | azure-container-instance-job |
-| prefect-azure | Azure Cosmos DB Credentials | azure-cosmos-db-credentials |
-| prefect-azure | AzureML Credentials | azureml-credentials |
-| prefect-bitbucket | BitBucket Credentials | bitbucket-credentials |
-| prefect-bitbucket | BitBucket Repository | bitbucket-repository |
-| prefect-census | Census Credentials | census-credentials |
-| prefect-census | Census Sync | census-sync |
-| <span class="no-wrap">prefect-databricks</span> | Databricks Credentials | databricks-credentials |
-| prefect-dbt | dbt CLI BigQuery Target Configs | dbt-cli-bigquery-target-configs |
-| prefect-dbt | dbt CLI Profile | dbt-cli-profile |
-| prefect-dbt | dbt Cloud Credentials | dbt-cloud-credentials |
-| prefect-dbt | dbt CLI Global Configs | dbt-cli-global-configs |
-| prefect-dbt | dbt CLI Postgres Target Configs | dbt-cli-postgres-target-configs |
-| prefect-dbt | dbt CLI Snowflake Target Configs | dbt-cli-snowflake-target-configs |
-| prefect-dbt | dbt CLI Target Configs | dbt-cli-target-configs |
-| prefect-docker | Docker Host | docker-host |
-| prefect-docker | Docker Registry Credentials | docker-registry-credentials |
-| prefect-email | Email Server Credentials | email-server-credentials |
-| prefect-firebolt | Firebolt Credentials | firebolt-credentials |
-| prefect-firebolt | Firebolt Database | firebolt-database |
-| prefect-gcp | BigQuery Warehouse | bigquery-warehouse |
-| prefect-gcp | GCP Cloud Run Job | cloud-run-job |
-| prefect-gcp | GCP Credentials | gcp-credentials |
-| prefect-gcp | GcpSecret | gcpsecret |
-| prefect-gcp | GCS Bucket | gcs-bucket |
-| prefect-gcp | Vertex AI Custom Training Job | vertex-ai-custom-training-job |
-| prefect-github | GitHub Credentials | github-credentials |
-| prefect-github | GitHub Repository | github-repository |
-| prefect-gitlab | GitLab Credentials | gitlab-credentials |
-| prefect-gitlab | GitLab Repository | gitlab-repository |
-| prefect-hex | Hex Credentials | hex-credentials |
-| prefect-hightouch | Hightouch Credentials | hightouch-credentials |
-| prefect-kubernetes | Kubernetes Credentials | kubernetes-credentials |
-| prefect-kubernetes | Kubernetes Job | k8s-job |
-| prefect-monday | Monday Credentials | monday-credentials |
-| prefect-monte-carlo | Monte Carlo Credentials | monte-carlo-credentials |
-| prefect-openai | OpenAI Completion Model | openai-completion-model |
-| prefect-openai | OpenAI Image Model | openai-image-model |
-| prefect-openai | OpenAI Credentials | openai-credentials |
-| prefect-slack | Slack Credentials | slack-credentials |
-| prefect-slack | Slack Incoming Webhook | slack-incoming-webhook |
-| prefect-snowflake | Snowflake Connector | snowflake-connector |
-| prefect-snowflake | Snowflake Credentials | snowflake-credentials |
-| prefect-sqlalchemy | Database Credentials | database-credentials |
-| prefect-sqlalchemy | SQLAlchemy Connector | sqlalchemy-connector |
-| prefect-twitter | Twitter Credentials | twitter-credentials |
+| [prefect](/api-ref/prefect/blocks/system/) | [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime) | `date-time` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer) | `docker-container` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) | `docker-registry` |
+| [prefect](/api-ref/prefect/blocks/system/) | [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON) | `json` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig) | `kubernetes-cluster-config` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob) | `kubernetes-job` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Microsoft Teams Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook) | `ms-teams-webhook` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Opsgenie Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook) | `opsgenie-webhook` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Pager Duty Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook) | `pager-duty-webhook` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Process](/concepts/infrastructure/#process) | `process` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret) | `secret` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook) | `slack-webhook` |
+| [prefect](/api-ref/prefect/blocks/system/) | [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String) | `string` |
+| [prefect](/api-ref/prefect/blocks/system/) | [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS) | `twilio-sms` |
+| [prefect-airbyte]() | [Airbyte Connection]() | `airbyte-connection` |
+| [prefect-airbyte]() | [Airbyte Server]() | `airbyte-server` |
+| [prefect-aws]() | [AWS Credentials]() | `aws-credentials` |
+| [prefect-aws]() | [ECS Task]() | `ecs-task` |
+| [prefect-aws]() | [MinIO Credentials]() | `minio-credentials` |
+| [prefect-aws]() | [S3 Bucket]() | `s3-bucket` |
+| [prefect-azure]() | [Azure Blob Storage Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureBlobStorageCredentials) | `azure-blob-storage-credentials` |
+| [prefect-azure]() | [Azure Container Instance Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) | `azure-container-instance-credentials` |
+| [prefect-azure]() | [Azure Container Instance Job](https://prefecthq.github.io/prefect-azure/container_instance/#prefect_azure.container_instance.AzureContainerInstanceJob) | `azure-container-instance-job` |
+| [prefect-azure]() | [Azure Cosmos DB Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials) | `azure-cosmos-db-credentials` |
+| [prefect-azure]() | [AzureML Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials) | `azureml-credentials` |
+| [prefect-bitbucket]() | [BitBucket Credentials]() | `bitbucket-credentials` |
+| [prefect-bitbucket]() | [BitBucket Repository]() | `bitbucket-repository` |
+| [prefect-census]() | [Census Credentials](https://prefecthq.github.io/prefect-census/credentials/) | `census-credentials` |
+| [prefect-census]() | [Census Sync](https://prefecthq.github.io/prefect-census/syncs/) | `census-sync` |
+| <span class="no-wrap">[prefect-databricks]()</span> | [Databricks Credentials]() | `databricks-credentials` |
+| [prefect-dbt]() | [dbt CLI BigQuery Target Configs]() | `dbt-cli-bigquery-target-configs` |
+| [prefect-dbt]() | [dbt CLI Global Configs]() | `dbt-cli-global-configs` |
+| [prefect-dbt]() | [dbt CLI Postgres Target Configs]() | `dbt-cli-postgres-target-configs` |
+| [prefect-dbt]() | [dbt CLI Profile]() | `dbt-cli-profile` |
+| [prefect-dbt]() | [dbt CLI Snowflake Target Configs]() | `dbt-cli-snowflake-target-configs` |
+| [prefect-dbt]() | [dbt CLI Target Configs]() | `dbt-cli-target-configs` |
+| [prefect-dbt]() | [dbt Cloud Credentials]() | `dbt-cloud-credentials` |
+| [prefect-docker]() | [Docker Host]() | `docker-host` |
+| [prefect-docker]() | [Docker Registry Credentials]() | `docker-registry-credentials` |
+| [prefect-email]() | [Email Server Credentials]() | `email-server-credentials` |
+| [prefect-firebolt]() | [Firebolt Credentials]() | `firebolt-credentials` |
+| [prefect-firebolt]() | [Firebolt Database]() | `firebolt-database` |
+| [prefect-gcp]() | [BigQuery Warehouse](https://prefecthq.github.io/prefect-gcp/bigquery/#prefect_gcp.bigquery.BigQueryWarehouse) | `bigquery-warehouse` |
+| [prefect-gcp]() | [GCP Cloud Run Job](https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob) | `cloud-run-job` |
+| [prefect-gcp]() | [GCP Credentials](https://prefecthq.github.io/prefect-gcp/credentials/#prefect_gcp.credentials.GcpCredentials) | `gcp-credentials` |
+| [prefect-gcp]() | [GcpSecret](https://prefecthq.github.io/prefect-gcp/secret_manager/#prefect_gcp.secret_manager.GcpSecret) | `gcpsecret` |
+| [prefect-gcp]() | [GCS Bucket](https://prefecthq.github.io/prefect-gcp/cloud_storage/#prefect_gcp.cloud_storage.GcsBucket) | `gcs-bucket` |
+| [prefect-gcp]() | [Vertex AI Custom Training Job](https://prefecthq.github.io/prefect-gcp/aiplatform/#prefect_gcp.aiplatform.VertexAICustomTrainingJob) | `vertex-ai-custom-training-job` |
+| [prefect-github]() | [GitHub Credentials]() | `github-credentials` |
+| [prefect-github]() | [GitHub Repository]() | `github-repository` |
+| [prefect-gitlab]() | [GitLab Credentials]() | `gitlab-credentials` |
+| [prefect-gitlab]() | [GitLab Repository]() | `gitlab-repository` |
+| [prefect-hex]() | [Hex Credentials]() | `hex-credentials` |
+| [prefect-hightouch]() | [Hightouch Credentials]() | `hightouch-credentials` |
+| [prefect-kubernetes]() | [Kubernetes Job]() | `k8s-job` |
+| [prefect-kubernetes]() | [Kubernetes Credentials]() | `kubernetes-credentials` |
+| [prefect-monday]() | [Monday Credentials]() | `monday-credentials` |
+| [prefect-monte-carlo]() | [Monte Carlo Credentials]() | `monte-carlo-credentials` |
+| [prefect-openai]() | [OpenAI Completion Model](https://prefecthq.github.io/prefect-openai/completion/#prefect_openai.completion.CompletionModel) | `openai-completion-model` |
+| [prefect-openai]() | [OpenAI Credentials](https://prefecthq.github.io/prefect-openai/credentials/#prefect_openai.credentials.OpenAICredentials) | `openai-credentials` |
+| [prefect-openai]() | [OpenAI Image Model]() | `openai-image-model` |
+| [prefect-slack]() | [Slack Credentials](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackCredentials) | `slack-credentials` |
+| [prefect-slack]() | [Slack Incoming Webhook](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackWebhook) | `slack-incoming-webhook` |
+| [prefect-snowflake]() | [Snowflake Connector]() | `snowflake-connector` |
+| [prefect-snowflake]() | [Snowflake Credentials]() | `snowflake-credentials` |
+| [prefect-sqlalchemy]() | [Database Credentials]() | `database-credentials` |
+| [prefect-sqlalchemy]() | [SQLAlchemy Connector]() | `sqlalchemy-connector` |
+| [prefect-twitter]() | [Twitter Credentials]() | `twitter-credentials` |
 
 ## Using existing block types
 
