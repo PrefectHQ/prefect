@@ -40,7 +40,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
-    assert response.json() == {
-        "api_url": PREFECT_ORION_UI_API_URL.value(),
-        "flags": ["test", "work_pools"],
-    }
+    json = response.json()
+    assert json["api_url"] == PREFECT_ORION_UI_API_URL.value()
+    assert set(json["flags"]) == {"test", "work_pools"}
