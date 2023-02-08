@@ -17,7 +17,70 @@ Blocks are useful for configuration that needs to be shared across flow runs and
 
 With blocks, you are able to securely store credentials for authenticating with services like AWS, GitHub, Slack, or any other system you'd like to orchestrate with Prefect. Blocks also expose methods that provide pre-built functionality for performing actions against an external system. Blocks can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
 
-Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog).
+## Blocks in Prefect Collections
+
+Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog/).
+
+| Collection | Block | Slug |
+| --- | --- | --- |
+| prefect | Docker Container | docker-container |
+| prefect | Kubernetes Cluster Config | kubernetes-cluster-config |
+| prefect | Kubernetes Job | kubernetes-job |
+| prefect | Process | process |
+| prefect-airbyte | Airbyte Connection | airbyte-connection |
+| prefect-airbyte | Airbyte Server | airbyte-server |
+| prefect-aws | AWS Credentials | aws-credentials |
+| prefect-aws | ECS Task | ecs-task |
+| prefect-aws | MinIO Credentials | minio-credentials |
+| prefect-aws | S3 Bucket | s3-bucket |
+| prefect-azure | Azure Blob Storage Credentials | azure-blob-storage-credentials |
+| prefect-azure | Azure Container Instance Credentials | azure-container-instance-credentials |
+| prefect-azure | Azure Container Instance Job | azure-container-instance-job |
+| prefect-azure | Azure Cosmos DB Credentials | azure-cosmos-db-credentials |
+| prefect-azure | AzureML Credentials | azureml-credentials |
+| prefect-bitbucket | BitBucket Credentials | bitbucket-credentials |
+| prefect-bitbucket | BitBucket Repository | bitbucket-repository |
+| prefect-census | Census Credentials | census-credentials |
+| prefect-census | Census Sync | census-sync |
+| <span class="no-wrap">prefect-databricks</span> | Databricks Credentials | databricks-credentials |
+| prefect-dbt | dbt CLI BigQuery Target Configs | dbt-cli-bigquery-target-configs |
+| prefect-dbt | dbt CLI Profile | dbt-cli-profile |
+| prefect-dbt | dbt Cloud Credentials | dbt-cloud-credentials |
+| prefect-dbt | dbt CLI Global Configs | dbt-cli-global-configs |
+| prefect-dbt | dbt CLI Postgres Target Configs | dbt-cli-postgres-target-configs |
+| prefect-dbt | dbt CLI Snowflake Target Configs | dbt-cli-snowflake-target-configs |
+| prefect-dbt | dbt CLI Target Configs | dbt-cli-target-configs |
+| prefect-docker | Docker Host | docker-host |
+| prefect-docker | Docker Registry Credentials | docker-registry-credentials |
+| prefect-email | Email Server Credentials | email-server-credentials |
+| prefect-firebolt | Firebolt Credentials | firebolt-credentials |
+| prefect-firebolt | Firebolt Database | firebolt-database |
+| prefect-gcp | BigQuery Warehouse | bigquery-warehouse |
+| prefect-gcp | GCP Cloud Run Job | cloud-run-job |
+| prefect-gcp | GCP Credentials | gcp-credentials |
+| prefect-gcp | GcpSecret | gcpsecret |
+| prefect-gcp | GCS Bucket | gcs-bucket |
+| prefect-gcp | Vertex AI Custom Training Job | vertex-ai-custom-training-job |
+| prefect-github | GitHub Credentials | github-credentials |
+| prefect-github | GitHub Repository | github-repository |
+| prefect-gitlab | GitLab Credentials | gitlab-credentials |
+| prefect-gitlab | GitLab Repository | gitlab-repository |
+| prefect-hex | Hex Credentials | hex-credentials |
+| prefect-hightouch | Hightouch Credentials | hightouch-credentials |
+| prefect-kubernetes | Kubernetes Credentials | kubernetes-credentials |
+| prefect-kubernetes | Kubernetes Job | k8s-job |
+| prefect-monday | Monday Credentials | monday-credentials |
+| prefect-monte-carlo | Monte Carlo Credentials | monte-carlo-credentials |
+| prefect-openai | OpenAI Completion Model | openai-completion-model |
+| prefect-openai | OpenAI Image Model | openai-image-model |
+| prefect-openai | OpenAI Credentials | openai-credentials |
+| prefect-slack | Slack Credentials | slack-credentials |
+| prefect-slack | Slack Incoming Webhook | slack-incoming-webhook |
+| prefect-snowflake | Snowflake Connector | snowflake-connector |
+| prefect-snowflake | Snowflake Credentials | snowflake-credentials |
+| prefect-sqlalchemy | Database Credentials | database-credentials |
+| prefect-sqlalchemy | SQLAlchemy Connector | sqlalchemy-connector |
+| prefect-twitter | Twitter Credentials | twitter-credentials |
 
 ## Using existing block types
 
