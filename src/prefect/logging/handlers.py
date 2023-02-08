@@ -7,7 +7,7 @@ import threading
 import time
 import traceback
 import warnings
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import anyio
 import pendulum
@@ -39,7 +39,7 @@ class OrionLogWorker:
     def __init__(self, profile_context: prefect.context.SettingsContext) -> None:
         self.profile_context = profile_context.copy()
 
-        self._queue: queue.Queue[tuple[dict[str, Any], int]] = queue.Queue()
+        self._queue: queue.Queue[Tuple[Dict[str, Any], int]] = queue.Queue()
 
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
@@ -194,7 +194,7 @@ class OrionLogWorker:
             f"    Pending log batch size: {self._pending_size}\n"
         )
 
-    def enqueue(self, log: dict[str, Any], log_size: int):
+    def enqueue(self, log: Dict[str, Any], log_size: int):
         if self._stopped:
             raise RuntimeError(
                 "Logs cannot be enqueued after the Orion log worker is stopped."
@@ -304,7 +304,7 @@ class OrionHandler(logging.Handler):
 
     def prepare(
         self, record: logging.LogRecord, settings: prefect.settings.Settings
-    ) -> tuple[dict[str, Any], int]:
+    ) -> Tuple[Dict[str, Any], int]:
         """
         Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
 
@@ -372,7 +372,7 @@ class OrionHandler(logging.Handler):
 
         return super().close()
 
-    def get_log_size(self, log: dict[str, Any]) -> int:
+    def get_log_size(self, log: Dict[str, Any]) -> int:
         return len(json.dumps(log))
 
 
