@@ -289,13 +289,19 @@ class ORMArtifact:
     @declared_attr
     def task_run_id(cls):
         return sa.Column(
-            UUID(), sa.ForeignKey("task_run.id"), nullable=True, index=True
+            UUID(),
+            sa.ForeignKey("task_run.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
         )
 
     @declared_attr
     def flow_run_id(cls):
         return sa.Column(
-            UUID(), sa.ForeignKey("flow_run.id"), nullable=True, index=True
+            UUID(),
+            sa.ForeignKey("flow_run.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
         )
 
     type = sa.Column(sa.String)
