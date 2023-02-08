@@ -18,7 +18,6 @@ from prefect.experimental.workers.base import (
 from prefect.flows import flow
 from prefect.orion import models
 from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
@@ -44,14 +43,6 @@ def auto_enable_workers(enable_workers):
     Enable workers for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_work_pools(enable_work_pools):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
 
 
 @pytest.fixture(autouse=True)
@@ -437,7 +428,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+        "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
     result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
@@ -491,7 +482,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+        "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
     result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
