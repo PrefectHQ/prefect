@@ -1,7 +1,6 @@
 ---
 description: Create and manage work queues from the Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - deployments
     - flow runs
@@ -29,7 +28,7 @@ You can also pause a work queue from this page by using the toggle.
 
 Select the **+** button to create a new work queue. You'll be able to specify the details for work served by this queue.
 
-![Creating a new work queue in the Orion UI](../img/ui/work-queue-create.png)
+![Creating a new work queue in the Prefect UI](../img/ui/work-queue-create.png)
 
 !!! note "Work queue settings are filters"
     Note that work queue settings are filters and restrict the work queue to servicing flow runs only for deployments that meet the filtering criteria. For example, if you do not specify any tags, the work queue will serve any flow runs. However, if you added a "test" tag to the **Tags** list, the work queue would serve _only_ flow runs configured with a "test" tag.

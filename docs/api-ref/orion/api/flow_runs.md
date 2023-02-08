@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API routes for interacting with flow run objects.
+description: Prefect API routes for interacting with flow run objects.
 tags:
-    - Orion API
+    - Prefect API
     - flow runs
 ---
 

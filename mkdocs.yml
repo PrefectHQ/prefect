@@ -111,7 +111,7 @@ nav:
                 - tutorials/first-steps.md
                 - tutorials/flow-task-config.md
                 - tutorials/execution.md
-                - tutorials/orion.md
+                - tutorials/orchestration.md
                 - tutorials/deployments.md
                 - tutorials/storage.md
                 - tutorials/docker.md
@@ -218,7 +218,7 @@ nav:
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
-        - Orion Python API:
+        - Prefect Server API:
             - 'API':
                 - 'orion.api.admin': api-ref/orion/api/admin.md
                 - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
@@ -262,7 +262,7 @@ nav:
                 - 'orion.utilities.server': api-ref/orion/utilities/server.md
         - Prefect REST API: 
             - Prefect REST API Overview: api-ref/rest-api.md
-            - Prefect Orion REST API Reference: api-ref/rest-api-reference.md
+            - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Contributing:
         - Overview: contributing/overview.md
         - Style: contributing/style.md

@@ -23,9 +23,9 @@ This section describes some commonly configured settings for Prefect installatio
 
 ### PREFECT_API_URL
 
-The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or Prefect Orion API server instance.
+The `PREFECT_API_URL` value specifies the API endpoint of your Prefect Cloud workspace or Prefect server instance.
 
-For example, using a local Prefect Orion API server instance.
+For example, using a local Prefect server instance.
 ```bash
 PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
@@ -39,11 +39,11 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 !!! tip "`PREFECT_API_URL` setting for agents"
     When using [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your agent is running. 
 
-    If you want the agent to communicate with Prefect Cloud or a Prefect Orion API server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+    If you want the agent to communicate with Prefect Cloud or a Prefect server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 
-!!! tip "Running Prefect Orion UI behind a reverse proxy"
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect Orion UI instance, the Prefect Orion server also needs to be configured to know how to connect to the API. The  [`PREFECT_ORION_UI_API_URL`](prefect/settings/#prefect.settings.PREFECT_ORION_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-orion.example.com/ then set `PREFECT_ORION_UI_API_URL=https://prefect-orion.example.com/api` for the Prefect Orion server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_ORION_UI_API_URL` is not set.
+!!! tip "Running the Prefect UI behind a reverse proxy"
+    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_ORION_UI_API_URL`](prefect/settings/#prefect.settings.PREFECT_ORION_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-orion.example.com/ then set `PREFECT_ORION_UI_API_URL=https://prefect-orion.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_ORION_UI_API_URL` is not set.
 
 
 ### PREFECT_API_KEY
@@ -135,10 +135,10 @@ PREFECT_API_URL='None' (from defaults)
 
 The `prefect config set` command lets you change the value of a default setting.
 
-A commonly used example is setting the `PREFECT_API_URL`, which you may need to change when interacting with different Prefect Orion API server instances or Prefect Cloud.
+A commonly used example is setting the `PREFECT_API_URL`, which you may need to change when interacting with different Prefect server instances or Prefect Cloud.
 
 ```bash
-# use a local Orion API server
+# use a local Prefect server
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 
 # use Prefect Cloud
