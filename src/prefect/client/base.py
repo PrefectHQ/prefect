@@ -246,10 +246,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
             ),
         )
 
+        # Convert to a Prefect response to add nicer errors messages
+        response = PrefectResponse.from_httpx_response(response)
+
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
         #       `OrionClient`
-
         response.raise_for_status()
 
         return response
