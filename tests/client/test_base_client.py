@@ -5,7 +5,8 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient, Request, Response
 
-from prefect.client.base import PrefectHttpxClient
+from prefect.client.base import PrefectHttpxClient, PrefectResponse
+from prefect.exceptions import PrefectHTTPStatusError
 from prefect.testing.utilities import AsyncMock
 
 RESPONSE_429_RETRY_AFTER_0 = Response(
@@ -18,6 +19,7 @@ RESPONSE_429_RETRY_AFTER_MISSING = Response(
     status.HTTP_429_TOO_MANY_REQUESTS,
     request=Request("a test request", "fake.url/fake/route"),
 )
+
 
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
@@ -258,3 +260,39 @@ class TestPrefectHttpxClient:
             await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
 
         mock_anyio_sleep.assert_not_called()
+
+    async def test_prefect_httpx_client_returns_prefect_response(self, monkeypatch):
+        """Test that the PrefectHttpxClient returns a PrefectResponse"""
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.return_value = RESPONSE_200
+
+        response = await client.post(
+            url="fake.url/fake/route", data={"evenmorefake": "data"}
+        )
+        assert isinstance(response, PrefectResponse)
+
+    #
+    async def test_prefect_httpx_client_raises_prefect_http_status_error(
+        self, monkeypatch
+    ):
+
+        RESPONSE_400 = Response(
+            status.HTTP_400_BAD_REQUEST,
+            json={"extra_info": [{"message": "a test error message"}]},
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+
+        client = PrefectHttpxClient()
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.return_value = RESPONSE_400
+        with pytest.raises(PrefectHTTPStatusError) as exc:
+            await client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
+            assert (
+                "Response: {'extra_info': [{'message': 'a test error message'}]}"
+                in str(exc)
+            )
