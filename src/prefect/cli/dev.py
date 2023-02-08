@@ -230,15 +230,15 @@ async def api(
 
     async with anyio.create_task_group() as tg:
         try:
-            orion_pid = await tg.start(start_command)
+            server_pid = await tg.start(start_command)
             async for _ in watchfiles.awatch(
                 prefect.__module_path__, stop_event=stop_event  # type: ignore
             ):
                 # when any watched files change, restart the server
-                app.console.print("Restarting Orion server...")
-                os.kill(orion_pid, signal.SIGTERM)  # type: ignore
+                app.console.print("Restarting Prefect Server...")
+                os.kill(server_pid, signal.SIGTERM)  # type: ignore
                 # start a new server
-                orion_pid = await tg.start(start_command)
+                server_pid = await tg.start(start_command)
         except RuntimeError as err:
             # a bug in watchfiles causes an 'Already borrowed' error from Rust when
             # exiting: https://github.com/samuelcolvin/watchfiles/issues/200
@@ -248,7 +248,7 @@ async def api(
             # exit cleanly on ctrl-c by killing the server process if it's
             # still running
             try:
-                os.kill(orion_pid, signal.SIGTERM)  # type: ignore
+                os.kill(server_pid, signal.SIGTERM)  # type: ignore
             except ProcessLookupError:
                 # process already exited
                 pass
