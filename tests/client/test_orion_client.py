@@ -732,6 +732,26 @@ async def test_read_nonexistent_concurrency_limit_by_tag(orion_client):
         await orion_client.read_concurrency_limit_by_tag("not-a-real-tag")
 
 
+async def test_resetting_concurrency_limits(orion_client):
+    cl = await orion_client.create_concurrency_limit(
+        tag="an-unimportant-limit", concurrency_limit=100
+    )
+
+    await orion_client.reset_concurrency_limit_by_tag(
+        "an-unimportant-limit", slot_override=[uuid4(), uuid4(), uuid4()]
+    )
+    first_lookup = await orion_client.read_concurrency_limit_by_tag(
+        "an-unimportant-limit"
+    )
+    assert len(first_lookup.active_slots) == 3
+
+    await orion_client.reset_concurrency_limit_by_tag("an-unimportant-limit")
+    reset_lookup = await orion_client.read_concurrency_limit_by_tag(
+        "an-unimportant-limit"
+    )
+    assert len(reset_lookup.active_slots) == 0
+
+
 async def test_deleting_concurrency_limits(orion_client):
     cl = await orion_client.create_concurrency_limit(
         tag="dead-limit-walking", concurrency_limit=10
