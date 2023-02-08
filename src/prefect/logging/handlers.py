@@ -373,7 +373,7 @@ class OrionHandler(logging.Handler):
         return super().close()
 
     def get_log_size(self, log: Dict[str, Any]) -> int:
-        return len(json.dumps(log))
+        return len(json.dumps(log).encode())
 
 
 class PrefectConsoleHandler(logging.StreamHandler):
