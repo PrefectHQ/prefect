@@ -32,6 +32,7 @@ from prefect.settings import (
     SETTING_VARIABLES,
     Profile,
     ProfilesCollection,
+    Setting,
     Settings,
     get_current_settings,
     load_profile,
@@ -67,6 +68,53 @@ class TestSettingClass:
 
     def test_setting_hash_is_consistent_after_deepcopy(self):
         assert hash(PREFECT_TEST_SETTING) == hash(copy.deepcopy(PREFECT_TEST_SETTING))
+
+    def test_deprecated_setting(self, monkeypatch):
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_help", "test help")
+
+        with pytest.warns(
+            DeprecationWarning,
+            match="Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be available after Jul 2023. test help",
+        ):
+            PREFECT_TEST_SETTING.value()
+
+    def test_deprecated_setting_without_start_date_fails_at_init(self):
+        with pytest.raises(
+            ValueError, match="A start date is required if an end date is not provided."
+        ):
+            Setting(bool, deprecated=True)
+
+    def test_deprecated_setting_when(self, monkeypatch):
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
+        monkeypatch.setattr(
+            PREFECT_TEST_SETTING, "deprecated_when", lambda x: x == "foo"
+        )
+        monkeypatch.setattr(
+            PREFECT_TEST_SETTING, "deprecated_when_message", "the value is foo"
+        )
+
+        # Does not warn
+        PREFECT_TEST_SETTING.value()
+
+        with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
+            with pytest.warns(
+                DeprecationWarning,
+                match="Setting 'PREFECT_TEST_SETTING' has been deprecated when the value is foo. It will not be available after Jul 2023.",
+            ):
+                PREFECT_TEST_SETTING.value()
+
+    def test_deprecated_setting_does_not_raise_when_callbacks_bypassed(
+        self, monkeypatch
+    ):
+        # i.e. for internal access to a deprecated setting
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated", True)
+        monkeypatch.setattr(PREFECT_TEST_SETTING, "deprecated_start_date", "Jan 2023")
+
+        # Does not warn
+        PREFECT_TEST_SETTING.value(bypass_callback=True)
 
 
 class TestSettingsClass:
@@ -366,7 +414,11 @@ class TestSettingAccess:
     def test_prefect_cloud_url_deprecated_on_access(self):
         with pytest.raises(
             DeprecationWarning,
-            match="`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
+            match=(
+                "Setting 'PREFECT_CLOUD_URL' has been deprecated. "
+                "It will not be available after Jun 2023. "
+                "Use `PREFECT_CLOUD_API_URL` instead."
+            ),
         ):
             PREFECT_CLOUD_URL.value()
 
