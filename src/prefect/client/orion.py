@@ -668,6 +668,40 @@ class OrionClient:
             List[schemas.core.ConcurrencyLimit], response.json()
         )
 
+    async def reset_concurrency_limit_by_tag(
+        self,
+        tag: str,
+        slot_override: Optional[List[Union[UUID, str]]] = None,
+    ):
+        """
+        Resets the concurrency limit slots set on a specific tag.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+            slot_override: a list of task run IDs that are currently using a
+                concurrency slot, please check that any task run IDs included in
+                `slot_override` are currently running, otherwise those concurrency
+                slots will never be released.
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        """
+        if slot_override is not None:
+            slot_override = [str(slot) for slot in slot_override]
+
+        try:
+            await self._client.post(
+                f"/concurrency_limits/tag/{tag}/reset",
+                json=dict(slot_override=slot_override),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def delete_concurrency_limit_by_tag(
         self,
         tag: str,

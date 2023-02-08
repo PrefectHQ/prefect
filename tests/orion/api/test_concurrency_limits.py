@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import status
 
 from prefect.orion import schemas
@@ -72,3 +74,28 @@ class TestConcurrencyLimits:
         assert str(concurrency_limit.id) == cl_id
         assert concurrency_limit.concurrency_limit == 4242
         assert concurrency_limit.active_slots == []
+
+    async def test_resetting_concurrency_limits_by_tag(self, session, client):
+        tag = "that's some tag"
+        data = ConcurrencyLimitCreate(
+            tag=tag,
+            concurrency_limit=4242,
+        ).dict(json_compatible=True)
+
+        create_response = await client.post("/concurrency_limits/", json=data)
+        cl_id = create_response.json()["id"]
+
+        override_response = await client.post(
+            f"/concurrency_limits/tag/{tag}/reset",
+            json=dict(slot_override=[str(uuid4()) for _ in range(50)]),
+        )
+        assert override_response.status_code == status.HTTP_200_OK
+
+        pre_reset = await client.get(f"/concurrency_limits/{cl_id}")
+        assert len(pre_reset.json()["active_slots"]) == 50
+
+        reset_response = await client.post(f"/concurrency_limits/tag/{tag}/reset")
+        assert reset_response.status_code == status.HTTP_200_OK
+
+        post_reset = await client.get(f"/concurrency_limits/{cl_id}")
+        assert len(post_reset.json()["active_slots"]) == 0
