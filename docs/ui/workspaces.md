@@ -36,7 +36,7 @@ Your list of available workspaces may include:
     - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
     - [Flows](/concepts/flows/) associated with flow runs or deployments observed by the Prefect Cloud API
     - [Deployments](/concepts/deployments/)
-    - [Work queues](/concepts/work-queues/)
+    - [Work pools](/concepts/work-pools/)
     - [Blocks](/ui/blocks/) and [Storage](/concepts/storage/)
     - [Notifications](/ui/notifications/)
 
@@ -63,7 +63,7 @@ Within a workspace, select **Workspace Settings** to view or edit workspace deta
 The options menu enables you to edit workspace details or delete the workspace.
 
 !!! warning "Deleting a workspace"
-    Deleting a workspace deletes all deployments, flow run history, work queues, and notifications configured in workspace.
+    Deleting a workspace deletes all deployments, flow run history, work pools, and notifications configured in workspace.
 
 ## Workspace collaborators
 
@@ -101,7 +101,7 @@ To delete a workspace collaborator or service account, select **Remove** from th
 
 Workspace transfer enables you to move an existing workspace from one account to another. For example, you may transfer a workspace from a personal account to an organization.
 
-Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work queues, and logs. 
+Workspace transfer retains existing workspace configuration and flow run history, including blocks, deployments, notifications, work pools, and logs. 
 
 !!! note "Workspace transfer permissions"
     Workspace transfer must be initiated or approved by a user with admin priviliges for the workspace to be transferred.

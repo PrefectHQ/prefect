@@ -66,7 +66,7 @@ graph LR
 
 When creating a deployment, a user must answer *two* basic questions:
 
-- What instructions does an [agent](/concepts/work-queues/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+- What instructions does an [agent](/concepts/work-pools/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
 A deployment additionally enables you to:
@@ -241,6 +241,7 @@ description: null
 version: c0fc95308d8137c50d2da51af138aa23
 # The work queue that will handle this deployment's runs
 work_queue_name: test
+work_pool_name: null
 tags: []
 parameters: {}
 schedule: null
@@ -349,12 +350,12 @@ When you run a deployed flow with Prefect Orion, the following happens:
 - An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
-[Agents and work queues](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
+[Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
     Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`.
 
-    Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
+    Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
 ## Create a deployment from a Python object
 
@@ -522,7 +523,7 @@ if __name__ == "__main__":
 ``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
+    You'll need to configure [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 

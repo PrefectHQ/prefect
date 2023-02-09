@@ -127,8 +127,8 @@ Flows may end up in states other than Completed. This is where Prefect really he
 
 - Check the logs for the flow run for errors.
 - Check the task runs to see where the error occurred.
-- Check [work queues](/ui/work-queues/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
-- Make sure an [agent](/concepts/work-queues/) is running in your execution environment and is configured to pull work from an appropriate work queue.
+- Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
+- Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
 
 If you need to delete a flow or flow run: 
 

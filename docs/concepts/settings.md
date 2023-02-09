@@ -37,7 +37,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 ```
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    When using [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your agent is running. 
+    When using [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments,  [`PREFECT_API_URL`](/concepts/settings/) must be set for the environment in which your agent is running. 
 
     If you want the agent to communicate with Prefect Cloud or a Prefect Orion API server instance from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 

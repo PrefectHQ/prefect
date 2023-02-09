@@ -22,7 +22,7 @@ In Prefect, [blocks](/concepts/blocks/) are a primitive that enable you to speci
 
 [Storage](/concepts/storage/) blocks contain configuration for interacting with file storage such as a remote filesystem, AWS S3, and so on.
 
-[Infrastructure](/concepts/infrastructure/) blocks contain settings that [agents](/concepts/work-queues/) use to stand up execution infrastructure for a flow run.
+[Infrastructure](/concepts/infrastructure/) blocks contain settings that [agents](/concepts/work-pools/) use to stand up execution infrastructure for a flow run.
 
 ## Prerequisites
 
@@ -111,7 +111,7 @@ To demonstrate using a storage block, we'll create a new variation of the deploy
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
+$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -p test -o log-flow-s3-deployment.yaml
 Found flow 'log-flow'
 Successfully uploaded 3 files to s3://bucket-full-of-sunshine/flows/log-test
 Deployment YAML created at
@@ -127,7 +127,7 @@ What did we do here? Let's break down the command:
 -  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n log-flow-s3` specifies a name for the deployment. For ease of identification, the name includes a reference to the S3 storage.
 - `-sb s3/log-test` specifies a storage block by type and name.
-- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-q test` specifies a work pool for the deployment. Work pools direct scheduled runs to agents.
 - `-o log-flow-s3-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
 In deployments, storage blocks are always referenced by name in the format `type/name`, with `type` and `name` separated by a forward slash. 
@@ -147,7 +147,7 @@ Deployment 'log-flow/log-flow-s3' successfully created with id
 '73b0288e-d5bb-4b37-847c-fa68fda39c81'.
 
 To execute flow runs from this deployment, start an agent that pulls work from the 'test'
-work queue:
+work pool:
 $ prefect agent start -q 'test'
 ```
 </div>
@@ -156,7 +156,7 @@ When you create flow runs from this deployment, the agent pulls the flow script 
 
 ## Infrastructure
 
-Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-queues/) use to create an execution environment for a flow run.
+Similar to storage blocks, infrastructure [blocks](/concepts/blocks/) contain configuration for interacting with external systems. Specifically, infrastructure includes settings that [agents](/concepts/work-pools/) use to create an execution environment for a flow run.
 
 Infrastructure includes configuration for environments such as:
 
