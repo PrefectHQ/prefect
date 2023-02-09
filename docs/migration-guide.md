@@ -25,15 +25,15 @@ Prefect 2 still:
 Prefect 2 requires modifications to your existing tasks, flows, and deployment patterns. We've organized this section into the following categories:
 
 
-- **Simplified patterns** &mdash; abstractions from Prefect 1 that are no longer necessary in the dynamic, DAG-free Prefect Orion workflows that support running native Python code in your flows.
+- **Simplified patterns** &mdash; abstractions from Prefect 1 that are no longer necessary in the dynamic, DAG-free Prefect workflows that support running native Python code in your flows.
 - **Conceptual and syntax changes** that often clarify names and simplify familiar abstractions such as retries and caching.
-- **New features** enabled by the dynamic and flexible Prefect Orion API.
+- **New features** enabled by the dynamic and flexible Prefect API.
 
 ### Simplified patterns
 
 Since Prefect 2 allows running native Python code within the flow function, some abstractions are no longer necessary:
 
-- `Parameter` tasks: in Prefect 2, inputs to your flow function are automatically treated as [parameters](../concepts/flows/#parameters) of your flow. You can define the parameter values in your flow code when you create your `Deployment`, or when you schedule an ad-hoc flow run. One benefit of Prefect Orion’s parametrization is built-in type validation with [pydantic](https://pydantic-docs.helpmanual.io/).
+- `Parameter` tasks: in Prefect 2, inputs to your flow function are automatically treated as [parameters](../concepts/flows/#parameters) of your flow. You can define the parameter values in your flow code when you create your `Deployment`, or when you schedule an ad-hoc flow run. One benefit of Prefect parametrization is built-in type validation with [pydantic](https://pydantic-docs.helpmanual.io/).
 - Task-level `state_handlers`: in Prefect 2, you can build custom logic that reacts to task-run states within your flow function without the need for `state_handlers`. [The page "
   How to take action on a state change of a task run"](https://discourse.prefect.io/t/how-to-take-action-on-a-state-change-of-a-task-run-task-level-state-handler/82) provides a further explanation and code examples.
 - Instead of using `signals`, Prefect 2 allows you to raise an arbitrary exception in your task or flow and return a custom state. For more details and examples, see [How can I stop the task run based on a custom logic](https://discourse.prefect.io/t/how-can-i-end-the-task-run-based-on-a-custom-logic/83).
@@ -61,7 +61,7 @@ Let’s look at the differences in how Prefect 2 transitions your flow and task 
 
 - In Prefect 2, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1, this flow run has a `Success` state. You can find more about that topic [here](https://discourse.prefect.io/t/what-is-the-final-state-of-a-successful-flow-run/59).
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run. This [link](https://discourse.prefect.io/t/how-can-i-control-the-final-state-of-a-flow-run/56) provides a more detailed explanation with code examples.
-- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect Orion server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-pools/#work-queue-concurrency) are set on work pools.
+- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-pools/#work-queue-concurrency) are set on work pools.
 
 
 ### What changed in flow deployment patterns?
@@ -106,7 +106,7 @@ Every time you run a flow, whether it is tracked by the API server or ad-hoc thr
 With Prefect 2, your functions *are* your flows and tasks. Prefect 2 automatically detects your flows and tasks without the need to define a rigid DAG structure. While use of tasks is encouraged to provide you the maximum visibility into your workflows, they are no longer required. You can add a single `@flow` decorator to your main function to transform any Python script into a Prefect workflow.
 
 ### Incremental adoption
-The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start Prefect Orion and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](/ui/cloud/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
+The built-in SQLite database automatically tracks all your locally executed flow runs. As soon as you start a Prefect server and open the Prefect UI in your browser (or [authenticate your CLI with your Prefect Cloud workspace](/ui/cloud/)), you can see all your locally executed flow runs in the UI. You don't even need to start an agent.
 
 Then, when you want to move toward scheduled, repeatable workflows, you can build a deployment and send it to the server by running a CLI command or a Python script. 
 

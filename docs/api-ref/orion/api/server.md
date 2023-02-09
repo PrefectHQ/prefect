@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API to define the Orion FastAPI app.
+description: Prefect API to define the FastAPI app.
 tags:
-    - Orion API
+    - Prefect API
     - FastAPI
 ---
 

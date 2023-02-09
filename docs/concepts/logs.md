@@ -1,7 +1,6 @@
 ---
 description: Prefect logging captures information about flows and tasks for monitoring, troubleshooting, and auditing.
 tags:
-    - Orion
     - UI
     - dashboard
     - Prefect Cloud
@@ -17,7 +16,7 @@ tags:
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 
-Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect Orion API server with `prefect orion start`.
+Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect server with `prefect orion start`.
 
 You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API.
 
@@ -47,7 +46,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](../img/ui/orion-flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](../img/ui/flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -63,7 +62,7 @@ For example, to change the default logging levels for Prefect to `DEBUG`, you ca
 
 You may also configure the "root" Python logger. The root logger receives logs from all loggers unless they explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs to the console. As with other logging settings, you can override this from the environment or in the logging configuration file. For example, you can change the level with the variable `PREFECT_LOGGING_ROOT_LEVEL`.
 
-You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to Orion. The console handlers will still default to level `INFO`.
+You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to the Prefect API. The console handlers will still default to level `INFO`.
 
 There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
 
@@ -363,7 +362,7 @@ log_email_flow()
 
 ## Log database schema
 
-Logged events are also persisted to the Orion database. A log record includes the following data:
+Logged events are also persisted to the Prefect database. A log record includes the following data:
 
 | Column | Description |
 | --- | --- |

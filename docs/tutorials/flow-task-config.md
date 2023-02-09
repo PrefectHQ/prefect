@@ -13,7 +13,7 @@ tags:
 
 Now that you've written some [basic flows and tasks](/tutorials/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
-Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect Orion orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
+Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
 
 ## Basic flow configuration
 
@@ -111,7 +111,7 @@ def my_flow():
     my_task()
 ```
 
-Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect Orion orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
+Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
 
 You specify the tags on a task as a list of tag strings.
 
@@ -266,7 +266,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 ```
 </div>
 
-Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect Orion orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
+Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
 
 !!! tip "Cache expiration"
     Note that in this example we're also specifying a cache expiration duration: `cache_expiration=timedelta(minutes=1)`. This causes the cache to expire after one minute regardless of the task input. You can demonstrate this by: 

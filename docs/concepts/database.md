@@ -1,7 +1,6 @@
 ---
-description: The Prefect Orion database stores deployment and flow run data.
+description: The Prefect database stores deployment and flow run data.
 tags:
-    - Orion
     - database
     - metadata
     - migrations
@@ -9,9 +8,9 @@ tags:
     - PostgreSQL
 ---
 
-# Pefect Orion Database
+# Pefect Database
 
-The Prefect Orion database persists data used by many features of Prefect to persist and track the state of your flow runs, including:
+The Prefect database persists data used by many features of Prefect to persist and track the state of your flow runs, including:
 
 - Flow and task state
 - Run history
@@ -21,14 +20,14 @@ The Prefect Orion database persists data used by many features of Prefect to per
 - Storage blocks for flow and task results
 - Work queue configuration and status
 
-Currently Prefect Orion supports the following databases:
+Currently Prefect supports the following databases:
 
-- SQLite: The default in Prefect Orion, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
-- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect Orion uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
+- SQLite: The default in Prefect, and our recommendation for lightweight, single-server deployments. SQLite requires essentially no setup.
+- PostgreSQL: Best for connecting to external databases, but does require additional setup (such as Docker). Prefect uses the [`pg_trgm`](https://www.postgresql.org/docs/current/pgtrgm.html) extension, so it must be installed and enabled.
 
 ## Using the database
 
-A local SQLite database is the default for Prefect Orion, and a local SQLite database is configured on installation.
+A local SQLite database is the default for Prefect. A local SQLite database is configured on installation.
 
 When you first install Prefect, your database will be located at `~/.prefect/orion.db`.
 
@@ -54,7 +53,7 @@ prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////f
 
 ## Configuring a PostgreSQL database
 
-To connect Orion to a PostgreSQL database, you can set the following environment variable:
+To connect Prefect to a PostgreSQL database, you can set the following environment variable:
 
 <div class="terminal">
 ```bash
@@ -66,11 +65,11 @@ The above environment variable assumes that:
 
 - You have a username called `postgres`
 - Your password is set to `yourTopSecretPassword`
-- Your database runs on the same host as the Orion instance, `localhost`
+- Your database runs on the same host as the Prefect server instance, `localhost`
 - You use the default PostgreSQL port `5432`
 - Your PostgreSQL instance has a database called `orion`
 
-If you want to quickly start a PostgreSQL instance that can be used as your Prefect Orion database, you can use the following command that will start a Docker container running PostgreSQL:
+If you want to quickly start a PostgreSQL instance that can be used as your Prefect database, you can use the following command that will start a Docker container running PostgreSQL:
 
 <div class="terminal">
 ```bash
@@ -93,7 +92,7 @@ prefect config view --show-sources
 ```
 </div>
 
-Start the Prefect Orion server and it should from now on use your PostgreSQL database instance:
+Start the Prefect server and it should from now on use your PostgreSQL database instance:
 
 <div class="terminal">
 ```bash
@@ -114,7 +113,7 @@ prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///fi
 </div>
 
 !!! warning "In-memory databases for testing only"
-    In-memory databases are only supported by Prefect Orion for testing purposes and are not compatible with multiprocessing.  
+    In-memory databases are only supported by Prefect for testing purposes and are not compatible with multiprocessing.  
 
 ## Database versions
 

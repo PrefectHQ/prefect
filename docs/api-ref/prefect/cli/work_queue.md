@@ -4,7 +4,6 @@ tags:
     - Python API
     - CLI
     - work-queue
-    - Orion
 ---
 
 ::: prefect.cli.work_queue

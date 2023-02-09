@@ -1,7 +1,6 @@
 ---
 description: Manage flow deployments from the Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - deployments
     - flow runs
@@ -16,7 +15,7 @@ tags:
 
 The **Deployments** page in the UI displays any deployments that have been created on the current API instance or Prefect Cloud workspace.
 
-![Viewing deployments in the Prefect UI](../img/ui/orion-deployments.png)
+![Viewing deployments in the Prefect UI](../img/ui/deployments.png)
 
 Selecting the toggle next to a deployment pauses the run schedule for the deployment, if the deployment specifies a schedule. 
 
@@ -26,7 +25,7 @@ Selecting a flow name displays details about the flow. See [Flows and Tasks](/ui
 
 Selecting a deployment name displays details about the deployment. The **Overview** tab displays general details of the deployment.
 
-![Viewing details of a deployment in the Prefect UI](../img/ui/orion-deployment-details.png)
+![Viewing details of a deployment in the Prefect UI](../img/ui/deployment-details.png)
 
 Selecting the **Run** button starts an ad-hoc flow run for the deployment.
 
@@ -36,7 +35,7 @@ The button next to the toggle provides commands to copy the deployment ID or del
 
 The **Parameters** tab displays any parameters specified for the deployment.
 
-![Viewing parameters of a deployment in the Prefect UI](../img/ui/orion-deployment-params.png)
+![Viewing parameters of a deployment in the Prefect UI](../img/ui/deployment-params.png)
 
 !!! note "Editing deployments"
     You may edit or update an existing deployment within the Prefect UI or via the CLI by applying changes from an edited deployment YAML file. 

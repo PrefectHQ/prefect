@@ -40,9 +40,9 @@ At times, Prefect will deprecate a feature. This means that a feature has been m
 
 Prefect will sometimes include changes to behavior to fix a bug. These changes are not categorized as breaking changes.
 
-## Client compatibility with Orion
+## Client compatibility with Prefect
 
-When running a Prefect Orion server, you are in charge of ensuring the version is compatible with those of the clients that are using the server. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast, sometimes new clients cannot be used with an old server. The new client may expect the server to support functionality that it does not yet include. For this reason, we recommend that all clients are the same version as the server or older.
+When running a Prefect server, you are in charge of ensuring the version is compatible with those of the clients that are using the server. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast, sometimes new clients cannot be used with an old server. The new client may expect the server to support functionality that it does not yet include. For this reason, we recommend that all clients are the same version as the server or older.
 
 For example, a client on 2.1.0 can be used with a server on 2.5.0. A client on 2.5.0 cannot be used with a server on 2.1.0.
 

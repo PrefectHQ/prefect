@@ -1,13 +1,13 @@
 ---
-description: Prefect Python client API for communicating with the Orion REST API.
+description: Prefect Python client API for communicating with the Prefect REST API.
 tags:
     - Python API
     - REST API
 ---
 
-Asynchronous client implementation for communicating with the [Orion REST API](/api-ref/rest-api/).
+Asynchronous client implementation for communicating with the [Prefect REST API](/api-ref/rest-api/).
 
-Explore the client by communicating with an in-memory webserver - no setup required:
+Explore the client by communicating with an in-memory webserver &mdash; no setup required:
 
 <div class="terminal">
 ```

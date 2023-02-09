@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API routes for querying flow and task run history.
+description: Prefect API routes for querying flow and task run history.
 tags:
-    - Orion API
+    - Prefect API
     - flow runs
     - task runs
     - observability
