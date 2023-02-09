@@ -222,7 +222,7 @@ See the [Settings docs](/concepts/settings/) for more information on altering yo
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
 !!! tip "The `Scheduler` does not affect execution"
-    The Prefect Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. 
+    The Prefect `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. 
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 

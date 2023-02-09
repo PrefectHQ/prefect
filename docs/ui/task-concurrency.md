@@ -1,7 +1,6 @@
 ---
 description: Configure task run concurrency from the Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - task runs
     - concurrency
@@ -16,7 +15,7 @@ There are situations in which you want to restrict the number of certain tasks t
 
 Prefect has built-in functionality for achieving this: [task run concurrency limits](/concepts/tasks/#task-run-concurrency-limits).
 
-You may configure task concurrency limits via the UI as described here, or via the [CLI](/concepts/tasks/#cli) or [Python client](/concepts/tasks/#python-client).
+You may configure task concurrency limits via the UI as described here, or via the Prefect [CLI](/concepts/tasks/#cli) or [Python client](/concepts/tasks/#python-client).
 
 Task run concurrency limits use [task tags](/concepts/tasks/#tags). You can specify an optional concurrency limit as the maximum number of concurrent task runs in a `Running` state for tasks with a given tag. The specified concurrency limit applies to any task to which the tag is applied.
 
@@ -31,11 +30,11 @@ Tags without explicit limits are considered to have unlimited concurrency.
 
 On the **Task Run Concurrency** page, you can set concurrency limits on as few or as many tags as you wish. 
 
-![Viewing task run concurrency limits in the Prefect Orion UI](../img/ui/task-run-concurrency.png)
+![Viewing task run concurrency limits in the Prefect UI](../img/ui/task-run-concurrency.png)
 
 Select the **+** button to create a new task run concurrency limit. You'll be able to specify the tag and maximum number of concurrent task runs.
 
-![Adding a new task run concurrency limit in the Prefect Orion UI](../img/ui/add-concurrency-limit.png)
+![Adding a new task run concurrency limit in the Prefect UI](../img/ui/add-concurrency-limit.png)
 
 !!! note "Removing concurrency limits"
     Currently, to remove a task run concurrency limit, you must use the CLI or Python client. See the [Configuring concurrency limits](/concepts/tasks/#configuring-concurrency-limits) documentation for details.
