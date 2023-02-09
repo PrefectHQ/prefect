@@ -219,7 +219,7 @@ class OrionAgent:
                     except Exception as exc:
                         self.logger.exception(exc)
 
-        submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
+            submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
 
