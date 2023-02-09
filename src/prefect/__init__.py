@@ -106,15 +106,8 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
             )
 
 
-class AliasLoader(importlib.abc.MetaPathFinder):
-    def find_spec(self, fullname, path, target=None):
-        print(fullname, path, target)
-
-
-sys.meta_path.insert(0, AliasLoader)
-
 if not hasattr(sys, "frozen"):
-    sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
+    sys.meta_path.insert(0, Prefect1ImportInterceptor())
 
 
 # Declare API for type-checkers
