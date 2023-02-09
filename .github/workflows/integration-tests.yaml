@@ -77,7 +77,7 @@ jobs:
           retention-days: 30
 
   compatibility-tests:
-    name: "Check compatibility"
+    name: "Check compatibility with Prefect ${{ matrix.prefect-version }}"
     timeout-minutes: 10
 
     strategy:
@@ -121,6 +121,11 @@ jobs:
           # 2.6 containers have a bad version of httpcore installed
           - prefect-version: "2.6"
             extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
+            server_command: "prefect orion start"
+          
+          # 2.6/2.7 require `prefect orion start` instead of prefect server start
+          - prefect-version: "2.7"
+            server_command: "prefect orion start"
 
       fail-fast: false
 
@@ -147,12 +152,12 @@ jobs:
         if: ${{ ! matrix.server-incompatible }}
         run: >
           docker run
-          --name "orion-server-${{ matrix.prefect-version }}"
+          --name "prefect-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          prefect orion start --host 0.0.0.0
+          ${{ matrix.server_command || 'prefect server start' }} --host 0.0.0.0
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
@@ -171,12 +176,12 @@ jobs:
       - name: Start server@dev
         run: |
           # First, we must stop the server container if it exists
-          # TODO: Once we have `prefect orion stop` we can run these tests first and the
+          # TODO: Once we have `prefect server stop` we can run these tests first and the
           #       optional tests above second
           #       https://github.com/PrefectHQ/prefect/issues/6989
-          docker stop "orion-server-${{ matrix.prefect-version }}" || echo "That's okay!"
+          docker stop "prefect-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect orion start&
+          prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev

@@ -199,7 +199,7 @@ Fire up the Prefect UI locally by entering this command in your terminal:
 
 <div class="terminal">
 ```bash
-prefect orion start
+prefect server start
 ```
 </div>
 

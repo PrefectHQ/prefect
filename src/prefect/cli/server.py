@@ -34,15 +34,35 @@ from prefect.settings import (
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import kill_on_interrupt, run_process
 
-orion_app = PrefectTyper(
-    name="orion",
-    help="Commands for interacting with backend services.",
+server_app = PrefectTyper(
+    name="server",
+    help="Commands for interacting with the Prefect backend.",
 )
 database_app = PrefectTyper(
     name="database", help="Commands for interacting with the database."
 )
-orion_app.add_typer(database_app)
-app.add_typer(orion_app)
+server_app.add_typer(database_app)
+app.add_typer(server_app)
+
+# Deprecated compatiblity
+orion_app = PrefectTyper(
+    name="orion",
+    help="Deprecated. Use 'prefect server' instead.",
+    deprecated=True,
+    deprecated_name="prefect orion",
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use 'prefect server' instead.",
+)
+orion_database_app = PrefectTyper(
+    name="database",
+    help="Deprecated. Use 'prefect server database' instead.",
+    deprecated=True,
+    deprecated_name="prefect orion database",
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use 'prefect server database' instead.",
+)
+orion_app.add_typer(orion_database_app)
+app.add_typer(orion_app, hidden=True)
 
 logger = get_logger(__name__)
 
@@ -50,10 +70,10 @@ logger = get_logger(__name__)
 def generate_welcome_blurb(base_url, ui_enabled: bool):
     blurb = textwrap.dedent(
         r"""
-         ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
-        | _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
-        |  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
-        |_| |_|_\___|_| |___\___| |_|    \___/|_|_\___\___/|_|\_|
+         ___ ___ ___ ___ ___ ___ _____ 
+        | _ \ _ \ __| __| __/ __|_   _| 
+        |  _/   / _|| _|| _| (__  | |  
+        |_| |_|_\___|_| |___\___| |_|  
 
         Configure Prefect to communicate with the server with:
 
@@ -92,6 +112,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
+@server_app.command()
 @orion_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_ORION_API_HOST),
@@ -120,7 +141,7 @@ async def start(
         app.console.print(generate_welcome_blurb(base_url, ui_enabled=ui))
         app.console.print("\n")
 
-        orion_process_id = await tg.start(
+        server_process_id = await tg.start(
             partial(
                 run_process,
                 command=[
@@ -147,14 +168,15 @@ async def start(
         # large amount of anyio error traces on the terminal, because the
         # SIGINT is handled by Typer/Click in this process (the parent process)
         # and will start shutting down subprocesses:
-        # https://github.com/PrefectHQ/orion/issues/2475
+        # https://github.com/PrefectHQ/server/issues/2475
 
-        kill_on_interrupt(orion_process_id, "Orion", app.console.print)
+        kill_on_interrupt(server_process_id, "Orion", app.console.print)
 
     app.console.print("Orion stopped!")
 
 
 @database_app.command()
+@orion_database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
     db = provide_database_interface()
@@ -174,6 +196,7 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
 
 
 @database_app.command()
+@orion_database_app.command()
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -204,6 +227,7 @@ async def upgrade(
 
 
 @database_app.command()
+@orion_database_app.command()
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -237,6 +261,7 @@ async def downgrade(
 
 
 @database_app.command()
+@orion_database_app.command()
 async def revision(
     message: str = typer.Option(
         None,
@@ -258,6 +283,7 @@ async def revision(
 
 
 @database_app.command()
+@orion_database_app.command()
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 

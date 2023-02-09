@@ -220,11 +220,11 @@ main_flow()
 
 Whenever we run `main_flow` as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but you can also inspect it independently in the UI!
 
-Spin up a local Prefect server UI using the `prefect orion start` CLI command from your terminal:
+Spin up a local Prefect server UI using the `prefect server start` CLI command from your terminal:
 
 <div class="terminal">
 ```bash
-$ prefect orion start
+$ prefect server start
 ```
 </div>
 

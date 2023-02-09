@@ -1,11 +1,13 @@
 """
 Custom Prefect CLI types
 """
-from typing import List
+import functools
+from typing import List, Optional
 
 import typer
 import typer.core
 
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._utilities import with_cli_exception_handling
 from prefect.settings import Setting
 from prefect.utilities.asyncutils import is_async_fn, sync_compatible
@@ -39,10 +41,43 @@ def SettingsArgument(setting: Setting, *args, **kwargs) -> typer.Argument:
     )
 
 
+def with_deprecated_message(warning: str):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            print("WARNING:", warning)
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
 class PrefectTyper(typer.Typer):
     """
     Wraps commands created by `Typer` to support async functions and handle errors.
     """
+
+    def __init__(
+        self,
+        *args,
+        deprecated: bool = False,
+        deprecated_start_date: Optional[str] = None,
+        deprecated_help: str = "",
+        deprecated_name: str = "",
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+
+        self.deprecated = deprecated
+        if self.deprecated:
+            if not deprecated_name:
+                raise ValueError("Provide the name of the deprecated command group.")
+            self.deprecated_message = generate_deprecation_message(
+                name=f"The {deprecated_name!r} command group",
+                start_date=deprecated_start_date,
+                help=deprecated_help,
+            )
 
     def add_typer(
         self,
@@ -77,6 +112,8 @@ class PrefectTyper(typer.Typer):
             if is_async_fn(fn):
                 fn = sync_compatible(fn)
             fn = with_cli_exception_handling(fn)
+            if self.deprecated:
+                fn = with_deprecated_message(self.deprecated_message)(fn)
             return command_decorator(fn)
 
         return wrapper

@@ -4,7 +4,7 @@ from unittest.mock import ANY
 import pytest
 
 import prefect
-import prefect.cli.orion
+import prefect.cli.server
 from prefect.settings import PREFECT_ORION_API_KEEPALIVE_TIMEOUT, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
@@ -16,13 +16,14 @@ def mock_run_process(monkeypatch: pytest.MonkeyPatch):
         task_status.started()
 
     mock = AsyncMock(side_effect=mark_as_started)
-    monkeypatch.setattr(prefect.cli.orion, "run_process", mock)
+    monkeypatch.setattr(prefect.cli.server, "run_process", mock)
     yield mock
 
 
-def test_start_no_options(mock_run_process: AsyncMock):
+@pytest.mark.parametrize("command_group", ["orion", "server"])
+def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
     invoke_and_assert(
-        ["orion", "start"],
+        [command_group, "start"],
         expected_output_contains=[
             "prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api",
             "View the API reference documentation at http://127.0.0.1:4200/docs",
@@ -50,7 +51,7 @@ def test_start_no_options(mock_run_process: AsyncMock):
 
 def test_start_with_keep_alive_from_setting(mock_run_process: AsyncMock):
     with temporary_settings({PREFECT_ORION_API_KEEPALIVE_TIMEOUT: 100}):
-        invoke_and_assert(["orion", "start"])
+        invoke_and_assert(["server", "start"])
 
     mock_run_process.assert_awaited_once()
     command: List[str] = mock_run_process.call_args[1]["command"]
@@ -60,7 +61,7 @@ def test_start_with_keep_alive_from_setting(mock_run_process: AsyncMock):
 
 def test_start_from_cli_with_keep_alive(mock_run_process: AsyncMock):
     invoke_and_assert(
-        ["orion", "start", "--keep-alive-timeout", "100"],
+        ["server", "start", "--keep-alive-timeout", "100"],
         expected_output_contains=[
             "prefect config set PREFECT_API_URL=http://127.0.0.1:4200/api",
             "View the API reference documentation at http://127.0.0.1:4200/docs",
