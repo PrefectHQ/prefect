@@ -1,5 +1,35 @@
 # Prefect Release Notes
 
+## Release 2.8.0
+
+### Work Pools 🎉
+- Remove experimental designation around work pools — https://github.com/PrefectHQ/prefect/pull/8362
+- Adds work pool and queue filters to flow runs history endpoint — https://github.com/PrefectHQ/prefect/pull/8459
+- Update flowRunFilter on WorkPool page — https://github.com/PrefectHQ/prefect/pull/8453
+- Updates agent logic to respect work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
+
+
+### Enhancements
+- Add ability to create a new flow run from the UI with custom default parameter values taken from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
+- Add generic `Webhook` block — https://github.com/PrefectHQ/prefect/pull/8401
+- Add override customizations functionality to deployments via CLI — https://github.com/PrefectHQ/prefect/pull/8349
+- Add ability to reset concurrency limits in CLI to purge existing runs from taking concurrency slots — https://github.com/PrefectHQ/prefect/pull/8408
+- Ensure matching flow run state information in UI — https://github.com/PrefectHQ/prefect/pull/8441
+- Customize CLI block registration experience based on `PREFECT_UI_URL` — https://github.com/PrefectHQ/prefect/pull/8438
+
+### Fixes
+- Fix `prefect dev start` command — https://github.com/PrefectHQ/prefect/pull/8176
+- Fix ability to see long log messages when in Prefect UI — https://github.com/PrefectHQ/prefect/pull/8449
+- Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
+- Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
+
+### Documentation
+- Update Infrastructure concept documentation with extra-pip-package example and updated deployment.yaml — https://github.com/PrefectHQ/prefect/pull/8465
+- Ensure Prefect docs UI components compatible with Material for Mkdocs 9.0.10 — https://github.com/PrefectHQ/prefect/pull/8403
+
+### Contributors
+- @carderne
+
 ## Release 2.7.12
 
 ### Custom flow and task run names 🎉
