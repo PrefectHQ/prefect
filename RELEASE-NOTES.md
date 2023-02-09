@@ -70,8 +70,7 @@ To learn more about work pools, checkout the [docs](https://docs.prefect.io/conc
 - Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
 
 ### Documentation
-- Update Infrastructure concept documentation with extra-pip-package example and updated deployment.yaml — https://github.com/PrefectHQ/prefect/pull/8465
-- Ensure Prefect docs UI components compatible with Material for Mkdocs 9.0.10 — https://github.com/PrefectHQ/prefect/pull/8403
+- Update Infrastructure concept documentation with `extra-pip-package` example and updated `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/8465
 
 ### Contributors
 - @carderne
