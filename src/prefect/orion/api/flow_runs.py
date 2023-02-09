@@ -123,6 +123,8 @@ async def flow_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter = None,
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
@@ -145,6 +147,8 @@ async def flow_run_history(
             flow_runs=flow_runs,
             task_runs=task_runs,
             deployments=deployments,
+            work_pools=work_pools,
+            work_queues=work_queues,
         )
 
 

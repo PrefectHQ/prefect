@@ -32,6 +32,8 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter = None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
@@ -72,6 +74,8 @@ async def run_history(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
+            work_pool_filter=work_pools,
+            work_queue_filter=work_queues,
         )
     ).alias("runs")
     # outer join intervals to the filtered runs to create a dataset composed of
