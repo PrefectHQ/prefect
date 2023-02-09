@@ -19,7 +19,7 @@
 
 ### Fixes
 - Fix `prefect dev start` command — https://github.com/PrefectHQ/prefect/pull/8176
-- Fix ability to see long log messages when in Prefect UI — https://github.com/PrefectHQ/prefect/pull/8449
+- Fix display of long log messages when in the UI — https://github.com/PrefectHQ/prefect/pull/8449
 - Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
 - Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
 
