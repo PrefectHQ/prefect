@@ -17,10 +17,7 @@
         Task inputs
         <ExtraInfoModal title="Task Inputs">
           <template #default>
-            <p>
-              Task inputs are passed to task runs and can
-              include constants, parameter keys, and other task runs.
-            </p>
+            {{ localization.info.taskInput }}
           </template>
         </ExtraInfoModal>
       </template>
@@ -35,7 +32,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi, ExtraInfoModal } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi, ExtraInfoModal, localization } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
