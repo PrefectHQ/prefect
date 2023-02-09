@@ -40,10 +40,10 @@ from prefect.exceptions import (
     TerminationSignal,
 )
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.actions import FlowRunCreate
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
+from prefect.server.schemas.actions import FlowRunCreate
+from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff

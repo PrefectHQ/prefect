@@ -66,7 +66,7 @@ This schedule will create flow runs for this deployment every day at midnight.
 Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
 
 ```python
-from prefect.orion.schemas.schedules import CronSchedule
+from prefect.server.schemas.schedules import CronSchedule
 
 cron_demo = Deployment.build_from_flow(
     pipeline,
@@ -115,7 +115,7 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
   
-  See the Python [CronSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.CronSchedule) for more information. 
+  See the Python [CronSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.CronSchedule) for more information. 
 
 
 ## Interval
@@ -147,7 +147,7 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-See the Python [IntervalSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.IntervalSchedule) for more information. 
+See the Python [IntervalSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.IntervalSchedule) for more information. 
 
 ## RRule
 
@@ -186,7 +186,7 @@ schedule:
 
 
 
-See the Python [RRuleSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.RRuleSchedule) for more information. 
+See the Python [RRuleSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.RRuleSchedule) for more information. 
 
 
 ## The `Scheduler` service
