@@ -90,6 +90,27 @@ async def read_concurrency_limit_by_tag(
 
 
 @inject_db
+async def reset_concurrency_limit_by_tag(
+    session: sa.orm.Session,
+    tag: str,
+    db: OrionDBInterface,
+    slot_override: Optional[List[UUID]] = None,
+):
+    """
+    Resets a concurrency limit by tag.
+    """
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
+    result = await session.execute(query)
+    concurrency_limit = result.scalar()
+    if concurrency_limit:
+        if slot_override is not None:
+            concurrency_limit.active_slots = [str(slot) for slot in slot_override]
+        else:
+            concurrency_limit.active_slots = []
+    return concurrency_limit
+
+
+@inject_db
 async def filter_concurrency_limits_for_orchestration(
     session: sa.orm.Session,
     tags: List[str],
