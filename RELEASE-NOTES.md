@@ -10,7 +10,7 @@
 
 
 ### Enhancements
-- Add ability to create a new flow run from the UI with custom default parameter values taken from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
+- Add ability to create a flow run from the UI with parameters from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
 - Add generic `Webhook` block — https://github.com/PrefectHQ/prefect/pull/8401
 - Add override customizations functionality to deployments via CLI — https://github.com/PrefectHQ/prefect/pull/8349
 - Add ability to reset concurrency limits in CLI to purge existing runs from taking concurrency slots — https://github.com/PrefectHQ/prefect/pull/8408
