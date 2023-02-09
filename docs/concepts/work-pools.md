@@ -129,9 +129,6 @@ You can configure work pools by using:
 - Prefect CLI commands
 - Prefect Python API
 
-![Creating a new work pool in the Orion UI](../img/ui/work-pool-create.png)
-
-
 To configure a work pool via the Prefect CLI, use the `prefect work-pool create` command:
 
 <div class="terminal">
