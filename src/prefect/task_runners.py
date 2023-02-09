@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     import anyio.abc
 
 from prefect.logging import get_logger
-from prefect.orion.schemas.states import State
+from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.collections import AutoEnum
 

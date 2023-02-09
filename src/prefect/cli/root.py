@@ -99,8 +99,8 @@ async def version():
     """Get the current Prefect version."""
     import sqlite3
 
-    from prefect.orion.api.server import ORION_API_VERSION
-    from prefect.orion.utilities.database import get_dialect
+    from prefect.server.api.server import ORION_API_VERSION
+    from prefect.server.utilities.database import get_dialect
     from prefect.settings import (
         PREFECT_API_URL,
         PREFECT_CLOUD_API_URL,

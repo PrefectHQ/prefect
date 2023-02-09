@@ -18,7 +18,7 @@ import cloudpickle
 import pydantic
 from typing_extensions import Protocol
 
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.server.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
     from prefect.packaging.base import PackageManifest

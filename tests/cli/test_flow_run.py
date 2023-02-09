@@ -6,7 +6,7 @@ import pytest
 import prefect.exceptions
 from prefect import flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-from prefect.orion.schemas.actions import LogCreate
+from prefect.server.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
     Cancelled,

@@ -7,7 +7,7 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli.root import app
 from prefect.client import get_client
-from prefect.orion.schemas.sorting import FlowSort
+from prefect.server.schemas.sorting import FlowSort
 
 flow_app = PrefectTyper(name="flow", help="Commands for interacting with flows.")
 app.add_typer(flow_app, aliases=["flows"])

@@ -32,7 +32,7 @@ LITERAL_TYPES = {type(None), bool}
 
 logger = get_logger("results")
 
-# from prefect.orion.schemas.states import State
+# from prefect.server.schemas.states import State
 R = TypeVar("R")
 
 

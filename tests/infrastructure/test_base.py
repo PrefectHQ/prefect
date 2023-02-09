@@ -15,7 +15,7 @@ from prefect.infrastructure import (
     Process,
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
-from prefect.orion.schemas.core import Deployment
+from prefect.server.schemas.core import Deployment
 
 
 @pytest.fixture

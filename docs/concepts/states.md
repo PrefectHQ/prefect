@@ -61,7 +61,7 @@ When calling a task or a flow, there are three types of returned values:
 
 Returning data  is the default behavior any time you call `your_task()`.
 
-Returning Prefect [`State`](/api-ref/orion/schemas/states/) occurs anytime you call your task or flow with the argument `return_state=True`.
+Returning Prefect [`State`](/api-ref/server/schemas/states/) occurs anytime you call your task or flow with the argument `return_state=True`.
 
 Returning [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) is achieved by calling `your_task.submit()`.
 
