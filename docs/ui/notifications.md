@@ -1,7 +1,6 @@
 ---
 description: Configure notifications based on flow state from the Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - states
     - flow runs
@@ -32,7 +31,7 @@ Currently Prefect 2 supports sending notifications via:
 
 To configure a notification, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
-![Creating a notification in the Prefect UI](../img/ui/orion-create-slack-notification.png)
+![Creating a notification in the Prefect UI](../img/ui/create-slack-notification.png)
 
 Notifications are structured just as you would describe them to someone. You can choose:
 
@@ -54,4 +53,4 @@ When the conditions of the notification are triggered, you’ll receive a simple
 
 On the **Notifications** page you can pause, edit, or delete any configured notification.
 
-![Viewing all configured notifications in the Prefect UI](../img/ui/orion-notifications.png)
+![Viewing all configured notifications in the Prefect UI](../img/ui/notifications.png)

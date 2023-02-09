@@ -125,7 +125,7 @@ def my_flow():
 
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:
 
-- Filtering task runs by tag in the UI and via the [Orion REST API](/api-ref/rest-api/#filtering).
+- Filtering task runs by tag in the UI and via the [Prefect REST API](/api-ref/rest-api/#filtering).
 - Setting [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
 Tags may be specified as a keyword argument on the [task decorator](/api-ref/prefect/tasks/#prefect.tasks.task).
@@ -268,7 +268,7 @@ running an expensive operation
 ```
 </div>
 
-When each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same COMPLETED state, including the same return values.  
+When each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Prefect backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same COMPLETED state, including the same return values.  
 
 A real-world example might include the flow run ID from the context in the cache key so only repeated calls in the same flow run are cached.
 
@@ -491,7 +491,7 @@ You can set concurrency limits on as few or as many tags as you wish. You can se
 
 - Prefect [CLI](#cli)
 - Prefect API by using `OrionClient` [Python client](#python-client)
-- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
+- [Prefect server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 
