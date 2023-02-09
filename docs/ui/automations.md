@@ -119,10 +119,10 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/api-ref/orion/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](/api-ref/orion/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](/api-ref/orion/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](/api-ref/orion/schemas/core/#prefect.server.schemas.core.WorkQueue)
+- [flow_run](/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
 
 In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 
