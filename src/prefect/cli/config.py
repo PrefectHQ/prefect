@@ -57,7 +57,36 @@ def set_(settings: List[str]):
                 f"override your config value. Run `unset {setting}` to clear it."
             )
 
+        if prefect.settings.SETTING_VARIABLES[setting].deprecated:
+            app.console.print(
+                f"[yellow]{prefect.settings.SETTING_VARIABLES[setting].deprecated_message}."
+            )
+
     exit_with_success(f"Updated profile {new_profile.name!r}.")
+
+
+@config_app.command()
+def validate():
+    """
+    Read and validate the current profile.
+
+    Deprecated settings will be automatically converted to new names unless both are
+    set.
+    """
+    profiles = prefect.settings.load_profiles()
+    profile = profiles[prefect.context.get_settings_context().profile.name]
+    changed = profile.convert_deprecated_renamed_settings()
+    for old, new in changed:
+        app.console.print(f"Updated {old.name!r} to {new.name!r}.")
+
+    for setting in profile.settings.keys():
+        if setting.deprecated:
+            app.console.print(f"Found deprecated setting {setting.name!r}.")
+
+    profile.validate_settings()
+
+    prefect.settings.save_profiles(profiles)
+    exit_with_success("Configuration valid!")
 
 
 @config_app.command()
