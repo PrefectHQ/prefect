@@ -76,6 +76,16 @@ import prefect.client
 prefect.client.get_client = get_client
 prefect.client.OrionClient = OrionClient
 
+
+from prefect._internal.compatibility.deprecated import (
+    inject_renamed_module_alias_finder,
+    register_renamed_module,
+)
+
+register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
+inject_renamed_module_alias_finder()
+
+
 # Attempt to warn users who are importing Prefect 1.x attributes that they may
 # have accidentally installed Prefect 2.x
 
@@ -103,6 +113,29 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
                 "upgrading you'll need to update your code, see the Prefect "
                 "2.x migration guide: `https://orion-docs.prefect.io/migration_guide/`. "
                 "Otherwise ensure that your code is pinned to the expected version."
+            )
+
+
+class PrefectDeprecatedAlias(importlib.abc.Loader):
+    def find_spec(self, fullname, path, target=None):
+        if fullname.startswith("prefect.orion"):
+
+            from prefect._internal.compatibility.deprecated import (
+                generate_deprecation_message,
+            )
+
+            warnings.warn(
+                generate_deprecation_message(
+                    name="The `prefect.orion` module",
+                    start_date="Feb 2023",
+                    help="Use `prefect.server` instead.",
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+            return importlib.util.find_spec(
+                fullname.replace("prefect.orion", "prefect.server", 1)
             )
 
 

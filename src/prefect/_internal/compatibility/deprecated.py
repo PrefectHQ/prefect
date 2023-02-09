@@ -10,14 +10,19 @@ will be calculated 6 months later. Start and end dates are always in the format 
 e.g. Jan 2023.
 """
 import functools
+import sys
 import warnings
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Any, Callable, List, Optional, Type, TypeVar
 
 import pendulum
 import pydantic
 
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.importtools import to_qualified_name
+from prefect.utilities.importtools import (
+    AliasedModuleDefinition,
+    AliasedModuleFinder,
+    to_qualified_name,
+)
 
 T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=pydantic.BaseModel)
@@ -29,6 +34,7 @@ DEPRECATED_MOVED_WARNING = (
     "path after {end_date}. {help}"
 )
 DEPRECATED_DATEFMT = "MMM YYYY"  # e.g. Feb 2023
+DEPRECATED_MODULE_ALIASES: List[AliasedModuleDefinition] = []
 
 
 class PrefectDeprecationWarning(DeprecationWarning):
@@ -202,3 +208,33 @@ def deprecated_field(
         return model_cls
 
     return decorator
+
+
+def inject_renamed_module_alias_finder():
+    """
+    Insert an aliased module finder into Python's import machinery.
+
+    Required for `register_renamed_module` to work.
+    """
+    sys.meta_path.insert(0, AliasedModuleFinder(DEPRECATED_MODULE_ALIASES))
+
+
+def register_renamed_module(old_name: str, new_name: str, start_date: str):
+    """
+    Register a renamed module.
+
+    Adds backwwards compatibility imports for the old module name and displays a
+    deprecation warnings on import of the module.
+    """
+    message = generate_deprecation_message(
+        name=f"The {old_name!r} module",
+        start_date=start_date,
+        help=f"Use {new_name!r} instead.",
+    )
+
+    # Executed on module load
+    callback = lambda _: warnings.warn(message, DeprecationWarning, stacklevel=3)
+
+    DEPRECATED_MODULE_ALIASES.append(
+        AliasedModuleDefinition(old_name, new_name, callback)
+    )
