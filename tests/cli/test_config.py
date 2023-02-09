@@ -5,7 +5,7 @@ import prefect.settings
 from prefect.context import use_profile
 from prefect.settings import (
     PREFECT_API_KEY,
-    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
+    PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_ORION_DATABASE_TIMEOUT,
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_SETTING,
@@ -329,7 +329,7 @@ def test_view_excludes_unset_settings_without_show_defaults_flag(monkeypatch):
             name="foo",
             settings={
                 PREFECT_ORION_DATABASE_TIMEOUT: 2.0,
-                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: 1000001,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1000001,
             },
         ),
         include_current_context=True,
@@ -414,7 +414,7 @@ def test_view_shows_setting_sources(monkeypatch, command):
             name="foo",
             settings={
                 PREFECT_ORION_DATABASE_TIMEOUT: 2.0,
-                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: 1000001,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1000001,
             },
         )
     ):
@@ -433,7 +433,7 @@ def test_view_shows_setting_sources(monkeypatch, command):
 
     # Assert that sources are correct
     assert f"PREFECT_ORION_DATABASE_TIMEOUT='2.0' {FROM_PROFILE}" in lines
-    assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001' {FROM_PROFILE}" in lines
+    assert f"PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001' {FROM_PROFILE}" in lines
     assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5' {FROM_ENV}" in lines
 
     if "--show-defaults" in command:
@@ -459,7 +459,7 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
             name="foo",
             settings={
                 PREFECT_ORION_DATABASE_TIMEOUT: 2.0,
-                PREFECT_LOGGING_ORION_MAX_LOG_SIZE: 1000001,
+                PREFECT_LOGGING_TO_API_MAX_LOG_SIZE: 1000001,
             },
         ),
     ):
@@ -475,7 +475,7 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
 
     # Ensure that the settings that we know are set are still included
     assert f"PREFECT_ORION_DATABASE_TIMEOUT='2.0'" in lines
-    assert f"PREFECT_LOGGING_ORION_MAX_LOG_SIZE='1000001'" in lines
+    assert f"PREFECT_LOGGING_TO_API_MAX_LOG_SIZE='1000001'" in lines
     assert f"PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT='2.5'" in lines
 
     if "--show-defaults" in command:

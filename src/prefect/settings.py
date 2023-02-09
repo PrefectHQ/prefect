@@ -56,6 +56,7 @@ from typing import (
     Mapping,
     Optional,
     Set,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -66,10 +67,7 @@ import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
 from typing_extensions import Literal
 
-from prefect._internal.compatibility.deprecated import (
-    PrefectDeprecationWarning,
-    generate_deprecation_message,
-)
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -95,6 +93,7 @@ class Setting(Generic[T]):
         deprecated_help: str = "",
         deprecated_when_message: str = "",
         deprecated_when: Optional[Callable[[Any], bool]] = None,
+        deprecated_renamed_to: Optional["Setting"] = None,
         value_callback: Callable[["Settings", T], T] = None,
         is_secret: bool = False,
         **kwargs,
@@ -102,7 +101,7 @@ class Setting(Generic[T]):
         self.field: pydantic.fields.FieldInfo = Field(**kwargs)
         self.type = type
         self.value_callback = value_callback
-        self.name = None  # Will be populated after all settings are defined
+        self._name = None
         self.is_secret = is_secret
         self.deprecated = deprecated
         self.deprecated_start_date = deprecated_start_date
@@ -110,18 +109,24 @@ class Setting(Generic[T]):
         self.deprecated_help = deprecated_help
         self.deprecated_when = deprecated_when or (lambda _: True)
         self.deprecated_when_message = deprecated_when_message
+        self.deprecated_renamed_to = deprecated_renamed_to
+        self.deprecated_renamed_from = None
         self.__doc__ = self.field.description
 
         # Validate the deprecation settings, will throw an error at setting definition
         # time if the developer has not configured it correctly
         if deprecated:
             generate_deprecation_message(
-                name=f"Setting {self.name!r}",
+                name="...",  # setting names not populated until after init
                 start_date=self.deprecated_start_date,
                 end_date=self.deprecated_end_date,
                 help=self.deprecated_help,
                 when=self.deprecated_when_message,
             )
+
+        if deprecated_renamed_to is not None:
+            # Track the deprecation both ways
+            deprecated_renamed_to.deprecated_renamed_from = self
 
     def value(self, bypass_callback: bool = False) -> T:
         """
@@ -148,19 +153,58 @@ class Setting(Generic[T]):
         value = settings.value_of(self, bypass_callback=bypass_callback)
 
         if not bypass_callback and self.deprecated and self.deprecated_when(value):
+            # Check if this setting is deprecated and someone is accessing the value
+            # via the old name
             warnings.warn(
-                generate_deprecation_message(
-                    name=f"Setting {self.name!r}",
-                    start_date=self.deprecated_start_date,
-                    end_date=self.deprecated_end_date,
-                    help=self.deprecated_help,
-                    when=self.deprecated_when_message,
-                ),
-                PrefectDeprecationWarning,
-                stacklevel=2,
+                self.deprecated_message,
+                DeprecationWarning,
+                stacklevel=3,
             )
 
+        if not bypass_callback and self.deprecated_renamed_from is not None:
+            # Check if this setting is a rename of a deprecated setting and the
+            # deprecated setting is set and should be used for compatibility
+            deprecated_value = self.deprecated_renamed_from.value_from(
+                settings, bypass_callback=True
+            )
+            if deprecated_value is not None:
+                warnings.warn(
+                    f"{self.deprecated_renamed_from.deprecated_message} "
+                    f"Because {self.deprecated_renamed_from.name!r} is set it will be "
+                    f"used instead of {self.name!r} for backwards compatibility.",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+            return deprecated_value or value
+
         return value
+
+    @property
+    def name(self):
+        if self._name:
+            return self._name
+
+        # Lookup the name on first access
+        for name, val in tuple(globals().items()):
+            if val == self:
+                self._name = name
+                return name
+
+        raise ValueError("Setting not found in `prefect.settings` module.")
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
+
+    @property
+    def deprecated_message(self):
+        return generate_deprecation_message(
+            name=f"Setting {self.name!r}",
+            start_date=self.deprecated_start_date,
+            end_date=self.deprecated_end_date,
+            help=self.deprecated_help,
+            when=self.deprecated_when_message,
+        )
 
     def __repr__(self) -> str:
         return f"<{self.name}: {self.type.__name__}>"
@@ -253,11 +297,11 @@ def max_log_size_smaller_than_batch_size(values):
     Validator for settings asserting the batch size and match log size are compatible
     """
     if (
-        values["PREFECT_LOGGING_ORION_BATCH_SIZE"]
-        < values["PREFECT_LOGGING_ORION_MAX_LOG_SIZE"]
+        values["PREFECT_LOGGING_TO_API_BATCH_SIZE"]
+        < values["PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"]
     ):
         raise ValueError(
-            "`PREFECT_LOGGING_ORION_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_ORION_BATCH_SIZE`"
+            "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
         )
     return values
 
@@ -598,42 +642,110 @@ If set, `print` statements in flows and tasks will be redirected to the Prefect 
 for the given run. This setting can be overriden by individual tasks and flows.
 """
 
-PREFECT_LOGGING_ORION_ENABLED = Setting(
+PREFECT_LOGGING_TO_API_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Should logs be sent to Orion? If False, logs sent to the `OrionHandler` will not be sent to the API."""
+"""
+Toggles sending logs to the API.
+If `False`, logs sent to the API log handler will not be sent to the API.
+"""
 
-PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
-    float,
-    default=2.0,
-)
-"""The number of seconds between batched writes of logs to Orion."""
+PREFECT_LOGGING_TO_API_BATCH_INTERVAL = Setting(float, default=2.0)
+"""The number of seconds between batched writes of logs to the API."""
 
-PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
+PREFECT_LOGGING_TO_API_BATCH_SIZE = Setting(
     int,
     default=4_000_000,
 )
 """The maximum size in bytes for a batch of logs."""
 
-PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
+PREFECT_LOGGING_TO_API_MAX_LOG_SIZE = Setting(
     int,
     default=1_000_000,
 )
 """The maximum size in bytes for a single log."""
 
-PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW = Setting(
     Literal["warn", "error", "ignore"],
     default="warn",
 )
 """
-Controls the behavior when loggers attempt to send logs to Orion without a flow run id.
-The Orion log handler can only send logs within flow run contexts unless the flow run id is
-manually provided.
+Controls the behavior when loggers attempt to send logs to the API handler from outside
+of a flow.
 
-"warn": Log a warning message.
-"error": Raise an error.
-"ignore": Do not log a warning message or raise an error.
+All logs sent to the API must be associated with a flow run. The API log handler can 
+only be used outside of a flow by manually providing a flow run identifier. Logs
+that are not associated with a flow run will not be sent to the API. This setting can
+be used to determine if a warning or error is displayed when the identifier is missing.
+
+The following options are available:
+
+- "warn": Log a warning message.
+- "error": Raise an error.
+- "ignore": Do not log a warning message or raise an error.
+"""
+
+
+PREFECT_LOGGING_ORION_ENABLED = Setting(
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_ENABLED,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_ENABLED instead.
+"""
+
+PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_INTERVAL` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_INTERVAL instead.
+"""
+
+PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_SIZE,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_SIZE instead.
+"""
+
+PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
+)
+
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
+"""
+
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Optional[Literal["warn", "error", "ignore"]],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
 """
 
 PREFECT_LOGGING_COLORS = Setting(
@@ -1038,7 +1150,7 @@ SETTING_VARIABLES = {
 # Uses `__` to avoid setting these as global variables which can lead to sneaky bugs
 
 for __name, __setting in SETTING_VARIABLES.items():
-    __setting.name = __name
+    __setting._name = __name
 
 # Dynamically create a pydantic model that includes all of our settings
 
@@ -1344,6 +1456,26 @@ class Profile(pydantic.BaseModel):
         # We do not return the `Settings` object because this is not the recommended
         # path for constructing settings with a profile. See `use_profile` instead.
         Settings(**{setting.name: value for setting, value in self.settings.items()})
+
+    def convert_deprecated_renamed_settings(self) -> List[Tuple[Setting, Setting]]:
+        """
+        Update settings in place to replace deprecated settings with new settings when
+        renamed.
+
+        Returns a list of tuples with the old and new setting.
+        """
+        changed = []
+        for setting in tuple(self.settings):
+            if (
+                setting.deprecated
+                and setting.deprecated_renamed_to
+                and setting.deprecated_renamed_to not in self.settings
+            ):
+                self.settings[setting.deprecated_renamed_to] = self.settings.pop(
+                    setting
+                )
+                changed.append((setting, setting.deprecated_renamed_to))
+        return changed
 
     class Config:
         arbitrary_types_allowed = True
