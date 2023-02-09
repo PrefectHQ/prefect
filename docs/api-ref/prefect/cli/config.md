@@ -5,7 +5,6 @@ tags:
     - CLI
     - config
     - settings
-    - Orion
 ---
 
 ::: prefect.cli.config

@@ -13,14 +13,14 @@ tags:
 
 # Welcome to Prefect Cloud <span class="badge cloud"></span>
 
-Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect Orion Server](https://docs.prefect.io/tutorials/orion/?h=server#running-the-prefect-server) and [UI](/ui/overview/) in a hosted environment, plus additional features such as automations, workspaces, and organizations.
+Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect server](/tutorials/orchestration/#running-the-prefect-server) and [UI](/ui/overview/) in a hosted environment, plus additional features such as automations, workspaces, and organizations.
 
 !!! success "Prefect Cloud Quickstart"
     Ready to jump right in and start running flows that are monitored by Prefect Cloud? See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-workspace-dashboard.png)
 
-Prefect Cloud includes the same features as the open-source Prefect Orion server, including:
+Prefect Cloud includes the same features as the open-source Prefect server, including:
 
 - [Flow runs](/ui/flow-runs/) dashboard, including:
     - Details of completed and upcoming scheduled flow runs.
@@ -79,7 +79,7 @@ When you first log into Prefect Cloud and create your workspace, it will most li
 
 ## Automations
 
-Prefect Cloud [automations](/ui/automations/) provide the same notification capabilities as the open-source Prefect Orion server, and also enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
+Prefect Cloud [automations](/ui/automations/) provide the same notification capabilities as the open-source Prefect server, and also enable you to configure triggers and actions that can kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events. 
 
 ## Organizations <span class="badge orgs"></span>
 
@@ -114,7 +114,7 @@ Prefect Cloud's [Organization and Enterprise plans](https://www.prefect.io/prici
 
 ## Prefect Cloud REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Orion clients to Prefect Cloud or a local Prefect Orion server so that orchestration can be performed. This API is mainly consumed by Orion clients like the Prefect Python Client or the Orion Dashboard.
+The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server so that orchestration can be performed. This API is mainly consumed by Prefect clients like the Prefect Python Client or the Prefect UI.
 
 !!! note "Prefect Cloud REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.

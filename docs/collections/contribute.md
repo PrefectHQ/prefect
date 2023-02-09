@@ -1,3 +1,14 @@
+---
+description: Contribute blocks and collections to the Prefect Collections Catalog.
+tags:
+  - blocks
+  - storage
+  - secrets
+  - configuration
+  - infrastructure
+  - collections
+  - contributing
+---
 
 # Contribute
 
@@ -46,7 +57,7 @@ class Secret(Block):
         return self.value.get_secret_value()
 ```
 
-To view in the Prefect Cloud or Prefect Orion server UI, [register the block](https://orion-docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
+To view in the Prefect Cloud or Prefect server UI, [register the block](https://docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
 
 ## Contributing Collections
 

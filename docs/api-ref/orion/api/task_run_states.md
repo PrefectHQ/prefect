@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API routes for interacting with task run states objects.
+description: Prefect API routes for interacting with task run states objects.
 tags:
-    - Orion API
+    - Prefect API
     - task runs
     - states
 ---

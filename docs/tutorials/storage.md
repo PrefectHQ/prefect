@@ -1,7 +1,6 @@
 ---
 description: Learn how to configure storage and infrastructure blocks used by Prefect flow deployments.
 tags:
-    - Orion
     - orchestration
     - deployments
     - storage
@@ -65,7 +64,7 @@ Your flow code may also load storage blocks to access configuration for accessin
 
 ## Create a storage block
 
-Most users will find it easiest to configure new storage blocks through the Prefect Orion or Prefect Cloud UI.
+Most users will find it easiest to configure new storage blocks through the Prefect server or Prefect Cloud UI.
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page.
 
@@ -103,7 +102,7 @@ Select **Create** to create the new storage block. Prefect displays the details 
 ![Viewing details of a new S3 storage block in the Prefect UI](../img/tutorials/new-storage-block.png)
 
 !!! tip "Blocks and deployments are specific to a server or Prefect Cloud workspace"
-    Note that, if you ran through this tutorial on a local Prefect Orion server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
+    Note that, if you ran through this tutorial on a local Prefect server instance, the storage and infrastructure blocks you created would not also be configured on Prefect Cloud. You must configure new storage and infrastructure blocks for any Prefect Cloud workspace.
 
 ## Using storage blocks with deployments
 
@@ -164,7 +163,7 @@ Infrastructure includes configuration for environments such as:
 - Kubernetes Jobs
 - Process configuration
 
-Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
+Most users will find it easiest to configure new infrastructure blocks through the Prefect server or Prefect Cloud UI. 
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter to just the infrastructure blocks.
 

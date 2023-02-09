@@ -37,11 +37,9 @@ version of both Python and `prefect` that you are currently testing.  You can bu
 compatible image from your source tree with:
 
 <div class="terminal">
-
 ```bash
 prefect dev build-image
 ```
-
 </div>
 
 ### Running the integration tests
@@ -50,11 +48,9 @@ To run the tests for the `DockerFlowRunner`, include the `--service docker` flag
 running `pytest`:
 
 <div class="terminal">
-
 ```bash
 pytest --service docker tests/flow_runners/test_docker.py
 ```
-
 </div>
 
 ## Testing the `KubernetesFlowRunner`
@@ -108,7 +104,7 @@ kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-por
 </div>
 
 The example above creates a `LoadBalancer` Kubernetes `Service` on your cluster to
-expose the Orion API on `http://localhost:4205/api`, which you may use as your
+expose the Prefect API on `http://localhost:4205/api`, which you may use as your
 `PREFECT_API_URL` for interacting with that service.
 
 You may also use port-forwarding if you are connecting to a remote cluster, or have

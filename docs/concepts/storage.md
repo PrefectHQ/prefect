@@ -64,11 +64,11 @@ Current options for deployment storage blocks include:
 
 You can create these blocks either via the UI or via Python. 
 
-You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI and Prefect Cloud. On a Prefect Orion server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
+You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI and Prefect Cloud. On a Prefect server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
 
 To create a new block, select the **+** button. Prefect displays a library of block types you can configure to create blocks to be used by your flows.
 
-![Viewing the new block library in the Prefect UI](../img/ui/orion-block-library.png)
+![Viewing the new block library in the Prefect UI](../img/ui/block-library.png)
 
 Select **Add +** to configure a new storage block based on a specific block type. Prefect displays a **Create** page that enables specifying storage settings.
 
