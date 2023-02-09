@@ -674,6 +674,40 @@ class TestDeleteTaskRun:
             await models.task_runs.delete_task_run(session=session, task_run_id=uuid4())
         )
 
+    async def test_delete_task_run_with_data(self, flow_run, session):
+        state_id = uuid4()
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="0",
+                state=schemas.states.State(
+                    id=state_id,
+                    type="COMPLETED",
+                    name="My Running State",
+                    data={"hello": "world"},
+                ),
+            ),
+        )
+        assert task_run.flow_run_id == flow_run.id
+        assert task_run.state.id == state_id
+
+        assert await models.task_runs.read_task_run(
+            session=session, task_run_id=task_run.id
+        )
+
+        assert await models.task_runs.delete_task_run(
+            session=session, task_run_id=task_run.id
+        )
+
+        # make sure the task run is deleted
+        assert (
+            await models.task_runs.read_task_run(
+                session=session, task_run_id=task_run.id
+            )
+        ) is None
+
 
 class TestPreventOrphanedConcurrencySlots:
     @pytest.fixture
