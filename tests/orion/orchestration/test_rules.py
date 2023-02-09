@@ -1497,7 +1497,7 @@ class TestOrchestrationContext:
         list(permutations([*states.StateType, None], 2)),
         ids=transition_names,
     )
-    async def test_context_state_validation_encounters_intermittent_exception(
+    async def test_context_state_validation_encounters_exception(
         self, session, run_type, intended_transition, initialize_orchestration
     ):
         initial_state_type, proposed_state_type = intended_transition
@@ -1520,10 +1520,10 @@ class TestOrchestrationContext:
 
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        # Bypass pydantic mutation protection, inject a one-time error
-        working_flush = ctx.session.flush
-        side_effects = [RuntimeError("One time error!"), working_flush]
-        object.__setattr__(ctx.session, "flush", AsyncMock(side_effect=side_effects))
+        # Bypass pydantic mutation protection, inject an error
+        object.__setattr__(
+            ctx.session, "flush", AsyncMock(side_effect=RuntimeError("One time error!"))
+        )
 
         async with contextlib.AsyncExitStack() as stack:
             mock_rule = MockRule(ctx, *intended_transition)
@@ -1537,6 +1537,14 @@ class TestOrchestrationContext:
         else:
             after_transition_hook.assert_called_once(), "Rule expected no transition"
             cleanup_hook.assert_not_called()
+
+        assert ctx.proposed_state is None
+        assert ctx.response_status == SetStateStatus.ABORT
+        assert isinstance(ctx.response_details, StateAbortDetails)
+        assert (
+            ctx.response_details.reason
+            == "Error validating state: RuntimeError('One time error!')"
+        )
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])

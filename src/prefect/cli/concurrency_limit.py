@@ -130,6 +130,21 @@ async def ls(limit: int = 15, offset: int = 0):
 
 
 @concurrency_limit_app.command()
+async def reset(tag: str):
+    """
+    Resets the concurrency limit slots set on the specified tag.
+    """
+
+    async with get_client() as client:
+        try:
+            await client.reset_concurrency_limit_by_tag(tag=tag)
+        except ObjectNotFound:
+            exit_with_error(f"No concurrency limit found for the tag: {tag}")
+
+    exit_with_success(f"Reset concurrency limit set on the tag: {tag}")
+
+
+@concurrency_limit_app.command()
 async def delete(tag: str):
     """
     Delete the concurrency limit set on the specified tag.
