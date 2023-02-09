@@ -11,6 +11,4 @@ Once you've gone through the tutorial, we encourage you to find out more about P
 
 ::: tip Prefect 2
 With general availability of Prefect 2, we recommend new users start with [Prefect 2](https://docs.prefect.io/#getting-started-with-prefect).
-
-If you are unsure which Prefect version to choose for your specific use case, [this Prefect Discourse page](https://discourse.prefect.io/t/should-i-start-with-prefect-2-0-orion-skipping-prefect-1-0/544) may help you decide.
 :::
