@@ -35,7 +35,7 @@ json_block = JSON(value={"the_answer": 42})
 
 ### Saving blocks
 
-If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Orion DB for retrieval later:
+If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Prefect database for retrieval later:
 
 ```python
 json_block.save(name="life-the-universe-everything")
@@ -300,7 +300,7 @@ class S3Bucket(Block):
     ...
 ```
 
-Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect Orion server.
+Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server.
 
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
