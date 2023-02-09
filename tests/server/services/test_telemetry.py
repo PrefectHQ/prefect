@@ -89,7 +89,7 @@ async def test_errors_shutdown_service(error_sens_o_matic_mock, caplog):
     records = [
         record
         for record in caplog.records
-        if record.name == "prefect.server.services.telemetry"
+        if record.name == "prefect.orion.services.telemetry"
         and record.levelname == "ERROR"
     ]
 
