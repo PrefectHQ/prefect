@@ -6,11 +6,11 @@
 
 ![Work pools allow you to organize and prioritize work](https://user-images.githubusercontent.com/12350579/217914094-e8064420-294b-4033-b12e-c0f58da521d5.png)
 
-With this release, flow runs can now be prioritized between work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queue will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time-sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
+With this release, flow runs can now be prioritized among work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queues will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time-sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
 
-All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pools page in the UI or the CLI.
+All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pools page in the UI or via the CLI.
 
-To create a new work pool via the CLI:
+To create a new work pool named "my-pool" via the CLI:
 
 ```bash
 prefect work-pool create "my-pool"
@@ -40,7 +40,7 @@ Once a deployment has been created and is scheduling flow runs on a work queue, 
 prefect agent start --pool my-pool
 ```
 
-Starting an agent with the `--pool` command will allow the agent to pick up flow runs for the entire pool even as new queues are added to the pool. If you want to start an agent that only picks up flow runs for a specific queue, you can use the `--queue` flag.
+Starting an agent with the `--pool` command allows the agent to pick up flow runs for the entire pool even as new queues are added to the pool. If you want to start an agent that only picks up flow runs for a specific queue, you can use the `--queue` flag.
 
 ```bash
 prefect agent start --pool my-pool --queue high-priority
