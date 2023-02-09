@@ -148,7 +148,7 @@ async def flow_run_history(
             task_runs=task_runs,
             deployments=deployments,
             work_pools=work_pools,
-            work_queues=work_queues,
+            work_pool_queues=work_queues,
         )
 
 

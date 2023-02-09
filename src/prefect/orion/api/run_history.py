@@ -74,7 +74,7 @@ async def run_history(
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
             deployment_filter=deployments,
-            work_pools_filter=work_pools,
+            work_pool_filter=work_pools,
             work_queue_filter=work_pool_queues,
         )
     ).alias("runs")
