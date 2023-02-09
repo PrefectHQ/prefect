@@ -6,7 +6,7 @@
 
 ![Work pools allow you to organize and prioritize work](https://user-images.githubusercontent.com/12350579/217914094-e8064420-294b-4033-b12e-c0f58da521d5.png)
 
-With this release, flow runs can now be prioritize between work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queue will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
+With this release, flow runs can now be prioritized between work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queue will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time-sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
 
 All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pool tab in the UI or the CLI.
 
@@ -34,7 +34,7 @@ prefect deployment build \
     high_priority_flow.py:high_priority_flow
 ```
 
-Once a deployment has been created and is scheduling flow runs on a work queue, you can start an agent to pick up those flow runs by starting and agent with the `--pool` flag.
+Once a deployment has been created and is scheduling flow runs on a work queue, you can start an agent to pick up those flow runs by starting an agent with the `--pool` flag.
 
 ```bash
 prefect agent start --pool my-pool
@@ -46,14 +46,10 @@ Starting an agent with the `--pool` command will allow the agent to pick up flow
 prefect agent start --pool my-pool --queue high-priority
 ```
 
-To learn more about work pools, checkout the [docs](https://docs.prefect.io/concepts/work-pools/)!
-
-### Work Pools 🎉
-- Remove experimental designation around work pools — https://github.com/PrefectHQ/prefect/pull/8362
-- Adds work pool and queue filters to flow runs history endpoint — https://github.com/PrefectHQ/prefect/pull/8459
-- Update flowRunFilter on WorkPool page — https://github.com/PrefectHQ/prefect/pull/8453
-- Updates agent logic to respect work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
-
+To learn more about work pools, check out the [docs](https://docs.prefect.io/concepts/work-pools/) or see the relevant pull requests:
+    - Add ability to filter on work pool and queue when viewing flow run history — https://github.com/PrefectHQ/prefect/pull/8459
+    - Remove experimental designation around work pools — https://github.com/PrefectHQ/prefect/pull/8362
+    - Ensure agent respects work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
 
 ### Enhancements
 - Add ability to create a flow run from the UI with parameters from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
@@ -68,6 +64,7 @@ To learn more about work pools, checkout the [docs](https://docs.prefect.io/conc
 - Fix display of long log messages when in the UI — https://github.com/PrefectHQ/prefect/pull/8449
 - Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
 - Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
+- Fix display of work pool flow run filter in the UI — https://github.com/PrefectHQ/prefect/pull/8453
 
 ### Documentation
 - Update Infrastructure concept documentation with `extra-pip-package` example and updated `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/8465
