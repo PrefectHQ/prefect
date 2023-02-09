@@ -1,0 +1,13 @@
+<!-- overrides partial for header navigation, adding tab for Prefect Cloud -->
+
+{% set class = "" %}
+<nav class="md-tabs" aria-label="{{ lang.t('tabs') }}" data-md-component="tabs">
+  <div class="md-tabs__inner md-grid">
+    <ul class="md-tabs__list">
+      {% for nav_item in nav %}
+        {% include "partials/tabs-item.html" %}
+      {% endfor %}
+      <li class="md-tabs__item cloud-link"><a class="md-tabs__link" target="_blank" rel="noopener noreferrer" href="https://app.prefect.cloud"><b>Go to Prefect Cloud &#187;</b></a></li>
+    </ul>
+  </div>
+</nav>
