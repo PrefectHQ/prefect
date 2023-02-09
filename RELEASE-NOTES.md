@@ -48,11 +48,9 @@ prefect agent start --pool my-pool --queue high-priority
 
 To learn more about work pools, check out the [docs](https://docs.prefect.io/concepts/work-pools/) or see the relevant pull requests:
 
-- Add ability to filter on work pool and queue when querying flow runs — https://github.com/PrefectHQ/prefect/pull/8459
-- Remove experimental designation around work pools — https://github.com/PrefectHQ/prefect/pull/8362
-- Ensure agent respects work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
-
 ### Enhancements
+- Add ability to filter on work pool and queue when querying flow runs — https://github.com/PrefectHQ/prefect/pull/8459
+- Ensure agent respects work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
 - Add ability to create a flow run from the UI with parameters from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
 - Add generic `Webhook` block — https://github.com/PrefectHQ/prefect/pull/8401
 - Add override customizations functionality to deployments via CLI — https://github.com/PrefectHQ/prefect/pull/8349
