@@ -191,7 +191,7 @@ See the Python [RRuleSchedule class docs](/api-ref/server/schemas/schedules/#pre
 
 ## The `Scheduler` service
 
-The `Scheduler` service is started automatically when `prefect orion start` is run and it is a built-in service of Prefect Cloud. 
+The `Scheduler` service is started automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud. 
 
 By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments will be visited more frequently. The `Scheduler` evaluates each deployment's schedule and creates new runs appropriately. For typical deployments, it will create the next three runs, though more runs will be scheduled if the next 3 would all start in the next hour. 
 

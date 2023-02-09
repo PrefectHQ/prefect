@@ -27,15 +27,15 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 - We'll use the flow script and deployment from the [Deployments](/tutorials/deployments/) tutorial. 
 - We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
-- You must run a standalone Prefect server (`prefect orion start`) or use Prefect Cloud.
+- You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
 !!! note "Run a Prefect server"
-    This tutorial assumes you're already running a Prefect server with `prefect orion start`, as described in the [Deployments](/tutorials/deployments/) tutorial. 
+    This tutorial assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorials/deployments/) tutorial. 
     
-    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect server with the `prefect orion start` CLI command.
+    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
 ## Create an infrastructure block
 
