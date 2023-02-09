@@ -69,7 +69,7 @@ To learn more about work pools, check out the [docs](https://docs.prefect.io/con
 
 ### Documentation
 - Update Infrastructure concept documentation with `extra-pip-package` example and updated `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/8465
-- Add Work Pools documentation - https://github.com/PrefectHQ/prefect/pull/8377
+- Add work pools documentation - https://github.com/PrefectHQ/prefect/pull/8377
 
 ### Contributors
 - @carderne
