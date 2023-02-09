@@ -98,10 +98,6 @@ jobs:
           # but the value is not particularly clear and we can just append the
           # last minor version at each release time
           # - "2"
-        
-        server_command:
-          - "prefect server start"
-
 
         include:
           # While old clients should always be supported by new servers, a new
@@ -161,7 +157,7 @@ jobs:
           --publish 4200:4200
           ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          ${{ matrix.server_command }} --host 0.0.0.0
+          ${{ matrix.server_command || 'prefect server start' }} --host 0.0.0.0
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
