@@ -28,7 +28,7 @@ Prefect Cloud includes the same features as the open-source Prefect Orion server
     - Logs for individual flow and task runs.
 - [Flows](/ui/flows/) observed by the Prefect Cloud API. 
 - [Deployments](/ui/deployments/) created on the Prefect Cloud API. You can also use the Prefect Cloud UI to create ad-hoc flow runs from deployments.
-- [Work queues](/ui/work-queues/) created to queue work for agents.
+- [Work pools](/ui/work-pools/) created to queue work for agents.
 - [Blocks](/ui/blocks/) configured for storage or infrastructure used by your flow runs.
 - [Task Run Concurrency Limits](/ui/task-concurrency/) configured to prevent too many tasks from running simultaneously.
 
@@ -69,7 +69,7 @@ Each workspace keeps track of its own:
 - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
 - [Flows](/concepts/flows/) associated with flow runs and deployments observed by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
-- [Work queues](/concepts/work-queues/)
+- [Work pools](/concepts/work-pools/)
 - [Blocks](/ui/blocks/) and [storage](/concepts/storage/)
 - [Automations](/ui/automations/)
 

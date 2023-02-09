@@ -254,7 +254,7 @@ Task runners only manage _task runs_ within a flow run. But what about flows?
 
 Any given flow run &mdash; meaning in this case your workflow including any subflows and tasks &mdash; executes in its own environment using the infrastructure configured for that environment. In these examples, that infrastructure is probably your local computing environment. But for flow runs based on [deployments](/concepts/deployments/), that infrastructure might be a server in a datacenter, a VM, a Docker container, or a Kubernetes cluster.
 
-The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work queues](/concepts/work-queues/) &mdash; advanced topics that are covered in other tutorials.
+The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work pools](/concepts/work-pools/) &mdash; advanced topics that are covered in other tutorials.
 
 Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
 

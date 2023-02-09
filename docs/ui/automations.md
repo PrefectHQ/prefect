@@ -13,7 +13,7 @@ tags:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work queues. 
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools. 
 
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
@@ -166,7 +166,7 @@ Name: {{ work_queue.name }}
 Last polled: {{ work_queue.last_polled }}
 ```
 
-In addition to those shortcuts for flows, deployments, and work queues, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
+In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
 
 ```
 Automation: {{ automation.name }}

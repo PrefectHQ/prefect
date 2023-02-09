@@ -105,7 +105,7 @@ What did we do here? Let's break down the command:
 - `-n log-flow-docker` specifies a name for the deployment. For ease of identification, the name includes a reference to the Docker infrastructure.
 - `-sb s3/log-test` specifies a storage block by type and name. If you used a different storage block type or block name, your command may be different.
 - `-ib docker-container/log-tutorial` specifies an infrastructure block by type and name.
-- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-q test` specifies a work queue for the deployment. Work pools direct scheduled runs to agents.
 - `-o log-flow-docker-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
 ## Apply the deployment
@@ -152,7 +152,7 @@ When you create flow runs from this deployment, the agent pulls the default Pref
 Let's create a flow run for this deployment. The flow run will execute in a Docker container on your local machine.
 
 !!! note "Run a Prefect agent"
-    This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-queues) tutorial. 
+    This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-pools) tutorial. 
     
     If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 

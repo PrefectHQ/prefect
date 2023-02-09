@@ -14,7 +14,7 @@ tags:
 
 # Storage
 
-Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect agents](/concepts/work-queues). Anytime you build a deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
+Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect agents](/concepts/work-pools). Anytime you build a deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
 
 If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherent lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
 
