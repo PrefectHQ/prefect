@@ -66,7 +66,7 @@ github_stars(["PrefectHQ/Prefect"])
 After running some flows, fire up the Prefect UI to gain insight into their execution:
 
 ```bash
-prefect orion start
+prefect server start
 ```
 
 ![](/docs/img/ui/prefect-dashboard.png)

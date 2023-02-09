@@ -186,7 +186,7 @@ prefect dev ui
 ```
 </div>
 
-Build the static UI (the UI served by `prefect orion start`):
+Build the static UI (the UI served by `prefect server start`):
 
 <div class="terminal">
 ```bash
