@@ -62,14 +62,13 @@ prefect.client.schemas.State.update_forward_refs(
 # Ensure collections are imported and have the opportunity to register types
 import prefect.plugins
 
-prefect.plugins.load_prefect_collections()
-prefect.plugins.load_extra_entrypoints()
+# prefect.plugins.load_prefect_collections()
+# prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
 import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
-
 
 # Ensure moved names are accessible at old locations
 import prefect.client
