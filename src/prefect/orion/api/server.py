@@ -141,6 +141,7 @@ def create_orion_api(
     router_prefix: Optional[str] = "",
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
+    version_check_path: str = "/version",
     fast_api_app_kwargs: dict = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
@@ -165,6 +166,10 @@ def create_orion_api(
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
         return True
+
+    @api_app.get(version_check_path, tags=["Root"])
+    async def orion_info():
+        return ORION_API_VERSION
 
     # always include version checking
     if dependencies is None:

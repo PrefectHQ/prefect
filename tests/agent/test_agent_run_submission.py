@@ -1,3 +1,4 @@
+import datetime
 import inspect
 from typing import Generator
 from unittest.mock import MagicMock
@@ -14,6 +15,7 @@ from prefect.infrastructure.base import Infrastructure
 from prefect.orion import models, schemas
 from prefect.states import Completed, Pending, Running, Scheduled, State, StateType
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.dispatch import get_registry_for_type
 
 
@@ -257,8 +259,10 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
-async def test_agent_creates_work_queue_if_doesnt_exist(
-    session, work_pool, prefect_caplog, enable_work_pools
+async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
+    session,
+    work_pool,
+    prefect_caplog,
 ):
     name = "hello-there"
     assert not await models.workers.read_work_queue_by_name(
@@ -292,7 +296,10 @@ async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(
-    session, monkeypatch, prefect_caplog, work_pool, enable_work_pools
+    session,
+    monkeypatch,
+    prefect_caplog,
+    work_pool,
 ):
     """
     Mimics a race condition in which multiple agents were started against the
@@ -912,7 +919,6 @@ async def test_agent_with_work_queue_and_work_pool(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -975,7 +981,6 @@ async def test_agent_with_work_pool(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1041,7 +1046,6 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1101,3 +1105,101 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
     assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+
+@pytest.fixture
+async def deployment_on_default_queue(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_pool,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My High Priority Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_pool.default_queue_id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+async def test_agent_runs_high_priority_flow_runs_first(
+    orion_client: OrionClient,
+    deployment_in_non_default_work_pool: schemas.core.Deployment,
+    deployment_on_default_queue: schemas.core.Deployment,
+    work_pool: schemas.core.WorkPool,
+    work_queue_1: schemas.core.WorkQueue,
+):
+    """
+    This test creates two queues in the same work pool and a deployment
+    for each queue. Many flow runs are created for the deployment on the
+    lower priority queue and one flow run is created for the deployment
+    on the higher priority queue. The agent is started with a limit
+    of 1 to ensure only one flow run is submitted. The flow run for the
+    deployment on the higher priority queue should be run first even though
+    there are late flow runs for the deployment on the lower priority queue.
+    """
+
+    @flow
+    def foo():
+        pass
+
+    create_high_priority_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment_on_default_queue.id, state=state
+        )
+    )
+
+    create_low_priority_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment_in_non_default_work_pool.id, state=state
+        )
+    )
+
+    flow_runs = [
+        await create_low_priority_run_with_deployment(Pending()),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_high_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_low_priority_run_with_deployment(Running()),
+        await create_low_priority_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    agent = OrionAgent(work_pool_name=work_pool.name, prefetch_seconds=10, limit=1)
+
+    async with agent:
+        agent.submit_run = AsyncMock()  # do not actually run anything
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+
+    submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+    assert submitted_flow_run_ids == {flow_run_ids[3]}

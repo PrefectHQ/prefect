@@ -363,7 +363,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         work_pool,
         work_queue_1,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -410,7 +409,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         default_queue = await models.workers.read_work_queue(
             session=session, work_queue_id=work_pool.default_queue_id
@@ -451,6 +449,43 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.infrastructure_document_id == infrastructure_document_id
         assert deployment.work_queue_id == work_pool.default_queue_id
+
+    async def test_create_deployment_creates_work_queue(
+        self,
+        client,
+        flow,
+        session,
+        infrastructure_document_id,
+        work_pool,
+    ):
+        data = DeploymentCreate(
+            name="My Deployment",
+            version="mint",
+            path="/",
+            entrypoint="/file.py:flow",
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
+            infrastructure_document_id=infrastructure_document_id,
+            infra_overrides={"cpu": 24},
+            work_pool_name=work_pool.name,
+            work_queue_name="new-queue",
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["work_pool_name"] == work_pool.name
+        assert response.json()["work_queue_name"] == "new-queue"
+        deployment_id = response.json()["id"]
+
+        work_queue = await models.workers.read_work_queue_by_name(
+            session=session, work_pool_name=work_pool.name, work_queue_name="new-queue"
+        )
+        assert work_queue is not None
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=deployment_id
+        )
+        assert deployment.work_queue_id == work_queue.id
 
     @pytest.mark.parametrize(
         "template, overrides",
@@ -499,7 +534,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
-        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -590,7 +624,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         template,
         overrides,
-        enable_work_pools,
     ):
         work_pool = await models.workers.create_work_pool(
             session=session,
@@ -627,7 +660,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",
@@ -667,7 +699,6 @@ class TestCreateDeployment:
         session,
         infrastructure_document_id,
         work_pool,
-        enable_work_pools,
     ):
         data = DeploymentCreate(
             name="My Deployment",

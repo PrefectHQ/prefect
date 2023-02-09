@@ -65,7 +65,7 @@ For example, when creating your deployment files, the supported Prefect infrastr
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
+$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket --override env.EXTRA_PIP_PACKAGES=s3fs
 Found flow 'my-flow'
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
 Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
@@ -82,10 +82,17 @@ The default deployment YAML filename may be edited as needed to add an infrastru
 ###
 name: my-flow-deployment
 description: null
+version: e29de5d01b06d61b4e321d40f34a480c
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+work_pool_name: default-agent-pool
 tags:
 - test
-schedule: null
 parameters: {}
+schedule: null
+is_schedule_active: true
+infra_overrides:
+  env.EXTRA_PIP_PACKAGES: s3fs
 infrastructure:
   type: docker-container
   env: {}
@@ -102,6 +109,12 @@ infrastructure:
   auto_remove: false
   volumes: []
   stream_output: true
+  memswap_limit: null
+  mem_limit: null
+  privileged: false
+  block_type_slug: docker-container
+  _block_type_slug: docker-container
+  
 ###
 ### DO NOT EDIT BELOW THIS LINE
 ###
@@ -114,13 +127,17 @@ storage:
   _is_anonymous: true
   _block_document_name: anonymous-xxxxxxxx-f1ff-4265-b55c-6353a6d65333
   _block_document_id: xxxxxxxx-06c2-4c3c-a505-4a8db0147011
+  block_type_slug: s3
   _block_type_slug: s3
+path: ''
+entrypoint: my_flow.py:my-flow
 parameter_openapi_schema:
   title: Parameters
   type: object
   properties: {}
   required: null
   definitions: null
+timestamp: '2023-02-08T23:00:14.974642+00:00'
 ```
 
 !!! note "Editing deployment YAML"
@@ -219,7 +236,7 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | ---- | ---- |
 | cluster_config | An optional Kubernetes cluster config to use for this job. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).|
 | env	| Environment variables to set for the container. |
 | finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |

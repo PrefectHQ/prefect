@@ -121,6 +121,34 @@ class TestOutputMessages:
             ),
         )
 
+    def test_message_with_missing_nonexistent_work_pool(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_pool_name="gibberish",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                [
+                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    "To create a work pool via the CLI:",
+                    "$ prefect work-pool create 'gibberish'",
+                ]
+            ),
+        )
+
 
 class TestUpdatingDeployments:
     @pytest.fixture

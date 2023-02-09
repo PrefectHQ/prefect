@@ -1,5 +1,148 @@
 # Prefect Release Notes
 
+## Release 2.7.12
+
+### Custom flow and task run names 🎉
+
+Both tasks and flows now expose a mechanism for customizing the names of runs! This new keyword argument (`flow_run_name` for flows, `task_run_name` for tasks) accepts a string that will be used to create a run name for each run of the function. The most basic usage is as follows:
+
+```python
+from datetime import datetime
+from prefect import flow, task
+
+@task(task_run_name="custom-static-name")
+def my_task(name):
+  print(f"hi {name}")
+
+@flow(flow_run_name="custom-but-fixed-name")
+def my_flow(name: str, date: datetime):
+  return my_task(name)
+
+my_flow()
+```
+
+This is great, but doesn’t help distinguish between multiple runs of the same task or flow. In order to make these names dynamic, you can template them using the parameter names of the task or flow function, using all of the basic rules of Python string formatting as follows:
+
+```python
+from datetime import datetime
+from prefect import flow, task
+
+@task(task_run_name="{name}")
+def my_task(name):
+  print(f"hi {name}")
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime):
+  return my_task(name)
+
+my_flow()
+```
+
+See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-configuration) or https://github.com/PrefectHQ/prefect/pull/8378 for more details.
+
+### Enhancements
+- Update the deployment page to show the runs tab before the description — https://github.com/PrefectHQ/prefect/pull/8398
+
+### Fixes
+- Fix artifact migration to only include states that have non-null data — https://github.com/PrefectHQ/prefect/pull/8420
+- Fix error when using `prefect work-queue ls` without enabling work pools — https://github.com/PrefectHQ/prefect/pull/8427
+
+### Experimental
+- Add error when attempting to apply a deployment to a work pool that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
+- Create queues in the correct work pool when applying a deployment for a queue that hasn't been created yet — https://github.com/PrefectHQ/prefect/pull/8413
+
+### Contributors
+- @NodeJSmith
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.11...2.7.12
+
+
+
+## Release 2.7.11
+
+### Using loggers outside of flows
+
+Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
+
+```python
+from prefect import flow
+import logging
+
+my_logger = logging.getLogger("my-logger")
+my_logger.info("outside the flow")
+
+@flow
+def foo():
+    my_logger.info("inside the flow")
+
+if __name__ == "__main__":
+    foo()
+```
+
+We want to see messages from `my-logger` in the UI. We can do this with `PREFECT_LOGGING_EXTRA_LOGGERS`.
+
+```
+$ PREFECT_LOGGING_EXTRA_LOGGERS="my-logger" python example.py
+example.py:6: UserWarning: Logger 'my-logger' attempted to send logs to Orion without a flow run id. The Orion log handler can only send logs within flow run contexts unless the flow run id is manually provided.
+  my_logger.info("outside the flow")
+18:09:30.518 | INFO    | my-logger - outside the flow
+18:09:31.028 | INFO    | prefect.engine - Created flow run 'elated-curassow' for flow 'foo'
+18:09:31.104 | INFO    | my-logger - inside the flow
+18:09:31.179 | INFO    | Flow run 'elated-curassow' - Finished in state Completed()
+```
+
+Notice, we got a warning. This helps avoid confusion when certain logs don't appear in the UI, but if you understand that you can turn it off:
+
+```
+$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore
+Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+Updated profile 'default'.
+```
+
+### Enhancements
+- Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
+- Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
+- Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
+- Display Runs before Deployments on flow pages - https://github.com/PrefectHQ/prefect/pull/8386
+- Clearify output CLI message when switching profiles - https://github.com/PrefectHQ/prefect/pull/8383
+
+### Fixes
+- Fix bug preventing agents from properly updating Cancelling runs to a Cancelled state — https://github.com/PrefectHQ/prefect/pull/8315
+- Fix bug where Kubernetes job monitoring exited early when no timeout was given — https://github.com/PrefectHQ/prefect/pull/8350
+
+### Experimental
+- We're working on work pools, groups of work queues. Together, work pools & queues give you greater flexibility and control in organizing and prioritizing work.
+     - Add updates to work queue `last_polled` time when polling work pools — https://github.com/PrefectHQ/prefect/pull/8338
+     - Add CLI support for work pools — https://github.com/PrefectHQ/prefect/pull/8259
+     - Add fields to `work_queue` table to accommodate work pools — https://github.com/PrefectHQ/prefect/pull/8264
+     - Add work queue data migration — https://github.com/PrefectHQ/prefect/pull/8327
+     - Fix default value for priority on `WorkQueue` core schema — https://github.com/PrefectHQ/prefect/pull/8373
+- Add ability to exclude experimental fields in API calls — https://github.com/PrefectHQ/prefect/pull/8274, https://github.com/PrefectHQ/prefect/pull/8331
+- Add Prefect Cloud Events schema and clients — https://github.com/PrefectHQ/prefect/pull/8357
+
+### Documentation
+- Add git commands to Prefect Recipes contribution page — https://github.com/PrefectHQ/prefect/pull/8283
+- Add `retry_delay_seconds` and `exponential_backoff` examples to Tasks retries documentation — https://github.com/PrefectHQ/prefect/pull/8280
+- Add role permissions regarding block secrets — https://github.com/PrefectHQ/prefect/pull/8309
+- Add getting started tutorial video to Prefect Cloud Quickstart — https://github.com/PrefectHQ/prefect/pull/8336
+- Add tips for re-registering blocks from Prefect Collections — https://github.com/PrefectHQ/prefect/pull/8333
+- Improve examples for Kubernetes infrastructure overrides — https://github.com/PrefectHQ/prefect/pull/8312
+- Add mention of reverse proxy for `PREFECT_API_URL` config — https://github.com/PrefectHQ/prefect/pull/8240
+- Fix unused Cloud Getting Started page — https://github.com/PrefectHQ/prefect/pull/8291
+- Fix Prefect Cloud typo in FAQ — https://github.com/PrefectHQ/prefect/pull/8317
+
+### Collections
+- Add `ShellOperation` implementing `JobBlock` in `v0.1.4` release of `prefect-shell` - https://github.com/PrefectHQ/prefect-shell/pull/55
+- Add `CensusSync` implementing `JobBlock` in `v0.1.1` release of `prefect-census` - https://github.com/PrefectHQ/prefect-census/pull/15
+
+### Contributors
+- @chiaberry
+- @hozn
+- @manic-miner
+- @space-age-pete
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.7.10...2.7.11
+
 ## Release 2.7.10
 
 ### Flow run cancellation enhancements
