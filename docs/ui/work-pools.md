@@ -12,7 +12,7 @@ tags:
 
 # Work Pools
 
-[Work Polls](/concepts/work-queues/) and agents work together to bridge your orchestration environment &mdash; a local Prefect server or Prefect Cloud &mdash; and your execution environments. Work pools gather flow runs for scheduled deployments, and agents pick up work from their configured work pool queues.
+[Work Pools](/concepts/work-pools/) and agents work together to bridge your orchestration environment &mdash; a local Prefect server or Prefect Cloud &mdash; and your execution environments. Work pools gather flow runs for scheduled deployments, and agents pick up work from their configured work pool queues.
 
 Work pool configuration lets you specify which queues handle which flow runs. You can filter runs based on tags and specific deployments.
 

@@ -14,7 +14,7 @@ tags:
 
 Agents and work pools bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
 
-Each work pool has a default queue that all work will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-queue-configuration) for more information. 
+Each work pool has a default queue that all work will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
 
 To run deployments, you must configure at least one agent (and its associated work pool):
 
