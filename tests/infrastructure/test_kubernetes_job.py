@@ -1170,6 +1170,22 @@ class TestCustomizingJob:
             },
         }
 
+    def test_providing_a_string_customization(self):
+        KubernetesJob(
+            command=["echo", "hello"],
+            customizations='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-","value": {"name": "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name": "the-secret-name", "key": "api-token"}}}}]',
+        )
+
+    def test_providing_an_illformatted_string_customization_raises(self):
+        with pytest.raises(
+            ValueError,
+            match=f"Unable to parse customizations as JSON: .* Please make sure that the provided value is a valid JSON string.",
+        ):
+            KubernetesJob(
+                command=["echo", "hello"],
+                customizations='[{"op": ""add", "path": "/spec/template/spec/containers/0/env/-","value": {"name": "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name": "the-secret-name", "key": "api-token"}}}}]',
+            )
+
     def test_setting_pod_resource_requests(self):
         manifest = KubernetesJob(
             command=["echo", "hello"],
