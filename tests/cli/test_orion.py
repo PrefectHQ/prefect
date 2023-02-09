@@ -34,7 +34,7 @@ def test_start_no_options(mock_run_process: AsyncMock):
             "--app-dir",
             f'"{prefect.__module_path__.parent}"',  # note, wrapped in double quotes
             "--factory",
-            "prefect.orion.api.server:create_app",
+            "prefect.server.api.server:create_app",
             "--host",
             "127.0.0.1",
             "--port",

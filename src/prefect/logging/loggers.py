@@ -11,7 +11,7 @@ from prefect.exceptions import MissingContextError
 if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 

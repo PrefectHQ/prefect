@@ -23,9 +23,9 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
-from prefect.orion import schemas
-from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.orion.schemas.filters import (
+from prefect.server import schemas
+from prefect.server.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.server.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
     FlowRunFilterState,

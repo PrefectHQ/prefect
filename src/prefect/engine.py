@@ -63,12 +63,12 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
+from prefect.server.schemas.core import TaskRunInput, TaskRunResult
+from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.responses import SetStateStatus
+from prefect.server.schemas.sorting import FlowRunSort
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -1794,7 +1794,7 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.orion.schemas.states] representation of the flow or task run
+        a [State model][prefect.server.schemas.states] representation of the flow or task run
             state
 
     Raises:

@@ -6,7 +6,7 @@ import pydantic
 import pytest
 from pydantic import Field
 
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 from prefect.client.orion import OrionClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
@@ -16,7 +16,7 @@ from prefect.experimental.workers.base import (
     BaseWorker,
 )
 from prefect.flows import flow
-from prefect.orion import models
+from prefect.server import models
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,

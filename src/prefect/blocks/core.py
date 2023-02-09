@@ -29,7 +29,7 @@ import prefect.exceptions
 from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import disable_logger
-from prefect.orion.schemas.core import (
+from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
     BlockSchema,

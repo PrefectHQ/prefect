@@ -41,8 +41,8 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.server.schemas.core import raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet

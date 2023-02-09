@@ -542,7 +542,7 @@ If a flow returns a manually created state, the final state is determined based 
 
 ```python hl_lines="16-19"
 from prefect import task, flow
-from prefect.orion.schemas.states import Completed, Failed
+from prefect.server.schemas.states import Completed, Failed
 
 @task
 def always_fails_task():

@@ -33,8 +33,8 @@ from prefect.exceptions import (
 )
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
-from prefect.orion.schemas.filters import FlowFilter
-from prefect.orion.schemas.schedules import (
+from prefect.server.schemas.filters import FlowFilter
+from prefect.server.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,

@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 import pendulum
 from pydantic import Field, root_validator, validator
 
-from prefect.orion.utilities.schemas import DateTimeTZ, PrefectBaseModel
+from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 
 # These are defined by Prefect Cloud
 MAXIMUM_LABELS_PER_RESOURCE = 500

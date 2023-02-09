@@ -97,7 +97,7 @@ The Prefect REST API can be fully described with an OpenAPI 3.0 compliant docume
 To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
-from prefect.orion.api.server import create_app
+from prefect.server.api.server import create_app
 
 app = create_app()
 openapi_doc = app.openapi()

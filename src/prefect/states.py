@@ -23,9 +23,9 @@ from prefect.exceptions import (
     MissingResult,
     PausedRun,
 )
-from prefect.orion import schemas
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
+from prefect.server import schemas
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
 from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible

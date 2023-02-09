@@ -22,9 +22,9 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion import models
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import StateType
+from prefect.server import models
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash

@@ -14,7 +14,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.orion.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."

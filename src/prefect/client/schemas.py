@@ -3,8 +3,8 @@ from uuid import UUID
 
 from pydantic import Field
 
-from prefect.orion import schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.server import schemas
+from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import PREFECT_CLOUD_API_URL
 
 if TYPE_CHECKING:

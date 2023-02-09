@@ -5,7 +5,7 @@ import pytest
 from prefect.blocks import system
 from prefect.client import OrionClient
 from prefect.exceptions import ObjectNotFound
-from prefect.orion import models
+from prefect.server import models
 from prefect.settings import (
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
     PREFECT_UI_URL,

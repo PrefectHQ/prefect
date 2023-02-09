@@ -62,14 +62,13 @@ prefect.client.schemas.State.update_forward_refs(
 # Ensure collections are imported and have the opportunity to register types
 import prefect.plugins
 
-prefect.plugins.load_prefect_collections()
-prefect.plugins.load_extra_entrypoints()
+# prefect.plugins.load_prefect_collections()
+# prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
 import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
-
 
 # Ensure moved names are accessible at old locations
 import prefect.client
@@ -108,7 +107,7 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
 
 
 if not hasattr(sys, "frozen"):
-    sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
+    sys.meta_path.insert(0, Prefect1ImportInterceptor())
 
 
 # Declare API for type-checkers

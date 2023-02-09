@@ -16,9 +16,9 @@ from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
-from prefect.orion import schemas
-from prefect.orion.schemas.actions import WorkPoolUpdate
-from prefect.orion.schemas.responses import WorkerFlowRunResponse
+from prefect.server import schemas
+from prefect.server.schemas.actions import WorkPoolUpdate
+from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,

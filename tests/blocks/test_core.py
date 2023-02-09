@@ -15,9 +15,9 @@ from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
 from prefect.client import OrionClient
 from prefect.exceptions import PrefectHTTPStatusError
-from prefect.orion import models
-from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.server import models
+from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 

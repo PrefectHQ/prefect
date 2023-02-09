@@ -40,7 +40,7 @@ Generally, submodules should _not_ be imported in the `__init__` file. Submodule
 For example, we do this for our schema and model modules because it is important to know if you are working with an API schema or database model, both of which may have similar names.
 
 ```python
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 
 # The full module is accessible now
 schemas.core.FlowRun
@@ -77,8 +77,8 @@ The `from` syntax should be reserved for importing objects from modules. Modules
 
 ```python
 # Correct
-import prefect.orion.schemas  # use with the full name
-import prefect.orion.schemas as schemas  # use the shorter name
+import prefect.server.schemas  # use with the full name
+import prefect.server.schemas as schemas  # use the shorter name
 ```
 
 ```python
@@ -137,7 +137,7 @@ If you are just using the imported object for a type signature, you should use t
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from prefect.orion.schemas.states import State
+    from prefect.server.schemas.states import State
 
 def foo(state: "State"):
     pass
@@ -223,7 +223,7 @@ Sometimes, we make breaking changes to the API (for good reasons). In order to c
 
 For example, a request with the `X-PREFECT-API-VERSION=3.2.1` header has a major version of `3`, minor version `2`, and patch version `1`.
 
-This version header can be changed by modifying the `API_VERSION` constant in `prefect.orion.api.server`.
+This version header can be changed by modifying the `API_VERSION` constant in `prefect.server.api.server`.
 
 When making a breaking change to the API, we should consider if the change might be *backwards compatible for clients*, meaning that the previous version of the client would still be able to make calls against the updated version of the server code. This might happen if the changes are purely additive: such as adding a non-critical API route. In these cases, we should make sure to bump the patch version.
 

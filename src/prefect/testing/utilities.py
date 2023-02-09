@@ -12,16 +12,16 @@ from typing import Dict, List, Union
 import pytest
 
 import prefect.context
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
 from prefect.client import OrionClient, get_client
 from prefect.client.orion import OrionClient
 from prefect.client.utilities import inject_client
 from prefect.filesystems import ReadableFileSystem
-from prefect.orion.database.dependencies import temporary_database_interface
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
+from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
 
 

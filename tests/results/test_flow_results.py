@@ -3,7 +3,6 @@ import pytest
 from prefect.exceptions import MissingResult
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import flow
-from prefect.orion import schemas
 from prefect.results import LiteralResult
 from prefect.serializers import (
     CompressedSerializer,
@@ -11,6 +10,7 @@ from prefect.serializers import (
     PickleSerializer,
     Serializer,
 )
+from prefect.server import schemas
 from prefect.settings import PREFECT_HOME
 from prefect.states import Cancelled, Completed, Failed
 from prefect.testing.utilities import (

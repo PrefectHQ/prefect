@@ -41,7 +41,7 @@ site/
 .cache/
 
 # UI artifacts
-src/prefect/orion/ui/*
+src/prefect/server/ui/*
 **/node_modules
 
 # Databases
