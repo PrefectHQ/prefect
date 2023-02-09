@@ -24,9 +24,17 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_constraint(
-        op.f("fk_artifact__flow_run_id__flow_run"), "artifact", type_="foreignkey"
+    op.create_foreign_key(
+        "fk_artifact__flow_run_id__flow_run",
+        "artifact",
+        "flow_run",
+        ["flow_run_id"],
+        ["id"],
     )
-    op.drop_constraint(
-        op.f("fk_artifact__task_run_id__task_run"), "artifact", type_="foreignkey"
+    op.create_foreign_key(
+        "fk_artifact__task_run_id__task_run",
+        "artifact",
+        "task_run",
+        ["task_run_id"],
+        ["id"],
     )
