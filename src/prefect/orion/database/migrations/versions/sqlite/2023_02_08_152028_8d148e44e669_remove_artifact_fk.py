@@ -23,20 +23,6 @@ def upgrade():
         batch_op.drop_constraint(
             "fk_artifact__task_run_id__task_run", type_="foreignkey"
         )
-        batch_op.create_foreign_key(
-            batch_op.f("fk_artifact__flow_run_id__flow_run"),
-            "flow_run",
-            ["flow_run_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
-        batch_op.create_foreign_key(
-            batch_op.f("fk_artifact__task_run_id__task_run"),
-            "task_run",
-            ["task_run_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
 
 
 def downgrade():
@@ -46,10 +32,3 @@ def downgrade():
         )
         batch_op.drop_constraint(
             batch_op.f("fk_artifact__flow_run_id__flow_run"), type_="foreignkey"
-        )
-        batch_op.create_foreign_key(
-            "fk_artifact__task_run_id__task_run", "task_run", ["task_run_id"], ["id"]
-        )
-        batch_op.create_foreign_key(
-            "fk_artifact__flow_run_id__flow_run", "flow_run", ["flow_run_id"], ["id"]
-        )
