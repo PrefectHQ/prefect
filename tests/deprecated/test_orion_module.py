@@ -26,7 +26,7 @@ def test_import_orion_module():
         DeprecationWarning,
         match="The 'prefect.orion' module has been deprecated. It will not be available after Aug 2023. Use 'prefect.server' instead.",
     ):
-        pass
+        import prefect.orion  # noqa
 
 
 def test_import_orion_submodule():
