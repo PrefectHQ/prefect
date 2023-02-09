@@ -35,7 +35,7 @@ If at any point in your testing you'd like to reset your database, run the CLI c
 
 <div class="terminal">
 ```bash
-prefect orion database reset -y
+prefect server database reset -y
 ```
 </div>
 
@@ -96,7 +96,7 @@ Start the Prefect server and it should from now on use your PostgreSQL database 
 
 <div class="terminal">
 ```bash
-prefect orion start
+prefect server start
 ```
 </div>
 
