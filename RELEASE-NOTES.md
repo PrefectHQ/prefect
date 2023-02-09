@@ -4,6 +4,8 @@
 
 ### Prioritize flow runs with work pools 🏊
 
+![Work pools allow you to organize and prioritize work](https://user-images.githubusercontent.com/12350579/217914094-e8064420-294b-4033-b12e-c0f58da521d5.png)
+
 With this release, flow runs can now be prioritize between work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queue will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
 
 All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pool tab in the UI or the CLI.
