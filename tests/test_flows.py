@@ -24,10 +24,10 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.results import PersistedResult
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
