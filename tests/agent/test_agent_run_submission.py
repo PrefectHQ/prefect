@@ -1149,6 +1149,15 @@ async def test_agent_runs_high_priority_flow_runs_first(
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
 ):
+    """
+    This test creates two queues in the same work pool and a deployment
+    for each queue. Many flow runs are created for the deployment on the
+    lower priority queue and one flow run is created for the deployment
+    on the higher priority queue. The agent is started with a limit
+    of 1 to ensure only one flow run is submitted. The flow run for the
+    deployment on the higher priority queue should be run first even though
+    there are late flow runs for the deployment on the lower priority queue.
+    """
     @flow
     def foo():
         pass
