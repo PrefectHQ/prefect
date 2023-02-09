@@ -1,5 +1,51 @@
 # Prefect Release Notes
 
+## Release 2.8.0
+
+### Prioritize flow runs with work pools 🏊
+
+With this release, flow runs can now be prioritize between work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queue will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
+
+All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pool tab in the UI or the CLI.
+
+To create a new work pool via the CLI:
+
+```bash
+prefect work-pool create "my-pool"
+```
+
+Each work pool starts out with a default queue. New queues can be added to a work pool via the UI or the CLI.
+
+To create a new work queue in a work pool via the CLI:
+
+```bash
+prefect work-queue create "high-priority" --pool "my-pool"
+```
+
+Deployments can now be assigned to a work queue in a specific work pool. Use the `--pool` flag to specify the work pool and the `--queue` flag to specify the work queue when building a deployment.
+
+```bash
+prefect deployment build \
+    --pool my-pool \
+    --queue high-priority \   
+    --name high-priority \
+    high_priority_flow.py:high_priority_flow
+```
+
+Once a deployment has been created and is scheduling flow runs on a work queue, you can start an agent to pick up those flow runs by starting and agent with the `--pool` flag.
+
+```bash
+prefect agent start --pool my-pool
+```
+
+Starting an agent with the `--pool` command will allow the agent to pick up flow runs for the entire pool even as new queues are added to the pool. If you want to start an agent that only picks up flow runs for a specific queue, you can use the `--queue` flag.
+
+```bash
+prefect agent start --pool my-pool --queue high-priority
+```
+
+To learn more about work pools, checkout the [docs](https://docs.prefect.io/concepts/work-pools/)!
+
 ## Release 2.7.12
 
 ### Custom flow and task run names 🎉
