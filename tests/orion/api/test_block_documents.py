@@ -9,9 +9,9 @@ from pydantic import SecretBytes, SecretStr
 
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
-from prefect.orion.schemas.core import BlockDocument
+from prefect.server import models, schemas
+from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
+from prefect.server.schemas.core import BlockDocument
 from prefect.utilities.names import obfuscate_string
 
 

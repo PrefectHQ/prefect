@@ -5,8 +5,8 @@ import pytest
 import sqlalchemy as sa
 
 from prefect import states
-from prefect.orion import models, schemas
-from prefect.orion.services.scheduler import RecentDeploymentsScheduler, Scheduler
+from prefect.server import models, schemas
+from prefect.server.services.scheduler import RecentDeploymentsScheduler, Scheduler
 from prefect.settings import (
     PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
     PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,

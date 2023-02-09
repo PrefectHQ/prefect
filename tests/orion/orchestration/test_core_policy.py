@@ -8,10 +8,10 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.orion import schemas
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models import concurrency_limits
-from prefect.orion.orchestration.core_policy import (
+from prefect.server import schemas
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models import concurrency_limits
+from prefect.server.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
@@ -30,13 +30,13 @@ from prefect.orion.orchestration.core_policy import (
     UpdateFlowRunTrackerOnTasks,
     WaitForScheduledTime,
 )
-from prefect.orion.orchestration.rules import (
+from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
 )
-from prefect.orion.schemas import actions, states
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.server.schemas import actions, states
+from prefect.server.schemas.responses import SetStateStatus
 from prefect.testing.utilities import AsyncMock
 
 # Convert constants from sets to lists for deterministic ordering of tests

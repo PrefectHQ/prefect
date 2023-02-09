@@ -6,9 +6,9 @@ import pytest
 from fastapi import status
 
 import prefect
-from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import WorkPoolCreate
-from prefect.orion.schemas.core import WorkPool, WorkQueue
+from prefect.server import models, schemas
+from prefect.server.schemas.actions import WorkPoolCreate
+from prefect.server.schemas.core import WorkPool, WorkQueue
 
 RESERVED_POOL_NAMES = [
     "Prefect",

@@ -4,9 +4,9 @@ import pydantic
 import pytest
 from fastapi import status
 
-from prefect.orion import models
-from prefect.orion.api.ui.flow_runs import SimpleFlowRun
-from prefect.orion.schemas import actions, states
+from prefect.server import models
+from prefect.server.api.ui.flow_runs import SimpleFlowRun
+from prefect.server.schemas import actions, states
 
 
 @pytest.fixture

@@ -2,8 +2,8 @@ from uuid import uuid4
 
 from fastapi import status
 
-from prefect.orion import schemas
-from prefect.orion.schemas.actions import ConcurrencyLimitCreate
+from prefect.server import schemas
+from prefect.server.schemas.actions import ConcurrencyLimitCreate
 
 
 class TestConcurrencyLimits:

@@ -4,8 +4,8 @@ from uuid import uuid4
 import pydantic
 import pytest
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas.core import FlowRunNotificationPolicy
+from prefect.server import models, schemas
+from prefect.server.schemas.core import FlowRunNotificationPolicy
 
 
 @pytest.fixture

@@ -1,8 +1,8 @@
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
-from prefect.orion.services.pause_expirations import FailExpiredPauses
+from prefect.server import models, schemas
+from prefect.server.services.pause_expirations import FailExpiredPauses
 
 THE_PAST = pendulum.now("UTC") - pendulum.Duration(hours=5)
 THE_FUTURE = pendulum.now("UTC") + pendulum.Duration(days=5)

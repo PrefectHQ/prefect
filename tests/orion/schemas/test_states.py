@@ -5,7 +5,7 @@ import pydantic
 import pytest
 
 from prefect.deprecated.data_documents import DataDocument
-from prefect.orion.schemas.states import (
+from prefect.server.schemas.states import (
     AwaitingRetry,
     Completed,
     Failed,

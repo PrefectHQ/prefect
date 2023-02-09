@@ -3,8 +3,8 @@ from uuid import uuid4
 import pendulum
 import sqlalchemy as sa
 
-from prefect.orion import schemas
-from prefect.orion.schemas.filters import LogFilter
+from prefect.server import schemas
+from prefect.server.schemas.filters import LogFilter
 
 NOW = pendulum.now()
 

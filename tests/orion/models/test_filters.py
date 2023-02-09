@@ -7,8 +7,8 @@ import pydantic
 import pytest
 
 from prefect.client import get_client
-from prefect.orion import models
-from prefect.orion.schemas import actions, core, filters, schedules, states
+from prefect.server import models
+from prefect.server.schemas import actions, core, filters, schedules, states
 
 
 @pytest.fixture(autouse=True, scope="module")

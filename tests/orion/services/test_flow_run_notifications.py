@@ -1,8 +1,8 @@
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models, schemas
-from prefect.orion.services.flow_run_notifications import FlowRunNotifications
+from prefect.server import models, schemas
+from prefect.server.services.flow_run_notifications import FlowRunNotifications
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 
 

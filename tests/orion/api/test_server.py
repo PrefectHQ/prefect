@@ -5,7 +5,7 @@ import pytest
 import toml
 from fastapi import APIRouter, status, testclient
 
-from prefect.orion.api.server import (
+from prefect.server.api.server import (
     API_ROUTERS,
     ORION_API_VERSION,
     _memoize_block_auto_registration,

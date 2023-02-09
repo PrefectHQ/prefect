@@ -5,16 +5,16 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion.database.alembic_commands import (
+from prefect.server.database.alembic_commands import (
     alembic_config,
     alembic_downgrade,
     alembic_upgrade,
 )
-from prefect.orion.database.orm_models import (
+from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
-from prefect.orion.utilities.database import get_dialect
+from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 

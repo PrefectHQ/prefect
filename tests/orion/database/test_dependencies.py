@@ -4,20 +4,20 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion.database import dependencies
-from prefect.orion.database.configurations import (
+from prefect.server.database import dependencies
+from prefect.server.database.configurations import (
     AioSqliteConfiguration,
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.database.orm_models import (
+from prefect.server.database.dependencies import inject_db
+from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
     BaseORMConfiguration,
 )
-from prefect.orion.database.query_components import (
+from prefect.server.database.query_components import (
     AioSqliteQueryComponents,
     AsyncPostgresQueryComponents,
     BaseQueryComponents,

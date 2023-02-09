@@ -4,10 +4,10 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.models.deployments import check_work_queues_for_deployment
-from prefect.orion.utilities.database import get_dialect
+from prefect.server import models, schemas
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.models.deployments import check_work_queues_for_deployment
+from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
 
 

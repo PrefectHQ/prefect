@@ -6,8 +6,8 @@ import pydantic
 import pytest
 from fastapi import status
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import WorkQueueCreate, WorkQueueUpdate
+from prefect.server import models, schemas
+from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 
 
 class TestCreateWorkQueue:

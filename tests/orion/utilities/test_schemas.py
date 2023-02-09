@@ -9,8 +9,8 @@ import pendulum
 import pydantic
 import pytest
 
-import prefect.orion.utilities.schemas
-from prefect.orion.utilities.schemas import (
+import prefect.server.utilities.schemas
+from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
     IDBaseModel,
@@ -25,7 +25,7 @@ from prefect.testing.utilities import assert_does_not_warn
 @contextmanager
 def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
 
-    original_base_model = prefect.orion.utilities.schemas.PrefectBaseModel
+    original_base_model = prefect.server.utilities.schemas.PrefectBaseModel
     original_environment = os.environ.get("PREFECT_TEST_MODE")
     if test_mode_value is not None:
         os.environ["PREFECT_TEST_MODE"] = test_mode_value
@@ -35,9 +35,9 @@ def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
     try:
         # We must re-execute the module since the setting is configured at base model
         # definition time
-        importlib.reload(prefect.orion.utilities.schemas)
+        importlib.reload(prefect.server.utilities.schemas)
 
-        from prefect.orion.utilities.schemas import PrefectBaseModel
+        from prefect.server.utilities.schemas import PrefectBaseModel
 
         yield PrefectBaseModel
     finally:
@@ -47,7 +47,7 @@ def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
             os.environ["PREFECT_TEST_MODE"] = original_environment
 
         # We must restore this type or `isinstance` checks will fail later
-        prefect.orion.utilities.schemas.PrefectBaseModel = original_base_model
+        prefect.server.utilities.schemas.PrefectBaseModel = original_base_model
 
 
 class TestExtraForbidden:

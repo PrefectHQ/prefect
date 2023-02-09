@@ -5,7 +5,7 @@ import sys
 import pendulum
 import pytest
 
-from prefect.orion.services.loop_service import LoopService
+from prefect.server.services.loop_service import LoopService
 from prefect.testing.utilities import flaky_on_windows
 
 

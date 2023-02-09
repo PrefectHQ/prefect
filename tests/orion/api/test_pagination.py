@@ -2,7 +2,7 @@ import pytest
 from fastapi import Body, FastAPI, status
 from httpx import AsyncClient
 
-from prefect.orion.api.dependencies import LimitBody
+from prefect.server.api.dependencies import LimitBody
 
 
 @pytest.fixture

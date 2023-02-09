@@ -6,7 +6,7 @@ import pydantic
 import pytest
 from fastapi import status
 
-from prefect.orion import models, schemas
+from prefect.server import models, schemas
 
 
 class TestCreateFlow:

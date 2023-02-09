@@ -4,11 +4,11 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models, schemas
-from prefect.orion.models import concurrency_limits, task_runs
-from prefect.orion.orchestration.core_policy import CoreTaskPolicy
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import Failed, Pending, Running, Scheduled
+from prefect.server import models, schemas
+from prefect.server.models import concurrency_limits, task_runs
+from prefect.server.orchestration.core_policy import CoreTaskPolicy
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.states import Failed, Pending, Running, Scheduled
 
 
 class TestCreateTaskRun:

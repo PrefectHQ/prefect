@@ -5,11 +5,11 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
-from prefect.orion import models
-from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import Log
-from prefect.orion.schemas.filters import LogFilter
-from prefect.orion.schemas.sorting import LogSort
+from prefect.server import models
+from prefect.server.schemas.actions import LogCreate
+from prefect.server.schemas.core import Log
+from prefect.server.schemas.filters import LogFilter
+from prefect.server.schemas.sorting import LogSort
 
 NOW = pendulum.now("UTC")
 

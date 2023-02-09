@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from prefect.orion.api.server import create_app
+from prefect.server.api.server import create_app
 from prefect.settings import PREFECT_ORION_UI_API_URL
 
 from .._internal.compatibility.test_experimental import (

@@ -6,7 +6,7 @@ import respx
 from httpx import Response
 
 import prefect
-from prefect.orion.services.telemetry import Telemetry
+from prefect.server.services.telemetry import Telemetry
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def error_sens_o_matic_mock():
 
 
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
-    from prefect.orion.api.server import ORION_API_VERSION
+    from prefect.server.api.server import ORION_API_VERSION
 
     telemetry = Telemetry(handle_signals=False)
     await telemetry.start(loops=1)

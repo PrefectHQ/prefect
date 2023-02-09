@@ -2,7 +2,7 @@ import pytest
 from fastapi import status
 
 from prefect.blocks.core import Block
-from prefect.orion import models
+from prefect.server import models
 
 
 @pytest.fixture

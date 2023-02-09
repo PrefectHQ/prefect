@@ -1,9 +1,9 @@
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas import states
-from prefect.orion.services.cancellation_cleanup import CancellationCleanup
+from prefect.server import models, schemas
+from prefect.server.schemas import states
+from prefect.server.services.cancellation_cleanup import CancellationCleanup
 
 NON_TERMINAL_STATE_CONSTRUCTORS = {
     states.StateType.SCHEDULED: states.Scheduled,

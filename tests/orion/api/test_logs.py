@@ -14,10 +14,10 @@ import pendulum
 import pytest
 from sqlalchemy.orm.exc import FlushError
 
-from prefect.orion import models
-from prefect.orion.schemas.actions import LogCreate
-from prefect.orion.schemas.core import Log
-from prefect.orion.schemas.filters import LogFilter
+from prefect.server import models
+from prefect.server.schemas.actions import LogCreate
+from prefect.server.schemas.core import Log
+from prefect.server.schemas.filters import LogFilter
 
 NOW = pendulum.now("UTC")
 CREATE_LOGS_URL = "/logs/"

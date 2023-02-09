@@ -1,8 +1,8 @@
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
-from prefect.orion.services.late_runs import MarkLateRuns
+from prefect.server import models, schemas
+from prefect.server.services.late_runs import MarkLateRuns
 from prefect.settings import (
     PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS,
     temporary_settings,

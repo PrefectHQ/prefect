@@ -6,7 +6,7 @@ import pytest
 import sqlalchemy as sa
 
 import prefect
-from prefect.orion import models, schemas
+from prefect.server import models, schemas
 
 
 class TestCreateWorkPool:

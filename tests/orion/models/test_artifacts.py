@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from prefect.orion import models, schemas
+from prefect.server import models, schemas
 
 
 async def test_creating_artifacts(session):

@@ -1,9 +1,9 @@
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import (
+from prefect.server.orchestration.policies import BaseOrchestrationPolicy
+from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
 )
-from prefect.orion.schemas import states
+from prefect.server.schemas import states
 
 
 class TestPoliciesRespectOrdering:

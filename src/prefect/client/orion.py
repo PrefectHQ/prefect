@@ -13,19 +13,19 @@ from fastapi import FastAPI, status
 
 import prefect
 import prefect.exceptions
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 import prefect.settings
 import prefect.states
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
-from prefect.orion.schemas.actions import (
+from prefect.server.schemas.actions import (
     FlowRunNotificationPolicyCreate,
     LogCreate,
     WorkQueueCreate,
     WorkQueueUpdate,
 )
-from prefect.orion.schemas.core import (
+from prefect.server.schemas.core import (
     BlockDocument,
     BlockSchema,
     BlockType,
@@ -34,13 +34,13 @@ from prefect.orion.schemas.core import (
     WorkPool,
     WorkQueue,
 )
-from prefect.orion.schemas.filters import (
+from prefect.server.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
     WorkPoolFilter,
     WorkQueueFilter,
 )
-from prefect.orion.schemas.responses import WorkerFlowRunResponse
+from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
@@ -65,7 +65,7 @@ def get_client(httpx_settings: dict = None) -> "OrionClient":
     api = PREFECT_API_URL.value()
     if not api:
         # create an ephemeral API if none was provided
-        from prefect.orion.api.server import create_app
+        from prefect.server.api.server import create_app
 
         api = create_app(ctx.settings, ephemeral=True)
 
@@ -118,7 +118,7 @@ class OrionClient:
 
         if api_version is None:
             # deferred import to avoid importing the entire server unless needed
-            from prefect.orion.api.server import ORION_API_VERSION
+            from prefect.server.api.server import ORION_API_VERSION
 
             api_version = ORION_API_VERSION
         httpx_settings["headers"].setdefault("X-PREFECT-API-VERSION", api_version)

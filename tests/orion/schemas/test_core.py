@@ -4,8 +4,8 @@ import pendulum
 import pydantic
 import pytest
 
-from prefect.orion import schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.server import schemas
+from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
 
 

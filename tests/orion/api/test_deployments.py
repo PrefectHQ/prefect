@@ -6,9 +6,9 @@ import pytest
 import sqlalchemy as sa
 from fastapi import status
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import DeploymentCreate
-from prefect.orion.utilities.database import get_dialect
+from prefect.server import models, schemas
+from prefect.server.schemas.actions import DeploymentCreate
+from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,

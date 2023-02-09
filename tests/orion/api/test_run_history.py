@@ -6,9 +6,9 @@ import pydantic
 import pytest
 from fastapi import Response, status
 
-from prefect.orion import models
-from prefect.orion.schemas import core, responses, states
-from prefect.orion.schemas.states import StateType
+from prefect.server import models
+from prefect.server.schemas import core, responses, states
+from prefect.server.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 7, 1)
 

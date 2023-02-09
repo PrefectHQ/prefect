@@ -6,9 +6,9 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas import filters
-from prefect.orion.schemas.states import StateType
+from prefect.server import models, schemas
+from prefect.server.schemas import filters
+from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS
 
 

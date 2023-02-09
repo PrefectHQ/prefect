@@ -4,9 +4,9 @@ import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models, schemas
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.schemas.core import TaskRunResult
+from prefect.server import models, schemas
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.schemas.core import TaskRunResult
 
 
 class TestCreateFlowRun:

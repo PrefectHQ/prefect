@@ -8,7 +8,7 @@ import pytest
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, status
 from fastapi.testclient import TestClient
 
-from prefect.orion.utilities.server import OrionRouter, response_scoped_dependency
+from prefect.server.utilities.server import OrionRouter, response_scoped_dependency
 
 
 def test_response_scoped_dependency_is_resolved():

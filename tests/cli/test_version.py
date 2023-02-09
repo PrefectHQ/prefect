@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.orion.api.server import ORION_API_VERSION
+from prefect.server.api.server import ORION_API_VERSION
 from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 

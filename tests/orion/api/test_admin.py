@@ -1,7 +1,7 @@
 from fastapi import status
 
 import prefect
-from prefect.orion import models
+from prefect.server import models
 
 
 async def test_version(client):

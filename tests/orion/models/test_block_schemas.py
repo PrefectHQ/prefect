@@ -6,9 +6,9 @@ import sqlalchemy as sa
 from pydantic import BaseModel
 
 from prefect.blocks.core import Block
-from prefect.orion import models, schemas
-from prefect.orion.models.block_schemas import read_block_schema_by_checksum
-from prefect.orion.schemas.filters import BlockSchemaFilter
+from prefect.server import models, schemas
+from prefect.server.models.block_schemas import read_block_schema_by_checksum
+from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})

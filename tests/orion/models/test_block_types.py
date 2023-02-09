@@ -5,8 +5,8 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.blocks.core import Block
-from prefect.orion import models, schemas
-from prefect.orion.schemas.filters import BlockSchemaFilter, BlockTypeFilter
+from prefect.server import models, schemas
+from prefect.server.schemas.filters import BlockSchemaFilter, BlockTypeFilter
 
 CODE_EXAMPLE = dedent(
     """\

@@ -2,14 +2,14 @@ import pytest
 
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
-from prefect.orion.models.block_registration import (
+from prefect.server.models.block_registration import (
     _load_collection_blocks_data,
     register_block_schema,
     register_block_type,
     run_block_auto_registration,
 )
-from prefect.orion.models.block_schemas import read_block_schema_by_checksum
-from prefect.orion.models.block_types import read_block_type_by_slug, read_block_types
+from prefect.server.models.block_schemas import read_block_schema_by_checksum
+from prefect.server.models.block_types import read_block_type_by_slug, read_block_types
 from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
 from prefect.utilities.dispatch import get_registry_for_type
 

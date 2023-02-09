@@ -6,9 +6,9 @@ import pytest
 from fastapi import status
 
 from prefect.blocks.core import Block
-from prefect.orion import models, schemas
-from prefect.orion.schemas.actions import BlockSchemaCreate
-from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.server import models, schemas
+from prefect.server.schemas.actions import BlockSchemaCreate
+from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 

@@ -11,7 +11,7 @@ from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient
 from prefect.exceptions import Abort, CrashedRun, FailedRun
 from prefect.infrastructure.base import Infrastructure
-from prefect.orion import models, schemas
+from prefect.server import models, schemas
 from prefect.states import Completed, Pending, Running, Scheduled, State, StateType
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type

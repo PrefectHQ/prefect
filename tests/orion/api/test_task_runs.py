@@ -4,9 +4,9 @@ import pendulum
 import pytest
 from fastapi import status
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas import responses, states
-from prefect.orion.schemas.responses import OrchestrationResult
+from prefect.server import models, schemas
+from prefect.server.schemas import responses, states
+from prefect.server.schemas.responses import OrchestrationResult
 
 
 class TestCreateTaskRun:

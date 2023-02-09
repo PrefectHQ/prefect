@@ -3,8 +3,8 @@ import pytest
 import sqlalchemy as sa
 
 import prefect
-from prefect.orion import models, schemas
-from prefect.orion.database.interface import OrionDBInterface
+from prefect.server import models, schemas
+from prefect.server.database.interface import OrionDBInterface
 
 
 class TestGetRunsInQueueQuery:

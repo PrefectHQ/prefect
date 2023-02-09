@@ -10,11 +10,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 
-from prefect.orion.database.configurations import AioSqliteConfiguration
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.database.orm_models import AioSqliteORMConfiguration
-from prefect.orion.database.query_components import AioSqliteQueryComponents
-from prefect.orion.utilities.database import (
+from prefect.server.database.configurations import AioSqliteConfiguration
+from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.orm_models import AioSqliteORMConfiguration
+from prefect.server.database.query_components import AioSqliteQueryComponents
+from prefect.server.utilities.database import (
     JSON,
     Pydantic,
     Timestamp,

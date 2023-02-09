@@ -3,7 +3,7 @@ from uuid import uuid4
 import numpy as np
 import pytest
 
-from prefect.orion.schemas.actions import (
+from prefect.server.schemas.actions import (
     DeploymentCreate,
     DeploymentUpdate,
     FlowRunCreate,

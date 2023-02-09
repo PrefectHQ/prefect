@@ -9,7 +9,7 @@ from dateutil import rrule
 from pendulum import datetime, now
 from pydantic import ValidationError
 
-from prefect.orion.schemas.schedules import (
+from prefect.server.schemas.schedules import (
     MAX_ITERATIONS,
     MAX_RRULE_LENGTH,
     CronSchedule,
