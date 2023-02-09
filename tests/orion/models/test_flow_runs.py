@@ -1266,6 +1266,9 @@ class TestDeleteFlowRun:
         )
 
         # make sure the flow run is deleted
-        assert await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=flow_run.id
-        ) is None
+        assert (
+            await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=flow_run.id
+            )
+            is None
+        )
