@@ -23,11 +23,11 @@ from prefect.orion.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_MARKUP,
-    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
-    PREFECT_LOGGING_ORION_BATCH_SIZE,
-    PREFECT_LOGGING_ORION_ENABLED,
-    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW,
+    PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
+    PREFECT_LOGGING_TO_API_BATCH_SIZE,
+    PREFECT_LOGGING_TO_API_ENABLED,
+    PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
+    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
 
 
@@ -83,7 +83,9 @@ class OrionLogWorker:
             with self.profile_context:
                 while not self._stop_event.is_set():
                     # Wait until flush is called or the batch interval is reached
-                    self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
+                    self._flush_event.wait(
+                        PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
+                    )
                     self._flush_event.clear()
 
                     anyio.run(self.send_logs)
@@ -125,9 +127,9 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            PREFECT_LOGGING_ORION_BATCH_SIZE.value()
-            - PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
-            PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
+            PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
+            - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
         )
 
         # Loop until the queue is empty or we encounter an error
@@ -176,7 +178,7 @@ class OrionLogWorker:
                         else:
                             sys.stderr.write(
                                 "The log worker will attempt to send these logs again in "
-                                f"{PREFECT_LOGGING_ORION_BATCH_INTERVAL.value()}s\n"
+                                f"{PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()}s\n"
                             )
 
                     if self._retries > self._max_retries:
@@ -272,7 +274,7 @@ class OrionHandler(logging.Handler):
         try:
             profile = prefect.context.get_settings_context()
 
-            if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
+            if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
@@ -287,7 +289,7 @@ class OrionHandler(logging.Handler):
 
         if isinstance(exc, MissingContextError):
             log_handling_when_missing_flow = (
-                PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW.value()
+                PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW.value()
             )
             if log_handling_when_missing_flow == "warn":
                 # Warn when a logger is used outside of a run context, the stack level here
@@ -354,10 +356,10 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = self.get_log_size(log)
-        if log_size > PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value():
+        if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value()}"
+                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
             )
 
         return (log, log_size)

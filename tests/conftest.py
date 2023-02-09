@@ -46,7 +46,7 @@ from prefect.settings import (
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
-    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
     PREFECT_ORION_ANALYTICS_ENABLED,
     PREFECT_ORION_BLOCKS_REGISTER_ON_START,
@@ -289,7 +289,7 @@ def pytest_sessionstart(session):
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_orion_handler` mark
-            PREFECT_LOGGING_ORION_ENABLED: False,
+            PREFECT_LOGGING_TO_API_ENABLED: False,
             # Disable services for test runs
             PREFECT_ORION_ANALYTICS_ENABLED: False,
             PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
