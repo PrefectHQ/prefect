@@ -1238,3 +1238,37 @@ class TestDeleteFlowRun:
             session=session, flow_run_id=uuid4()
         )
         assert result is False
+
+    async def test_delete_flow_run_with_data(self, flow, session, db):
+        state_id = uuid4()
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    id=state_id,
+                    type="COMPLETED",
+                    name="My Running State",
+                    data={"hello": "world"},
+                ),
+            ),
+        )
+        assert flow_run.flow_id == flow.id
+        assert flow_run.state.id == state_id
+
+        # make sure the flow run exists
+        assert await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        # make sure the flow run is deleted
+        assert (
+            await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=flow_run.id
+            )
+            is None
+        )

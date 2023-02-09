@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Remove Artifact foreign keys
+SQLite: `8d148e44e669`
+Postgres: `cfdfec5d7557`
+
 # Clean up work queue migration
 SQLite: `bfe42b7090d6`
 Postgres: `2a88656f4a23`
