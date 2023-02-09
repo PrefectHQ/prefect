@@ -13,7 +13,7 @@ from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.server.schemas.core import BlockDocument, BlockType
 from prefect.utilities.slugify import slugify
-from tests.orion.models.test_block_types import CODE_EXAMPLE
+from tests.server.models.test_block_types import CODE_EXAMPLE
 
 CODE_EXAMPLE = dedent(
     """\
