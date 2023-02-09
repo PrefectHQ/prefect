@@ -14,13 +14,13 @@ from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.logging import get_logger
-from prefect.orion.database.alembic_commands import (
+from prefect.server.database.alembic_commands import (
     alembic_downgrade,
     alembic_revision,
     alembic_stamp,
     alembic_upgrade,
 )
-from prefect.orion.database.dependencies import provide_database_interface
+from prefect.server.database.dependencies import provide_database_interface
 from prefect.settings import (
     PREFECT_LOGGING_SERVER_LEVEL,
     PREFECT_ORION_ANALYTICS_ENABLED,
@@ -129,7 +129,7 @@ async def start(
                     # quote wrapping needed for windows paths with spaces
                     f'"{prefect.__module_path__.parent}"',
                     "--factory",
-                    "prefect.orion.api.server:create_app",
+                    "prefect.server.api.server:create_app",
                     "--host",
                     str(host),
                     "--port",

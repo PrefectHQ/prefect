@@ -343,7 +343,7 @@ Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
 - [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
-- Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
+- Prefect [`State`](/api-ref/server/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
 
 To run your task with a [task runner](/concepts/task-runners/), you must call the task with `.submit()`.
 

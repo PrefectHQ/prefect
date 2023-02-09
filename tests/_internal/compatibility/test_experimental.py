@@ -12,7 +12,7 @@ from prefect._internal.compatibility.experimental import (
     experimental_field,
     experimental_parameter,
 )
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     SETTING_VARIABLES,

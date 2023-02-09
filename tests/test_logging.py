@@ -43,7 +43,7 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.orion.schemas.actions import LogCreate
+from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_LEVEL,

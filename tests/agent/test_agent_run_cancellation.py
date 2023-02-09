@@ -9,8 +9,8 @@ from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure
-from prefect.orion.database.orm_models import ORMDeployment
-from prefect.orion.schemas.core import Deployment
+from prefect.server.database.orm_models import ORMDeployment
+from prefect.server.schemas.core import Deployment
 from prefect.states import (
     Cancelled,
     Cancelling,
