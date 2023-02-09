@@ -68,6 +68,7 @@ async def orion_process():
                         pass
                     else:
                         if response.status_code == 200:
+                            await anyio.sleep(0.2)  # extra sleep for less flakiness
                             break
                     await anyio.sleep(0.1)
             if response:
@@ -102,7 +103,7 @@ class TestUvicornSignalForwarding:
 
         assert (
             "Sending SIGTERM" in out
-        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
+        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:\n{out}"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -117,7 +118,7 @@ class TestUvicornSignalForwarding:
 
         assert (
             "Sending SIGTERM" in out
-        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:{out}"
+        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:\n{out}"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -137,7 +138,7 @@ class TestUvicornSignalForwarding:
             "Sending SIGKILL" in out
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
-        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
+        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:\n{out}"
 
     @pytest.mark.skipif(
         sys.platform == "win32",
@@ -157,7 +158,7 @@ class TestUvicornSignalForwarding:
             "Sending SIGKILL" in out
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
-        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:{out}"
+        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:\n{out}"
 
     @pytest.mark.skipif(
         sys.platform != "win32",
@@ -172,4 +173,4 @@ class TestUvicornSignalForwarding:
 
         assert (
             "Sending CTRL_BREAK_EVENT" in out
-        ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:{out}"
+        ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:\n{out}"
