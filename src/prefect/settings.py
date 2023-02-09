@@ -1019,7 +1019,7 @@ Refer to https://www.uvicorn.org/settings/#timeouts for details.
 When the API is hosted behind a load balancer, you may want to set this to a value
 greater than the load balancer's idle timeout.
 
-Note this setting only applies when calling `prefect orion start`; if hosting the
+Note this setting only applies when calling `prefect server start`; if hosting the
 API with another tool you will need to configure this there instead.
 """
 

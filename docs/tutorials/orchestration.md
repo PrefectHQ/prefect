@@ -48,7 +48,7 @@ The Prefect server and orchestration engine is the central component of your Pre
 
 Without you having to configure or run anything other than your flow code, the ephemeral Prefect API keeps track of the state of your Prefect flow and task runs. 
 
-When you run a Prefect server with `prefect orion start`, the Prefect orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
+When you run a Prefect server with `prefect server start`, the Prefect orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
 
 - Create and manage deployments
 - Create and manage configuration for storage and services used by your flows
@@ -64,11 +64,11 @@ If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefec
 
 ### Running the Prefect server
 
-To take full advantage of the Prefect orchestration engine and API server, you can spin up an instance at any time with the `prefect orion start` CLI command:
+To take full advantage of the Prefect orchestration engine and API server, you can spin up an instance at any time with the `prefect server start` CLI command:
 
 <div class='terminal'>
 ```bash
-$ prefect orion start
+$ prefect server start
 Starting...
 
  ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
@@ -106,7 +106,7 @@ When the Prefect API server is running (either in a local environment or using P
 - Configuring [agents and work queues](/concepts/work-queues/)
 - Executing [ad hoc flow runs from deployments](/tutorials/deployments/)
 
-During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#prefect-ui-and-prefect-cloud). Most users will spin up everything all at once with `prefect orion start`.
+During normal operation, we don't expect that most users will need to interact with the Prefect API directly, as this is handled for you automatically by the Prefect Python client and the [Prefect UI](#prefect-ui-and-prefect-cloud). Most users will spin up everything all at once with `prefect server start`.
 
 There are numerous ways to begin exploring the API:
 
@@ -151,10 +151,10 @@ When you first install Prefect, your database will be located at `~/.prefect/ori
 ```bash
 $ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
 ```
-If at any point in your testing you'd like to reset your database, run the `prefect orion database reset` CLI command:  
+If at any point in your testing you'd like to reset your database, run the `prefect server database reset` CLI command:  
 
 ```bash
-$ prefect orion database reset
+$ prefect server database reset
 ```
 
 This will completely clear all data and reapply the schema.

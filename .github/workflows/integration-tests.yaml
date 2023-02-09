@@ -15,13 +15,12 @@ on:
 
 jobs:
   playwright-tests:
-    # disabling these tests for now since they are broken because of pixi-viewport 
-    if: ${{ false }}
     name: "Test UI"
     timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
@@ -41,13 +40,13 @@ jobs:
 
       - name: Run Orion in background
         run: |
-          prefect orion start&
+          prefect server start&
 
       - name: Set up node
         uses: actions/setup-node@v3
         with:
-          node-version-file: ".nvmrc"
-          cache-dependency-path: "**/package-lock.json"
+          node-version-file: '.nvmrc'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Retrieve Playwright version
         id: playwright-cache-key
@@ -92,7 +91,6 @@ jobs:
           - "2.4"
           - "2.5"
           - "2.6"
-          - "2.7"
 
           # We can include the following to always test against the last release
           # but the value is not particularly clear and we can just append the
@@ -117,10 +115,6 @@ jobs:
             server-incompatible: true
           - prefect-version: "2.5"
             server-incompatible: true
-
-          # 2.6 containers have a bad version of httpcore installed
-          - prefect-version: "2.6"
-            extra_docker_run_options: '--env EXTRA_PIP_PACKAGES="httpcore>=0.16.2"'
 
       fail-fast: false
 
@@ -150,9 +144,8 @@ jobs:
           --name "orion-server-${{ matrix.prefect-version }}"
           --detach
           --publish 4200:4200
-          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
-          prefect orion start --host 0.0.0.0
+          prefect server start --host 0.0.0.0
 
           PREFECT_API_URL="http://127.0.0.1:4200/api"
           ./scripts/wait-for-server.py
@@ -163,9 +156,7 @@ jobs:
       - name: Run integration flows with client@dev, server@${{ matrix.prefect-version }}
         if: ${{ ! matrix.server-incompatible }}
         run: >
-          TEST_SERVER_VERSION=${{ matrix.prefect-version }}
           PREFECT_API_URL="http://127.0.0.1:4200/api"
-          TEST_CLIENT_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
           ./scripts/run-integration-flows.py
 
       - name: Start server@dev
@@ -176,18 +167,15 @@ jobs:
           #       https://github.com/PrefectHQ/prefect/issues/6989
           docker stop "orion-server-${{ matrix.prefect-version }}" || echo "That's okay!"
 
-          prefect orion start&
+          prefect server start&
           PREFECT_API_URL="http://127.0.0.1:4200/api" ./scripts/wait-for-server.py
 
       - name: Run integration flows with client@${{ matrix.prefect-version }}, server@dev
         run: >
           docker run
           --env PREFECT_API_URL="http://127.0.0.1:4200/api"
-          --env TEST_SERVER_VERSION=$(python -c 'import prefect; print(prefect.__version__)')
-          --env TEST_CLIENT_VERSION=${{ matrix.client_version }}
           --volume $(pwd)/flows:/opt/prefect/integration/flows
           --volume $(pwd)/scripts:/opt/prefect/integration/scripts
           --network host
-          ${{ matrix.extra_docker_run_options }}
           prefecthq/prefect:${{ matrix.prefect-version }}-python3.10
           /opt/prefect/integration/scripts/run-integration-flows.py /opt/prefect/integration/flows
