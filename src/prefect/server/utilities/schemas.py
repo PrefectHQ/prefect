@@ -415,7 +415,7 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
     Example:
 
         >>> from pydantic import BaseModel
-        >>> from prefect.orion.utilities.schemas import copy_model_fields, FieldFrom
+        >>> from prefect.server.utilities.schemas import copy_model_fields, FieldFrom
         >>>
         >>> class Parent(BaseModel):
         ...     name: str

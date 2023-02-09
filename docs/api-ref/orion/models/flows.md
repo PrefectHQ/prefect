@@ -1,1 +1,1 @@
-::: prefect.orion.models.flows
+::: prefect.server.models.flows

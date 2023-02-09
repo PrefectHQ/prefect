@@ -6,4 +6,4 @@ tags:
     - saved search
 ---
 
-::: prefect.orion.api.saved_searches
+::: prefect.server.api.saved_searches

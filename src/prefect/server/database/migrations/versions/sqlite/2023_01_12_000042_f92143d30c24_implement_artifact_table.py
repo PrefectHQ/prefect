@@ -24,7 +24,7 @@ def upgrade():
         "artifact",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text(
                 "(\n    (\n        lower(hex(randomblob(4)))\n        || '-'\n        || lower(hex(randomblob(2)))\n        || '-4'\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || substr('89ab',abs(random()) % 4 + 1, 1)\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || lower(hex(randomblob(6)))\n    )\n    )"
             ),
@@ -32,13 +32,13 @@ def upgrade():
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("(strftime('%Y-%m-%d %H:%M:%f000', 'now'))"),
             nullable=False,
         ),
@@ -47,16 +47,16 @@ def upgrade():
         sa.Column("data", sa.JSON(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.Column(
-            "task_run_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "task_run_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
         sa.Column(
-            "task_run_state_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "task_run_state_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
         sa.Column(
-            "flow_run_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "flow_run_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
         sa.Column(
-            "flow_run_state_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "flow_run_state_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
         sa.ForeignKeyConstraint(
             ["flow_run_state_id"],
@@ -110,7 +110,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )
@@ -132,7 +132,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "result_artifact_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )

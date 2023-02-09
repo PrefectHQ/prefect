@@ -22,7 +22,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "infra_overrides",
-                prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
+                prefect.server.utilities.database.JSON(astext_type=sa.Text()),
                 server_default="{}",
                 nullable=False,
             )

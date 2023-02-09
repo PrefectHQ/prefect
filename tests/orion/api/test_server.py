@@ -241,7 +241,7 @@ class TestMemoizeBlockAutoRegistration:
 
         # hashing fails randomly fails when running full test suite
         # mocking the hash stabilizes this test
-        with patch("prefect.orion.api.server.hash_objects") as mock:
+        with patch("prefect.server.api.server.hash_objects") as mock:
             mock.return_value = current_block_registry_hash
             await _memoize_block_auto_registration(test_func)()
 
@@ -266,7 +266,7 @@ class TestMemoizeBlockAutoRegistration:
 
         # hashing fails randomly fails when running full test suite
         # mocking the hash stabilizes this test
-        with patch("prefect.orion.api.server.hash_objects") as mock:
+        with patch("prefect.server.api.server.hash_objects") as mock:
             mock.return_value = current_block_registry_hash
             await _memoize_block_auto_registration(test_func)()
 
@@ -298,7 +298,7 @@ class TestMemoizeBlockAutoRegistration:
 
         # hashing fails randomly fails when running full test suite
         # mocking the hash stabilizes this test
-        with patch("prefect.orion.api.server.hash_objects") as mock:
+        with patch("prefect.server.api.server.hash_objects") as mock:
             mock.return_value = current_block_registry_hash
             await _memoize_block_auto_registration(test_func)()
 
@@ -310,7 +310,7 @@ class TestMemoizeBlockAutoRegistration:
 
         test_func = AsyncMock()
 
-        with patch("prefect.orion.api.server.hash_objects") as mock:
+        with patch("prefect.server.api.server.hash_objects") as mock:
             mock.return_value = None
             await _memoize_block_auto_registration(test_func)()
 
@@ -322,7 +322,7 @@ class TestMemoizeBlockAutoRegistration:
 
             test_func = AsyncMock()
 
-            with patch("prefect.orion.api.server.hash_objects") as mock:
+            with patch("prefect.server.api.server.hash_objects") as mock:
                 mock.return_value = None
                 await _memoize_block_auto_registration(test_func)()
 

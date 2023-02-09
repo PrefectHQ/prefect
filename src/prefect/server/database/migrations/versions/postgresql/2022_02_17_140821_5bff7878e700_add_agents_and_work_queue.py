@@ -22,27 +22,27 @@ def upgrade():
         "work_queue",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column(
             "filter",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.core.QueueFilter
+            prefect.server.utilities.database.Pydantic(
+                prefect.server.schemas.core.QueueFilter
             ),
             server_default="{}",
             nullable=False,
@@ -60,31 +60,31 @@ def upgrade():
         "agent",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column(
             "last_activity_time",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
-            "work_queue_id", prefect.orion.utilities.database.UUID(), nullable=False
+            "work_queue_id", prefect.server.utilities.database.UUID(), nullable=False
         ),
         sa.ForeignKeyConstraint(
             ["work_queue_id"],

@@ -29,7 +29,7 @@ def with_alembic_lock(fn):
 def alembic_config():
     from alembic.config import Config
 
-    alembic_dir = Path(prefect.orion.database.__file__).parent
+    alembic_dir = Path(prefect.server.database.__file__).parent
     if not alembic_dir.joinpath("alembic.ini").exists():
         raise ValueError(f"Couldn't find alembic.ini at {alembic_dir}/alembic.ini")
 

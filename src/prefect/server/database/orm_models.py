@@ -1564,7 +1564,7 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
         return (
-            Path(prefect.orion.database.__file__).parent
+            Path(prefect.server.database.__file__).parent
             / "migrations"
             / "versions"
             / "postgresql"
@@ -1578,7 +1578,7 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
         return (
-            Path(prefect.orion.database.__file__).parent
+            Path(prefect.server.database.__file__).parent
             / "migrations"
             / "versions"
             / "sqlite"

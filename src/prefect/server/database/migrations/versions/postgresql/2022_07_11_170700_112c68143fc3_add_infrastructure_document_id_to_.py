@@ -22,7 +22,7 @@ def upgrade():
         "deployment",
         sa.Column(
             "infrastructure_document_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=True,
         ),
     )
@@ -38,7 +38,7 @@ def upgrade():
         "flow_run",
         sa.Column(
             "infrastructure_document_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=True,
         ),
     )

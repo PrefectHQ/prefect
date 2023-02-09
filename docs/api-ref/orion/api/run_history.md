@@ -7,4 +7,4 @@ tags:
     - observability
 ---
 
-::: prefect.orion.api.run_history
+::: prefect.server.api.run_history

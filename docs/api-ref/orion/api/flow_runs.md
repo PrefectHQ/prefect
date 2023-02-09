@@ -5,4 +5,4 @@ tags:
     - flow runs
 ---
 
-::: prefect.orion.api.flow_runs
+::: prefect.server.api.flow_runs

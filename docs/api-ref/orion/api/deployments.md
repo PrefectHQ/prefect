@@ -5,4 +5,4 @@ tags:
     - deployments
 ---
 
-::: prefect.orion.api.deployments
+::: prefect.server.api.deployments

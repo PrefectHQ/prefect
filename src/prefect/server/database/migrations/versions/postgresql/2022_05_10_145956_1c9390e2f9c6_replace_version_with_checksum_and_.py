@@ -25,19 +25,19 @@ def upgrade():
         "block_type",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
@@ -53,7 +53,7 @@ def upgrade():
     op.add_column(
         "block_document",
         sa.Column(
-            "block_type_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "block_type_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
     )
     op.drop_index("uq_block__schema_id_name", table_name="block_document")
@@ -75,7 +75,7 @@ def upgrade():
     op.add_column(
         "block_schema",
         sa.Column(
-            "block_type_id", prefect.orion.utilities.database.UUID(), nullable=True
+            "block_type_id", prefect.server.utilities.database.UUID(), nullable=True
         ),
     )
     op.drop_index("uq_block_schema__name_version", table_name="block_schema")

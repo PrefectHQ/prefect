@@ -23,8 +23,8 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "created_by",
-                prefect.orion.utilities.database.Pydantic(
-                    prefect.orion.schemas.core.CreatedBy
+                prefect.server.utilities.database.Pydantic(
+                    prefect.server.schemas.core.CreatedBy
                 ),
                 nullable=True,
             )
@@ -32,8 +32,8 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "updated_by",
-                prefect.orion.utilities.database.Pydantic(
-                    prefect.orion.schemas.core.UpdatedBy
+                prefect.server.utilities.database.Pydantic(
+                    prefect.server.schemas.core.UpdatedBy
                 ),
                 nullable=True,
             )
@@ -43,8 +43,8 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "created_by",
-                prefect.orion.utilities.database.Pydantic(
-                    prefect.orion.schemas.core.CreatedBy
+                prefect.server.utilities.database.Pydantic(
+                    prefect.server.schemas.core.CreatedBy
                 ),
                 nullable=True,
             )

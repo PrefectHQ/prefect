@@ -22,7 +22,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "state_timestamp",
-                prefect.orion.utilities.database.Timestamp(timezone=True),
+                prefect.server.utilities.database.Timestamp(timezone=True),
                 nullable=True,
             )
         )
@@ -34,7 +34,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "state_timestamp",
-                prefect.orion.utilities.database.Timestamp(timezone=True),
+                prefect.server.utilities.database.Timestamp(timezone=True),
                 nullable=True,
             )
         )

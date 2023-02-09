@@ -5,4 +5,4 @@ tags:
     - FastAPI
 ---
 
-::: prefect.orion.api.dependencies
+::: prefect.server.api.dependencies

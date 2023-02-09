@@ -294,7 +294,7 @@ class OrionClient:
             flow_id: the flow ID of interest
 
         Returns:
-            a [Flow model][prefect.orion.schemas.core.Flow] representation of the flow
+            a [Flow model][prefect.server.schemas.core.Flow] representation of the flow
         """
         response = await self._client.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
@@ -1445,7 +1445,7 @@ class OrionClient:
             deployment_id: the deployment ID of interest
 
         Returns:
-            a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
+            a [Deployment model][prefect.server.schemas.core.Deployment] representation of the deployment
         """
         response = await self._client.get(f"/deployments/{deployment_id}")
         return schemas.responses.DeploymentResponse.parse_obj(response.json())

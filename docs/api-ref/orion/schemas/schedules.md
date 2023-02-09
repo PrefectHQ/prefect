@@ -1,1 +1,1 @@
-::: prefect.orion.schemas.schedules
+::: prefect.server.schemas.schedules

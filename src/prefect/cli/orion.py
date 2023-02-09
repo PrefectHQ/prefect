@@ -129,7 +129,7 @@ async def start(
                     # quote wrapping needed for windows paths with spaces
                     f'"{prefect.__module_path__.parent}"',
                     "--factory",
-                    "prefect.orion.api.server:create_app",
+                    "prefect.server.api.server:create_app",
                     "--host",
                     str(host),
                     "--port",

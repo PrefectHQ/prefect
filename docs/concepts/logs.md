@@ -376,4 +376,4 @@ Logged events are also persisted to the Prefect database. A log record includes 
 | message | Log message. |
 | timestamp | The client-side timestamp of this logged statement. |
 
-For more information, see [Log schema](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Log) in the API documentation.
+For more information, see [Log schema](/api-ref/orion/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.

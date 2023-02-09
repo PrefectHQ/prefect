@@ -5,4 +5,4 @@ tags:
     - administration
 ---
 
-::: prefect.orion.api.admin
+::: prefect.server.api.admin

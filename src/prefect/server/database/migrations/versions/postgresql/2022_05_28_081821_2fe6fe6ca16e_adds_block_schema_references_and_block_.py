@@ -37,31 +37,31 @@ def upgrade():
         "block_schema_reference",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column(
             "parent_block_schema_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=False,
         ),
         sa.Column(
             "reference_block_schema_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
@@ -92,31 +92,31 @@ def upgrade():
         "block_document_reference",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column(
             "parent_block_document_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=False,
         ),
         sa.Column(
             "reference_block_document_id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(

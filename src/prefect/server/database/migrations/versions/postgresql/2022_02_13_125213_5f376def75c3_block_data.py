@@ -23,19 +23,19 @@ def upgrade():
         "block_data",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
@@ -43,7 +43,7 @@ def upgrade():
         sa.Column("blockref", sa.String(), nullable=False),
         sa.Column(
             "data",
-            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
             server_default="{}",
             nullable=False,
         ),

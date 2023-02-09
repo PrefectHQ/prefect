@@ -23,7 +23,7 @@ def upgrade():
         "block_schema",
         sa.Column(
             "capabilities",
-            prefect.orion.utilities.database.JSON(astext_type=sa.Text()),
+            prefect.server.utilities.database.JSON(astext_type=sa.Text()),
             server_default="[]",
             nullable=False,
         ),

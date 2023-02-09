@@ -39,7 +39,7 @@ def downgrade():
         batch_op.add_column(
             sa.Column(
                 "flow_run_state_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             ),
         )
@@ -51,7 +51,7 @@ def downgrade():
         batch_op.add_column(
             sa.Column(
                 "task_run_state_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             ),
         )

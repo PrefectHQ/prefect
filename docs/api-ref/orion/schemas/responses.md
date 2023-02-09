@@ -1,1 +1,1 @@
-::: prefect.orion.schemas.responses
+::: prefect.server.schemas.responses

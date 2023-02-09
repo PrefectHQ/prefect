@@ -22,7 +22,9 @@ def upgrade():
     with op.batch_alter_table("block", schema=None) as batch_op:
         batch_op.add_column(
             sa.Column(
-                "block_spec_id", prefect.orion.utilities.database.UUID(), nullable=False
+                "block_spec_id",
+                prefect.server.utilities.database.UUID(),
+                nullable=False,
             )
         )
         batch_op.drop_constraint("uq_block__name", type_="unique")

@@ -38,7 +38,7 @@ def upgrade():
         )
         batch_op.add_column(
             sa.Column(
-                "work_pool_id", prefect.orion.utilities.database.UUID(), nullable=True
+                "work_pool_id", prefect.server.utilities.database.UUID(), nullable=True
             )
         )
 
@@ -46,7 +46,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "work_queue_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )
@@ -67,7 +67,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "work_queue_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )
@@ -154,7 +154,7 @@ def downgrade():
         batch_op.add_column(
             sa.Column(
                 "work_pool_queue_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )
@@ -175,7 +175,7 @@ def downgrade():
         batch_op.add_column(
             sa.Column(
                 "work_pool_queue_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )

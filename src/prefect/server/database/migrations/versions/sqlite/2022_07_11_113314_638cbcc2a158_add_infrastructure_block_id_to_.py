@@ -25,7 +25,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "infrastructure_document_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )
@@ -43,7 +43,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "infrastructure_document_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )

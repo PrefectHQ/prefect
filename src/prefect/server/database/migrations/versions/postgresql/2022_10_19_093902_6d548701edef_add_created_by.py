@@ -23,8 +23,8 @@ def upgrade():
         "deployment",
         sa.Column(
             "created_by",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.core.CreatedBy
+            prefect.server.utilities.database.Pydantic(
+                prefect.server.schemas.core.CreatedBy
             ),
             nullable=True,
         ),
@@ -33,8 +33,8 @@ def upgrade():
         "deployment",
         sa.Column(
             "updated_by",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.core.UpdatedBy
+            prefect.server.utilities.database.Pydantic(
+                prefect.server.schemas.core.UpdatedBy
             ),
             nullable=True,
         ),
@@ -43,8 +43,8 @@ def upgrade():
         "flow_run",
         sa.Column(
             "created_by",
-            prefect.orion.utilities.database.Pydantic(
-                prefect.orion.schemas.core.CreatedBy
+            prefect.server.utilities.database.Pydantic(
+                prefect.server.schemas.core.CreatedBy
             ),
             nullable=True,
         ),

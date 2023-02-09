@@ -29,7 +29,7 @@ def upgrade():
         "deployment",
         sa.Column(
             "parameter_openapi_schema",
-            prefect.orion.utilities.database.JSON(),
+            prefect.server.utilities.database.JSON(),
             nullable=True,
         ),
     )
@@ -38,7 +38,7 @@ def upgrade():
         batch_op.add_column(
             sa.Column(
                 "storage_document_id",
-                prefect.orion.utilities.database.UUID(),
+                prefect.server.utilities.database.UUID(),
                 nullable=True,
             )
         )

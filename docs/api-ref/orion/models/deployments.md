@@ -1,1 +1,1 @@
-::: prefect.orion.models.deployments
+::: prefect.server.models.deployments

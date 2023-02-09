@@ -613,7 +613,7 @@ def get_dialect(
     Example:
         ```python
         import prefect.settings
-        from prefect.orion.utilities.database import get_dialect
+        from prefect.server.utilities.database import get_dialect
 
         dialect = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value())
         if dialect == "sqlite":

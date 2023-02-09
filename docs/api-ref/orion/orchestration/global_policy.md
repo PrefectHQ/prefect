@@ -1,4 +1,4 @@
-::: prefect.orion.orchestration.global_policy
+::: prefect.server.orchestration.global_policy
     options:
       inherited_members: false
       filters: ["!^_"]

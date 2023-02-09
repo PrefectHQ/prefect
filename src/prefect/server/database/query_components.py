@@ -21,7 +21,7 @@ ONE_HOUR = 60 * 60
 
 
 jinja_env = Environment(
-    loader=PackageLoader("prefect.orion.database", package_path="sql"),
+    loader=PackageLoader("prefect.server.database", package_path="sql"),
     autoescape=select_autoescape(),
     trim_blocks=True,
 )

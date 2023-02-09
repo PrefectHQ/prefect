@@ -94,7 +94,7 @@ class TestCreateLogs:
     async def test_database_failure(
         self, client_without_exceptions, session, flow_run_id, task_run_id, log_data
     ):
-        with mock.patch("prefect.orion.models.logs.create_logs") as mock_create_logs:
+        with mock.patch("prefect.server.models.logs.create_logs") as mock_create_logs:
 
             def raise_error(*args, **kwargs):
                 raise FlushError

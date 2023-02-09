@@ -150,7 +150,7 @@ async def api(
     command = [
         "uvicorn",
         "--factory",
-        "prefect.orion.api.server:create_app",
+        "prefect.server.api.server:create_app",
         "--host",
         str(host),
         "--port",

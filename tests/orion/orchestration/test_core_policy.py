@@ -373,11 +373,11 @@ class TestFlowRetryingRule:
         ]
         read_task_runs = AsyncMock(side_effect=lambda *args, **kwargs: failed_task_runs)
         monkeypatch.setattr(
-            "prefect.orion.models.task_runs.read_task_runs", read_task_runs
+            "prefect.server.models.task_runs.read_task_runs", read_task_runs
         )
         set_task_run_state = AsyncMock()
         monkeypatch.setattr(
-            "prefect.orion.models.task_runs.set_task_run_state", set_task_run_state
+            "prefect.server.models.task_runs.set_task_run_state", set_task_run_state
         )
 
         retry_policy = [RetryFailedFlows]
@@ -599,7 +599,7 @@ class TestUpdatingFlowRunTrackerOnTasks:
                         rule(ctx, *intended_transition)
                     )
                     monkeypatch.setattr(
-                        "prefect.orion.orchestration.rules.TaskOrchestrationContext.flow_run",
+                        "prefect.server.orchestration.rules.TaskOrchestrationContext.flow_run",
                         missing_flow_run,
                     )
 
@@ -891,7 +891,7 @@ class TestTaskRetryingRule:
             return average_interval * (1 + clamping_factor)
 
         monkeypatch.setattr(
-            "prefect.orion.orchestration.core_policy.clamped_poisson_interval",
+            "prefect.server.orchestration.core_policy.clamped_poisson_interval",
             randomizer,
         )
 

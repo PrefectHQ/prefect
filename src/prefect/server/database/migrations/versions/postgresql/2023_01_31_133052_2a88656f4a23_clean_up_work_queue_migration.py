@@ -41,19 +41,19 @@ def downgrade():
         "work_pool_queue",
         sa.Column(
             "id",
-            prefect.orion.utilities.database.UUID(),
+            prefect.server.utilities.database.UUID(),
             server_default=sa.text("(GEN_RANDOM_UUID())"),
             nullable=False,
         ),
         sa.Column(
             "created",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.Column(
             "updated",
-            prefect.orion.utilities.database.Timestamp(timezone=True),
+            prefect.server.utilities.database.Timestamp(timezone=True),
             server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
@@ -63,7 +63,7 @@ def downgrade():
         sa.Column("concurrency_limit", sa.Integer(), nullable=True),
         sa.Column("priority", sa.Integer(), nullable=False),
         sa.Column(
-            "work_pool_id", prefect.orion.utilities.database.UUID(), nullable=False
+            "work_pool_id", prefect.server.utilities.database.UUID(), nullable=False
         ),
         sa.ForeignKeyConstraint(
             ["work_pool_id"],
