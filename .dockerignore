@@ -34,7 +34,7 @@ docs/api-ref/schema.json
 site/
 
 # UI artifacts
-src/prefect/orion/ui/*
+src/prefect/server/ui/*
 orion-ui/node_modules
 
 # Databases

@@ -23,17 +23,17 @@ from prefect.client.orion import OrionClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
-from prefect.orion import schemas
-from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.schemas.actions import LogCreate, WorkPoolCreate
-from prefect.orion.schemas.core import FlowRunNotificationPolicy
-from prefect.orion.schemas.filters import (
+from prefect.server import schemas
+from prefect.server.api.server import ORION_API_VERSION, create_app
+from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.server.schemas.core import FlowRunNotificationPolicy
+from prefect.server.schemas.filters import (
     FlowRunNotificationPolicyFilter,
     LogFilter,
     LogFilterFlowRunId,
 )
-from prefect.orion.schemas.schedules import IntervalSchedule
-from prefect.orion.schemas.states import StateType
+from prefect.server.schemas.schedules import IntervalSchedule
+from prefect.server.schemas.states import StateType
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
@@ -535,7 +535,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
-            "prefect.orion.database.interface.OrionDBInterface.create_db", mock
+            "prefect.server.database.interface.OrionDBInterface.create_db", mock
         )
         async with OrionClient(app):
             if enabled:
@@ -551,7 +551,7 @@ async def test_client_does_not_run_migrations_for_hosted_app(
     with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
-            "prefect.orion.database.interface.OrionDBInterface.create_db", mock
+            "prefect.server.database.interface.OrionDBInterface.create_db", mock
         )
         async with OrionClient(hosted_orion_api):
             pass
