@@ -116,29 +116,6 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
             )
 
 
-class PrefectDeprecatedAlias(importlib.abc.Loader):
-    def find_spec(self, fullname, path, target=None):
-        if fullname.startswith("prefect.orion"):
-
-            from prefect._internal.compatibility.deprecated import (
-                generate_deprecation_message,
-            )
-
-            warnings.warn(
-                generate_deprecation_message(
-                    name="The `prefect.orion` module",
-                    start_date="Feb 2023",
-                    help="Use `prefect.server` instead.",
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-            return importlib.util.find_spec(
-                fullname.replace("prefect.orion", "prefect.server", 1)
-            )
-
-
 if not hasattr(sys, "frozen"):
     sys.meta_path.insert(0, Prefect1ImportInterceptor())
 
