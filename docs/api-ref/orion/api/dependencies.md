@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API utilities for injecting FastAPI dependencies.
+description: Prefect API utilities for injecting FastAPI dependencies.
 tags:
-    - Orion API
+    - Prefect API
     - FastAPI
 ---
 

@@ -29,4 +29,4 @@ Once you are comfortable writing and running workflows interactively or manually
 
 ## Advanced Concepts
 
-More advanced use cases require understanding the internals of the system. Begin by diving into [settings](settings.md) to understand the configuration options available to you. You may also want to learn more about the Prefect Orion [database](/concepts/database/), which is used to persist data about flow and task run state, run history, logs, and more.
+More advanced use cases require understanding the internals of the system. Begin by diving into [settings](settings.md) to understand the configuration options available to you. You may also want to learn more about the Prefect [database](/concepts/database/), which is used to persist data about flow and task run state, run history, logs, and more.

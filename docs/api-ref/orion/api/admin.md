@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API routes for admin-level interactions.
+description: Prefect API routes for admin-level interactions.
 tags:
-    - Orion API
+    - Prefect API
     - administration
 ---
 

@@ -1,7 +1,7 @@
 ---
-description: Prefect Orion API routes for interacting with Deployment objects.
+description: Prefect API routes for interacting with Deployment objects.
 tags:
-    - Orion API
+    - Prefect API
     - deployments
 ---
 
