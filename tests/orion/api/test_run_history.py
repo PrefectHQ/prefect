@@ -7,7 +7,7 @@ import pytest
 from fastapi import Response, status
 
 from prefect.orion import models
-from prefect.orion.schemas import core, responses, states
+from prefect.orion.schemas import actions, core, responses, states
 from prefect.orion.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 7, 1)
@@ -44,7 +44,48 @@ async def clear_db():
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(db):
+async def work_pool(db):
+    session = await db.session()
+    async with session:
+        model = await models.workers.create_work_pool(
+            session=session,
+            work_pool=actions.WorkPoolCreate(
+                name="test-work-pool",
+                type="test-type",
+                base_job_template={
+                    "job_configuration": {"command": "{{ command }}"},
+                    "variables": {
+                        "properties": {
+                            "command": {
+                                "type": "array",
+                                "title": "Command",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": [],
+                    },
+                },
+            ),
+        )
+        await session.commit()
+    return model
+
+
+@pytest.fixture(autouse=True, scope="module")
+async def work_queue(db, work_pool):
+    session = await db.session()
+    async with session:
+        model = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=actions.WorkQueueCreate(name="wq"),
+        )
+        await session.commit()
+    return model
+
+
+@pytest.fixture(autouse=True, scope="module")
+async def data(db, work_queue):
 
     session = await db.session()
     async with session:
@@ -72,6 +113,7 @@ async def data(db):
                     flow_id=f_1.id,
                     tags=["completed"],
                     state=states.Completed(timestamp=d),
+                    work_queue_id=work_queue.id,
                 )
             )
 
@@ -435,6 +477,160 @@ async def test_weekly_bins_with_filters_flow_runs(client):
                 interval_start=dt.add(days=5),
                 interval_end=dt.add(days=12),
                 states=[],
+            ),
+        ],
+    )
+
+
+async def test_weekly_bins_with_filters_work_pools(client, work_pool):
+    response = await client.post(
+        "/flow_runs/history",
+        json=dict(
+            history_start=str(dt.subtract(days=5)),
+            history_end=str(dt.add(days=1)),
+            history_interval_seconds=timedelta(days=1).total_seconds(),
+            work_pools=dict(name=dict(any_=[work_pool.name])),
+        ),
+    )
+
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
+
+    # Only completed runs are associated with the work pool
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=dt.subtract(days=5),
+                interval_end=dt.subtract(days=4),
+                states=[],
+            ),
+            dict(
+                interval_start=dt.subtract(days=4),
+                interval_end=dt.subtract(days=3),
+                states=[],
+            ),
+            dict(
+                interval_start=dt.subtract(days=3),
+                interval_end=dt.subtract(days=2),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    )
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=2),
+                interval_end=dt.subtract(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=1),
+                interval_end=dt,
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt,
+                interval_end=dt.add(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=1,
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+async def test_weekly_bins_with_filters_work_queues(client, work_queue):
+    response = await client.post(
+        "/flow_runs/history",
+        json=dict(
+            history_start=str(dt.subtract(days=5)),
+            history_end=str(dt.add(days=1)),
+            history_interval_seconds=timedelta(days=1).total_seconds(),
+            work_queues=dict(id=dict(any_=[str(work_queue.id)])),
+        ),
+    )
+
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
+
+    # Only completed runs are associated with the work queue
+    assert_datetime_dictionaries_equal(
+        [p.dict() for p in parsed],
+        [
+            dict(
+                interval_start=dt.subtract(days=5),
+                interval_end=dt.subtract(days=4),
+                states=[],
+            ),
+            dict(
+                interval_start=dt.subtract(days=4),
+                interval_end=dt.subtract(days=3),
+                states=[],
+            ),
+            dict(
+                interval_start=dt.subtract(days=3),
+                interval_end=dt.subtract(days=2),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    )
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=2),
+                interval_end=dt.subtract(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt.subtract(days=1),
+                interval_end=dt,
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=2,
+                    ),
+                ],
+            ),
+            dict(
+                interval_start=dt,
+                interval_end=dt.add(days=1),
+                states=[
+                    dict(
+                        state_name="Completed",
+                        state_type=StateType.COMPLETED,
+                        count_runs=1,
+                    ),
+                ],
             ),
         ],
     )

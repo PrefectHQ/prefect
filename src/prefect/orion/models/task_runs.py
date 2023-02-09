@@ -143,6 +143,8 @@ async def _apply_task_run_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
@@ -151,7 +153,13 @@ async def _apply_task_run_filters(
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter(db))
 
-    if flow_filter or flow_run_filter or deployment_filter:
+    if (
+        flow_filter
+        or flow_run_filter
+        or deployment_filter
+        or work_pool_filter
+        or work_queue_filter
+    ):
         exists_clause = select(db.FlowRun).where(
             db.FlowRun.id == db.TaskRun.flow_run_id
         )
@@ -170,6 +178,19 @@ async def _apply_task_run_filters(
                 db.Deployment,
                 db.Deployment.id == db.FlowRun.deployment_id,
             ).where(deployment_filter.as_sql_filter(db))
+
+        if work_queue_filter:
+            exists_clause = exists_clause.join(
+                db.WorkQueue,
+                db.WorkQueue.id == db.FlowRun.work_queue_id,
+            ).where(work_queue_filter.as_sql_filter(db))
+
+        if work_pool_filter:
+            exists_clause = exists_clause.join(
+                db.WorkPool,
+                db.WorkPool.id == db.WorkQueue.work_pool_id,
+                db.WorkQueue.id == db.FlowRun.work_queue_id,
+            ).where(work_pool_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
