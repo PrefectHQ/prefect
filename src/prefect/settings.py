@@ -184,12 +184,17 @@ class Setting(Generic[T]):
         if self._name:
             return self._name
 
+        # Lookup the name on first access
         for name, val in tuple(globals().items()):
             if val == self:
                 self._name = name
                 return name
 
-        raise ValueError("Setting not found in module.")
+        raise ValueError("Setting not found in `prefect.settings` module.")
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
 
     @property
     def deprecated_message(self):
