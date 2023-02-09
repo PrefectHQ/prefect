@@ -32,3 +32,4 @@ def downgrade():
         )
         batch_op.drop_constraint(
             batch_op.f("fk_artifact__flow_run_id__flow_run"), type_="foreignkey"
+        )
