@@ -41,9 +41,7 @@ from prefect.settings import (
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
-    PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS,
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_EXPERIMENTAL_WARN_WORK_POOLS,
     PREFECT_EXPERIMENTAL_WARN_WORKERS,
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
@@ -483,17 +481,6 @@ def caplog(caplog):
                 logger.handlers.append(caplog.handler)
 
     yield caplog
-
-
-@pytest.fixture
-def enable_work_pools():
-    with temporary_settings(
-        {
-            PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS: 1,
-            PREFECT_EXPERIMENTAL_WARN_WORK_POOLS: 0,
-        }
-    ):
-        yield
 
 
 @pytest.fixture
