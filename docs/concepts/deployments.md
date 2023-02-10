@@ -352,7 +352,7 @@ When you run a deployed flow with Prefect, the following happens:
 [Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect orion start`.
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
 
     Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
