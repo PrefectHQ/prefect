@@ -2,7 +2,7 @@
 description: Learn how Prefect flow deployments enable configuring flows for scheduled and remote execution.
 tags:
     - Orion
-    - work queues
+    - work pools
     - agents
     - orchestration
     - flow runs
@@ -31,7 +31,7 @@ You need just a few ingredients to turn a flow definition into a deployment:
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
 - Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect Orion server started with `prefect orion start`.
-- An [agent and work queue](/concepts/work-queues/).
+- An [agent and work pool](/concepts/work-pools/).
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
 
@@ -160,7 +160,7 @@ What did we do here? Let's break down the command:
 - `prefect deployment build` is the Prefect CLI command that enables you to prepare the settings for a deployment.
 -  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n log-simple` specifies a name for the deployment.
-- `-q test` specifies a work queue for the deployment. Work queues direct scheduled runs to agents.
+- `-q test` specifies a work pool for the deployment. work pools direct scheduled runs to agents.
 
 You can pass other option flags. For example, you may specify multiple tags by providing a `-t tag` parameter for each tag you want applied to the deployment. Options are described in the [Deployments](/concepts/deployments/#deployment-build-options) documentation or via the `prefect deployment build --help` command.
 
@@ -214,15 +214,16 @@ Note that the flow requires a `name` parameter, but we didn't specify one when b
 
 Open the `log_flow-deployment.yaml` file and edit the parameters to include a default as `parameters: {'name': 'Marvin'}` and the `infra_overrides` to include the relevant environment variable (note that both JSON and nested key/value pairs work here):
 
-```yaml hl_lines="10 12-14"
+```yaml hl_lines="11 13-15"
 ###
 ### A complete description of a Prefect Deployment for flow 'log-flow'
 ###
 name: log-simple
 description: null
 version: 450637a8874a5dd3a81039a89e90c915
-# The work queue that will handle this deployment's runs
+# The work pool that will handle this deployment's runs
 work_queue_name: test
+work_pool_name: null
 tags: []
 parameters: {'name': 'Marvin'}
 schedule: null
@@ -260,7 +261,7 @@ parameter_openapi_schema:
   definitions: null
 ```
 
-Note that the YAML configuration includes the ability to add a description, a default work queue, tags, a schedule, and more. 
+Note that the YAML configuration includes the ability to add a description, a default work pool, tags, a schedule, and more. 
 
 ### Apply the deployment
 
@@ -285,7 +286,7 @@ Deployment 'log-flow/log-simple' successfully created with id
 </div>
 
 You can now use the Prefect CLI to create a flow run for this deployment and run it with an agent that pulls work from the 'test'
-work queue:
+work pool:
 <div class="terminal">
 ```bash
 $ prefect deployment run 'log-flow/log-simple'
@@ -456,17 +457,17 @@ INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
     </div>
 
 
-## Agents and work queues
+## Agents and work pools
 
-As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work queue. You'll set those up next.
+As mentioned at the beginning of this tutorial, you still need two more items to run orchestrated deployments: an agent and a work pool. You'll set those up next.
 
-[Agents and work queues](/concepts/work-queues/) are the mechanisms by which Prefect orchestrates deployment flow runs in remote execution environments.
+[Agents and work pools](/concepts/work-pools/) are the mechanisms by which Prefect orchestrates deployment flow runs in remote execution environments.
 
-Work queues let you organize flow runs into queues for execution. Agents pick up work from one or more queues and execute the runs.
+work pools let you organize flow runs for execution. Agents pick up work from one or more queues and execute the runs.
 
-In the Prefect UI, you can create a work queue by selecting the **Work Queues** page, then creating a new work queue. However, in our case you don't need to manually create a work queue because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
+In the Prefect UI, you can create a work pool by selecting the **Work Pools** page, then creating a new work pool. However, in our case you don't need to manually create a work pool because it was created automatically when you created your deployment. If you hadn't created your deployment yet, it would be created when you start your agent. 
 
-Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work queue. 
+Open an additional terminal session, then run the `prefect agent start` command, passing a `-q test` option that tells it to pull work from the `test` work pool. 
 
 <div class="terminal">
 ```bash
@@ -485,12 +486,12 @@ Agent started! Looking for work from queue(s): test...
 
 Remember that:
 
-- We specified the `test` work queue when creating the deployment.
-- The agent is configured to pick up work from the `test` work queue, so it will execute flow runs from the `log-flow/log-simple` deployment (and any others that also point at this queue).
+- We specified the `test` work pool when creating the deployment.
+- The agent is configured to pick up work from the `test` work pool, so it will execute flow runs from the `log-flow/log-simple` deployment (and any others that also point at this queue).
 
 ## Run the deployment locally
 
-Now that you've created the deployment, agent, and associated work queue, you can interact with it in multiple ways. For example, you can use the Prefect CLI to run a local flow run for the deployment.
+Now that you've created the deployment, agent, and associated work pool, you can interact with it in multiple ways. For example, you can use the Prefect CLI to run a local flow run for the deployment.
 
 <div class="terminal">
 ```bash
@@ -535,7 +536,7 @@ You can also see your flow in the [Prefect UI](/ui/overview/). Open the Prefect 
 
 ## Run a deployment from the UI
 
-With a work queue and agent in place, you can also create a flow run for `log_simple` directly from the UI.
+With a work pool and agent in place, you can also create a flow run for `log_simple` directly from the UI.
 
 In the Prefect UI, select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance.
 
@@ -574,7 +575,7 @@ Change the value for the `name` parameter to some other value. We used "Trillian
 
 Select **Save** to save any changed values, then select **Run** to create the custom flow run.
 
-The Prefect Orion engine routes the flow run request to the work queue, the agent picks up the new work from the queue and initiates the flow run. 
+The Prefect Orion engine routes the flow run request to the work pool, the agent picks up the new work from the queue and initiates the flow run. 
 
 As before, the flow run will be picked up by the agent, and you should be able to see it run in the agent process.
 
@@ -644,11 +645,11 @@ So far you've seen a simple example of a single deployment for a single flow. Bu
 
 ## Cleaning up
 
-You're welcome to leave the work queue and agent running to experiment and to handle local development.
+You're welcome to leave the work pool and agent running to experiment and to handle local development.
 
 To terminate the agent, simply go to the terminal session where it's running and end the process with either `Ctrl+C` or by terminating the terminal session.
 
-You can pause or delete a work queue on the Prefect UI **Work Queues** page.
+You can pause or delete a work pool on the Prefect UI **Work pools** page.
 
 !!! tip "Next steps: Storage and infrastructure"
     Deployments get interesting when you can execute flow runs in environments other than your local machine. To do that, you'll need to configure [Storage and Infrastructure](/tutorials/storage/), which is covered in our next tutorial.

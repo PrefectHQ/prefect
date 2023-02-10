@@ -49,11 +49,10 @@
   }
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
-  const workPoolIds = computed(() => workPool.value ? [workPool.value.id] : [])
 
   const { filter: flowRunFilter } = useRecentFlowRunsFilter({
     workPools: {
-      id: workPoolIds,
+      name: [workPoolName.value],
     },
   })
 

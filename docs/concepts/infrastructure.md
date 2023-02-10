@@ -65,7 +65,7 @@ For example, when creating your deployment files, the supported Prefect infrastr
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
+$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket --override env.EXTRA_PIP_PACKAGES=s3fs
 Found flow 'my-flow'
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
 Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
@@ -82,10 +82,17 @@ The default deployment YAML filename may be edited as needed to add an infrastru
 ###
 name: my-flow-deployment
 description: null
+version: e29de5d01b06d61b4e321d40f34a480c
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+work_pool_name: default-agent-pool
 tags:
 - test
-schedule: null
 parameters: {}
+schedule: null
+is_schedule_active: true
+infra_overrides:
+  env.EXTRA_PIP_PACKAGES: s3fs
 infrastructure:
   type: docker-container
   env: {}
@@ -102,6 +109,12 @@ infrastructure:
   auto_remove: false
   volumes: []
   stream_output: true
+  memswap_limit: null
+  mem_limit: null
+  privileged: false
+  block_type_slug: docker-container
+  _block_type_slug: docker-container
+  
 ###
 ### DO NOT EDIT BELOW THIS LINE
 ###
@@ -114,13 +127,17 @@ storage:
   _is_anonymous: true
   _block_document_name: anonymous-xxxxxxxx-f1ff-4265-b55c-6353a6d65333
   _block_document_id: xxxxxxxx-06c2-4c3c-a505-4a8db0147011
+  block_type_slug: s3
   _block_type_slug: s3
+path: ''
+entrypoint: my_flow.py:my-flow
 parameter_openapi_schema:
   title: Parameters
   type: object
   properties: {}
   required: null
   definitions: null
+timestamp: '2023-02-08T23:00:14.974642+00:00'
 ```
 
 !!! note "Editing deployment YAML"
@@ -180,7 +197,7 @@ Requirements for `DockerContainer`:
 - Docker Engine must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
 `DockerContainer` supports the following settings:
 
@@ -209,7 +226,7 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
-- The ephemeral Prefect Orion API won't work with Docker and Kubernetes. You must have an Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect Orion API won't work with Docker and Kubernetes. You must have an Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
 The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
@@ -219,7 +236,7 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | ---- | ---- |
 | cluster_config | An optional Kubernetes cluster config to use for this job. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).|
 | env	| Environment variables to set for the container. |
 | finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |
@@ -320,7 +337,7 @@ deployment.apply()
 
 Requirements for `ECSTask`:
 
-- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 - The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
 - The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  

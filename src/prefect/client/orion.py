@@ -668,6 +668,40 @@ class OrionClient:
             List[schemas.core.ConcurrencyLimit], response.json()
         )
 
+    async def reset_concurrency_limit_by_tag(
+        self,
+        tag: str,
+        slot_override: Optional[List[Union[UUID, str]]] = None,
+    ):
+        """
+        Resets the concurrency limit slots set on a specific tag.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+            slot_override: a list of task run IDs that are currently using a
+                concurrency slot, please check that any task run IDs included in
+                `slot_override` are currently running, otherwise those concurrency
+                slots will never be released.
+
+        Raises:
+            prefect.exceptions.ObjectNotFound: If request returns 404
+            httpx.RequestError: If request fails
+
+        """
+        if slot_override is not None:
+            slot_override = [str(slot) for slot in slot_override]
+
+        try:
+            await self._client.post(
+                f"/concurrency_limits/tag/{tag}/reset",
+                json=dict(slot_override=slot_override),
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def delete_concurrency_limit_by_tag(
         self,
         tag: str,
@@ -744,7 +778,7 @@ class OrionClient:
         try:
             if work_pool_name is not None:
                 response = await self._client.post(
-                    f"experimental/work_pools/{work_pool_name}/queues", json=data
+                    f"/work_pools/{work_pool_name}/queues", json=data
                 )
             else:
                 response = await self._client.post("/work_queues/", json=data)
@@ -780,7 +814,7 @@ class OrionClient:
         try:
             if work_pool_name is not None:
                 response = await self._client.get(
-                    f"/experimental/work_pools/{work_pool_name}/queues/{name}"
+                    f"/work_pools/{work_pool_name}/queues/{name}"
                 )
             else:
                 response = await self._client.get(f"/work_queues/name/{name}")
@@ -1993,7 +2027,7 @@ class OrionClient:
             worker_name: The name of the worker sending the heartbeat.
         """
         await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/workers/heartbeat",
+            f"/work_pools/{work_pool_name}/workers/heartbeat",
             json={"name": worker_name},
         )
 
@@ -2015,7 +2049,7 @@ class OrionClient:
             offset: Limit for the worker query.
         """
         response = await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/workers/filter",
+            f"/work_pools/{work_pool_name}/workers/filter",
             json={
                 "worker_filter": (
                     worker_filter.dict(json_compatible=True, exclude_unset=True)
@@ -2041,9 +2075,7 @@ class OrionClient:
             Information about the requested work pool.
         """
         try:
-            response = await self._client.get(
-                f"/experimental/work_pools/{work_pool_name}"
-            )
+            response = await self._client.get(f"/work_pools/{work_pool_name}")
             return pydantic.parse_obj_as(WorkPool, response.json())
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
@@ -2078,7 +2110,7 @@ class OrionClient:
                 else None
             ),
         }
-        response = await self._client.post("/experimental/work_pools/filter", json=body)
+        response = await self._client.post("/work_pools/filter", json=body)
         return pydantic.parse_obj_as(List[WorkPool], response.json())
 
     async def create_work_pool(
@@ -2095,7 +2127,7 @@ class OrionClient:
             Information about the newly created work pool.
         """
         response = await self._client.post(
-            "/experimental/work_pools/",
+            "/work_pools/",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -2108,7 +2140,7 @@ class OrionClient:
     ):
 
         await self._client.patch(
-            f"/experimental/work_pools/{work_pool_name}",
+            f"/work_pools/{work_pool_name}",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -2123,7 +2155,7 @@ class OrionClient:
             work_pool_name: Name of the work pool to delete.
         """
         try:
-            await self._client.delete(f"/experimental/work_pools/{work_pool_name}")
+            await self._client.delete(f"/work_pools/{work_pool_name}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == status.HTTP_404_NOT_FOUND:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
@@ -2162,7 +2194,7 @@ class OrionClient:
         if work_pool_name:
             try:
                 response = await self._client.post(
-                    f"/experimental/work_pools/{work_pool_name}/queues/filter",
+                    f"/work_pools/{work_pool_name}/queues/filter",
                     json=json,
                 )
             except httpx.HTTPStatusError as e:
@@ -2203,7 +2235,7 @@ class OrionClient:
             body["scheduled_before"] = str(scheduled_before)
 
         response = await self._client.post(
-            f"/experimental/work_pools/{work_pool_name}/get_scheduled_flow_runs",
+            f"/work_pools/{work_pool_name}/get_scheduled_flow_runs",
             json=body,
         )
 
