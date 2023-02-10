@@ -1,5 +1,5 @@
 """
-The base class for all Orion loop services.
+The base class for all Prefect REST API loop services.
 """
 import asyncio
 import signal

@@ -83,7 +83,7 @@ def response_scoped_dependency(dependency: Callable):
 
 class PrefectAPIRoute(APIRoute):
     """
-    A FastAPI APIRoute class which attaches an async stack to requests that exits before
+    A FastAPIRoute class which attaches an async stack to requests that exits before
     a response is returned.
 
     Requests already have `request.scope['fastapi_astack']` which is an async stack for

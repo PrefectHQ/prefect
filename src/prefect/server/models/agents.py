@@ -1,6 +1,6 @@
 """
 Functions for interacting with agent ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API.
 """
 
 from uuid import UUID

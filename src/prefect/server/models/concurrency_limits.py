@@ -1,6 +1,6 @@
 """
 Functions for interacting with concurrency limit ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API.
 """
 
 from typing import List, Optional

@@ -1,6 +1,6 @@
 """
 Functions for interacting with worker ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API.
 """
 import datetime
 from typing import Dict, List, Optional
