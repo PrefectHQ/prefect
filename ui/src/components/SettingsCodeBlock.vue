@@ -10,11 +10,11 @@
 
 <script lang="ts" setup>
   import { PCode } from '@prefecthq/prefect-design'
-  import { OrionSettings } from '@prefecthq/prefect-ui-library'
+  import { ServerSettings } from '@prefecthq/prefect-ui-library'
   import { computed } from 'vue'
 
   const props = defineProps<{
-    engineSettings: OrionSettings,
+    engineSettings: ServerSettings,
   }>()
   const settingSections = computed(() => Object.entries(props.engineSettings))
 </script>
