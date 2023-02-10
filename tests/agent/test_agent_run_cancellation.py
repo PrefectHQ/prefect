@@ -4,7 +4,7 @@ from unittest.mock import call
 import anyio
 import pytest
 
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
@@ -65,7 +65,7 @@ async def test_agent_cancel_run_called_for_cancelling_run(
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -95,7 +95,7 @@ async def test_agent_cancel_run_not_called_for_other_states(
         state=state,
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -120,7 +120,7 @@ async def test_agent_cancel_run_called_for_cancelling_run_with_multiple_work_que
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -151,7 +151,7 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -183,7 +183,7 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_a_work_queue(
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -203,7 +203,7 @@ async def test_agent_cancel_run_not_called_for_other_work_queues(
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[f"not-{deployment.work_queue_name}"], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -248,7 +248,7 @@ async def test_agent_cancel_run_kills_run_with_infrastructure_pid(
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -271,7 +271,7 @@ async def test_agent_cancel_run_with_missing_infrastructure_pid(
         state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -306,7 +306,7 @@ async def test_agent_cancel_run_updates_state_type(
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -333,7 +333,7 @@ async def test_agent_cancel_run_preserves_other_state_properties(
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -362,7 +362,7 @@ async def test_agent_cancel_run_with_infrastructure_not_available_during_kill(
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = InfrastructureNotAvailable("Test!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -402,7 +402,7 @@ async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = InfrastructureNotFound("Test!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -440,7 +440,7 @@ async def test_agent_cancel_run_with_unknown_error_during_kill(
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = ValueError("Oh no!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -485,7 +485,7 @@ async def test_agent_cancel_run_without_infrastructure_support_for_kill(
     )
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
