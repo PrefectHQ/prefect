@@ -22,11 +22,11 @@ from prefect.server.orchestration import dependencies as orchestration_dependenc
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("orion.api")
 
-router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
+router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
 @router.post("/")
