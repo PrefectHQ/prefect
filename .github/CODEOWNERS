@@ -9,7 +9,7 @@
 /src/prefect/deployments.py          @PrefectHQ/open-source @cicdw
 
 # ui
-/orion-ui                            @pleek91
+/ui                            @pleek91
 
 # documentation
 /docs                                @tpdorsey
