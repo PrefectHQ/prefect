@@ -352,7 +352,7 @@ When you run a deployed flow with Prefect, the following happens:
 [Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect orion start`.
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
 
     Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
@@ -486,7 +486,7 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 
 ### Create a flow run with a schedule
 
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent is running. Prefect Cloud-created schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
 ### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.

@@ -12,7 +12,7 @@ Prefect Cloud REST API documentation is available at <a href="https://app.prefec
 The Prefect REST API documentation for locally run open-source Prefect servers is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
 !!! note "Prefect REST API interactive documentation"
-    If you are running a local instance of the Prefect server with `prefect orion start`, the Prefect REST API documentation for your instance is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
+    If you are running a local instance of the Prefect server with `prefect server start`, the Prefect REST API documentation for your instance is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
 
 ## REST Guidelines
 
