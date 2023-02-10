@@ -48,7 +48,7 @@ The Prefect server and orchestration engine is the central component of your Pre
 
 Without you having to configure or run anything other than your flow code, the ephemeral Prefect API keeps track of the state of your Prefect flow and task runs. 
 
-When you run a Prefect server with `prefect server start`, the Prefect orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
+When you run a Prefect server with `prefect orion start`, the Prefect orchestration engine keeps track of the state of your Prefect flow and task runs, and also lets you:
 
 - Create and manage deployments
 - Create and manage configuration for storage and services used by your flows
@@ -64,7 +64,7 @@ If your execution environment is logged into [Prefect Cloud](/ui/cloud/), Prefec
 
 ### Running the Prefect server
 
-To take full advantage of the Prefect orchestration engine and API server, you can spin up an instance at any time with the `prefect server start` CLI command:
+To take full advantage of the Prefect orchestration engine and API server, you can spin up an instance at any time with the `prefect orion start` CLI command:
 
 <div class='terminal'>
 ```bash

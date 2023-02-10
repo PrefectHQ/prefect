@@ -37,7 +37,7 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 The Prefect UI is available via [Prefect Cloud](/ui/cloud/) by logging into your account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
-The Prefect UI is also available in any environment where a Prefect server is running with `prefect server start`.
+The Prefect UI is also available in any environment where a Prefect server is running with `prefect orion start`.
 
 <div class="terminal">
 ```bash
@@ -105,6 +105,6 @@ The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from P
 !!! note "Prefect REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
 
-    The Prefect REST API documentation for a local instance run with with `prefect server start` is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
+    The Prefect REST API documentation for a local instance run with with `prefect orion start` is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
 
     The Prefect REST API documentation for locally run open-source Prefect servers is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).

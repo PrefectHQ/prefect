@@ -29,7 +29,7 @@ You need just a few ingredients to turn a flow definition into a deployment:
 
 That's it. To create flow runs based on the deployment, you need a few more pieces:
 
-- Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect server started with `prefect server start`.
+- Prefect orchestration engine, either [Prefect Cloud](/ui/cloud/) or a local Prefect server started with `prefect orion start`.
 - An [agent and work pool](/concepts/work-pools/).
 
 These all come with Prefect. You just have to configure them and set them to work. You'll see how to configure each component during this tutorial.
@@ -389,7 +389,7 @@ All of the same configuration options apply here as well: you can skip automatic
 
 ## Run a Prefect server
 
-For the remainder of this tutorial, you'll use a local Prefect server. Open another terminal session and start the Prefect server with the `prefect server start` CLI command:
+For the remainder of this tutorial, you'll use a local Prefect server. Open another terminal session and start the Prefect server with the `prefect orion start` CLI command:
 
 <div class='terminal'>
 ```bash

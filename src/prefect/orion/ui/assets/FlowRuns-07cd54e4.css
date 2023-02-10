@@ -1,0 +1,1 @@
+.flow-runs__list{display:grid;gap:.5rem}.flow-runs__list-controls{position:sticky;top:0px;z-index:10;display:flex;align-items:center;gap:.5rem;--tw-bg-opacity: .9;padding-top:.5rem;padding-bottom:.5rem}.flow-runs__list-controls--right{margin-right:auto;display:flex;align-items:center;gap:.5rem}.flow-runs__chart{height:275px}
