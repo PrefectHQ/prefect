@@ -20,7 +20,7 @@ class BaseDatabaseConfiguration(ABC):
     """
     Abstract base class used to inject database connection configuration into Orion.
 
-    This configuration is responsible for defining how Orion creates and manages
+    This configuration is responsible for defining how Prefect REST API creates and manages
     database connections and sessions.
     """
 
