@@ -43,11 +43,11 @@ This will completely clear all data and reapply the schema.
 
 ## Configuring the database
 
-To configure the database location, you can specify a connection URL with the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable:
+To configure the database location, you can specify a connection URL with the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable:
 
 <div class="terminal">
 ```bash
-prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
 ```
 </div>
 
@@ -57,7 +57,7 @@ To connect Prefect to a PostgreSQL database, you can set the following environme
 
 <div class="terminal">
 ```bash
-prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
 ```
 </div>
 
@@ -108,7 +108,7 @@ To use an in-memory SQLite database, set the following environment variable:
 
 <div class="terminal">
 ```bash
-prefect config set PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
 ```
 </div>
 

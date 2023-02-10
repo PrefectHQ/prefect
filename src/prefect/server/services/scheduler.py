@@ -15,13 +15,13 @@ from prefect.server.database.interface import OrionDBInterface
 from prefect.server.schemas.states import StateType
 from prefect.server.services.loop_service import LoopService, run_multiple_services
 from prefect.settings import (
-    PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
-    PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
-    PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
+    PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
+    PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
+    PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS,
+    PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
+    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 from prefect.utilities.collections import batched_iterable
 
@@ -36,7 +36,7 @@ class Scheduler(LoopService):
     """
 
     # the main scheduler takes its loop interval from
-    # PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS
+    # PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS
     loop_seconds = None
 
     def __init__(self, loop_seconds: float = None, **kwargs):
@@ -44,23 +44,23 @@ class Scheduler(LoopService):
             loop_seconds=(
                 loop_seconds
                 or self.loop_seconds
-                or PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS.value()
+                or PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS.value()
             ),
             **kwargs,
         )
         self.deployment_batch_size: int = (
-            PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
+            PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE.value()
         )
-        self.max_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
-        self.min_runs: int = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        self.max_runs: int = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
+        self.min_runs: int = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
         self.max_scheduled_time: datetime.timedelta = (
-            PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
         self.min_scheduled_time: datetime.timedelta = (
-            PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+            PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
         )
         self.insert_batch_size = (
-            PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
+            PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE.value()
         )
 
     @inject_db

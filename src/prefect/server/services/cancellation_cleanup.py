@@ -14,7 +14,7 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import OrionDBInterface
 from prefect.server.schemas import filters, states
 from prefect.server.services.loop_service import LoopService
-from prefect.settings import PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
+from prefect.settings import PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
 
 NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 
@@ -28,7 +28,7 @@ class CancellationCleanup(LoopService):
     def __init__(self, loop_seconds: float = None, **kwargs):
         super().__init__(
             loop_seconds=loop_seconds
-            or PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),
+            or PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS.value(),
             **kwargs,
         )
 

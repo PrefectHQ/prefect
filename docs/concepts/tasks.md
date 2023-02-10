@@ -236,7 +236,7 @@ Alternatively, you can provide your own function or other callable that returns 
 Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
 !!! note "Task cache keys"
-    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` setting.
+    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
 
 ```python hl_lines="3-5 7"
 from prefect import task, flow
