@@ -31,7 +31,7 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
@@ -200,7 +200,7 @@ async def create_then_begin_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -254,7 +254,7 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: OrionClient
+    flow_run_id: UUID, client: PrefectClient
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -321,7 +321,7 @@ async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
-    client: OrionClient,
+    client: PrefectClient,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -418,7 +418,7 @@ async def create_and_begin_subflow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -560,7 +560,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     interruptible: bool,
-    client: OrionClient,
+    client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
     """
@@ -1375,7 +1375,7 @@ async def orchestrate_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     interruptible: bool,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> State:
     """
     Execute a task run
@@ -1575,7 +1575,7 @@ async def orchestrate_task_run(
 
 
 async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: OrionClient
+    task_run_futures: Iterable[PrefectFuture], client: PrefectClient
 ) -> Literal[True]:
     crash_exceptions = []
 
@@ -1625,7 +1625,7 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1678,7 +1678,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
 
 @asynccontextmanager
-async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
+async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
     """
     Detect task run crashes during this context and update the run to a proper final
     state.
@@ -1767,7 +1767,7 @@ async def resolve_inputs(
 
 
 async def propose_state(
-    client: OrionClient,
+    client: PrefectClient,
     state: State,
     force: bool = False,
     task_run_id: UUID = None,

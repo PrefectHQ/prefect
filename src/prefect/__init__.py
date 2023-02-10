@@ -31,7 +31,7 @@ from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
 from prefect.engine import pause_flow_run, resume_flow_run
-from prefect.client.orion import get_client, OrionClient
+from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 
 # Import modules that register types
@@ -74,7 +74,7 @@ prefect.logging.configuration.setup_logging()
 import prefect.client
 
 prefect.client.get_client = get_client
-prefect.client.OrionClient = OrionClient
+prefect.client.PrefectClient = PrefectClient
 
 
 from prefect._internal.compatibility.deprecated import (
@@ -83,6 +83,11 @@ from prefect._internal.compatibility.deprecated import (
 )
 
 register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
+register_renamed_module(
+    "prefect.client.orchestration",
+    "prefect.client.orchestration",
+    start_date="Feb 2023",
+)
 inject_renamed_module_alias_finder()
 
 
