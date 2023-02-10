@@ -35,6 +35,7 @@ site/
 
 # UI artifacts
 ui/node_modules
+src/prefect/server/ui/*
 
 # Databases
 *.db
