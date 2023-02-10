@@ -11,9 +11,9 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/logs", tags=["Logs"])
+router = PrefectRouter(prefix="/logs", tags=["Logs"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
