@@ -11,6 +11,7 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
 from prefect.client.orion import OrionClient, get_client
@@ -37,7 +38,7 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
-class OrionAgent:
+class PrefectAgent:
     @experimental_parameter(
         "work_pool_name", group="work_pools", when=lambda y: y is not None
     )
@@ -177,7 +178,9 @@ class OrionAgent:
         them for execution in parallel.
         """
         if not self.started:
-            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
+            )
 
         self.logger.debug("Checking for scheduled flow runs...")
 
@@ -249,7 +252,9 @@ class OrionAgent:
 
     async def check_for_cancelled_flow_runs(self):
         if not self.started:
-            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
+            )
 
         self.logger.debug("Checking for cancelled flow runs...")
 
@@ -634,3 +639,10 @@ class OrionAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
+class OrionAgent(PrefectAgent):
+    """
+    Deprecated. Use `PrefectAgent` instead.
+    """
