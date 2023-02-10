@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMWorker, ORMWorkPool, ORMWorkQueue
 
 DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
@@ -31,7 +31,7 @@ DEFAULT_AGENT_WORK_POOL_NAME = "default-agent-pool"
 async def create_work_pool(
     session: AsyncSession,
     work_pool: schemas.core.WorkPool,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> ORMWorkPool:
     """
     Creates a work pool.
@@ -67,7 +67,7 @@ async def create_work_pool(
 
 @inject_db
 async def read_work_pool(
-    session: AsyncSession, work_pool_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_pool_id: UUID, db: PrefectDBInterface
 ) -> ORMWorkPool:
     """
     Reads a WorkPool by id.
@@ -86,7 +86,7 @@ async def read_work_pool(
 
 @inject_db
 async def read_work_pool_by_name(
-    session: AsyncSession, work_pool_name: str, db: OrionDBInterface
+    session: AsyncSession, work_pool_name: str, db: PrefectDBInterface
 ) -> ORMWorkPool:
     """
     Reads a WorkPool by name.
@@ -105,7 +105,7 @@ async def read_work_pool_by_name(
 
 @inject_db
 async def read_work_pools(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     session: AsyncSession,
     work_pool_filter: schemas.filters.WorkPoolFilter = None,
     offset: int = None,
@@ -140,7 +140,7 @@ async def update_work_pool(
     session: AsyncSession,
     work_pool_id: UUID,
     work_pool: schemas.actions.WorkPoolUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a WorkPool by id.
@@ -168,7 +168,7 @@ async def update_work_pool(
 
 @inject_db
 async def delete_work_pool(
-    session: AsyncSession, work_pool_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_pool_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a WorkPool by id.
@@ -196,7 +196,7 @@ async def get_scheduled_flow_runs(
     scheduled_after: datetime.datetime = None,
     limit: int = None,
     respect_queue_priorities: bool = None,
-    db: OrionDBInterface = None,
+    db: PrefectDBInterface = None,
 ) -> List[schemas.responses.WorkerFlowRunResponse]:
     """
     Get runs from queues in a specific work pool.
@@ -209,7 +209,7 @@ async def get_scheduled_flow_runs(
         scheduled_after (datetime.datetime): a datetime to filter runs scheduled after
         respect_queue_priorities (bool): whether or not to respect queue priorities
         limit (int): the maximum number of runs to return
-        db (OrionDBInterface): a database interface
+        db: a database interface
 
     Returns:
         List[WorkerFlowRunResponse]: the runs, as well as related work pool details
@@ -245,7 +245,7 @@ async def create_work_queue(
     session: AsyncSession,
     work_pool_id: UUID,
     work_queue: schemas.actions.WorkQueueCreate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> ORMWorkQueue:
     """
     Creates a work pool queue.
@@ -290,7 +290,7 @@ async def bulk_update_work_queue_priorities(
     session: AsyncSession,
     work_pool_id: UUID,
     new_priorities: Dict[UUID, int],
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     This is a brute force update of all work pool queue priorities for a given worker
@@ -332,7 +332,7 @@ async def bulk_update_work_queue_priorities(
 async def read_work_queues(
     session: AsyncSession,
     work_pool_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     work_queue_filter: Optional[schemas.filters.WorkQueueFilter] = None,
     offset: Optional[int] = None,
     limit: Optional[int] = None,
@@ -373,7 +373,7 @@ async def read_work_queues(
 async def read_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> ORMWorkQueue:
     """
     Read a specific work pool queue.
@@ -394,7 +394,7 @@ async def read_work_queue_by_name(
     session: AsyncSession,
     work_pool_name: str,
     work_queue_name: str,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> ORMWorkQueue:
     """
     Reads a WorkQueue by name.
@@ -425,7 +425,7 @@ async def update_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a work pool queue.
@@ -461,7 +461,7 @@ async def update_work_queue(
 async def delete_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Delete a work pool queue.
@@ -512,7 +512,7 @@ async def read_workers(
     worker_filter: schemas.filters.WorkerFilter = None,
     limit: int = None,
     offset: int = None,
-    db: OrionDBInterface = None,
+    db: PrefectDBInterface = None,
 ) -> List[ORMWorker]:
 
     query = (
@@ -540,7 +540,7 @@ async def worker_heartbeat(
     session: AsyncSession,
     work_pool_id: UUID,
     worker_name: str,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Record a worker process heartbeat.

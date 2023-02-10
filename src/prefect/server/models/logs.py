@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.utilities.collections import batched_iterable
 
 # We have a limit of 32,767 parameters at a time for a single query...
@@ -29,7 +29,7 @@ def split_logs_into_batches(logs):
 
 @inject_db
 async def create_logs(
-    session: AsyncSession, db: OrionDBInterface, logs: List[schemas.core.Log]
+    session: AsyncSession, db: PrefectDBInterface, logs: List[schemas.core.Log]
 ):
     """
     Creates new logs
@@ -48,7 +48,7 @@ async def create_logs(
 @inject_db
 async def read_logs(
     session: AsyncSession,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     log_filter: schemas.filters.LogFilter,
     offset: int = None,
     limit: int = None,

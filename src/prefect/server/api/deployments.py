@@ -15,7 +15,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
@@ -29,7 +29,7 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Gracefully creates a new deployment from the provided schema. If a deployment with
@@ -135,7 +135,7 @@ async def create_deployment(
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: str = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         if deployment.work_pool_name:
@@ -162,7 +162,7 @@ async def update_deployment(
 async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment using the name of the flow and the deployment.
@@ -181,7 +181,7 @@ async def read_deployment_by_name(
 @router.get("/{id}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment by id.
@@ -210,7 +210,7 @@ async def read_deployments(
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.DeploymentResponse]:
     """
     Query for deployments.
@@ -242,7 +242,7 @@ async def count_deployments(
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
     work_pool_queues: schemas.filters.WorkQueueFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
     Count deployments.
@@ -262,7 +262,7 @@ async def count_deployments(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a deployment by id.
@@ -288,7 +288,7 @@ async def schedule_deployment(
     ),
     min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
@@ -318,7 +318,7 @@ async def schedule_deployment(
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to active. Runs will be scheduled immediately.
@@ -337,7 +337,7 @@ async def set_schedule_active(
 @router.post("/{id}/set_schedule_inactive")
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
@@ -370,7 +370,7 @@ async def set_schedule_inactive(
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
 ) -> schemas.responses.FlowRunResponse:
     """
@@ -432,7 +432,7 @@ async def create_flow_run_from_deployment(
 @router.get("/{id}/work_queue_check", deprecated=True)
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Get list of work-queues that are able to pick up the specified deployment.

@@ -14,7 +14,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
 
 logger = get_logger("orion.api")
@@ -23,7 +23,7 @@ logger = get_logger("orion.api")
 @inject_db
 async def run_history(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     run_type: Literal["flow_run", "task_run"],
     history_start: DateTimeTZ,
     history_end: DateTimeTZ,
