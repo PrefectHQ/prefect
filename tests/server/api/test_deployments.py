@@ -10,9 +10,9 @@ from prefect.server import models, schemas
 from prefect.server.schemas.actions import DeploymentCreate
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
 
 
@@ -238,7 +238,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        assert n_runs == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -280,7 +280,7 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        assert n_runs == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually to ensure it isn't deleted
         await models.flow_runs.create_flow_run(
@@ -1090,7 +1090,7 @@ class TestSetScheduleActive:
             session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        assert n_runs == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         # create a run manually
         await models.flow_runs.create_flow_run(
@@ -1122,10 +1122,10 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
+            n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now(),
             end=pendulum.now()
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
+            + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -1143,7 +1143,7 @@ class TestScheduleDeployment:
             n=5,
             start=pendulum.now(),
             end=pendulum.now()
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
+            + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -1159,10 +1159,10 @@ class TestScheduleDeployment:
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
-            n=PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value(),
+            n=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value(),
             start=pendulum.now().add(days=120),
             end=pendulum.now().add(days=120)
-            + PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
+            + PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value(),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -1304,7 +1304,7 @@ class TestGetDeploymentWorkQueueCheck:
         response = await client.get(f"deployments/{deployment.id}/work_queue_check")
         assert response.status_code == status.HTTP_200_OK
 
-        connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+        connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
         dialect = get_dialect(connection_url)
 
         if dialect.name == "postgresql":
