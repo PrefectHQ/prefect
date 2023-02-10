@@ -155,11 +155,11 @@ class Setting(Generic[T]):
         if not bypass_callback and self.deprecated and self.deprecated_when(value):
             # Check if this setting is deprecated and someone is accessing the value
             # via the old name
-            warnings.warn(
-                self.deprecated_message,
-                DeprecationWarning,
-                stacklevel=3,
-            )
+            warnings.warn(self.deprecated_message, DeprecationWarning, stacklevel=3)
+
+            # If the the value is empty, return the new setting's value for compat
+            if value is None and self.deprecated_renamed_to is not None:
+                return self.deprecated_renamed_to.value_from(settings)
 
         if not bypass_callback and self.deprecated_renamed_from is not None:
             # Check if this setting is a rename of a deprecated setting and the
