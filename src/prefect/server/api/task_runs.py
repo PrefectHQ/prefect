@@ -19,9 +19,9 @@ from prefect.server.orchestration import dependencies as orchestration_dependenc
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
+router = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 
 
 @router.post("/")
