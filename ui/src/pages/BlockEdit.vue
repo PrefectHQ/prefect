@@ -11,8 +11,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
+  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { useRouter } from 'vue-router'

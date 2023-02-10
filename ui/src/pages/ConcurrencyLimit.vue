@@ -20,8 +20,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingConcurrencyLimit, ConcurrencyLimitDetails, ConcurrencyLimitActiveRuns, useTabs, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
+  import { PageHeadingConcurrencyLimit, ConcurrencyLimitDetails, ConcurrencyLimitActiveRuns, useTabs, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'

@@ -24,8 +24,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'

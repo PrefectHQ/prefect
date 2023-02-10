@@ -8,8 +8,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, PageHeadingNotificationEdit, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
+  import { NotificationForm, Notification, PageHeadingNotificationEdit, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

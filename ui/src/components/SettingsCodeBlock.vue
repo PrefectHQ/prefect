@@ -9,8 +9,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { OrionSettings } from '@prefecthq/prefect-ui-library'
   import { PCode } from '@prefecthq/prefect-design'
+  import { OrionSettings } from '@prefecthq/prefect-ui-library'
   import { computed } from 'vue'
 
   const props = defineProps<{

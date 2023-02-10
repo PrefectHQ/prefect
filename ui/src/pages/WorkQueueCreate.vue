@@ -9,8 +9,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
+  import { WorkQueueCreateForm, PageHeadingWorkQueueCreate, WorkQueueCreate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'

@@ -37,6 +37,7 @@
 </template>
 
 <script lang="ts" setup>
+  import { media } from '@prefecthq/prefect-design'
   import {
     PageHeadingFlowRun,
     FlowRunDetails,
@@ -50,7 +51,6 @@
     getSchemaValuesWithDefaultsJson,
     CodeSnippet
   } from '@prefecthq/prefect-ui-library'
-  import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
   import { useRouter } from 'vue-router'

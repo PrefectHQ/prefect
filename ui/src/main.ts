@@ -1,5 +1,5 @@
-import { plugin as OrionDesign } from '@prefecthq/prefect-ui-library'
 import { plugin as PrefectDesign } from '@prefecthq/prefect-design'
+import { plugin as OrionDesign } from '@prefecthq/prefect-ui-library'
 import { createApp } from 'vue'
 import router from '@/router'
 import { initColorMode } from '@/utilities/colorMode'

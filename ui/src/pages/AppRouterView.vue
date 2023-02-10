@@ -22,8 +22,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { createApi, workspaceApiKey, createCan, canKey as designCanKey, workspacePermissions, createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/prefect-ui-library'
   import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
+  import { createApi, workspaceApiKey, createCan, canKey as designCanKey, workspacePermissions, createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/prefect-ui-library'
   import { computed, provide, ref, watchEffect } from 'vue'
   import { RouterView } from 'vue-router'
   import ContextSidebar from '@/components/ContextSidebar.vue'

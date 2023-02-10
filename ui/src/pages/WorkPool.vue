@@ -25,8 +25,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
