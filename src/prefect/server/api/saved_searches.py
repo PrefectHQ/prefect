@@ -12,7 +12,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/saved_searches", tags=["SavedSearches"])
@@ -22,7 +22,7 @@ router = OrionRouter(prefix="/saved_searches", tags=["SavedSearches"])
 async def create_saved_search(
     saved_search: schemas.actions.SavedSearchCreate,
     response: Response,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.SavedSearch:
     """Gracefully creates a new saved search from the provided schema.
 
@@ -49,7 +49,7 @@ async def create_saved_search(
 @router.get("/{id}")
 async def read_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.SavedSearch:
     """
     Get a saved search by id.
@@ -69,7 +69,7 @@ async def read_saved_search(
 async def read_saved_searches(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.SavedSearch]:
     """
     Query for saved searches.
@@ -85,7 +85,7 @@ async def read_saved_searches(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_saved_search(
     saved_search_id: UUID = Path(..., description="The saved search id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a saved search by id.

@@ -9,12 +9,12 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @inject_db
 async def read_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, task_run_state_id: UUID, db: PrefectDBInterface
 ):
     """
     Reads a task run state by id.
@@ -32,7 +32,7 @@ async def read_task_run_state(
 
 @inject_db
 async def read_task_run_states(
-    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
 ):
     """
     Reads task runs states for a task run.
@@ -56,7 +56,7 @@ async def read_task_run_states(
 
 @inject_db
 async def delete_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, task_run_state_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a task run state by id.
