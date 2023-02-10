@@ -21,7 +21,7 @@ def inject_client(fn):
     @wraps(fn)
     async def with_injected_client(*args, **kwargs):
         import prefect.context
-        from prefect.client.orion import get_client
+        from prefect.client.orchestration import get_client
 
         client = None
         flow_run_ctx = prefect.context.FlowRunContext.get()

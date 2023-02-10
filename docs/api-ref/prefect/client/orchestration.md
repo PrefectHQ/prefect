@@ -13,7 +13,7 @@ Explore the client by communicating with an in-memory webserver &mdash; no setup
 ```
 $ # start python REPL with native await functionality
 $ python -m asyncio
->>> from prefect.client.orion import get_client
+>>> from prefect.client.orchestration import get_client
 >>> async with get_client() as client:
 ...     response = await client.hello()
 ...     print(response.json())
@@ -21,7 +21,7 @@ $ python -m asyncio
 ```
 </div>
 
-::: prefect.client.orion
+::: prefect.client.orchestration
     options:
       filters: ["!^_", "!Config", "!copy", "!dict", "!json"]
       members_order: source

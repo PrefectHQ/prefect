@@ -16,6 +16,7 @@ import prefect.exceptions
 import prefect.server.schemas as schemas
 import prefect.settings
 import prefect.states
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_logger
@@ -57,9 +58,16 @@ if TYPE_CHECKING:
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 
-def get_client(httpx_settings: dict = None) -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "PrefectClient":
     """
-    Needs a docstring.
+    Retrieve a HTTP client for communicating with the Prefect REST API.
+
+    The client must be context managed; for example:
+
+    ```python
+    async with get_client() as client:
+        await client.hello()
+    ```
     """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
@@ -69,19 +77,19 @@ def get_client(httpx_settings: dict = None) -> "OrionClient":
 
         api = create_app(ctx.settings, ephemeral=True)
 
-    return OrionClient(
+    return PrefectClient(
         api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
 
 
-class OrionClient:
+class PrefectClient:
     """
-    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
+    An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
     Args:
-        api: the Orion API URL or FastAPI application to connect to
+        api: the REST API URL or FastAPI application to connect to
         api_key: An optional API key for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
@@ -89,7 +97,7 @@ class OrionClient:
 
     Examples:
 
-        Say hello to an Orion server
+        Say hello to a Prefect REST API
 
         <div class="terminal">
         ```
@@ -2294,9 +2302,16 @@ class OrionClient:
 
     def __enter__(self):
         raise RuntimeError(
-            "The `OrionClient` must be entered with an async context. Use 'async "
-            "with OrionClient(...)' not 'with OrionClient(...)'"
+            "The `PrefectClient` must be entered with an async context. Use 'async "
+            "with PrefectClient(...)' not 'with PrefectClient(...)'"
         )
 
     def __exit__(self, *_):
         assert False, "This should never be called but must be defined for __enter__"
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `PrefectClient` instead.")
+class OrionClient(PrefectClient):
+    """
+    Deprecated. Use `PrefectClient` instead.
+    """

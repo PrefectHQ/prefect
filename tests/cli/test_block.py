@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from prefect.blocks import system
-from prefect.client import OrionClient
+from prefect.client import PrefectClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
@@ -83,7 +83,7 @@ def test_register_blocks_from_invalid_module():
     )
 
 
-def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
+def test_register_blocks_from_file(tmp_path, orion_client: PrefectClient):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:

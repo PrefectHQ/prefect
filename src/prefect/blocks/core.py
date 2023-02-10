@@ -43,7 +43,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -625,7 +625,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         validate: bool = True,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Retrieves data from the block document with the given name for the block type
@@ -743,7 +743,7 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: "OrionClient" = None):
+    async def register_type_and_schema(cls, client: "PrefectClient" = None):
         """
         Makes block available for configuration with current Orion server.
         Recursively registers all nested blocks. Registration is idempotent.
@@ -801,7 +801,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         is_anonymous: bool = False,
         overwrite: bool = False,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Saves the values of a block as a block document with an option to save as an
@@ -865,7 +865,7 @@ class Block(BaseModel, ABC):
 
     @sync_compatible
     async def save(
-        self, name: str, overwrite: bool = False, client: "OrionClient" = None
+        self, name: str, overwrite: bool = False, client: "PrefectClient" = None
     ):
         """
         Saves the values of a block as a block document.
