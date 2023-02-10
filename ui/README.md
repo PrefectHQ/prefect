@@ -1,4 +1,4 @@
-# Prefect Orion-UI
+# Prefect UI
 
 ## Project setup
 
@@ -43,7 +43,7 @@ npm run lint
 ```
 ### Components
 
-Many components in the Prefect Orion-UI come from the [orion-design component library](https://github.com/PrefectHQ/orion-design).  
+Many components in the Prefect UI come from the [prefect ui library](https://github.com/PrefectHQ/prefect-ui-library).  
 ### Customize configuration
 
 See [Configuration Reference](https://cli.vuejs.org/config/).
