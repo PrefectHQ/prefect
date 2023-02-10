@@ -915,7 +915,7 @@ PREFECT_PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to serve the Orion UI."""
+"""Whether or not to serve the UI."""
 
 PREFECT_PREFECT_UI_API_URL = Setting(
     str,

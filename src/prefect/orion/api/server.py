@@ -38,7 +38,7 @@ from prefect.utilities.hashing import hash_objects
 
 TITLE = "Prefect Orion"
 API_TITLE = "Prefect Orion API"
-UI_TITLE = "Prefect Orion UI"
+UI_TITLE = "Prefect UI"
 API_VERSION = prefect.__version__
 ORION_API_VERSION = "0.8.4"
 
