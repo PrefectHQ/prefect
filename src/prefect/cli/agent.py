@@ -9,7 +9,7 @@ import anyio
 import typer
 
 import prefect
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -152,7 +152,7 @@ async def start(
                 f"Starting v{prefect.__version__} agent with ephemeral API..."
             )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         work_pool_name=work_pool_name,
