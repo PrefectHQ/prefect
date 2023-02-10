@@ -13,7 +13,7 @@
 </template>
 
   <script lang="ts" setup>
-  import { PageHeading, ConcurrencyLimitsCreateModal, ConcurrencyLimitsTable, useShowModal } from '@prefecthq/orion-design'
+  import { PageHeading, ConcurrencyLimitsCreateModal, ConcurrencyLimitsTable, useShowModal } from '@prefecthq/prefect-ui-library'
 
   const { showModal, open } = useShowModal()
 </script>

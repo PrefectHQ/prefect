@@ -1,7 +1,7 @@
-import { UiApi as OrionDesignUiApi } from '@prefecthq/orion-design'
+import { UiApi as PrefectUiLibraryApi } from '@prefecthq/prefect-ui-library'
 import { createActions } from '@prefecthq/vue-compositions'
 import { ApiRoute } from '@/mixins/ApiRoute'
 
-export class OrionUiApi extends ApiRoute(OrionDesignUiApi) {}
+export class UiApi extends ApiRoute(PrefectUiLibraryApi) {}
 
-export const uiApi = createActions(new OrionUiApi())
+export const uiApi = createActions(new UiApi())

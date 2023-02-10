@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { mocker } from '@prefecthq/orion-design'
+import { mocker } from '@prefecthq/prefect-ui-library'
 import { test, useForm, useCombobox, useLabel, useSelect, useTable, useButton, usePageHeading, useLink, pages, useIconButtonMenu, useTag, useModal } from './utilities'
 
 test.describe.configure({ mode: 'serial' })

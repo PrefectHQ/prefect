@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalog, BlockTypeList, BlockTypeFilter, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalog, BlockTypeList, BlockTypeFilter, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

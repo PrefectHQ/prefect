@@ -1,5 +1,5 @@
 import { test as base, Page, APIRequestContext } from '@playwright/test'
-import { mapper, mocker, WorkQueue, WorkQueueCreate } from '@prefecthq/orion-design'
+import { mapper, mocker, WorkQueue, WorkQueueCreate } from '@prefecthq/prefect-ui-library'
 
 export let PAGE: Page
 

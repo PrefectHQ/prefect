@@ -1,4 +1,4 @@
-import { createWorkspaceRoutes } from '@prefecthq/orion-design'
+import { createWorkspaceRoutes } from '@prefecthq/prefect-ui-library'
 import { RouteLocationRaw, RouteRecordName, RouteRecordRaw } from 'vue-router'
 
 export const routes = {

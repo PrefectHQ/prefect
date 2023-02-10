@@ -1,4 +1,4 @@
-import { isNotNullish } from '@prefecthq/orion-design'
+import { isNotNullish } from '@prefecthq/prefect-ui-library'
 import { MapFunction } from '@/services/mapper'
 import { Settings } from '@/services/uiSettings'
 import { SettingsResponse } from '@/types/settingsResponse'

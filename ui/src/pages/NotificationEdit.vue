@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { NotificationForm, Notification, PageHeadingNotificationEdit, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { NotificationForm, Notification, PageHeadingNotificationEdit, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'

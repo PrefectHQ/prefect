@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingDeploymentEdit, DeploymentForm, DeploymentUpdate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

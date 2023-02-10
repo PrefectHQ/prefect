@@ -25,7 +25,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

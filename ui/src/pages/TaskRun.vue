@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

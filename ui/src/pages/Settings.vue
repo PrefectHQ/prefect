@@ -16,14 +16,14 @@
       <ColorModeSelect v-model:selected="activeColorMode" />
     </p-label>
 
-    <p-label label="Orion Settings">
+    <p-label label="Server Settings">
       <SettingsCodeBlock class="settings__code-block" :engine-settings="engineSettings" />
     </p-label>
   </p-layout-default>
 </template>
 
 <script lang="ts" setup>
-  import { PageHeading, ColorModeSelect } from '@prefecthq/orion-design'
+  import { PageHeading, ColorModeSelect } from '@prefecthq/prefect-ui-library'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { adminApi } from '@/services/adminApi'

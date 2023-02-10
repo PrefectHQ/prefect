@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingWorkPoolCreate, WorkPoolCreateForm } from '@prefecthq/orion-design'
+  import { PageHeadingWorkPoolCreate, WorkPoolCreateForm } from '@prefecthq/prefect-ui-library'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   usePageTitle('Create Work Pool')

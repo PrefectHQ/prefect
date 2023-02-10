@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { Notification, NotificationsTable, NotificationsPageEmptyState, PageHeadingNotifications, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { Notification, NotificationsTable, NotificationsPageEmptyState, PageHeadingNotifications, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

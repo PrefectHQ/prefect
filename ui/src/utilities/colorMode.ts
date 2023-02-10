@@ -1,8 +1,8 @@
-import { applyColorModeClass, ColorMode, isColorMode } from '@prefecthq/orion-design'
+import { applyColorModeClass, ColorMode, isColorMode } from '@prefecthq/prefect-ui-library'
 import { useLocalStorage } from '@prefecthq/vue-compositions'
 import { computed } from 'vue'
 
-const colorModeLocalStorageKey = 'orion-color-mode'
+const colorModeLocalStorageKey = 'prefect-ui-color-mode'
 const nonJsonVersion = localStorage.getItem(colorModeLocalStorageKey)
 const defaultValue = isColorMode(nonJsonVersion) ? nonJsonVersion : null
 

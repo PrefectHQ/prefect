@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPoolEdit, WorkPoolEditForm } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPoolEdit, WorkPoolEditForm } from '@prefecthq/prefect-ui-library'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { usePageTitle } from '@/compositions/usePageTitle'
 

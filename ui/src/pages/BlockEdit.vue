@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { BlockTypeCardLayout, BlockSchemaEditForm, PageHeadingBlockEdit, BlockDocumentUpdate, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam } from '@prefecthq/vue-compositions'
   import { ref } from 'vue'
