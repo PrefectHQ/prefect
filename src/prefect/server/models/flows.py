@@ -10,12 +10,12 @@ from sqlalchemy import delete, select
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @inject_db
 async def create_flow(
-    session: sa.orm.Session, flow: schemas.core.Flow, db: OrionDBInterface
+    session: sa.orm.Session, flow: schemas.core.Flow, db: PrefectDBInterface
 ):
     """
     Creates a new flow.
@@ -57,7 +57,7 @@ async def update_flow(
     session: sa.orm.Session,
     flow_id: UUID,
     flow: schemas.actions.FlowUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Updates a flow.
@@ -81,7 +81,7 @@ async def update_flow(
 
 
 @inject_db
-async def read_flow(session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface):
+async def read_flow(session: sa.orm.Session, flow_id: UUID, db: PrefectDBInterface):
     """
     Reads a flow by id.
 
@@ -96,7 +96,7 @@ async def read_flow(session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface
 
 
 @inject_db
-async def read_flow_by_name(session: sa.orm.Session, name: str, db: OrionDBInterface):
+async def read_flow_by_name(session: sa.orm.Session, name: str, db: PrefectDBInterface):
     """
     Reads a flow by name.
 
@@ -115,7 +115,7 @@ async def read_flow_by_name(session: sa.orm.Session, name: str, db: OrionDBInter
 @inject_db
 async def _apply_flow_filters(
     query,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -155,7 +155,7 @@ async def _apply_flow_filters(
 @inject_db
 async def read_flows(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -204,7 +204,7 @@ async def read_flows(
 @inject_db
 async def count_flows(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -241,7 +241,7 @@ async def count_flows(
 
 @inject_db
 async def delete_flow(
-    session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, flow_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a flow by id.

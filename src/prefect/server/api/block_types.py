@@ -7,7 +7,7 @@ from fastapi import Body, Depends, HTTPException, Path, Query, status
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_types", tags=["Block types"])
@@ -16,7 +16,7 @@ router = OrionRouter(prefix="/block_types", tags=["Block types"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_type(
     block_type: schemas.actions.BlockTypeCreate,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockType:
     """
     Create a new block type
@@ -44,7 +44,7 @@ async def create_block_type(
 @router.get("/{id}")
 async def read_block_type_by_id(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockType:
     """
     Get a block type by ID.
@@ -61,7 +61,7 @@ async def read_block_type_by_id(
 @router.get("/slug/{slug}")
 async def read_block_type_by_slug(
     block_type_slug: str = Path(..., description="The block type name", alias="slug"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockType:
     """
     Get a block type by name.
@@ -81,7 +81,7 @@ async def read_block_types(
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.BlockType]:
     """
     Gets all block types. Optionally limit return with limit and offset.
@@ -100,7 +100,7 @@ async def read_block_types(
 async def update_block_type(
     block_type: schemas.actions.BlockTypeUpdate,
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Update a block type.
@@ -121,7 +121,7 @@ async def update_block_type(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_type(
     block_type_id: UUID = Path(..., description="The block type ID", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         db_block_type = await models.block_types.read_block_type(
@@ -143,7 +143,7 @@ async def delete_block_type(
 
 @router.get("/slug/{slug}/block_documents", tags=router.tags + ["Block documents"])
 async def read_block_documents_for_block_type(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     block_type_slug: str = Path(..., description="The block type name", alias="slug"),
     include_secrets: bool = Query(
         False, description="Whether to include sensitive values in the block document."
@@ -171,7 +171,7 @@ async def read_block_documents_for_block_type(
     tags=router.tags + ["Block documents"],
 )
 async def read_block_document_by_name_for_block_type(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     block_type_slug: str = Path(..., description="The block type name", alias="slug"),
     block_document_name: str = Path(..., description="The block type name"),
     include_secrets: bool = Query(
@@ -194,7 +194,7 @@ async def read_block_document_by_name_for_block_type(
 
 @router.post("/install_system_block_types")
 async def install_system_block_types(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     # Don't begin a transaction. _install_protected_system_blocks will manage
     # the transactions.

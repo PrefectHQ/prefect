@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from prefect.server import models
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models import concurrency_limits
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
@@ -205,7 +205,7 @@ class CacheInsertion(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ) -> None:
         if not validated_state or not context.session:
             return
@@ -238,7 +238,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
         if cache_key and not proposed_state.state_details.refresh_cache:

@@ -10,7 +10,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/logs", tags=["Logs"])
@@ -19,7 +19,7 @@ router = OrionRouter(prefix="/logs", tags=["Logs"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
     logs: List[schemas.actions.LogCreate],
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """Create new logs from the provided schema."""
     for batch in models.logs.split_logs_into_batches(logs):
@@ -33,7 +33,7 @@ async def read_logs(
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,
     sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Log]:
     """
     Query for logs.

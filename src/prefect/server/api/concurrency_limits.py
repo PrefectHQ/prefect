@@ -11,7 +11,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
@@ -21,7 +21,7 @@ router = OrionRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
 async def create_concurrency_limit(
     concurrency_limit: schemas.actions.ConcurrencyLimitCreate,
     response: Response,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
 
     # hydrate the input model into a full model
@@ -44,7 +44,7 @@ async def read_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by id.
@@ -66,7 +66,7 @@ async def read_concurrency_limit(
 @router.get("/tag/{tag}")
 async def read_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name", alias="tag"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by tag.
@@ -91,7 +91,7 @@ async def read_concurrency_limit_by_tag(
 async def read_concurrency_limits(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.ConcurrencyLimit]:
     """
     Query for concurrency limits.
@@ -115,7 +115,7 @@ async def reset_concurrency_limit_by_tag(
         embed=True,
         description=("Manual override for active concurrency limit slots."),
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         model = await models.concurrency_limits.reset_concurrency_limit_by_tag(
@@ -132,7 +132,7 @@ async def delete_concurrency_limit(
     concurrency_limit_id: UUID = Path(
         ..., description="The concurrency limit id", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit(
@@ -147,7 +147,7 @@ async def delete_concurrency_limit(
 @router.delete("/tag/{tag}")
 async def delete_concurrency_limit_by_tag(
     tag: str = Path(..., description="The tag name"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         result = await models.concurrency_limits.delete_concurrency_limit_by_tag(

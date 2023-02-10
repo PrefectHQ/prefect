@@ -11,14 +11,14 @@ from sqlalchemy import delete, select
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @inject_db
 async def create_agent(
     session: sa.orm.Session,
     agent: schemas.core.Agent,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Inserts a Agent.
@@ -42,7 +42,7 @@ async def create_agent(
 
 
 @inject_db
-async def read_agent(session: sa.orm.Session, agent_id: UUID, db: OrionDBInterface):
+async def read_agent(session: sa.orm.Session, agent_id: UUID, db: PrefectDBInterface):
     """
     Reads a Agent by id.
 
@@ -59,7 +59,7 @@ async def read_agent(session: sa.orm.Session, agent_id: UUID, db: OrionDBInterfa
 
 @inject_db
 async def read_agents(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
@@ -92,7 +92,7 @@ async def update_agent(
     session: sa.orm.Session,
     agent_id: UUID,
     agent: schemas.core.Agent,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a Agent by id.
@@ -121,7 +121,7 @@ async def record_agent_poll(
     session: sa.orm.Session,
     agent_id: UUID,
     work_queue_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> None:
     """
     Record that an agent has polled a work queue.
@@ -160,7 +160,7 @@ async def record_agent_poll(
 
 @inject_db
 async def delete_agent(
-    session: sa.orm.Session, agent_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, agent_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a Agent by id.

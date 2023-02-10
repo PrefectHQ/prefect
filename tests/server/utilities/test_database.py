@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declarative_base
 
 from prefect.server.database.configurations import AioSqliteConfiguration
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import AioSqliteORMConfiguration
 from prefect.server.database.query_components import AioSqliteQueryComponents
 from prefect.server.utilities.database import (
@@ -512,7 +512,7 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
         match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
     ):
 
-        db = OrionDBInterface(
+        db = PrefectDBInterface(
             database_config=AioSqliteConfiguration(
                 connection_url="sqlite+aiosqlite:///file::memory",
             ),
