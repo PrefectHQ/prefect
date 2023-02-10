@@ -76,6 +76,16 @@ import prefect.client
 prefect.client.get_client = get_client
 prefect.client.OrionClient = OrionClient
 
+
+from prefect._internal.compatibility.deprecated import (
+    inject_renamed_module_alias_finder,
+    register_renamed_module,
+)
+
+register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
+inject_renamed_module_alias_finder()
+
+
 # Attempt to warn users who are importing Prefect 1.x attributes that they may
 # have accidentally installed Prefect 2.x
 
