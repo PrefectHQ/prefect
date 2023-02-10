@@ -7,7 +7,7 @@ export async function healthCheck(): Promise<void> {
     await healthApi.getHealth()
   } catch (error) {
     const apiUrl = await UiSettings.get('apiUrl').then(res => res)
-    showToast(`Can't connect to Orion API at ${apiUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+    showToast(`Can't connect to Server API at ${apiUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
     console.warn(error)
   }
 }

@@ -2,7 +2,7 @@ import { computed, Ref, unref, watchEffect } from 'vue'
 
 export function usePageTitle(...pages: (string | Ref<string | null>)[]): void {
 
-  const pagesWithProject = [...pages, 'Prefect Orion']
+  const pagesWithProject = [...pages, 'Prefect Server']
 
   const title = computed<string>(() => {
     return pagesWithProject
