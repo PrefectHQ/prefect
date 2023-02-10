@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from prefect.server import models, schemas
 from prefect.server.schemas import filters
 from prefect.server.schemas.states import StateType
-from prefect.settings import PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS
+from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 
 
 class TestCreateDeployment:
@@ -597,7 +597,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        assert len(scheduled_runs) == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
@@ -609,7 +609,7 @@ class TestScheduledRuns:
 
         expected_times = {
             pendulum.now("UTC").start_of("day").add(days=i + 1)
-            for i in range(PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value())
+            for i in range(PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value())
         }
 
         actual_times = set()
@@ -624,7 +624,7 @@ class TestScheduledRuns:
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
-        assert len(scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        assert len(scheduled_runs) == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
 
         second_scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
@@ -641,9 +641,7 @@ class TestScheduledRuns:
         )
 
         db_scheduled_runs = query_result.scalars().all()
-        assert (
-            len(db_scheduled_runs) == PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
-        )
+        assert len(db_scheduled_runs) == PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
 
     async def test_schedule_n_runs(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(

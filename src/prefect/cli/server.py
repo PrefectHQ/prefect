@@ -22,14 +22,14 @@ from prefect.server.database.alembic_commands import (
 )
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.settings import (
+    PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_LOGGING_SERVER_LEVEL,
-    PREFECT_ORION_ANALYTICS_ENABLED,
-    PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_KEEPALIVE_TIMEOUT,
-    PREFECT_ORION_API_PORT,
-    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
-    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
-    PREFECT_ORION_UI_ENABLED,
+    PREFECT_SERVER_ANALYTICS_ENABLED,
+    PREFECT_SERVER_API_HOST,
+    PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
+    PREFECT_SERVER_API_PORT,
+    PREFECT_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import kill_on_interrupt, run_process
@@ -98,7 +98,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 
     dashboard_disabled = textwrap.dedent(
         """
-        The dashboard is disabled. Set `PREFECT_ORION_UI_ENABLED=1` to reenable it.
+        The dashboard is disabled. Set `PREFECT_UI_ENABLED=1` to reenable it.
         """
     )
 
@@ -115,24 +115,24 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 @server_app.command()
 @orion_app.command()
 async def start(
-    host: str = SettingsOption(PREFECT_ORION_API_HOST),
-    port: int = SettingsOption(PREFECT_ORION_API_PORT),
-    keep_alive_timeout: int = SettingsOption(PREFECT_ORION_API_KEEPALIVE_TIMEOUT),
+    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
+    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
+    keep_alive_timeout: int = SettingsOption(PREFECT_SERVER_API_KEEPALIVE_TIMEOUT),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
-    scheduler: bool = SettingsOption(PREFECT_ORION_SERVICES_SCHEDULER_ENABLED),
+    scheduler: bool = SettingsOption(PREFECT_API_SERVICES_SCHEDULER_ENABLED),
     analytics: bool = SettingsOption(
-        PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
+        PREFECT_SERVER_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
     ),
-    late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
-    ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
+    late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
+    ui: bool = SettingsOption(PREFECT_UI_ENABLED),
 ):
     """Start an Orion server"""
 
     server_env = os.environ.copy()
-    server_env["PREFECT_ORION_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
-    server_env["PREFECT_ORION_ANALYTICS_ENABLED"] = str(analytics)
-    server_env["PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
-    server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
+    server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
+    server_env["PREFECT_SERVER_ANALYTICS_ENABLED"] = str(analytics)
+    server_env["PREFECT_API_SERVICES_LATE_RUNS_ENABLED"] = str(late_runs)
+    server_env["PREFECT_API_SERVICES_UI"] = str(ui)
     server_env["PREFECT_LOGGING_SERVER_LEVEL"] = log_level
 
     base_url = f"http://{host}:{port}"
