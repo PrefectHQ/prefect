@@ -155,11 +155,11 @@ class Setting(Generic[T]):
         if not bypass_callback and self.deprecated and self.deprecated_when(value):
             # Check if this setting is deprecated and someone is accessing the value
             # via the old name
-            warnings.warn(
-                self.deprecated_message,
-                DeprecationWarning,
-                stacklevel=3,
-            )
+            warnings.warn(self.deprecated_message, DeprecationWarning, stacklevel=3)
+
+            # If the the value is empty, return the new setting's value for compat
+            if value is None and self.deprecated_renamed_to is not None:
+                return self.deprecated_renamed_to.value_from(settings)
 
         if not bypass_callback and self.deprecated_renamed_from is not None:
             # Check if this setting is a rename of a deprecated setting and the
@@ -260,7 +260,7 @@ def only_return_value_in_test_mode(settings, value):
 
 def default_ui_api_url(settings, value):
     """
-    `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
+    `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
     `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
     """
     if value is None:
@@ -268,10 +268,10 @@ def default_ui_api_url(settings, value):
         if PREFECT_API_URL.value_from(settings):
             value = "${PREFECT_API_URL}"
         else:
-            value = "http://${PREFECT_ORION_API_HOST}:${PREFECT_ORION_API_PORT}/api"
+            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
 
     return template_with_settings(
-        PREFECT_ORION_API_HOST, PREFECT_ORION_API_PORT, PREFECT_API_URL
+        PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
     )(settings, value)
 
 
@@ -282,6 +282,9 @@ def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings",
     """
 
     def templater(settings, value):
+        if value is None:
+            return value  # Do not attempt to template a null string
+
         original_type = type(value)
         template_values = {
             setting.name: setting.value_from(settings) for setting in upstream_settings
@@ -310,18 +313,18 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
-    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
+    value = values["PREFECT_API_DATABASE_PASSWORD"]
     if (
         value
         and not value.startswith(OBFUSCATED_PREFIX)
         and (
-            "PREFECT_ORION_DATABASE_PASSWORD"
-            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+            "PREFECT_API_DATABASE_PASSWORD"
+            not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
         )
     ):
         warnings.warn(
-            "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
-            "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_API_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
     return values
@@ -686,6 +689,410 @@ The following options are available:
 - "ignore": Do not log a warning message or raise an error.
 """
 
+PREFECT_LOGGING_COLORS = Setting(
+    bool,
+    default=True,
+)
+"""Whether to style console logs with color."""
+
+PREFECT_LOGGING_MARKUP = Setting(
+    bool,
+    default=False,
+)
+"""
+Whether to interpret strings wrapped in square brackets as a style.
+This allows styles to be conveniently added to log messages, e.g.
+`[red]This is a red message.[/red]`. However, the downside is,
+if enabled, strings that contain square brackets may be inaccurately
+interpreted and lead to incomplete output, e.g.
+`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+"""
+
+PREFECT_AGENT_QUERY_INTERVAL = Setting(
+    float,
+    default=10,
+)
+"""
+The agent loop interval, in seconds. Agents will check for new runs this often. 
+Defaults to `10`.
+"""
+
+PREFECT_AGENT_PREFETCH_SECONDS = Setting(
+    int,
+    default=10,
+)
+"""
+Agents will look for scheduled runs this many seconds in
+the future and attempt to run them. This accounts for any additional
+infrastructure spin-up time or latency in preparing a flow run. Note
+flow runs will not start before their scheduled time, even if they are
+prefetched. Defaults to `10`.
+"""
+
+PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
+"""
+Determines whether `State.result()` fetches results automatically or not.
+In Prefect 2.6.0, the `State.result()` method was updated to be async
+to faciliate automatic retrieval of results from storage which means when 
+writing async code you must `await` the call. For backwards compatibility, 
+the result is not retrieved by default for async users. You may opt into this
+per call by passing  `fetch=True` or toggle this setting to change the behavior
+globally.
+This setting does not affect users writing synchronous tasks and flows.
+This setting does not affect retrieval of results when using `Future.result()`.
+"""
+
+
+PREFECT_API_BLOCKS_REGISTER_ON_START = Setting(
+    bool,
+    default=True,
+)
+"""
+If set, any block types that have been imported will be registered with the 
+backend on application startup. If not set, block types must be manually 
+registered.
+"""
+
+PREFECT_API_DATABASE_PASSWORD = Setting(
+    str,
+    default=None,
+    is_secret=True,
+)
+"""
+Password to template into the `PREFECT_API_DATABASE_CONNECTION_URL`.
+This is useful if the password must be provided separately from the connection URL.
+To use this setting, you must include it in your connection URL.
+"""
+
+PREFECT_API_DATABASE_CONNECTION_URL = Setting(
+    str,
+    default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
+    value_callback=template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD),
+    is_secret=True,
+)
+"""
+A database connection URL in a SQLAlchemy-compatible
+format. Orion currently supports SQLite and Postgres. Note that all
+Orion engines must use an async driver - for SQLite, use
+`sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
+
+SQLite in-memory databases can be used by providing the url
+`sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
+which will allow the database to be accessed by multiple threads. Note
+that in-memory databases can not be accessed from multiple processes and
+should only be used for simple tests.
+
+Defaults to a sqlite database stored in the Prefect home directory.
+
+If you need to provide password via a different environment variable, you use
+the `PREFECT_API_DATABASE_PASSWORD` setting. For example:
+
+```
+PREFECT_API_DATABASE_PASSWORD='mypassword'
+PREFECT_API_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_API_DATABASE_PASSWORD}@localhost/orion'
+```
+"""
+
+PREFECT_API_DATABASE_ECHO = Setting(
+    bool,
+    default=False,
+)
+"""If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`."""
+
+PREFECT_API_DATABASE_MIGRATE_ON_START = Setting(
+    bool,
+    default=True,
+)
+"""If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually."""
+
+PREFECT_API_DATABASE_TIMEOUT = Setting(
+    Optional[float],
+    default=10.0,
+)
+"""
+A statement timeout, in seconds, applied to all database interactions made by the API.
+Defaults to 10 seconds.
+"""
+
+PREFECT_API_DATABASE_CONNECTION_TIMEOUT = Setting(
+    Optional[float],
+    default=5,
+)
+"""A connection timeout, in seconds, applied to database
+connections. Defaults to `5`.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
+    float,
+    default=60,
+)
+"""The scheduler loop interval, in seconds. This determines
+how often the scheduler will attempt to schedule new flow runs, but has no
+impact on how quickly either flow runs or task runs are actually executed.
+Defaults to `60`.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
+    int,
+    default=100,
+)
+"""The number of deployments the scheduler will attempt to
+schedule in a single batch. If there are more deployments than the batch
+size, the scheduler immediately attempts to schedule the next batch; it
+does not sleep for `scheduler_loop_seconds` until it has visited every
+deployment once. Defaults to `100`.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS = Setting(
+    int,
+    default=100,
+)
+"""The scheduler will attempt to schedule up to this many
+auto-scheduled runs in the future. Note that runs may have fewer than
+this many scheduled runs, depending on the value of
+`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS = Setting(
+    int,
+    default=3,
+)
+"""The scheduler will attempt to schedule at least this many
+auto-scheduled runs in the future. Note that runs may have more than
+this many scheduled runs, depending on the value of
+`scheduler_min_scheduled_time`.  Defaults to `3`.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(days=100),
+)
+"""The scheduler will create new runs up to this far in the
+future. Note that this setting will take precedence over
+`scheduler_max_runs`: if a flow runs once a month and
+`scheduler_max_scheduled_time` is three months, then only three runs will be
+scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
+    timedelta,
+    default=timedelta(hours=1),
+)
+"""The scheduler will create new runs at least this far in the
+future. Note that this setting will take precedence over `scheduler_min_runs`:
+if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
+then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
+1 hour (`3600` seconds).
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
+    int,
+    default=500,
+)
+"""The number of flow runs the scheduler will attempt to insert
+in one batch across all deployments. If the number of flow runs to
+schedule exceeds this amount, the runs will be inserted in batches of this size. 
+Defaults to `500`.
+"""
+
+PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The late runs service will look for runs to mark as late
+this often. Defaults to `5`.
+"""
+
+PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
+    timedelta,
+    default=timedelta(seconds=5),
+)
+"""The late runs service will mark runs as late after they
+have exceeded their scheduled start time by this many seconds. Defaults
+to `5` seconds.
+"""
+
+PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
+    float,
+    default=5,
+)
+"""The pause expiration service will look for runs to mark as failed
+this often. Defaults to `5`.
+"""
+
+PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
+    float,
+    default=20,
+)
+"""The cancellation cleanup service will look non-terminal tasks and subflows
+this often. Defaults to `20`.
+"""
+
+PREFECT_API_DEFAULT_LIMIT = Setting(
+    int,
+    default=200,
+)
+"""The default limit applied to queries that can return
+multiple objects, such as `POST /flow_runs/filter`.
+"""
+
+PREFECT_SERVER_API_HOST = Setting(
+    str,
+    default="127.0.0.1",
+)
+"""The API's host address (defaults to `127.0.0.1`)."""
+
+PREFECT_SERVER_API_PORT = Setting(
+    int,
+    default=4200,
+)
+"""The API's port address (defaults to `4200`)."""
+
+PREFECT_SERVER_API_KEEPALIVE_TIMEOUT = Setting(
+    int,
+    default=5,
+)
+"""
+The API's keep alive timeout (defaults to `5`).
+Refer to https://www.uvicorn.org/settings/#timeouts for details.
+
+When the API is hosted behind a load balancer, you may want to set this to a value
+greater than the load balancer's idle timeout.
+
+Note this setting only applies when calling `prefect server start`; if hosting the
+API with another tool you will need to configure this there instead.
+"""
+
+PREFECT_UI_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to serve the Orion UI."""
+
+PREFECT_UI_API_URL = Setting(
+    str,
+    default=None,
+    value_callback=default_ui_api_url,
+)
+"""The connection url for communication from the UI to the API.
+Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
+`PREFECT_SERVER_API_HOST` and `PREFECT_SERVER_API_PORT`. If providing a custom value,
+the aforementioned settings may be templated into the given string.
+"""
+
+PREFECT_SERVER_ANALYTICS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""
+When enabled, Prefect sends anonymous data (e.g. count of flow runs, package version)
+on server startup to help us improve our product.
+"""
+
+PREFECT_API_SERVICES_SCHEDULER_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the scheduling service in the Orion application. 
+If disabled, you will need to run this service separately to schedule runs for deployments.
+"""
+
+PREFECT_API_SERVICES_LATE_RUNS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the late runs service in the Orion application. 
+If disabled, you will need to run this service separately to have runs past their 
+scheduled start time marked as late.
+"""
+
+PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the flow run notifications service in the Orion application. 
+If disabled, you will need to run this service separately to send flow run notifications.
+"""
+
+PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the paused flow run expiration service in the Orion
+application. If disabled, paused flows that have timed out will remain in a Paused state
+until a resume attempt.
+"""
+
+PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+"""
+The maximum number of characters allowed for a task run cache key.
+This setting cannot be changed client-side, it must be set on the server.
+"""
+
+PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
+    bool,
+    default=True,
+)
+"""Whether or not to start the cancellation cleanup service in the Orion
+application. If disabled, task runs and subflow runs belonging to cancelled flows may
+remain in non-terminal states.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
+"""
+Whether or not to enable experimental Prefect work pools.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
+"""
+Whether or not to warn when experimental Prefect work pools are used.
+"""
+
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect workers.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+"""
+Whether or not to warn when experimental Prefect workers are used.
+"""
+
+PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
+"""
+Number of seconds a worker should wait between sending a heartbeat.
+"""
+
+PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
+"""
+Number of seconds a worker should wait between queries for scheduled flow runs.
+"""
+
+PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
+"""
+The number of seconds into the future a worker should query for scheduled flow runs.
+Can be used to compensate for infrastructure start up time for a worker.
+"""
+
+PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
+"""
+The number of seconds a worker should wait between scanning its workflow storage
+location for submitted deployments.
+"""
+
+PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
+    Path,
+    default=Path("${PREFECT_HOME}") / "workflows",
+    value_callback=template_with_settings(PREFECT_HOME),
+)
+"""
+The location where workers will scan for newly submitted deployments and store
+flow code for submitted deployments.
+"""
+
+
+# Deprecated settings ------------------------------------------------------------------
+
 
 PREFECT_LOGGING_ORION_ENABLED = Setting(
     Optional[bool],
@@ -748,399 +1155,385 @@ PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
 Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
 """
 
-PREFECT_LOGGING_COLORS = Setting(
-    bool,
-    default=True,
-)
-"""Whether to style console logs with color."""
-
-PREFECT_LOGGING_MARKUP = Setting(
-    bool,
-    default=False,
-)
-"""
-Whether to interpret strings wrapped in square brackets as a style.
-This allows styles to be conveniently added to log messages, e.g.
-`[red]This is a red message.[/red]`. However, the downside is,
-if enabled, strings that contain square brackets may be inaccurately
-interpreted and lead to incomplete output, e.g.
-`DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
-"""
-
-PREFECT_AGENT_QUERY_INTERVAL = Setting(
-    float,
-    default=10,
-)
-"""
-The agent loop interval, in seconds. Agents will check for new runs this often. 
-Defaults to `10`.
-"""
-
-PREFECT_AGENT_PREFETCH_SECONDS = Setting(
-    int,
-    default=10,
-)
-"""
-Agents will look for scheduled runs this many seconds in
-the future and attempt to run them. This accounts for any additional
-infrastructure spin-up time or latency in preparing a flow run. Note
-flow runs will not start before their scheduled time, even if they are
-prefetched. Defaults to `10`.
-"""
-
-PREFECT_ASYNC_FETCH_STATE_RESULT = Setting(bool, default=False)
-"""
-Determines whether `State.result()` fetches results automatically or not.
-In Prefect 2.6.0, the `State.result()` method was updated to be async
-to faciliate automatic retrieval of results from storage which means when 
-writing async code you must `await` the call. For backwards compatibility, 
-the result is not retrieved by default for async users. You may opt into this
-per call by passing  `fetch=True` or toggle this setting to change the behavior
-globally.
-This setting does not affect users writing synchronous tasks and flows.
-This setting does not affect retrieval of results when using `Future.result()`.
-"""
 
 PREFECT_ORION_BLOCKS_REGISTER_ON_START = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_BLOCKS_REGISTER_ON_START` instead.",
+    deprecated_renamed_to=PREFECT_API_BLOCKS_REGISTER_ON_START,
 )
 """
-If set, any block types that have been imported will be registered with the 
-backend on application startup. If not set, block types must be manually 
-registered.
+Deprecated. Use `PREFECT_API_BLOCKS_REGISTER_ON_START` instead.
 """
 
 PREFECT_ORION_DATABASE_PASSWORD = Setting(
-    str,
+    Optional[str],
     default=None,
     is_secret=True,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_PASSWORD` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_PASSWORD,
 )
 """
-Password to template into the `PREFECT_ORION_DATABASE_CONNECTION_URL`.
-This is useful if the password must be provided separately from the connection URL.
-To use this setting, you must include it in your connection URL.
+Deprecated. Use `PREFECT_API_DATABASE_PASSWORD` instead.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
-    str,
-    default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
-    value_callback=template_with_settings(
-        PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
-    ),
+    Optional[str],
+    default=None,
+    value_callback=template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD),
     is_secret=True,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_CONNECTION_URL` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_CONNECTION_URL,
 )
 """
-A database connection URL in a SQLAlchemy-compatible
-format. Orion currently supports SQLite and Postgres. Note that all
-Orion engines must use an async driver - for SQLite, use
-`sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
-
-SQLite in-memory databases can be used by providing the url
-`sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
-which will allow the database to be accessed by multiple threads. Note
-that in-memory databases can not be accessed from multiple processes and
-should only be used for simple tests.
-
-Defaults to a sqlite database stored in the Prefect home directory.
-
-If you need to provide password via a different environment variable, you use
-the `PREFECT_ORION_DATABASE_PASSWORD` setting. For example:
-
-```
-PREFECT_ORION_DATABASE_PASSWORD='mypassword'
-PREFECT_ORION_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_ORION_DATABASE_PASSWORD}@localhost/orion'
-```
+Deprecated. Use `PREFECT_API_DATABASE_CONNECTION_URL` instead.
 """
 
 PREFECT_ORION_DATABASE_ECHO = Setting(
-    bool,
-    default=False,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_ECHO` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_ECHO,
 )
-"""If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`."""
+"""
+Deprecated. Use `PREFECT_API_DATABASE_ECHO` instead.
+"""
 
 PREFECT_ORION_DATABASE_MIGRATE_ON_START = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_MIGRATE_ON_START` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_MIGRATE_ON_START,
 )
-"""If `True`, the database will be upgraded on application creation. If `False`, the database will need to be upgraded manually."""
+"""
+Deprecated. Use `PREFECT_API_DATABASE_MIGRATE_ON_START` instead.
+"""
 
 PREFECT_ORION_DATABASE_TIMEOUT = Setting(
     Optional[float],
-    default=10.0,
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_TIMEOUT` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_TIMEOUT,
 )
 """
-A statement timeout, in seconds, applied to all database interactions made by the API.
-Defaults to 10 seconds.
+Deprecated. Use `PREFECT_API_DATABASE_TIMEOUT` instead.
 """
 
 PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT = Setting(
     Optional[float],
-    default=5,
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DATABASE_CONNECTION_TIMEOUT` instead.",
+    deprecated_renamed_to=PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
 )
-"""A connection timeout, in seconds, applied to database
-connections. Defaults to `5`.
+"""
+Deprecated. Use `PREFECT_API_DATABASE_CONNECTION_TIMEOUT` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS = Setting(
-    float,
-    default=60,
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS,
 )
-"""The scheduler loop interval, in seconds. This determines
-how often the scheduler will attempt to schedule new flow runs, but has no
-impact on how quickly either flow runs or task runs are actually executed.
-Defaults to `60`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
-    int,
-    default=100,
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
 )
-"""The number of deployments the scheduler will attempt to
-schedule in a single batch. If there are more deployments than the batch
-size, the scheduler immediately attempts to schedule the next batch; it
-does not sleep for `scheduler_loop_seconds` until it has visited every
-deployment once. Defaults to `100`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS = Setting(
-    int,
-    default=100,
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
 )
-"""The scheduler will attempt to schedule up to this many
-auto-scheduled runs in the future. Note that runs may have fewer than
-this many scheduled runs, depending on the value of
-`scheduler_max_scheduled_time`.  Defaults to `100`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS = Setting(
-    int,
-    default=3,
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
 )
-"""The scheduler will attempt to schedule at least this many
-auto-scheduled runs in the future. Note that runs may have more than
-this many scheduled runs, depending on the value of
-`scheduler_min_scheduled_time`.  Defaults to `3`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME = Setting(
-    timedelta,
-    default=timedelta(days=100),
+    Optional[timedelta],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
 )
-"""The scheduler will create new runs up to this far in the
-future. Note that this setting will take precedence over
-`scheduler_max_runs`: if a flow runs once a month and
-`scheduler_max_scheduled_time` is three months, then only three runs will be
-scheduled. Defaults to 100 days (`8640000` seconds).
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME = Setting(
-    timedelta,
-    default=timedelta(hours=1),
+    Optional[timedelta],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
-"""The scheduler will create new runs at least this far in the
-future. Note that this setting will take precedence over `scheduler_min_runs`:
-if a flow runs every hour and `scheduler_min_scheduled_time` is three hours,
-then three runs will be scheduled even if `scheduler_min_runs` is 1. Defaults to
-1 hour (`3600` seconds).
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` instead.
 """
 
 PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE = Setting(
-    int,
-    default=500,
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE,
 )
-"""The number of flow runs the scheduler will attempt to insert
-in one batch across all deployments. If the number of flow runs to
-schedule exceeds this amount, the runs will be inserted in batches of this size. 
-Defaults to `500`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` instead.
 """
 
 PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS = Setting(
-    float,
-    default=5,
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS,
 )
-"""The late runs service will look for runs to mark as late
-this often. Defaults to `5`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS` instead.
 """
 
 PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS = Setting(
-    timedelta,
-    default=timedelta(seconds=5),
+    Optional[timedelta],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS,
 )
-"""The late runs service will mark runs as late after they
-have exceeded their scheduled start time by this many seconds. Defaults
-to `5` seconds.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS` instead.
 """
 
 PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
-    float,
-    default=5,
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS,
 )
-"""The pause expiration service will look for runs to mark as failed
-this often. Defaults to `5`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead.
 """
 
 PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
-    float,
-    default=20,
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS,
 )
-"""The cancellation cleanup service will look non-terminal tasks and subflows
-this often. Defaults to `20`.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead.
 """
 
 PREFECT_ORION_API_DEFAULT_LIMIT = Setting(
-    int,
-    default=200,
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_DEFAULT_LIMIT` instead.",
+    deprecated_renamed_to=PREFECT_API_DEFAULT_LIMIT,
 )
-"""The default limit applied to queries that can return
-multiple objects, such as `POST /flow_runs/filter`.
+"""
+Deprecated. Use `PREFECT_API_DEFAULT_LIMIT` instead.
 """
 
 PREFECT_ORION_API_HOST = Setting(
-    str,
-    default="127.0.0.1",
-)
-"""The API's host address (defaults to `127.0.0.1`)."""
-
-PREFECT_ORION_API_PORT = Setting(
-    int,
-    default=4200,
-)
-"""The API's port address (defaults to `4200`)."""
-
-PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
-    int,
-    default=5,
+    Optional[str],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_SERVER_API_HOST` instead.",
+    deprecated_renamed_to=PREFECT_SERVER_API_HOST,
 )
 """
-The API's keep alive timeout (defaults to `5`).
-Refer to https://www.uvicorn.org/settings/#timeouts for details.
+Deprecated. Use `PREFECT_SERVER_API_HOST` instead.
+"""
 
-When the API is hosted behind a load balancer, you may want to set this to a value
-greater than the load balancer's idle timeout.
+PREFECT_ORION_API_PORT = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_SERVER_API_PORT` instead.",
+    deprecated_renamed_to=PREFECT_SERVER_API_PORT,
+)
+"""
+Deprecated. Use `PREFECT_SERVER_API_PORT` instead.
+"""
 
-Note this setting only applies when calling `prefect server start`; if hosting the
-API with another tool you will need to configure this there instead.
+PREFECT_ORION_API_KEEPALIVE_TIMEOUT = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT` instead.",
+    deprecated_renamed_to=PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
+)
+"""
+Deprecated. Use `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT` instead.
 """
 
 PREFECT_ORION_UI_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_UI_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_UI_ENABLED,
 )
-"""Whether or not to serve the Orion UI."""
+"""
+Deprecated. Use `PREFECT_UI_ENABLED` instead.
+"""
 
 PREFECT_ORION_UI_API_URL = Setting(
-    str,
+    Optional[str],
     default=None,
     value_callback=default_ui_api_url,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_UI_API_URL` instead.",
+    deprecated_renamed_to=PREFECT_UI_API_URL,
 )
-"""The connection url for communication from the UI to the API.
-Defaults to `PREFECT_API_URL` if set. Otherwise, the default URL is generated from
-`PREFECT_ORION_API_HOST` and `PREFECT_ORION_API_PORT`. If providing a custom value,
-the aforementioned settings may be templated into the given string.
+"""
+Deprecated. Use `PREFECT_UI_API_URL` instead.
 """
 
 PREFECT_ORION_ANALYTICS_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_SERVER_ANALYTICS_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_SERVER_ANALYTICS_ENABLED,
 )
-"""If True, Orion sends anonymous data (e.g. count of flow runs, package version) to Prefect to help us improve."""
+"""
+Deprecated. Use `PREFECT_SERVER_ANALYTICS_ENABLED` instead.
+"""
 
 PREFECT_ORION_SERVICES_SCHEDULER_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_ENABLED,
 )
-"""Whether or not to start the scheduling service in the Orion application. 
-If disabled, you will need to run this service separately to schedule runs for deployments.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_SCHEDULER_ENABLED` instead.
 """
 
 PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_LATE_RUNS_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
 )
-"""Whether or not to start the late runs service in the Orion application. 
-If disabled, you will need to run this service separately to have runs past their 
-scheduled start time marked as late.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_LATE_RUNS_ENABLED` instead.
 """
 
 PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
 )
-"""Whether or not to start the flow run notifications service in the Orion application. 
-If disabled, you will need to run this service separately to send flow run notifications.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead.
 """
 
 PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
-    bool,
-    default=True,
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
 )
-"""Whether or not to start the paused flow run expiration service in the Orion
-application. If disabled, paused flows that have timed out will remain in a Paused state
-until a resume attempt.
+"""
+Deprecated. Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED` instead.
 """
 
-PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(int, default=2000)
+PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` instead.",
+    deprecated_renamed_to=PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH,
+)
 """
-The maximum number of characters allowed for a task run cache key.
-This setting cannot be changed client-side, it must be set on the server.
+Deprecated. Use `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` instead.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
-"""
 PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
-    bool,
-    default=True,
-)
-"""Whether or not to start the cancellation cleanup service in the Orion
-application. If disabled, task runs and subflow runs belonging to cancelled flows may
-remain in non-terminal states.
-"""
-
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
-"""
-Whether or not to enable experimental Prefect workers.
-"""
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
-"""
-Whether or not to warn when experimental Prefect workers are used.
-"""
-
-PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
-"""
-Number of seconds a worker should wait between sending a heartbeat.
-"""
-PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
-"""
-Number of seconds a worker should wait between queries for scheduled flow runs.
-"""
-PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
-"""
-The number of seconds into the future a worker should query for scheduled flow runs.
-Can be used to compensate for infrastructure start up time for a worker.
-"""
-PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
-"""
-The number of seconds a worker should wait between scanning its workflow storage
-location for submitted deployments.
-"""
-PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "workflows",
-    value_callback=template_with_settings(PREFECT_HOME),
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
 )
 """
-The location where workers will scan for newly submitted deployments and store
-flow code for submitted deployments.
+Deprecated. Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED` instead.
 """
 
-# Collect all defined settings
+
+# Collect all defined settings ---------------------------------------------------------
 
 SETTING_VARIABLES = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
@@ -1259,6 +1652,8 @@ class Settings(SettingsFieldsMixin):
                 setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()
                 if setting.is_secret
+                # Exclude deprecated settings with null values to avoid warnings
+                and not (setting.deprecated and self.value_of(setting) is None)
             }
         )
         # Ensure that settings that have not been marked as "set" before are still so

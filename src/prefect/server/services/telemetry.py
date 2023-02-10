@@ -22,7 +22,7 @@ from prefect.settings import PREFECT_DEBUG_MODE
 class Telemetry(LoopService):
     """
     This service sends anonymous data (e.g. count of flow runs) to Prefect to help us
-    improve. It can be toggled off with the PREFECT_ORION_ANALYTICS_ENABLED setting.
+    improve. It can be toggled off with the PREFECT_SERVER_ANALYTICS_ENABLED setting.
     """
 
     loop_seconds: int = 600
@@ -30,7 +30,7 @@ class Telemetry(LoopService):
     def __init__(self, loop_seconds: int = None, **kwargs):
         super().__init__(loop_seconds=loop_seconds, **kwargs)
         self.telemetry_environment = os.environ.get(
-            "PREFECT_ORION_TELEMETRY_ENVIRONMENT", "production"
+            "PREFECT_API_TELEMETRY_ENVIRONMENT", "production"
         )
 
     @inject_db

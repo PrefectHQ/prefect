@@ -40,6 +40,7 @@ def load_logging_config(path: Path) -> dict:
                 {
                     setting.name: str(setting.value())
                     for setting in SETTING_VARIABLES.values()
+                    if setting.value() is not None
                 }
             )
         )

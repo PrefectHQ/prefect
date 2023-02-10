@@ -7,7 +7,7 @@ from prefect.client import OrionClient
 from prefect.exceptions import ObjectNotFound
 from prefect.server import models
 from prefect.settings import (
-    PREFECT_ORION_BLOCKS_REGISTER_ON_START,
+    PREFECT_API_BLOCKS_REGISTER_ON_START,
     PREFECT_UI_URL,
     temporary_settings,
 )
@@ -198,7 +198,7 @@ def test_listing_blocks_after_saving_a_block():
 
 
 def test_listing_system_block_types():
-    with temporary_settings({PREFECT_ORION_BLOCKS_REGISTER_ON_START: True}):
+    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
         expected_output = (
             "Block Types",
             "Slug",

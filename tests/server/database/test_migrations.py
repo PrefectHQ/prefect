@@ -15,7 +15,7 @@ from prefect.server.database.orm_models import (
     AsyncPostgresORMConfiguration,
 )
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
@@ -63,7 +63,7 @@ async def test_backfill_state_name(db, flow):
     Tests state_name is backfilled correctly for the flow_run
     and task_run tables by a specific migration
     """
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
     dialect = get_dialect(connection_url)
 
     # get the proper migration revisions
@@ -192,7 +192,7 @@ async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
     Tests state_name is backfilled correctly for the flow_run
     and task_run tables by a specific migration
     """
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
     dialect = get_dialect(connection_url)
 
     # get the proper migration revisions
@@ -263,7 +263,7 @@ async def test_adding_work_pool_tables_does_not_remove_fks(db, flow):
 async def test_adding_default_agent_pool_with_existing_default_queue_migration(
     db, flow
 ):
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
     dialect = get_dialect(connection_url)
 
     # get the proper migration revisions
@@ -369,7 +369,7 @@ async def test_adding_default_agent_pool_with_existing_default_queue_migration(
 
 
 async def test_adding_default_agent_pool_without_existing_default_queue_migration(db):
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
     dialect = get_dialect(connection_url)
 
     # get the proper migration revisions

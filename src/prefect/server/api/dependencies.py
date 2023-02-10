@@ -6,7 +6,7 @@ import logging
 from fastapi import Body, Depends, Header, HTTPException, status
 from packaging.version import Version
 
-from prefect.settings import PREFECT_ORION_API_DEFAULT_LIMIT
+from prefect.settings import PREFECT_API_DEFAULT_LIMIT
 
 
 def provide_request_api_version(x_prefect_api_version: str = Header(None)):
@@ -98,10 +98,10 @@ def LimitBody() -> Depends:
     def get_limit(
         limit: int = Body(
             None,
-            description="Defaults to PREFECT_ORION_API_DEFAULT_LIMIT if not provided.",
+            description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
         )
     ):
-        default_limit = PREFECT_ORION_API_DEFAULT_LIMIT.value()
+        default_limit = PREFECT_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit
         if not limit >= 0:
             raise HTTPException(

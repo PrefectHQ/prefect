@@ -146,10 +146,10 @@ Prefect Cloud provides its own hosted database.
 
 Prefect creates a SQLite database, but you can configure your own database. 
 
-When you first install Prefect, your database will be located at `~/.prefect/orion.db`. To configure this location, you can specify a connection URL with the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable:
+When you first install Prefect, your database will be located at `~/.prefect/orion.db`. To configure this location, you can specify a connection URL with the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable:
 
 ```bash
-$ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+$ export PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
 ```
 If at any point in your testing you'd like to reset your database, run the `prefect server database reset` CLI command:  
 

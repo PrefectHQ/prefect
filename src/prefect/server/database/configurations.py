@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from typing_extensions import Literal
 
 from prefect.settings import (
-    PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT,
-    PREFECT_ORION_DATABASE_ECHO,
-    PREFECT_ORION_DATABASE_TIMEOUT,
+    PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
+    PREFECT_API_DATABASE_ECHO,
+    PREFECT_API_DATABASE_TIMEOUT,
 )
 from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
@@ -32,10 +32,10 @@ class BaseDatabaseConfiguration(ABC):
         connection_timeout: float = None,
     ):
         self.connection_url = connection_url
-        self.echo = echo or PREFECT_ORION_DATABASE_ECHO.value()
-        self.timeout = timeout or PREFECT_ORION_DATABASE_TIMEOUT.value()
+        self.echo = echo or PREFECT_API_DATABASE_ECHO.value()
+        self.timeout = timeout or PREFECT_API_DATABASE_TIMEOUT.value()
         self.connection_timeout = (
-            connection_timeout or PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT.value()
+            connection_timeout or PREFECT_API_DATABASE_CONNECTION_TIMEOUT.value()
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:

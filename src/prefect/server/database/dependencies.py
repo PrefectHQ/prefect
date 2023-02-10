@@ -23,7 +23,7 @@ from prefect.server.database.query_components import (
     BaseQueryComponents,
 )
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_ORION_DATABASE_CONNECTION_URL
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 MODELS_DEPENDENCIES = {
     "database_config": None,
@@ -40,7 +40,7 @@ def provide_database_interface() -> OrionDBInterface:
     If components of the interface are not set, defaults will be inferred
     based on the dialect of the connection URL.
     """
-    connection_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
 
     database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")

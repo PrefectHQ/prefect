@@ -18,10 +18,10 @@ from prefect.server.database.interface import OrionDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.database import json_contains
 from prefect.settings import (
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
-    PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS,
-    PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
+    PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS,
+    PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME,
+    PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS,
+    PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME,
 )
 
 
@@ -461,17 +461,17 @@ async def schedule_runs(
         a list of flow run ids scheduled for the deployment
     """
     if min_runs is None:
-        min_runs = PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS.value()
+        min_runs = PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS.value()
     if max_runs is None:
-        max_runs = PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS.value()
+        max_runs = PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS.value()
     if start_time is None:
         start_time = pendulum.now("UTC")
     if end_time is None:
         end_time = start_time + (
-            PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
+            PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME.value()
         )
     if min_time is None:
-        min_time = PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
+        min_time = PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME.value()
 
     start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)

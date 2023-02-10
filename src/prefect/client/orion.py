@@ -42,12 +42,12 @@ from prefect.server.schemas.filters import (
 )
 from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_ENABLE_HTTP2,
     PREFECT_API_KEY,
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 
 if TYPE_CHECKING:
@@ -2273,7 +2273,7 @@ class OrionClient:
         if self._ephemeral_app:
             self.logger.debug(
                 "Using ephemeral application with database at "
-                f"{PREFECT_ORION_DATABASE_CONNECTION_URL.value()}"
+                f"{PREFECT_API_DATABASE_CONNECTION_URL.value()}"
             )
         else:
             self.logger.debug(f"Connecting to API at {self.api_url}")

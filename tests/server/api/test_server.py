@@ -13,9 +13,9 @@ from prefect.server.api.server import (
     method_paths_from_routes,
 )
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
     temporary_settings,
 )
 from prefect.testing.utilities import AsyncMock
@@ -341,7 +341,7 @@ class TestMemoizeBlockAutoRegistration:
 
         with temporary_settings(
             {
-                PREFECT_ORION_DATABASE_CONNECTION_URL: "something else",
+                PREFECT_API_DATABASE_CONNECTION_URL: "something else",
             }
         ):
             await _memoize_block_auto_registration(test_func)()

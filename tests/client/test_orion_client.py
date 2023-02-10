@@ -35,10 +35,10 @@ from prefect.server.schemas.filters import (
 from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.server.schemas.states import StateType
 from prefect.settings import (
+    PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
-    PREFECT_ORION_DATABASE_MIGRATE_ON_START,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -531,7 +531,7 @@ class TestClientContextManager:
 
 @pytest.mark.parametrize("enabled", [True, False])
 async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
-    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: enabled}):
+    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: enabled}):
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
@@ -548,7 +548,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
 async def test_client_does_not_run_migrations_for_hosted_app(
     hosted_orion_api, monkeypatch
 ):
-    with temporary_settings(updates={PREFECT_ORION_DATABASE_MIGRATE_ON_START: True}):
+    with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.server.database.interface.OrionDBInterface.create_db", mock
