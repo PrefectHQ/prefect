@@ -1,6 +1,6 @@
 """
 Functions for interacting with block schema ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API API.
 """
 import json
 from copy import copy

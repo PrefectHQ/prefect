@@ -1,8 +1,8 @@
 """
-Utilities for interacting with Orion database and ORM layer.
+Utilities for interacting with Prefect REST API database and ORM layer.
 
 Orion supports both SQLite and Postgres. Many of these utilities
-allow Orion to seamlessly switch between the two.
+allow Prefect REST API to seamlessly switch between the two.
 """
 
 import datetime
@@ -607,7 +607,7 @@ def get_dialect(
     """
     Get the dialect of a session, engine, or connection url.
 
-    Primary use case is figuring out whether the Orion API is communicating with
+    Primary use case is figuring out whether the Prefect REST API API is communicating with
     SQLite or Postgres.
 
     Example:

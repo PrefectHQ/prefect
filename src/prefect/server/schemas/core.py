@@ -1,5 +1,5 @@
 """
-Full schemas of Orion API objects.
+Full schemas of Prefect REST API API objects.
 """
 import datetime
 import re

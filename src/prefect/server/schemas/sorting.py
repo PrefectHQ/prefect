@@ -1,5 +1,5 @@
 """
-Schemas for sorting Orion API objects.
+Schemas for sorting Prefect REST API API objects.
 """
 
 from typing import TYPE_CHECKING

@@ -44,7 +44,7 @@ async def register_block_schema(
     block_schema: schemas.core.BlockSchema,
 ):
     """
-    Stores the provided block schema in the Orion database.
+    Stores the provided block schema in the Prefect REST API database.
 
     If a block schema with a matching checksum and version is already saved,
     then the ID of the existing block schema will be returned.
@@ -80,7 +80,7 @@ async def register_block_type(
     block_type: schemas.core.BlockType,
 ):
     """
-    Stores the provided block type in the Orion database.
+    Stores the provided block type in the Prefect REST API database.
 
     If a block type with a matching slug is already saved, then the block type
     will be updated to match the passed in block type.

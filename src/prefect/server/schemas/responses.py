@@ -1,5 +1,5 @@
 """
-Schemas for special responses from the Orion API.
+Schemas for special responses from the Prefect REST API API.
 """
 
 import datetime
