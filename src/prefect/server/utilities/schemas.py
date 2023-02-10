@@ -1,5 +1,5 @@
 """
-Utilities for creating and working with Orion API schemas.
+Utilities for creating and working with Prefect REST API schemas.
 """
 import copy
 import datetime

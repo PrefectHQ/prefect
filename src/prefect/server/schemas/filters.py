@@ -1,5 +1,5 @@
 """
-Schemas that define Orion filtering operations.
+Schemas that define Prefect REST API filtering operations.
 
 Each filter schema includes logic for transforming itself into a SQL `where` clause.
 """

@@ -41,7 +41,7 @@ def alembic_config():
 @with_alembic_lock
 def alembic_upgrade(revision: str = "head", dry_run: bool = False):
     """
-    Run alembic upgrades on Orion database
+    Run alembic upgrades on Prefect REST API database
 
     Args:
         revision: The revision passed to `alembic downgrade`. Defaults to 'head', upgrading all revisions.
@@ -56,7 +56,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False):
 @with_alembic_lock
 def alembic_downgrade(revision: str = "base", dry_run: bool = False):
     """
-    Run alembic downgrades on Orion database
+    Run alembic downgrades on Prefect REST API database
 
     Args:
         revision: The revision passed to `alembic downgrade`. Defaults to 'base', downgrading all revisions.

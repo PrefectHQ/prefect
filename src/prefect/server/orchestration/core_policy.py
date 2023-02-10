@@ -432,7 +432,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     Prevents transitions to running states from happening to early.
 
     This rule enforces that all scheduled states will only start with the machine clock
-    used by the Orion instance. This rule will identify transitions from scheduled
+    used by the Prefect REST API instance. This rule will identify transitions from scheduled
     states that are too early and nullify them. Instead, no state will be written to the
     database and the client will be sent an instruction to wait for `delay_seconds`
     before attempting the transition again.
@@ -602,7 +602,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
-    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    Orchestration logic in Prefect REST API assumes that once runs enter a terminal state, no
     further action will be taken on them. This rule prevents unintended transitions out
     of terminal states and sents an instruction to the client to abort any execution.
 
@@ -656,7 +656,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
 
-    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    Orchestration logic in Prefect REST API assumes that once runs enter a terminal state, no
     further action will be taken on them. This rule prevents unintended transitions out
     of terminal states and sents an instruction to the client to abort any execution.
 

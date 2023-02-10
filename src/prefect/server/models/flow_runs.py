@@ -1,6 +1,6 @@
 """
 Functions for interacting with flow run ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API.
 """
 
 import contextlib

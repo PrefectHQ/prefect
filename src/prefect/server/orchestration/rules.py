@@ -8,9 +8,9 @@ necessary. A detailed description of states can be found in our concept
 [documentation](/concepts/states).
 
 Orion's orchestration engine operates under the assumption that no governed user code
-will execute without first requesting Orion validate a change in state and record
+will execute without first requesting Prefect REST API validate a change in state and record
 metadata about the run. With all attempts to run user code being checked against an
-Orion instance, the Orion database becomes the unambiguous source of truth for managing
+Orion instance, the Prefect REST API database becomes the unambiguous source of truth for managing
 the execution of complex interacting workflows. Orchestration rules can be implemented
 as discrete units of logic that operate against each state transition and can be fully
 observable, extensible, and customizable -- all without needing to store or parse a
@@ -59,7 +59,7 @@ class OrchestrationContext(PrefectBaseModel):
         use the flow- or task- specific subclasses, `FlowOrchestrationContext` and
         `TaskOrchestrationContext`.
 
-    When a flow- or task- run attempts to change state, Orion has an opportunity
+    When a flow- or task- run attempts to change state, Prefect REST API has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
@@ -179,7 +179,7 @@ class FlowOrchestrationContext(OrchestrationContext):
     """
     A container for a flow run state transition, governed by orchestration rules.
 
-    When a flow- run attempts to change state, Orion has an opportunity
+    When a flow- run attempts to change state, Prefect REST API has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
@@ -314,7 +314,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     """
     A container for a task run state transition, governed by orchestration rules.
 
-    When a task- run attempts to change state, Orion has an opportunity
+    When a task- run attempts to change state, Prefect REST API has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
@@ -462,7 +462,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     before it is validated or by producing a side-effect.
 
     A state transition occurs whenever a flow- or task- run changes state, prompting
-    Orion to decide whether or not this transition can proceed. The current state of
+    Prefect REST API to decide whether or not this transition can proceed. The current state of
     the run is referred to as the "initial state", and the state a run is
     attempting to transition into is the "proposed state". Together, the initial state
     transitioning into the proposed state is the intended transition that is governed

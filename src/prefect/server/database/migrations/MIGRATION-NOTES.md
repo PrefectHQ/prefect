@@ -205,7 +205,7 @@ Postgres: `d9d98a9ebb6f`
 
 ## Add configuration tables
 
-Adds a table for storing key / value configuration options for Orion in the database.
+Adds a table for storing key / value configuration options for Prefect REST API in the database.
 
 SQLite: `28ae48128c75`
 Postgres: `679e695af6ba`

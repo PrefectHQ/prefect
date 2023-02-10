@@ -1,6 +1,6 @@
 """
 Functions for interacting with log ORM objects.
-Intended for internal use by the Orion API.
+Intended for internal use by the Prefect REST API.
 """
 from typing import List
 

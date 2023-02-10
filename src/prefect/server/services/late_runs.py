@@ -27,7 +27,7 @@ class MarkLateRuns(LoopService):
 
     A flow run is defined as "late" if has not scheduled within a certain amount
     of time after its scheduled start time. The exact amount is configurable in
-    Orion Settings.
+    Prefect REST API Settings.
     """
 
     def __init__(self, loop_seconds: float = None, **kwargs):

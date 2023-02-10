@@ -1258,7 +1258,7 @@ class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
 
-    Modifications to core Orion data structures can have unintended consequences.
+    Modifications to core Prefect REST API data structures can have unintended consequences.
     Use with caution.
 
     Args:
@@ -1408,7 +1408,7 @@ class BaseORMConfiguration(ABC):
         configuration_mixin=ORMConfiguration,
     ):
         """
-        Defines the ORM models used in Orion and binds them to the `self`. This method
+        Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
         only runs on instantiation.
         """
 
