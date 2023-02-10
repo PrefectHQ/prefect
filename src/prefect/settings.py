@@ -686,68 +686,6 @@ The following options are available:
 - "ignore": Do not log a warning message or raise an error.
 """
 
-
-PREFECT_LOGGING_ORION_ENABLED = Setting(
-    Optional[bool],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_ENABLED` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_ENABLED,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_ENABLED instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
-    Optional[float],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_INTERVAL` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_INTERVAL instead.
-"""
-
-PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_SIZE,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_SIZE instead.
-"""
-
-PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
-    Optional[int],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
-)
-
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
-PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
-    Optional[Literal["warn", "error", "ignore"]],
-    default=None,
-    deprecated=True,
-    deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` instead.",
-    deprecated_renamed_to=PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
-)
-"""
-Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
-"""
-
 PREFECT_LOGGING_COLORS = Setting(
     bool,
     default=True,
@@ -1086,14 +1024,6 @@ The maximum number of characters allowed for a task run cache key.
 This setting cannot be changed client-side, it must be set on the server.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
-"""
-Whether or not to enable experimental Prefect work pools.
-"""
-PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
-"""
-Whether or not to warn when experimental Prefect work pools are used.
-"""
 PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
     bool,
     default=True,
@@ -1103,10 +1033,21 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
+"""
+Whether or not to enable experimental Prefect work pools.
+"""
+
+PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
+"""
+Whether or not to warn when experimental Prefect work pools are used.
+"""
+
 PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect workers.
 """
+
 PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
 """
 Whether or not to warn when experimental Prefect workers are used.
@@ -1116,20 +1057,24 @@ PREFECT_WORKER_HEARTBEAT_SECONDS = Setting(float, default=30)
 """
 Number of seconds a worker should wait between sending a heartbeat.
 """
+
 PREFECT_WORKER_QUERY_SECONDS = Setting(float, default=10)
 """
 Number of seconds a worker should wait between queries for scheduled flow runs.
 """
+
 PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
 """
 The number of seconds into the future a worker should query for scheduled flow runs.
 Can be used to compensate for infrastructure start up time for a worker.
 """
+
 PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
 """
 The number of seconds a worker should wait between scanning its workflow storage
 location for submitted deployments.
 """
+
 PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
     Path,
     default=Path("${PREFECT_HOME}") / "workflows",
@@ -1140,7 +1085,72 @@ The location where workers will scan for newly submitted deployments and store
 flow code for submitted deployments.
 """
 
-# Collect all defined settings
+
+# Deprecated settings ------------------------------------------------------------------
+
+
+PREFECT_LOGGING_ORION_ENABLED = Setting(
+    Optional[bool],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_ENABLED` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_ENABLED,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_ENABLED instead.
+"""
+
+PREFECT_LOGGING_ORION_BATCH_INTERVAL = Setting(
+    Optional[float],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_INTERVAL` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_INTERVAL instead.
+"""
+
+PREFECT_LOGGING_ORION_BATCH_SIZE = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_BATCH_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_BATCH_SIZE,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_BATCH_SIZE instead.
+"""
+
+PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
+    Optional[int],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
+)
+
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
+"""
+
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Optional[Literal["warn", "error", "ignore"]],
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Feb 2023",
+    deprecated_help="Use `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` instead.",
+    deprecated_renamed_to=PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
+)
+"""
+Deprecated. Use PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW instead.
+"""
+
+# Collect all defined settings ---------------------------------------------------------
 
 SETTING_VARIABLES = {
     name: val for name, val in tuple(globals().items()) if isinstance(val, Setting)
