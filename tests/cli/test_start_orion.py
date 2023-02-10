@@ -68,7 +68,7 @@ async def orion_process():
                         pass
                     else:
                         if response.status_code == 200:
-                            await anyio.sleep(0.2)  # extra sleep for less flakiness
+                            await anyio.sleep(0.5)  # extra sleep for less flakiness
                             break
                     await anyio.sleep(0.1)
             if response:
