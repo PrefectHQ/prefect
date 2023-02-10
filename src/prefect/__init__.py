@@ -74,7 +74,7 @@ prefect.logging.configuration.setup_logging()
 import prefect.client
 
 prefect.client.get_client = get_client
-prefect.client.OrionClient = PrefectClient
+prefect.client.PrefectClient = PrefectClient
 
 
 from prefect._internal.compatibility.deprecated import (

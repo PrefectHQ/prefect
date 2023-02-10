@@ -60,7 +60,14 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 def get_client(httpx_settings: dict = None) -> "PrefectClient":
     """
-    Needs a docstring.
+    Retrieve a HTTP client for communicating with the Prefect REST API.
+
+    The client must be context managed; for example:
+
+    ```python
+    async with get_client() as client:
+        await client.hello()
+    ```
     """
     ctx = prefect.context.get_settings_context()
     api = PREFECT_API_URL.value()
@@ -2295,8 +2302,8 @@ class PrefectClient:
 
     def __enter__(self):
         raise RuntimeError(
-            "The `OrionClient` must be entered with an async context. Use 'async "
-            "with OrionClient(...)' not 'with OrionClient(...)'"
+            "The `PrefectClient` must be entered with an async context. Use 'async "
+            "with PrefectClient(...)' not 'with PrefectClient(...)'"
         )
 
     def __exit__(self, *_):

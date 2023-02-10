@@ -316,7 +316,7 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     async def bad_create(self, **kwargs):
         raise ValueError("No!")
 
-    monkeypatch.setattr("prefect.client.OrionClient.create_work_queue", bad_create)
+    monkeypatch.setattr("prefect.client.PrefectClient.create_work_queue", bad_create)
 
     async with PrefectAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
         await agent.get_and_submit_flow_runs()
@@ -336,7 +336,7 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
         return work_queue
 
     mock = AsyncMock(side_effect=read_queue)
-    monkeypatch.setattr("prefect.client.OrionClient.read_work_queue_by_name", mock)
+    monkeypatch.setattr("prefect.client.PrefectClient.read_work_queue_by_name", mock)
 
     async with PrefectAgent(
         work_queues=[work_queue.name], prefetch_seconds=10
