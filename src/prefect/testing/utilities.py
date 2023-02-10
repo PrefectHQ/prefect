@@ -15,8 +15,8 @@ import prefect.context
 import prefect.server.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import OrionClient
+from prefect.client import get_client
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.filesystems import ReadableFileSystem
 from prefect.results import PersistedResult
@@ -179,7 +179,7 @@ def prefect_test_harness():
             yield
 
 
-async def get_most_recent_flow_run(client: OrionClient = None):
+async def get_most_recent_flow_run(client: PrefectClient = None):
     if client is None:
         client = get_client()
 
@@ -227,7 +227,7 @@ async def assert_uses_result_serializer(
 
 @inject_client
 async def assert_uses_result_storage(
-    state: State, storage: Union[str, ReadableFileSystem], client: "OrionClient"
+    state: State, storage: Union[str, ReadableFileSystem], client: "PrefectClient"
 ):
     assert isinstance(state.data, PersistedResult)
     assert_blocks_equal(

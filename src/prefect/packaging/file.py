@@ -4,7 +4,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.flows import Flow
@@ -21,7 +21,7 @@ class FilePackageManifest(PackageManifest):
     filesystem_id: UUID
 
     @inject_client
-    async def unpackage(self, client: OrionClient) -> Flow:
+    async def unpackage(self, client: PrefectClient) -> Flow:
         block_document = await client.read_block_document(self.filesystem_id)
         filesystem: ReadableFileSystem = Block._from_block_document(block_document)
         content = await filesystem.read_path(self.key)
@@ -45,7 +45,7 @@ class FilePackager(Packager):
     )
 
     @inject_client
-    async def package(self, flow: Flow, client: "OrionClient") -> FilePackageManifest:
+    async def package(self, flow: Flow, client: "PrefectClient") -> FilePackageManifest:
         content = self.serializer.dumps(flow)
         key = stable_hash(content)
 

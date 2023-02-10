@@ -16,7 +16,7 @@ from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
 
 import prefect.context
-from prefect.client.orion import get_client
+from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.server.schemas.actions import LogCreate

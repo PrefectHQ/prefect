@@ -14,7 +14,7 @@ import pendulum
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -69,7 +69,7 @@ class PrefectAgent:
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.limit: Optional[int] = limit
         self.limiter: Optional[anyio.CapacityLimiter] = None
-        self.client: Optional[OrionClient] = None
+        self.client: Optional[PrefectClient] = None
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]

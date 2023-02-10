@@ -251,7 +251,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
         # Always raise bad responses
         # NOTE: We may want to remove this and handle responses per route in the
-        #       `OrionClient`
+        #       `PrefectClient`
         response.raise_for_status()
 
         return response

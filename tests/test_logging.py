@@ -734,7 +734,7 @@ class TestOrionLogWorker:
     ):
         create_logs = orion_client.create_logs
         monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
+            "prefect.client.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
@@ -748,7 +748,7 @@ class TestOrionLogWorker:
 
         # Restore client
         monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
+            "prefect.client.PrefectClient.create_logs",
             create_logs,
         )
         await worker.send_logs()
@@ -761,7 +761,7 @@ class TestOrionLogWorker:
         self, log_dict, log_size, capsys, monkeypatch, exiting, worker
     ):
         monkeypatch.setattr(
-            "prefect.client.OrionClient.create_logs",
+            "prefect.client.PrefectClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
         )
 
@@ -780,7 +780,9 @@ class TestOrionLogWorker:
         self, log_dict, log_size, monkeypatch, get_worker
     ):
         mock_create_logs = AsyncMock()
-        monkeypatch.setattr("prefect.client.OrionClient.create_logs", mock_create_logs)
+        monkeypatch.setattr(
+            "prefect.client.PrefectClient.create_logs", mock_create_logs
+        )
 
         with temporary_settings(
             updates={
@@ -808,7 +810,7 @@ class TestOrionLogWorker:
             event.set()
             return result
 
-        monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
+        monkeypatch.setattr("prefect.client.PrefectClient.create_logs", create_logs)
 
         with temporary_settings(
             updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "0.001"}

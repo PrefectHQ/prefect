@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -41,7 +41,7 @@ def test_start_worker_run_once_with_name():
     )
 
 
-async def test_start_worker_creates_work_pool(orion_client: OrionClient):
+async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],
@@ -129,7 +129,7 @@ def test_start_worker_with_limit(monkeypatch):
     )
 
 
-async def test_worker_joins_existing_pool(work_pool, orion_client: OrionClient):
+async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[

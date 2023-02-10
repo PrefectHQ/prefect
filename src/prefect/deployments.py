@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import (
@@ -46,7 +46,7 @@ from prefect.utilities.slugify import slugify
 @inject_client
 async def run_deployment(
     name: str,
-    client: Optional[OrionClient] = None,
+    client: Optional[PrefectClient] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
     flow_run_name: Optional[str] = None,
@@ -148,7 +148,7 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: schemas.core.FlowRun, client: OrionClient, ignore_storage: bool = False
+    flow_run: schemas.core.FlowRun, client: PrefectClient, ignore_storage: bool = False
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.

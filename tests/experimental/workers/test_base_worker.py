@@ -7,7 +7,7 @@ import pytest
 from pydantic import Field
 
 import prefect.server.schemas as schemas
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import (
@@ -73,7 +73,7 @@ async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     with pytest.raises(ObjectNotFound):
         await orion_client.read_work_pool("test-work-pool")
@@ -91,7 +91,7 @@ async def test_worker_creates_work_pool_by_default_during_sync(
 
 
 async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     with pytest.raises(ObjectNotFound):
         await orion_client.read_work_pool("test-work-pool")
@@ -124,7 +124,7 @@ async def test_worker_respects_settings(setting, attr):
 
 
 async def test_worker_sends_heartbeat_messages(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
@@ -146,7 +146,7 @@ async def test_worker_sends_heartbeat_messages(
 
 
 async def test_worker_applies_discovered_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path
+    orion_client: PrefectClient, flow_function, tmp_path: Path
 ):
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
@@ -169,7 +169,7 @@ async def test_worker_applies_discovered_deployments(
 
 
 async def test_worker_applies_updates_to_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path, work_pool
+    orion_client: PrefectClient, flow_function, tmp_path: Path, work_pool
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
@@ -206,7 +206,7 @@ async def test_worker_applies_updates_to_deployments(
 
 
 async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
-    orion_client: OrionClient, flow_function, tmp_path: Path
+    orion_client: PrefectClient, flow_function, tmp_path: Path
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
@@ -242,7 +242,7 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
 
 
 async def test_worker_does_not_raise_on_malformed_manifests(
-    orion_client: OrionClient, tmp_path: Path
+    orion_client: PrefectClient, tmp_path: Path
 ):
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
@@ -261,7 +261,9 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         assert len(await orion_client.read_deployments()) == 0
 
 
-async def test_worker_with_work_queue(orion_client: OrionClient, deployment, work_pool):
+async def test_worker_with_work_queue(
+    orion_client: PrefectClient, deployment, work_pool
+):
     @flow
     def test_flow():
         pass
@@ -300,7 +302,7 @@ async def test_worker_with_work_queue(orion_client: OrionClient, deployment, wor
 
 
 async def test_worker_with_work_queue_and_limit(
-    orion_client: OrionClient, deployment, work_pool
+    orion_client: PrefectClient, deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -353,7 +355,7 @@ async def test_worker_with_work_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: OrionClient, deployment, work_pool
+    orion_client: PrefectClient, deployment, work_pool
 ):
     run_mock = AsyncMock()
 
