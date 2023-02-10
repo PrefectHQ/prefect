@@ -14,7 +14,7 @@ import prefect.server.database
 import prefect.server.schemas as schemas
 from prefect.exceptions import InvalidNameError
 from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBaseModel
-from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH
+from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
 
@@ -471,12 +471,9 @@ class TaskRun(ORMBaseModel):
 
     @validator("cache_key")
     def validate_cache_key_length(cls, cache_key):
-        if (
-            cache_key
-            and len(cache_key) > PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()
-        ):
+        if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
             raise ValueError(
-                f"Cache key exceeded maximum allowed length of {PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
+                f"Cache key exceeded maximum allowed length of {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
             )
         return cache_key
 

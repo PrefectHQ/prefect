@@ -6,7 +6,7 @@ import pytest
 
 from prefect.server import schemas
 from prefect.server.utilities.schemas import PrefectBaseModel
-from prefect.settings import PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
+from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
 
 
 @pytest.mark.parametrize(
@@ -188,7 +188,7 @@ class TestTaskRunPolicy:
 
 class TestTaskRun:
     def test_task_run_cache_key_greater_than_user_configured_max_length(self):
-        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 5}):
+        with temporary_settings({PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: 5}):
 
             cache_key_invalid_length = "X" * 6
             with pytest.raises(
@@ -215,7 +215,7 @@ class TestTaskRun:
                 )
 
     def test_task_run_cache_key_within_user_configured_max_length(self):
-        with temporary_settings({PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH: 1000}):
+        with temporary_settings({PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: 1000}):
             cache_key_valid_length = "X" * 1000
             schemas.core.TaskRun(
                 id=uuid4(),

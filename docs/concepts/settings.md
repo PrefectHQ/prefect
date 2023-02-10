@@ -43,7 +43,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 
 
 !!! tip "Running the Prefect UI behind a reverse proxy"
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_ORION_UI_API_URL`](prefect/settings/#prefect.settings.PREFECT_ORION_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-orion.example.com/ then set `PREFECT_ORION_UI_API_URL=https://prefect-orion.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_ORION_UI_API_URL` is not set.
+    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_UI_API_URL`](prefect/settings/#prefect.settings.PREFECT_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-orion.example.com/ then set `PREFECT_UI_API_URL=https://prefect-orion.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
 
 
 ### PREFECT_API_KEY
@@ -74,10 +74,10 @@ PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 Prefect provides several settings for configuring the [Prefect database](/concepts/database/).
 
 ```bash
-PREFECT_ORION_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/orion.db'
-PREFECT_ORION_DATABASE_ECHO='False'
-PREFECT_ORION_DATABASE_MIGRATE_ON_START='True'
-PREFECT_ORION_DATABASE_PASSWORD='None'
+PREFECT_API_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/orion.db'
+PREFECT_API_DATABASE_ECHO='False'
+PREFECT_API_DATABASE_MIGRATE_ON_START='True'
+PREFECT_API_DATABASE_PASSWORD='None'
 ```
 
 ### Logging settings
@@ -171,11 +171,11 @@ Configuring the server's port:
 
 ```shell
 # environment variable
-export PREFECT_ORION_API_PORT=4242
+export PREFECT_SERVER_API_PORT=4242
 ```
 ```python
 # python
-prefect.settings.PREFECT_ORION_API_PORT.value()  # 4242
+prefect.settings.PREFECT_SERVER_API_PORT.value()  # 4242
 ```
 
 ## Configuration profiles
