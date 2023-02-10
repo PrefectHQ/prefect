@@ -402,6 +402,8 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
+    _artifact_type: str
+    _artifact_description: str
 
     _should_cache_object: bool = pydantic.PrivateAttr(default=True)
 
@@ -430,6 +432,28 @@ class PersistedResult(BaseResult):
         blob = PersistedResultBlob.parse_raw(content)
         return blob
 
+    def _infer_uri(storage_block, key) -> str:
+        """
+        Attempts to infer
+        """
+
+        if hasattr(storage_block, "_resolve_path"):
+            return storage_block._resolve_path(key)
+        if hasattr(storage_block, "_remote_file_system"):
+            return storage_block._remote_file_system._resolve_path(key)
+
+    def _infer_description(obj, storage_block, key) -> str:
+        uri = _infer_uri(storage_block, key)
+        if uri is not None:
+            return f"<{uri}>"
+
+        description = repr(obj)
+        if len(description) > 100:
+            return description[:100] + "..."
+        return ("```\n"
+                description + "\n"
+                "```")
+
     @classmethod
     @sync_compatible
     async def create(
@@ -452,10 +476,14 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
+        description = self._infer_description(obj, storage_block, key)
+
         result = cls(
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
+            _artifact_type="result",
+            _artifact_description=description,
         )
 
         if cache_object:
