@@ -1,5 +1,5 @@
 """
-Routes for admin-level interactions with the Orion API.
+Routes for admin-level interactions with the Prefect REST API.
 """
 from fastapi import Body, Depends, Response, status
 
@@ -15,7 +15,7 @@ router = PrefectRouter(prefix="/admin", tags=["Admin"])
 @router.get("/settings")
 async def read_settings() -> prefect.settings.Settings:
     """
-    Get the current Orion settings.
+    Get the current Prefect REST API settings.
 
     Secret setting values will be obfuscated.
     """

@@ -35,7 +35,7 @@ MODELS_DEPENDENCIES = {
 
 def provide_database_interface() -> PrefectDBInterface:
     """
-    Get the current Orion database interface.
+    Get the current Prefect REST API database interface.
 
     If components of the interface are not set, defaults will be inferred
     based on the dialect of the connection URL.
@@ -130,12 +130,12 @@ def inject_db(fn: Callable) -> Callable:
 @contextmanager
 def temporary_database_config(tmp_database_config: BaseDatabaseConfiguration):
     """
-    Temporarily override the Orion database configuration.
+    Temporarily override the Prefect REST API database configuration.
     When the context is closed, the existing database configuration will
     be restored.
 
     Args:
-        tmp_database_config: Orion database configuration to inject.
+        tmp_database_config: Prefect REST API database configuration to inject.
 
     """
     starting_config = MODELS_DEPENDENCIES["database_config"]
@@ -149,12 +149,12 @@ def temporary_database_config(tmp_database_config: BaseDatabaseConfiguration):
 @contextmanager
 def temporary_query_components(tmp_queries: BaseQueryComponents):
     """
-    Temporarily override the Orion database query components.
+    Temporarily override the Prefect REST API database query components.
     When the context is closed, the existing query components will
     be restored.
 
     Args:
-        tmp_queries: Orion query components to inject.
+        tmp_queries: Prefect REST API query components to inject.
 
     """
     starting_queries = MODELS_DEPENDENCIES["query_components"]
@@ -168,12 +168,12 @@ def temporary_query_components(tmp_queries: BaseQueryComponents):
 @contextmanager
 def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
     """
-    Temporarily override the Orion ORM configuration.
+    Temporarily override the Prefect REST API ORM configuration.
     When the context is closed, the existing orm configuration will
     be restored.
 
     Args:
-        tmp_orm_config: Orion ORM configuration to inject.
+        tmp_orm_config: Prefect REST API ORM configuration to inject.
 
     """
     starting_orm_config = MODELS_DEPENDENCIES["orm"]
@@ -187,11 +187,11 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 @contextmanager
 def temporary_interface_class(tmp_interface_class: Type[PrefectDBInterface]):
     """
-    Temporarily override the Orion interface class When the context is closed,
+    Temporarily override the Prefect REST API interface class When the context is closed,
     the existing interface will be restored.
 
     Args:
-        tmp_interface_class: Orion interface class to inject.
+        tmp_interface_class: Prefect REST API interface class to inject.
 
     """
     starting_interface_class = MODELS_DEPENDENCIES["interface_class"]
@@ -210,19 +210,19 @@ def temporary_database_interface(
     tmp_interface_class: Type[PrefectDBInterface] = None,
 ):
     """
-    Temporarily override the Orion database interface.
+    Temporarily override the Prefect REST API database interface.
 
     Any interface components that are not explicitly provided will be
-    cleared and inferred from the Orion database connection string
+    cleared and inferred from the Prefect REST API database connection string
     dialect.
 
     When the context is closed, the existing database interface will
     be restored.
 
     Args:
-        tmp_database_config: An optional Orion database configuration to inject.
-        tmp_orm_config: An optional Orion ORM configuration to inject.
-        tmp_queries: Optional Orion query components to inject.
+        tmp_database_config: An optional Prefect REST API database configuration to inject.
+        tmp_orm_config: An optional Prefect REST API ORM configuration to inject.
+        tmp_queries: Optional Prefect REST API query components to inject.
         tmp_interface_class: Optional OrionDB interface class to inject
 
     """
@@ -239,20 +239,20 @@ def temporary_database_interface(
 
 
 def set_database_config(database_config: BaseDatabaseConfiguration):
-    """Set Orion database configuration."""
+    """Set Prefect REST API database configuration."""
     MODELS_DEPENDENCIES["database_config"] = database_config
 
 
 def set_query_components(query_components: BaseQueryComponents):
-    """Set Orion query components."""
+    """Set Prefect REST API query components."""
     MODELS_DEPENDENCIES["query_components"] = query_components
 
 
 def set_orm_config(orm_config: BaseORMConfiguration):
-    """Set Orion orm configuration."""
+    """Set Prefect REST API orm configuration."""
     MODELS_DEPENDENCIES["orm"] = orm_config
 
 
 def set_interface_class(interface_class: Type[PrefectDBInterface]):
-    """Set Orion interface class."""
+    """Set Prefect REST API interface class."""
     MODELS_DEPENDENCIES["interface_class"] = interface_class
