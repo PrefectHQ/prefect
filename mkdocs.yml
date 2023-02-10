@@ -209,7 +209,7 @@ nav:
                 - 'prefect.cli.root': api-ref/prefect/cli/root.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
                 - 'prefect.cli.flow_run': api-ref/prefect/cli/flow_run.md
-                - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
+                - 'prefect.cli.server': api-ref/prefect/cli/server.md
             - 'Utilities':
                 - 'prefect.utilities.annotations': api-ref/prefect/utilities/annotations.md
                 - 'prefect.utilities.asyncutils': api-ref/prefect/utilities/asyncutils.md
