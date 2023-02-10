@@ -35,7 +35,7 @@ site/
 
 # UI artifacts
 src/prefect/server/ui/*
-orion-ui/node_modules
+ui/node_modules
 
 # Databases
 *.db

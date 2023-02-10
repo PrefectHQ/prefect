@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/ui-tests.yml
-      - orion-ui/**
+      - ui/**
       - .nvmrc
   push:
     branches:
@@ -27,8 +27,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-orion-ui:
-    name: Build orion-ui
+  build-ui:
+    name: Build ui
     runs-on: ubuntu-latest
 
     steps:
@@ -39,10 +39,10 @@ jobs:
           node-version-file: '.nvmrc'
           cache-dependency-path: '**/package-lock.json'
 
-      - name: Install orion-ui dependencies
-        working-directory: ./orion-ui
+      - name: Install ui dependencies
+        working-directory: ./ui
         run: npm ci install
 
-      - name: Build orion-ui
-        working-directory: ./orion-ui
+      - name: Build ui
+        working-directory: ./ui
         run: npm run build
