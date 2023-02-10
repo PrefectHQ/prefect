@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas.states import StateType
@@ -24,7 +24,7 @@ from prefect.server.schemas.states import StateType
 async def create_work_queue(
     session: AsyncSession,
     work_queue: schemas.core.WorkQueue,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Inserts a WorkQueue.
@@ -81,7 +81,7 @@ async def create_work_queue(
 
 @inject_db
 async def read_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
 ):
     """
     Reads a WorkQueue by id.
@@ -99,7 +99,7 @@ async def read_work_queue(
 
 @inject_db
 async def read_work_queue_by_name(
-    session: AsyncSession, name: str, db: OrionDBInterface
+    session: AsyncSession, name: str, db: PrefectDBInterface
 ):
     """
     Reads a WorkQueue by id.
@@ -127,7 +127,7 @@ async def read_work_queue_by_name(
 
 @inject_db
 async def read_work_queues(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     session: AsyncSession,
     offset: int = None,
     limit: int = None,
@@ -163,7 +163,7 @@ async def update_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
     work_queue: schemas.actions.WorkQueueUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a WorkQueue by id.
@@ -192,7 +192,7 @@ async def update_work_queue(
 
 @inject_db
 async def delete_work_queue(
-    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a WorkQueue by id.
@@ -215,7 +215,7 @@ async def delete_work_queue(
 async def get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     limit: int = None,
     scheduled_before: datetime.datetime = None,
 ):
@@ -261,7 +261,7 @@ async def get_runs_in_work_queue(
 async def _legacy_get_runs_in_work_queue(
     session: AsyncSession,
     work_queue_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     scheduled_before: datetime.datetime = None,
     limit: int = None,
 ):
@@ -331,7 +331,7 @@ async def _legacy_get_runs_in_work_queue(
 
 @inject_db
 async def _ensure_work_queue_exists(
-    session: AsyncSession, name: str, db: OrionDBInterface
+    session: AsyncSession, name: str, db: PrefectDBInterface
 ):
     """
     Checks if a work queue exists and creates it if it does not.
@@ -371,7 +371,7 @@ async def _ensure_work_queue_exists(
 
 @inject_db
 async def read_work_queue_status(
-    session: AsyncSession, work_queue_id: UUID, db: OrionDBInterface
+    session: AsyncSession, work_queue_id: UUID, db: PrefectDBInterface
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get work queue status by id.

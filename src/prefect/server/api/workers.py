@@ -13,7 +13,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import OrionRouter
 
@@ -120,7 +120,7 @@ class WorkerLookups:
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPool:
     """
     Creates a new work pool. If a work pool with the same
@@ -151,7 +151,7 @@ async def create_work_pool(
 async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkPool:
     """
     Read a work pool by name
@@ -171,7 +171,7 @@ async def read_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkPool]:
     """
     Read multiple work pools
@@ -191,7 +191,7 @@ async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Update a work pool
@@ -224,7 +224,7 @@ async def update_work_pool(
 async def delete_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a work pool
@@ -261,7 +261,7 @@ async def get_scheduled_flow_runs(
     ),
     limit: int = dependencies.LimitBody(),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.WorkerFlowRunResponse]:
     """
     Load scheduled runs for a worker
@@ -305,7 +305,7 @@ async def get_scheduled_flow_runs(
 
 
 async def _record_work_queue_polls(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     work_pool_id: UUID,
     work_queue_names: List[str],
 ):
@@ -353,7 +353,7 @@ async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Creates a new work pool queue. If a work pool queue with the same
@@ -389,7 +389,7 @@ async def read_work_queue(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Read a work pool queue
@@ -414,7 +414,7 @@ async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Read all work pool queues
@@ -442,7 +442,7 @@ async def update_work_queue(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Update a work pool queue
@@ -472,7 +472,7 @@ async def delete_work_queue(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a work pool queue
@@ -507,7 +507,7 @@ async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
     name: str = Body(..., description="The worker process name", embed=True),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
@@ -529,7 +529,7 @@ async def read_workers(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.Worker]:
     """
     Read all worker processes

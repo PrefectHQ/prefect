@@ -12,7 +12,7 @@ import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import OrionRouter
 
@@ -22,7 +22,7 @@ router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Creates a new work queue.
@@ -49,7 +49,7 @@ async def create_work_queue(
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Updates an existing work queue.
@@ -67,7 +67,7 @@ async def update_work_queue(
 @router.get("/name/{name}")
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Get a work queue by id.
@@ -86,7 +86,7 @@ async def read_work_queue_by_name(
 @router.get("/{id}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueue:
     """
     Get a work queue by id.
@@ -119,7 +119,7 @@ async def read_work_queue_runs(
         default=False,
         description="A header to indicate this request came from the Prefect UI.",
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
@@ -146,7 +146,7 @@ async def read_work_queue_runs(
 
 
 async def _record_work_queue_polls(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     work_queue_id: UUID,
     agent_id: Optional[UUID] = None,
 ):
@@ -174,7 +174,7 @@ async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     work_queues: schemas.filters.WorkQueueFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Query for work queues.
@@ -188,7 +188,7 @@ async def read_work_queues(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a work queue by id.
@@ -206,7 +206,7 @@ async def delete_work_queue(
 @router.get("/{id}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get the status of a work queue.

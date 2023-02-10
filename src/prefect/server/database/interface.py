@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 import sqlalchemy as sa
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.server.database.alembic_commands import alembic_downgrade, alembic_upgrade
 from prefect.server.database.configurations import BaseDatabaseConfiguration
 from prefect.server.database.orm_models import BaseORMConfiguration
@@ -11,7 +12,7 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 class DBSingleton(type):
-    """Ensures that only one OrionDBInterface is created per unique key"""
+    """Ensures that only one database interface is created per unique key"""
 
     _instances = dict()
 
@@ -29,11 +30,11 @@ class DBSingleton(type):
         return cls._instances[unique_key]
 
 
-class OrionDBInterface(metaclass=DBSingleton):
+class PrefectDBInterface(metaclass=DBSingleton):
     """
     An interface for backend-specific SqlAlchemy actions and ORM models.
 
-    Orion can be configured to run against different databases in order maintain
+    The REST API can be configured to run against different databases in order maintain
     performance at different scales. This interface integrates database- and dialect-
     specific configuration into a unified interface that the orchestration engine runs
     against.
@@ -324,3 +325,10 @@ class OrionDBInterface(metaclass=DBSingleton):
     def clear_configuration_value_cache_for_key(self, key: str):
         """Removes a configuration key from the cache."""
         return self.queries.clear_configuration_value_cache_for_key(key=key)
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `PrefectDBInterface` instead.")
+class OrionDBInterface(PrefectDBInterface):
+    """
+    Deprecated. Use `PrefectDBInterface` instead.
+    """

@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import BlockSchema, BlockSchemaReference, BlockType
@@ -26,7 +26,7 @@ class MissingBlockTypeException(Exception):
 async def create_block_schema(
     session: sa.orm.Session,
     block_schema: schemas.actions.BlockSchemaCreate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     override: bool = False,
     definitions: Optional[Dict] = None,
 ):
@@ -254,7 +254,7 @@ def _get_fields_for_child_schema(
 
 @inject_db
 async def delete_block_schema(
-    session: sa.orm.Session, block_schema_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, block_schema_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a block schema by id.
@@ -277,7 +277,7 @@ async def delete_block_schema(
 async def read_block_schema(
     session: sa.orm.Session,
     block_schema_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Reads a block schema by id. Will reconstruct the block schema's fields attribute
@@ -558,7 +558,7 @@ def _construct_block_schema_fields_with_block_references(
 @inject_db
 async def read_block_schemas(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
@@ -674,7 +674,7 @@ async def read_block_schemas(
 async def read_block_schema_by_checksum(
     session: sa.orm.Session,
     checksum: str,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     version: Optional[str] = None,
 ) -> Optional[BlockSchema]:
     """
@@ -755,7 +755,7 @@ async def read_block_schema_by_checksum(
 
 @inject_db
 async def read_available_block_capabilities(
-    session: sa.orm.Session, db: OrionDBInterface
+    session: sa.orm.Session, db: PrefectDBInterface
 ) -> List[str]:
     """
     Retrieves a list of all available block capabilities.
@@ -779,7 +779,7 @@ async def read_available_block_capabilities(
 async def create_block_schema_reference(
     session: sa.orm.Session,
     block_schema_reference: schemas.core.BlockSchemaReference,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Retrieves a list of all available block capabilities.

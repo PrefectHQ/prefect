@@ -15,7 +15,7 @@ from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, json_has_any_key
 
 if TYPE_CHECKING:
-    from prefect.server.database.interface import OrionDBInterface
+    from prefect.server.database.interface import PrefectDBInterface
 
 ONE_HOUR = 60 * 60
 
@@ -95,7 +95,7 @@ class BaseQueryComponents(ABC):
 
     @abstractmethod
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
     ):
         """Database-specific implementation of reading notifications from the queue and deleting them"""
 
@@ -103,7 +103,7 @@ class BaseQueryComponents(ABC):
         self,
         session: sa.orm.session,
         flow_run: schemas.core.FlowRun,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
     ):
         """Database-specific implementation of queueing notifications for a flow run"""
         # insert a <policy, state> pair into the notification queue
@@ -147,7 +147,7 @@ class BaseQueryComponents(ABC):
 
     def get_scheduled_flow_runs_from_work_queues(
         self,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
         limit_per_queue: Optional[int] = None,
         work_queue_ids: Optional[List[UUID]] = None,
         scheduled_before: Optional[datetime.datetime] = None,
@@ -222,7 +222,7 @@ class BaseQueryComponents(ABC):
 
     def _get_scheduled_flow_runs_join(
         self,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
         work_queue_query,
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
@@ -280,7 +280,7 @@ class BaseQueryComponents(ABC):
     async def get_scheduled_flow_runs_from_work_pool(
         self,
         session,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
         limit: Optional[int] = None,
         worker_limit: Optional[int] = None,
         queue_limit: Optional[int] = None,
@@ -372,7 +372,7 @@ class BaseQueryComponents(ABC):
     async def read_block_documents(
         self,
         session: sa.orm.Session,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
         block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
         block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
         block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -492,7 +492,7 @@ class BaseQueryComponents(ABC):
         )
 
     async def read_configuration_value(
-        self, db: "OrionDBInterface", session: sa.orm.Session, key: str
+        self, db: "PrefectDBInterface", session: sa.orm.Session, key: str
     ) -> Optional[Dict]:
         """
         Read a configuration value by key.
@@ -595,7 +595,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
     ) -> List:
 
         # including this as a subquery in the where clause of the
@@ -782,7 +782,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         return stmt
 
     async def get_flow_run_notifications_from_queue(
-        self, session: AsyncSession, db: "OrionDBInterface", limit: int
+        self, session: AsyncSession, db: "PrefectDBInterface", limit: int
     ) -> List:
         """
         Sqlalchemy has no support for DELETE RETURNING in sqlite (as of May 2022)
@@ -865,7 +865,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def _get_scheduled_flow_runs_join(
         self,
-        db: "OrionDBInterface",
+        db: "PrefectDBInterface",
         work_queue_query,
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],

@@ -9,7 +9,7 @@ from fastapi import Body, Depends, HTTPException, Path, Query, status
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
@@ -18,7 +18,7 @@ router = OrionRouter(prefix="/block_documents", tags=["Block documents"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
     """
     Create a new block document.
@@ -53,7 +53,7 @@ async def read_block_documents(
         False, description="Whether to include sensitive values in the block document."
     ),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.BlockDocument]:
     """
     Query for block documents.
@@ -80,7 +80,7 @@ async def read_block_document_by_id(
     include_secrets: bool = Query(
         False, description="Whether to include sensitive values in the block document."
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
 
     async with db.session_context() as session:
@@ -99,7 +99,7 @@ async def delete_block_document(
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     async with db.session_context(begin_transaction=True) as session:
         result = await models.block_documents.delete_block_document(
@@ -117,7 +117,7 @@ async def update_block_document_data(
     block_document_id: UUID = Path(
         ..., description="The block document id", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     try:
         async with db.session_context(begin_transaction=True) as session:

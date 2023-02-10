@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import (
@@ -46,7 +46,7 @@ class MarkLateRuns(LoopService):
         self.batch_size = 400
 
     @inject_db
-    async def run_once(self, db: OrionDBInterface):
+    async def run_once(self, db: PrefectDBInterface):
         """
         Mark flow runs as late by:
 
@@ -79,7 +79,7 @@ class MarkLateRuns(LoopService):
 
     @inject_db
     def _get_select_late_flow_runs_query(
-        self, scheduled_to_start_before: datetime.datetime, db: OrionDBInterface
+        self, scheduled_to_start_before: datetime.datetime, db: PrefectDBInterface
     ):
         """
         Returns a sqlalchemy query for late flow runs.
@@ -105,7 +105,7 @@ class MarkLateRuns(LoopService):
         return query
 
     async def _mark_flow_run_as_late(
-        self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
     ) -> None:
         """
         Mark a flow run as late.
