@@ -204,7 +204,7 @@ async def api(
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
     server_env["PREFECT_ORION_SERVICES_UI"] = "False"
-    server_env["PREFECT_ORION_UI_API_URL"] = f"http://{host}:{port}/api"
+    server_env["PREFECT_PREFECT_UI_API_URL"] = f"http://{host}:{port}/api"
 
     command = [
         "uvicorn",

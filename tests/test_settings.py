@@ -24,7 +24,7 @@ from prefect.settings import (
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_DATABASE_CONNECTION_URL,
     PREFECT_ORION_DATABASE_PASSWORD,
-    PREFECT_ORION_UI_API_URL,
+    PREFECT_PREFECT_UI_API_URL,
     PREFECT_PROFILES_PATH,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
@@ -234,10 +234,10 @@ class TestSettingsClass:
         assert settings.dict() == new_settings.dict()
 
     def test_settings_to_environment_does_not_use_value_callback(self):
-        settings = Settings(PREFECT_ORION_UI_API_URL=None)
+        settings = Settings(PREFECT_PREFECT_UI_API_URL=None)
         # This would be cast to a non-null value if the value callback was used when
         # generating the environment variables
-        assert "PREFECT_ORION_UI_API_URL" not in settings.to_environment_variables()
+        assert "PREFECT_PREFECT_UI_API_URL" not in settings.to_environment_variables()
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -339,16 +339,16 @@ class TestSettingAccess:
 
     def test_ui_api_url_from_api_url(self):
         with temporary_settings({PREFECT_API_URL: "http://test/api"}):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
+            assert PREFECT_PREFECT_UI_API_URL.value() == "http://test/api"
 
     def test_ui_api_url_from_orion_host_and_port(self):
         with temporary_settings(
             {PREFECT_ORION_API_HOST: "test", PREFECT_ORION_API_PORT: "1111"}
         ):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test:1111/api"
+            assert PREFECT_PREFECT_UI_API_URL.value() == "http://test:1111/api"
 
     def test_ui_api_url_from_defaults(self):
-        assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
+        assert PREFECT_PREFECT_UI_API_URL.value() == "http://127.0.0.1:4200/api"
 
     def test_database_connection_url_templates_password(self):
         with temporary_settings(

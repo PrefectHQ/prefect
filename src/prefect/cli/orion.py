@@ -29,7 +29,7 @@ from prefect.settings import (
     PREFECT_ORION_API_PORT,
     PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
     PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
-    PREFECT_ORION_UI_ENABLED,
+    PREFECT_PREFECT_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import kill_on_interrupt, run_process
@@ -78,7 +78,7 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
 
     dashboard_disabled = textwrap.dedent(
         """
-        The dashboard is disabled. Set `PREFECT_ORION_UI_ENABLED=1` to reenable it.
+        The dashboard is disabled. Set `PREFECT_PREFECT_UI_ENABLED=1` to reenable it.
         """
     )
 
@@ -103,7 +103,7 @@ async def start(
         PREFECT_ORION_ANALYTICS_ENABLED, "--analytics-on/--analytics-off"
     ),
     late_runs: bool = SettingsOption(PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED),
-    ui: bool = SettingsOption(PREFECT_ORION_UI_ENABLED),
+    ui: bool = SettingsOption(PREFECT_PREFECT_UI_ENABLED),
 ):
     """Start an Orion server"""
 

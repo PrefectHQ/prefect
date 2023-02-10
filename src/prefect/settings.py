@@ -216,7 +216,7 @@ def only_return_value_in_test_mode(settings, value):
 
 def default_ui_api_url(settings, value):
     """
-    `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
+    `value_callback` for `PREFECT_PREFECT_UI_API_URL` that sets the default value to
     `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
     """
     if value is None:
@@ -911,13 +911,13 @@ Note this setting only applies when calling `prefect orion start`; if hosting th
 API with another tool you will need to configure this there instead.
 """
 
-PREFECT_ORION_UI_ENABLED = Setting(
+PREFECT_PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,
 )
 """Whether or not to serve the Orion UI."""
 
-PREFECT_ORION_UI_API_URL = Setting(
+PREFECT_PREFECT_UI_API_URL = Setting(
     str,
     default=None,
     value_callback=default_ui_api_url,

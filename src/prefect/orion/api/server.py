@@ -231,13 +231,13 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     @ui_app.get("/ui-settings")
     def ui_settings():
         return {
-            "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "api_url": prefect.settings.PREFECT_PREFECT_UI_API_URL.value(),
             "flags": enabled_experiments(),
         }
 
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and prefect.settings.PREFECT_PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
         ui_app.mount(
