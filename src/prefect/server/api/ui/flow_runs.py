@@ -9,7 +9,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import OrionRouter
 
@@ -47,7 +47,7 @@ async def read_flow_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[SimpleFlowRun]:
     columns = [
         db.FlowRun.id,

@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
     """
@@ -29,7 +29,7 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
 async def create_flow_run_notification_policy(
     session: sa.orm.Session,
     flow_run_notification_policy: schemas.core.FlowRunNotificationPolicy,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Creates a FlowRunNotificationPolicy.
@@ -53,7 +53,7 @@ async def create_flow_run_notification_policy(
 async def read_flow_run_notification_policy(
     session: sa.orm.Session,
     flow_run_notification_policy_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Reads a FlowRunNotificationPolicy by id.
@@ -73,7 +73,7 @@ async def read_flow_run_notification_policy(
 
 @inject_db
 async def read_flow_run_notification_policies(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     session: sa.orm.Session,
     flow_run_notification_policy_filter: schemas.filters.FlowRunNotificationPolicyFilter = None,
     offset: int = None,
@@ -112,7 +112,7 @@ async def update_flow_run_notification_policy(
     session: sa.orm.Session,
     flow_run_notification_policy_id: UUID,
     flow_run_notification_policy: schemas.actions.FlowRunNotificationPolicyUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a FlowRunNotificationPolicy by id.
@@ -140,7 +140,9 @@ async def update_flow_run_notification_policy(
 
 @inject_db
 async def delete_flow_run_notification_policy(
-    session: sa.orm.Session, flow_run_notification_policy_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session,
+    flow_run_notification_policy_id: UUID,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Delete a FlowRunNotificationPolicy by id.
@@ -165,7 +167,7 @@ async def delete_flow_run_notification_policy(
 async def queue_flow_run_notifications(
     session: sa.orm.session,
     flow_run: schemas.core.FlowRun,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     await db.queries.queue_flow_run_notifications(
         session=session, flow_run=flow_run, db=db

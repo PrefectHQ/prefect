@@ -4,13 +4,13 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas.core import Artifact
 
 
 @inject_db
 async def create_artifact(
-    session: sa.orm.Session, artifact: Artifact, db: OrionDBInterface, key: str = None
+    session: sa.orm.Session, artifact: Artifact, db: PrefectDBInterface, key: str = None
 ):
     now = pendulum.now("UTC")
     artifact_id = artifact.id
@@ -38,7 +38,7 @@ async def create_artifact(
 async def read_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Reads an artifact by id.

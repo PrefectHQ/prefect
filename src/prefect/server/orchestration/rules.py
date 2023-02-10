@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import OrchestrationError
 from prefect.server.models import artifacts, flow_runs
 from prefect.server.schemas import core, states
@@ -217,7 +217,7 @@ class FlowOrchestrationContext(OrchestrationContext):
     @inject_db
     async def validate_proposed_state(
         self,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ):
         """
         Validates a proposed state by committing it to the database.
@@ -246,7 +246,7 @@ class FlowOrchestrationContext(OrchestrationContext):
     @inject_db
     async def _validate_proposed_state(
         self,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
@@ -352,7 +352,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     @inject_db
     async def validate_proposed_state(
         self,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ):
         """
         Validates a proposed state by committing it to the database.
@@ -381,7 +381,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     @inject_db
     async def _validate_proposed_state(
         self,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state

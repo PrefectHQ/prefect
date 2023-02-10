@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.models as models
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMBlockDocument
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument, BlockDocumentReference
@@ -27,7 +27,7 @@ from prefect.utilities.names import obfuscate
 async def create_block_document(
     session: AsyncSession,
     block_document: schemas.actions.BlockDocumentCreate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
 
     # anonymous block documents can be given a random name if none is provided
@@ -76,7 +76,7 @@ async def create_block_document(
 
 @inject_db
 async def block_document_with_unique_values_exists(
-    session: AsyncSession, block_type_id: UUID, name: str, db: OrionDBInterface
+    session: AsyncSession, block_type_id: UUID, name: str, db: PrefectDBInterface
 ) -> bool:
     result = await session.execute(
         sa.select(sa.exists(db.BlockDocument)).where(
@@ -127,7 +127,7 @@ def _separate_block_references_from_data(
 async def read_block_document_by_id(
     session: AsyncSession,
     block_document_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     include_secrets: bool = False,
 ):
 
@@ -232,7 +232,7 @@ async def read_block_document_by_name(
     session: AsyncSession,
     name: str,
     block_type_slug: str,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     include_secrets: bool = False,
 ):
     """
@@ -258,7 +258,7 @@ async def read_block_document_by_name(
 @inject_db
 async def read_block_documents(
     session: AsyncSession,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     block_document_filter: Optional[schemas.filters.BlockDocumentFilter] = None,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
@@ -410,7 +410,7 @@ async def read_block_documents(
 async def delete_block_document(
     session: AsyncSession,
     block_document_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
 
     query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
@@ -423,7 +423,7 @@ async def update_block_document(
     session: AsyncSession,
     block_document_id: UUID,
     block_document: schemas.actions.BlockDocumentUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
 
     merge_existing_data = block_document.merge_existing_data
@@ -576,7 +576,7 @@ def _find_block_document_reference(
 async def create_block_document_reference(
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     insert_stmt = (await db.insert(db.BlockDocumentReference)).values(
         **block_document_reference.dict(
@@ -598,7 +598,7 @@ async def create_block_document_reference(
 async def delete_block_document_reference(
     session: AsyncSession,
     block_document_reference_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     query = sa.delete(db.BlockDocumentReference).where(
         db.BlockDocumentReference.id == block_document_reference_id

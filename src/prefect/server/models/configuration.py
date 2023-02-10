@@ -4,14 +4,14 @@ import sqlalchemy as sa
 
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @inject_db
 async def write_configuration(
     session: sa.orm.Session,
     configuration: schemas.core.Configuration,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     # first see if the key already exists
     query = sa.select(db.Configuration).where(db.Configuration.key == configuration.key)
@@ -38,7 +38,7 @@ async def write_configuration(
 async def read_configuration(
     session: sa.orm.Session,
     key: str,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> Optional[schemas.core.Configuration]:
     value = await db.read_configuration_value(session=session, key=key)
     return (

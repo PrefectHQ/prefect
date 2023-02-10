@@ -16,7 +16,7 @@ import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.flow_runs import DependencyResult
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
@@ -32,7 +32,7 @@ router = OrionRouter(prefix="/flow_runs", tags=["Flow Runs"])
 @router.post("/")
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
     orchestration_parameters: dict = Depends(
         orchestration_dependencies.provide_flow_orchestration_parameters
@@ -72,7 +72,7 @@ async def create_flow_run(
 async def update_flow_run(
     flow_run: schemas.actions.FlowRunUpdate,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Updates a flow run.
@@ -93,7 +93,7 @@ async def count_flow_runs(
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
     work_pool_queues: schemas.filters.WorkQueueFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> int:
     """
     Query for flow runs.
@@ -125,7 +125,7 @@ async def flow_run_history(
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
     work_queues: schemas.filters.WorkQueueFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Query for flow run history data across a given range and interval.
@@ -155,7 +155,7 @@ async def flow_run_history(
 @router.get("/{id}")
 async def read_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.responses.FlowRunResponse:
     """
     Get a flow run by id.
@@ -172,7 +172,7 @@ async def read_flow_run(
 @router.get("/{id}/graph")
 async def read_flow_run_graph(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[DependencyResult]:
     """
     Get a task run dependency map for a given flow run.
@@ -186,7 +186,7 @@ async def read_flow_run_graph(
 @router.post("/{id}/resume")
 async def resume_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy
@@ -256,7 +256,7 @@ async def read_flow_runs(
     deployments: schemas.filters.DeploymentFilter = None,
     work_pools: schemas.filters.WorkPoolFilter = None,
     work_pool_queues: schemas.filters.WorkQueueFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
     Query for flow runs.
@@ -289,7 +289,7 @@ async def read_flow_runs(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a flow run by id.
@@ -315,7 +315,7 @@ async def set_flow_run_state(
             "or prevent the state transition. If True, orchestration rules are not applied."
         ),
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
     flow_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_flow_policy

@@ -6,7 +6,7 @@ from fastapi import Body, Depends, Response, status
 import prefect
 import prefect.settings
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/admin", tags=["Admin"])
@@ -30,7 +30,7 @@ async def read_version() -> str:
 
 @router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_database(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,
@@ -51,7 +51,7 @@ async def clear_database(
 
 @router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)
 async def drop_database(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,
@@ -69,7 +69,7 @@ async def drop_database(
 
 @router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
 async def create_database(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,

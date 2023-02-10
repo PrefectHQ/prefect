@@ -11,7 +11,7 @@ from prefect.server.database.configurations import (
     BaseDatabaseConfiguration,
 )
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
@@ -195,7 +195,7 @@ async def test_inject_db(db):
 
 
 async def test_inject_interface_class():
-    class TestInterface(OrionDBInterface):
+    class TestInterface(PrefectDBInterface):
         @property
         def new_property(self):
             return 42

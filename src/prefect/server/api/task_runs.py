@@ -14,7 +14,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.api.run_history import run_history
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.schemas.responses import OrchestrationResult
@@ -28,7 +28,7 @@ router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     orchestration_parameters: dict = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
@@ -64,7 +64,7 @@ async def create_task_run(
 async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Updates a task run.
@@ -79,7 +79,7 @@ async def update_task_run(
 
 @router.post("/count")
 async def count_task_runs(
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -111,7 +111,7 @@ async def task_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Query for task run history data across a given range and interval.
@@ -139,7 +139,7 @@ async def task_run_history(
 @router.get("/{id}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.TaskRun:
     """
     Get a task run by id.
@@ -162,7 +162,7 @@ async def read_task_runs(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """
     Query for task runs.
@@ -183,7 +183,7 @@ async def read_task_runs(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ):
     """
     Delete a task run by id.
@@ -207,7 +207,7 @@ async def set_task_run_state(
             "or prevent the state transition. If True, orchestration rules are not applied."
         ),
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,
     task_policy: BaseOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy

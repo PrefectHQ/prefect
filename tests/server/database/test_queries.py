@@ -4,7 +4,7 @@ import sqlalchemy as sa
 
 import prefect
 from prefect.server import models, schemas
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 class TestGetRunsInQueueQuery:
@@ -357,7 +357,7 @@ class TestGetRunsFromWorkQueueQuery:
         return setup["work_queues"]
 
     async def test_get_all_runs(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db
@@ -369,7 +369,7 @@ class TestGetRunsFromWorkQueueQuery:
 
     @pytest.mark.parametrize("limit", [100, 10, 0])
     async def test_get_all_runs_with_limit(
-        self, session, db: OrionDBInterface, work_pools, work_queues, limit
+        self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         all_runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db
@@ -385,7 +385,7 @@ class TestGetRunsFromWorkQueueQuery:
         ]
 
     async def test_get_wc_a_runs(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, work_pool_ids=[work_pools["wp_a"].id]
@@ -393,7 +393,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 15
 
     async def test_get_wc_a_b_and_c_runs(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -407,7 +407,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 45
 
     async def test_get_wq_aa_runs(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -418,7 +418,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert all(r.work_queue_id == work_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_with_all_wc_also_provided(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -434,7 +434,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert all(r.work_queue_id == work_queues["wq_aa"].id for r in runs)
 
     async def test_get_wq_aa_runs_when_queue_is_paused(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         assert await models.workers.update_work_queue(
             session=session,
@@ -449,7 +449,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert len(runs) == 0
 
     async def test_get_wq_aa_runs_when_worker_is_paused(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         assert await models.workers.update_work_pool(
             session=session,
@@ -467,7 +467,7 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_get_wq_aa_runs_when_queue_has_concurrency(
         self,
         session,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
         work_pools,
         work_queues,
         concurrency_limit,
@@ -494,7 +494,7 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_get_wq_aa_runs_when_worker_has_concurrency(
         self,
         session,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
         work_pools,
         work_queues,
         concurrency_limit,
@@ -520,7 +520,7 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_get_wc_a_runs_when_worker_has_concurrency(
         self,
         session,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
         work_pools,
         work_queues,
         concurrency_limit,
@@ -542,7 +542,7 @@ class TestGetRunsFromWorkQueueQuery:
 
     @pytest.mark.parametrize("limit", [100, 7, 0])
     async def test_worker_limit(
-        self, session, db: OrionDBInterface, work_pools, work_queues, limit
+        self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, worker_limit=limit
@@ -552,7 +552,7 @@ class TestGetRunsFromWorkQueueQuery:
             assert sum(1 for r in runs if r.work_pool_id == wc.id) == min(15, limit)
 
     async def test_worker_limit_with_pause(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         assert await models.workers.update_work_pool(
             session=session,
@@ -571,7 +571,7 @@ class TestGetRunsFromWorkQueueQuery:
 
     @pytest.mark.parametrize("limit", [100, 3, 0])
     async def test_queue_limit(
-        self, session, db: OrionDBInterface, work_pools, work_queues, limit
+        self, session, db: PrefectDBInterface, work_pools, work_queues, limit
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session, db=db, queue_limit=limit
@@ -581,7 +581,7 @@ class TestGetRunsFromWorkQueueQuery:
             assert sum(1 for r in runs if r.work_queue_id == wq.id) == min(5, limit)
 
     async def test_queue_limit_with_pause(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         assert await models.workers.update_work_queue(
             session=session,
@@ -599,7 +599,7 @@ class TestGetRunsFromWorkQueueQuery:
     async def test_runs_are_returned_from_queues_ignoring_priority(
         self,
         session,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
         work_pools,
         work_queues,
         respect_priorities,
@@ -627,7 +627,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) == runs
 
     async def test_runs_are_returned_from_queues_according_to_priority(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         wq_aa, wq_ab, wq_ac = (
             work_queues["wq_aa"],
@@ -655,7 +655,7 @@ class TestGetRunsFromWorkQueueQuery:
         assert sorted(runs, key=lambda r: r.flow_run.next_scheduled_start_time) != runs
 
     async def test_runs_are_returned_from_queues_according_to_priority_across_multiple_pools(
-        self, session, db: OrionDBInterface, work_pools, work_queues
+        self, session, db: PrefectDBInterface, work_pools, work_queues
     ):
         wq_aa, wq_ab, wq_ac, wq_ba, wq_bb, wq_bc = (
             work_queues["wq_aa"],
@@ -735,7 +735,7 @@ class TestGetRunsFromWorkQueueQuery:
         "hours,expected", [(100, 45), (3, 45), (1, 27), (-1, 9), (-10, 0)]
     )
     async def test_scheduled_before(
-        self, session, db: OrionDBInterface, hours, expected
+        self, session, db: PrefectDBInterface, hours, expected
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -748,7 +748,7 @@ class TestGetRunsFromWorkQueueQuery:
         "hours,expected", [(-100, 45), (-3, 45), (0, 27), (2, 9), (10, 0)]
     )
     async def test_scheduled_after(
-        self, session, db: OrionDBInterface, hours, expected
+        self, session, db: PrefectDBInterface, hours, expected
     ):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
@@ -757,7 +757,7 @@ class TestGetRunsFromWorkQueueQuery:
         )
         assert len(runs) == expected
 
-    async def test_scheduled_before_and_after(self, session, db: OrionDBInterface):
+    async def test_scheduled_before_and_after(self, session, db: PrefectDBInterface):
         runs = await db.queries.get_scheduled_flow_runs_from_work_pool(
             session=session,
             db=db,

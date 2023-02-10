@@ -11,7 +11,7 @@ from prefect.server.database.configurations import (
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
@@ -33,7 +33,7 @@ MODELS_DEPENDENCIES = {
 }
 
 
-def provide_database_interface() -> OrionDBInterface:
+def provide_database_interface() -> PrefectDBInterface:
     """
     Get the current Orion database interface.
 
@@ -86,7 +86,7 @@ def provide_database_interface() -> OrionDBInterface:
         MODELS_DEPENDENCIES["orm"] = orm
 
     if interface_class is None:
-        interface_class = OrionDBInterface
+        interface_class = PrefectDBInterface
 
     return interface_class(
         database_config=database_config,
@@ -185,7 +185,7 @@ def temporary_orm_config(tmp_orm_config: BaseORMConfiguration):
 
 
 @contextmanager
-def temporary_interface_class(tmp_interface_class: Type[OrionDBInterface]):
+def temporary_interface_class(tmp_interface_class: Type[PrefectDBInterface]):
     """
     Temporarily override the Orion interface class When the context is closed,
     the existing interface will be restored.
@@ -207,7 +207,7 @@ def temporary_database_interface(
     tmp_database_config: BaseDatabaseConfiguration = None,
     tmp_queries: BaseQueryComponents = None,
     tmp_orm_config: BaseORMConfiguration = None,
-    tmp_interface_class: Type[OrionDBInterface] = None,
+    tmp_interface_class: Type[PrefectDBInterface] = None,
 ):
     """
     Temporarily override the Orion database interface.
@@ -253,6 +253,6 @@ def set_orm_config(orm_config: BaseORMConfiguration):
     MODELS_DEPENDENCIES["orm"] = orm_config
 
 
-def set_interface_class(interface_class: Type[OrionDBInterface]):
+def set_interface_class(interface_class: Type[PrefectDBInterface]):
     """Set Orion interface class."""
     MODELS_DEPENDENCIES["interface_class"] = interface_class

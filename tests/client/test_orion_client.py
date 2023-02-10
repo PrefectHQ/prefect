@@ -535,7 +535,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
         app = create_app(ephemeral=True, ignore_cache=True)
         mock = AsyncMock()
         monkeypatch.setattr(
-            "prefect.server.database.interface.OrionDBInterface.create_db", mock
+            "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
         async with OrionClient(app):
             if enabled:
@@ -551,7 +551,7 @@ async def test_client_does_not_run_migrations_for_hosted_app(
     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
-            "prefect.server.database.interface.OrionDBInterface.create_db", mock
+            "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
         async with OrionClient(hosted_orion_api):
             pass

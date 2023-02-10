@@ -9,7 +9,7 @@ from fastapi import Body, Depends, HTTPException, Path, Query, Response, status
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_schemas import MissingBlockTypeException
 from prefect.server.utilities.server import OrionRouter
 
@@ -20,7 +20,7 @@ router = OrionRouter(prefix="/block_schemas", tags=["Block schemas"])
 async def create_block_schema(
     block_schema: schemas.actions.BlockSchemaCreate,
     response: Response,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
     from prefect.blocks.core import Block
 
@@ -59,7 +59,7 @@ async def create_block_schema(
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_block_schema(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     api_version=Depends(dependencies.provide_request_api_version),
 ):
     """
@@ -90,7 +90,7 @@ async def read_block_schemas(
     block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[schemas.core.BlockSchema]:
     """
     Read all block schemas, optionally filtered by type
@@ -108,7 +108,7 @@ async def read_block_schemas(
 @router.get("/{id}")
 async def read_block_schema_by_id(
     block_schema_id: UUID = Path(..., description="The block schema id", alias="id"),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockSchema:
     """
     Get a block schema by id.
@@ -127,7 +127,7 @@ async def read_block_schema_by_checksum(
     block_schema_checksum: str = Path(
         ..., description="The block schema checksum", alias="checksum"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
     version: Optional[str] = Query(
         None,
         description="Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned.",

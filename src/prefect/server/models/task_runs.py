@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import MinimalTaskPolicy
 from prefect.server.orchestration.global_policy import GlobalTaskPolicy
@@ -27,7 +27,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 async def create_task_run(
     session: sa.orm.Session,
     task_run: schemas.core.TaskRun,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     orchestration_parameters: dict = None,
 ):
     """
@@ -93,7 +93,7 @@ async def update_task_run(
     session: AsyncSession,
     task_run_id: UUID,
     task_run: schemas.actions.TaskRunUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Updates a task run.
@@ -118,7 +118,7 @@ async def update_task_run(
 
 @inject_db
 async def read_task_run(
-    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
 ):
     """
     Read a task run by id.
@@ -138,7 +138,7 @@ async def read_task_run(
 @inject_db
 async def _apply_task_run_filters(
     query,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -200,7 +200,7 @@ async def _apply_task_run_filters(
 @inject_db
 async def read_task_runs(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -250,7 +250,7 @@ async def read_task_runs(
 @inject_db
 async def count_task_runs(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -286,7 +286,7 @@ async def count_task_runs(
 
 @inject_db
 async def delete_task_run(
-    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, task_run_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a task run by id.

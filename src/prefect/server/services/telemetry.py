@@ -12,7 +12,7 @@ import pendulum
 
 import prefect
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models import configuration
 from prefect.server.schemas.core import Configuration
 from prefect.server.services.loop_service import LoopService
@@ -34,7 +34,7 @@ class Telemetry(LoopService):
         )
 
     @inject_db
-    async def _fetch_or_set_telemetry_session(self, db: OrionDBInterface):
+    async def _fetch_or_set_telemetry_session(self, db: PrefectDBInterface):
         """
         This method looks for a telemetry session in the configuration table. If there
         isn't one, it sets one. It then sets `self.session_id` and
