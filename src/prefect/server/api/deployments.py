@@ -19,9 +19,9 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/deployments", tags=["Deployments"])
+router = PrefectRouter(prefix="/deployments", tags=["Deployments"])
 
 
 @router.post("/")

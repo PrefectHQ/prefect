@@ -11,9 +11,9 @@ from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.models.block_schemas import MissingBlockTypeException
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/block_schemas", tags=["Block schemas"])
+router = PrefectRouter(prefix="/block_schemas", tags=["Block schemas"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
