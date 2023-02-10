@@ -260,7 +260,7 @@ def only_return_value_in_test_mode(settings, value):
 
 def default_ui_api_url(settings, value):
     """
-    `value_callback` for `PREFECT_ORION_UI_API_URL` that sets the default value to
+    `value_callback` for `PREFECT_UI_API_URL` that sets the default value to
     `PREFECT_API_URL` if set otherwise it constructs an API URL from the API settings.
     """
     if value is None:
@@ -268,10 +268,10 @@ def default_ui_api_url(settings, value):
         if PREFECT_API_URL.value_from(settings):
             value = "${PREFECT_API_URL}"
         else:
-            value = "http://${PREFECT_ORION_API_HOST}:${PREFECT_ORION_API_PORT}/api"
+            value = "http://${PREFECT_SERVER_API_HOST}:${PREFECT_SERVER_API_PORT}/api"
 
     return template_with_settings(
-        PREFECT_ORION_API_HOST, PREFECT_ORION_API_PORT, PREFECT_API_URL
+        PREFECT_SERVER_API_HOST, PREFECT_SERVER_API_PORT, PREFECT_API_URL
     )(settings, value)
 
 
@@ -313,18 +313,18 @@ def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
     """
-    value = values["PREFECT_ORION_DATABASE_PASSWORD"]
+    value = values["PREFECT_API_DATABASE_PASSWORD"]
     if (
         value
         and not value.startswith(OBFUSCATED_PREFIX)
         and (
-            "PREFECT_ORION_DATABASE_PASSWORD"
-            not in values["PREFECT_ORION_DATABASE_CONNECTION_URL"]
+            "PREFECT_API_DATABASE_PASSWORD"
+            not in values["PREFECT_API_DATABASE_CONNECTION_URL"]
         )
     ):
         warnings.warn(
-            "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
-            "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+            "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+            "PREFECT_API_DATABASE_CONNECTION_URL. "
             "The provided password will be ignored."
         )
     return values
@@ -1184,9 +1184,7 @@ Deprecated. Use `PREFECT_API_DATABASE_PASSWORD` instead.
 PREFECT_ORION_DATABASE_CONNECTION_URL = Setting(
     Optional[str],
     default=None,
-    value_callback=template_with_settings(
-        PREFECT_HOME, PREFECT_ORION_DATABASE_PASSWORD
-    ),
+    value_callback=template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD),
     is_secret=True,
     deprecated=True,
     deprecated_start_date="Feb 2023",
@@ -1654,6 +1652,8 @@ class Settings(SettingsFieldsMixin):
                 setting.name: obfuscate(self.value_of(setting))
                 for setting in SETTING_VARIABLES.values()
                 if setting.is_secret
+                # Exclude deprecated settings with null values to avoid warnings
+                and not (setting.deprecated and self.value_of(setting) is None)
             }
         )
         # Ensure that settings that have not been marked as "set" before are still so

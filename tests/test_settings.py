@@ -281,16 +281,15 @@ class TestSettingsClass:
         assert settings == original
         assert original != obfuscated
         for setting in SETTING_VARIABLES.values():
+            if setting.deprecated:
+                continue
+
             if setting.is_secret:
                 assert obfuscated.value_of(setting) == obfuscate(
                     original.value_of(setting)
                 )
             else:
-                # Bypass callbacks to avoid warnings on deprecated settings
-                # TODO: Add a deprecated flag to settings so we can handle this better
-                assert obfuscated.value_of(
-                    setting, bypass_callback=True
-                ) == original.value_of(setting, bypass_callback=True)
+                assert obfuscated.value_of(setting) == original.value_of(setting)
 
 
 class TestSettingAccess:
