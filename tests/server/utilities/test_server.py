@@ -8,7 +8,7 @@ import pytest
 from fastapi import Depends, FastAPI, HTTPException, Path, Request, status
 from fastapi.testclient import TestClient
 
-from prefect.server.utilities.server import OrionRouter, response_scoped_dependency
+from prefect.server.utilities.server import PrefectRouter, response_scoped_dependency
 
 
 def test_response_scoped_dependency_is_resolved():
@@ -17,7 +17,7 @@ def test_response_scoped_dependency_is_resolved():
         yield "test"
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(test=Depends(test)):
@@ -40,7 +40,7 @@ def test_response_scoped_dependency_can_have_dependencies():
         yield "test", bar
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(test=Depends(test)):
@@ -60,7 +60,7 @@ def test_response_scoped_dependency_can_have_request_dependency():
         yield request.path_params
 
     app = FastAPI(name="test")
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/{param}")
     async def read_flow_run(param: str = Path(...), test=Depends(test)):
@@ -95,7 +95,7 @@ async def test_response_scoped_dependency_is_closed_before_request_scoped():
         return request_scoped
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(
@@ -129,7 +129,7 @@ async def test_response_scoped_dependency_is_closed_before_response_is_returned(
         order.append("request exit")
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(
@@ -172,7 +172,7 @@ def test_response_scoped_dependency_can_raise_after_yield():
         raise HTTPException(status_code=202)
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(
@@ -195,7 +195,7 @@ def test_request_scoped_dependency_cannot_raise_after_yield():
         raise HTTPException(status_code=202)
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(
@@ -227,7 +227,7 @@ def test_response_scoped_dependency_is_overridable():
         yield "test"
 
     app = FastAPI()
-    router = OrionRouter()
+    router = PrefectRouter()
 
     @router.get("/")
     def foo(test=Depends(test)):
@@ -249,7 +249,7 @@ class TestParsing:
     @pytest.fixture
     def client(self):
         app = FastAPI()
-        router = OrionRouter()
+        router = PrefectRouter()
 
         @router.get("/{x}")
         def echo(x: str):

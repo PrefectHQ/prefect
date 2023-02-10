@@ -15,9 +15,9 @@ import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(
+router = PrefectRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
 )

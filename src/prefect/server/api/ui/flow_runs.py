@@ -11,11 +11,11 @@ from prefect.server import models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
 logger = get_logger("orion.api.ui.flow_runs")
 
-router = OrionRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
+router = PrefectRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 
 
 class SimpleFlowRun(PrefectBaseModel):
