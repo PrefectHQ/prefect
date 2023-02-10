@@ -7,4 +7,4 @@ tags:
     - database
 ---
 
-::: prefect.cli.orion
+::: prefect.cli.server
