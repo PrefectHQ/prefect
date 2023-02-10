@@ -29,10 +29,10 @@ from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.hashing import hash_objects
 
@@ -231,13 +231,13 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     @ui_app.get("/ui-settings")
     def ui_settings():
         return {
-            "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "flags": enabled_experiments(),
         }
 
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
         ui_app.mount(
@@ -274,7 +274,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         current_blocks_loading_hash = hash_objects(
             blocks_registry,
             collection_blocks_data,
-            PREFECT_ORION_DATABASE_CONNECTION_URL.value(),
+            PREFECT_API_DATABASE_CONNECTION_URL.value(),
             hash_algo=sha256,
         )
 
@@ -346,7 +346,7 @@ def create_app(
     #       another dedicated location
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
-        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
+        if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
             from prefect.server.database.dependencies import provide_database_interface
 
             db = provide_database_interface()
@@ -355,7 +355,7 @@ def create_app(
     @_memoize_block_auto_registration
     async def add_block_types():
         """Add all registered blocks to the database"""
-        if not prefect.settings.PREFECT_ORION_BLOCKS_REGISTER_ON_START:
+        if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
             return
 
         from prefect.server.database.dependencies import provide_database_interface
@@ -379,27 +379,25 @@ def create_app(
 
         service_instances = []
 
-        if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
             service_instances.append(services.pause_expirations.FailExpiredPauses())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
             service_instances.append(
                 services.cancellation_cleanup.CancellationCleanup()
             )
 
-        if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
+        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
-        if (
-            prefect.settings.PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value()
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )

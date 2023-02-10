@@ -5,7 +5,7 @@ import pytest
 
 import prefect
 import prefect.cli.server
-from prefect.settings import PREFECT_ORION_API_KEEPALIVE_TIMEOUT, temporary_settings
+from prefect.settings import PREFECT_SERVER_API_KEEPALIVE_TIMEOUT, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
 
@@ -50,7 +50,7 @@ def test_start_no_options(mock_run_process: AsyncMock, command_group: str):
 
 
 def test_start_with_keep_alive_from_setting(mock_run_process: AsyncMock):
-    with temporary_settings({PREFECT_ORION_API_KEEPALIVE_TIMEOUT: 100}):
+    with temporary_settings({PREFECT_SERVER_API_KEEPALIVE_TIMEOUT: 100}):
         invoke_and_assert(["server", "start"])
 
     mock_run_process.assert_awaited_once()

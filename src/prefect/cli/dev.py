@@ -27,8 +27,8 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
-    PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_PORT,
+    PREFECT_SERVER_API_HOST,
+    PREFECT_SERVER_API_PORT,
 )
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
@@ -193,8 +193,8 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption(PREFECT_ORION_API_HOST),
-    port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
+    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -204,9 +204,9 @@ async def api(
     import watchfiles
 
     server_env = os.environ.copy()
-    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
-    server_env["PREFECT_ORION_SERVICES_UI"] = "False"
-    server_env["PREFECT_ORION_UI_API_URL"] = f"http://{host}:{port}/api"
+    server_env["PREFECT_API_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_API_SERVICES_UI"] = "False"
+    server_env["PREFECT_UI_API_URL"] = f"http://{host}:{port}/api"
 
     command = [
         "uvicorn",
@@ -310,8 +310,8 @@ async def start(
             tg.start_soon(
                 partial(
                     api,
-                    host=PREFECT_ORION_API_HOST.value(),
-                    port=PREFECT_ORION_API_PORT.value(),
+                    host=PREFECT_SERVER_API_HOST.value(),
+                    port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
@@ -319,7 +319,7 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"  # noqa
+                host = f"http://{PREFECT_SERVER_API_HOST.value()}:{PREFECT_SERVER_API_PORT.value()}/api"  # noqa
             else:
                 host = PREFECT_API_URL.value()
             tg.start_soon(agent, host, work_queues)

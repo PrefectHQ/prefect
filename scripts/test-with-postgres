@@ -4,4 +4,4 @@ docker compose down -v
 docker compose up -d test-db
 
 DB_URL=postgresql+asyncpg://prefect:prefect@localhost:15432/orion
-PREFECT_ORION_DATABASE_CONNECTION_URL=$DB_URL pytest --exclude-services $@
+PREFECT_API_DATABASE_CONNECTION_URL=$DB_URL pytest --exclude-services $@

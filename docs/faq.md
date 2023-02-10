@@ -97,7 +97,7 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect server start` and does not require Docker.
 
-Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Prefect server, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
+Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Prefect server, users must provide the [connection string][prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 
