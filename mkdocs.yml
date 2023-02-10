@@ -194,7 +194,7 @@ nav:
             - 'Client':
                 - 'prefect.client.base': api-ref/prefect/client/base.md
                 - 'prefect.client.cloud': api-ref/prefect/client/cloud.md
-                - 'prefect.client.orion': api-ref/prefect/client/orion.md
+                - 'prefect.client.orchestration': api-ref/prefect/client/orchestration.md
                 - 'prefect.client.schemas': api-ref/prefect/client/schemas.md
                 - 'prefect.client.utilities': api-ref/prefect/client/utilities.md
             - 'Command Line Interface':

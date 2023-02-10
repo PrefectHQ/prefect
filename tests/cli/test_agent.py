@@ -1,7 +1,7 @@
 from unittest.mock import ANY
 
 import prefect.cli.agent
-from prefect import OrionClient
+from prefect import PrefectClient
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
@@ -24,7 +24,7 @@ def test_start_agent_run_once():
     )
 
 
-async def test_start_agent_creates_work_queue(orion_client: OrionClient):
+async def test_start_agent_creates_work_queue(orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["agent", "start", "--run-once", "-q", "test"],
