@@ -47,7 +47,7 @@ Configuration parameters you can specify when starting an agent include:
 | -q, --work-queue     | One or more work queue names for the agent to pull from. [default: None]                                                                                 |
 | -m, --match | Dynamically matches work queue names with the specified prefix for the agent to pull from,for example `dev-` will match all work queues with a name that starts with `dev-`[default: None]                 |   
 | --limit         | Maximum number of flow runs to start simultaneously. [default: None]                 |   
-| --api           | The API URL for the Prefect Orion server. Default is the value of `PREFECT_API_URL`.                                                       |
+| --api           | The API URL for the Prefect server. Default is the value of `PREFECT_API_URL`.                                                       |
 | --run-once           | Only run agent polling once. By default, the agent runs forever. [default: no-run-once]                                                                          |
 | <span class="no-wrap">--prefetch-seconds</span>   | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
 | --hide-welcome       | Do not display the startup ASCII art for the agent process.                                                                                |               
@@ -60,7 +60,7 @@ You must start an agent within an environment that can access or create the infr
 !!! tip "`PREFECT_API_URL` setting for agents"
     `PREFECT_API_URL` must be set for the environment in which your agent is running or specified when starting the agent with the `--api` flag. 
 
-    If you want an agent to communicate with Prefect Cloud or a Prefect Orion API server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
+    If you want an agent to communicate with Prefect Cloud or a Prefect server from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 
 ### Starting an agent
 
