@@ -181,9 +181,9 @@ async def ui():
     """
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
+        with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
+            subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
 
             app.console.print("Starting UI development server...")
             await run_process(command=["npm", "run", "serve"], stream_output=True)
