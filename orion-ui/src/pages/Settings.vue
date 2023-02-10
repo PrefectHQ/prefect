@@ -16,7 +16,7 @@
       <ColorModeSelect v-model:selected="activeColorMode" />
     </p-label>
 
-    <p-label label="Orion Settings">
+    <p-label label="Server Settings">
       <SettingsCodeBlock class="settings__code-block" :engine-settings="engineSettings" />
     </p-label>
   </p-layout-default>
