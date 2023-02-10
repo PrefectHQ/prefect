@@ -87,7 +87,7 @@ class TestClientProxyAwareness:
 
         pool = transport_for_orion._pool
         assert isinstance(pool, httpcore.AsyncConnectionPool)
-        assert pool._retries == 3  # set in prefect.client.orion.get_client()
+        assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
     def test_users_can_still_provide_transport(self, remote_https_orion: httpx.URL):
         """If users want to supply an alternative transport, they still can and
@@ -127,7 +127,7 @@ class TestClientProxyAwareness:
         pool = transport_for_orion._pool
         assert isinstance(pool, httpcore.AsyncHTTPProxy)
         assert pool._proxy_url == https_proxy
-        assert pool._retries == 3  # set in prefect.client.orion.get_client()
+        assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
     @pytest.fixture()
     def remote_http_orion(self) -> Generator[httpx.URL, None, None]:
@@ -159,7 +159,7 @@ class TestClientProxyAwareness:
         pool = transport_for_orion._pool
         assert isinstance(pool, httpcore.AsyncHTTPProxy)
         assert pool._proxy_url == http_proxy
-        assert pool._retries == 3  # set in prefect.client.orion.get_client()
+        assert pool._retries == 3  # set in prefect.client.orchestration.get_client()
 
 
 class TestInjectClient:
@@ -1171,7 +1171,7 @@ async def test_read_filtered_logs(session, orion_client, deployment):
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: True}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
         get_client()
 
     mock.assert_called_once_with(
@@ -1186,7 +1186,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_true(monkeypa
 async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeypatch):
     with temporary_settings(updates={PREFECT_API_TLS_INSECURE_SKIP_VERIFY: False}):
         mock = Mock()
-        monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+        monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
         get_client()
 
     mock.assert_called_once_with(
@@ -1199,7 +1199,7 @@ async def test_prefect_api_tls_insecure_skip_verify_setting_set_to_false(monkeyp
 
 async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch):
     mock = Mock()
-    monkeypatch.setattr("prefect.client.orion.PrefectHttpxClient", mock)
+    monkeypatch.setattr("prefect.client.orchestration.PrefectHttpxClient", mock)
     get_client()
     mock.assert_called_once_with(
         headers=ANY,
