@@ -113,7 +113,7 @@ async def read_work_queue_runs(
     ),
     agent_id: Optional[UUID] = Body(
         None,
-        description="An optional unique identifier for the agent making this query. If provided, the Prefect REST API API will track the last time this agent polled the work queue.",
+        description="An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue.",
     ),
     x_prefect_ui: Optional[bool] = Header(
         default=False,

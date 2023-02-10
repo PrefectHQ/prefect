@@ -1,5 +1,5 @@
 """
-Full schemas of Prefect REST API API objects.
+Full schemas of Prefect REST API objects.
 """
 import datetime
 import re

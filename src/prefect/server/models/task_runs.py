@@ -1,6 +1,6 @@
 """
 Functions for interacting with task run ORM objects.
-Intended for internal use by the Prefect REST API API.
+Intended for internal use by the Prefect REST API.
 """
 
 import contextlib

@@ -1,5 +1,5 @@
 """
-Routes for admin-level interactions with the Prefect REST API API.
+Routes for admin-level interactions with the Prefect REST API.
 """
 from fastapi import Body, Depends, Response, status
 

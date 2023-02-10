@@ -3,7 +3,7 @@ from prefect.exceptions import PrefectException
 
 class ObjectNotFoundError(PrefectException):
     """
-    Error raised by the Prefect REST API API when a requested object is not found.
+    Error raised by the Prefect REST API when a requested object is not found.
 
     If thrown during a request, this exception will be caught and
     a 404 response will be returned.
@@ -15,6 +15,6 @@ class OrchestrationError(PrefectException):
 
 
 class MissingVariableError(PrefectException):
-    """An error raised by the Prefect REST API API when attempting to create or update a
+    """An error raised by the Prefect REST API when attempting to create or update a
     deployment with missing required variables.
     """

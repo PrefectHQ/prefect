@@ -607,7 +607,7 @@ def get_dialect(
     """
     Get the dialect of a session, engine, or connection url.
 
-    Primary use case is figuring out whether the Prefect REST API API is communicating with
+    Primary use case is figuring out whether the Prefect REST API is communicating with
     SQLite or Postgres.
 
     Example:

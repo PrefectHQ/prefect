@@ -37,7 +37,7 @@ from prefect.settings import (
 from prefect.utilities.hashing import hash_objects
 
 TITLE = "Prefect Orion"
-API_TITLE = "Prefect Prefect REST API API"
+API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
 ORION_API_VERSION = "0.8.4"
@@ -146,7 +146,7 @@ def create_orion_api(
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
-    Create a FastAPI app that includes the Prefect REST API API
+    Create a FastAPI app that includes the Prefect REST API
 
     Args:
         router_prefix: a prefix to apply to all included routers
@@ -158,7 +158,7 @@ def create_orion_api(
             as a value, the default router will be dropped from the application.
 
     Returns:
-        a FastAPI app that serves the Prefect REST API API
+        a FastAPI app that serves the Prefect REST API
     """
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
@@ -326,7 +326,7 @@ def create_app(
     ignore_cache: bool = False,
 ) -> FastAPI:
     """
-    Create an FastAPI app that includes the Prefect REST API API and UI
+    Create an FastAPI app that includes the Prefect REST API and UI
 
     Args:
         settings: The settings to use to create the app. If not set, settings are pulled
@@ -371,7 +371,7 @@ def create_app(
             logger.warn(f"Error occurred during block auto-registration: {exc!r}")
 
     async def start_services():
-        """Start additional services when the Prefect REST API API starts up."""
+        """Start additional services when the Prefect REST API starts up."""
 
         if ephemeral:
             app.state.services = None
@@ -413,7 +413,7 @@ def create_app(
             task.add_done_callback(partial(on_service_exit, service))
 
     async def stop_services():
-        """Ensure services are stopped before the Prefect REST API API shuts down."""
+        """Ensure services are stopped before the Prefect REST API shuts down."""
         if app.state.services:
             await asyncio.gather(*[service.stop() for service in app.state.services])
             try:

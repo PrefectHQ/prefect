@@ -1,5 +1,5 @@
 """
-Schemas for special responses from the Prefect REST API API.
+Schemas for special responses from the Prefect REST API.
 """
 
 import datetime

@@ -1,5 +1,5 @@
 """
-Schemas for sorting Prefect REST API API objects.
+Schemas for sorting Prefect REST API objects.
 """
 
 from typing import TYPE_CHECKING
