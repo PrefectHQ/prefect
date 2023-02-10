@@ -15,7 +15,7 @@ from rich.table import Table
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orion import get_client
+from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.server.schemas.responses import SetStateStatus

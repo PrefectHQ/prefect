@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
@@ -198,7 +198,7 @@ class RunContext(ContextModel):
     """
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    client: OrionClient
+    client: PrefectClient
 
 
 class FlowRunContext(RunContext):

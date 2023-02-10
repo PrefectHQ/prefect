@@ -9,7 +9,7 @@ import pytest
 from prefect import flow
 from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import Abort, CrashedRun, FailedRun
 from prefect.infrastructure.base import Infrastructure
 from prefect.server import models, schemas
@@ -919,7 +919,7 @@ async def test_agent_displays_message_on_work_queue_pause(
 
 
 async def test_agent_with_work_queue_and_work_pool(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -981,7 +981,7 @@ async def test_agent_with_work_queue_and_work_pool(
 
 
 async def test_agent_with_work_pool(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -1046,7 +1046,7 @@ async def test_agent_with_work_pool(
 
 
 async def test_agent_with_work_pool_and_work_queue_prefix(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
@@ -1147,7 +1147,7 @@ async def deployment_on_default_queue(
 
 
 async def test_agent_runs_high_priority_flow_runs_first(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     deployment_on_default_queue: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,

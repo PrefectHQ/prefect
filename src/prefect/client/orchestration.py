@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 
-def get_client(httpx_settings: dict = None) -> "OrionClient":
+def get_client(httpx_settings: dict = None) -> "PrefectClient":
     """
     Needs a docstring.
     """
@@ -69,19 +69,19 @@ def get_client(httpx_settings: dict = None) -> "OrionClient":
 
         api = create_app(ctx.settings, ephemeral=True)
 
-    return OrionClient(
+    return PrefectClient(
         api,
         api_key=PREFECT_API_KEY.value(),
         httpx_settings=httpx_settings,
     )
 
 
-class OrionClient:
+class PrefectClient:
     """
-    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
+    An asynchronous client for interacting with the [Prefect REST API](/api-ref/rest-api/).
 
     Args:
-        api: the Orion API URL or FastAPI application to connect to
+        api: the REST API URL or FastAPI application to connect to
         api_key: An optional API key for authentication.
         api_version: The API version this client is compatible with.
         httpx_settings: An optional dictionary of settings to pass to the underlying
@@ -89,7 +89,7 @@ class OrionClient:
 
     Examples:
 
-        Say hello to an Orion server
+        Say hello to a Prefect REST API
 
         <div class="terminal">
         ```

@@ -12,7 +12,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
@@ -1673,7 +1673,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -1739,7 +1739,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0

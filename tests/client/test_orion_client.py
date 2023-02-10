@@ -19,7 +19,7 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
@@ -48,7 +48,7 @@ from prefect.testing.utilities import AsyncMock, exceptions_equal
 
 class TestGetClient:
     def test_get_client_returns_client(self):
-        assert isinstance(get_client(), OrionClient)
+        assert isinstance(get_client(), PrefectClient)
 
     def test_get_client_does_not_cache_client(self):
         assert get_client() is not get_client()
@@ -57,7 +57,7 @@ class TestGetClient:
         client = get_client()
         with temporary_settings(updates={PREFECT_API_KEY: "FOO"}):
             new_client = get_client()
-            assert isinstance(new_client, OrionClient)
+            assert isinstance(new_client, PrefectClient)
             assert new_client is not client
 
 
@@ -165,7 +165,7 @@ class TestClientProxyAwareness:
 class TestInjectClient:
     @staticmethod
     @inject_client
-    async def injected_func(client: OrionClient):
+    async def injected_func(client: PrefectClient):
         assert client._started, "Client should be started during function"
         assert not client._closed, "Client should be closed during function"
         # Client should be usable during function
@@ -174,12 +174,12 @@ class TestInjectClient:
 
     async def test_get_new_client(self):
         client = await TestInjectClient.injected_func()
-        assert isinstance(client, OrionClient)
+        assert isinstance(client, PrefectClient)
         assert client._closed, "Client should be closed after function returns"
 
     async def test_get_new_client_with_explicit_none(self):
         client = await TestInjectClient.injected_func(client=None)
-        assert isinstance(client, OrionClient)
+        assert isinstance(client, PrefectClient)
         assert client._closed, "Client should be closed after function returns"
 
     async def test_use_existing_client(self, orion_client):
@@ -225,14 +225,14 @@ def not_enough_open_files() -> bool:
 
 class TestClientContextManager:
     async def test_client_context_cannot_be_reentered(self):
-        client = OrionClient("http://foo.test")
+        client = PrefectClient("http://foo.test")
         async with client:
             with pytest.raises(RuntimeError, match="cannot be started more than once"):
                 async with client:
                     pass
 
     async def test_client_context_cannot_be_reused(self):
-        client = OrionClient("http://foo.test")
+        client = PrefectClient("http://foo.test")
         async with client:
             pass
 
@@ -244,7 +244,7 @@ class TestClientContextManager:
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
-        client = OrionClient(app)
+        client = PrefectClient(app)
         startup.assert_not_called()
         shutdown.assert_not_called()
 
@@ -262,9 +262,9 @@ class TestClientContextManager:
         startup.assert_not_called()
         shutdown.assert_not_called()
 
-        async with OrionClient(app):
-            async with OrionClient(app):
-                async with OrionClient(app):
+        async with PrefectClient(app):
+            async with PrefectClient(app):
+                async with PrefectClient(app):
                     startup.assert_called_once()
             shutdown.assert_not_called()
 
@@ -275,13 +275,13 @@ class TestClientContextManager:
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
-        async with OrionClient(app):
+        async with PrefectClient(app):
             pass
 
         assert startup.call_count == 1
         assert shutdown.call_count == 1
 
-        async with OrionClient(app):
+        async with PrefectClient(app):
             assert startup.call_count == 2
             assert shutdown.call_count == 1
 
@@ -299,7 +299,7 @@ class TestClientContextManager:
         two_started = anyio.Event()
 
         async def one():
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 print("Started one")
                 one_started.set()
                 startup.assert_called_once()
@@ -313,7 +313,7 @@ class TestClientContextManager:
         async def two():
             await one_started.wait()
             # Enter after one has started but before one has exited
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 print("Started two")
                 two_started.set()
                 # Give time for one to try to exit
@@ -344,7 +344,7 @@ class TestClientContextManager:
             with context:
                 # Use random sleeps to interleave clients
                 await anyio.sleep(random.random())
-                async with OrionClient(app):
+                async with PrefectClient(app):
                     await anyio.sleep(random.random())
 
         threads = [
@@ -370,7 +370,7 @@ class TestClientContextManager:
         async def enter_client():
             # Use random sleeps to interleave clients
             await anyio.sleep(random.random())
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 await anyio.sleep(random.random())
 
         with anyio.fail_after(15):
@@ -390,7 +390,7 @@ class TestClientContextManager:
         async def enter_client():
             # Use random sleeps to interleave clients
             await anyio.sleep(random.random())
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 await anyio.sleep(random.random())
 
         async def enter_client_many_times(context):
@@ -443,7 +443,7 @@ class TestClientContextManager:
         two_started = anyio.Event()
 
         async def one():
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 print("Started one")
                 one_started.set()
                 startup.assert_called_once()
@@ -457,7 +457,7 @@ class TestClientContextManager:
         async def two():
             await one_started.wait()
             # Enter after one has started but before one has exited
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 print("Started two")
                 two_started.set()
                 # Wait for one to exit, this creates an interleaved dependency
@@ -479,7 +479,7 @@ class TestClientContextManager:
         startup, shutdown = MagicMock(), MagicMock()
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
-        client = OrionClient(app)
+        client = PrefectClient(app)
 
         with pytest.raises(ValueError):
             async with client:
@@ -493,7 +493,7 @@ class TestClientContextManager:
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
         async def enter_client(task_status):
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 task_status.started()
                 await anyio.sleep_forever()
 
@@ -512,9 +512,9 @@ class TestClientContextManager:
         app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
 
         with pytest.raises(ValueError):
-            async with OrionClient(app):
+            async with PrefectClient(app):
                 try:
-                    async with OrionClient(app):
+                    async with PrefectClient(app):
                         raise ValueError()
                 finally:
                     # Shutdown not called yet, will be handled by the outermost ctx
@@ -525,7 +525,7 @@ class TestClientContextManager:
 
     async def test_with_without_async_raises_helpful_error(self):
         with pytest.raises(RuntimeError, match="must be entered with an async context"):
-            with OrionClient("http://foo.test"):
+            with PrefectClient("http://foo.test"):
                 pass
 
 
@@ -537,7 +537,7 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
         monkeypatch.setattr(
             "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
-        async with OrionClient(app):
+        async with PrefectClient(app):
             if enabled:
                 mock.assert_awaited_once_with()
 
@@ -553,17 +553,17 @@ async def test_client_does_not_run_migrations_for_hosted_app(
         monkeypatch.setattr(
             "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
-        async with OrionClient(hosted_orion_api):
+        async with PrefectClient(hosted_orion_api):
             pass
 
     mock.assert_not_awaited()
 
 
 async def test_client_api_url():
-    url = OrionClient("http://foo.test/bar").api_url
+    url = PrefectClient("http://foo.test/bar").api_url
     assert isinstance(url, httpx.URL)
     assert str(url) == "http://foo.test/bar/"
-    assert OrionClient(FastAPI()).api_url is not None
+    assert PrefectClient(FastAPI()).api_url is not None
 
 
 async def test_hello(orion_client):
@@ -941,7 +941,7 @@ async def test_read_flow_by_name(orion_client):
     assert the_flow.id == flow_id
 
 
-async def test_create_flow_run_from_deployment(orion_client: OrionClient, deployment):
+async def test_create_flow_run_from_deployment(orion_client: PrefectClient, deployment):
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
@@ -1271,13 +1271,13 @@ class TestClientAPIVersionRequests:
     ):
         # higher client major version works
         api_version = f"{major_version + 1}.{minor_version}.{patch_version}"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             res = await client.hello()
             assert res.status_code == status.HTTP_200_OK
 
         # lower client major version fails
         api_version = f"{major_version - 1}.{minor_version}.{patch_version}"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
@@ -1291,13 +1291,13 @@ class TestClientAPIVersionRequests:
     ):
         # higher client minor version succeeds
         api_version = f"{major_version}.{minor_version + 1}.{patch_version}"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             res = await client.hello()
             assert res.status_code == status.HTTP_200_OK
 
         # lower client minor version fails
         api_version = f"{major_version}.{minor_version - 1}.{patch_version}"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
@@ -1311,14 +1311,14 @@ class TestClientAPIVersionRequests:
     ):
         # higher client patch version succeeds
         api_version = f"{major_version}.{minor_version}.{patch_version + 1}"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             res = await client.hello()
             assert res.status_code == status.HTTP_200_OK
 
         # lower client patch version fails
         api_version = f"{major_version}.{minor_version}.{patch_version - 1}"
         res = await client.hello()
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ):
@@ -1327,7 +1327,7 @@ class TestClientAPIVersionRequests:
     async def test_invalid_header(self, app):
         # Invalid header is rejected
         api_version = "not a real version header"
-        async with OrionClient(app, api_version=api_version) as client:
+        async with PrefectClient(app, api_version=api_version) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_400_BAD_REQUEST)
             ) as e:
@@ -1354,13 +1354,13 @@ class TestClientAPIKey:
 
     async def test_client_passes_api_key_as_auth_header(self, test_app):
         api_key = "validAPIkey"
-        async with OrionClient(test_app, api_key=api_key) as client:
+        async with PrefectClient(test_app, api_key=api_key) as client:
             res = await client._client.get("/check_for_auth_header")
         assert res.status_code == status.HTTP_200_OK
         assert res.json() == api_key
 
     async def test_client_no_auth_header_without_api_key(self, test_app):
-        async with OrionClient(test_app) as client:
+        async with PrefectClient(test_app) as client:
             with pytest.raises(
                 httpx.HTTPStatusError, match=str(status.HTTP_403_FORBIDDEN)
             ) as e:
@@ -1490,7 +1490,7 @@ async def test_ephemeral_app_check(orion_client):
 
 
 async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
-    async with OrionClient(hosted_orion_api) as orion_client:
+    async with PrefectClient(hosted_orion_api) as orion_client:
         assert (await orion_client.using_ephemeral_app()) is False
 
 
