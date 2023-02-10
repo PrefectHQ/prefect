@@ -14,9 +14,9 @@ import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/work_queues", tags=["Work Queues"])
+router = PrefectRouter(prefix="/work_queues", tags=["Work Queues"])
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)

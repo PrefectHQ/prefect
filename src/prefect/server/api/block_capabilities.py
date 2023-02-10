@@ -10,9 +10,9 @@ from prefect.server.database.dependencies import (
     PrefectDBInterface,
     provide_database_interface,
 )
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(prefix="/block_capabilities", tags=["Block capabilities"])
+router = PrefectRouter(prefix="/block_capabilities", tags=["Block capabilities"])
 
 
 @router.get("/")

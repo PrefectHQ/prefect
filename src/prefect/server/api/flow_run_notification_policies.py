@@ -12,9 +12,9 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.database.interface import PrefectDBInterface
-from prefect.server.utilities.server import OrionRouter
+from prefect.server.utilities.server import PrefectRouter
 
-router = OrionRouter(
+router = PrefectRouter(
     prefix="/flow_run_notification_policies", tags=["Flow Run Notification Policies"]
 )
 
