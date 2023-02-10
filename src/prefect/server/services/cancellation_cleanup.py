@@ -11,7 +11,7 @@ from sqlalchemy.sql.expression import or_
 
 import prefect.server.models as models
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import filters, states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS
@@ -36,7 +36,7 @@ class CancellationCleanup(LoopService):
         self.batch_size = 200
 
     @inject_db
-    async def run_once(self, db: OrionDBInterface):
+    async def run_once(self, db: PrefectDBInterface):
         """
         - cancels active tasks belonging to recently cancelled flow runs
         - cancels any active subflow that belongs to a cancelled flow
@@ -100,7 +100,7 @@ class CancellationCleanup(LoopService):
                 break
 
     async def _cancel_child_runs(
-        self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
     ) -> None:
         child_task_runs = await models.task_runs.read_task_runs(
             session,
@@ -120,7 +120,7 @@ class CancellationCleanup(LoopService):
             )
 
     async def _cancel_subflows(
-        self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
     ) -> None:
         if not flow_run.parent_task_run_id:
             return

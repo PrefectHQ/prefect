@@ -10,14 +10,14 @@ from sqlalchemy import delete, select
 
 import prefect.server.schemas as schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 
 
 @inject_db
 async def create_saved_search(
     session: sa.orm.Session,
     saved_search: schemas.core.SavedSearch,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Upserts a SavedSearch.
@@ -59,7 +59,7 @@ async def create_saved_search(
 
 @inject_db
 async def read_saved_search(
-    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, saved_search_id: UUID, db: PrefectDBInterface
 ):
     """
     Reads a SavedSearch by id.
@@ -77,7 +77,7 @@ async def read_saved_search(
 
 @inject_db
 async def read_saved_search_by_name(
-    session: sa.orm.Session, name: str, db: OrionDBInterface
+    session: sa.orm.Session, name: str, db: PrefectDBInterface
 ):
     """
     Reads a SavedSearch by name.
@@ -97,7 +97,7 @@ async def read_saved_search_by_name(
 
 @inject_db
 async def read_saved_searches(
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
@@ -127,7 +127,7 @@ async def read_saved_searches(
 
 @inject_db
 async def delete_saved_search(
-    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
+    session: sa.orm.Session, saved_search_id: UUID, db: PrefectDBInterface
 ) -> bool:
     """
     Delete a SavedSearch by id.

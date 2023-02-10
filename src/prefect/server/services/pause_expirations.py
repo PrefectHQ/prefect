@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import states
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS
@@ -32,7 +32,7 @@ class FailExpiredPauses(LoopService):
         self.batch_size = 200
 
     @inject_db
-    async def run_once(self, db: OrionDBInterface):
+    async def run_once(self, db: PrefectDBInterface):
         """
         Mark flow runs as failed by:
 
@@ -64,7 +64,7 @@ class FailExpiredPauses(LoopService):
         self.logger.info("Finished monitoring for late runs.")
 
     async def _mark_flow_run_as_failed(
-        self, session: AsyncSession, flow_run: OrionDBInterface.FlowRun
+        self, session: AsyncSession, flow_run: PrefectDBInterface.FlowRun
     ) -> None:
         """
         Mark a flow run as failed.

@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.services.loop_service import LoopService
 from prefect.settings import PREFECT_UI_URL
 
@@ -26,7 +26,7 @@ class FlowRunNotifications(LoopService):
     loop_seconds: int = 4
 
     @inject_db
-    async def run_once(self, db: OrionDBInterface):
+    async def run_once(self, db: PrefectDBInterface):
         while True:
             async with db.session_context(begin_transaction=True) as session:
                 # Drain the queue one entry at a time, because if a transient
@@ -73,7 +73,7 @@ class FlowRunNotifications(LoopService):
     async def send_flow_run_notification(
         self,
         session: sa.orm.session,
-        db: OrionDBInterface,
+        db: PrefectDBInterface,
         notification,
     ):
         try:

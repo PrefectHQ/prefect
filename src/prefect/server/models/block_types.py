@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from prefect.server import schemas
 from prefect.server.database.dependencies import inject_db
-from prefect.server.database.interface import OrionDBInterface
+from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.database.orm_models import ORMBlockType
 
 
@@ -18,7 +18,7 @@ from prefect.server.database.orm_models import ORMBlockType
 async def create_block_type(
     session: sa.orm.Session,
     block_type: schemas.core.BlockType,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     override: bool = False,
 ) -> ORMBlockType:
     """
@@ -68,7 +68,7 @@ async def create_block_type(
 async def read_block_type(
     session: sa.orm.Session,
     block_type_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Reads a block type by id.
@@ -85,7 +85,7 @@ async def read_block_type(
 
 @inject_db
 async def read_block_type_by_slug(
-    session: sa.orm.Session, block_type_slug: str, db: OrionDBInterface
+    session: sa.orm.Session, block_type_slug: str, db: PrefectDBInterface
 ):
     """
     Reads a block type by slug.
@@ -107,7 +107,7 @@ async def read_block_type_by_slug(
 @inject_db
 async def read_block_types(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     block_type_filter: Optional[schemas.filters.BlockTypeFilter] = None,
     block_schema_filter: Optional[schemas.filters.BlockSchemaFilter] = None,
     limit: Optional[int] = None,
@@ -148,7 +148,7 @@ async def update_block_type(
     session: sa.orm.Session,
     block_type_id: str,
     block_type: schemas.actions.BlockTypeUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Update a block type by id.
@@ -172,7 +172,7 @@ async def update_block_type(
 
 @inject_db
 async def delete_block_type(
-    session: sa.orm.Session, block_type_id: str, db: OrionDBInterface
+    session: sa.orm.Session, block_type_id: str, db: PrefectDBInterface
 ):
     """
     Delete a block type by id.
