@@ -1,5 +1,5 @@
 import 'vue-router'
-import { RouteGuard } from '@prefecthq/orion-design'
+import { RouteGuard } from '@prefecthq/prefect-ui-library'
 
 declare module 'vue-router' {
   interface RouteMeta {

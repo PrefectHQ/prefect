@@ -1,5 +1,5 @@
 
-import { Constructor, Api, ApiServer } from '@prefecthq/orion-design'
+import { Constructor, Api, ApiServer } from '@prefecthq/prefect-ui-library'
 import { UiSettings } from '@/services/uiSettings'
 
 export function ApiRoute<T extends Constructor<Api>>(Base: T): T {

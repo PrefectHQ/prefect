@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogView, BlockTypeCard, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogView, BlockTypeCard, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

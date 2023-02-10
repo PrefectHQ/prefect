@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocks, BlockDocumentsTable, BlocksPageEmptyState, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlocks, BlockDocumentsTable, BlocksPageEmptyState, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

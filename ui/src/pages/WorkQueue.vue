@@ -44,7 +44,7 @@
 
 
 <script lang="ts" setup>
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'

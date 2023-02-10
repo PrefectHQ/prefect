@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/orion-design'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/prefect-ui-library'
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'

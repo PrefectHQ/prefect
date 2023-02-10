@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlock, BlockDocumentCard, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlock, BlockDocumentCard, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscriptionWithDependencies, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'

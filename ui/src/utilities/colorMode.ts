@@ -1,4 +1,4 @@
-import { applyColorModeClass, ColorMode, isColorMode } from '@prefecthq/orion-design'
+import { applyColorModeClass, ColorMode, isColorMode } from '@prefecthq/prefect-ui-library'
 import { useLocalStorage } from '@prefecthq/vue-compositions'
 import { computed } from 'vue'
 

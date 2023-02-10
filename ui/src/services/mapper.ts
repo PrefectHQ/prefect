@@ -1,4 +1,4 @@
-import { Mapper } from '@prefecthq/orion-design'
+import { Mapper } from '@prefecthq/prefect-ui-library'
 import { maps } from '@/maps'
 
 export const mapper = new Mapper(maps)

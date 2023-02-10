@@ -1,4 +1,4 @@
-import { HealthApi } from '@prefecthq/orion-design'
+import { HealthApi } from '@prefecthq/prefect-ui-library'
 import { createActions } from '@prefecthq/vue-compositions'
 import { ApiRoute } from '@/mixins/ApiRoute'
 

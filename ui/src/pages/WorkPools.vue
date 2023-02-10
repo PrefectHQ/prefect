@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { useWorkspaceApi, PageHeadingWorkPools, WorkPoolsPageEmptyState, WorkPools } from '@prefecthq/orion-design'
+  import { useWorkspaceApi, PageHeadingWorkPools, WorkPoolsPageEmptyState, WorkPools } from '@prefecthq/prefect-ui-library'
   import { useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'

@@ -1,4 +1,4 @@
-import { Can, inject } from '@prefecthq/orion-design'
+import { Can, inject } from '@prefecthq/prefect-ui-library'
 import { Permission, canKey } from '@/utilities/permissions'
 
 export function useCan(): Can<Permission> {

@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { mocker } from '@prefecthq/orion-design'
+import { mocker } from '@prefecthq/prefect-ui-library'
 import { test, useForm, useLabel, useTable, usePageHeading, useLink, pages, useIconButtonMenu, useModal, useButton } from './utilities'
 import { useInput } from './utilities/useInput'
 import { useToggle } from './utilities/useToggle'

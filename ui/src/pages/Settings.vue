@@ -23,7 +23,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeading, ColorModeSelect } from '@prefecthq/orion-design'
+  import { PageHeading, ColorModeSelect } from '@prefecthq/prefect-ui-library'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { adminApi } from '@/services/adminApi'

@@ -1,4 +1,4 @@
-import { AdminApi } from '@prefecthq/orion-design'
+import { AdminApi } from '@prefecthq/prefect-ui-library'
 import { createActions } from '@prefecthq/vue-compositions'
 import { ApiRoute } from '@/mixins/ApiRoute'
 

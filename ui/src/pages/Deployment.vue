@@ -51,7 +51,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi, CodeSnippet } from '@prefecthq/orion-design'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi, CodeSnippet } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'

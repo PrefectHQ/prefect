@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { OrionSettings } from '@prefecthq/orion-design'
+  import { OrionSettings } from '@prefecthq/prefect-ui-library'
   import { PCode } from '@prefecthq/prefect-design'
   import { computed } from 'vue'
 

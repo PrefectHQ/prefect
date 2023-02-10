@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { RadarApp, PageHeadingFlowRunRadar, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { RadarApp, PageHeadingFlowRunRadar, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'

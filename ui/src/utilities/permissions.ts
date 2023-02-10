@@ -1,4 +1,4 @@
-import { Can, WorkspacePermission, WorkspaceFeatureFlag } from '@prefecthq/orion-design'
+import { Can, WorkspacePermission, WorkspaceFeatureFlag } from '@prefecthq/prefect-ui-library'
 import { InjectionKey } from 'vue'
 
 const featureFlags = ['access:workers', 'access:work_pools'] as const

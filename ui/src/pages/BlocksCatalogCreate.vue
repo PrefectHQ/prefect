@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed, asSingle, useWorkspaceApi } from '@prefecthq/orion-design'
+  import { PageHeadingBlocksCatalogCreate, BlockTypeCardLayout, BlockSchemaCreateForm, BlockDocumentCreateNamed, asSingle, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { showToast } from '@prefecthq/prefect-design'
   import { useRouteParam, useRouteQueryParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'

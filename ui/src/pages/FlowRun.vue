@@ -49,7 +49,7 @@
     useDeployment,
     getSchemaValuesWithDefaultsJson,
     CodeSnippet
-  } from '@prefecthq/orion-design'
+  } from '@prefecthq/prefect-ui-library'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
