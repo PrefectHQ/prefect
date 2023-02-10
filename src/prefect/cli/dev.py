@@ -1,5 +1,5 @@
 """
-Command line interface for working with Orion
+Command line interface for working with Prefect Server
 """
 import json
 import os
@@ -136,7 +136,7 @@ def build_docs(
 BUILD_UI_HELP = f"""
 Installs dependencies and builds UI locally.
 
-The built UI will be located at {prefect.__root_path__ / "orion-ui"}
+The built UI will be located at {prefect.__root_path__ / "ui"}
 
 Requires npm.
 """
@@ -146,13 +146,11 @@ Requires npm.
 def build_ui():
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
+        with tmpchdir(prefect.__root_path__ / "ui"):
 
             app.console.print("Installing npm packages...")
             try:
-                subprocess.check_output(
-                    ["npm", "ci", "install"], shell=sys.platform == "win32"
-                )
+                subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
             except Exception:
                 app.console.print(
                     "npm call failed - try running `nvm use` first.", style="red"
@@ -161,7 +159,7 @@ def build_ui():
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
-            env["ORION_UI_SERVE_BASE"] = "/"
+            env["PREFECT_UI_SERVE_BASE"] = "/"
             subprocess.check_output(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
@@ -171,7 +169,7 @@ def build_ui():
             shutil.rmtree(prefect.__ui_static_path__)
 
         app.console.print("Copying build into src...")
-        shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
+        shutil.copytree("ui/dist", prefect.__ui_static_path__)
 
     app.console.print("Complete!")
 
@@ -183,7 +181,7 @@ async def ui():
     """
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
+        with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
 
