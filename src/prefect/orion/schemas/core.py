@@ -1088,3 +1088,10 @@ class Artifact(ORMBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
     )
+
+    @classmethod
+    def from_state_result(cls, data: dict):
+        type = data.get("artifact_type", None)
+        description = data.get("artifact_description", None)
+        metadata = dict(description=description)
+        return cls(data=data, type=type, metadata_=metadata)
