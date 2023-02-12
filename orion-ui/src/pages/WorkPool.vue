@@ -13,10 +13,9 @@
         <FlowRunFilteredList :flow-run-filter="flowRunFilter" />
       </template>
 
-      <template #queues>
+      <template #work-queues>
         <WorkPoolQueuesTable :work-pool-name="workPoolName" />
       </template>
-
     </p-tabs>
 
     <template #well>
@@ -36,7 +35,7 @@
   const workPoolName = useRouteParam('workPoolName')
 
   const tabs = computed(() => {
-    const values = ['Runs', 'Queues']
+    const values = ['Runs', 'Work Queues']
 
     if (!media.xl) {
       values.unshift('Details')
@@ -50,9 +49,8 @@
   }
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
-  const workPoolId = computed(() => workPool.value ? [workPool.value.id] : [])
 
-  const flowRunFilter = useRecentFlowRunFilter({ workPools: workPoolId })
+  const flowRunFilter = useRecentFlowRunFilter({ workPoolName: [workPoolName.value] })
 
   const title = computed(() => {
     if (!workPool.value) {
