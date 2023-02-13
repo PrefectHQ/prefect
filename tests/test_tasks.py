@@ -2305,7 +2305,7 @@ class TestTaskWaitFor:
         assert task_state.result() == 2
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @task
