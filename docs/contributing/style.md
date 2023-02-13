@@ -83,7 +83,7 @@ import prefect.server.schemas as schemas  # use the shorter name
 
 ```python
 # Wrong
-from prefect.orion import schemas
+from prefect.server import schemas
 ```
 
 Unless in an `__init__.py` file, relative imports should not be used.
