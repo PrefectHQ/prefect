@@ -44,7 +44,6 @@ theme:
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
-        - navigation.instant
         - search.suggest
         - search.highlight
     font:
@@ -132,7 +131,7 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
-        - Agents & Work Queues: concepts/work-queues.md
+        - Agents & Work Pools: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
@@ -150,7 +149,7 @@ nav:
         - ui/flow-runs.md
         - ui/flows.md
         - ui/deployments.md
-        - ui/work-queues.md
+        - ui/work-pools.md
         - ui/blocks.md
         - ui/notifications.md
         - ui/task-concurrency.md
@@ -273,7 +272,7 @@ extra:
     version:
         provider: mike
     analytics:
-        provider: google
+        provider: custom
         property: G-3M31G9B0QJ
     social:
         - icon: fontawesome/brands/slack

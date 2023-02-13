@@ -1021,10 +1021,10 @@ class TestReadFlowRuns:
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="work-pool"),
         )
-        work_pool_queue = await models.workers.create_work_pool_queue(
+        work_queue = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
+            work_queue=schemas.actions.WorkQueueCreate(name="work-pool-queue"),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -1032,9 +1032,7 @@ class TestReadFlowRuns:
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_pool_queue_id=work_pool_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
 
         result = await models.flow_runs.read_flow_runs(
@@ -1045,15 +1043,15 @@ class TestReadFlowRuns:
         )
         assert {res.id for res in result} == {flow_run_2.id}
 
-    async def test_read_flow_runs_filters_by_work_pool_queue_id(self, session, flow):
+    async def test_read_flow_runs_filters_by_work_queue_id(self, session, flow):
         work_pool = await models.workers.create_work_pool(
             session=session,
             work_pool=schemas.actions.WorkPoolCreate(name="work-pool"),
         )
-        work_pool_queue = await models.workers.create_work_pool_queue(
+        work_queue = await models.workers.create_work_queue(
             session=session,
             work_pool_id=work_pool.id,
-            work_pool_queue=schemas.actions.WorkPoolQueueCreate(name="work-pool-queue"),
+            work_queue=schemas.actions.WorkQueueCreate(name="work-pool-queue"),
         )
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -1061,15 +1059,13 @@ class TestReadFlowRuns:
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, work_pool_queue_id=work_pool_queue.id
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, work_queue_id=work_queue.id),
         )
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
-            work_pool_queue_filter=schemas.filters.WorkPoolQueueFilter(
-                id=schemas.filters.WorkPoolQueueFilterId(any_=[work_pool_queue.id])
+            work_queue_filter=schemas.filters.WorkQueueFilter(
+                id=schemas.filters.WorkQueueFilterId(any_=[work_queue.id])
             ),
         )
         assert {res.id for res in result} == {flow_run_2.id}
@@ -1242,3 +1238,37 @@ class TestDeleteFlowRun:
             session=session, flow_run_id=uuid4()
         )
         assert result is False
+
+    async def test_delete_flow_run_with_data(self, flow, session, db):
+        state_id = uuid4()
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    id=state_id,
+                    type="COMPLETED",
+                    name="My Running State",
+                    data={"hello": "world"},
+                ),
+            ),
+        )
+        assert flow_run.flow_id == flow.id
+        assert flow_run.state.id == state_id
+
+        # make sure the flow run exists
+        assert await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        assert await models.flow_runs.delete_flow_run(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        # make sure the flow run is deleted
+        assert (
+            await models.flow_runs.read_flow_run(
+                session=session, flow_run_id=flow_run.id
+            )
+            is None
+        )

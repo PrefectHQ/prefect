@@ -24,7 +24,7 @@
       </template>
 
       <template #parameters>
-        <CodeHighlighting language="json" :value="parameters" />
+        <CodeSnippet language="json" :snippet="parameters" />
       </template>
     </p-tabs>
 
@@ -44,11 +44,11 @@
     FlowRunTaskRuns,
     FlowRunTimeline,
     FlowRunSubFlows,
-    CodeHighlighting,
     useFavicon,
     useWorkspaceApi,
     useDeployment,
-    getSchemaValuesWithDefaultsJson
+    getSchemaValuesWithDefaultsJson,
+    CodeSnippet
   } from '@prefecthq/orion-design'
   import { media } from '@prefecthq/prefect-design'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -77,7 +77,7 @@
   })
 
   const api = useWorkspaceApi()
-  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 30000 })
+  const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
   const deploymentId = computed(() => flowRun.value?.deploymentId)
   const deployment = useDeployment(deploymentId)
@@ -109,6 +109,10 @@
 </script>
 
 <style>
+.flow-run { @apply
+  items-start
+}
+
 .flow-run__logs { @apply
   max-h-screen
 }

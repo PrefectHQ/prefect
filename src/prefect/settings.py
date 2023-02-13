@@ -64,7 +64,12 @@ from typing import (
 import pydantic
 import toml
 from pydantic import BaseSettings, Field, create_model, root_validator, validator
+from typing_extensions import Literal
 
+from prefect._internal.compatibility.deprecated import (
+    PrefectDeprecationWarning,
+    generate_deprecation_message,
+)
 from prefect.exceptions import MissingProfileError
 from prefect.utilities.names import OBFUSCATED_PREFIX, obfuscate
 from prefect.utilities.pydantic import add_cloudpickle_reduction
@@ -84,6 +89,12 @@ class Setting(Generic[T]):
         self,
         type: Type[T],
         *,
+        deprecated: bool = False,
+        deprecated_start_date: Optional[str] = None,
+        deprecated_end_date: Optional[str] = None,
+        deprecated_help: str = "",
+        deprecated_when_message: str = "",
+        deprecated_when: Optional[Callable[[Any], bool]] = None,
         value_callback: Callable[["Settings", T], T] = None,
         is_secret: bool = False,
         **kwargs,
@@ -93,8 +104,24 @@ class Setting(Generic[T]):
         self.value_callback = value_callback
         self.name = None  # Will be populated after all settings are defined
         self.is_secret = is_secret
-
+        self.deprecated = deprecated
+        self.deprecated_start_date = deprecated_start_date
+        self.deprecated_end_date = deprecated_end_date
+        self.deprecated_help = deprecated_help
+        self.deprecated_when = deprecated_when or (lambda _: True)
+        self.deprecated_when_message = deprecated_when_message
         self.__doc__ = self.field.description
+
+        # Validate the deprecation settings, will throw an error at setting definition
+        # time if the developer has not configured it correctly
+        if deprecated:
+            generate_deprecation_message(
+                name=f"Setting {self.name!r}",
+                start_date=self.deprecated_start_date,
+                end_date=self.deprecated_end_date,
+                help=self.deprecated_help,
+                when=self.deprecated_when_message,
+            )
 
     def value(self, bypass_callback: bool = False) -> T:
         """
@@ -118,7 +145,22 @@ class Setting(Generic[T]):
         PREFECT_API_URL.value_from(get_default_settings())
         ```
         """
-        return settings.value_of(self, bypass_callback=bypass_callback)
+        value = settings.value_of(self, bypass_callback=bypass_callback)
+
+        if not bypass_callback and self.deprecated and self.deprecated_when(value):
+            warnings.warn(
+                generate_deprecation_message(
+                    name=f"Setting {self.name!r}",
+                    start_date=self.deprecated_start_date,
+                    end_date=self.deprecated_end_date,
+                    help=self.deprecated_help,
+                    when=self.deprecated_when_message,
+                ),
+                PrefectDeprecationWarning,
+                stacklevel=2,
+            )
+
+        return value
 
     def __repr__(self) -> str:
         return f"<{self.name}: {self.type.__name__}>"
@@ -241,19 +283,12 @@ def warn_on_database_password_value_without_usage(values):
     return values
 
 
-def get_deprecated_prefect_cloud_url(settings, value):
-    warnings.warn(
-        "`PREFECT_CLOUD_URL` is deprecated. Use `PREFECT_CLOUD_API_URL` instead.",
-        DeprecationWarning,
-    )
-    return value or PREFECT_CLOUD_API_URL.value_from(settings)
-
-
 def check_for_deprecated_cloud_url(settings, value):
     deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
     if deprecated_value is not None:
         warnings.warn(
-            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. "
+            "`PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
             DeprecationWarning,
         )
     return deprecated_value or value
@@ -413,7 +448,11 @@ PREFECT_CLOUD_API_URL = Setting(
 
 
 PREFECT_CLOUD_URL = Setting(
-    str, default=None, value_callback=get_deprecated_prefect_cloud_url
+    str,
+    default=None,
+    deprecated=True,
+    deprecated_start_date="Dec 2022",
+    deprecated_help="Use `PREFECT_CLOUD_API_URL` instead.",
 )
 """
 DEPRECATED: Use `PREFECT_CLOUD_API_URL` instead.
@@ -582,6 +621,20 @@ PREFECT_LOGGING_ORION_MAX_LOG_SIZE = Setting(
     default=1_000_000,
 )
 """The maximum size in bytes for a single log."""
+
+PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW = Setting(
+    Literal["warn", "error", "ignore"],
+    default="warn",
+)
+"""
+Controls the behavior when loggers attempt to send logs to Orion without a flow run id.
+The Orion log handler can only send logs within flow run contexts unless the flow run id is
+manually provided.
+
+"warn": Log a warning message.
+"error": Raise an error.
+"ignore": Do not log a warning message or raise an error.
+"""
 
 PREFECT_LOGGING_COLORS = Setting(
     bool,
@@ -921,11 +974,11 @@ The maximum number of characters allowed for a task run cache key.
 This setting cannot be changed client-side, it must be set on the server.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
 """
-PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect work pools are used.
 """

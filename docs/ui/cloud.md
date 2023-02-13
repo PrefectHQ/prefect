@@ -15,6 +15,9 @@ tags:
 
 Prefect Cloud is a workflow coordination-as-a-service platform. Prefect Cloud provides all the capabilities of the [Prefect Orion Server](https://docs.prefect.io/tutorials/orion/?h=server#running-the-prefect-server) and [UI](/ui/overview/) in a hosted environment, plus additional features such as automations, workspaces, and organizations.
 
+!!! success "Prefect Cloud Quickstart"
+    Ready to jump right in and start running flows that are monitored by Prefect Cloud? See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
+
 ![Viewing a workspace dashboard in the Prefect Cloud UI.](../img/ui/cloud-workspace-dashboard.png)
 
 Prefect Cloud includes the same features as the open-source Prefect Orion server, including:
@@ -25,7 +28,7 @@ Prefect Cloud includes the same features as the open-source Prefect Orion server
     - Logs for individual flow and task runs.
 - [Flows](/ui/flows/) observed by the Prefect Cloud API. 
 - [Deployments](/ui/deployments/) created on the Prefect Cloud API. You can also use the Prefect Cloud UI to create ad-hoc flow runs from deployments.
-- [Work queues](/ui/work-queues/) created to queue work for agents.
+- [Work pools](/ui/work-pools/) created to queue work for agents.
 - [Blocks](/ui/blocks/) configured for storage or infrastructure used by your flow runs.
 - [Task Run Concurrency Limits](/ui/task-concurrency/) configured to prevent too many tasks from running simultaneously.
 
@@ -42,9 +45,6 @@ Prefect Cloud includes the same features as the open-source Prefect Orion server
     - [Single Sign-on (SSO)](/ui/sso/) &mdash; authentication using your identity provider.
     - [Audit Log](/ui/audit-log/) &mdash; a record of user activities to monitor security and compliance.
     - Collaborators &mdash; invite others to work in your [workspace](/ui/workspaces/#workspace-collaborators) or [organization](/ui/organizations/#organization-members).
-
-!!! success "Prefect Cloud Quickstart"
-    Ready to jump right in and start running flows that are monitored by Prefect Cloud? See the [Prefect Cloud Quickstart](/ui/cloud-quickstart/) to create a workspace, configure a local execution environment, and write your first Prefect Cloud-monitored flow run.
 
 ## User accounts
 
@@ -69,7 +69,7 @@ Each workspace keeps track of its own:
 - [Flow runs](/ui/flow-runs/) and task runs executed in an environment that is [syncing with the workspace](/ui/cloud/#workspaces)
 - [Flows](/concepts/flows/) associated with flow runs and deployments observed by the Prefect Cloud API
 - [Deployments](/concepts/deployments/)
-- [Work queues](/concepts/work-queues/)
+- [Work pools](/concepts/work-pools/)
 - [Blocks](/ui/blocks/) and [storage](/concepts/storage/)
 - [Automations](/ui/automations/)
 

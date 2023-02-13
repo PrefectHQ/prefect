@@ -1,11 +1,12 @@
 """
 Routes for interacting with work queue objects.
 """
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import BackgroundTasks, Body, Depends, HTTPException, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.api.dependencies as dependencies
@@ -15,18 +16,10 @@ from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.orion.utilities.server import OrionRouter
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS
-
-
-def error_404_if_workers_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_WORK_POOLS:
-        raise HTTPException(status_code=404, detail="Work pools are not enabled")
-
 
 router = OrionRouter(
-    prefix="/experimental/work_pools",
+    prefix="/work_pools",
     tags=["Work Pools"],
-    dependencies=[Depends(error_404_if_workers_not_enabled)],
 )
 
 
@@ -60,7 +53,7 @@ class WorkerLookups:
 
         return work_pool.id
 
-    async def _get_default_work_pool_queue_id_from_work_pool_name(
+    async def _get_default_work_queue_id_from_work_pool_name(
         self, session: AsyncSession, work_pool_name: str
     ):
         """
@@ -80,11 +73,11 @@ class WorkerLookups:
 
         return work_pool.default_queue_id
 
-    async def _get_work_pool_queue_id_from_name(
+    async def _get_work_queue_id_from_name(
         self,
         session: AsyncSession,
         work_pool_name: str,
-        work_pool_queue_name: str,
+        work_queue_name: str,
         create_queue_if_not_found: bool = False,
     ) -> UUID:
         """
@@ -92,29 +85,27 @@ class WorkerLookups:
         queue. Used for translating user-facing APIs (which are name-based) to
         internal ones (which are id-based).
         """
-        work_pool_queue = await models.workers.read_work_pool_queue_by_name(
+        work_queue = await models.workers.read_work_queue_by_name(
             session=session,
             work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
+            work_queue_name=work_queue_name,
         )
-        if not work_pool_queue:
+        if not work_queue:
             if not create_queue_if_not_found:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Work pool queue '{work_pool_name}/{work_pool_queue_name}' not found.",
+                    detail=f"Work pool queue '{work_pool_name}/{work_queue_name}' not found.",
                 )
             work_pool_id = await self._get_work_pool_id_from_name(
                 session=session, work_pool_name=work_pool_name
             )
-            work_pool_queue = await models.workers.create_work_pool_queue(
+            work_queue = await models.workers.create_work_queue(
                 session=session,
                 work_pool_id=work_pool_id,
-                work_pool_queue=schemas.actions.WorkPoolQueueCreate(
-                    name=work_pool_queue_name
-                ),
+                work_queue=schemas.actions.WorkQueueCreate(name=work_queue_name),
             )
 
-        return work_pool_queue.id
+        return work_queue.id
 
 
 # -----------------------------------------------------
@@ -177,7 +168,7 @@ async def read_work_pool(
 
 @router.post("/filter")
 async def read_work_pools(
-    work_pools: schemas.filters.WorkPoolFilter = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     db: OrionDBInterface = Depends(provide_database_interface),
@@ -257,8 +248,9 @@ async def delete_work_pool(
 
 @router.post("/{name}/get_scheduled_flow_runs")
 async def get_scheduled_flow_runs(
+    background_tasks: BackgroundTasks,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    work_pool_queue_names: List[str] = Body(
+    work_queue_names: List[str] = Body(
         None, description="The names of work pool queues"
     ),
     scheduled_before: DateTimeTZ = Body(
@@ -279,16 +271,16 @@ async def get_scheduled_flow_runs(
             session=session, work_pool_name=work_pool_name
         )
 
-        if work_pool_queue_names is None:
-            work_pool_queue_ids = None
+        if work_queue_names is None:
+            work_queue_ids = None
         else:
-            work_pool_queue_ids = []
-            for qn in work_pool_queue_names:
-                work_pool_queue_ids.append(
-                    await worker_lookups._get_work_pool_queue_id_from_name(
+            work_queue_ids = []
+            for qn in work_queue_names:
+                work_queue_ids.append(
+                    await worker_lookups._get_work_queue_id_from_name(
                         session=session,
                         work_pool_name=work_pool_name,
-                        work_pool_queue_name=qn,
+                        work_queue_name=qn,
                     )
                 )
 
@@ -296,13 +288,55 @@ async def get_scheduled_flow_runs(
             session=session,
             db=db,
             work_pool_ids=[work_pool_id],
-            work_pool_queue_ids=work_pool_queue_ids,
+            work_queue_ids=work_queue_ids,
             scheduled_before=scheduled_before,
             scheduled_after=scheduled_after,
             limit=limit,
         )
 
+        background_tasks.add_task(
+            _record_work_queue_polls,
+            db=db,
+            work_pool_id=work_pool_id,
+            work_queue_names=work_queue_names,
+        )
+
         return queue_response
+
+
+async def _record_work_queue_polls(
+    db: OrionDBInterface,
+    work_pool_id: UUID,
+    work_queue_names: List[str],
+):
+    """
+    Records that a set of work queues have been polled.
+
+    If no work queue names are provided, all work queues in the work pool are recorded as polled.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+
+        work_queue_filter = (
+            schemas.filters.WorkQueueFilter(
+                name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)
+            )
+            if work_queue_names
+            else None
+        )
+        work_queues = await models.workers.read_work_queues(
+            session=session,
+            work_pool_id=work_pool_id,
+            work_queue_filter=work_queue_filter,
+        )
+
+        for work_queue in work_queues:
+            await models.workers.update_work_queue(
+                session=session,
+                work_queue_id=work_queue.id,
+                work_queue=schemas.actions.WorkQueueUpdate(
+                    last_polled=pendulum.now("UTC")
+                ),
+            )
 
 
 # -----------------------------------------------------
@@ -315,12 +349,12 @@ async def get_scheduled_flow_runs(
 
 
 @router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
-async def create_work_pool_queue(
-    work_pool_queue: schemas.actions.WorkPoolQueueCreate,
+async def create_work_queue(
+    work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkPoolQueue:
+) -> schemas.core.WorkQueue:
     """
     Creates a new work pool queue. If a work pool queue with the same
     name already exists, an error will be raised.
@@ -333,10 +367,10 @@ async def create_work_pool_queue(
                 work_pool_name=work_pool_name,
             )
 
-            model = await models.workers.create_work_pool_queue(
+            model = await models.workers.create_work_queue(
                 session=session,
                 work_pool_id=work_pool_id,
-                work_pool_queue=work_pool_queue,
+                work_queue=work_queue,
                 db=db,
             )
     except sa.exc.IntegrityError:
@@ -349,39 +383,39 @@ async def create_work_pool_queue(
 
 
 @router.get("/{work_pool_name}/queues/{name}")
-async def read_work_pool_queue(
+async def read_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
-    work_pool_queue_name: str = Path(
+    work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> schemas.core.WorkPoolQueue:
+) -> schemas.core.WorkQueue:
     """
     Read a work pool queue
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_queue_id = await worker_lookups._get_work_pool_queue_id_from_name(
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             session=session,
             work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
+            work_queue_name=work_queue_name,
         )
 
-        return await models.workers.read_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool_queue_id, db=db
+        return await models.workers.read_work_queue(
+            session=session, work_queue_id=work_queue_id, db=db
         )
 
 
 @router.post("/{work_pool_name}/queues/filter")
-async def read_work_pool_queues(
+async def read_work_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
-    work_pool_queues: schemas.filters.WorkPoolQueueFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
     db: OrionDBInterface = Depends(provide_database_interface),
-) -> List[schemas.core.WorkPoolQueue]:
+) -> List[schemas.core.WorkQueue]:
     """
     Read all work pool queues
     """
@@ -390,10 +424,10 @@ async def read_work_pool_queues(
             session=session,
             work_pool_name=work_pool_name,
         )
-        return await models.workers.read_work_pool_queues(
+        return await models.workers.read_work_queues(
             session=session,
             work_pool_id=work_pool_id,
-            work_pool_queue_filter=work_pool_queues,
+            work_queue_filter=work_queues,
             limit=limit,
             offset=offset,
             db=db,
@@ -401,10 +435,10 @@ async def read_work_pool_queues(
 
 
 @router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def update_work_pool_queue(
-    work_pool_queue: schemas.actions.WorkPoolQueueUpdate,
+async def update_work_queue(
+    work_queue: schemas.actions.WorkQueueUpdate,
     work_pool_name: str = Path(..., description="The work pool name"),
-    work_pool_queue_name: str = Path(
+    work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
@@ -415,16 +449,16 @@ async def update_work_pool_queue(
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_queue_id = await worker_lookups._get_work_pool_queue_id_from_name(
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
+            work_queue_name=work_queue_name,
             session=session,
         )
 
-        await models.workers.update_work_pool_queue(
+        await models.workers.update_work_queue(
             session=session,
-            work_pool_queue_id=work_pool_queue_id,
-            work_pool_queue=work_pool_queue,
+            work_queue_id=work_queue_id,
+            work_queue=work_queue,
             db=db,
         )
 
@@ -432,9 +466,9 @@ async def update_work_pool_queue(
 @router.delete(
     "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
 )
-async def delete_work_pool_queue(
+async def delete_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
-    work_pool_queue_name: str = Path(
+    work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
     worker_lookups: WorkerLookups = Depends(WorkerLookups),
@@ -445,14 +479,14 @@ async def delete_work_pool_queue(
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_queue_id = await worker_lookups._get_work_pool_queue_id_from_name(
+        work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             session=session,
             work_pool_name=work_pool_name,
-            work_pool_queue_name=work_pool_queue_name,
+            work_queue_name=work_queue_name,
         )
 
-        await models.workers.delete_work_pool_queue(
-            session=session, work_pool_queue_id=work_pool_queue_id, db=db
+        await models.workers.delete_work_queue(
+            session=session, work_queue_id=work_queue_id, db=db
         )
 
 

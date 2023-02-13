@@ -25,7 +25,7 @@ from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.orion import schemas
 from prefect.orion.api.server import ORION_API_VERSION, create_app
-from prefect.orion.schemas.actions import LogCreate
+from prefect.orion.schemas.actions import LogCreate, WorkPoolCreate
 from prefect.orion.schemas.core import FlowRunNotificationPolicy
 from prefect.orion.schemas.filters import (
     FlowRunNotificationPolicyFilter,
@@ -730,6 +730,26 @@ async def test_create_then_read_concurrency_limit(orion_client):
 async def test_read_nonexistent_concurrency_limit_by_tag(orion_client):
     with pytest.raises(prefect.exceptions.ObjectNotFound):
         await orion_client.read_concurrency_limit_by_tag("not-a-real-tag")
+
+
+async def test_resetting_concurrency_limits(orion_client):
+    cl = await orion_client.create_concurrency_limit(
+        tag="an-unimportant-limit", concurrency_limit=100
+    )
+
+    await orion_client.reset_concurrency_limit_by_tag(
+        "an-unimportant-limit", slot_override=[uuid4(), uuid4(), uuid4()]
+    )
+    first_lookup = await orion_client.read_concurrency_limit_by_tag(
+        "an-unimportant-limit"
+    )
+    assert len(first_lookup.active_slots) == 3
+
+    await orion_client.reset_concurrency_limit_by_tag("an-unimportant-limit")
+    reset_lookup = await orion_client.read_concurrency_limit_by_tag(
+        "an-unimportant-limit"
+    )
+    assert len(reset_lookup.active_slots) == 0
 
 
 async def test_deleting_concurrency_limits(orion_client):
@@ -1529,3 +1549,35 @@ async def test_update_deployment_schedule_active_overwrites_when_provided(
     await orion_client.update_deployment(deployment, is_schedule_active=on_update)
     deployment = await orion_client.read_deployment(deployment_id)
     assert deployment.is_schedule_active == after_update
+
+
+class TestWorkPools:
+    async def test_read_work_pools(self, orion_client):
+        # default pool shows up when running the test class or individuals, but not when running
+        # test as a module
+        pools = await orion_client.read_work_pools()
+        existing_name = set([p.name for p in pools])
+        existing_ids = set([p.id for p in pools])
+        default_agent_pool_name = "default-agent-pool"
+        work_pool_1 = await orion_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-1")
+        )
+        work_pool_2 = await orion_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-pool-2")
+        )
+        pools = await orion_client.read_work_pools()
+        names_after_adding = set([p.name for p in pools])
+        ids_after_adding = set([p.id for p in pools])
+        assert names_after_adding.symmetric_difference(existing_name) == {
+            work_pool_1.name,
+            work_pool_2.name,
+        }
+        assert ids_after_adding.symmetric_difference(existing_ids) == {
+            work_pool_1.id,
+            work_pool_2.id,
+        }
+
+    async def test_delete_work_pool(self, orion_client, work_pool):
+        await orion_client.delete_work_pool(work_pool.name)
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.read_work_pool(work_pool.id)

@@ -61,7 +61,7 @@ Let’s look at the differences in how Prefect 2 transitions your flow and task 
 
 - In Prefect 2, the final state of a flow run that finished without errors is `Completed`, while in Prefect 1, this flow run has a `Success` state. You can find more about that topic [here](https://discourse.prefect.io/t/what-is-the-final-state-of-a-successful-flow-run/59).
 - The decision about whether a flow run should be considered successful or not is no longer based on special reference tasks. Instead, your flow’s return value determines the final state of a flow run. This [link](https://discourse.prefect.io/t/how-can-i-control-the-final-state-of-a-flow-run/56) provides a more detailed explanation with code examples.
-- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect Orion server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-queues/#work-queue-concurrency) are set on work queues.
+- In Prefect 1, concurrency limits were only available to Prefect Cloud users. Prefect 2 provides customizable concurrency limits with the open-source Prefect Orion server and Prefect Cloud. In Prefect 2, flow run [concurrency limits](https://docs.prefect.io/concepts/work-pools/#work-queue-concurrency) are set on work pools.
 
 
 ### What changed in flow deployment patterns?
@@ -71,7 +71,7 @@ To deploy your Prefect 1 flows, you have to send flow metadata to the backend in
 - Where to run your flow (your *Infrastructure*, such as a `DockerContainer`, `KubernetesJob`, or `ECSTask`).
 - When to run your flow (an `Interval`, `Cron`, or `RRule` schedule).
 - How to run your flow (execution details such as `parameters`, flow deployment `name`, and [more](https://discourse.prefect.io/tag/deployment)).
-- The work queue for your deployment. If no work queue is specified, a default work queue named `default` is used.
+- The work pool for your deployment. If no work pool is specified, a default work pool named `default` is used.
 
 The API is now implemented as a REST API rather than GraphQL. [This page](https://discourse.prefect.io/t/how-can-i-interact-with-the-backend-api-using-a-python-client/80) illustrates how you can interact with the API.
 
@@ -79,8 +79,8 @@ In Prefect 1, the logical grouping of flows was based on [projects](https://docs
 
 The role of agents has changed:
 
-- In Prefect 2, there is only one generic agent type. The agent polls a work queue looking for flow runs.
-- See [this Discourse page](https://discourse.prefect.io/t/whats-the-role-of-agents-and-work-queues-and-how-the-concept-of-agents-differ-between-prefect-1-0-and-2-0/689) for a more detailed discussion.
+- In Prefect 2, there is only one generic agent type. The agent polls a work pool looking for flow runs.
+- See [this Discourse page](https://discourse.prefect.io/t/whats-the-role-of-agents-and-work-pools-and-how-the-concept-of-agents-differ-between-prefect-1-0-and-2-0/689) for a more detailed discussion.
 
 ## New features introduced in Prefect 2
 

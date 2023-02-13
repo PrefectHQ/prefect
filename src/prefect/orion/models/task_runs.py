@@ -9,6 +9,7 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.orion.models as models
 import prefect.orion.schemas as schemas
@@ -88,6 +89,34 @@ async def create_task_run(
 
 
 @inject_db
+async def update_task_run(
+    session: AsyncSession,
+    task_run_id: UUID,
+    task_run: schemas.actions.TaskRunUpdate,
+    db: OrionDBInterface,
+) -> bool:
+    """
+    Updates a task run.
+
+    Args:
+        session: a database session
+        task_run_id: the task run id to update
+        task_run: a task run model
+
+    Returns:
+        bool: whether or not matching rows were found to update
+    """
+    update_stmt = (
+        sa.update(db.TaskRun).where(db.TaskRun.id == task_run_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
+        .values(**task_run.dict(shallow=True, exclude_unset=True))
+    )
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
+
+
+@inject_db
 async def read_task_run(
     session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
 ):
@@ -114,6 +143,8 @@ async def _apply_task_run_filters(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    work_pool_filter: schemas.filters.WorkPoolFilter = None,
+    work_queue_filter: schemas.filters.WorkQueueFilter = None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
@@ -122,7 +153,13 @@ async def _apply_task_run_filters(
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter(db))
 
-    if flow_filter or flow_run_filter or deployment_filter:
+    if (
+        flow_filter
+        or flow_run_filter
+        or deployment_filter
+        or work_pool_filter
+        or work_queue_filter
+    ):
         exists_clause = select(db.FlowRun).where(
             db.FlowRun.id == db.TaskRun.flow_run_id
         )
@@ -141,6 +178,19 @@ async def _apply_task_run_filters(
                 db.Deployment,
                 db.Deployment.id == db.FlowRun.deployment_id,
             ).where(deployment_filter.as_sql_filter(db))
+
+        if work_queue_filter:
+            exists_clause = exists_clause.join(
+                db.WorkQueue,
+                db.WorkQueue.id == db.FlowRun.work_queue_id,
+            ).where(work_queue_filter.as_sql_filter(db))
+
+        if work_pool_filter:
+            exists_clause = exists_clause.join(
+                db.WorkPool,
+                db.WorkPool.id == db.WorkQueue.work_pool_id,
+                db.WorkQueue.id == db.FlowRun.work_queue_id,
+            ).where(work_pool_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
