@@ -1090,7 +1090,7 @@ class Artifact(ORMBaseModel):
     )
 
     @classmethod
-    def from_state_result(cls, data: dict):
+    def from_result(cls, data: dict):
         type = data.pop("artifact_type", None)
         description = data.pop("artifact_description", None)
         if description:
