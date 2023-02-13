@@ -433,9 +433,10 @@ class PersistedResult(BaseResult):
         return blob
 
     @classmethod
-    def _infer_uri(cls, storage_block, key) -> str:
+    def _infer_path(cls, storage_block, key) -> str:
         """
-        Attempts to infer
+        Attempts to infer a path associated with a storage block key, this method will
+        defer to the block in the future
         """
 
         if hasattr(storage_block, "_resolve_path"):
@@ -445,13 +446,14 @@ class PersistedResult(BaseResult):
 
     @classmethod
     def _infer_description(cls, obj, storage_block, key) -> str:
-        uri = cls._infer_uri(storage_block, key)
+        uri = cls._infer_path(storage_block, key)
         if uri is not None:
             return f"<{uri}>"
 
         description = repr(obj)
-        if len(description) > 100:
-            return description[:100] + "..."
+        max_description_length = 500
+        if len(description) > max_description_length:
+            return description[:max_description_length] + "..."
         return "```\n" f"{description}\n" "```"
 
     @classmethod
