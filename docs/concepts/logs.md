@@ -62,9 +62,9 @@ For example, to change the default logging levels for Prefect to `DEBUG`, you ca
 
 You may also configure the "root" Python logger. The root logger receives logs from all loggers unless they explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs to the console. As with other logging settings, you can override this from the environment or in the logging configuration file. For example, you can change the level with the variable `PREFECT_LOGGING_ROOT_LEVEL`.
 
-You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to the Prefect API. The console handlers will still default to level `INFO`.
+You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_API_LEVEL=ERROR` to have only `ERROR` logs reported to the Prefect API. The console handlers will still default to level `INFO`.
 
-There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
+There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
 
 You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
