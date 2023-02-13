@@ -29,7 +29,7 @@ Currently Prefect supports the following databases:
 
 A local SQLite database is the default for Prefect. A local SQLite database is configured on installation.
 
-When you first install Prefect, your database will be located at `~/.prefect/orion.db`.
+When you first install Prefect, your database will be located at `~/.prefect/prefect.db`.
 
 If at any point in your testing you'd like to reset your database, run the CLI command:  
 
@@ -47,7 +47,7 @@ To configure the database location, you can specify a connection URL with the `P
 
 <div class="terminal">
 ```bash
-prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/prefect.db"
 ```
 </div>
 
