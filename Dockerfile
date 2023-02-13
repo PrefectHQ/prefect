@@ -32,7 +32,7 @@ RUN npm ci install
 
 # Build static UI files
 COPY ./ui .
-ENV ORION_UI_SERVE_BASE="/"
+ENV PREFECT_UI_SERVE_BASE="/"
 RUN npm run build
 
 
