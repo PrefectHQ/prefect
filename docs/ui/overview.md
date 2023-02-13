@@ -44,10 +44,10 @@ The Prefect UI is also available in any environment where a Prefect server is ru
 $ prefect server start
 Starting...
 
- ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
-| _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
-|  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
-|_| |_|_\___|_| |___\___| |_|    \___/|_|_\___\___/|_|\_|
+ ___ ___ ___ ___ ___ ___ _____ 
+| _ \ _ \ __| __| __/ __|_   _|
+|  _/   / _|| _|| _| (__  | |
+|_| |_|_\___|_| |___\___| |_|
 
 Configure Prefect to communicate with the server with:
 
