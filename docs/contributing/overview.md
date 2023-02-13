@@ -208,11 +208,11 @@ To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-
 
 <div class="terminal">
 ```bash
-kubectl port-forward deployment/orion 4200:4200
+kubectl port-forward deployment/prefect-server 4200:4200
 ```
 </div>
 
-This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment.
+This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
 
 To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
 
