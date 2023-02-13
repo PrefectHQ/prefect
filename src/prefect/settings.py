@@ -468,7 +468,7 @@ PREFECT_API_URL = Setting(
     default=None,
 )
 """
-If provided, the URL of an hosted Prefect API. Defaults to `None`.
+If provided, the URL of a hosted Prefect API. Defaults to `None`.
 
 When using Prefect Cloud, this will include an account and workspace.
 """

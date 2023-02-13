@@ -76,7 +76,7 @@ class TestChangingProfileAndCheckingOrionConnection:
     @pytest.fixture
     def authorized_cloud(self):
         # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
-        # to Prefect Cloud as opposed to a hosted Prefect Orion instance
+        # to Prefect Cloud as opposed to a hosted Prefect server instance
         with respx.mock:
             authorized = respx.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
@@ -106,7 +106,7 @@ class TestChangingProfileAndCheckingOrionConnection:
 
     @pytest.fixture
     def hosted_orion_has_no_cloud_api(self):
-        # if the API URL points to a hosted Prefect Orion instance, no Cloud API will be found
+        # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
         with respx.mock:
             hosted = respx.get(
                 "https://hosted-orion.prefect.io/api/me/workspaces",

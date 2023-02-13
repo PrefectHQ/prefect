@@ -5,7 +5,7 @@ Here we make the following changes to pytest:
 - Add service flags to the CLI
 - Skip tests with the in accordance with service marks and flags
 - Override the test event loop to allow async session/module scoped fixtures
-- Inject a check for open Orion client lifespans after every test call
+- Inject a check for open Prefect client lifespans after every test call
 - Create a test Prefect settings profile before test collection that will be used
   for the duration of the test run. This ensures tests are run in a temporary
   environment.
