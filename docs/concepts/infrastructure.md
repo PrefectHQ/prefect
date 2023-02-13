@@ -228,7 +228,7 @@ Requirements for `KubernetesJob`:
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
 - The ephemeral Prefect API won't work with Docker and Kubernetes. You must have an Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
-The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
+The Prefect CLI command `prefect kubernetes manifest server` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
 `KubernetesJob` supports the following settings:
 
