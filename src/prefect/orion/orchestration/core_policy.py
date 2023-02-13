@@ -41,8 +41,8 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             HandleFlowTerminalStateTransitions,
-            HandleCancellingStateTransitions,
-            HandleCancellingScheduledFlowRuns,
+            EnforceCancellingToCancelledTransition,
+            BypassCancellingScheduledFlowRuns,
             PreventRedundantTransitions,
             HandlePausingFlows,
             HandleResumingPausedFlows,
@@ -790,7 +790,7 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
             )
 
 
-class HandleCancellingStateTransitions(BaseOrchestrationRule):
+class EnforceCancellingToCancelledTransition(BaseOrchestrationRule):
     """
     Rejects transitions from Cancelling to any terminal state except for Cancelled.
     """
@@ -814,7 +814,7 @@ class HandleCancellingStateTransitions(BaseOrchestrationRule):
         return
 
 
-class HandleCancellingScheduledFlowRuns(BaseOrchestrationRule):
+class BypassCancellingScheduledFlowRuns(BaseOrchestrationRule):
     """Rejects transitions from Scheduled to Cancelling, and sets the state to Cancelled, if
     the flow run has no associated infrastructure process ID.
 

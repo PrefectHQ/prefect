@@ -12,11 +12,11 @@ from prefect.orion import schemas
 from prefect.orion.exceptions import ObjectNotFoundError
 from prefect.orion.models import concurrency_limits
 from prefect.orion.orchestration.core_policy import (
+    BypassCancellingScheduledFlowRuns,
     CacheInsertion,
     CacheRetrieval,
     CopyScheduledTime,
-    HandleCancellingScheduledFlowRuns,
-    HandleCancellingStateTransitions,
+    EnforceCancellingToCancelledTransition,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
@@ -2568,7 +2568,9 @@ class TestHandleCancellingStateTransitions:
             *intended_transition,
         )
 
-        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
@@ -2595,7 +2597,9 @@ class TestHandleCancellingStateTransitions:
             *intended_transition,
         )
 
-        async with HandleCancellingStateTransitions(ctx, *intended_transition) as ctx:
+        async with EnforceCancellingToCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
@@ -2620,7 +2624,7 @@ class TestHandleCancellingScheduledFlows:
             *intended_transition,
         )
 
-        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
@@ -2646,7 +2650,7 @@ class TestHandleCancellingScheduledFlows:
             *intended_transition,
         )
 
-        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
@@ -2669,7 +2673,7 @@ class TestHandleCancellingScheduledFlows:
             *intended_transition,
         )
 
-        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
@@ -2684,7 +2688,7 @@ class TestHandleCancellingScheduledFlows:
 
         ctx.run.infrastructure_pid = "my-pid-42"
 
-        async with HandleCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
+        async with BypassCancellingScheduledFlowRuns(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
