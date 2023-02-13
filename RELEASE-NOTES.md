@@ -5,7 +5,7 @@
 ### New names, same behavior
 We knew that we were on to something big when we [first announced Prefect Orion](https://www.prefect.io/guide/blog/announcing-prefect-orion/), our second generation orchestration engine, but we didn't know just how big. Orion's foundational design principles of "dynamism, developer experience, and observability" have influenced the entire Prefect 2 codebase to such an extent that it's difficult to tell where Orion ends and other components begin. In particular, it can be difficult to distinguish between the “Orion API” - the orchestration API, “Orion Server” - a hosted instance of that API, and components of that server. 
 
-With today's release, **we've removed references to "orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backawards compatible**. These changes clarify the function of various components, commands, variables, and more:
+With today's release, **we've removed references to "orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backwards compatible**. These changes clarify the function of various components, commands, variables, and more:
 
 - Default SQLite database name changed from `orion.db` to `prefect.db`
 - Logger `prefect.orion` renamed to `prefect.server`
