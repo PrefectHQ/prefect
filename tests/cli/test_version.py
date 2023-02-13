@@ -7,7 +7,7 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.orion.api.server import ORION_API_VERSION
+from prefect.server.api.server import SERVER_API_VERSION
 from prefect.settings import PREFECT_API_URL, PREFECT_CLOUD_API_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
@@ -51,12 +51,12 @@ def test_correct_output_ephemeral_sqlite(monkeypatch):
 
     dialect = Mock()
     dialect().name = "sqlite"
-    monkeypatch.setattr("prefect.orion.utilities.database.get_dialect", dialect)
+    monkeypatch.setattr("prefect.server.utilities.database.get_dialect", dialect)
 
     invoke_and_assert(
         ["version"],
         expected_output=f"""Version:             {prefect.__version__}
-API version:         {ORION_API_VERSION}
+API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
 Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}
@@ -77,12 +77,12 @@ def test_correct_output_ephemeral_postgres(monkeypatch):
 
     dialect = Mock()
     dialect().name = "postgres"
-    monkeypatch.setattr("prefect.orion.utilities.database.get_dialect", dialect)
+    monkeypatch.setattr("prefect.server.utilities.database.get_dialect", dialect)
 
     invoke_and_assert(
         ["version"],
         expected_output=f"""Version:             {prefect.__version__}
-API version:         {ORION_API_VERSION}
+API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
 Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}
@@ -104,7 +104,7 @@ def test_correct_output_non_ephemeral_server_type():
     invoke_and_assert(
         ["version"],
         expected_output=f"""Version:             {prefect.__version__}
-API version:         {ORION_API_VERSION}
+API version:         {SERVER_API_VERSION}
 Python version:      {platform.python_version()}
 Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}

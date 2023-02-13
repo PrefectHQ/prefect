@@ -10,7 +10,7 @@ tags:
 
 # Configure a Local Execution Environment
 
-In order to create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect Orion server as the backend API server, you must: 
+In order to create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you must: 
 
 - Configure the execution environment with the location of the API. 
 - Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
@@ -78,9 +78,9 @@ $ prefect cloud login --workspace "prefect/my-workspace"
 
 ## Manually configure Prefect API settings
 
-You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect Orion server API.
+You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect server API.
 
-Go to your terminal session and run this command to set the API URL to point to a Prefect Orion instance:
+Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
 
 <div class='terminal'>
 ```bash
@@ -99,12 +99,12 @@ $ prefect config set PREFECT_API_KEY="[API-KEY]"
 
 When you're in a Prefect Cloud workspace, you can copy the `PREFECT_API_URL` value directly from the page URL.
 
-In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect orion start`. See [Settings](/concepts/settings/) for details.
+In this example, we configured `PREFECT_API_URL` and `PREFECT_API_KEY` in the default profile. You can use `prefect profile` CLI commands to create settings profiles for different configurations. For example, you could have a "cloud" profile configured to use the Prefect Cloud API URL and API key, and another "local" profile for local development using a local Prefect API server started with `prefect server start`. See [Settings](/concepts/settings/) for details.
 
 !!! note "Environment variables"
     You can also set `PREFECT_API_URL` and `PREFECT_API_KEY` as you would any other environment variable. See [Overriding defaults with environment variables](/concepts/settings/#overriding-defaults-with-environment-variables) for more information.
 
-See the [Flow orchestration with Prefect](/tutorials/orion/) tutorial for examples.
+See the [Flow orchestration with Prefect](/tutorials/orchestration/) tutorial for examples.
 
 ## Install requirements in execution environments
 

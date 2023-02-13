@@ -123,7 +123,7 @@ Prefect Technologies is SOC2 Type II compliant and our enterprise product makes 
 
 **A user friendly, interactive dashboard for your dataflows**
 
-In the [Prefect Orion UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
+In the [Prefect UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
 
 **Faster and easier than building from scratch**
 
@@ -199,17 +199,17 @@ Fire up the Prefect UI locally by entering this command in your terminal:
 
 <div class="terminal">
 ```bash
-prefect orion start
+prefect server start
 ```
 </div>
 
 Follow the link in your terminal to see the dashboard.
 
-![screenshot of prefect orion dashboard with flow runs in a scatter plot](../img/intro-ui-dashboard.png)
+![screenshot of the Prefect dashboard with flow runs in a scatter plot](/img/intro-ui-dashboard.png)
 
 Click on your flow name to see logs and other details.
 
-![screenshot of prefect orion dashboard with logs, radar plot, and flow info](../img/intro-ui-logs.png)
+![screenshot of the Prefect dashboard with logs, radar plot, and flow info](/img/intro-ui-logs.png)
 
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.

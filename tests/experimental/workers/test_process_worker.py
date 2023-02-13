@@ -8,11 +8,11 @@ from pydantic import BaseModel
 
 import prefect
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
-from prefect.orion.schemas.core import WorkPool
-from prefect.orion.schemas.states import StateDetails, StateType
+from prefect.server.schemas.core import WorkPool
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock, MagicMock
 
@@ -46,7 +46,7 @@ def patch_run_process(monkeypatch):
 
 
 @pytest.fixture
-async def flow_run(orion_client: OrionClient):
+async def flow_run(orion_client: PrefectClient):
     flow_run = await orion_client.create_flow_run(
         flow=example_flow,
         state=State(

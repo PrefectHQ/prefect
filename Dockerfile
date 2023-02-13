@@ -15,7 +15,7 @@ ARG NODE_VERSION=16.15
 # Build the UI distributable.
 FROM node:${NODE_VERSION}-bullseye-slim as ui-builder
 
-WORKDIR /opt/orion-ui
+WORKDIR /opt/ui
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
@@ -27,12 +27,12 @@ RUN apt-get update && \
 RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
-COPY ./orion-ui/package*.json .
+COPY ./ui/package*.json .
 RUN npm ci install
 
 # Build static UI files
-COPY ./orion-ui .
-ENV ORION_UI_SERVE_BASE="/"
+COPY ./ui .
+ENV PREFECT_UI_SERVE_BASE="/"
 RUN npm run build
 
 
@@ -53,7 +53,7 @@ RUN apt-get update && \
 COPY . ./
 
 # Package the UI into the distributable.
-COPY --from=ui-builder /opt/orion-ui/dist ./src/prefect/orion/ui
+COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python setup.py sdist

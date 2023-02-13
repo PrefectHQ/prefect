@@ -28,8 +28,8 @@ That's it! You're ready to [start writing local flows](/tutorials/first-steps/).
 
 If you want to start running flows on a schedule, via the API, from the Prefect UI, or on distributed infrastructure, you'll need to understand a few additional concepts and perform some configuration.
 
-- Start a [Prefect Orion API server](/ui/overview/) with `prefect orion start` or create a [free Prefect Cloud account](/ui/cloud-quickstart/).
-- [Set `PREFECT_API_URL`](/tutorials/orion/#running-the-prefect-server) to enable communication between your execution environment and the Prefect Orion server or Prefect Cloud API.
+- Start a local [Prefect server](/ui/overview/) with `prefect server start` or create a [free Prefect Cloud account](/ui/cloud-quickstart/).
+- [Set `PREFECT_API_URL`](/tutorials/orchestration/#running-the-prefect-server) to enable communication between your execution environment and the Prefect server or Prefect Cloud API.
 - Configure [storage](/tutorials/storage/) to persist flow and task data.
 - Create a [deployment](/tutorials/deployments/) for a flow, giving the API metadata about where your flow's code is stored and how your flow should be run.
 - [Start an agent](/concepts/work-pools/#agent-overview) that can execute scheduled or ad-hoc flow runs from your deployments.

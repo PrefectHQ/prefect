@@ -1,15 +1,15 @@
 # global
 *                                    @PrefectHQ/open-source
 
-# orion server
-/src/prefect/orion                   @PrefectHQ/open-source @zangell44
+# backend
+/src/prefect/server                   @PrefectHQ/open-source @zangell44
 
 # deployments
 /src/prefect/cli/deployment.py       @PrefectHQ/open-source @cicdw
 /src/prefect/deployments.py          @PrefectHQ/open-source @cicdw
 
 # ui
-/orion-ui                            @pleek91
+/ui                            @pleek91
 
 # documentation
 /docs                                @tpdorsey
@@ -17,7 +17,7 @@ mkdocs.yml                           @tpdorsey
 mkdocs.insiders.yml                  @tpdorsey
 
 # orchestration rules / policies
-/src/prefect/orion/orchestration     @PrefectHQ/open-source @anticorrelator
+/src/prefect/server/orchestration     @PrefectHQ/open-source @anticorrelator
 
 # database configuration / models
-/src/prefect/orion/database          @PrefectHQ/open-source @anticorrelator
+/src/prefect/server/database          @PrefectHQ/open-source @anticorrelator

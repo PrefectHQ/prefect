@@ -1,7 +1,7 @@
 from unittest.mock import ANY
 
 import prefect.cli.agent
-from prefect import OrionClient
+from prefect import PrefectClient
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
@@ -24,7 +24,7 @@ def test_start_agent_run_once():
     )
 
 
-async def test_start_agent_creates_work_queue(orion_client: OrionClient):
+async def test_start_agent_creates_work_queue(orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=["agent", "start", "--run-once", "-q", "test"],
@@ -53,7 +53,7 @@ def test_start_agent_with_work_queue_and_tags():
 
 def test_start_agent_with_prefetch_seconds(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=[
             "agent",
@@ -77,7 +77,7 @@ def test_start_agent_with_prefetch_seconds(monkeypatch):
 
 def test_start_agent_with_prefetch_seconds_from_setting_by_default(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     with temporary_settings({PREFECT_AGENT_PREFETCH_SECONDS: 100}):
         invoke_and_assert(
             command=[
@@ -100,7 +100,7 @@ def test_start_agent_with_prefetch_seconds_from_setting_by_default(monkeypatch):
 
 def test_start_agent_respects_work_queue_names(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=["agent", "start", "-q", "a", "-q", "b", "--run-once"],
         expected_code=0,
@@ -116,7 +116,7 @@ def test_start_agent_respects_work_queue_names(monkeypatch):
 
 def test_start_agent_respects_work_queue_prefixes(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=["agent", "start", "-m", "a", "-m", "b", "--run-once"],
         expected_code=0,
@@ -132,7 +132,7 @@ def test_start_agent_respects_work_queue_prefixes(monkeypatch):
 
 def test_start_agent_respects_limit(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=["agent", "start", "--limit", "10", "--run-once", "-q", "test"],
         expected_code=0,
@@ -148,7 +148,7 @@ def test_start_agent_respects_limit(monkeypatch):
 
 def test_start_agent_respects_work_pool_name(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=["agent", "start", "--pool", "test-pool", "--run-once", "-q", "test"],
         expected_code=0,
@@ -178,7 +178,7 @@ def test_start_agent_with_work_queue_match_and_work_queue():
 
 def test_start_agent_with_just_work_pool(monkeypatch):
     mock_agent = MagicMock()
-    monkeypatch.setattr(prefect.cli.agent, "OrionAgent", mock_agent)
+    monkeypatch.setattr(prefect.cli.agent, "PrefectAgent", mock_agent)
     invoke_and_assert(
         command=["agent", "start", "--pool", "test-pool", "--run-once"],
         expected_code=0,

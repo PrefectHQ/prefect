@@ -21,7 +21,7 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
@@ -33,8 +33,8 @@ from prefect.exceptions import (
 )
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
-from prefect.orion.schemas.filters import FlowFilter
-from prefect.orion.schemas.schedules import (
+from prefect.server.schemas.filters import FlowFilter
+from prefect.server.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -73,7 +73,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client: OrionClient, name, deployment_id):
+async def get_deployment(client: PrefectClient, name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)

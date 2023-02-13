@@ -4,10 +4,10 @@ from datetime import timedelta
 import pytest
 
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment
-from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -366,7 +366,7 @@ class TestDeploymentRun:
         ],
     )
     async def test_passes_parameters_to_flow_run(
-        self, deployment, deployment_name, orion_client: OrionClient, given, expected
+        self, deployment, deployment_name, orion_client: PrefectClient, given, expected
     ):
         """
         This test ensures the parameters are set on the created flow run and that

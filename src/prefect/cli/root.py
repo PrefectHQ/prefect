@@ -99,17 +99,17 @@ async def version():
     """Get the current Prefect version."""
     import sqlite3
 
-    from prefect.orion.api.server import ORION_API_VERSION
-    from prefect.orion.utilities.database import get_dialect
+    from prefect.server.api.server import SERVER_API_VERSION
+    from prefect.server.utilities.database import get_dialect
     from prefect.settings import (
+        PREFECT_API_DATABASE_CONNECTION_URL,
         PREFECT_API_URL,
         PREFECT_CLOUD_API_URL,
-        PREFECT_ORION_DATABASE_CONNECTION_URL,
     )
 
     version_info = {
         "Version": prefect.__version__,
-        "API version": ORION_API_VERSION,
+        "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
         "Built": pendulum.parse(
@@ -138,7 +138,7 @@ async def version():
 
     # TODO: Consider adding an API route to retrieve this information?
     if is_ephemeral:
-        database = get_dialect(PREFECT_ORION_DATABASE_CONNECTION_URL.value()).name
+        database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
             version_info["Server"]["SQLite version"] = sqlite3.sqlite_version

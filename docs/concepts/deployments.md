@@ -1,7 +1,6 @@
 ---
 description: Prefect deployments encapsulate a flow, allowing flow runs to be scheduled and triggered via API.
 tags:
-    - Orion
     - work queues
     - agents
     - orchestration
@@ -62,7 +61,7 @@ graph LR
 !!! info "Your flow code and the Prefect hybrid model"
     In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
+    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect server, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
 
 When creating a deployment, a user must answer *two* basic questions:
 
@@ -344,7 +343,7 @@ $ prefect deployment ls
 
 ![Viewing deployments in the Prefect UI](../img/concepts/deployments.png)
 
-When you run a deployed flow with Prefect Orion, the following happens:
+When you run a deployed flow with Prefect, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
 - An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
@@ -353,7 +352,7 @@ When you run a deployed flow with Prefect Orion, the following happens:
 [Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`.
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
 
     Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
@@ -417,7 +416,7 @@ View all of the parameters for the `Deployment` object in the [Python API docume
 
 ## Deployment API representation
 
-In Prefect Orion, when you create a deployment, it is constructed from deployment definition data you provide and additional properties calculated by client-side utilities.
+When you create a deployment, it is constructed from deployment definition data you provide and additional properties set by client-side utilities.
 
 Deployment properties include:
 
@@ -486,7 +485,8 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 ## Create a flow run from a deployment
 
 ### Create a flow run with a schedule
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
+
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
 ### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.

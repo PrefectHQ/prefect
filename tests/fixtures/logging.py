@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.logging.handlers import OrionHandler
-from prefect.settings import PREFECT_LOGGING_ORION_ENABLED, temporary_settings
+from prefect.logging.handlers import APILogHandler
+from prefect.settings import PREFECT_LOGGING_TO_API_ENABLED, temporary_settings
 
 
 @pytest.fixture(autouse=True)
@@ -12,22 +12,22 @@ def reset_orion_handler():
     stop the logging thread.
     """
     yield
-    OrionHandler.flush()
-    OrionHandler.workers = {}
+    APILogHandler.flush()
+    APILogHandler.workers = {}
 
 
 @pytest.fixture(autouse=True)
-def enable_orion_handler_if_marked(request):
+def enable_api_log_handler_if_marked(request):
     """
-    The `OrionHandler` is disabled during testing by default to reduce overhead.
+    The `APILogHandler` is disabled during testing by default to reduce overhead.
 
-    Test functions or classes can be marked with `@pytest.mark.enable_orion_handler`
+    Test functions or classes can be marked with `@pytest.mark.enable_api_log_handler`
     to indicate that they need the handler to be reenabled because they are testing
     its functionality.
     """
-    marker = request.node.get_closest_marker("enable_orion_handler")
+    marker = request.node.get_closest_marker("enable_api_log_handler")
     if marker is not None:
-        with temporary_settings(updates={PREFECT_LOGGING_ORION_ENABLED: True}):
+        with temporary_settings(updates={PREFECT_LOGGING_TO_API_ENABLED: True}):
             yield True
     else:
         yield False

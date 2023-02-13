@@ -7,8 +7,8 @@ from unittest.mock import Mock
 import pendulum
 import pytest
 
-import prefect.orion.models as models
-import prefect.orion.schemas as schemas
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 from prefect import flow
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem

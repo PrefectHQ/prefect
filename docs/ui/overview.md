@@ -1,7 +1,6 @@
 ---
 description: Gain overall visibility and coordination of your workflows with Prefect UI and Prefect Cloud.
 tags:
-    - Orion
     - UI
     - dashboard
     - visibility
@@ -15,12 +14,12 @@ tags:
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 
-![Prefect UI](../img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/prefect-dashboard.png)
 
 There are two ways to access the UI:
 
 - [Prefect Cloud](/ui/cloud/) is a hosted service that gives you observability over your flows, flow runs, and deployments, plus the ability to configure personal accounts, workspaces, and collaborators.
-- The [Prefect Orion UI](#using-the-prefect-ui) is also available as an open source, locally hosted orchestration engine, API server, and UI, giving you insight into the flows running with any local Prefect Orion instance.
+- The [Prefect UI](#using-the-prefect-ui) is also available as an open source, locally hosted orchestration engine, API server, and UI, giving you insight into the flows running with any local Prefect server instance.
 
 The Prefect UI displays many useful insights about your flow runs, including:
 
@@ -38,11 +37,11 @@ You can filter the information displayed in the UI by time, flow state, and tags
 
 The Prefect UI is available via [Prefect Cloud](/ui/cloud/) by logging into your account at [https://app.prefect.cloud/](https://app.prefect.cloud/).
 
-The Prefect UI is also available in any environment where a Prefect Orion server is running with `prefect orion start`.
+The Prefect UI is also available in any environment where a Prefect server is running with `prefect server start`.
 
 <div class="terminal">
 ```bash
-$ prefect orion start
+$ prefect server start
 Starting...
 
  ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
@@ -58,9 +57,9 @@ Check out the dashboard at http://127.0.0.1:4200
 ```
 </div>
 
-When the Prefect Orion server is running, you can access the Prefect UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
+When the Prefect server is running, you can access the Prefect UI at [http://127.0.0.1:4200](http://127.0.0.1:4200).
 
-![Prefect UI](../img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/prefect-dashboard.png)
 
 The following sections provide details about Prefect UI pages and visualizations:
 
@@ -101,11 +100,11 @@ See the [Prefect Cloud](/ui/cloud/) documentation for details about setting up a
 
 ## Prefect REST API
 
-The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Orion clients to Prefect Cloud or a local Prefect Orion server so that orchestration can be performed. This API is mainly consumed by Orion clients like the Prefect Python Client or the Orion Dashboard.
+The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server so that orchestration can be performed. This API is mainly consumed by clients like the Prefect Python Client or the Prefect UI.
 
 !!! note "Prefect REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
 
-    The Prefect Orion REST API documentation for a local instance run with with `prefect orion start` is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
+    The Prefect REST API documentation for a local instance run with with `prefect server start` is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
 
-    The Prefect Orion REST API documentation for locally run open-source Prefect Orion servers is also available in the [Prefect Orion REST API Reference](/api-ref/rest-api-reference/).
+    The Prefect REST API documentation for locally run open-source Prefect servers is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).

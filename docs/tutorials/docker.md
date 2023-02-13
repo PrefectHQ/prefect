@@ -27,19 +27,19 @@ To run a deployed flow in a Docker container, you'll need the following:
 
 - We'll use the flow script and deployment from the [Deployments](/tutorials/deployments/) tutorial. 
 - We'll also use the remote storage block created in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
-- You must run a standalone Prefect Orion API server (`prefect orion start`) or use Prefect Cloud.
+- You must run a standalone Prefect server (`prefect server start`) or use Prefect Cloud.
 - You'll need [Docker Engine](https://docs.docker.com/engine/) installed and running on the same machine as your agent.
 
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
-!!! note "Run Prefect Orion server"
-    This tutorial assumes you're already running a Prefect Orion server with `prefect orion start`, as described in the [Deployments](/tutorials/deployments/#run-a-prefect-orion-server) tutorial. 
+!!! note "Run a Prefect server"
+    This tutorial assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorials/deployments/) tutorial. 
     
-    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect Orion server with the `prefect orion start` CLI command.
+    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
 ## Create an infrastructure block
 
-Most users will find it easiest to configure new infrastructure blocks through the Prefect Orion or Prefect Cloud UI. 
+Most users will find it easiest to configure new infrastructure blocks through the Prefect server or Prefect Cloud UI. 
 
 You can see any previously configured storage blocks by opening the Prefect UI and navigating to the **Blocks** page. To create a new infrastructure block, select the **+** button on this page. Prefect displays a page of available block types. Select **run-infrastructure** from the **Capability** list to filter just the infrastructure blocks.
 
@@ -125,7 +125,7 @@ $ prefect agent start -q 'test'
 ```
 </div>
 
-Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect Orion instance, including the new `log-flow/log-flow-docker` deployment.
+Open the Prefect UI at [http://127.0.0.1:4200/](http://127.0.0.1:4200/) and select the **Deployments** page. You'll see a list of all deployments that have been created in this Prefect server instance, including the new `log-flow/log-flow-docker` deployment.
 
 ![Viewing the new Docker deployment in the Prefect UI](../img/tutorials/docker-deployment.png)
 
@@ -156,9 +156,9 @@ Let's create a flow run for this deployment. The flow run will execute in a Dock
     
     If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 
-    Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect Orion server or Prefect Cloud.
+    Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect server or Prefect Cloud.
 
-    If you're running the agent in the same environment or machine as your server, it should already be set. If not, run this command to set the API URL to point at the Prefect Orion instance just started:
+    If you're running the agent in the same environment or machine as your server, it should already be set. If not, run this command to set the API URL to point at the Prefect instance just started:
 
     <div class='terminal'>
     ```bash
@@ -212,10 +212,10 @@ Collecting s3fs
 ```
 </div>
 
-In the Prefect Orion UI, go to the **Flow Runs** page and select the flow run. You should see the "Hello Ford Prefect!" log message created by the flow running in the Docker container!
+In the Prefect UI, go to the **Flow Runs** page and select the flow run. You should see the "Hello Ford Prefect!" log message created by the flow running in the Docker container!
 
 ![Log messages from the deployment flow run.](../img/tutorials/docker-flow-log.png)
 
 ## Cleaning up
 
-When you're finished, just close the Prefect Orion UI tab in your browser, and close the terminal sessions running the Prefect Orion server and agent.
+When you're finished, just close the Prefect UI tab in your browser, and close the terminal sessions running the Prefect server and agent.

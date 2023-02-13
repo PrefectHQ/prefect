@@ -1,8 +1,8 @@
 import pytest
 
 from prefect.exceptions import ObjectNotFound
-from prefect.orion.schemas.actions import WorkPoolUpdate
-from prefect.orion.schemas.core import WorkPool
+from prefect.server.schemas.actions import WorkPoolUpdate
+from prefect.server.schemas.core import WorkPool
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 

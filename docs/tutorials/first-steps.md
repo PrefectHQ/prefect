@@ -63,7 +63,7 @@ What is your favorite number?
 
 Notice the log messages surrounding the expected output, "What is your favorite number?". Finally, the value returned by the function is printed. 
 
-By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect Orion orchestration engine manages flow and task state, including inspecting their progress, regardless of where your flow code runs.
+By adding the `@flow` decorator to a function, function calls will create a _flow run_ &mdash; the Prefect orchestration engine manages flow and task state, including inspecting their progress, regardless of where your flow code runs.
 
 In this case, the state of `my_favorite_function()` is "Completed", with no further message details. This reflects the logged message we saw earlier, `Flow run 'olive-poodle' - Finished in state Completed()`. 
 
@@ -220,17 +220,17 @@ main_flow()
 
 Whenever we run `main_flow` as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but you can also inspect it independently in the UI!
 
-Spin up the local Prefect Orion UI using the `prefect orion start` CLI command from your terminal:
+Spin up a local Prefect server UI using the `prefect server start` CLI command from your terminal:
 
 <div class="terminal">
 ```bash
-$ prefect orion start
+$ prefect server start
 ```
 </div>
 
-Open the URL for the Orion UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
+Open the URL for the Prefect server UI ([http://127.0.0.1:4200](http://127.0.0.1:4200) by default) in a browser. You should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
 
-![Viewing the orchestrated flow runs in the Orion UI.](../img/tutorials/first-steps-ui.png)
+![Viewing the orchestrated flow runs in the Prefect UI.](../img/tutorials/first-steps-ui.png)
 
 The Prefect UI and Prefect Cloud provide an overview of all of your flows, flow runs, and task runs, plus a lot more. For details on using the Prefect UI, see the [Prefect UI & Prefect Cloud](/ui/overview/) documentation.
 

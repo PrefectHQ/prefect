@@ -5,7 +5,7 @@ Here we make the following changes to pytest:
 - Add service flags to the CLI
 - Skip tests with the in accordance with service marks and flags
 - Override the test event loop to allow async session/module scoped fixtures
-- Inject a check for open Orion client lifespans after every test call
+- Inject a check for open Prefect client lifespans after every test call
 - Create a test Prefect settings profile before test collection that will be used
   for the duration of the test run. This ensures tests are run in a temporary
   environment.
@@ -37,6 +37,13 @@ import prefect
 import prefect.settings
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
+    PREFECT_API_BLOCKS_REGISTER_ON_START,
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+    PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
+    PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
+    PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
+    PREFECT_API_SERVICES_SCHEDULER_ENABLED,
     PREFECT_API_URL,
     PREFECT_ASYNC_FETCH_STATE_RESULT,
     PREFECT_CLI_COLORS,
@@ -46,17 +53,10 @@ from prefect.settings import (
     PREFECT_HOME,
     PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_LOGGING_LEVEL,
-    PREFECT_LOGGING_ORION_ENABLED,
+    PREFECT_LOGGING_TO_API_ENABLED,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_ORION_ANALYTICS_ENABLED,
-    PREFECT_ORION_BLOCKS_REGISTER_ON_START,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED,
-    PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
-    PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED,
-    PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED,
-    PREFECT_ORION_SERVICES_SCHEDULER_ENABLED,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_ANALYTICS_ENABLED,
 )
 from prefect.utilities.dispatch import get_registry_for_type
 
@@ -288,19 +288,19 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
-            # can be enabled by the `enable_orion_handler` mark
-            PREFECT_LOGGING_ORION_ENABLED: False,
+            # can be enabled by the `enable_api_log_handler` mark
+            PREFECT_LOGGING_TO_API_ENABLED: False,
             # Disable services for test runs
-            PREFECT_ORION_ANALYTICS_ENABLED: False,
-            PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED: False,
-            PREFECT_ORION_SERVICES_SCHEDULER_ENABLED: False,
-            PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
-            PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
-            PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
+            PREFECT_SERVER_ANALYTICS_ENABLED: False,
+            PREFECT_API_SERVICES_LATE_RUNS_ENABLED: False,
+            PREFECT_API_SERVICES_SCHEDULER_ENABLED: False,
+            PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED: False,
+            PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED: False,
+            PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED: False,
             # Disable block auto-registration memoization
             PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION: False,
             # Disable auto-registration of block types as they can conflict
-            PREFECT_ORION_BLOCKS_REGISTER_ON_START: False,
+            PREFECT_API_BLOCKS_REGISTER_ON_START: False,
         },
         source=__file__,
     )
@@ -357,7 +357,7 @@ async def generate_test_database_connection_url(
     server for each test worker, using the provided connection URL as the starting
     point.  Requires that the given database user has permission to connect to the
     server and create new databases."""
-    original_url = PREFECT_ORION_DATABASE_CONNECTION_URL.value()
+    original_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
     if not original_url:
         yield None
         return
@@ -437,7 +437,7 @@ def test_database_connection_url(generate_test_database_connection_url):
     if url is None:
         yield None
     else:
-        with temporary_settings({PREFECT_ORION_DATABASE_CONNECTION_URL: url}):
+        with temporary_settings({PREFECT_API_DATABASE_CONNECTION_URL: url}):
             yield url
 
 
@@ -489,3 +489,6 @@ def enable_workers():
         {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
     ):
         yield
+
+
+1

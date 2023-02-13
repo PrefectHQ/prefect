@@ -255,7 +255,7 @@ async def block_create(
 
         if not PREFECT_UI_URL:
             exit_with_error(
-                "Prefect must be configured to use a hosted Orion server or "
+                "Prefect must be configured to use a hosted Prefect server or "
                 "Prefect Cloud to display the Prefect UI"
             )
 
