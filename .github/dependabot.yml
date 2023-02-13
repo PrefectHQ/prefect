@@ -8,7 +8,7 @@ updates:
     labels: ["maintenance"]
 
   - package-ecosystem: "npm"
-    directory: '/orion-ui/'
+    directory: '/ui/'
     schedule:
       interval: "weekly"
     labels: ["ui", "maintenance"]
