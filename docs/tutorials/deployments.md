@@ -214,7 +214,7 @@ Note that the flow requires a `name` parameter, but we didn't specify one when b
 
 Open the `log_flow-deployment.yaml` file and edit the parameters to include a default as `parameters: {'name': 'Marvin'}` and the `infra_overrides` to include the relevant environment variable (note that both JSON and nested key/value pairs work here):
 
-```yaml hl_lines="10 12-14"
+```yaml hl_lines="11 13-15"
 ###
 ### A complete description of a Prefect Deployment for flow 'log-flow'
 ###
