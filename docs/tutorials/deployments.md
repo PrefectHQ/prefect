@@ -395,10 +395,10 @@ For the remainder of this tutorial, you'll use a local Prefect server. Open anot
 ```bash
 $ prefect server start
 
- ___ ___ ___ ___ ___ ___ _____    ___  ___ ___ ___  _  _
-| _ \ _ \ __| __| __/ __|_   _|  / _ \| _ \_ _/ _ \| \| |
-|  _/   / _|| _|| _| (__  | |   | (_) |   /| | (_) | .` |
-|_| |_|_\___|_| |___\___| |_|    \___/|_|_\___\___/|_|\_|
+ ___ ___ ___ ___ ___ ___ _____ 
+| _ \ _ \ __| __| __/ __|_   _|
+|  _/   / _|| _|| _| (__  | |
+|_| |_|_\___|_| |___\___| |_|
 
 Configure Prefect to communicate with the server with:
 
