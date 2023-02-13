@@ -30,7 +30,7 @@ def error_sens_o_matic_mock():
 
 
 async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
-    from prefect.server.api.server import ORION_API_VERSION
+    from prefect.server.api.server import SERVER_API_VERSION
 
     telemetry = Telemetry(handle_signals=False)
     await telemetry.start(loops=1)
@@ -51,7 +51,7 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     assert payload["python_version"] == platform.python_version()
     assert payload["python_implementation"] == platform.python_implementation()
 
-    assert payload["api_version"] == ORION_API_VERSION
+    assert payload["api_version"] == SERVER_API_VERSION
     assert payload["prefect_version"] == prefect.__version__
 
     assert payload["session_id"] == telemetry.session_id
