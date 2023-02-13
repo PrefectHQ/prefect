@@ -40,12 +40,13 @@ TITLE = "Prefect Orion"
 API_TITLE = "Prefect Prefect REST API"
 UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.4"
+SERVER_API_VERSION = "0.8.4"
+ORION_API_VERSION = SERVER_API_VERSION  # Deprecated. Available for compatibility.
 
 logger = get_logger("orion")
 
 enforce_minimum_version = EnforceMinimumAPIVersion(
-    # this should be <= ORION_API_VERSION; clients that send
+    # this should be <= SERVER_API_VERSION; clients that send
     # a version header under this value will be rejected
     minimum_api_version="0.8.0",
     logger=logger,
@@ -169,7 +170,7 @@ def create_orion_api(
 
     @api_app.get(version_check_path, tags=["Root"])
     async def orion_info():
-        return ORION_API_VERSION
+        return SERVER_API_VERSION
 
     # always include version checking
     if dependencies is None:

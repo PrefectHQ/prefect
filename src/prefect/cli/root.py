@@ -99,7 +99,7 @@ async def version():
     """Get the current Prefect version."""
     import sqlite3
 
-    from prefect.server.api.server import ORION_API_VERSION
+    from prefect.server.api.server import SERVER_API_VERSION
     from prefect.server.utilities.database import get_dialect
     from prefect.settings import (
         PREFECT_API_DATABASE_CONNECTION_URL,
@@ -109,7 +109,7 @@ async def version():
 
     version_info = {
         "Version": prefect.__version__,
-        "API version": ORION_API_VERSION,
+        "API version": SERVER_API_VERSION,
         "Python version": platform.python_version(),
         "Git commit": prefect.__version_info__["full-revisionid"][:8],
         "Built": pendulum.parse(
