@@ -24,7 +24,7 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.server.utilities.server import PrefectRouter
 
-logger = get_logger("orion.api")
+logger = get_logger("server.api")
 
 router = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 

@@ -43,7 +43,7 @@ API_VERSION = prefect.__version__
 SERVER_API_VERSION = "0.8.4"
 ORION_API_VERSION = SERVER_API_VERSION  # Deprecated. Available for compatibility.
 
-logger = get_logger("orion")
+logger = get_logger("server")
 
 enforce_minimum_version = EnforceMinimumAPIVersion(
     # this should be <= SERVER_API_VERSION; clients that send

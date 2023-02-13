@@ -36,7 +36,7 @@ class LoopService:
         self._should_stop = False  # flag for whether the service should stop running
         self._is_running = False  # flag for whether the service is running
         self.name = type(self).__name__
-        self.logger = get_logger(f"orion.services.{self.name.lower()}")
+        self.logger = get_logger(f"server.services.{self.name.lower()}")
 
         if handle_signals:
             signal.signal(signal.SIGINT, self._stop)
