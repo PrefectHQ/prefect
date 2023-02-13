@@ -13,7 +13,7 @@ from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ, PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
 
-logger = get_logger("orion.api.ui.flow_runs")
+logger = get_logger("server.api.ui.flow_runs")
 
 router = PrefectRouter(prefix="/ui/flow_runs", tags=["Flow Runs", "UI"])
 

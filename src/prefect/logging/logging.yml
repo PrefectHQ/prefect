@@ -76,7 +76,7 @@ loggers:
         level: NOTSET
         handlers: [orion]
 
-    prefect.orion:
+    prefect.server:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
     prefect.client:

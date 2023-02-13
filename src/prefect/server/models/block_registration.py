@@ -7,7 +7,7 @@ import prefect
 from prefect.logging import get_logger
 from prefect.server import models, schemas
 
-logger = get_logger("orion")
+logger = get_logger("server")
 
 COLLECTIONS_BLOCKS_DATA_PATH = (
     Path(__file__).parent.parent / "collection_blocks_data.json"

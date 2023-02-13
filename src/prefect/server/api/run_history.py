@@ -17,7 +17,7 @@ from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.utilities.schemas import DateTimeTZ
 
-logger = get_logger("orion.api")
+logger = get_logger("server.api")
 
 
 @inject_db
