@@ -141,10 +141,10 @@ class Block(BaseModel, ABC):
     This class can be defined with an arbitrary set of fields and methods, and
     couples business logic with data contained in an block document.
     `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    `_block_type_id` are reserved by Orion as Block metadata fields, but
+    `_block_type_id` are reserved by the Prefect API as Block metadata fields, but
     otherwise a Block can implement arbitrary logic. Blocks can be instantiated
     without populating these metadata fields, but can only be used interactively,
-    not with the Orion API.
+    not with the Prefect API.
 
     Instead of the __init__ method, a block implementation allows the
     definition of a `block_initialization` method that is called after
@@ -223,13 +223,13 @@ class Block(BaseModel, ABC):
     # set by the class itself
 
     # Attribute to customize the name of the block type created
-    # when the block is registered with Orion. If not set, block
+    # when the block is registered with the API. If not set, block
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
 
     # Attributes used to set properties on a block type when registered
-    # with Orion.
+    # with the API.
     _logo_url: Optional[HttpUrl] = None
     _documentation_url: Optional[HttpUrl] = None
     _description: Optional[str] = None
@@ -745,12 +745,13 @@ class Block(BaseModel, ABC):
     @inject_client
     async def register_type_and_schema(cls, client: "PrefectClient" = None):
         """
-        Makes block available for configuration with current Orion server.
+        Makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.
 
         Args:
-            client: Optional Orion client to use for registering type and schema with
-                Orion. A new client will be created and used if one is not provided.
+            client: Optional client to use for registering type and schema with the
+                Prefect API. A new client will be created and used if one is not
+                provided.
         """
         if cls.__name__ == "Block":
             raise InvalidBlockRegistration(
