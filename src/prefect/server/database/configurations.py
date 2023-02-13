@@ -18,7 +18,7 @@ from prefect.utilities.asyncutils import add_event_loop_shutdown_callback
 
 class BaseDatabaseConfiguration(ABC):
     """
-    Abstract base class used to inject database connection configuration into the API.
+    Abstract base class used to inject database connection configuration into Prefect.
 
     This configuration is responsible for defining how Prefect REST API creates and manages
     database connections and sessions.

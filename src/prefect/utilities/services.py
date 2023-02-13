@@ -50,14 +50,14 @@ async def critical_service_loop(
             # httpx.TransportError is the base class for any kind of communications
             # error, like timeouts, connection failures, etc.  This does _not_ cover
             # routine HTTP error codes (even 5xx errors like 502/503) so this
-            # handler should not be attempting to cover cases where the Orion server
+            # handler should not be attempting to cover cases where the Prefect server
             # or Prefect Cloud is having an outage (which will be covered by the
             # exception clause below)
             track_record.append(False)
             failures.append((exc, sys.exc_info()[-1]))
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code in (502, 503):
-                # 502/503 indicate a potential outage of the Orion server or Prefect
+                # 502/503 indicate a potential outage of the Prefect server or Prefect
                 # Cloud, which is likely to be temporary and transient.  Don't quit
                 # over these unless it is prolonged.
                 track_record.append(False)

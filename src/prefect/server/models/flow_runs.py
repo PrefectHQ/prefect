@@ -429,7 +429,7 @@ async def set_flow_run_state(
     Creates a new orchestrated flow run state.
 
     Setting a new state on a run is the one of the principal actions that is governed by
-    Prefects's orchestration logic. Setting a new run state will not guarantee creation,
+    Prefect's orchestration logic. Setting a new run state will not guarantee creation,
     but instead trigger orchestration rules to govern the proposed `state` input. If
     the state is considered valid, it will be written to the database. Otherwise, a
     it's possible a different state, or no state, will be created. A `force` flag is

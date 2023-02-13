@@ -37,13 +37,13 @@ def manifest_orion(
         get_prefect_image_name(),
         "-i",
         "--image-tag",
-        help="The tag of a Docker image to use for the Orion.",
+        help="The tag of a Docker image to use for Prefect.",
     ),
     namespace: str = typer.Option(
         "default",
         "-n",
         "--namespace",
-        help="A Kubernetes namespace to create Orion in.",
+        help="A Kubernetes namespace to create Prefect in.",
     ),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
@@ -78,7 +78,7 @@ def manifest_server(
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
     """
-    Generates a manifest for deploying a Prefect server on Kubernetes.
+    Generates a manifest for deploying Prefect on Kubernetes.
 
     Example:
         $ prefect kubernetes manifest server | kubectl apply -f -

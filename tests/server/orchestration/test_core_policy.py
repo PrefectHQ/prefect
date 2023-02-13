@@ -1430,7 +1430,7 @@ class TestTaskConcurrencyLimits:
                 ctx = await stack.enter_async_context(rule(ctx, *running_transition))
             await ctx.validate_proposed_state()
 
-        # instead of a WAIT response, Orion should direct the client to ABORT
+        # instead of a WAIT response, Prefect should direct the client to ABORT
         assert ctx.response_status == SetStateStatus.ABORT
 
     async def test_returning_concurrency_slots_on_fizzle(
