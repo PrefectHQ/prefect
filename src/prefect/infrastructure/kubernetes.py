@@ -1,5 +1,6 @@
 import copy
 import enum
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -182,10 +183,17 @@ class KubernetesJob(Infrastructure):
 
     @validator("customizations", pre=True)
     def cast_customizations_to_a_json_patch(
-        cls, value: Union[List[Dict], JsonPatch]
+        cls, value: Union[List[Dict], JsonPatch, str]
     ) -> JsonPatch:
         if isinstance(value, list):
             return JsonPatch(value)
+        elif isinstance(value, str):
+            try:
+                return JsonPatch(json.loads(value))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Unable to parse customizations as JSON: {value}. Please make sure that the provided value is a valid JSON string."
+                ) from exc
         return value
 
     @root_validator

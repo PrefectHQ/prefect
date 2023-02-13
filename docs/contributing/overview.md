@@ -58,7 +58,7 @@ pytest tests/test_flows.py
 </div>
 
 !!! tip "Building the Prefect UI"
-    If you intend to run a local Prefect Orion server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
+    If you intend to run a local Prefect server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
 !!! note "Windows support is under development"
     Support for Prefect on Windows is a work in progress.
@@ -148,7 +148,7 @@ For answers to common questions about this code of conduct, see
 
 ## Developer tooling
 
-The Orion CLI provides several helpful CLI commands to aid development.
+The Prefect CLI provides several helpful commands to aid development.
 
 Start all services with hot-reloading on code changes (requires UI dependencies to be installed):
 
@@ -158,7 +158,7 @@ prefect dev start
 ```
 </div>
 
-Start an Orion API that reloads on code changes:
+Start a Prefect API that reloads on code changes:
 
 <div class="terminal">
 ```bash
@@ -166,7 +166,7 @@ prefect dev api
 ```
 </div>
 
-Start an Orion agent that reloads on code changes:
+Start a Prefect agent that reloads on code changes:
 
 <div class="terminal">
 ```bash
@@ -176,7 +176,7 @@ prefect dev agent
 
 ### UI development
 
-Developing the Orion UI requires that [npm](https://github.com/npm/cli) is installed.
+Developing the Prefect UI requires that [npm](https://github.com/npm/cli) is installed.
 
 Start a development UI that reloads on code changes:
 
@@ -186,7 +186,7 @@ prefect dev ui
 ```
 </div>
 
-Build the static UI (the UI served by `prefect orion start`):
+Build the static UI (the UI served by `prefect server start`):
 
 <div class="terminal">
 ```bash
@@ -204,17 +204,17 @@ prefect dev kubernetes-manifest
 ```
 </div>
 
-To access the Orion UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
+To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-forward` command to forward a port on your local machine to an open port within the cluster. For example:
 
 <div class="terminal">
 ```bash
-kubectl port-forward deployment/orion 4200:4200
+kubectl port-forward deployment/prefect-dev 4200:4200
 ```
 </div>
 
-This forwards port 4200 on the default internal loop IP for localhost to the “orion” deployment.
+This forwards port 4200 on the default internal loop IP for localhost to the Prefect server deployment.
 
-To tell the local `prefect` command how to communicate with the Orion API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
+To tell the local `prefect` command how to communicate with the Prefect API running in Kubernetes, set the `PREFECT_API_URL` environment variable:
 
 <div class="terminal">
 ```bash
@@ -222,5 +222,5 @@ export PREFECT_API_URL=http://localhost:4200/api
 ```
 </div>
 
-Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Orion API running in Kubernetes when using local Prefect CLI commands.
+Since you previously configured port forwarding for the localhost port to the Kubernetes environment, you’ll be able to interact with the Prefect API running in Kubernetes when using local Prefect CLI commands.
 

@@ -35,7 +35,7 @@ def is_port_in_use(port: int) -> bool:
 @pytest.fixture(scope="session")
 async def hosted_orion_api():
     """
-    Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
+    Runs an instance of the Prefect API at a dedicated URL instead of the ephemeral
     application. Requires a port from 2222-2227 to be available.
 
     Uses the same database as the rest of the tests.
@@ -60,7 +60,7 @@ async def hosted_orion_api():
         command=[
             "uvicorn",
             "--factory",
-            "prefect.orion.api.server:create_app",
+            "prefect.server.api.server:create_app",
             "--host",
             "127.0.0.1",
             "--port",
@@ -92,7 +92,7 @@ async def hosted_orion_api():
                 response.raise_for_status()
             if not response:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to hosted test Orion."
+                    "Timed out while attempting to connect to hosted test Prefect API."
                 )
 
         # Yield to the consuming tests

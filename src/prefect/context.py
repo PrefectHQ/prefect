@@ -30,12 +30,12 @@ from pydantic import BaseModel, Field, PrivateAttr
 import prefect.logging
 import prefect.logging.configuration
 import prefect.settings
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
-from prefect.orion.utilities.schemas import DateTimeTZ
 from prefect.results import ResultFactory
+from prefect.server.utilities.schemas import DateTimeTZ
 from prefect.settings import PREFECT_HOME, Profile, Settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner
@@ -194,11 +194,11 @@ class RunContext(ContextModel):
 
     Attributes:
         start_time: The time the run context was entered
-        client: The Orion client instance being used for API communication
+        client: The Prefect client instance being used for API communication
     """
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))
-    client: OrionClient
+    client: PrefectClient
 
 
 class FlowRunContext(RunContext):

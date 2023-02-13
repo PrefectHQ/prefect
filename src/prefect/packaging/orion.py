@@ -4,7 +4,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.blocks.system import JSON
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.flows import Flow
 from prefect.packaging.base import PackageManifest, Packager, Serializer
@@ -17,7 +17,7 @@ class OrionPackageManifest(PackageManifest):
     block_document_id: UUID
 
     @inject_client
-    async def unpackage(self, client: OrionClient) -> Flow:
+    async def unpackage(self, client: PrefectClient) -> Flow:
         document = await client.read_block_document(self.block_document_id)
         block = JSON._from_block_document(document)
         serialized_flow: str = block.value["flow"]
@@ -27,7 +27,7 @@ class OrionPackageManifest(PackageManifest):
 
 class OrionPackager(Packager):
     """
-    This packager stores the flow as an anonymous JSON block in the Orion database.
+    This packager stores the flow as an anonymous JSON block in the Prefect database.
     The content of the block are encrypted at rest.
 
     By default, the content is the source code of the module the flow is defined in.
@@ -39,7 +39,7 @@ class OrionPackager(Packager):
 
     async def package(self, flow: Flow) -> OrionPackageManifest:
         """
-        Package a flow in the Orion database as an anonymous block.
+        Package a flow in the Prefect database as an anonymous block.
         """
         block_document_id = await JSON(
             value={"flow": self.serializer.dumps(flow)}

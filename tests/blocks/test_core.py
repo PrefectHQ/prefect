@@ -13,11 +13,11 @@ import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
 from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
-from prefect.client import OrionClient
+from prefect.client import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
-from prefect.orion import models
-from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.server import models
+from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
@@ -1046,7 +1046,7 @@ class TestRegisterBlockTypeAndSchema:
         b: str
         c: int
 
-    async def test_register_type_and_schema(self, orion_client: OrionClient):
+    async def test_register_type_and_schema(self, orion_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_slug(slug="newblock")
@@ -1062,7 +1062,7 @@ class TestRegisterBlockTypeAndSchema:
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
 
-    async def test_register_idempotent(self, orion_client: OrionClient):
+    async def test_register_idempotent(self, orion_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
         await self.NewBlock.register_type_and_schema()
 
@@ -1077,7 +1077,7 @@ class TestRegisterBlockTypeAndSchema:
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_existing_block_type_new_block_schema(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -1103,7 +1103,7 @@ class TestRegisterBlockTypeAndSchema:
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_new_block_schema_when_version_changes(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -1130,7 +1130,7 @@ class TestRegisterBlockTypeAndSchema:
 
         self.NewBlock._block_schema_version = None
 
-    async def test_register_nested_block(self, orion_client: OrionClient):
+    async def test_register_nested_block(self, orion_client: PrefectClient):
         class Big(Block):
             id: UUID = Field(default_factory=uuid4)
             size: int
@@ -1167,7 +1167,7 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert biggest_block_schema is not None
 
-    async def test_register_nested_block_union(self, orion_client: OrionClient):
+    async def test_register_nested_block_union(self, orion_client: PrefectClient):
         class A(Block):
             a: str
 
@@ -1218,7 +1218,7 @@ class TestRegisterBlockTypeAndSchema:
         ):
             await Block.register_type_and_schema()
 
-    async def test_register_updates_block_type(self, orion_client: OrionClient):
+    async def test_register_updates_block_type(self, orion_client: PrefectClient):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -2422,5 +2422,5 @@ class TestBlockSchemaMigration:
         )
         updated_schema_id = updated_schema.block_schema_id
 
-        # new local schema ID should now be saved to Orion
+        # new local schema ID should now be saved to Prefect
         assert updated_schema_id == new_schema_id

@@ -40,10 +40,10 @@ from prefect.exceptions import (
     TerminationSignal,
 )
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.actions import FlowRunCreate
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
+from prefect.server.schemas.actions import FlowRunCreate
+from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
@@ -304,7 +304,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
         flow_run_id = None
 
         @task
@@ -337,7 +339,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -359,7 +363,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
         flow_run_id = None
 
         @task
@@ -391,7 +397,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -440,7 +448,9 @@ class TestOutOfProcessPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -480,7 +490,9 @@ class TestOutOfProcessPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():

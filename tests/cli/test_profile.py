@@ -66,7 +66,7 @@ class TestChangingProfileAndCheckingOrionConnection:
                     },
                 ),
                 Profile(
-                    name="ephemeral-orion",
+                    name="ephemeral-prefect",
                     settings={},
                 ),
             ],
@@ -76,7 +76,7 @@ class TestChangingProfileAndCheckingOrionConnection:
     @pytest.fixture
     def authorized_cloud(self):
         # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
-        # to Prefect Cloud as opposed to a hosted Prefect Orion instance
+        # to Prefect Cloud as opposed to a hosted Prefect server instance
         with respx.mock:
             authorized = respx.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
@@ -106,7 +106,7 @@ class TestChangingProfileAndCheckingOrionConnection:
 
     @pytest.fixture
     def hosted_orion_has_no_cloud_api(self):
-        # if the API URL points to a hosted Prefect Orion instance, no Cloud API will be found
+        # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
         with respx.mock:
             hosted = respx.get(
                 "https://hosted-orion.prefect.io/api/me/workspaces",
@@ -174,7 +174,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Connected to Prefect Orion using profile 'hosted-orion'",
+            expected_output_contains="Connected to Prefect server using profile 'hosted-orion'",
             expected_code=0,
         )
 
@@ -187,7 +187,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Error connecting to Prefect Orion",
+            expected_output_contains="Error connecting to Prefect server",
             expected_code=1,
         )
 
@@ -197,13 +197,13 @@ class TestChangingProfileAndCheckingOrionConnection:
     def test_using_ephemeral_orion(self, profiles):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "ephemeral-orion"],
-            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'",
+            ["profile", "use", "ephemeral-prefect"],
+            expected_output_contains="No Prefect server specified using profile 'ephemeral-prefect'",
             expected_code=0,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "ephemeral-orion"
+        assert profiles.active_name == "ephemeral-prefect"
 
 
 def test_ls_default_profiles():

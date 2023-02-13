@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: orion
+  name: prefect-dev
 spec:
   selector:
     matchLabels:
-      app: orion
+      app: prefect-dev
   replicas: 1 # We're using SQLite, so we should only run 1 pod
   template:
     metadata:
       labels:
-        app: orion
+        app: prefect-dev
     spec:
       containers:
         - name: prefect
@@ -29,7 +29,7 @@ spec:
               name: prefect-repository
           env:
             # Allow connections to the API
-            - name: PREFECT_ORION_API_HOST
+            - name: PREFECT_SERVER_API_HOST
               value: 0.0.0.0
       volumes:
         - name: prefect-repository
@@ -39,15 +39,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: orion
+  name: prefect-dev
   labels:
-    app: orion
+    app: prefect-dev
 spec:
   ports:
     - port: 4200
       protocol: TCP
   selector:
-    app: orion
+    app: prefect-dev
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

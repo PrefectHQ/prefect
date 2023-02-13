@@ -1,5 +1,77 @@
 # Prefect Release Notes
 
+## Release 2.8.0
+
+### Prioritize flow runs with work pools 🏊
+
+![Work pools allow you to organize and prioritize work](https://user-images.githubusercontent.com/12350579/217914094-e8064420-294b-4033-b12e-c0f58da521d5.png)
+
+With this release, flow runs can now be prioritized among work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queues will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time-sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
+
+All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pools page in the UI or via the CLI.
+
+To create a new work pool named "my-pool" via the CLI:
+
+```bash
+prefect work-pool create "my-pool"
+```
+
+Each work pool starts out with a default queue. New queues can be added to a work pool via the UI or the CLI.
+
+To create a new work queue in a work pool via the CLI:
+
+```bash
+prefect work-queue create "high-priority" --pool "my-pool"
+```
+
+Deployments can now be assigned to a work queue in a specific work pool. Use the `--pool` flag to specify the work pool and the `--queue` flag to specify the work queue when building a deployment.
+
+```bash
+prefect deployment build \
+    --pool my-pool \
+    --queue high-priority \   
+    --name high-priority \
+    high_priority_flow.py:high_priority_flow
+```
+
+Once a deployment has been created and is scheduling flow runs on a work queue, you can start an agent to pick up those flow runs by starting an agent with the `--pool` flag.
+
+```bash
+prefect agent start --pool my-pool
+```
+
+Starting an agent with the `--pool` command allows the agent to pick up flow runs for the entire pool even as new queues are added to the pool. If you want to start an agent that only picks up flow runs for a specific queue, you can use the `--queue` flag.
+
+```bash
+prefect agent start --pool my-pool --queue high-priority
+```
+
+To learn more about work pools, check out the [docs](https://docs.prefect.io/concepts/work-pools/) or see the relevant pull requests:
+
+### Enhancements
+- Add ability to filter on work pool and queue when querying flow runs — https://github.com/PrefectHQ/prefect/pull/8459
+- Ensure agent respects work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
+- Add ability to create a flow run from the UI with parameters from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
+- Add generic `Webhook` block — https://github.com/PrefectHQ/prefect/pull/8401
+- Add override customizations functionality to deployments via CLI — https://github.com/PrefectHQ/prefect/pull/8349
+- Add ability to reset concurrency limits in CLI to purge existing runs from taking concurrency slots — https://github.com/PrefectHQ/prefect/pull/8408
+- Ensure matching flow run state information in UI — https://github.com/PrefectHQ/prefect/pull/8441
+- Customize CLI block registration experience based on `PREFECT_UI_URL` — https://github.com/PrefectHQ/prefect/pull/8438
+
+### Fixes
+- Fix `prefect dev start` command — https://github.com/PrefectHQ/prefect/pull/8176
+- Fix display of long log messages when in the UI — https://github.com/PrefectHQ/prefect/pull/8449
+- Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
+- Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
+- Fix display of work pool flow run filter in the UI — https://github.com/PrefectHQ/prefect/pull/8453
+
+### Documentation
+- Update Infrastructure concept documentation with `extra-pip-package` example and updated `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/8465
+- Add work pools documentation - https://github.com/PrefectHQ/prefect/pull/8377
+
+### Contributors
+- @carderne
+
 ## Release 2.7.12
 
 ### Custom flow and task run names 🎉
@@ -62,7 +134,7 @@ See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-co
 
 ### Using loggers outside of flows
 
-Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
+Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
 
 ```python
 from prefect import flow
@@ -94,15 +166,15 @@ example.py:6: UserWarning: Logger 'my-logger' attempted to send logs to Orion wi
 Notice, we got a warning. This helps avoid confusion when certain logs don't appear in the UI, but if you understand that you can turn it off:
 
 ```
-$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore
-Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+$ prefect config set PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore
+Set 'PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW' to 'ignore'.
 Updated profile 'default'.
 ```
 
 ### Enhancements
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
-- Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
+- Add PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
 - Display Runs before Deployments on flow pages - https://github.com/PrefectHQ/prefect/pull/8386
 - Clearify output CLI message when switching profiles - https://github.com/PrefectHQ/prefect/pull/8383
 
@@ -2056,7 +2128,7 @@ The run metadata that Orion stores in its database is a valuable record of what 
 - `prefect orion database downgrade` runs downgrade migrations
 
 **Breaking Change**
-Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://docs.prefect.io/tutorials/orion/#the-database).
+Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://docs.prefect.io/tutorials/orchestration/#the-database).
 
 ### CLI refinements
 

@@ -29,7 +29,7 @@ import prefect.exceptions
 from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import disable_logger
-from prefect.orion.schemas.core import (
+from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
     BlockSchema,
@@ -43,7 +43,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -136,19 +136,23 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 @register_base_type
 class Block(BaseModel, ABC):
     """
-    A base class for implementing a block that wraps an external service.
+        A base class for implementing a block that wraps an external service.
 
-    This class can be defined with an arbitrary set of fields and methods, and
-    couples business logic with data contained in an block document.
-    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    `_block_type_id` are reserved by Orion as Block metadata fields, but
-    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
-    without populating these metadata fields, but can only be used interactively,
-    not with the Orion API.
+        This class can be defined with an arbitrary set of fields and methods, and
+        couples business logic with data contained in an block document.
+        `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    <<<<<<< HEAD
+        `_block_type_id` are reserved by the Prefect API as Block metadata fields, but
+    =======
+        `_block_type_id` are reserved by Prefect as Block metadata fields, but
+    >>>>>>> ddff0f7939 (update docstrings and messages)
+        otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+        without populating these metadata fields, but can only be used interactively,
+        not with the Prefect API.
 
-    Instead of the __init__ method, a block implementation allows the
-    definition of a `block_initialization` method that is called after
-    initialization.
+        Instead of the __init__ method, a block implementation allows the
+        definition of a `block_initialization` method that is called after
+        initialization.
     """
 
     class Config:
@@ -223,13 +227,13 @@ class Block(BaseModel, ABC):
     # set by the class itself
 
     # Attribute to customize the name of the block type created
-    # when the block is registered with Orion. If not set, block
+    # when the block is registered with the API. If not set, block
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
 
     # Attributes used to set properties on a block type when registered
-    # with Orion.
+    # with the API.
     _logo_url: Optional[HttpUrl] = None
     _documentation_url: Optional[HttpUrl] = None
     _description: Optional[str] = None
@@ -625,7 +629,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         validate: bool = True,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Retrieves data from the block document with the given name for the block type
@@ -743,14 +747,15 @@ class Block(BaseModel, ABC):
     @classmethod
     @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: "OrionClient" = None):
+    async def register_type_and_schema(cls, client: "PrefectClient" = None):
         """
-        Makes block available for configuration with current Orion server.
+        Makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.
 
         Args:
-            client: Optional Orion client to use for registering type and schema with
-                Orion. A new client will be created and used if one is not provided.
+            client: Optional client to use for registering type and schema with the
+                Prefect API. A new client will be created and used if one is not
+                provided.
         """
         if cls.__name__ == "Block":
             raise InvalidBlockRegistration(
@@ -801,7 +806,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         is_anonymous: bool = False,
         overwrite: bool = False,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Saves the values of a block as a block document with an option to save as an
@@ -865,7 +870,7 @@ class Block(BaseModel, ABC):
 
     @sync_compatible
     async def save(
-        self, name: str, overwrite: bool = False, client: "OrionClient" = None
+        self, name: str, overwrite: bool = False, client: "PrefectClient" = None
     ):
         """
         Saves the values of a block as a block document.
