@@ -174,7 +174,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Connected to Prefect Orion using profile 'hosted-orion'",
+            expected_output_contains="Connected to Prefect server using profile 'hosted-orion'",
             expected_code=0,
         )
 
@@ -187,7 +187,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Error connecting to Prefect Orion",
+            expected_output_contains="Error connecting to Prefect server",
             expected_code=1,
         )
 
@@ -198,7 +198,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "ephemeral-prefect"],
-            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-prefect'",
+            expected_output_contains="No Prefect server specified using profile 'ephemeral-prefect'",
             expected_code=0,
         )
 
