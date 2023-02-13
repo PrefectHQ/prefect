@@ -112,8 +112,8 @@ def generate_welcome_blurb(base_url, ui_enabled: bool):
     return blurb
 
 
-@server_app.command()
 @orion_app.command()
+@server_app.command()
 async def start(
     host: str = SettingsOption(PREFECT_SERVER_API_HOST),
     port: int = SettingsOption(PREFECT_SERVER_API_PORT),
@@ -175,8 +175,8 @@ async def start(
     app.console.print("Server stopped!")
 
 
-@database_app.command()
 @orion_database_app.command()
+@database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Prefect database tables"""
     db = provide_database_interface()
@@ -195,8 +195,8 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     exit_with_success(f'Prefect database "{engine.url!r}" reset!')
 
 
-@database_app.command()
 @orion_database_app.command()
+@database_app.command()
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -226,8 +226,8 @@ async def upgrade(
     exit_with_success(f"Prefect database at {engine.url!r} upgraded!")
 
 
-@database_app.command()
 @orion_database_app.command()
+@database_app.command()
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     revision: str = typer.Option(
@@ -260,8 +260,8 @@ async def downgrade(
     exit_with_success(f"Prefect database at {engine.url!r} downgraded!")
 
 
-@database_app.command()
 @orion_database_app.command()
+@database_app.command()
 async def revision(
     message: str = typer.Option(
         None,
@@ -282,8 +282,8 @@ async def revision(
     exit_with_success("Creating new migration file succeeded!")
 
 
-@database_app.command()
 @orion_database_app.command()
+@database_app.command()
 async def stamp(revision: str):
     """Stamp the revision table with the given revision; don’t run any migrations"""
 
