@@ -1069,14 +1069,14 @@ class Artifact(ORMBaseModel):
         default=None,
         description="An identifier for how this artifact is persisted.",
     )
-    data: Optional[Any] = Field(
+    data: Dict[str, str] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
             "Content must be storable as JSON."
         ),
     )
-    metadata_: Optional[Any] = Field(
+    metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. " "Content must be storable as JSON."
