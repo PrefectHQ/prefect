@@ -326,6 +326,8 @@ class ResultFactory(pydantic.BaseModel):
 @add_type_dispatch
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
+    artifact_type: str
+    artifact_description: str
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -384,7 +386,8 @@ class LiteralResult(BaseResult):
                 f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        return cls(value=obj)
+        description = f"Literal: `{obj}`"
+        return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
 class PersistedResult(BaseResult):
@@ -402,8 +405,6 @@ class PersistedResult(BaseResult):
     serializer_type: str
     storage_block_id: uuid.UUID
     storage_key: str
-    artifact_type: str
-    artifact_description: str
 
     _should_cache_object: bool = pydantic.PrivateAttr(default=True)
 
