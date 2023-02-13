@@ -1,6 +1,6 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type, TypeVar, Union
 
 import pydantic
 from typing_extensions import Self
@@ -326,8 +326,8 @@ class ResultFactory(pydantic.BaseModel):
 @add_type_dispatch
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
-    artifact_type: str
-    artifact_description: str
+    artifact_type: Optional[str]
+    artifact_description: Optional[str]
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -414,6 +414,7 @@ class PersistedResult(BaseResult):
         """
         Retrieve the data and deserialize it into the original object.
         """
+
         if self.has_cached_object():
             return self._cache
 

@@ -1448,9 +1448,9 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
-        assert (
-            ctx.validated_state.data == {"value": "some special data"}
-        ), "result data should be attached to the validated state"
+        assert ctx.validated_state.data == {
+            "value": "some special data"
+        }, "result data should be attached to the validated state"
 
         # an artifact should be created with the result data as well
         if run_type == "task":
@@ -1480,9 +1480,9 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
-        assert (
-            ctx.validated_state.data == {"value": "some special data"}
-        ), "sanitized result data should be attached to the validated state"
+        assert ctx.validated_state.data == {
+            "value": "some special data"
+        }, "sanitized result data should be attached to the validated state"
 
         # an artifact should be created with the result data as well
         if run_type == "task":
