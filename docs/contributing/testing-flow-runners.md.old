@@ -87,18 +87,18 @@ will be sufficient.  For other Kubernetes clusters, you may need to build to a
 particular Docker daemon, or push the image to a local registry.  Consult your cluster's
 documentation for more details.
 
-## Deploying `orion` into your cluster
+## Deploying the Prefect server into your cluster
 
-The steps to run `orion` for testing in your cluster's `default` namespace are:
+The steps to run the Prefect server for testing in your cluster's `default` namespace are:
 
 <div class="terminal">
 
 ```bash
-# Deploy orion to your cluster
-prefect kubernetes manifest orion | kubectl apply -f -
+# Deploy server to your cluster
+prefect kubernetes manifest server | kubectl apply -f -
 
 # Expose port 4205 for the test suite to connect
-kubectl expose service orion --type=LoadBalancer --name=orion-tests --target-port 4200 --port 4205
+kubectl expose service prefect-server --type=LoadBalancer --name=prefect-tests --target-port 4200 --port 4205
 ```
 
 </div>
@@ -114,7 +114,7 @@ accomplish that with:
 <div class="terminal">
 
 ```bash
-kubectl port-forward deployment/orion 4205:4200
+kubectl port-forward deployment/prefect-server 4205:4200
 ```
 
 </div>
@@ -129,9 +129,9 @@ output the manifest to a file, edit what you need, and apply it:
 <div class="terminal">
 
 ```bash
-prefect kubernetes manifest orion > orion.yaml
-# ... edit orion.yaml ...
-kubectl apply -f orion.yaml
+prefect kubernetes manifest server > server.yaml
+# ... edit server.yaml ...
+kubectl apply -f server.yaml
 ```
 
 
