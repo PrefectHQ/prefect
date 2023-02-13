@@ -1095,3 +1095,13 @@ class Artifact(ORMBaseModel):
         description = data.get("artifact_description", None)
         metadata = dict(description=description)
         return cls(data=data, type=type, metadata_=metadata)
+
+    @validator("metadata_")
+    def validate_metadata_length(cls, v):
+        max_metadata_length = 500
+        if not isinstance(v, dict):
+            return
+        for key in v.keys():
+            if len(str(v[key])) > max_metadata_length:
+                v[key] = str(v[key])[:max_metadata_length] + "..."
+        return v
