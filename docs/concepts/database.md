@@ -57,7 +57,7 @@ To connect Prefect to a PostgreSQL database, you can set the following environme
 
 <div class="terminal">
 ```bash
-prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/orion"
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
 ```
 </div>
 
@@ -67,22 +67,22 @@ The above environment variable assumes that:
 - Your password is set to `yourTopSecretPassword`
 - Your database runs on the same host as the Prefect server instance, `localhost`
 - You use the default PostgreSQL port `5432`
-- Your PostgreSQL instance has a database called `orion`
+- Your PostgreSQL instance has a database called `prefect`
 
 If you want to quickly start a PostgreSQL instance that can be used as your Prefect database, you can use the following command that will start a Docker container running PostgreSQL:
 
 <div class="terminal">
 ```bash
-docker run -d --name orion_postgres -v oriondb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=orion postgres:latest
+docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect postgres:latest
 ```
 </div>
 
 The above command:
 
 - Pulls the [latest](https://hub.docker.com/_/postgres?tab=tags) version of the official `postgres` Docker image, which is compatible with Prefect 2.
-- Starts a container with the name `orion_postgres`.
-- Creates a database `orion` with a user `postgres` and `yourTopSecretPassword` password.
-- Mounts the PostgreSQL data to a Docker volume called `oriondb` to provide persistence if you ever have to restart or rebuild that container.
+- Starts a container with the name `prefect-postgres`.
+- Creates a database `prefect` with a user `postgres` and `yourTopSecretPassword` password.
+- Mounts the PostgreSQL data to a Docker volume called `prefectdb` to provide persistence if you ever have to restart or rebuild that container.
 
 You can inspect your profile to be sure that the environment variable has been set properly:
 
