@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Wait until the Prefect Orion server returns a healthy response.
+Wait until the Prefect server returns a healthy response.
 
 Defaults to a 120 second timeout. If the timeout is exceeded, an exit code of 1 is set.
 
