@@ -86,7 +86,7 @@ class Telemetry(LoopService):
 
         heartbeat = {
             "source": "prefect_server",
-            "type": "orion_heartbeat",
+            "type": "heartbeat",
             "payload": {
                 "platform": platform.system(),
                 "architecture": platform.machine(),

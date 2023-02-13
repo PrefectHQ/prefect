@@ -71,7 +71,7 @@ def alembic_downgrade(revision: str = "base", dry_run: bool = False):
 @with_alembic_lock
 def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
     """
-    Create a new revision file for Orion
+    Create a new revision file for the database.
 
     Args:
         message: string message to apply to the revision.
