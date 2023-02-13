@@ -7,7 +7,7 @@ from fastapi import APIRouter, status, testclient
 
 from prefect.server.api.server import (
     API_ROUTERS,
-    ORION_API_VERSION,
+    SERVER_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
     method_paths_from_routes,
@@ -55,7 +55,7 @@ async def test_health_check_route(client):
 
 async def test_version_route(client):
     response = await client.get("/version")
-    assert response.json() == ORION_API_VERSION
+    assert response.json() == SERVER_API_VERSION
     assert response.status_code == status.HTTP_200_OK
 
 

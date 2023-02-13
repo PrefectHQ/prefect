@@ -79,7 +79,7 @@ class Telemetry(LoopService):
         """
         Sends a heartbeat to the sens-o-matic
         """
-        from prefect.server.api.server import ORION_API_VERSION
+        from prefect.server.api.server import SERVER_API_VERSION
 
         if not hasattr(self, "session_id"):
             await self._fetch_or_set_telemetry_session()
@@ -93,7 +93,7 @@ class Telemetry(LoopService):
                 "python_version": platform.python_version(),
                 "python_implementation": platform.python_implementation(),
                 "environment": self.telemetry_environment,
-                "api_version": ORION_API_VERSION,
+                "api_version": SERVER_API_VERSION,
                 "prefect_version": prefect.__version__,
                 "session_id": self.session_id,
                 "session_start_timestamp": self.session_start_timestamp,
