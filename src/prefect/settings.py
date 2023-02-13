@@ -468,7 +468,7 @@ PREFECT_API_URL = Setting(
     default=None,
 )
 """
-If provided, the url of an externally-hosted Orion API. Defaults to `None`.
+If provided, the URL of an hosted Prefect API. Defaults to `None`.
 
 When using Prefect Cloud, this will include an account and workspace.
 """
@@ -478,13 +478,15 @@ PREFECT_API_KEY = Setting(
     default=None,
     is_secret=True,
 )
-"""API key used to authenticate against Orion API. Defaults to `None`."""
+"""API key used to authenticate with a the Prefect API. Defaults to `None`."""
 
 PREFECT_API_ENABLE_HTTP2 = Setting(bool, default=True)
-"""If True, enable support for HTTP/2 for communicating with a remote Orion API.
+"""
+If true, enable support for HTTP/2 for communicating with an API.
 
-If the remote Orion API does not support HTTP/2, this will have no effect and
-connections will be made via HTTP/1.1"""
+If the API does not support HTTP/2, this will have no effect and connections will be 
+made via HTTP/1.1.
+"""
 
 PREFECT_CLOUD_API_URL = Setting(
     str,
@@ -611,7 +613,7 @@ PREFECT_LOGGING_SERVER_LEVEL = Setting(
     str,
     default="WARNING",
 )
-"""The default logging level for the Orion API."""
+"""The default logging level for the Prefect API server."""
 
 PREFECT_LOGGING_SETTINGS_PATH = Setting(
     Path,
@@ -772,8 +774,8 @@ PREFECT_API_DATABASE_CONNECTION_URL = Setting(
 )
 """
 A database connection URL in a SQLAlchemy-compatible
-format. Orion currently supports SQLite and Postgres. Note that all
-Orion engines must use an async driver - for SQLite, use
+format. Prefect currently supports SQLite and Postgres. Note that all
+Prefect database engines must use an async driver - for SQLite, use
 `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
 
 SQLite in-memory databases can be used by providing the url
@@ -967,7 +969,7 @@ PREFECT_UI_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to serve the Orion UI."""
+"""Whether or not to serve the Prefect UI."""
 
 PREFECT_UI_API_URL = Setting(
     str,
@@ -993,7 +995,7 @@ PREFECT_API_SERVICES_SCHEDULER_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the scheduling service in the Orion application. 
+"""Whether or not to start the scheduling service in the server application. 
 If disabled, you will need to run this service separately to schedule runs for deployments.
 """
 
@@ -1001,7 +1003,7 @@ PREFECT_API_SERVICES_LATE_RUNS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the late runs service in the Orion application. 
+"""Whether or not to start the late runs service in the server application. 
 If disabled, you will need to run this service separately to have runs past their 
 scheduled start time marked as late.
 """
@@ -1010,7 +1012,7 @@ PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the flow run notifications service in the Orion application. 
+"""Whether or not to start the flow run notifications service in the server application. 
 If disabled, you will need to run this service separately to send flow run notifications.
 """
 
@@ -1018,7 +1020,7 @@ PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the paused flow run expiration service in the Orion
+"""Whether or not to start the paused flow run expiration service in the server
 application. If disabled, paused flows that have timed out will remain in a Paused state
 until a resume attempt.
 """
@@ -1033,7 +1035,7 @@ PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED = Setting(
     bool,
     default=True,
 )
-"""Whether or not to start the cancellation cleanup service in the Orion
+"""Whether or not to start the cancellation cleanup service in the server
 application. If disabled, task runs and subflow runs belonging to cancelled flows may
 remain in non-terminal states.
 """
