@@ -55,7 +55,7 @@ from prefect.exceptions import (
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.logging.configuration import setup_logging
-from prefect.logging.handlers import OrionHandler
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -392,7 +392,7 @@ async def begin_flow_run(
             level=logging.INFO,
             msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
         )
-        OrionHandler.flush(block=True)
+        APILogHandler.flush(block=True)
         return terminal_or_paused_state
     else:
         terminal_state = terminal_or_paused_state
@@ -407,7 +407,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    OrionHandler.flush(block=True)
+    APILogHandler.flush(block=True)
 
     return terminal_state
 
@@ -1339,7 +1339,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                OrionHandler.flush(block=True)
+                APILogHandler.flush(block=True)
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
