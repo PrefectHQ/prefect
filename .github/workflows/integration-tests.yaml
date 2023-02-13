@@ -6,7 +6,7 @@ on:
       - "**/*.py"
       - requirements.txt
       - requirements-dev.txt
-      - orion-ui/**
+      - ui/**
       - .nvmrc
       - Dockerfile
   push:
@@ -35,13 +35,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
-      - name: Build orion-ui
+      - name: Build UI
         run: |
           prefect dev build-ui
 
-      - name: Run Orion in background
+      - name: Run server in background
         run: |
-          prefect orion start&
+          prefect server start&
 
       - name: Set up node
         uses: actions/setup-node@v3
@@ -62,18 +62,18 @@ jobs:
           key: ${{ steps.playwright-cache-key.outputs.version }}-playwright-browsers
 
       - name: Install Playwright browsers
-        working-directory: ./orion-ui
+        working-directory: ./ui
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        working-directory: ./orion-ui
+        working-directory: ./ui
         run: npx playwright test
 
       - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
-          path: ./orion-ui/playwright-report/
+          path: ./ui/playwright-report/
           retention-days: 30
 
   compatibility-tests:
