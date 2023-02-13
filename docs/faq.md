@@ -101,7 +101,7 @@ Prefect Cloud users do not need to worry about the Prefect database. Prefect Clo
 
 ### What databases does Prefect support?
 
-A self-hosted Prefect server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/orion.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
+A self-hosted Prefect server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/prefect.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
 
 ### How do I choose between SQLite and Postgres?
 

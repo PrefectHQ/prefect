@@ -283,7 +283,7 @@ Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect d
 
 Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
-Resetting the database with the CLI command `prefect server database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
+Resetting the database with the CLI command `prefect server database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/prefect.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
     Note that resetting the database causes the loss of any existing data.

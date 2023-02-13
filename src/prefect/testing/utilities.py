@@ -164,7 +164,7 @@ def prefect_test_harness():
             # temporarily override any database interface components
             stack.enter_context(temporary_database_interface())
 
-            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "orion.db")
+            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
             stack.enter_context(
                 prefect.settings.temporary_settings(
                     # Clear the PREFECT_API_URL
