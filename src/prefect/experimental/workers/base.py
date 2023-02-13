@@ -291,7 +291,7 @@ class BaseWorker(abc.ABC):
 
         await self._send_worker_heartbeat()
 
-        self._logger.debug("Worker synchronized with Orion server.")
+        self._logger.debug("Worker synchronized with the Prefect API server.")
 
     async def scan_storage_for_deployments(self):
         """
