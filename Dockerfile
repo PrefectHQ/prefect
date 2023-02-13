@@ -53,7 +53,7 @@ RUN apt-get update && \
 COPY . ./
 
 # Package the UI into the distributable.
-COPY --from=ui-builder /opt/ui/dist ./src/prefect/orion/ui
+COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 
 # Create a source distributable archive; ensuring existing dists are removed first
 RUN rm -rf dist && python setup.py sdist
