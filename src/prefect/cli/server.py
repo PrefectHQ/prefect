@@ -1,5 +1,5 @@
 """
-Command line interface for working with Orion
+Command line interface for working with Prefect
 """
 import os
 import textwrap
@@ -285,7 +285,7 @@ async def revision(
 @orion_database_app.command()
 @database_app.command()
 async def stamp(revision: str):
-    """Stamp the revision table with the given revision; don’t run any migrations"""
+    """Stamp the revision table with the given revision; don't run any migrations"""
 
     app.console.print("Stamping database with revision ...")
     await run_sync_in_worker_thread(alembic_stamp, revision=revision)

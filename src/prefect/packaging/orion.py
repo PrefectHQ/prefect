@@ -27,7 +27,7 @@ class OrionPackageManifest(PackageManifest):
 
 class OrionPackager(Packager):
     """
-    This packager stores the flow as an anonymous JSON block in the Orion database.
+    This packager stores the flow as an anonymous JSON block in the Prefect database.
     The content of the block are encrypted at rest.
 
     By default, the content is the source code of the module the flow is defined in.
@@ -39,7 +39,7 @@ class OrionPackager(Packager):
 
     async def package(self, flow: Flow) -> OrionPackageManifest:
         """
-        Package a flow in the Orion database as an anonymous block.
+        Package a flow in the Prefect database as an anonymous block.
         """
         block_document_id = await JSON(
             value={"flow": self.serializer.dumps(flow)}

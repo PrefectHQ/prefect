@@ -1,8 +1,8 @@
 """
 Orchestration logic that fires on state transitions.
 
-`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that the
-Prefect API enforces on a state transition.
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that 
+Prefect enforces on a state transition.
 """
 
 from typing import Optional
