@@ -32,7 +32,7 @@ from prefect.logging.configuration import (
     setup_logging,
 )
 from prefect.logging.formatters import JsonFormatter
-from prefect.logging.handlers import OrionHandler, OrionLogWorker, PrefectConsoleHandler
+from prefect.logging.handlers import APILogHandler, APILogWorker, PrefectConsoleHandler
 from prefect.logging.highlighters import PrefectConsoleHighlighter
 from prefect.logging.loggers import (
     disable_logger,
@@ -148,8 +148,8 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     expected_config["incremental"] = False
 
     # Test setting a value for a simple key
-    env["PREFECT_LOGGING_HANDLERS_ORION_LEVEL"] = "ORION_LEVEL_VAL"
-    expected_config["handlers"]["orion"]["level"] = "ORION_LEVEL_VAL"
+    env["PREFECT_LOGGING_HANDLERS_API_LEVEL"] = "API_LEVEL_VAL"
+    expected_config["handlers"]["api"]["level"] = "API_LEVEL_VAL"
 
     # Test setting a value for the root logger
     env["PREFECT_LOGGING_ROOT_LEVEL"] = "ROOT_LEVEL_VAL"
@@ -253,15 +253,15 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 @pytest.fixture
 def mock_log_worker(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.logging.handlers.OrionLogWorker", mock)
+    monkeypatch.setattr("prefect.logging.handlers.APILogWorker", mock)
     return mock
 
 
 @pytest.mark.enable_api_log_handler
-class TestOrionHandler:
+class TestAPILogHandler:
     @pytest.fixture
     def handler(self):
-        yield OrionHandler()
+        yield APILogHandler()
 
     @pytest.fixture
     def logger(self, handler):
@@ -272,21 +272,21 @@ class TestOrionHandler:
         logger.removeHandler(handler)
 
     def test_handler_instances_share_log_worker(self):
-        first = OrionHandler().get_worker(prefect.context.get_settings_context())
-        second = OrionHandler().get_worker(prefect.context.get_settings_context())
+        first = APILogHandler().get_worker(prefect.context.get_settings_context())
+        second = APILogHandler().get_worker(prefect.context.get_settings_context())
         assert first is second
-        assert len(OrionHandler.workers) == 1
+        assert len(APILogHandler.workers) == 1
 
     def test_log_workers_are_cached_by_profile(self):
-        a = OrionHandler().get_worker(prefect.context.get_settings_context())
-        b = OrionHandler().get_worker(
+        a = APILogHandler().get_worker(prefect.context.get_settings_context())
+        b = APILogHandler().get_worker(
             prefect.context.get_settings_context().copy(update={"name": "foo"})
         )
         assert a is not b
-        assert len(OrionHandler.workers) == 2
+        assert len(APILogHandler.workers) == 2
 
     def test_instantiates_log_worker(self, mock_log_worker):
-        OrionHandler().get_worker(prefect.context.get_settings_context())
+        APILogHandler().get_worker(prefect.context.get_settings_context())
         mock_log_worker.assert_called_once_with(prefect.context.get_settings_context())
         mock_log_worker().start.assert_called_once_with()
 
@@ -299,7 +299,7 @@ class TestOrionHandler:
         mock_log_worker().start.assert_called()
 
     def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
-        handler = OrionHandler()
+        handler = APILogHandler()
         handler.get_worker(prefect.context.get_settings_context())
         handler.close()
         mock_log_worker().flush.assert_called_once()
@@ -334,12 +334,12 @@ class TestOrionHandler:
 
         output = capsys.readouterr()
         assert (
-            "RuntimeError: Logs cannot be enqueued after the Orion log worker is stopped."
+            "RuntimeError: Logs cannot be enqueued after the API log worker is stopped."
             in output.err
         )
 
     def test_worker_is_not_stopped_if_not_set_on_handler_close(self, mock_log_worker):
-        OrionHandler().close()
+        APILogHandler().close()
         mock_log_worker().stop.assert_not_called()
 
     def test_sends_task_run_log_to_worker(self, logger, mock_log_worker, task_run):
@@ -581,7 +581,7 @@ class TestOrionHandler:
         self, logger, mock_log_worker, capsys, monkeypatch
     ):
         monkeypatch.setattr(
-            "prefect.logging.handlers.OrionHandler.prepare",
+            "prefect.logging.handlers.APILogHandler.prepare",
             MagicMock(side_effect=RuntimeError("Oh no!")),
         )
         # No error raised
@@ -601,7 +601,7 @@ class TestOrionHandler:
         mock_log_worker().enqueue.assert_not_called()
         output = capsys.readouterr()
         assert (
-            "RuntimeError: Attempted to send logs to Orion without a flow run id."
+            "RuntimeError: Attempted to send logs to the API without a flow run id."
             not in output.err
         )
 
@@ -629,11 +629,11 @@ class TestOrionHandler:
 
         log_size = len(json.dumps(dict_log))
         assert log_size == 211
-        handler = OrionHandler()
+        handler = APILogHandler()
         assert handler.get_log_size(dict_log) == log_size
 
 
-class TestOrionLogWorker:
+class TestAPILogWorker:
     @pytest.fixture
     def log_dict(self):
         return LogCreate(
@@ -647,7 +647,7 @@ class TestOrionLogWorker:
 
     @pytest.fixture
     def log_size(self, log_dict) -> int:
-        return OrionHandler().get_log_size(log_dict)
+        return APILogHandler().get_log_size(log_dict)
 
     @pytest.fixture
     def worker(self, get_worker):
@@ -662,7 +662,7 @@ class TestOrionLogWorker:
 
         def get_worker():
             nonlocal worker
-            worker = OrionLogWorker(prefect.context.get_settings_context())
+            worker = APILogWorker(prefect.context.get_settings_context())
             return worker
 
         yield get_worker
@@ -714,7 +714,7 @@ class TestOrionLogWorker:
         for i in range(count):
             new_log = log_dict.copy()
             new_log["message"] = str(i)
-            new_log_size = OrionHandler().get_log_size(new_log)
+            new_log_size = APILogHandler().get_log_size(new_log)
             worker.enqueue(new_log, new_log_size)
         await worker.send_logs()
 
@@ -769,7 +769,7 @@ class TestOrionLogWorker:
         await worker.send_logs(exiting=exiting)
 
         err = capsys.readouterr().err
-        assert "--- Orion logging error ---" in err
+        assert "--- Error logging to API ---" in err
         assert "ValueError: Test" in err
         if not exiting:
             assert "will attempt to send these logs again" in err
