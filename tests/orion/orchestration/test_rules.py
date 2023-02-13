@@ -1435,7 +1435,7 @@ class TestOrchestrationContext:
         assert ctx.run.state.id == ctx.validated_state.id
         assert ctx.validated_state.id == ctx.proposed_state.id
 
-    async def test_context_validation_writes_result_data(
+    async def test_context_validation_writes_result_artifact(
         self, session, run_type, initialize_orchestration
     ):
         initial_state_type = states.StateType.PENDING
@@ -1463,7 +1463,7 @@ class TestOrchestrationContext:
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact.data == {"value": "some special data"}
 
-    async def test_context_validation_writes_result_data_with_metadata(
+    async def test_context_validation_writes_result_artifact_with_metadata(
         self, session, run_type, initialize_orchestration
     ):
         initial_state_type = states.StateType.PENDING
