@@ -120,15 +120,15 @@ async def use(name: str):
         ),
         ConnectionStatus.ORION_CONNECTED: (
             exit_with_success,
-            f"Connected to Prefect Orion using profile {name!r}",
+            f"Connected to Prefect server using profile {name!r}",
         ),
         ConnectionStatus.ORION_ERROR: (
             exit_with_error,
-            f"Error connecting to Prefect Orion using profile {name!r}",
+            f"Error connecting to Prefect server using profile {name!r}",
         ),
         ConnectionStatus.EPHEMERAL: (
             exit_with_success,
-            f"No Prefect Orion instance specified using profile {name!r} - the API will run in ephemeral mode.",
+            f"No Prefect server specified using profile {name!r} - the API will run in ephemeral mode.",
         ),
         ConnectionStatus.INVALID_API: (
             exit_with_error,

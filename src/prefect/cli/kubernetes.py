@@ -1,5 +1,5 @@
 """
-Command line interface for working with Orion on Kubernetes
+Command line interface for working with Prefect on Kubernetes
 """
 from string import Template
 
@@ -20,7 +20,7 @@ from prefect.settings import (
 
 kubernetes_app = PrefectTyper(
     name="kubernetes",
-    help="Commands for working with Orion on Kubernetes.",
+    help="Commands for working with Prefect on Kubernetes.",
 )
 app.add_typer(kubernetes_app)
 
