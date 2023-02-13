@@ -63,6 +63,75 @@ For example, in the case of flow run state change triggers, you might expect pro
 !!! note "Work queue health"
     A work queue is "unhealthy" if it has not been polled in over 60 seconds OR if it has one or more late runs.
 
+Custom Triggers
+
+Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions.
+
+![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](../img/ui/automations-custom.png)
+ 
+For example, if you would only like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "match_related": {
+    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+  },
+  "forEach": [
+    "prefect.resource.id"
+  ],
+  "after": [],
+  "expect": [
+    "prefect.flow-run.Completed"
+  ],
+  "posture": "Reactive",
+  "threshold": 2,
+  "within": 10
+}
+```
+
+Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.work-queue.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+  },
+  "matchRelated": {},
+  "forEach": [
+    "prefect.resource.id"
+  ],
+  "after": [
+    "prefect.work-queue.unhealthy"
+  ],
+  "expect": [
+    "prefect.work-queue.healthy"
+  ],
+  "posture": "Proactive",
+  "threshold": 0,
+  "within": 1800
+}
+```
+
+Or, if you wanted your trigger to fire if your log write events passed a threshold of 100 within 10 seconds, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "after": [],
+  "expect": [
+    "prefect.log.write"
+  ],
+  "posture": "Reactive",
+  "threshold": 100,
+  "within": 10
+}
+```
+
 ### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
