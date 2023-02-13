@@ -1308,7 +1308,7 @@ class TestSubflowTaskInputs:
         )
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @flow
@@ -1395,7 +1395,7 @@ class TestFlowRunLogs:
         assert all([log.task_run_id is None for log in logs])
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
     async def test_subflow_logs_are_written_correctly(self, orion_client):
         @flow
