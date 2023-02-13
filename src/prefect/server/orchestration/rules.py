@@ -47,7 +47,7 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 # all terminal states
 TERMINAL_STATES = states.TERMINAL_STATES
 
-logger = get_logger("orion")
+logger = get_logger("server")
 
 
 class OrchestrationContext(PrefectBaseModel):
