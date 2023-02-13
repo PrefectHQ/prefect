@@ -92,7 +92,7 @@ For example, if you would only like a trigger to execute an action if it receive
 }
 ```
 
-Or, if you wanted your trigger to execute an action when a work queue didnt enter a healthy state from an unhealthy state after 30 seconds, you could paste in the following trigger configuration:
+Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
 
 ```json
 {
