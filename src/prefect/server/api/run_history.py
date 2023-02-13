@@ -51,6 +51,10 @@ async def run_history(
     elif run_type == "task_run":
         run_model = db.TaskRun
         run_filter_function = models.task_runs._apply_task_run_filters
+    else:
+        raise ValueError(
+            f"Unknown run type {run_type!r}. Expected 'flow_run' or 'task_run'."
+        )
 
     # create a CTE for timestamp intervals
     intervals = db.make_timestamp_intervals(
