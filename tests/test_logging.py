@@ -180,7 +180,7 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
 
 
 @pytest.mark.skip(reason="Will address with other infra compatibility improvements.")
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deployment):
     """
     Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
@@ -257,7 +257,7 @@ def mock_log_worker(monkeypatch):
     return mock
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestOrionHandler:
     @pytest.fixture
     def handler(self):
