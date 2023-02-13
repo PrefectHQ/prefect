@@ -7,6 +7,7 @@ import typer
 import yaml
 
 import prefect
+from prefect._internal.compatibility.deprecated import generate_deprecation_message
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name
@@ -30,7 +31,7 @@ manifest_app = PrefectTyper(
 kubernetes_app.add_typer(manifest_app)
 
 
-@manifest_app.command("orion")
+@manifest_app.command("orion", hidden=True)
 def manifest_orion(
     image_tag: str = typer.Option(
         get_prefect_image_name(),
@@ -46,16 +47,46 @@ def manifest_orion(
     ),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
+
+    app.console.print(
+        generate_deprecation_message(
+            "The `prefect kubernetes manifest orion` command",
+            start_date="Feb 2023",
+            help="Use `prefect kubernetes manifest server` instead.",
+        )
+    )
+
+    return manifest_server(
+        image_tag=image_tag, namespace=namespace, log_level=log_level
+    )
+
+
+@manifest_app.command("server")
+def manifest_server(
+    image_tag: str = typer.Option(
+        get_prefect_image_name(),
+        "-i",
+        "--image-tag",
+        help="The tag of a Docker image to use for the server.",
+    ),
+    namespace: str = typer.Option(
+        "default",
+        "-n",
+        "--namespace",
+        help="A Kubernetes namespace to create the server in.",
+    ),
+    log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
+):
     """
-    Generates a manifest for deploying Orion on Kubernetes.
+    Generates a manifest for deploying a Prefect server on Kubernetes.
 
     Example:
-        $ prefect kubernetes manifest orion | kubectl apply -f -
+        $ prefect kubernetes manifest server | kubectl apply -f -
     """
 
     template = Template(
         (
-            prefect.__module_path__ / "cli" / "templates" / "kubernetes-orion.yaml"
+            prefect.__module_path__ / "cli" / "templates" / "kubernetes-server.yaml"
         ).read_text()
     )
     manifest = template.substitute(
