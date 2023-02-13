@@ -256,7 +256,7 @@ class PrefectClient:
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
-        Create a flow in Orion.
+        Create a flow in the Prefect API.
 
         Args:
             flow: a [Flow][prefect.flows.Flow] object
@@ -271,7 +271,7 @@ class PrefectClient:
 
     async def create_flow_from_name(self, flow_name: str) -> UUID:
         """
-        Create a flow in Orion.
+        Create a flow in the Prefect API.
 
         Args:
             flow_name: the name of the new flow
@@ -296,7 +296,7 @@ class PrefectClient:
 
     async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
         """
-        Query Orion for a flow by id.
+        Query the Prefect API for a flow by id.
 
         Args:
             flow_id: the flow ID of interest
@@ -321,7 +321,7 @@ class PrefectClient:
         offset: int = 0,
     ) -> List[schemas.core.Flow]:
         """
-        Query Orion for flows. Only flows matching all criteria will
+        Query the Prefect API for flows. Only flows matching all criteria will
         be returned.
 
         Args:
@@ -374,7 +374,7 @@ class PrefectClient:
         flow_name: str,
     ) -> schemas.core.Flow:
         """
-        Query Orion for a flow by name.
+        Query the Prefect API for a flow by name.
 
         Args:
             flow_name: the name of a flow
@@ -418,7 +418,7 @@ class PrefectClient:
                 run identifier in the parent flow
 
         Raises:
-            httpx.RequestError: if Orion does not successfully create a run for any reason
+            httpx.RequestError: if the Prefect API does not successfully create a run for any reason
 
         Returns:
             The flow run model
@@ -469,7 +469,7 @@ class PrefectClient:
                 `Scheduled` for now. Should always be a `Scheduled` type.
 
         Raises:
-            httpx.RequestError: if Orion does not successfully create a run for any reason
+            httpx.RequestError: if the Prefect API does not successfully create a run for any reason
 
         Returns:
             The flow run model
@@ -585,7 +585,7 @@ class PrefectClient:
         concurrency_limit: int,
     ) -> UUID:
         """
-        Create a tag concurrency limit in Orion. These limits govern concurrently
+        Create a tag concurrency limit in the Prefect API. These limits govern concurrently
         running tasks.
 
         Args:
@@ -931,7 +931,7 @@ class PrefectClient:
         prefixes: List[str],
     ) -> List[schemas.core.WorkQueue]:
         """
-        Query Orion for work queues with names with a specific prefix.
+        Query the Prefect API for work queues with names with a specific prefix.
 
         Args:
             prefixes: a list of strings used to match work queue name prefixes
@@ -987,7 +987,7 @@ class PrefectClient:
         self, block_type: schemas.actions.BlockTypeCreate
     ) -> BlockType:
         """
-        Create a block type in Orion.
+        Create a block type in the Prefect API.
         """
         try:
             response = await self._client.post(
@@ -1007,7 +1007,7 @@ class PrefectClient:
         self, block_schema: schemas.actions.BlockSchemaCreate
     ) -> BlockSchema:
         """
-        Create a block schema in Orion.
+        Create a block schema in the Prefect API.
         """
         try:
             response = await self._client.post(
@@ -1031,7 +1031,7 @@ class PrefectClient:
         include_secrets: bool = True,
     ) -> BlockDocument:
         """
-        Create a block document in Orion. This data is used to configure a
+        Create a block document in the Prefect API. This data is used to configure a
         corresponding Block.
 
         Args:
@@ -1073,7 +1073,7 @@ class PrefectClient:
         block_document: schemas.actions.BlockDocumentUpdate,
     ):
         """
-        Update a block document in Orion.
+        Update a block document in the Prefect API.
         """
         try:
             await self._client.patch(
@@ -1138,7 +1138,7 @@ class PrefectClient:
         self, block_type_id: UUID, block_type: schemas.actions.BlockTypeUpdate
     ):
         """
-        Update a block document in Orion.
+        Update a block document in the Prefect API.
         """
         try:
             await self._client.patch(
@@ -1447,7 +1447,7 @@ class PrefectClient:
         deployment_id: UUID,
     ) -> schemas.responses.DeploymentResponse:
         """
-        Query Orion for a deployment by id.
+        Query the Prefect API for a deployment by id.
 
         Args:
             deployment_id: the deployment ID of interest
@@ -1463,7 +1463,7 @@ class PrefectClient:
         name: str,
     ) -> schemas.responses.DeploymentResponse:
         """
-        Query Orion for a deployment by name.
+        Query the Prefect API for a deployment by name.
 
         Args:
             name: A deployed flow's name: <FLOW_NAME>/<DEPLOYMENT_NAME>
@@ -1499,7 +1499,7 @@ class PrefectClient:
         offset: int = 0,
     ) -> List[schemas.responses.DeploymentResponse]:
         """
-        Query Orion for deployments. Only deployments matching all
+        Query the Prefect API for deployments. Only deployments matching all
         the provided criteria will be returned.
 
         Args:
@@ -1572,7 +1572,7 @@ class PrefectClient:
 
     async def read_flow_run(self, flow_run_id: UUID) -> FlowRun:
         """
-        Query Orion for a flow run by id.
+        Query the Prefect API for a flow run by id.
 
         Args:
             flow_run_id: the flow run ID of interest
@@ -1620,7 +1620,7 @@ class PrefectClient:
         offset: int = 0,
     ) -> List[FlowRun]:
         """
-        Query Orion for flow runs. Only flow runs matching all criteria will
+        Query the Prefect API for flow runs. Only flow runs matching all criteria will
         be returned.
 
         Args:
@@ -1682,7 +1682,7 @@ class PrefectClient:
             flow_run_id: the id of the flow run
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
-                forcing the Orion API to accept the state
+                forcing the Prefect API to accept the state
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -1791,7 +1791,7 @@ class PrefectClient:
 
     async def read_task_run(self, task_run_id: UUID) -> TaskRun:
         """
-        Query Orion for a task run by id.
+        Query the Prefect API for a task run by id.
 
         Args:
             task_run_id: the task run ID of interest
@@ -1814,7 +1814,7 @@ class PrefectClient:
         offset: int = 0,
     ) -> List[TaskRun]:
         """
-        Query Orion for task runs. Only task runs matching all criteria will
+        Query the Prefect API for task runs. Only task runs matching all criteria will
         be returned.
 
         Args:
@@ -1863,7 +1863,7 @@ class PrefectClient:
             task_run_id: the id of the task run
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
-                forcing the Orion API to accept the state
+                forcing the Prefect API to accept the state
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -1954,7 +1954,7 @@ class PrefectClient:
         offset: int = 0,
     ) -> List[FlowRunNotificationPolicy]:
         """
-        Query Orion for flow run notification policies. Only policies matching all criteria will
+        Query the Prefect API for flow run notification policies. Only policies matching all criteria will
         be returned.
 
         Args:
