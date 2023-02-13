@@ -208,7 +208,7 @@ To access the Prefect UI running in a Kubernetes cluster, use the `kubectl port-
 
 <div class="terminal">
 ```bash
-kubectl port-forward deployment/prefect-server 4200:4200
+kubectl port-forward deployment/prefect-dev 4200:4200
 ```
 </div>
 
