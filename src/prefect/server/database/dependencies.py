@@ -223,7 +223,7 @@ def temporary_database_interface(
         tmp_database_config: An optional Prefect REST API database configuration to inject.
         tmp_orm_config: An optional Prefect REST API ORM configuration to inject.
         tmp_queries: Optional Prefect REST API query components to inject.
-        tmp_interface_class: Optional OrionDB interface class to inject
+        tmp_interface_class: Optional database interface class to inject
 
     """
     with ExitStack() as stack:

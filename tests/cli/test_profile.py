@@ -66,7 +66,7 @@ class TestChangingProfileAndCheckingOrionConnection:
                     },
                 ),
                 Profile(
-                    name="ephemeral-orion",
+                    name="ephemeral-prefect",
                     settings={},
                 ),
             ],
@@ -197,13 +197,13 @@ class TestChangingProfileAndCheckingOrionConnection:
     def test_using_ephemeral_orion(self, profiles):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "ephemeral-orion"],
-            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'",
+            ["profile", "use", "ephemeral-prefect"],
+            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-prefect'",
             expected_code=0,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "ephemeral-orion"
+        assert profiles.active_name == "ephemeral-prefect"
 
 
 def test_ls_default_profiles():

@@ -29,7 +29,7 @@ jinja_env = Environment(
 
 class BaseQueryComponents(ABC):
     """
-    Abstract base class used to inject dialect-specific SQL operations into Orion.
+    Abstract base class used to inject dialect-specific SQL operations into the API.
     """
 
     CONFIGURATION_CACHE = TTLCache(maxsize=100, ttl=ONE_HOUR)

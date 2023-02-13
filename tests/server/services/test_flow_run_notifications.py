@@ -214,7 +214,7 @@ async def test_service_only_sends_notifications_for_matching_policy(
 @pytest.mark.parametrize(
     "provided_ui_url,expected_ui_url",
     [
-        (None, "http://ephemeral-orion/api"),
+        (None, "http://ephemeral-prefect/api"),
         ("http://some-url", "http://some-url"),
     ],
 )
