@@ -194,7 +194,7 @@ class RunContext(ContextModel):
 
     Attributes:
         start_time: The time the run context was entered
-        client: The Orion client instance being used for API communication
+        client: The Prefect client instance being used for API communication
     """
 
     start_time: DateTimeTZ = Field(default_factory=lambda: pendulum.now("UTC"))

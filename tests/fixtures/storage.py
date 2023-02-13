@@ -88,7 +88,7 @@ async def run_storage_server():
                 response.raise_for_status()
             if not response:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to hosted test Orion."
+                    "Timed out while attempting to connect to hosted test server."
                 )
 
         # Yield to the consuming tests
