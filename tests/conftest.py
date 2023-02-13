@@ -288,7 +288,7 @@ def pytest_sessionstart(session):
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
-            # can be enabled by the `enable_orion_handler` mark
+            # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
             # Disable services for test runs
             PREFECT_SERVER_ANALYTICS_ENABLED: False,
