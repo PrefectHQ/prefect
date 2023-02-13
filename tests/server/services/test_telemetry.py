@@ -42,7 +42,7 @@ async def test_sens_o_matic_called_correctly(sens_o_matic_mock):
     assert request.headers["x-prefect-event"] == "prefect_server"
 
     heartbeat = json.loads(request.content.decode("utf-8"))
-    assert heartbeat["type"] == "orion_heartbeat"
+    assert heartbeat["type"] == "heartbeat"
     assert heartbeat["source"] == "prefect_server"
 
     payload = heartbeat["payload"]

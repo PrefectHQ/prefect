@@ -178,7 +178,7 @@ class PrefectClient:
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
             httpx_settings.setdefault("app", self._ephemeral_app)
-            httpx_settings.setdefault("base_url", "http://ephemeral-server/api")
+            httpx_settings.setdefault("base_url", "http://ephemeral-prefect/api")
 
         else:
             raise TypeError(

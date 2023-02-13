@@ -4,7 +4,7 @@ Bookkeeping logic that fires on every state transition.
 For clarity, `GlobalFlowpolicy` and `GlobalTaskPolicy` contain all transition logic
 implemented using [`BaseUniversalTransform`][prefect.server.orchestration.rules.BaseUniversalTransform].
 None of these operations modify state, and regardless of what orchestration Prefect REST API might
-enforce on a transtition, the global policies contain Orion's necessary bookkeeping.
+enforce on a transtition, the global policies contain Prefect's necessary bookkeeping.
 Because these transforms record information about the validated state committed to the
 state database, they should be the most deeply nested contexts in orchestration loop.
 """
@@ -226,7 +226,7 @@ class SetExpectedStartTime(BaseUniversalTransform):
     Estimates the time a state is expected to start running if not set.
 
     For scheduled states, this estimate is simply the scheduled time. For other states,
-    this is set to the time the proposed state was created by Orion.
+    this is set to the time the proposed state was created by Prefect.
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:

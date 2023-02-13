@@ -1,8 +1,8 @@
 """
 Utilities for interacting with Prefect REST API database and ORM layer.
 
-Orion supports both SQLite and Postgres. Many of these utilities
-allow Prefect REST API to seamlessly switch between the two.
+Prefect supports both SQLite and Postgres. Many of these utilities allow Prefect REST 
+API to seamlessly switch between the two.
 """
 
 import datetime
