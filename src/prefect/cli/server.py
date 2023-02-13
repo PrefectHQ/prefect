@@ -126,7 +126,7 @@ async def start(
     late_runs: bool = SettingsOption(PREFECT_API_SERVICES_LATE_RUNS_ENABLED),
     ui: bool = SettingsOption(PREFECT_UI_ENABLED),
 ):
-    """Start an Orion server"""
+    """Start a Prefect server"""
 
     server_env = os.environ.copy()
     server_env["PREFECT_API_SERVICES_SCHEDULER_ENABLED"] = str(scheduler)
@@ -164,26 +164,26 @@ async def start(
         )
 
         # Explicitly handle the interrupt signal here, as it will allow us to
-        # cleanly stop the Orion uvicorn server. Failing to do that may cause a
+        # cleanly stop the uvicorn server. Failing to do that may cause a
         # large amount of anyio error traces on the terminal, because the
         # SIGINT is handled by Typer/Click in this process (the parent process)
         # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/server/issues/2475
 
-        kill_on_interrupt(server_process_id, "Orion", app.console.print)
+        kill_on_interrupt(server_process_id, "the Prefect server", app.console.print)
 
-    app.console.print("Orion stopped!")
+    app.console.print("Server stopped!")
 
 
 @database_app.command()
 @orion_database_app.command()
 async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
-    """Drop and recreate all Orion database tables"""
+    """Drop and recreate all Prefect database tables"""
     db = provide_database_interface()
     engine = await db.engine()
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to reset the Orion database located "
+            "Are you sure you want to reset the Prefect database located "
             f'at "{engine.url!r}"? This will drop and recreate all tables.'
         )
         if not confirm:
@@ -192,7 +192,7 @@ async def reset(yes: bool = typer.Option(False, "--yes", "-y")):
     await db.drop_db()
     app.console.print("Upgrading database...")
     await db.create_db()
-    exit_with_success(f'Orion database "{engine.url!r}" reset!')
+    exit_with_success(f'Prefect database "{engine.url!r}" reset!')
 
 
 @database_app.command()
@@ -209,13 +209,13 @@ async def upgrade(
         help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
     ),
 ):
-    """Upgrade the Orion database"""
+    """Upgrade the Prefect database"""
     db = provide_database_interface()
     engine = await db.engine()
 
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to upgrade the " f"Orion database at {engine.url!r}?"
+            f"Are you sure you want to upgrade the Prefect database at {engine.url!r}?"
         )
         if not confirm:
             exit_with_error("Database upgrade aborted!")
@@ -223,7 +223,7 @@ async def upgrade(
     app.console.print("Running upgrade migrations ...")
     await run_sync_in_worker_thread(alembic_upgrade, revision=revision, dry_run=dry_run)
     app.console.print("Migrations succeeded!")
-    exit_with_success(f"Orion database at {engine.url!r} upgraded!")
+    exit_with_success(f"Prefect database at {engine.url!r} upgraded!")
 
 
 @database_app.command()
@@ -240,13 +240,13 @@ async def downgrade(
         help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
     ),
 ):
-    """Downgrade the Orion database"""
+    """Downgrade the Prefect database"""
     db = provide_database_interface()
     engine = await db.engine()
 
     if not yes:
         confirm = typer.confirm(
-            "Are you sure you want to downgrade the Orion "
+            "Are you sure you want to downgrade the Prefect "
             f"database at {engine.url!r}?"
         )
         if not confirm:
@@ -257,7 +257,7 @@ async def downgrade(
         alembic_downgrade, revision=revision, dry_run=dry_run
     )
     app.console.print("Migrations succeeded!")
-    exit_with_success(f"Orion database at {engine.url!r} downgraded!")
+    exit_with_success(f"Prefect database at {engine.url!r} downgraded!")
 
 
 @database_app.command()
@@ -271,7 +271,7 @@ async def revision(
     ),
     autogenerate: bool = False,
 ):
-    """Create a new migration for the Orion database"""
+    """Create a new migration for the Prefect database"""
 
     app.console.print("Running migration file creation ...")
     await run_sync_in_worker_thread(
