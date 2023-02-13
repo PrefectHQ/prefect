@@ -84,14 +84,15 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 
 | Argument | Description |
 | --- | --- |
-| name | An optional name for the task. If not provided, the name will be inferred from the function name. |
-| description | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
-| tags | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
-| cache_key_fn | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
-| cache_expiration | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
-| retries | An optional number of times to retry on task run failure. |
-| retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
-| version | An optional string specifying the version of this task definition. |
+| `name` | An optional name for the task. If not provided, the name will be inferred from the function name. |
+| `description` | An optional string description for the task. If not provided, the description will be pulled from the docstring for the decorated function. |
+| `tags` | An optional set of tags to be associated with runs of this task. These tags are combined with any tags defined by a `prefect.tags` context at task runtime. |
+| `cache_key_fn` | An optional callable that, given the task run context and call parameters, generates a string key. If the key matches a previous completed state, that state result will be restored instead of running the task again. |
+| `cache_expiration` | An optional amount of time indicating how long cached states for this task should be restorable; if not provided, cached states will never expire. |
+| `task_run_name` | An optional name to distinguish runs of this task; this name can be provided as a string template with the task's keyword arguments as variables. |
+| `retries` | An optional number of times to retry on task run failure. |
+| `retry_delay_seconds` | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
+| `version` | An optional string specifying the version of this task definition. |
 
 For example, you can provide a `name` value for the task. Here we've used the optional `description` argument as well.
 
@@ -102,11 +103,29 @@ def my_task():
     print("Hello, I'm a task")
 ```
 
+You can distinguish runs of this task by providing a `task_run_name`; this setting accepts a string that can optionally contain templated references to the keyword arguments of your task. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow, task
+
+@task(name="My Example Task", 
+      description="An example task for a tutorial.",
+      task_run_name="hello-{name}-on-{date:%A}")
+def my_task(name, date):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "hello-marvin-on-Thursday"
+    my_task(name="marvin", date=datetime.datetime.utcnow())
+```
+
 ## Tags
 
 Tags are optional string labels that enable you to identify and group tasks other than by name or flow. Tags are useful for:
 
-- Filtering task runs by tag in the UI and via the [Orion REST API](/api-ref/rest-api/#filtering).
+- Filtering task runs by tag in the UI and via the [Prefect REST API](/api-ref/rest-api/#filtering).
 - Setting [concurrency limits](#task-run-concurrency-limits) on task runs by tag.
 
 Tags may be specified as a keyword argument on the [task decorator](/api-ref/prefect/tasks/#prefect.tasks.task).
@@ -217,7 +236,7 @@ Alternatively, you can provide your own function or other callable that returns 
 Note that the `cache_key_fn` is _not_ defined as a `@task`. 
 
 !!! note "Task cache keys"
-    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` setting.
+    By default, a task cache key is limited to 2000 characters, specified by the `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH` setting.
 
 ```python hl_lines="3-5 7"
 from prefect import task, flow
@@ -249,7 +268,7 @@ running an expensive operation
 ```
 </div>
 
-When each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same COMPLETED state, including the same return values.  
+When each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Prefect backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same COMPLETED state, including the same return values.  
 
 A real-world example might include the flow run ID from the context in the cache key so only repeated calls in the same flow run are cached.
 
@@ -324,7 +343,7 @@ Any task can return:
 
 - Data , such as `int`, `str`, `dict`, `list`, and so on &mdash;  this is the default behavior any time you call `your_task()`.
 - [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) &mdash;  this is achieved by calling [`your_task.submit()`](/concepts/task-runners/#using-a-task-runner). A `PrefectFuture` contains both _data_ and _State_
-- Prefect [`State`](/api-ref/orion/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
+- Prefect [`State`](/api-ref/server/schemas/states/)  &mdash; anytime you call your task or flow with the argument `return_state=True`, it will directly return a state you can use to build custom behavior based on a state change you care about, such as task or flow failing or retrying.
 
 To run your task with a [task runner](/concepts/task-runners/), you must call the task with `.submit()`.
 
@@ -471,8 +490,8 @@ If there are no concurrency slots available for any one of your task's tags, the
 You can set concurrency limits on as few or as many tags as you wish. You can set limits through:
 
 - Prefect [CLI](#cli)
-- Prefect API by using `OrionClient` [Python client](#python-client)
-- [Prefect Orion server UI](/ui/task-concurrency/) or Prefect Cloud
+- Prefect API by using `PrefectClient` [Python client](#python-client)
+- [Prefect server UI](/ui/task-concurrency/) or Prefect Cloud
 
 #### CLI
 
@@ -509,7 +528,7 @@ $ prefect concurrency-limit inspect small_instance
 
 #### Python client
 
-To update your tag concurrency limits programmatically, use [`OrionClient.create_concurrency_limit`](/api-ref/prefect/client/#prefect.client.OrionClient.create_concurrency_limit). 
+To update your tag concurrency limits programmatically, use [`PrefectClient.create_concurrency_limit`](/api-ref/prefect/client/#prefect.client.PrefectClient.create_concurrency_limit). 
 
 `create_concurrency_limit` takes two arguments:
 
@@ -529,7 +548,7 @@ async with get_client() as client:
         )
 ```
 
-To remove all concurrency limits on a tag, use [`OrionClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.delete_concurrency_limit_by_tag), passing the tag:
+To remove all concurrency limits on a tag, use [`PrefectClient.delete_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.PrefectClient.delete_concurrency_limit_by_tag), passing the tag:
 
 ```python
 async with get_client() as client:
@@ -537,9 +556,9 @@ async with get_client() as client:
     await client.delete_concurrency_limit_by_tag(tag="small_instance")
 ```
 
-If you wish to query for the currently set limit on a tag, use [`OrionClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limit_by_tag), passing the tag:
+If you wish to query for the currently set limit on a tag, use [`PrefectClient.read_concurrency_limit_by_tag`](/api-ref/prefect/client/#prefect.client.PrefectClient.read_concurrency_limit_by_tag), passing the tag:
 
-To see _all_ of your limits across all of your tags, use [`OrionClient.read_concurrency_limits`](/api-ref/prefect/client/#prefect.client.OrionClient.read_concurrency_limits).
+To see _all_ of your limits across all of your tags, use [`PrefectClient.read_concurrency_limits`](/api-ref/prefect/client/#prefect.client.PrefectClient.read_concurrency_limits).
 
 ```python
 async with get_client() as client:

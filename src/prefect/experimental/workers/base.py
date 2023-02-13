@@ -10,15 +10,15 @@ import pendulum
 from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import OrionClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
-from prefect.orion import schemas
-from prefect.orion.schemas.actions import WorkPoolUpdate
-from prefect.orion.schemas.responses import WorkerFlowRunResponse
+from prefect.server import schemas
+from prefect.server.schemas.actions import WorkPoolUpdate
+from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
@@ -291,7 +291,7 @@ class BaseWorker(abc.ABC):
 
         await self._send_worker_heartbeat()
 
-        self._logger.debug("Worker synchronized with Orion server.")
+        self._logger.debug("Worker synchronized with the Prefect API server.")
 
     async def scan_storage_for_deployments(self):
         """

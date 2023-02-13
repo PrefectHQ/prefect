@@ -40,14 +40,14 @@ You can create a flow run by calling the flow. For example, by running a Python 
 
 You can also create a flow run by:
 
-- Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect Orion server
+- Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect server.
 - Creating a flow run for the deployment via a schedule, the Prefect UI, or the Prefect API.
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](../img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/prefect-dashboard.png)
 
 ## Writing flows
 
@@ -104,6 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
+| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables. |
 | `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
@@ -130,6 +131,20 @@ You can also provide the description as the docstring on the flow function.
 def my_flow():
     """My flow using SequentialTaskRunner"""
     return
+```
+
+You can distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime.datetime):
+    pass
+
+# creates a flow run called 'marvin-on-Thursday'
+my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
@@ -292,10 +307,10 @@ Subflow says: Hello Marvin!
 
 ## Parameters
 
-Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect Orion orchestration engine on the flow run object.
+Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect orchestration engine on the flow run object.
 
 !!! warning "Prefect API requires keyword arguments"
-    When creating flow runs from the Prefect Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
+    When creating flow runs from the Prefect API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
 Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
 
@@ -527,7 +542,7 @@ If a flow returns a manually created state, the final state is determined based 
 
 ```python hl_lines="16-19"
 from prefect import task, flow
-from prefect.orion.schemas.states import Completed, Failed
+from prefect.server.schemas.states import Completed, Failed
 
 @task
 def always_fails_task():
@@ -610,7 +625,7 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 
 ## Pause a flow run
 
-Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as via the Prefect Orion UI and Prefect Cloud. 
+Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as via the Prefect server or Prefect Cloud UI. 
 
 Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
 

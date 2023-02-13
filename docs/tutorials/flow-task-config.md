@@ -13,7 +13,7 @@ tags:
 
 Now that you've written some [basic flows and tasks](/tutorials/first-steps/), let's explore some of the configuration options that Prefect exposes.
 
-Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect Orion orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
+Simply decorating functions as flows and tasks lets you take advantage of the orchestration and visibility features enabled by the Prefect orchestration engine. You can also configure additional options on your flows and tasks, enabling Prefect to execute and track your workflows more effectively.
 
 ## Basic flow configuration
 
@@ -80,6 +80,20 @@ def my_flow():
 
 You don't have to supply a version for your flow. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined to automatically detect when your code changes.  However, this computation is not always possible and so, depending on your setup, you may see that your flow has a version of `None`.
 
+You can also distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime.datetime):
+    pass
+
+# creates a flow run called 'marvin-on-Thursday'
+my_flow(name="marvin", date=datetime.datetime.utcnow())
+```
+
 ## Basic task configuration
 
 By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.
@@ -97,7 +111,7 @@ def my_flow():
     my_task()
 ```
 
-Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect Orion orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
+Tasks also accept [tags](/concepts/tasks/#tags) as an option. Tags are runtime metadata used by the Prefect orchestration engine that enable features like filtering display of task runs and configuring task concurrency limits.
 
 You specify the tags on a task as a list of tag strings.
 
@@ -113,6 +127,24 @@ def my_task():
 @flow
 def my_flow():
     my_task()
+```
+
+You can also distinguish runs of this task by providing a `task_run_name`; this setting accepts a string that can optionally contain templated references to the keyword arguments of your task. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow, task
+
+@task(name="My Example Task", 
+      description="An example task for a tutorial.",
+      task_run_name="hello-{name}-on-{date:%A}")
+def my_task(name, date):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "hello-marvin-on-Thursday"
+    my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
 
 ## Flow and task retries
@@ -234,7 +266,7 @@ Completed(message='All states completed.', type=COMPLETED, result=[Completed(mes
 ```
 </div>
 
-Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect Orion orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
+Why does this happen? Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`. The Prefect orchestration engine identified that there was a `COMPLETED` state associated with this key and instructed the run to immediately enter the same state, including the same return values. See the Tasks [Caching](/concepts/tasks/#caching) documentation for more details.
 
 !!! tip "Cache expiration"
     Note that in this example we're also specifying a cache expiration duration: `cache_expiration=timedelta(minutes=1)`. This causes the cache to expire after one minute regardless of the task input. You can demonstrate this by: 

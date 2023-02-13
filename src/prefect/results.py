@@ -23,7 +23,7 @@ from prefect.utilities.pydantic import add_type_dispatch
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 
 ResultStorage = Union[WritableFileSystem, str]
@@ -32,7 +32,7 @@ LITERAL_TYPES = {type(None), bool}
 
 logger = get_logger("results")
 
-# from prefect.orion.schemas.states import State
+# from prefect.server.schemas.states import State
 R = TypeVar("R")
 
 
@@ -102,7 +102,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
-    async def default_factory(cls, client: "OrionClient" = None, **kwargs):
+    async def default_factory(cls, client: "PrefectClient" = None, **kwargs):
         """
         Create a new result factory with default options.
 
@@ -125,7 +125,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_flow(
-        cls: Type[Self], flow: "Flow", client: "OrionClient" = None
+        cls: Type[Self], flow: "Flow", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a flow.
@@ -179,7 +179,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_task(
-        cls: Type[Self], task: "Task", client: "OrionClient" = None
+        cls: Type[Self], task: "Task", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a task.
@@ -224,7 +224,7 @@ class ResultFactory(pydantic.BaseModel):
         result_serializer: ResultSerializer,
         persist_result: bool,
         cache_result_in_memory: bool,
-        client: "OrionClient",
+        client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client
@@ -241,7 +241,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage, client: "OrionClient"
+        result_storage: ResultStorage, client: "PrefectClient"
     ) -> Tuple[uuid.UUID, WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
@@ -407,7 +407,7 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "OrionClient") -> R:
+    async def get(self, client: "PrefectClient") -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
@@ -423,7 +423,7 @@ class PersistedResult(BaseResult):
         return obj
 
     @inject_client
-    async def _read_blob(self, client: "OrionClient") -> "PersistedResultBlob":
+    async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)

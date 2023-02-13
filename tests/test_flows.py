@@ -12,7 +12,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
@@ -24,10 +24,10 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.results import PersistedResult
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
@@ -44,11 +44,18 @@ from prefect.utilities.hashing import file_hash
 
 class TestFlow:
     def test_initializes(self):
-        f = Flow(name="test", fn=lambda **kwargs: 42, version="A", description="B")
+        f = Flow(
+            name="test",
+            fn=lambda **kwargs: 42,
+            version="A",
+            description="B",
+            flow_run_name="hi",
+        )
         assert f.name == "test"
         assert f.fn() == 42
         assert f.version == "A"
         assert f.description == "B"
+        assert f.flow_run_name == "hi"
 
     def test_initializes_with_default_version(self):
         f = Flow(name="test", fn=lambda **kwargs: 42)
@@ -144,7 +151,7 @@ class TestFlow:
 class TestDecorator:
     def test_flow_decorator_initializes(self):
         # TODO: We should cover initialization with a task runner once introduced
-        @flow(name="foo", version="B")
+        @flow(name="foo", version="B", flow_run_name="hi")
         def my_flow():
             return "bar"
 
@@ -152,6 +159,7 @@ class TestDecorator:
         assert my_flow.name == "foo"
         assert my_flow.version == "B"
         assert my_flow.fn() == "bar"
+        assert my_flow.flow_run_name == "hi"
 
     def test_flow_decorator_sets_default_version(self):
         my_flow = flow(flatdict_to_dict)
@@ -164,6 +172,7 @@ class TestFlowWithOptions:
         @flow(
             name="Initial flow",
             description="Flow before with options",
+            flow_run_name="OG",
             task_runner=ConcurrentTaskRunner,
             timeout_seconds=10,
             validate_parameters=True,
@@ -178,6 +187,7 @@ class TestFlowWithOptions:
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
             description="A copied flow",
+            flow_run_name="new-name",
             task_runner=SequentialTaskRunner,
             retries=3,
             retry_delay_seconds=20,
@@ -191,6 +201,7 @@ class TestFlowWithOptions:
 
         assert flow_with_options.name == "Copied flow"
         assert flow_with_options.description == "A copied flow"
+        assert flow_with_options.flow_run_name == "new-name"
         assert isinstance(flow_with_options.task_runner, SequentialTaskRunner)
         assert flow_with_options.timeout_seconds == 5
         assert flow_with_options.retries == 3
@@ -1297,7 +1308,7 @@ class TestSubflowTaskInputs:
         )
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @flow
@@ -1384,7 +1395,7 @@ class TestFlowRunLogs:
         assert all([log.task_run_id is None for log in logs])
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
     async def test_subflow_logs_are_written_correctly(self, orion_client):
         @flow
@@ -1662,7 +1673,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -1728,7 +1739,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -2002,3 +2013,27 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
     assert res == "woof!"
     flow_runs = await orion_client.read_flows()
     assert len(flow_runs) == 1
+
+
+async def test_sets_run_name_when_provided(orion_client):
+    @flow(flow_run_name="hi")
+    def flow_with_name(foo: str = "bar", bar: int = 1):
+        pass
+
+    state = flow_with_name(return_state=True)
+
+    assert state.type == StateType.COMPLETED
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    assert flow_run.name == "hi"
+
+
+async def test_sets_run_name_with_params_including_defaults(orion_client):
+    @flow(flow_run_name="hi-{foo}-{bar}")
+    def flow_with_name(foo: str = "one", bar: str = "1"):
+        pass
+
+    state = flow_with_name(bar="two", return_state=True)
+
+    assert state.type == StateType.COMPLETED
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    assert flow_run.name == "hi-one-two"

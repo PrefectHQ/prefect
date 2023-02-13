@@ -1,7 +1,6 @@
 ---
 description: Prefect deployments encapsulate a flow, allowing flow runs to be scheduled and triggered via API.
 tags:
-    - Orion
     - work queues
     - agents
     - orchestration
@@ -62,11 +61,11 @@ graph LR
 !!! info "Your flow code and the Prefect hybrid model"
     In the diagram above, the dotted line indicates the path of your flow code in the lifecycle of a Prefect deployment, from creation to executing a flow run. Notice that your flow code stays within your storage and execution infrastructure and never lives on the Prefect server or database.
 
-    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect Orion API, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
+    This is the heart of the Prefect hybrid model: there's always a boundary between your code, your private infrastructure, and the Prefect backend, such as [Prefect Cloud](/ui/cloud/). Even if you're using a self-hosted Prefect server, you only register the deployment metadata on the backend allowing for a clean separation of concerns.
 
 When creating a deployment, a user must answer *two* basic questions:
 
-- What instructions does an [agent](/concepts/work-queues/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
+- What instructions does an [agent](/concepts/work-pools/) need to set up an execution environment for my workflow? For example, a workflow may have Python requirements, unique Kubernetes settings, or Docker networking configuration.
 - How should the flow code be accessed?
 
 A deployment additionally enables you to:
@@ -185,7 +184,7 @@ You may specify additional options to further customize your deployment.
 |  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
 |  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
 |  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format. |
-|  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, `env.env_key=env_value`. |
+|  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, specify an environment variable: `env.env_key=env_value`. For Kubernetes, specify customizations: `customizations='[{"op": "add","path": "/spec/template/spec/containers/0/resources/limits", "value": {"memory": "8Gi","cpu": "4000m"}}]'` (note the string format).|
 |  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed. |
 |  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
 |  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
@@ -193,6 +192,8 @@ You may specify additional options to further customize your deployment.
 | `--apply` | When provided, automatically registers the resulting deployment with the API. |
 | `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
 | `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
+| `--param` | An optional parameter override, values are parsed as JSON strings. For example, `--param question=ultimate --param answer=42`. |
+| `--params` | An optional parameter override in a JSON string format. For example, `--params=\'{"question": "ultimate", "answer": 42}\'`. |
 
 ### Block identifiers
 
@@ -239,6 +240,7 @@ description: null
 version: c0fc95308d8137c50d2da51af138aa23
 # The work queue that will handle this deployment's runs
 work_queue_name: test
+work_pool_name: null
 tags: []
 parameters: {}
 schedule: null
@@ -341,18 +343,18 @@ $ prefect deployment ls
 
 ![Viewing deployments in the Prefect UI](../img/concepts/deployments.png)
 
-When you run a deployed flow with Prefect Orion, the following happens:
+When you run a deployed flow with Prefect, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
 - An agent picks up the flow run from a work queue and uses an infrastructure block to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
-[Agents and work queues](/concepts/work-queues/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
+[Agents and work pools](/concepts/work-pools/) enable the Prefect orchestration engine and API to run deployments in your local execution environments. To execute deployed flow runs you need to configure at least one agent.
 
 !!! note "Scheduled flow runs"
-    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect Orion API server started with `prefect orion start`.
+    Scheduled flow runs will not be created unless the scheduler is running with either Prefect Cloud or a local Prefect server started with `prefect server start`.
 
-    Scheduled flow runs will not run unless an appropriate [agent and work queue](/concepts/work-queues/) are configured.
+    Scheduled flow runs will not run unless an appropriate [agent and work pool](/concepts/work-pools/) are configured.
 
 ## Create a deployment from a Python object
 
@@ -414,7 +416,7 @@ View all of the parameters for the `Deployment` object in the [Python API docume
 
 ## Deployment API representation
 
-In Prefect Orion, when you create a deployment, it is constructed from deployment definition data you provide and additional properties calculated by client-side utilities.
+When you create a deployment, it is constructed from deployment definition data you provide and additional properties set by client-side utilities.
 
 Deployment properties include:
 
@@ -483,7 +485,8 @@ $ prefect deployment inspect 'Cat Facts/catfact'
 ## Create a flow run from a deployment
 
 ### Create a flow run with a schedule
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect Orion API server and agent is running. Prefect Cloud created scheduled flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
+
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as a Prefect server and agent are running. Prefect Cloud creates schedules flow runs automatically, and they will run on schedule if an agent is configured to pick up flow runs for the deployment.
 
 ### Create a flow run with Prefect UI
 In the [Prefect UI](/ui/deployments/), you can click the **Run** button next to any deployment to execute an ad hoc flow run for that deployment.
@@ -520,7 +523,7 @@ if __name__ == "__main__":
 ``` 
 
 !!! tip "`PREFECT_API_URL` setting for agents"
-    You'll need to configure [agents and work queues](/concepts/work-queues/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
+    You'll need to configure [agents and work pools](/concepts/work-pools/) that can create flow runs for deployments in remote environments. [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) must be set for the environment in which your agent is running.
 
     If you want the agent to communicate with Prefect Cloud from a remote execution environment such as a VM or Docker container, you must configure `PREFECT_API_URL` in that environment.
 

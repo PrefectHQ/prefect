@@ -4,10 +4,10 @@ from datetime import timedelta
 import pytest
 
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment
-from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -118,6 +118,34 @@ class TestOutputMessages:
                 "This deployment does not specify a work queue name, which means agents "
                 "will not be able to pick up its runs. To add a work queue, "
                 "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+            ),
+        )
+
+    def test_message_with_missing_nonexistent_work_pool(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_pool_name="gibberish",
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                [
+                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    "To create a work pool via the CLI:",
+                    "$ prefect work-pool create 'gibberish'",
+                ]
             ),
         )
 
@@ -338,7 +366,7 @@ class TestDeploymentRun:
         ],
     )
     async def test_passes_parameters_to_flow_run(
-        self, deployment, deployment_name, orion_client: OrionClient, given, expected
+        self, deployment, deployment_name, orion_client: PrefectClient, given, expected
     ):
         """
         This test ensures the parameters are set on the created flow run and that

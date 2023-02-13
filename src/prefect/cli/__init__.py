@@ -14,10 +14,10 @@ import prefect.cli.dev
 import prefect.cli.flow
 import prefect.cli.flow_run
 import prefect.cli.kubernetes
-import prefect.cli.orion
-import prefect.cli.orion_utils
+import prefect.cli.server
 import prefect.cli.profile
 import prefect.cli.work_queue
+import prefect.cli.work_pool
 
 # Only load workers CLI if enabled via a setting
 if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
