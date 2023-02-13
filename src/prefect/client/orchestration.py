@@ -178,7 +178,7 @@ class PrefectClient:
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
             httpx_settings.setdefault("app", self._ephemeral_app)
-            httpx_settings.setdefault("base_url", "http://ephemeral-orion/api")
+            httpx_settings.setdefault("base_url", "http://ephemeral-server/api")
 
         else:
             raise TypeError(
@@ -215,9 +215,9 @@ class PrefectClient:
         if isinstance(api, str) and not httpx_settings.get("transport"):
             transport_for_url = getattr(self._client, "_transport_for_url", None)
             if callable(transport_for_url):
-                orion_transport = transport_for_url(httpx.URL(api))
-                if isinstance(orion_transport, httpx.AsyncHTTPTransport):
-                    pool = getattr(orion_transport, "_pool", None)
+                server_transport = transport_for_url(httpx.URL(api))
+                if isinstance(server_transport, httpx.AsyncHTTPTransport):
+                    pool = getattr(server_transport, "_pool", None)
                     if isinstance(pool, httpcore.AsyncConnectionPool):
                         pool._retries = 3
 
@@ -1999,7 +1999,7 @@ class PrefectClient:
         """
         Recursively decode possibly nested data documents.
 
-        "orion" encoded documents will be retrieved from the server.
+        "server" encoded documents will be retrieved from the server.
 
         Args:
             datadoc: The data document to resolve
