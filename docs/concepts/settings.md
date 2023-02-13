@@ -74,7 +74,7 @@ PREFECT_LOCAL_STORAGE_PATH='${PREFECT_HOME}/storage'
 Prefect provides several settings for configuring the [Prefect database](/concepts/database/).
 
 ```bash
-PREFECT_API_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/orion.db'
+PREFECT_API_DATABASE_CONNECTION_URL='sqlite+aiosqlite:///${PREFECT_HOME}/prefect.db'
 PREFECT_API_DATABASE_ECHO='False'
 PREFECT_API_DATABASE_MIGRATE_ON_START='True'
 PREFECT_API_DATABASE_PASSWORD='None'
