@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_USER: prefect
       POSTGRES_PASSWORD: prefect
-      POSTGRES_DB: orion
+      POSTGRES_DB: prefect
       LANG: 'C.UTF-8'
       LANGUAGE: 'C.UTF-8'
       LC_ALL: 'C.UTF-8'
