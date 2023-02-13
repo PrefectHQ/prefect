@@ -1091,9 +1091,12 @@ class Artifact(ORMBaseModel):
 
     @classmethod
     def from_state_result(cls, data: dict):
-        type = data.get("artifact_type", None)
-        description = data.get("artifact_description", None)
-        metadata = dict(description=description)
+        type = data.pop("artifact_type", None)
+        description = data.pop("artifact_description", None)
+        if description:
+            metadata = dict(description=description)
+        else:
+            metadata = None
         return cls(data=data, type=type, metadata_=metadata)
 
     @validator("metadata_")
