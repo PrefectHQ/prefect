@@ -115,7 +115,7 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
 }
 ```
 
-Or, if you wanted your trigger to fire if your log write events passed a certain threshold, you could paste in the following trigger configuration:
+Or, if you wanted your trigger to fire if your log write events passed a threshold of 100 within 10 seconds, you could paste in the following trigger configuration:
 
 ```json
 {
