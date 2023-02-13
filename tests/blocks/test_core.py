@@ -2422,5 +2422,5 @@ class TestBlockSchemaMigration:
         )
         updated_schema_id = updated_schema.block_schema_id
 
-        # new local schema ID should now be saved to Orion
+        # new local schema ID should now be saved to Prefect
         assert updated_schema_id == new_schema_id

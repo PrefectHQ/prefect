@@ -702,9 +702,9 @@ async def orchestrate_flow_run(
             )
 
         # Before setting the flow run state, store state.data using
-        # block storage and send the resulting data document to the Orion API instead.
+        # block storage and send the resulting data document to the Prefect API instead.
         # This prevents the pickled return value of flow runs
-        # from being sent to the Orion API and stored in the Orion database.
+        # from being sent to the Prefect API and stored in the Prefect database.
         # state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
         state = await propose_state(
@@ -1774,18 +1774,18 @@ async def propose_state(
     flow_run_id: UUID = None,
 ) -> State:
     """
-    Propose a new state for a flow run or task run, invoking Orion orchestration logic.
+    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
 
     If the proposed state is accepted, the provided `state` will be augmented with
      details and returned.
 
-    If the proposed state is rejected, a new state returned by the Orion API will be
+    If the proposed state is rejected, a new state returned by the Prefect API will be
     returned.
 
-    If the proposed state results in a WAIT instruction from the Orion API, the
+    If the proposed state results in a WAIT instruction from the Prefect API, the
     function will sleep and attempt to propose the state again.
 
-    If the proposed state results in an ABORT instruction from the Orion API, an
+    If the proposed state results in an ABORT instruction from the Prefect API, an
     error will be raised.
 
     Args:
@@ -1800,7 +1800,7 @@ async def propose_state(
     Raises:
         ValueError: if neither task_run_id or flow_run_id is provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
-            the Orion API
+            the Prefect API
     """
 
     # Determine if working with a task run or flow run

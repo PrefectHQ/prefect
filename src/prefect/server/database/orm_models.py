@@ -1256,7 +1256,7 @@ class ORMFlowRunNotificationQueue:
 
 class BaseORMConfiguration(ABC):
     """
-    Abstract base class used to inject database-specific ORM configuration into the API.
+    Abstract base class used to inject database-specific ORM configuration into Prefect.
 
     Modifications to core Prefect REST API data structures can have unintended consequences.
     Use with caution.

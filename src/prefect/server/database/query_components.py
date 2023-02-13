@@ -29,7 +29,7 @@ jinja_env = Environment(
 
 class BaseQueryComponents(ABC):
     """
-    Abstract base class used to inject dialect-specific SQL operations into the API.
+    Abstract base class used to inject dialect-specific SQL operations into Prefect.
     """
 
     CONFIGURATION_CACHE = TTLCache(maxsize=100, ttl=ONE_HOUR)
