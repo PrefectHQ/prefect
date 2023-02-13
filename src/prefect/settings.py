@@ -341,6 +341,27 @@ def check_for_deprecated_cloud_url(settings, value):
     return deprecated_value or value
 
 
+def default_database_connection_url(settings, value):
+    templater = template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD)
+
+    # If the user has provided a value, use it
+    if value is not None:
+        return templater(settings, value)
+
+    # Otherwise, the default is a database in a local file
+    home = PREFECT_HOME.value_from(settings)
+
+    old_default = home / "orion.db"
+    new_default = home / "prefect.db"
+
+    # If the old one exists and the new one does not, continue using the old one
+    if old_default.exists() and not new_default.exists():
+        return "sqlite+aiosqlite:///" + str(old_default)
+
+    # Otherwise, return the new default
+    return "sqlite+aiosqlite:///" + str(new_default)
+
+
 def default_ui_url(settings, value):
     if value is not None:
         return value
@@ -768,8 +789,8 @@ To use this setting, you must include it in your connection URL.
 
 PREFECT_API_DATABASE_CONNECTION_URL = Setting(
     str,
-    default="sqlite+aiosqlite:///" + str(Path("${PREFECT_HOME}") / "orion.db"),
-    value_callback=template_with_settings(PREFECT_HOME, PREFECT_API_DATABASE_PASSWORD),
+    default=None,
+    value_callback=default_database_connection_url,
     is_secret=True,
 )
 """
@@ -791,7 +812,7 @@ the `PREFECT_API_DATABASE_PASSWORD` setting. For example:
 
 ```
 PREFECT_API_DATABASE_PASSWORD='mypassword'
-PREFECT_API_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_API_DATABASE_PASSWORD}@localhost/orion'
+PREFECT_API_DATABASE_CONNECTION_URL='postgresql+asyncpg://postgres:${PREFECT_API_DATABASE_PASSWORD}@localhost/prefect'
 ```
 """
 
