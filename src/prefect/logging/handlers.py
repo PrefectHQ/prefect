@@ -427,14 +427,14 @@ class PrefectConsoleHandler(logging.StreamHandler):
             self.handleError(record)
 
 
-@deprecated_callable(stacklevel="Feb 2023", help="Use `APILogHandler` instead.")
+@deprecated_callable(start_date="Feb 2023", help="Use `APILogHandler` instead.")
 class OrionHandler(APILogHandler):
     """
     Deprecated. Use `APILogHandler` instead.
     """
 
 
-@deprecated_callable(stacklevel="Feb 2023", help="Use `APILogWorker` instead.")
+@deprecated_callable(start_date="Feb 2023", help="Use `APILogWorker` instead.")
 class OrionLogWorker(APILogWorker):
     """
     Deprecated. Use `APILogWorker` instead.
