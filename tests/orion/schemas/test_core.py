@@ -377,20 +377,31 @@ class TestArtifacts:
     async def test_from_state_result_populates_type_and_metadata(self):
         # TODO: results received from the API should conform to a schema
         result = dict(
-            data="abcdefghijklmnopqrstuvwxyz",
+            some_string="abcdefghijklmnopqrstuvwxyz",
             artifact_type="a test result",
             artifact_description="the most remarkable word",
         )
         artifact = schemas.core.Artifact.from_state_result(result)
-        assert artifact.data == "abcdefghijklmnopqrstuvwxyz"
+        assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
         assert artifact.type == "a test result"
         assert artifact.metadata_["description"] == "the most remarkable word"
 
     async def test_from_state_result_compatible_with_older_result_payloads(self):
         result = dict(
-            data="abcdefghijklmnopqrstuvwxyz",
+            some_string="abcdefghijklmnopqrstuvwxyz",
         )
         artifact = schemas.core.Artifact.from_state_result(result)
-        assert artifact.data == "abcdefghijklmnopqrstuvwxyz"
+        assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
+        assert artifact.type is None
+        assert artifact.metadata_ is None
+
+    async def test_from_state_results_can_contain_arbitrary_fields(self):
+        result = dict(
+            first_field="chickens",
+            second_field="cows",
+            third_field="horses",
+        )
+        artifact = schemas.core.Artifact.from_state_result(result)
+        assert artifact.data == result
         assert artifact.type is None
         assert artifact.metadata_ is None
