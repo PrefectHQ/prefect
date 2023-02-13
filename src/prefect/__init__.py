@@ -16,7 +16,7 @@ __module_path__ = pathlib.Path(__file__).parent
 # The absolute path to the root of the repository, only valid for use during development.
 __root_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
-__ui_static_path__ = __module_path__ / "orion" / "ui"
+__ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
