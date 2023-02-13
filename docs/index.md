@@ -205,11 +205,11 @@ prefect server start
 
 Follow the link in your terminal to see the dashboard.
 
-![screenshot of prefect orion dashboard with flow runs in a scatter plot](/img/intro-ui-dashboard.png)
+![screenshot of the Prefect dashboard with flow runs in a scatter plot](/img/intro-ui-dashboard.png)
 
 Click on your flow name to see logs and other details.
 
-![screenshot of prefect orion dashboard with logs, radar plot, and flow info](/img/intro-ui-logs.png)
+![screenshot of the Prefect dashboard with logs, radar plot, and flow info](/img/intro-ui-logs.png)
 
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
