@@ -157,15 +157,21 @@ async def register(
     registered_blocks = await _register_blocks_in_module(imported_module)
     number_of_registered_blocks = len(registered_blocks)
     block_text = "block" if 0 < number_of_registered_blocks < 2 else "blocks"
-    block_catalog_url = f"{PREFECT_UI_URL.value()}/blocks/catalog"
     app.console.print(
         f"[green]Successfully registered {number_of_registered_blocks} {block_text}\n"
     )
     app.console.print(_build_registered_blocks_table(registered_blocks))
-    app.console.print(
+    msg = (
         f"\n To configure the newly registered blocks, "
-        f"go to the Blocks page in the Prefect UI: {block_catalog_url}\n"
+        f"go to the Blocks page in the Prefect UI.\n"
     )
+
+    ui_url = PREFECT_UI_URL.value()
+    if ui_url is not None:
+        block_catalog_url = f"{ui_url}/blocks/catalog"
+        msg = f"{msg.rstrip().rstrip('.')}: {block_catalog_url}\n"
+
+    app.console.print(msg)
 
 
 @blocks_app.command("ls")
