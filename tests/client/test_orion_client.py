@@ -24,7 +24,7 @@ from prefect.client.schemas import OrchestrationResult
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.server import schemas
-from prefect.server.api.server import ORION_API_VERSION, create_app
+from prefect.server.api.server import SERVER_API_VERSION, create_app
 from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
 from prefect.server.schemas.core import FlowRunNotificationPolicy
 from prefect.server.schemas.filters import (
@@ -1240,7 +1240,7 @@ class TestResolveDataDoc:
 class TestClientAPIVersionRequests:
     @pytest.fixture
     def versions(self):
-        return ORION_API_VERSION.split(".")
+        return SERVER_API_VERSION.split(".")
 
     @pytest.fixture
     def major_version(self, versions):
