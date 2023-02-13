@@ -1069,7 +1069,7 @@ class Artifact(ORMBaseModel):
         default=None,
         description="An identifier for how this artifact is persisted.",
     )
-    data: Dict[str, str] = Field(
+    data: Dict[str, Any] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
