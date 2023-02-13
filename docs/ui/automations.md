@@ -69,7 +69,7 @@ Custom triggers allow advanced configuration of the conditions on which a trigge
 
 ![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](../img/ui/automations-custom.png)
  
-For example, if you would only like a trigger to execute an action if it recieves two flow run failure events of a specific deployment within ten seconds, you could paste in the following trigger configuration:
+For example, if you would only like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
 
 ```json
 {
