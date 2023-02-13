@@ -187,7 +187,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
             required = ".".join(str(v) for v in self.MIN_SQLITE_VERSION)
             raise RuntimeError(
-                f"Orion requires sqlite >= {required} but we found version "
+                f"Prefect requires sqlite >= {required} but we found version "
                 f"{sqlite3.sqlite_version}"
             )
 
