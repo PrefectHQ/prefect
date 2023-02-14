@@ -127,8 +127,8 @@ async def test_dependent_events_in_two_loops_do_not_deadlock():
     async def two():
         nonlocal event_two
         event_two = Event()
-        print("two: waiting for event_two to be created")
-        while event_two is None:
+        print("two: waiting for event_one to be created")
+        while event_one is None:
             await anyio.sleep(0)
         print("two: setting event_one")
         event_one.set()
