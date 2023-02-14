@@ -190,7 +190,7 @@ class TestSchedules:
                 "--interval",
                 "42",
                 "--anchor-date",
-                "2018-02-02",
+                "2040-02-02",
                 "--timezone",
                 "America/New_York",
             ],
@@ -200,7 +200,7 @@ class TestSchedules:
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2018-02-02")
+        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/New_York"
 
     def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):

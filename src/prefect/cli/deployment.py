@@ -269,7 +269,7 @@ async def set_schedule(
 
     interval_schedule = {
         "interval": interval,
-        "interval_anchor": interval_anchor,
+        "anchor_date": interval_anchor,
         "timezone": timezone,
     }
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
