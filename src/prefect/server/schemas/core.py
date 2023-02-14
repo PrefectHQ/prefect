@@ -1090,15 +1090,21 @@ class Artifact(ORMBaseModel):
 
     @classmethod
     def from_result(cls, data: Any):
-        type = None
-        metadata = None
+        artifact_info = dict()
         if isinstance(data, dict):
-            type = data.pop("artifact_type", None)
+            artifact_key = data.pop("artifact_key", None)
+            if artifact_key:
+                artifact_info["key"] = artifact_key
+
+            artifact_type = data.pop("artifact_type", None)
+            if artifact_type:
+                artifact_info["type"] = artifact_type
+
             description = data.pop("artifact_description", None)
             if description:
-                metadata = dict(description=description)
+                artifact_info["metadata_"] = dict(description=description)
 
-        return cls(data=data, type=type, metadata_=metadata)
+        return cls(data=data, **artifact_info)
 
     @validator("metadata_")
     def validate_metadata_length(cls, v):

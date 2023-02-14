@@ -374,14 +374,16 @@ class TestArtifacts:
         assert len(artifact.metadata_["a very long key"]) < 5000
         assert len(artifact.metadata_["a very long key"]) == 503  # max length + "..."
 
-    async def test_from_result_populates_type_and_metadata(self):
+    async def test_from_result_populates_type_key_and_metadata(self):
         # TODO: results received from the API should conform to a schema
         result = dict(
             some_string="abcdefghijklmnopqrstuvwxyz",
+            artifact_key="the secret pa55word",
             artifact_type="a test result",
             artifact_description="the most remarkable word",
         )
         artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.key == "the secret pa55word"
         assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
         assert artifact.type == "a test result"
         assert artifact.metadata_["description"] == "the most remarkable word"
