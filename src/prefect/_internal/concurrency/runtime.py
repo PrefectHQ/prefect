@@ -73,8 +73,17 @@ class _WorkItem:
             self.future.set_result(result)
 
     async def _run_async(self):
+        loop = asyncio.get_running_loop()
         try:
-            result = await self.context.run(self.fn, *self.args, **self.kwargs)
+            # Call the function in the context; this is not necessary if the function
+            # is a standard cortouine function but if it's a synchronous function that
+            # returns a coroutine we want to ensure the correct context is available
+            coro = self.context.run(self.fn, *self.args, **self.kwargs)
+
+            # Run the coroutine in a new task to run with the correct async context
+            task = self.context.run(loop.create_task, coro)
+            result = await task
+
         except BaseException as exc:
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
