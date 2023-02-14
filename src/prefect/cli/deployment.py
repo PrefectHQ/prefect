@@ -267,16 +267,17 @@ async def set_schedule(
     """
     assert_deployment_name_format(name)
 
-    if interval_anchor and not interval:
-        exit_with_error(
-            "Cannot specify an anchor date without an interval. Please specify an interval."
-        )
-
     if interval_anchor:
         try:
             pendulum.parse(interval_anchor)
         except ValueError:
             exit_with_error("The anchor date must be a valid date string.")
+        if not interval:
+            exit_with_error(
+                "Cannot specify an anchor date without an interval. Please specify an interval."
+            )
+        if interval <= 0:
+            exit_with_error("The interval must be greater than zero seconds.")
 
     interval_schedule = {
         "interval": interval,
