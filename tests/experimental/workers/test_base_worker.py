@@ -780,3 +780,138 @@ def test_job_configuration_produces_correct_json_template(
 
     template = ArbitraryJobConfiguration.json_template()
     assert template == expected_final_template
+
+
+class TestWorkerProperties:
+    def test_defaults(self):
+        class WorkerImplNoCustomization(BaseWorker):
+            type = "test-no-customization"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplNoCustomization.get_name() == "WorkerImplNoCustomization"
+        assert WorkerImplNoCustomization.get_logo_url() == ""
+        assert WorkerImplNoCustomization.get_documentation_url() == ""
+        assert WorkerImplNoCustomization.get_description() == ""
+        assert WorkerImplNoCustomization.get_default_base_job_configuration() == {
+            "job_configuration": {"command": "{{ command }}"},
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                    }
+                },
+                "required": [],
+            },
+        }
+
+    def test_custom_name(self):
+        class WorkerImplWithName(BaseWorker):
+            type = "test-with-name"
+            job_configuration = BaseJobConfiguration
+
+            _name = "Custom Worker Name"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithName.get_name() == "Custom Worker Name"
+
+    def test_custom_logo_url(self):
+        class WorkerImplWithLogoUrl(BaseWorker):
+            type = "test-with-logo-url"
+            job_configuration = BaseJobConfiguration
+
+            _logo_url = "https://example.com/logo.png"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithLogoUrl.get_logo_url() == "https://example.com/logo.png"
+
+    def test_custom_documentation_url(self):
+        class WorkerImplWithDocumentationUrl(BaseWorker):
+            type = "test-with-documentation-url"
+            job_configuration = BaseJobConfiguration
+
+            _documentation_url = "https://example.com/docs"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert (
+            WorkerImplWithDocumentationUrl.get_documentation_url()
+            == "https://example.com/docs"
+        )
+
+    def test_custom_description(self):
+        class WorkerImplWithDescription(BaseWorker):
+            type = "test-with-description"
+            job_configuration = BaseJobConfiguration
+
+            _description = "Custom Worker Description"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert (
+            WorkerImplWithDescription.get_description() == "Custom Worker Description"
+        )
+
+    def test_custom_base_job_configuration(self):
+        class CustomBaseJobConfiguration(BaseJobConfiguration):
+            var1: str = Field(template="{{ var1 }}")
+            var2: int = Field(template="{{ var2 }}")
+
+        class CustomBaseVariables(BaseVariables):
+            var1: str = Field(default=...)
+            var2: int = Field(default=1)
+
+        class WorkerImplWithCustomBaseJobConfiguration(BaseWorker):
+            type = "test-with-base-job-configuration"
+            job_configuration = CustomBaseJobConfiguration
+            job_configuration_variables = CustomBaseVariables
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_configuration() == {
+            "job_configuration": {
+                "command": "{{ command }}",
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "items": {"type": "string"},
+                        "title": "Command",
+                        "type": "array",
+                    },
+                    "var1": {"title": "Var1", "type": "string"},
+                    "var2": {"title": "Var2", "type": "integer", "default": 1},
+                },
+                "required": ["var1"],
+            },
+        }
