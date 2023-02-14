@@ -140,6 +140,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Run a deployment
 - Pause or resume a work queue
 - Send a [notification](#automation-notifications)
+- Call a webhook
 
 ![Configuring an action for an automation in Prefect Cloud.](../img/ui/automations-action.png)
 
