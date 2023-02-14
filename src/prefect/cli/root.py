@@ -4,7 +4,6 @@ Base `prefect` command-line application
 import asyncio
 import platform
 import sys
-from typing import Optional
 
 import pendulum
 import rich.console
@@ -16,6 +15,7 @@ import prefect.context
 import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import with_cli_exception_handling
+from prefect.client.orchestration import ServerType
 from prefect.logging.configuration import setup_logging
 from prefect.settings import (
     PREFECT_CLI_COLORS,
@@ -101,11 +101,7 @@ async def version():
 
     from prefect.server.api.server import SERVER_API_VERSION
     from prefect.server.utilities.database import get_dialect
-    from prefect.settings import (
-        PREFECT_API_DATABASE_CONNECTION_URL,
-        PREFECT_API_URL,
-        PREFECT_CLOUD_API_URL,
-    )
+    from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
     version_info = {
         "Version": prefect.__version__,
@@ -119,25 +115,14 @@ async def version():
         "Profile": prefect.context.get_settings_context().profile.name,
     }
 
-    is_ephemeral: Optional[bool] = None
     try:
         async with prefect.get_client() as client:
-            is_ephemeral = client._ephemeral_app is not None
-    except Exception as exc:
+            version_info["Server type"] = client.server_type
+    except Exception:
         version_info["Server type"] = "<client error>"
-    else:
-        version_info["Server type"] = (
-            "ephemeral"
-            if is_ephemeral
-            else (
-                "cloud"
-                if PREFECT_API_URL.value().startswith(PREFECT_CLOUD_API_URL.value())
-                else "hosted"
-            )
-        )
 
     # TODO: Consider adding an API route to retrieve this information?
-    if is_ephemeral:
+    if version_info["Server type"] == ServerType.EPHEMERAL:
         database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":

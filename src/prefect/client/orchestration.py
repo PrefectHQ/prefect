@@ -49,13 +49,21 @@ from prefect.settings import (
     PREFECT_API_REQUEST_TIMEOUT,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
 )
+from prefect.utilities.collections import AutoEnum
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
 
 from prefect.client.base import PrefectHttpxClient, app_lifespan_context
+
+
+class ServerType(AutoEnum):
+    EPHEMERAL = AutoEnum.auto()
+    HOSTED = AutoEnum.auto()
+    CLOUD = AutoEnum.auto()
 
 
 def get_client(httpx_settings: dict = None) -> "PrefectClient":
@@ -137,9 +145,11 @@ class PrefectClient:
         self._exit_stack = AsyncExitStack()
         self._ephemeral_app: Optional[FastAPI] = None
         self.manage_lifespan = True
+        self.server_type: ServerType
 
         # Only set if this client started the lifespan of the application
         self._ephemeral_lifespan: Optional[LifespanManager] = None
+
         self._closed = False
         self._started = False
 
@@ -174,9 +184,16 @@ class PrefectClient:
             # client will use a standard HTTP/1.1 connection instead.
             httpx_settings.setdefault("http2", PREFECT_API_ENABLE_HTTP2.value())
 
+            self.server_type = (
+                ServerType.CLOUD
+                if api.startswith(PREFECT_CLOUD_API_URL.value())
+                else ServerType.HOSTED
+            )
+
         # Connect to an in-process application
         elif isinstance(api, FastAPI):
             self._ephemeral_app = api
+            self.server_type = ServerType.EPHEMERAL
             httpx_settings.setdefault("app", self._ephemeral_app)
             httpx_settings.setdefault("base_url", "http://ephemeral-prefect/api")
 
@@ -250,9 +267,6 @@ class PrefectClient:
         Send a GET request to /hello for testing purposes.
         """
         return await self._client.get("/hello")
-
-    async def using_ephemeral_app(self) -> bool:
-        return self._ephemeral_app is not None
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
