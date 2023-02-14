@@ -14,7 +14,7 @@ from prefect.testing.cli import invoke_and_assert
 
 def test_version_ephemeral_server_type():
     invoke_and_assert(
-        ["version"], expected_output_contains="Server type:         ephemeral"
+        ["version"], expected_output_contains="Server type:         EPHEMERAL"
     )
 
 
@@ -33,7 +33,7 @@ def test_version_cloud_server_type():
         }
     ):
         invoke_and_assert(
-            ["version"], expected_output_contains="Server type:         cloud"
+            ["version"], expected_output_contains="Server type:         CLOUD"
         )
 
 
@@ -62,7 +62,7 @@ Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
-Server type:         ephemeral
+Server type:         EPHEMERAL
 Server:
   Database:          sqlite
   SQLite version:    {sqlite3.sqlite_version}
@@ -88,7 +88,7 @@ Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
-Server type:         ephemeral
+Server type:         EPHEMERAL
 Server:
   Database:          postgres
 """,
