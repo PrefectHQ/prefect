@@ -78,7 +78,7 @@ For example, if you would only like a trigger to execute an action if it receive
   "match_related": {
     "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
   },
-  "forEach": [
+  "for_each": [
     "prefect.resource.id"
   ],
   "after": [],
@@ -98,8 +98,8 @@ Or, if your work queue enters an unhealthy state and you want your trigger to ex
   "match": {
     "prefect.resource.id": "prefect.work-queue.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
   },
-  "matchRelated": {},
-  "forEach": [
+  "match_related": {},
+  "for_each": [
     "prefect.resource.id"
   ],
   "after": [
@@ -140,6 +140,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Run a deployment
 - Pause or resume a work queue
 - Send a [notification](#automation-notifications)
+- Call a webhook
 
 ![Configuring an action for an automation in Prefect Cloud.](../img/ui/automations-action.png)
 
