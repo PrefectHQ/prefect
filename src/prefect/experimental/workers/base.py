@@ -123,7 +123,6 @@ class BaseWorker(abc.ABC):
     job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
     job_configuration_variables: Optional[Type[BaseVariables]] = None
 
-    _name = None
     _documentation_url = ""
     _logo_url = ""
     _description = ""
@@ -180,10 +179,6 @@ class BaseWorker(abc.ABC):
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
-
-    @classmethod
-    def get_name(cls) -> str:
-        return cls._name or cls.__name__
 
     @classmethod
     def get_documentation_url(cls) -> str:

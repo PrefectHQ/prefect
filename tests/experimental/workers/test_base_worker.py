@@ -793,7 +793,6 @@ class TestWorkerProperties:
             async def verify_submitted_deployment(self, deployment):
                 pass
 
-        assert WorkerImplNoCustomization.get_name() == "WorkerImplNoCustomization"
         assert WorkerImplNoCustomization.get_logo_url() == ""
         assert WorkerImplNoCustomization.get_documentation_url() == ""
         assert WorkerImplNoCustomization.get_description() == ""
@@ -810,21 +809,6 @@ class TestWorkerProperties:
                 "required": [],
             },
         }
-
-    def test_custom_name(self):
-        class WorkerImplWithName(BaseWorker):
-            type = "test-with-name"
-            job_configuration = BaseJobConfiguration
-
-            _name = "Custom Worker Name"
-
-            async def run(self):
-                pass
-
-            async def verify_submitted_deployment(self, deployment):
-                pass
-
-        assert WorkerImplWithName.get_name() == "Custom Worker Name"
 
     def test_custom_logo_url(self):
         class WorkerImplWithLogoUrl(BaseWorker):
