@@ -10,7 +10,7 @@
 
 <script lang="ts" setup>
   import { showToast } from '@prefecthq/prefect-design'
-  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, mapper, SchemaValues } from '@prefecthq/prefect-ui-library'
+  import { FlowRunCreateForm, PageHeadingFlowRunCreate, DeploymentFlowRunCreate, ToastFlowRunCreate, useWorkspaceApi, mapper } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam, useRouteQueryParam } from '@prefecthq/vue-compositions'
   import { computed, h } from 'vue'
   import { useRouter } from 'vue-router'
@@ -21,13 +21,14 @@
   const api = useWorkspaceApi()
   const deploymentId = useRouteParam('deploymentId')
   const router = useRouter()
-  const parameters = useRouteQueryParam('parameters', JSONRouteParam, {})
+  const parameters = useRouteQueryParam('parameters', JSONRouteParam, undefined)
 
   const mappedParameters = computed(() => {
     if (!deployment.value || !parameters.value) {
       return {}
     }
-    return mapper.map('SchemaValuesResponse', { schema: deployment.value.parameterOpenApiSchema, values: parameters.value as SchemaValues }, 'SchemaValues')
+
+    return mapper.map('SchemaValuesResponse', { schema: deployment.value.parameterOpenApiSchema, values: parameters.value }, 'SchemaValues')
   })
 
   const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId])
