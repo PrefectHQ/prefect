@@ -402,7 +402,7 @@ class TestArtifacts:
         assert artifact.type is None
         assert artifact.metadata_ is None
 
-    async def test_from_results_can_contain_arbitrary_fields(self):
+    async def test_from_result_can_contain_arbitrary_fields(self):
         result = dict(
             first_field="chickens",
             second_field="cows",
