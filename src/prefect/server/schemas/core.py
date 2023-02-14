@@ -1100,7 +1100,7 @@ class Artifact(ORMBaseModel):
     def validate_metadata_length(cls, v):
         max_metadata_length = 500
         if not isinstance(v, dict):
-            return
+            return v
         for key in v.keys():
             if len(str(v[key])) > max_metadata_length:
                 v[key] = str(v[key])[:max_metadata_length] + "..."
