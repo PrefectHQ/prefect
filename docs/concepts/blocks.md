@@ -21,7 +21,7 @@ You may configure blocks through code or via the Prefect Cloud and the Prefect s
 
 You can access blocks for both configuring flow [deployments](/concepts/deployments/) and directly from within your flow code.
 
-Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Collections](/collections/catalog/) &mdash to use these blocks you can `pip install` the collection, then register the blocks you want to use with Prefect Cloud or a Prefect server.
+Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Collections](/collections/catalog/). To use these blocks you can `pip install` the collection, then register the blocks you want to use with Prefect Cloud or a Prefect server.
 
 Prefect Cloud and the Prefect server UI display a library of block types available for you to configure blocks that may be used by your flows.
 
@@ -34,17 +34,17 @@ Prefect Cloud and the Prefect server UI display a library of block types availab
 
 ## Prefect built-in blocks
 
-Prefect provides a broad range of commonly used, built-in block types. These block types are available in Prefect Cloud and the Prefect server UI and local installations of Prefect.
+Prefect provides a broad range of commonly used, built-in block types. These block types are available in Prefect Cloud and the Prefect server UI.
 
 | Block | Slug | Description |
 | --- | --- | --- |
 | [Azure](/concepts/filesystems/#azure) | `azure` | Store data as a file on Azure Datalake and Azure Blob Storage. |
-| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime) | `date-time` | A block that represents a datetime |
+| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime) | `date-time` | A block that represents a datetime. |
 | [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer) | `docker-container` | Runs a command in a container. |
 | [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) | `docker-registry` | Connects to a Docker registry.  Requires a Docker Engine to be connectable. |
 | [GCS](/concepts/filesystems/#gcs) | `gcs` | Store data as a file on Google Cloud Storage. |
 | [GitHub](/concepts/filesystems/#github) | `github` | Interact with files stored on public GitHub repositories. |
-| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON) | `json` | A block that represents JSON |
+| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON) | `json` | A block that represents JSON. |
 | [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig) | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters. |
 | [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob) | `kubernetes-job` | Runs a command as a Kubernetes Job. |
 | [Local File System](/concepts/filesystems/#local-filesystem) | `local-file-system` | Store data as a file on a local file system. |
@@ -57,7 +57,7 @@ Prefect provides a broad range of commonly used, built-in block types. These blo
 | [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret) | `secret` | A block that represents a secret value. The value stored in this block will be obfuscated when this block is logged or shown in the UI. |
 | [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook) | `slack-webhook` | Enables sending notifications via a provided Slack webhook. |
 | [SMB](/concepts/filesystems/#smb) | `smb` | Store data as a file on a SMB share. |
-| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String) | `string` | A block that represents a string |
+| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String) | `string` | A block that represents a string. |
 | [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS) | `twilio-sms` | Enables sending notifications via Twilio SMS. |
 | [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook) | `webhook` | Block that enables calling webhooks. |
 
