@@ -62,8 +62,12 @@ class Event:
         Otherwise, block until another `set()` is called, then return True.
         """
         # Taking a sync lock in an async context is generally not recommended, but this
-        # lock should only ever be held very briefly and we need to prevent race
+        # lock should only ever be held very briefly* and we need to prevent race
         # conditions during between `set()` and `wait()`
+        #
+        # * The lock is only held briefly because no blocking calls occur during it;
+        #   we are just scheduling calls
+
         with self._lock:
             if self._value:
                 return True

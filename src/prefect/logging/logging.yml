@@ -76,7 +76,7 @@ loggers:
         level: NOTSET
         handlers: [api]
 
-    prefect.server:
+    prefect.server1:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
     prefect.client:
