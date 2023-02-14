@@ -1066,7 +1066,9 @@ class Artifact(ORMBaseModel):
         default=None,
         description="An identifier for how this artifact is persisted.",
     )
-    data: Optional[Dict[str, Any]] = Field(
+
+    # data will eventually be typed as `Optional[Union[Result, Any]]`
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
@@ -1087,13 +1089,15 @@ class Artifact(ORMBaseModel):
     )
 
     @classmethod
-    def from_result(cls, data: dict):
-        type = data.pop("artifact_type", None)
-        description = data.pop("artifact_description", None)
-        if description:
-            metadata = dict(description=description)
-        else:
-            metadata = None
+    def from_result(cls, data: Any):
+        type = None
+        metadata = None
+        if isinstance(data, dict):
+            type = data.pop("artifact_type", None)
+            description = data.pop("artifact_description", None)
+            if description:
+                metadata = dict(description=description)
+
         return cls(data=data, type=type, metadata_=metadata)
 
     @validator("metadata_")

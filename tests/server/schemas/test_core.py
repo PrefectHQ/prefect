@@ -395,6 +395,13 @@ class TestArtifacts:
         assert artifact.type is None
         assert artifact.metadata_ is None
 
+    @pytest.mark.parametrize("result", [1, "test", {"foo": "bar"}])
+    async def test_from_result_compatible_with_arbitrary_json(self, result):
+        artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.data == result
+        assert artifact.type is None
+        assert artifact.metadata_ is None
+
     async def test_from_results_can_contain_arbitrary_fields(self):
         result = dict(
             first_field="chickens",
