@@ -3027,33 +3027,98 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
 
-    def test_map_with_sequential_runner_is_sequential(self):
-        """Tests that the sequential runner executes mapped tasks sequentially. The first tasks
-        sleeps for 3 seconds before appending and the second for 0, so if the tasks do not execute
-        sequentially, we expect the second task to append before the first.
+    def test_map_with_sequential_runner_is_sequential_sync_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
         """
 
         @task
         def sleepy_task(n, mock_item):
-            time.sleep(n)
+            time.sleep(n / 100)
             mock_item(n)
             return n
 
         @flow
-        def my_flow(mock_item):
-            sleepy_task.map([3, 0], unmapped(mock_item))
+        def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
 
         mock_item = MagicMock()
-        my_flow(mock_item)
-        assert mock_item.call_args_list == [call(0), call(3)]
+        my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
 
         @flow(task_runner=SequentialTaskRunner())
-        def seq_flow(mock_item):
-            sleepy_task.map([3, 0], unmapped(mock_item))
+        def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
 
         sync_mock_item = MagicMock()
-        seq_flow(sync_mock_item)
-        assert sync_mock_item.call_args_list == [call(3), call(0)]
+        seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_sync_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
+
+    async def test_map_with_sequential_runner_is_sequential_async_flow_async_map(self):
+        """Tests that the sequential runner executes mapped tasks sequentially. Tasks sleep for
+        1/100th the value of their input, starting with the longest sleep first. If the tasks
+        do not execute sequentially, we expect the later tasks to append before the earlier.
+        """
+
+        @task
+        async def sleepy_task(n, mock_item):
+            time.sleep(n / 100)
+            mock_item(n)
+            return n
+
+        @flow
+        async def my_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        nums = [i for i in range(10, 0, -1)]
+
+        mock_item = MagicMock()
+        await my_flow(mock_item, nums)
+        assert mock_item.call_args_list != [call(n) for n in nums]
+
+        @flow(task_runner=SequentialTaskRunner())
+        async def seq_flow(mock_item, nums):
+            await sleepy_task.map(nums, unmapped(mock_item))
+
+        sync_mock_item = MagicMock()
+        await seq_flow(sync_mock_item, nums)
+
+        assert sync_mock_item.call_args_list == [call(n) for n in nums]
 
 
 class TestTaskConstructorValidation:
