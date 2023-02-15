@@ -10,7 +10,7 @@ import pendulum
 from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
-from prefect.client.orchestration import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.engine import propose_state
@@ -175,7 +175,7 @@ class BaseWorker(abc.ABC):
 
         self._work_pool: Optional[schemas.core.WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
-        self._client: Optional[OrionClient] = None
+        self._client: Optional[PrefectClient] = None
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
