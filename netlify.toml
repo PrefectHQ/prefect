@@ -42,6 +42,11 @@ publish = "site"
   status = 301
 
 [[redirects]]
+  from = "https://orion-docs.prefect.io/*"
+  to = "https://docs.prefect.io/:splat"
+  status = 301
+
+[[redirects]]
   from = "https://docs.prefect.io/migration_guide/"
   to = "https://docs.prefect.io/migration-guide/"
   status = 301
@@ -52,6 +57,11 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://orion-docs.prefect.io/*"
-  to = "https://docs.prefect.io/:splat"
+  from = "https://docs.prefect.io/ui/work-queues/"
+  to = "https://docs.prefect.io/ui/work-pools/"
+  status = 301
+
+[[redirects]]
+  from = "https://docs.prefect.io/concepts/work-queues/"
+  to = "https://docs.prefect.io/concepts/work-pools/"
   status = 301
