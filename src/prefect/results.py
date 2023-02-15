@@ -1,6 +1,6 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type, TypeVar, Union
 
 import pydantic
 from typing_extensions import Self
@@ -326,6 +326,8 @@ class ResultFactory(pydantic.BaseModel):
 @add_type_dispatch
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
+    artifact_type: Optional[str]
+    artifact_description: Optional[str]
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -384,7 +386,8 @@ class LiteralResult(BaseResult):
                 f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        return cls(value=obj)
+        description = f"Literal: `{obj}`"
+        return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
 class PersistedResult(BaseResult):
@@ -411,6 +414,7 @@ class PersistedResult(BaseResult):
         """
         Retrieve the data and deserialize it into the original object.
         """
+
         if self.has_cached_object():
             return self._cache
 
@@ -429,6 +433,30 @@ class PersistedResult(BaseResult):
         content = await storage_block.read_path(self.storage_key)
         blob = PersistedResultBlob.parse_raw(content)
         return blob
+
+    @classmethod
+    def _infer_path(cls, storage_block, key) -> str:
+        """
+        Attempts to infer a path associated with a storage block key, this method will
+        defer to the block in the future
+        """
+
+        if hasattr(storage_block, "_resolve_path"):
+            return storage_block._resolve_path(key)
+        if hasattr(storage_block, "_remote_file_system"):
+            return storage_block._remote_file_system._resolve_path(key)
+
+    @classmethod
+    def _infer_description(cls, obj, storage_block, key) -> str:
+        uri = cls._infer_path(storage_block, key)
+        if uri is not None:
+            return f"<{uri}>"
+
+        description = repr(obj)
+        max_description_length = 500
+        if len(description) > max_description_length:
+            return description[:max_description_length] + "..."
+        return "```\n" f"{description}\n" "```"
 
     @classmethod
     @sync_compatible
@@ -452,10 +480,14 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
+        description = cls._infer_description(obj, storage_block, key)
+
         result = cls(
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
+            artifact_type="result",
+            artifact_description=description,
         )
 
         if cache_object:

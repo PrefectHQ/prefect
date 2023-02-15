@@ -1066,14 +1066,16 @@ class Artifact(ORMBaseModel):
         default=None,
         description="An identifier for how this artifact is persisted.",
     )
-    data: Optional[Any] = Field(
+
+    # data will eventually be typed as `Optional[Union[Result, Any]]`
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
             "Content must be storable as JSON."
         ),
     )
-    metadata_: Optional[Any] = Field(
+    metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. " "Content must be storable as JSON."
@@ -1085,3 +1087,31 @@ class Artifact(ORMBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
     )
+
+    @classmethod
+    def from_result(cls, data: Any):
+        artifact_info = dict()
+        if isinstance(data, dict):
+            artifact_key = data.pop("artifact_key", None)
+            if artifact_key:
+                artifact_info["key"] = artifact_key
+
+            artifact_type = data.pop("artifact_type", None)
+            if artifact_type:
+                artifact_info["type"] = artifact_type
+
+            description = data.pop("artifact_description", None)
+            if description:
+                artifact_info["metadata_"] = dict(description=description)
+
+        return cls(data=data, **artifact_info)
+
+    @validator("metadata_")
+    def validate_metadata_length(cls, v):
+        max_metadata_length = 500
+        if not isinstance(v, dict):
+            return v
+        for key in v.keys():
+            if len(str(v[key])) > max_metadata_length:
+                v[key] = str(v[key])[:max_metadata_length] + "..."
+        return v

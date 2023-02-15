@@ -151,7 +151,8 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data == LiteralResult(value=None)
+        assert isinstance(result_state.data, LiteralResult)
+        assert result_state.data.value is None
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self, factory):
