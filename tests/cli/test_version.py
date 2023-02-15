@@ -19,9 +19,9 @@ def test_version_ephemeral_server_type():
 
 
 @pytest.mark.usefixtures("use_hosted_orion")
-def test_version_hosted_server_type():
+def test_version_server_server_type():
     invoke_and_assert(
-        ["version"], expected_output_contains="Server type:         hosted"
+        ["version"], expected_output_contains="Server type:         server"
     )
 
 
@@ -110,6 +110,6 @@ Git commit:          {version_info['full-revisionid'][:8]}
 Built:               {built.to_day_datetime_string()}
 OS/Arch:             {sys.platform}/{platform.machine()}
 Profile:             {profile.name}
-Server type:         hosted
+Server type:         server
 """,
     )
