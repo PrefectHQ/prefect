@@ -363,3 +363,54 @@ class TestWorkPool:
             name="test", type="test", default_queue_id=qid, base_job_template=template
         )
         assert wp
+
+
+class TestArtifacts:
+    async def test_validates_metadata_sizes(self):
+        artifact = schemas.core.Artifact(
+            metadata_={"a very long key": "x" * 5000, "a very short key": "o" * 10}
+        )
+        assert len(artifact.metadata_["a very short key"]) == 10
+        assert len(artifact.metadata_["a very long key"]) < 5000
+        assert len(artifact.metadata_["a very long key"]) == 503  # max length + "..."
+
+    async def test_from_result_populates_type_key_and_metadata(self):
+        # TODO: results received from the API should conform to a schema
+        result = dict(
+            some_string="abcdefghijklmnopqrstuvwxyz",
+            artifact_key="the secret pa55word",
+            artifact_type="a test result",
+            artifact_description="the most remarkable word",
+        )
+        artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.key == "the secret pa55word"
+        assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
+        assert artifact.type == "a test result"
+        assert artifact.metadata_["description"] == "the most remarkable word"
+
+    async def test_from_result_compatible_with_older_result_payloads(self):
+        result = dict(
+            some_string="abcdefghijklmnopqrstuvwxyz",
+        )
+        artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
+        assert artifact.type is None
+        assert artifact.metadata_ is None
+
+    @pytest.mark.parametrize("result", [1, "test", {"foo": "bar"}])
+    async def test_from_result_compatible_with_arbitrary_json(self, result):
+        artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.data == result
+        assert artifact.type is None
+        assert artifact.metadata_ is None
+
+    async def test_from_result_can_contain_arbitrary_fields(self):
+        result = dict(
+            first_field="chickens",
+            second_field="cows",
+            third_field="horses",
+        )
+        artifact = schemas.core.Artifact.from_result(result)
+        assert artifact.data == result
+        assert artifact.type is None
+        assert artifact.metadata_ is None
