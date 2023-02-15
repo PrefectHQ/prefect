@@ -17,7 +17,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.cloud import CloudUnauthorizedError, get_cloud_client
 from prefect.cli.root import app
-from prefect.client import get_client
+from prefect.client.orchestration import ServerType, get_client
 from prefect.context import use_profile
 from prefect.utilities.collections import AutoEnum
 
@@ -276,7 +276,7 @@ async def check_orion_connection():
                 connect_error = await client.api_healthcheck()
                 if connect_error is not None:
                     return ConnectionStatus.ORION_ERROR
-                elif await client.using_ephemeral_app():
+                elif client.server_type == ServerType.EPHEMERAL:
                     # if the client is using an ephemeral Prefect app, inform the user
                     return ConnectionStatus.EPHEMERAL
                 else:
@@ -294,7 +294,7 @@ async def check_orion_connection():
             connect_error = await client.api_healthcheck()
             if connect_error is not None:
                 return ConnectionStatus.ORION_ERROR
-            elif await client.using_ephemeral_app():
+            elif client.server_type == ServerType.EPHEMERAL:
                 return ConnectionStatus.EPHEMERAL
             else:
                 return ConnectionStatus.ORION_CONNECTED

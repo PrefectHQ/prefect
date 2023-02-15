@@ -19,7 +19,7 @@ import prefect.client.schemas as client_schemas
 import prefect.context
 import prefect.exceptions
 from prefect import flow, tags
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
@@ -39,6 +39,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
+    PREFECT_CLOUD_API_URL,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1485,13 +1486,18 @@ async def test_delete_flow_run(orion_client, flow_run):
         await orion_client.delete_flow_run(flow_run.id)
 
 
-async def test_ephemeral_app_check(orion_client):
-    assert await orion_client.using_ephemeral_app()
+def test_server_type_ephemeral(orion_client):
+    assert orion_client.server_type == ServerType.EPHEMERAL
 
 
-async def test_ephemeral_app_check_when_using_hosted_orion(hosted_orion_api):
+async def test_server_type_server(hosted_orion_api):
     async with PrefectClient(hosted_orion_api) as orion_client:
-        assert (await orion_client.using_ephemeral_app()) is False
+        assert orion_client.server_type == ServerType.SERVER
+
+
+async def test_server_type_cloud():
+    async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as orion_client:
+        assert orion_client.server_type == ServerType.CLOUD
 
 
 @pytest.mark.parametrize(
