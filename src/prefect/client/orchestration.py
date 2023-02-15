@@ -62,7 +62,7 @@ from prefect.client.base import PrefectHttpxClient, app_lifespan_context
 
 class ServerType(AutoEnum):
     EPHEMERAL = AutoEnum.auto()
-    HOSTED = AutoEnum.auto()
+    SERVER = AutoEnum.auto()
     CLOUD = AutoEnum.auto()
 
 
@@ -187,7 +187,7 @@ class PrefectClient:
             self.server_type = (
                 ServerType.CLOUD
                 if api.startswith(PREFECT_CLOUD_API_URL.value())
-                else ServerType.HOSTED
+                else ServerType.SERVER
             )
 
         # Connect to an in-process application

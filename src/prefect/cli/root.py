@@ -115,14 +115,18 @@ async def version():
         "Profile": prefect.context.get_settings_context().profile.name,
     }
 
+    server_type: str
+
     try:
         async with prefect.get_client() as client:
-            version_info["Server type"] = client.server_type
+            server_type = client.server_type.value
     except Exception:
-        version_info["Server type"] = "<client error>"
+        server_type = "<client error>"
+
+    version_info["Server type"] = server_type.lower()
 
     # TODO: Consider adding an API route to retrieve this information?
-    if version_info["Server type"] == ServerType.EPHEMERAL:
+    if server_type == ServerType.EPHEMERAL.value:
         database = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value()).name
         version_info["Server"] = {"Database": database}
         if database == "sqlite":
