@@ -114,6 +114,9 @@ class Flow(Generic[P, R]):
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        result_description_fn: An optional callable that, when passed the return value
+            of the flow, returns a markdown string that will be used to describe the
+            result of this flow.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -133,6 +136,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        result_description_fn: Optional[Callable[R]] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
     ):
@@ -195,6 +199,7 @@ class Flow(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.result_description_fn = result_description_fn
         self.cache_result_in_memory = cache_result_in_memory
 
         # Check for collision in the registry
@@ -229,6 +234,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        result_description_fn: Optional[Callable[R]] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
     ):
@@ -252,6 +258,9 @@ class Flow(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            result_description_fn: An optional callable that, when passed the return value
+                of the flow, returns a markdown string that will be used to describe the
+                result of this flow.
             cache_result_in_memory: A new value indicating if the flow's result should
                 be cached in memory.
 
@@ -308,6 +317,11 @@ class Flow(Generic[P, R]):
                 result_serializer
                 if result_serializer is not NotSet
                 else self.result_serializer
+            ),
+            result_description_fn=(
+                result_description_fn
+                if result_description_fn is not NotSet
+                else self.result_description_fn
             ),
             cache_result_in_memory=(
                 cache_result_in_memory
@@ -526,6 +540,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_description_fn: Optional[Callable[R]] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -547,6 +562,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_description_fn: Optional[Callable[R]] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ):
@@ -594,6 +610,9 @@ def flow(
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        result_description_fn: An optional callable that, when passed the return value
+            of the flow, returns a markdown string that will be used to describe the
+            result of this flow.
         log_prints: If set, `print` statements in the flow will be redirected to the
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
@@ -654,6 +673,7 @@ def flow(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_description_fn=result_description_fn,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
             ),
@@ -675,6 +695,7 @@ def flow(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_description_fn=result_description_fn,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
             ),
