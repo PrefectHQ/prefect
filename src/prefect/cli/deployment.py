@@ -301,8 +301,8 @@ async def set_schedule(
         )
 
     if rrule_string is not None:
-        # a provided timezone gets ignored by the RRuleSchedule constructor
-        if not timezone and "TZID" in rrule_string:
+        # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
+        if "TZID" in rrule_string and not timezone:
             exit_with_error(
                 "You can provide a timezone by providing a dict with a `timezone` key to the --rrule option. E.g. {'rrule': 'FREQ=MINUTELY;INTERVAL=5', 'timezone': 'America/New_York'}."
                 "\nAlternatively, you can provide a timezone by passing in a --timezone argument."
