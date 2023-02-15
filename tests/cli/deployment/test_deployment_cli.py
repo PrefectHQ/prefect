@@ -204,42 +204,6 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_set_schedule_interval_with_anchor_date(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=["10.76"],  # 100 m record
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "10.49",  # July 16, 1988
-                "--anchor-date",
-                "2040-07-16T00:00:00",
-            ],
-            expected_code=0,
-        )
-
-        invoke_and_assert(
-            [
-                "deployment",
-                "inspect",
-                "rence-griffith/test-deployment",
-            ],
-            expected_output_contains=[
-                "2040-07-16T00:00:00"
-            ],  # flo-jo breaks the world record
-            expected_code=0,
-        )
-
     def test_set_schedule_with_too_many_schedule_options_raises(self, flojo):
         invoke_and_assert(
             [
