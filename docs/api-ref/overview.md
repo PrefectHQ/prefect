@@ -25,4 +25,4 @@ Prefect 2 provides a number of programmatic workflow interfaces. Each API is doc
     The Prefect REST API documentation for locally run open-source Prefect servers is also available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
 !!! info "Prefect Cloud API rate limits"
-    The Prefect Cloud API enforces rate limits enable us to control the number of requests any given app can make on the platform. It ensures that, when you make an API call, you get a response. See [Prefect Cloud API Rate Limits](/ui/rate-limits/) for details.
+    The Prefect Cloud API enforces rate limits, restricting the number of requests that a single client can make in a given time period. It ensures that, when you make an API call, you get a response. See [Prefect Cloud API Rate Limits](/ui/rate-limits/) for details.
