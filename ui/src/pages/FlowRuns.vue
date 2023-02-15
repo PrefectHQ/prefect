@@ -108,6 +108,9 @@
   bg-opacity-90
   py-2
   z-10
+  bg-background
+  rounded-b
+  px-2
 }
 
 .flow-runs__list-controls--right { @apply
