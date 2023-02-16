@@ -1625,11 +1625,3 @@ class TestEvents:
                 events_client = await prefect_client.events()
                 assert isinstance(events_client, PrefectCloudEventsClient)
                 assert events_client._in_context
-
-    async def test_disconnects(self, orion_client):
-        events_client = await orion_client.events()
-        assert events_client._in_context
-
-        await orion_client.disconnect_events()
-        assert orion_client._events_client is None
-        assert not hasattr(events_client, "_in_context")

@@ -393,7 +393,6 @@ async def begin_flow_run(
             msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
         )
         APILogHandler.flush(block=True)
-        await client.disconnect_events()
 
         return terminal_or_paused_state
     else:
@@ -410,7 +409,6 @@ async def begin_flow_run(
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
     APILogHandler.flush(block=True)
-    await client.disconnect_events()
 
     return terminal_state
 
@@ -1343,7 +1341,6 @@ async def begin_task_run(
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
                 APILogHandler.flush(block=True)
-                await client.disconnect_events()
 
         except Abort as abort:
             # Task run probably already completed, fetch its state

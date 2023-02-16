@@ -269,15 +269,9 @@ class PrefectClient:
                 self._events_client = NullEventsClient()
 
             await self._events_client.__aenter__()
+            self._exit_stack.push_async_exit(self._events_client)
 
         return self._events_client
-
-    async def disconnect_events(self):
-        if self._events_client:
-            await self._events_client.__aexit__(
-                exc_tb=None, exc_type=None, exc_val=None
-            )
-            self._events_client = None
 
     # API methods ----------------------------------------------------------------------
 
