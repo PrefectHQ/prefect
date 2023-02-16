@@ -59,6 +59,26 @@ With today's release, **we've removed references to "Orion" and replaced them wi
     - `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` → `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH`
     - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED`
 
+### Enhancements
+- Add `MattermostWebhook` notification block — https://github.com/PrefectHQ/prefect/pull/8341
+- Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
+
+### Fixes
+- Fix default parameters not populating on the UI — https://github.com/PrefectHQ/prefect/pull/8518
+
+### Documentation
+- Fix work pools documentation links — https://github.com/PrefectHQ/prefect/pull/8477
+- Add examples for custom automation triggers — https://github.com/PrefectHQ/prefect/pull/8476
+- Add webhooks to Automations  docs — https://github.com/PrefectHQ/prefect/pull/8514
+- Document Prefect Cloud API rate limits — https://github.com/PrefectHQ/prefect/pull/8529
+- Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
+
+### Experimental
+- Add metadata fields to `BaseWorker` — https://github.com/PrefectHQ/prefect/pull/8527
+
+## Contributors
+* @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
+* @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
 
 ## Release 2.8.0
 
