@@ -31,7 +31,7 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
@@ -55,7 +55,7 @@ from prefect.exceptions import (
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, call_repr, resolve_futures_to_states
 from prefect.logging.configuration import setup_logging
-from prefect.logging.handlers import OrionHandler
+from prefect.logging.handlers import APILogHandler
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
@@ -63,12 +63,12 @@ from prefect.logging.loggers import (
     patch_print,
     task_run_logger,
 )
-from prefect.orion.schemas.core import TaskRunInput, TaskRunResult
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, ResultFactory
+from prefect.server.schemas.core import TaskRunInput, TaskRunResult
+from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.responses import SetStateStatus
+from prefect.server.schemas.sorting import FlowRunSort
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
@@ -200,7 +200,7 @@ async def create_then_begin_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> Any:
     """
     Async entrypoint for flow calls
@@ -254,7 +254,7 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: OrionClient
+    flow_run_id: UUID, client: PrefectClient
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -321,7 +321,7 @@ async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     parameters: Dict[str, Any],
-    client: OrionClient,
+    client: PrefectClient,
 ) -> State:
     """
     Begins execution of a flow run; blocks until completion of the flow run
@@ -392,7 +392,7 @@ async def begin_flow_run(
             level=logging.INFO,
             msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
         )
-        OrionHandler.flush(block=True)
+        APILogHandler.flush(block=True)
         return terminal_or_paused_state
     else:
         terminal_state = terminal_or_paused_state
@@ -407,7 +407,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    OrionHandler.flush(block=True)
+    APILogHandler.flush(block=True)
 
     return terminal_state
 
@@ -418,7 +418,7 @@ async def create_and_begin_subflow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     return_type: EngineReturnType,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> Any:
     """
     Async entrypoint for flows calls within a flow run
@@ -560,7 +560,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     wait_for: Optional[Iterable[PrefectFuture]],
     interruptible: bool,
-    client: OrionClient,
+    client: PrefectClient,
     partial_flow_run_context: PartialModel[FlowRunContext],
 ) -> State:
     """
@@ -578,6 +578,7 @@ async def orchestrate_flow_run(
     Returns:
         The final state of the run
     """
+
     logger = flow_run_logger(flow_run, flow)
 
     flow_run_context = None
@@ -596,6 +597,13 @@ async def orchestrate_flow_run(
             # update the state name
             force=flow_run.state.is_pending(),
         )
+
+    if flow.flow_run_name:
+        flow_run_name = flow.flow_run_name.format(**parameters)
+        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
+        logger.extra["flow_run_name"] = flow_run_name
+        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
+        flow_run.name = flow_run_name
 
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
@@ -694,9 +702,9 @@ async def orchestrate_flow_run(
             )
 
         # Before setting the flow run state, store state.data using
-        # block storage and send the resulting data document to the Orion API instead.
+        # block storage and send the resulting data document to the Prefect API instead.
         # This prevents the pickled return value of flow runs
-        # from being sent to the Orion API and stored in the Orion database.
+        # from being sent to the Prefect API and stored in the Prefect database.
         # state.data is left as is, otherwise we would have to load
         # the data from block storage again after storing.
         state = await propose_state(
@@ -1331,7 +1339,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                OrionHandler.flush(block=True)
+                APILogHandler.flush(block=True)
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
@@ -1367,7 +1375,7 @@ async def orchestrate_task_run(
     result_factory: ResultFactory,
     log_prints: bool,
     interruptible: bool,
-    client: OrionClient,
+    client: PrefectClient,
 ) -> State:
     """
     Execute a task run
@@ -1446,6 +1454,9 @@ async def orchestrate_task_run(
         task_run_id=task_run.id,
     )
 
+    # flag to ensure we only update the task run name once
+    run_name_set = False
+
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
         # Need to create timeout_context from inside of loop so that a
@@ -1465,6 +1476,19 @@ async def orchestrate_task_run(
                     timeout_scope=timeout_scope
                 )
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
+
+                # update task run name
+                if not run_name_set and task.task_run_name:
+                    task_run_name = task.task_run_name.format(**resolved_parameters)
+                    await client.set_task_run_name(
+                        task_run_id=task_run.id, name=task_run_name
+                    )
+                    logger.extra["task_run_name"] = task_run_name
+                    logger.debug(
+                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
+                    )
+                    task_run.name = task_run_name
+                    run_name_set = True
 
                 if PREFECT_DEBUG_MODE.value():
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
@@ -1551,7 +1575,7 @@ async def orchestrate_task_run(
 
 
 async def wait_for_task_runs_and_report_crashes(
-    task_run_futures: Iterable[PrefectFuture], client: OrionClient
+    task_run_futures: Iterable[PrefectFuture], client: PrefectClient
 ) -> Literal[True]:
     crash_exceptions = []
 
@@ -1601,7 +1625,7 @@ async def wait_for_task_runs_and_report_crashes(
 
 
 @asynccontextmanager
-async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
+async def report_flow_run_crashes(flow_run: FlowRun, client: PrefectClient):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -1654,7 +1678,7 @@ async def report_flow_run_crashes(flow_run: FlowRun, client: OrionClient):
 
 
 @asynccontextmanager
-async def report_task_run_crashes(task_run: TaskRun, client: OrionClient):
+async def report_task_run_crashes(task_run: TaskRun, client: PrefectClient):
     """
     Detect task run crashes during this context and update the run to a proper final
     state.
@@ -1743,25 +1767,25 @@ async def resolve_inputs(
 
 
 async def propose_state(
-    client: OrionClient,
+    client: PrefectClient,
     state: State,
     force: bool = False,
     task_run_id: UUID = None,
     flow_run_id: UUID = None,
 ) -> State:
     """
-    Propose a new state for a flow run or task run, invoking Orion orchestration logic.
+    Propose a new state for a flow run or task run, invoking Prefect orchestration logic.
 
     If the proposed state is accepted, the provided `state` will be augmented with
      details and returned.
 
-    If the proposed state is rejected, a new state returned by the Orion API will be
+    If the proposed state is rejected, a new state returned by the Prefect API will be
     returned.
 
-    If the proposed state results in a WAIT instruction from the Orion API, the
+    If the proposed state results in a WAIT instruction from the Prefect API, the
     function will sleep and attempt to propose the state again.
 
-    If the proposed state results in an ABORT instruction from the Orion API, an
+    If the proposed state results in an ABORT instruction from the Prefect API, an
     error will be raised.
 
     Args:
@@ -1770,13 +1794,13 @@ async def propose_state(
         flow_run_id: an optional flow run id, used when proposing flow run states
 
     Returns:
-        a [State model][prefect.orion.schemas.states] representation of the flow or task run
+        a [State model][prefect.server.schemas.states] representation of the flow or task run
             state
 
     Raises:
         ValueError: if neither task_run_id or flow_run_id is provided
         prefect.exceptions.Abort: if an ABORT instruction is received from
-            the Orion API
+            the Prefect API
     """
 
     # Determine if working with a task run or flow run

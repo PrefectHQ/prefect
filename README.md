@@ -22,7 +22,7 @@
 
 Prefect 2 is the second-generation dataflow coordination and orchestration platform from [Prefect](https://www.prefect.io).
 
-Prefect 2 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by Prefect Orion, a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
+Prefect 2 has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
 _**You should love your workflows again.**_
 
@@ -34,11 +34,11 @@ Still using Prefect 1 Core and Server? Find the [legacy Prefect 1 docs](https://
 
 ---
 
-## Hello, Orion!
+## Coordinating the world's dataflows
 
-Powered by the Orion engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
+Powered by a new, asynchronous engine, Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
 
-Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
+Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Prefect server or Prefect Cloud dashboard.
 
 ```python
 from prefect import flow, task
@@ -63,13 +63,13 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect"])
 ```
 
-After running some flows, fire up the UI to gain insight into their execution:
+After running some flows, fire up the Prefect UI to gain insight into their execution:
 
 ```bash
-prefect orion start
+prefect server start
 ```
 
-![](/docs/img/ui/orion-dashboard.png)
+![](/docs/img/ui/prefect-dashboard.png)
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](https://docs.prefect.io/concepts/deployments).
 

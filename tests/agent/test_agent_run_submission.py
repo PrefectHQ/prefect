@@ -1,3 +1,4 @@
+import datetime
 import inspect
 from typing import Generator
 from unittest.mock import MagicMock
@@ -6,14 +7,15 @@ import pendulum
 import pytest
 
 from prefect import flow
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import Abort, CrashedRun, FailedRun
 from prefect.infrastructure.base import Infrastructure
-from prefect.orion import models, schemas
+from prefect.server import models, schemas
 from prefect.states import Completed, Pending, Running, Scheduled, State, StateType
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.dispatch import get_registry_for_type
 
 
@@ -32,7 +34,7 @@ def prefect_caplog(caplog):
 
 
 async def test_agent_start_will_not_run_without_start():
-    agent = OrionAgent(work_queues=["foo"])
+    agent = PrefectAgent(work_queues=["foo"])
     mock = AsyncMock()
     with pytest.raises(RuntimeError, match="Agent is not started"):
         agent.client = mock
@@ -42,7 +44,7 @@ async def test_agent_start_will_not_run_without_start():
 
 
 async def test_agent_start_and_shutdown():
-    async with OrionAgent(work_queues=["foo"]) as agent:
+    async with PrefectAgent(work_queues=["foo"]) as agent:
         assert agent.started
         assert agent.task_group is not None
         assert agent.client is not None
@@ -94,7 +96,7 @@ async def test_agent_with_work_queue(orion_client, deployment):
     # Should not include runs without deployments
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
-    agent = OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10)
+    agent = PrefectAgent(work_queues=[work_queue.name], prefetch_seconds=10)
 
     async with agent:
         agent.submit_run = AsyncMock()  # do not actually run anything
@@ -147,7 +149,7 @@ async def test_agent_with_work_queue_and_limit(orion_client, deployment):
     # Should not include runs without deployments
     assert set(work_queue_flow_run_ids) == set(flow_run_ids[1:4])
 
-    agent = OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10, limit=2)
+    agent = PrefectAgent(work_queues=[work_queue.name], prefetch_seconds=10, limit=2)
 
     async with agent:
         agent.submit_run = AsyncMock()  # do not actually run anything
@@ -172,7 +174,7 @@ async def test_agent_matches_work_queues_dynamically(
 ):
     name = "wq-1"
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
-    async with OrionAgent(work_queue_prefix=["wq-"]) as agent:
+    async with PrefectAgent(work_queue_prefix=["wq-"]) as agent:
         assert name not in agent.work_queues
         await agent.get_and_submit_flow_runs()
         assert name in agent.work_queues
@@ -190,7 +192,7 @@ async def test_agent_matches_multiple_work_queues_dynamically(
     await orion_client.create_work_queue(name=prod1)
     await orion_client.create_work_queue(name=prod2)
 
-    async with OrionAgent(work_queue_prefix=["prod-"]) as agent:
+    async with PrefectAgent(work_queue_prefix=["prod-"]) as agent:
         assert not agent.work_queues
         await agent.get_and_submit_flow_runs()
         assert prod1 in agent.work_queues
@@ -217,7 +219,7 @@ async def test_agent_matches_multiple_work_queue_prefixes(
     await orion_client.create_work_queue(name=prod)
     await orion_client.create_work_queue(name=dev)
 
-    async with OrionAgent(work_queue_prefix=["prod-", "dev-"]) as agent:
+    async with PrefectAgent(work_queue_prefix=["prod-", "dev-"]) as agent:
         assert not agent.work_queues
         await agent.get_and_submit_flow_runs()
         assert prod in agent.work_queues
@@ -229,7 +231,7 @@ async def test_matching_work_queues_handes_work_queue_deletion(
 ):
     name = "wq-1"
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
-    async with OrionAgent(work_queue_prefix=["wq-"]) as agent:
+    async with PrefectAgent(work_queue_prefix=["wq-"]) as agent:
         await agent.get_and_submit_flow_runs()
         assert name in agent.work_queues
 
@@ -250,21 +252,23 @@ async def test_agent_creates_work_queue_if_doesnt_exist(session, prefect_caplog)
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
-    async with OrionAgent(work_queues=[name]) as agent:
+    async with PrefectAgent(work_queues=[name]) as agent:
         await agent.get_and_submit_flow_runs()
     assert await models.work_queues.read_work_queue_by_name(session=session, name=name)
 
     assert f"Created work queue '{name}'." in prefect_caplog.text
 
 
-async def test_agent_creates_work_queue_if_doesnt_exist(
-    session, work_pool, prefect_caplog, enable_work_pools
+async def test_agent_creates_work_queue_if_doesnt_exist_in_work_pool(
+    session,
+    work_pool,
+    prefect_caplog,
 ):
     name = "hello-there"
     assert not await models.workers.read_work_queue_by_name(
         session=session, work_pool_name=work_pool.name, work_queue_name=name
     )
-    async with OrionAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
+    async with PrefectAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
         await agent.get_and_submit_flow_runs()
     assert await models.workers.read_work_queue_by_name(
         session=session, work_pool_name=work_pool.name, work_queue_name=name
@@ -282,7 +286,7 @@ async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
     assert not await models.work_queues.read_work_queue_by_name(
         session=session, name=name
     )
-    async with OrionAgent(work_queues=[name]) as agent:
+    async with PrefectAgent(work_queues=[name]) as agent:
         agent.work_queue_prefix = ["goodbye-"]
         await agent.get_and_submit_flow_runs()
     assert not await models.work_queues.read_work_queue_by_name(
@@ -292,7 +296,10 @@ async def test_agent_does_not_create_work_queues_if_matching_with_prefix(
 
 
 async def test_agent_gracefully_handles_error_when_creating_work_queue(
-    session, monkeypatch, prefect_caplog, work_pool, enable_work_pools
+    session,
+    monkeypatch,
+    prefect_caplog,
+    work_pool,
 ):
     """
     Mimics a race condition in which multiple agents were started against the
@@ -309,9 +316,9 @@ async def test_agent_gracefully_handles_error_when_creating_work_queue(
     async def bad_create(self, **kwargs):
         raise ValueError("No!")
 
-    monkeypatch.setattr("prefect.client.OrionClient.create_work_queue", bad_create)
+    monkeypatch.setattr("prefect.client.PrefectClient.create_work_queue", bad_create)
 
-    async with OrionAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
+    async with PrefectAgent(work_queues=[name], work_pool_name=work_pool.name) as agent:
         await agent.get_and_submit_flow_runs()
 
     # work queue was not created
@@ -329,9 +336,11 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
         return work_queue
 
     mock = AsyncMock(side_effect=read_queue)
-    monkeypatch.setattr("prefect.client.OrionClient.read_work_queue_by_name", mock)
+    monkeypatch.setattr("prefect.client.PrefectClient.read_work_queue_by_name", mock)
 
-    async with OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10) as agent:
+    async with PrefectAgent(
+        work_queues=[work_queue.name], prefetch_seconds=10
+    ) as agent:
 
         await agent.get_and_submit_flow_runs()
         mock.assert_awaited_once()
@@ -349,7 +358,9 @@ async def test_agent_with_work_queue_name_survives_queue_deletion(
     """Ensure that cached work queues don't create errors if deleted"""
     work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
 
-    async with OrionAgent(work_queues=[work_queue.name], prefetch_seconds=10) as agent:
+    async with PrefectAgent(
+        work_queues=[work_queue.name], prefetch_seconds=10
+    ) as agent:
         agent.submit_run = AsyncMock()  # do not actually run
 
         await agent.get_and_submit_flow_runs()
@@ -367,7 +378,7 @@ async def test_agent_internal_submit_run_called(orion_client, deployment):
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.submit_run = AsyncMock()
@@ -406,7 +417,7 @@ async def test_agent_runs_multiple_work_queues(orion_client, session, flow):
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment_a.work_queue_name, deployment_b.work_queue_name],
         prefetch_seconds=10,
     ) as agent:
@@ -494,7 +505,7 @@ class TestInfrastructureIntegration:
 
         infra_document = await orion_client.read_block_document(infra_doc_id)
         infrastructure = Block._from_block_document(infra_document)
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
@@ -513,7 +524,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
@@ -530,7 +541,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
@@ -550,7 +561,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc").add(seconds=10)),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
@@ -578,7 +589,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
@@ -610,7 +621,7 @@ class TestInfrastructureIntegration:
 
         await orion_client.delete_flow_run(flow_run.id)
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
@@ -638,7 +649,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
@@ -666,7 +677,7 @@ class TestInfrastructureIntegration:
             state=Scheduled(scheduled_time=pendulum.now("utc")),
         )
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.submitting_flow_run_ids.add(flow_run.id)
@@ -709,7 +720,7 @@ class TestInfrastructureIntegration:
 
         mock_infrastructure_run.pre_start_side_effect = raise_value_error
 
-        async with OrionAgent(
+        async with PrefectAgent(
             [deployment.work_queue_name], prefetch_seconds=10, limit=2
         ) as agent:
             agent.logger = MagicMock()
@@ -751,7 +762,7 @@ class TestInfrastructureIntegration:
 
         mock_infrastructure_run.post_start_side_effect = raise_value_error
 
-        async with OrionAgent(
+        async with PrefectAgent(
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.logger = MagicMock()
@@ -784,7 +795,7 @@ class TestInfrastructureIntegration:
         # submission the same as if it had thrown an error.
         mock_infrastructure_run.mark_as_started = False
 
-        async with OrionAgent(
+        async with PrefectAgent(
             work_queues=[deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             agent.logger = MagicMock()
@@ -812,7 +823,7 @@ class TestInfrastructureIntegration:
 
         mock_infrastructure_run.result_status_code = 9
 
-        async with OrionAgent(
+        async with PrefectAgent(
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
@@ -862,7 +873,7 @@ class TestInfrastructureIntegration:
         mock_infrastructure_run.result_status_code = 9
         mock_infrastructure_run.post_start_side_effect = update_flow_run_state
 
-        async with OrionAgent(
+        async with PrefectAgent(
             [deployment.work_queue_name], prefetch_seconds=10
         ) as agent:
             await agent.get_and_submit_flow_runs()
@@ -885,7 +896,7 @@ async def test_agent_displays_message_on_work_queue_pause(
 ):
     work_queue = await orion_client.read_work_queue_by_name(deployment.work_queue_name)
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.submit_run = AsyncMock()  # do not actually run
@@ -908,11 +919,10 @@ async def test_agent_displays_message_on_work_queue_pause(
 
 
 async def test_agent_with_work_queue_and_work_pool(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -956,7 +966,7 @@ async def test_agent_with_work_queue_and_work_pool(
     # Should not include runs without deployments
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
-    agent = OrionAgent(
+    agent = PrefectAgent(
         work_queues=[work_queue_1.name],
         work_pool_name=work_pool.name,
         prefetch_seconds=10,
@@ -971,11 +981,10 @@ async def test_agent_with_work_queue_and_work_pool(
 
 
 async def test_agent_with_work_pool(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1023,7 +1032,7 @@ async def test_agent_with_work_pool(
     # Should not include runs without deployments
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
-    agent = OrionAgent(
+    agent = PrefectAgent(
         work_pool_name=work_pool.name,
         prefetch_seconds=10,
     )
@@ -1037,11 +1046,10 @@ async def test_agent_with_work_pool(
 
 
 async def test_agent_with_work_pool_and_work_queue_prefix(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment_in_non_default_work_pool: schemas.core.Deployment,
     work_pool: schemas.core.WorkPool,
     work_queue_1: schemas.core.WorkQueue,
-    enable_work_pools,
 ):
     @flow
     def foo():
@@ -1089,7 +1097,7 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
     # Should not include runs without deployments
     assert work_queue_flow_run_ids == set(flow_run_ids[1:4])
 
-    agent = OrionAgent(
+    agent = PrefectAgent(
         work_pool_name=work_pool.name,
         work_queue_prefix="test",
         prefetch_seconds=10,
@@ -1101,3 +1109,101 @@ async def test_agent_with_work_pool_and_work_queue_prefix(
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
     assert submitted_flow_run_ids == work_queue_flow_run_ids
+
+
+@pytest.fixture
+async def deployment_on_default_queue(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_pool,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My High Priority Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_pool.default_queue_id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+async def test_agent_runs_high_priority_flow_runs_first(
+    orion_client: PrefectClient,
+    deployment_in_non_default_work_pool: schemas.core.Deployment,
+    deployment_on_default_queue: schemas.core.Deployment,
+    work_pool: schemas.core.WorkPool,
+    work_queue_1: schemas.core.WorkQueue,
+):
+    """
+    This test creates two queues in the same work pool and a deployment
+    for each queue. Many flow runs are created for the deployment on the
+    lower priority queue and one flow run is created for the deployment
+    on the higher priority queue. The agent is started with a limit
+    of 1 to ensure only one flow run is submitted. The flow run for the
+    deployment on the higher priority queue should be run first even though
+    there are late flow runs for the deployment on the lower priority queue.
+    """
+
+    @flow
+    def foo():
+        pass
+
+    create_high_priority_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment_on_default_queue.id, state=state
+        )
+    )
+
+    create_low_priority_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment_in_non_default_work_pool.id, state=state
+        )
+    )
+
+    flow_runs = [
+        await create_low_priority_run_with_deployment(Pending()),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_high_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_low_priority_run_with_deployment(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_low_priority_run_with_deployment(Running()),
+        await create_low_priority_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    agent = PrefectAgent(work_pool_name=work_pool.name, prefetch_seconds=10, limit=1)
+
+    async with agent:
+        agent.submit_run = AsyncMock()  # do not actually run anything
+        submitted_flow_runs = await agent.get_and_submit_flow_runs()
+
+    submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
+    assert submitted_flow_run_ids == {flow_run_ids[3]}

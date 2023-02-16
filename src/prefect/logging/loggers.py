@@ -3,7 +3,7 @@ import logging
 from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
@@ -11,7 +11,7 @@ from prefect.exceptions import MissingContextError
 if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -37,7 +37,7 @@ def get_logger(name: str = None) -> logging.Logger:
     `prefect` package.
 
     See `get_run_logger` for retrieving loggers for use within task or flow runs.
-    By default, only run-related loggers are connected to the `OrionHandler`.
+    By default, only run-related loggers are connected to the `APILogHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
@@ -55,14 +55,16 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def get_run_logger(
+    context: "RunContext" = None, **kwargs: str
+) -> Union[logging.Logger, logging.LoggerAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
 
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
 
-    These loggers are connected to the `OrionHandler` by default to send log records to
+    These loggers are connected to the `APILogHandler` by default to send log records to
     the API.
 
     Arguments:

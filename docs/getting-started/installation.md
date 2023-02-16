@@ -13,27 +13,14 @@ tags:
 
 # Installation
 
-The first step to getting started with Prefect is installing the Prefect Python package.
+Prefect requires Python 3.7 or later.
 
 <p align="left">
+    <a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
+        <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
     <a href="https://pypi.python.org/pypi/prefect/" alt="PyPI version">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/prefect?color=0052FF&labelColor=090422"></a>
-    <a href="https://github.com/prefecthq/prefect/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://pypi.python.org/pypi/prefect/" alt="Downloads">
-        <img src="https://img.shields.io/pypi/dm/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://github.com/prefecthq/prefect/pulse" alt="Activity">
-        <img src="https://img.shields.io/github/commit-activity/m/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://github.com/prefecthq/prefect/graphs/contributors" alt="Contributors">
-        <img src="https://img.shields.io/github/contributors/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
 </p>
-
-## Set up Python
-
-<a href="https://pypi.python.org/pypi/prefect/" alt="Python Versions">
-    <img src="https://img.shields.io/pypi/pyversions/prefect?color=0052FF&labelColor=090422" /></a>
-
-Prefect requires Python 3.7 or later.
 
 We recommend installing Prefect 2 using a Python virtual environment manager such as `pipenv`, `conda`, or `virtualenv`/`venv`.
 
@@ -264,7 +251,7 @@ pip3 install prefect
 
 ## Using Prefect in an environment with HTTP proxies
 
-If you are using Prefect Cloud or hosting your own Orion instance, the Prefect library
+If you are using Prefect Cloud or hosting your own Prefect server instance, the Prefect library
 will connect to the API via any proxies you have listed in the `HTTP_PROXY`,
 `HTTPS_PROXY`, or `ALL_PROXY` environment variables.  You may also use the `NO_PROXY`
 environment variable to specify which hosts should not be sent through the proxy.
@@ -292,11 +279,11 @@ You don't need to recreate any deployments or pause your schedules &mdash; stopp
 
 ### Upgrading to 2.0a10
 
-Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect Orion database.
+Upgrading from Prefect version 2.0a9 or earlier requires resetting the Prefect database.
 
 Prior to 2.0a10, Prefect did not have database migrations and required a hard reset of the database between versions. Now that migrations have been added, your database will be upgraded automatically with each version change. However, you must still perform a hard reset of the database if you are upgrading from 2.0a9 or earlier.
 
-Resetting the database with the CLI command `prefect orion database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/orion.db`. Prefect automatically creates a new database on the next write.
+Resetting the database with the CLI command `prefect server database reset` is not compatible a database from 2.0a9 or earlier. Instead, delete the database file `~/.prefect/prefect.db`. Prefect automatically creates a new database on the next write.
 
 !!! warning "Resetting the database deletes data"
     Note that resetting the database causes the loss of any existing data.

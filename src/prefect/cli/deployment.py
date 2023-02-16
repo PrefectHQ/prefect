@@ -21,7 +21,7 @@ from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
@@ -33,8 +33,8 @@ from prefect.exceptions import (
 )
 from prefect.flows import load_flow_from_entrypoint
 from prefect.infrastructure.base import Block
-from prefect.orion.schemas.filters import FlowFilter
-from prefect.orion.schemas.schedules import (
+from prefect.server.schemas.filters import FlowFilter
+from prefect.server.schemas.schedules import (
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -73,7 +73,7 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-async def get_deployment(client: OrionClient, name, deployment_id):
+async def get_deployment(client: PrefectClient, name, deployment_id):
     if name is None and deployment_id is not None:
         try:
             deployment = await client.read_deployment(deployment_id)
@@ -93,35 +93,70 @@ async def get_deployment(client: OrionClient, name, deployment_id):
 
 
 async def create_work_queue_and_set_concurrency_limit(
-    work_queue_name, work_queue_concurrency
+    work_queue_name, work_pool_name, work_queue_concurrency
 ):
     async with get_client() as client:
         if work_queue_concurrency is not None and work_queue_name:
             try:
                 try:
-                    res = await client.create_work_queue(name=work_queue_name)
+                    await check_work_pool_exists(work_pool_name)
+                    res = await client.create_work_queue(
+                        name=work_queue_name, work_pool_name=work_pool_name
+                    )
                 except ObjectAlreadyExists:
-                    res = await client.read_work_queue_by_name(name=work_queue_name)
+                    res = await client.read_work_queue_by_name(
+                        name=work_queue_name, work_pool_name=work_pool_name
+                    )
                     if res.concurrency_limit != work_queue_concurrency:
-                        app.console.print(
-                            f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
-                            style="red",
-                        )
+                        if work_pool_name is None:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
+                        else:
+                            app.console.print(
+                                f"Work queue {work_queue_name!r} in work pool {work_pool_name!r} already exists with a concurrency limit of {res.concurrency_limit}, this limit is being updated...",
+                                style="red",
+                            )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
                 )
-                app.console.print(
-                    f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
-                    style="green",
-                )
+                if work_pool_name is None:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
+                else:
+                    app.console.print(
+                        f"Updated concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r} to {work_queue_concurrency}",
+                        style="green",
+                    )
             except Exception as exc:
                 exit_with_error(
-                    f"Failed to set concurrency limit on work queue {work_queue_name}."
+                    f"Failed to set concurrency limit on work queue {work_queue_name!r} in work pool {work_pool_name!r}."
                 )
         elif work_queue_concurrency:
             app.console.print(
                 f"No work queue set! The concurrency limit cannot be updated."
             )
+
+
+async def check_work_pool_exists(work_pool_name: Optional[str]):
+    if work_pool_name is not None:
+        async with get_client() as client:
+            try:
+                await client.read_work_pool(work_pool_name=work_pool_name)
+            except ObjectNotFound:
+                app.console.print(
+                    f"\nThis deployment specifies a work pool name of {work_pool_name!r}, but no such "
+                    "work pool exists.\n",
+                    style="red ",
+                )
+                app.console.print("To create a work pool via the CLI:\n")
+                app.console.print(
+                    f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
+                )
+                exit_with_error("Work pool not found!")
 
 
 class RichTextIO:
@@ -206,9 +241,12 @@ async def set_schedule(
         None,
         "--interval",
         help="An interval to schedule on, specified in seconds",
+        min=0.0001,
     ),
     interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The anchor date for an interval schedule"
+        None,
+        "--anchor-date",
+        help="The anchor date for an interval schedule",
     ),
     rrule_string: Optional[str] = typer.Option(
         None, "--rrule", help="Deployment schedule rrule string"
@@ -232,36 +270,53 @@ async def set_schedule(
     """
     assert_deployment_name_format(name)
 
-    interval_schedule = {
-        "interval": interval,
-        "interval_anchor": interval_anchor,
-        "timezone": timezone,
-    }
-    cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
-    if rrule_string is not None:
-        rrule_schedule = json.loads(rrule_string)
-        if timezone:
-            # override timezone if specified via CLI argument
-            rrule_schedule.update({"timezone": timezone})
-    else:
-        # fall back to empty schedule dictionary
-        rrule_schedule = {"rrule": None}
-
-    def updated_schedule_check(schedule):
-        return any(v is not None for k, v in schedule.items() if k != "timezone")
-
-    updated_schedules = list(
-        filter(
-            updated_schedule_check, (interval_schedule, cron_schedule, rrule_schedule)
+    if sum(option is not None for option in [interval, rrule_string, cron_string]) != 1:
+        exit_with_error(
+            "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided."
         )
-    )
 
-    if len(updated_schedules) == 0:
-        exit_with_error("No deployment schedule updates provided")
-    if len(updated_schedules) > 1:
-        exit_with_error("Incompatible schedule parameters")
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
 
-    updated_schedule = {k: v for k, v in updated_schedules[0].items() if v is not None}
+    if interval is not None:
+        if interval_anchor:
+            try:
+                pendulum.parse(interval_anchor)
+            except ValueError:
+                exit_with_error("The anchor date must be a valid date string.")
+        interval_schedule = {
+            "interval": interval,
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        updated_schedule = IntervalSchedule(
+            **{k: v for k, v in interval_schedule.items() if v is not None}
+        )
+
+    if cron_string is not None:
+        cron_schedule = {
+            "cron": cron_string,
+            "day_or": cron_day_or,
+            "timezone": timezone,
+        }
+        updated_schedule = CronSchedule(
+            **{k: v for k, v in cron_schedule.items() if v is not None}
+        )
+
+    if rrule_string is not None:
+        # a timezone in the `rrule_string` gets ignored by the RRuleSchedule constructor
+        if "TZID" in rrule_string and not timezone:
+            exit_with_error(
+                "You can provide a timezone by providing a dict with a `timezone` key to the --rrule option. E.g. {'rrule': 'FREQ=MINUTELY;INTERVAL=5', 'timezone': 'America/New_York'}."
+                "\nAlternatively, you can provide a timezone by passing in a --timezone argument."
+            )
+        try:
+            updated_schedule = RRuleSchedule(**json.loads(rrule_string))
+            if timezone:
+                # override timezone if specified via CLI argument
+                updated_schedule.timezone = timezone
+        except json.JSONDecodeError:
+            updated_schedule = RRuleSchedule(rrule=rrule_string, timezone=timezone)
 
     async with get_client() as client:
         try:
@@ -571,7 +626,9 @@ async def apply(
             exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
 
         await create_work_queue_and_set_concurrency_limit(
-            deployment.work_queue_name, work_queue_concurrency
+            deployment.work_queue_name,
+            deployment.work_pool_name,
+            work_queue_concurrency,
         )
 
         if upload:
@@ -590,7 +647,7 @@ async def apply(
                     f"Deployment storage {deployment.storage} does not have upload capabilities; no files uploaded.",
                     style="red",
                 )
-
+        await check_work_pool_exists(deployment.work_pool_name)
         deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
@@ -958,7 +1015,7 @@ async def build(
     )
 
     await create_work_queue_and_set_concurrency_limit(
-        deployment.work_queue_name, work_queue_concurrency
+        deployment.work_queue_name, deployment.work_pool_name, work_queue_concurrency
     )
 
     # we process these separately for informative output
@@ -980,12 +1037,23 @@ async def build(
             )
 
     if _apply:
+        await check_work_pool_exists(deployment.work_pool_name)
         deployment_id = await deployment.apply()
         app.console.print(
             f"Deployment '{deployment.flow_name}/{deployment.name}' successfully created with id '{deployment_id}'.",
             style="green",
         )
-        if deployment.work_queue_name is not None:
+        if deployment.work_pool_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent "
+                f"that pulls work from the {deployment.work_pool_name!r} work pool:"
+            )
+            app.console.print(
+                f"$ prefect agent start -p {deployment.work_pool_name!r}",
+                style="blue",
+            )
+
+        elif deployment.work_queue_name is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent "
                 f"that pulls work from the {deployment.work_queue_name!r} work queue:"

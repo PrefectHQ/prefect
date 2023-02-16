@@ -8,18 +8,18 @@ import yaml
 from httpx import Response
 from pydantic.error_wrappers import ValidationError
 
-import prefect.orion.models as models
-import prefect.orion.schemas as schemas
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
-from prefect.orion.schemas import states
-from prefect.orion.schemas.core import TaskRunResult
+from prefect.server.schemas import states
+from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.slugify import slugify
 
@@ -917,7 +917,7 @@ class TestRunDeployment:
         assert flow_run_a.id == flow_run_b.id
 
     async def test_links_to_parent_flow_run_when_used_in_flow(
-        self, test_deployment, use_hosted_orion, orion_client: OrionClient
+        self, test_deployment, use_hosted_orion, orion_client: PrefectClient
     ):
         d, deployment_id = test_deployment
 

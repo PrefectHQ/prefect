@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.blocks.notifications import NotificationBlock
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
-from prefect.orion import models, schemas
-from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.orchestration.rules import (
+from prefect.server import models, schemas
+from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import states
+from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
 
 
@@ -411,8 +411,8 @@ async def work_pool(session):
     model = await models.workers.create_work_pool(
         session=session,
         work_pool=schemas.actions.WorkPoolCreate(
-            name="Test Work Pool",
-            type="test",
+            name="test-work-pool",
+            type="test-type",
             base_job_template={
                 "job_configuration": {"command": "{{ command }}"},
                 "variables": {

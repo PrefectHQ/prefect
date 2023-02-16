@@ -7,6 +7,7 @@ from sqlalchemy import select
 from prefect.server.database.dependencies import inject_db
 from prefect.server.database.interface import PrefectDBInterface
 from prefect.server.schemas import actions, filters, sorting
+
 from prefect.server.schemas.core import Artifact
 
 
