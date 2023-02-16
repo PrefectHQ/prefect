@@ -35,16 +35,17 @@ if TYPE_CHECKING:
     from prefect import Flow, Task
     from prefect.client.orchestration import PrefectClient
 
-
-ResultStorage = Union[WritableFileSystem, str]
-ResultSerializer = Union[Serializer, str]
-LITERAL_TYPES = {type(None), bool}
-
 logger = get_logger("results")
 
 # from prefect.server.schemas.states import State
 R = TypeVar("R")
-ResultDescriptionFnType = Callable[R, str]
+
+ResultStorage = Union[WritableFileSystem, str]
+ResultSerializer = Union[Serializer, str]
+ResultDescriptionFnType = Callable[
+    [R, Optional[WritableFileSystem], Optional[str]], str
+]
+LITERAL_TYPES = {type(None), bool}
 
 
 def get_default_result_storage() -> ResultStorage:
@@ -406,7 +407,7 @@ class LiteralResult(BaseResult):
             )
 
         if result_description_fn:
-            description = result_description_fn(obj)
+            description = result_description_fn(obj, None, None)
         else:
             description = f"Literal: `{obj}`"
 
@@ -505,7 +506,7 @@ class PersistedResult(BaseResult):
         await storage_block.write_path(key, content=blob.to_bytes())
 
         if result_description_fn:
-            description = result_description_fn(obj)
+            description = result_description_fn(obj, storage_block, key)
         else:
             description = cls._infer_description(obj, storage_block, key)
 
