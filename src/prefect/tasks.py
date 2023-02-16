@@ -151,9 +151,8 @@ class Task(Generic[P, R]):
             task for persistence. Defaults to the value set in the flow the task is
             called in.
         result_description_fn: An optional callable that, when passed the return value
-            of the task, the WritableFilesystemBlock used to persist the result, and
-            key used to retrieve the persisted result; returns a markdown string that
-            will be used to describe the result of this task.
+            of the task and result object; returns a markdown string that will be used
+            to describe the result of this task.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
             the task. If the task exceeds this runtime, it will be marked as failed.
         log_prints: If set, `print` statements in the task will be redirected to the
@@ -330,9 +329,8 @@ class Task(Generic[P, R]):
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
             result_description_fn: An optional callable that, when passed the return
-                value of the task, the WritableFilesystemBlock used to persist the
-                result, and key used to retrieve the persisted result; returns a
-                markdown string that will be used to describe the result of this task.
+                value of the task and result object; returns a markdown string that will
+                be used to describe the result of this task.
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
@@ -950,9 +948,8 @@ def task(
             task for persistence. Defaults to the value set in the flow the task is
             called in.
         result_description_fn: An optional callable that, when passed the return value
-            of the task, the WritableFilesystemBlock used to persist the result, and
-            key used to retrieve the persisted result; returns a markdown string that
-            will be used to describe the result of this task.
+            of the task and result object; returns a markdown string that will be used
+            to describe the result of this task.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
             the task. If the task exceeds this runtime, it will be marked as failed.
         log_prints: If set, `print` statements in the task will be redirected to the

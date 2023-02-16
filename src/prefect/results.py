@@ -42,9 +42,7 @@ R = TypeVar("R")
 
 ResultStorage = Union[WritableFileSystem, str]
 ResultSerializer = Union[Serializer, str]
-ResultDescriptionFnType = Callable[
-    [R, Optional[WritableFileSystem], Optional[str]], str
-]
+ResultDescriptionFnType = Callable[[R, "BaseResult"], str]
 LITERAL_TYPES = {type(None), bool}
 
 
@@ -406,12 +404,15 @@ class LiteralResult(BaseResult):
                 f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
+        result = cls(value=obj, artifact_type="result")
+
         if result_description_fn:
-            description = result_description_fn(obj, None, None)
+            description = result_description_fn(obj, result)
         else:
             description = f"Literal: `{obj}`"
 
-        return cls(value=obj, artifact_type="result", artifact_description=description)
+        result.description = description
+        return result
 
 
 class PersistedResult(BaseResult):
@@ -505,11 +506,6 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
-        if result_description_fn:
-            description = result_description_fn(obj, storage_block, key)
-        else:
-            description = cls._infer_description(obj, storage_block, key)
-
         result = cls(
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
@@ -517,6 +513,13 @@ class PersistedResult(BaseResult):
             artifact_type="result",
             artifact_description=description,
         )
+
+        if result_description_fn:
+            description = result_description_fn(obj, result)
+        else:
+            description = cls._infer_description(obj, storage_block, key)
+
+        result.description = description
 
         if cache_object:
             # Attach the object to the result so it's available without deserialization
