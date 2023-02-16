@@ -23,7 +23,7 @@ from prefect.exceptions import (
     MissingResult,
     PausedRun,
 )
-from prefect.results import BaseResult, R, ResultFactory
+from prefect.results import BaseResult, R, ResultDescriptionFnType, ResultFactory
 from prefect.server import schemas
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
@@ -204,7 +204,7 @@ async def exception_to_failed_state(
 async def return_value_to_state(
     retval: R,
     result_factory: ResultFactory,
-    result_description_fn: Optional[Callable[R, str]] = None,
+    result_description_fn: Optional[ResultDescriptionFnType] = None,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
