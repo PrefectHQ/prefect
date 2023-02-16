@@ -11,6 +11,9 @@ tags:
 
 # API Reference
 
+!!! tip "Changing 'Orion' nomenclature"
+    With the 2.8.1 release, **we've removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backwards compatible** and will follow our standard deprecation cycle of six months. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
+
 Prefect 2 provides a number of programmatic workflow interfaces. Each API is documented in this section. 
 
 - The Prefect Python API is used to build, test, and execute workflows against the Prefect orchestration engine. This is the primary user-facing API.
