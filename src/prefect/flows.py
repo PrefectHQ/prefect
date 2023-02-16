@@ -136,7 +136,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
-        result_description_fn: Optional[Callable[R]] = None,
+        result_description_fn: Optional[Callable[R, str]] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
     ):
@@ -234,7 +234,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
-        result_description_fn: Optional[Callable[R]] = NotSet,
+        result_description_fn: Optional[Callable[R, str]] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
     ):
@@ -540,7 +540,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R]] = None,
+    result_description_fn: Optional[Callable[R, str]] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -562,7 +562,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R]] = None,
+    result_description_fn: Optional[Callable[R, str]] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ):

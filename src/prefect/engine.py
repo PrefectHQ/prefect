@@ -691,6 +691,7 @@ async def orchestrate_flow_run(
             terminal_state = await return_value_to_state(
                 await resolve_futures_to_states(result),
                 result_factory=flow_run_context.result_factory,
+                result_description_fn=flow.result_description_fn,
             )
 
         if not waited_for_task_runs:
@@ -1536,6 +1537,7 @@ async def orchestrate_task_run(
             terminal_state = await return_value_to_state(
                 result,
                 result_factory=task_run_context.result_factory,
+                result_description_fn=task.result_description_fn,
             )
 
             # for COMPLETED tasks, add the cache key and expiration

@@ -150,6 +150,9 @@ class Task(Generic[P, R]):
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
+        result_description_fn: An optional callable that, when passed the return value
+            of the task, returns a markdown string that will be used to describe the
+            result of this task.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
             the task. If the task exceeds this runtime, it will be marked as failed.
         log_prints: If set, `print` statements in the task will be redirected to the
@@ -185,6 +188,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        result_description_fn: Optional[Callable[R, str]] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
@@ -246,6 +250,7 @@ class Task(Generic[P, R]):
         self.persist_result = persist_result
         self.result_storage = result_storage
         self.result_serializer = result_serializer
+        self.result_description_fn = result_description_fn
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
         # Warn if this task's `name` conflicts with another task while having a
@@ -291,6 +296,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        result_description_fn: Optional[Callable[R, str]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
@@ -322,6 +328,9 @@ class Task(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
+            result_description_fn: An optional callable that, when passed the return
+                value of the task, returns a markdown string that will be used to
+                describe the result of this task.
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
@@ -392,6 +401,11 @@ class Task(Generic[P, R]):
                 result_serializer
                 if result_serializer is not NotSet
                 else self.result_serializer
+            ),
+            result_description_fn=(
+                result_description_fn
+                if result_description_fn is not NotSet
+                else self.result_description_fn
             ),
             cache_result_in_memory=(
                 cache_result_in_memory
@@ -856,6 +870,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_description_fn: Optional[Callable[R, str]] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
@@ -885,6 +900,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_description_fn: Optional[Callable[R, str]] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
@@ -931,6 +947,9 @@ def task(
         result_serializer: An optional serializer to use to serialize the result of this
             task for persistence. Defaults to the value set in the flow the task is
             called in.
+        result_description_fn: An optional callable that, when passed the return value
+            of the task, returns a markdown string that will be used to describe the
+            result of this task.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
             the task. If the task exceeds this runtime, it will be marked as failed.
         log_prints: If set, `print` statements in the task will be redirected to the
@@ -1006,6 +1025,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_description_fn=result_description_fn,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
@@ -1030,6 +1050,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_description_fn=result_description_fn,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,

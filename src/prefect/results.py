@@ -1,6 +1,16 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pydantic
 from typing_extensions import Self
@@ -287,7 +297,9 @@ class ResultFactory(pydantic.BaseModel):
             )
 
     @sync_compatible
-    async def create_result(self, obj: R) -> Union[R, "BaseResult[R]"]:
+    async def create_result(
+        self, obj: R, result_description_fn: Optional[Callable[R, str]] = None
+    ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
 
@@ -299,7 +311,9 @@ class ResultFactory(pydantic.BaseModel):
         """
         if obj is None:
             # Always write nulls as result types to distinguish from unpersisted results
-            return await LiteralResult.create(None)
+            return await LiteralResult.create(
+                None, result_description_fn=result_description_fn
+            )
 
         if not self.persist_result:
             # Attach the object directly if persistence is disabled; it will be dropped
@@ -312,7 +326,9 @@ class ResultFactory(pydantic.BaseModel):
                 return None
 
         if type(obj) in LITERAL_TYPES:
-            return await LiteralResult.create(obj)
+            return await LiteralResult.create(
+                obj, result_description_fn=result_description_fn
+            )
 
         return await PersistedResult.create(
             obj,
@@ -320,6 +336,7 @@ class ResultFactory(pydantic.BaseModel):
             storage_block_id=self.storage_block_id,
             serializer=self.serializer,
             cache_object=self.cache_result_in_memory,
+            result_description_fn=result_description_fn,
         )
 
 
@@ -379,6 +396,7 @@ class LiteralResult(BaseResult):
     async def create(
         cls: "Type[LiteralResult]",
         obj: R,
+        result_description_fn: Optional[Callable[R, str]] = None,
     ) -> "LiteralResult[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
@@ -386,7 +404,11 @@ class LiteralResult(BaseResult):
                 f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        description = f"Literal: `{obj}`"
+        if result_description_fn:
+            description = result_description_fn(obj)
+        else:
+            description = f"Literal: `{obj}`"
+
         return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
@@ -467,6 +489,7 @@ class PersistedResult(BaseResult):
         storage_block_id: uuid.UUID,
         serializer: Serializer,
         cache_object: bool = True,
+        result_description_fn: Optional[Callable[R, str]] = None,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.
@@ -480,7 +503,10 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
-        description = cls._infer_description(obj, storage_block, key)
+        if result_description_fn:
+            description = result_description_fn(obj)
+        else:
+            description = cls._infer_description(obj, storage_block, key)
 
         result = cls(
             serializer_type=serializer.type,

@@ -4,7 +4,7 @@ import traceback
 import warnings
 from collections import Counter
 from types import GeneratorType, TracebackType
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
 import httpx
@@ -201,7 +201,11 @@ async def exception_to_failed_state(
     return Failed(data=data, message=message, **kwargs)
 
 
-async def return_value_to_state(retval: R, result_factory: ResultFactory) -> State[R]:
+async def return_value_to_state(
+    retval: R,
+    result_factory: ResultFactory,
+    result_description_fn: Optional[Callable[R, str]],
+) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
     be placed in.
@@ -234,7 +238,9 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
-            state.data = await result_factory.create_result(state.data)
+            state.data = await result_factory.create_result(
+                state.data, result_description_fn=result_description_fn
+            )
 
         return state
 
@@ -270,7 +276,9 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         return State(
             type=new_state_type,
             message=message,
-            data=await result_factory.create_result(retval),
+            data=await result_factory.create_result(
+                retval, result_description_fn=result_description_fn
+            ),
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -280,7 +288,11 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
         data = retval
 
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(data))
+    return Completed(
+        data=await result_factory.create_result(
+            data, result_description_fn=result_description_fn
+        )
+    )
 
 
 @sync_compatible
