@@ -1,7 +1,7 @@
-import { BaseApi } from '@prefecthq/prefect-ui-library'
+import { Api } from '@prefecthq/prefect-ui-library'
 import { ServerSettings } from '@/models/ServerSettings'
 
-export class AdminApi extends BaseApi {
+export class AdminApi extends Api {
   protected override routePrefix = '/admin'
 
   public getSettings(): Promise<ServerSettings> {
