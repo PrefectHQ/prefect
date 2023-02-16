@@ -32,14 +32,16 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, useRecentFlowRunFilter, FlowRunFilteredList } from '@prefecthq/prefect-ui-library'
+  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
   const workPoolName = useRouteParam('workPoolName')
+  const workPoolNames = computed(() => [workPoolName.value])
   const workPoolQueueName = useRouteParam('workPoolQueueName')
+  const workPoolQueueNames = computed(() => [workPoolQueueName.value])
   const subscriptionOptions = {
     interval: 300000,
   }
@@ -49,7 +51,14 @@
 
   const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
 
-  const flowRunFilter = useRecentFlowRunFilter({ workPoolQueueName: [workPoolQueueName.value], workPoolName: [workPoolName.value] })
+  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
+    workPoolQueues: {
+      name: workPoolQueueNames,
+    },
+    workPools: {
+      name: workPoolNames,
+    },
+  })
 
   const tabs = computed(() => {
     const values = ['Upcoming Runs', 'Runs']

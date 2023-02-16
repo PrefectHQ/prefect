@@ -45,7 +45,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useRecentFlowRunFilter, StateType, useFlowRunFilter, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useRecentFlowRunsFilter, useFlowRunsFilter, PrefectStateNames } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -70,10 +70,10 @@
   const workQueueId = useRouteParam('workQueueId')
   const workQueueCliCommand = computed(() => `prefect agent start ${workQueue.value ? ` --work-queue "${workQueue.value.name}"` : ''}`)
 
-  const states = ref<StateType[]>([])
+  const states = ref<PrefectStateNames[]>([])
   const selectedTab = ref<string | undefined>()
   const showActiveRuns = (): void => {
-    states.value = ['running', 'pending']
+    states.value = ['Running', 'Pending']
     selectedTab.value = 'Runs'
   }
 
@@ -86,11 +86,21 @@
   const workQueueConcurrency = computed(() => workQueue.value?.concurrencyLimit)
   const workQueuePaused = computed(() => workQueue.value?.isPaused)
   const activeRunsBuildUp = computed(() => !!(workQueueConcurrency.value && workQueueConcurrency.value <= activeFlowRunsCount.value && !workQueuePaused.value))
-
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
-  const recentFlowRunFilter = useRecentFlowRunFilter({ workQueues: workQueueName })
-  const flowRunFilter = useFlowRunFilter({ workQueues: workQueueName })
-  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter.value : recentFlowRunFilter.value)
+
+  const { filter: recentFlowRunFilter } = useRecentFlowRunsFilter({
+    flowRuns: {
+      workQueueName: workQueueName,
+    },
+  })
+
+  const { filter: flowRunFilter } = useFlowRunsFilter({
+    flowRuns: {
+      workQueueName: workQueueName,
+    },
+  })
+
+  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter : recentFlowRunFilter)
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())
@@ -102,11 +112,21 @@
     }
     return `Work Queue: ${workQueue.value.name}`
   })
-  usePageTitle(title)
 
-  const activeFlowRunsFilter = useFlowRunFilter({ states: ['Running', 'Pending'], workQueues: workQueueName })
-  const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter.value], { interval: 30000 })
+  const { filter: activeFlowRunsFilter } = useFlowRunsFilter({
+    flowRuns: {
+      state: {
+        name: ['Running', 'Pending'],
+      },
+      workQueueName: workQueueName.value,
+    },
+  })
+
+  const flowRunsCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [activeFlowRunsFilter], { interval: 30000 })
   const activeFlowRunsCount = computed(() => flowRunsCountSubscription.response ?? [])
+
+
+  usePageTitle(title)
 
   watch(() => workQueue.value?.deprecated, value => {
     if (value) {
