@@ -1449,10 +1449,21 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         default=None, description="A list of artifact keys to include"
     )
 
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match artifact keys against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-artifact-%",
+    )
+
     def _get_filter_list(self, db: "OrionDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
         return filters
 
 
