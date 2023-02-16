@@ -64,14 +64,14 @@ With this release, **we've removed references to "Orion" and replaced them with 
 - Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
 
 ### Fixes
-- Fix default parameters not populating on the UI — https://github.com/PrefectHQ/prefect/pull/8518
+- Fix default deployment parameters not populating on the UI — https://github.com/PrefectHQ/prefect/pull/8518
 
 ### Documentation
+- Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
 - Fix work pools documentation links — https://github.com/PrefectHQ/prefect/pull/8477
 - Add examples for custom automation triggers — https://github.com/PrefectHQ/prefect/pull/8476
 - Add webhooks to Automations  docs — https://github.com/PrefectHQ/prefect/pull/8514
 - Document Prefect Cloud API rate limits — https://github.com/PrefectHQ/prefect/pull/8529
-- Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
 
 ### Experimental
 - Add metadata fields to `BaseWorker` — https://github.com/PrefectHQ/prefect/pull/8527
