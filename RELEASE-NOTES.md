@@ -62,6 +62,7 @@ With this release, **we've removed references to "Orion" and replaced them with 
 
 ### Enhancements
 - Add `MattermostWebhook` notification block — https://github.com/PrefectHQ/prefect/pull/8341
+- Add ability to pass in RRule string to `--rrule` option in `prefect set-schedule` command - https://github.com/PrefectHQ/prefect/pull/8543
 
 ### Fixes
 - Fix default deployment parameters not populating in the UI — https://github.com/PrefectHQ/prefect/pull/8518
