@@ -1,4 +1,5 @@
 
+import { createActions } from '@prefecthq/vue-compositions'
 import axios from 'axios'
 import { mapper } from '@/services/mapper'
 import { SettingsResponse } from '@/types/settingsResponse'
@@ -52,4 +53,16 @@ export class UiSettings {
 
     return value
   }
+}
+
+export const uiSettings: {
+  getApiUrl: () => Promise<string>,
+  getFeatureFlags: () => Promise<FeatureFlag[]>,
+} = {
+  getApiUrl: () => {
+    return UiSettings.get('apiUrl')
+  },
+  getFeatureFlags: () => {
+    return UiSettings.get('flags')
+  },
 }
