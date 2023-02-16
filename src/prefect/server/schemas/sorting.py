@@ -150,7 +150,7 @@ class ArtifactSort(AutoEnum):
     KEY_DESC = AutoEnum.auto()
     KEY_ASC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort artifacts"""
         sort_mapping = {
             "CREATED_DESC": db.Artifact.created.desc(),

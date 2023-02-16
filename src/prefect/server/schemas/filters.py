@@ -1435,7 +1435,7 @@ class ArtifactFilterId(PrefectFilterBaseModel):
         default=None, description="A list of artifact ids to include"
     )
 
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.id.in_(self.any_))
@@ -1458,7 +1458,7 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         example="my-artifact-%",
     )
 
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
@@ -1474,7 +1474,7 @@ class ArtifactFilterFlowRunId(PrefectFilterBaseModel):
         default=None, description="A list of flow run IDs to include"
     )
 
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.flow_run_id.in_(self.any_))
@@ -1488,7 +1488,7 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
         default=None, description="A list of task run IDs to include"
     )
 
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.task_run_id.in_(self.any_))
@@ -1511,7 +1511,7 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
         default=None, description="Filter criteria for `Artifact.task_run_id`"
     )
 
-    def _get_filter_list(self, db: "OrionDBInterface") -> List:
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
 
         if self.id is not None:
