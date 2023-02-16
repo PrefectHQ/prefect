@@ -4,15 +4,15 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
-from prefect.orion.database.dependencies import inject_db
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.schemas import actions, filters, sorting
-from prefect.orion.schemas.core import Artifact
+from prefect.server.database.dependencies import inject_db
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.schemas import actions, filters, sorting
+from prefect.server.schemas.core import Artifact
 
 
 @inject_db
 async def create_artifact(
-    session: sa.orm.Session, artifact: Artifact, db: OrionDBInterface, key: str = None
+    session: sa.orm.Session, artifact: Artifact, db: PrefectDBInterface, key: str = None
 ):
     now = pendulum.now("UTC")
     artifact_id = artifact.id
@@ -40,7 +40,7 @@ async def create_artifact(
 async def read_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ):
     """
     Reads an artifact by id.
@@ -55,7 +55,7 @@ async def read_artifact(
 @inject_db
 async def _apply_artifact_filters(
     query,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
     artifact_filter: filters.ArtifactFilter = None,
@@ -85,7 +85,7 @@ async def _apply_artifact_filters(
 @inject_db
 async def read_artifacts(
     session: sa.orm.Session,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
     offset: int = None,
     limit: int = None,
     artifact_filter: filters.ArtifactFilter = None,
@@ -129,7 +129,7 @@ async def update_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
     artifact: actions.ArtifactUpdate,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Updates an artifact by id.
@@ -158,7 +158,7 @@ async def update_artifact(
 async def delete_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
-    db: OrionDBInterface,
+    db: PrefectDBInterface,
 ) -> bool:
     """
     Deletes an artifact by id.

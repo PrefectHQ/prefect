@@ -10,9 +10,9 @@ from uuid import UUID
 import jsonschema
 from pydantic import Field, root_validator, validator
 
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 from prefect._internal.compatibility.experimental import experimental_field
-from prefect.orion.utilities.schemas import (
+from prefect.server.utilities.schemas import (
     DateTimeTZ,
     FieldFrom,
     PrefectBaseModel,
@@ -64,7 +64,7 @@ class ActionBaseModel(PrefectBaseModel):
 
 @copy_model_fields
 class FlowCreate(ActionBaseModel):
-    """Data used by the Orion API to create a flow."""
+    """Data used by the Prefect REST API to create a flow."""
 
     name: str = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
@@ -72,7 +72,7 @@ class FlowCreate(ActionBaseModel):
 
 @copy_model_fields
 class FlowUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a flow."""
+    """Data used by the Prefect REST API to update a flow."""
 
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
@@ -84,7 +84,7 @@ class FlowUpdate(ActionBaseModel):
 )
 @copy_model_fields
 class DeploymentCreate(ActionBaseModel):
-    """Data used by the Orion API to create a deployment."""
+    """Data used by the Prefect REST API to create a deployment."""
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
@@ -163,7 +163,7 @@ class DeploymentCreate(ActionBaseModel):
 )
 @copy_model_fields
 class DeploymentUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a deployment."""
+    """Data used by the Prefect REST API to update a deployment."""
 
     @root_validator(pre=True)
     def remove_old_fields(cls, values):
@@ -231,7 +231,7 @@ class DeploymentUpdate(ActionBaseModel):
 
 @copy_model_fields
 class FlowRunUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a flow run."""
+    """Data used by the Prefect REST API to update a flow run."""
 
     name: Optional[str] = FieldFrom(schemas.core.FlowRun)
     flow_version: Optional[str] = FieldFrom(schemas.core.FlowRun)
@@ -243,7 +243,7 @@ class FlowRunUpdate(ActionBaseModel):
 
 @copy_model_fields
 class StateCreate(ActionBaseModel):
-    """Data used by the Orion API to create a new state."""
+    """Data used by the Prefect REST API to create a new state."""
 
     type: schemas.states.StateType = FieldFrom(schemas.states.State)
     name: Optional[str] = FieldFrom(schemas.states.State)
@@ -263,7 +263,7 @@ class StateCreate(ActionBaseModel):
 
 @copy_model_fields
 class TaskRunCreate(ActionBaseModel):
-    """Data used by the Orion API to create a task run"""
+    """Data used by the Prefect REST API to create a task run"""
 
     # TaskRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
@@ -294,8 +294,15 @@ class TaskRunCreate(ActionBaseModel):
 
 
 @copy_model_fields
+class TaskRunUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update a task run"""
+
+    name: str = FieldFrom(schemas.core.TaskRun)
+
+
+@copy_model_fields
 class FlowRunCreate(ActionBaseModel):
-    """Data used by the Orion API to create a flow run."""
+    """Data used by the Prefect REST API to create a flow run."""
 
     # FlowRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
@@ -320,7 +327,7 @@ class FlowRunCreate(ActionBaseModel):
 
 @copy_model_fields
 class DeploymentFlowRunCreate(ActionBaseModel):
-    """Data used by the Orion API to create a flow run from a deployment."""
+    """Data used by the Prefect REST API to create a flow run from a deployment."""
 
     # FlowRunCreate states must be provided as StateCreate objects
     state: Optional[StateCreate] = Field(
@@ -339,7 +346,7 @@ class DeploymentFlowRunCreate(ActionBaseModel):
 
 @copy_model_fields
 class SavedSearchCreate(ActionBaseModel):
-    """Data used by the Orion API to create a saved search."""
+    """Data used by the Prefect REST API to create a saved search."""
 
     name: str = FieldFrom(schemas.core.SavedSearch)
     filters: List[schemas.core.SavedSearchFilter] = FieldFrom(schemas.core.SavedSearch)
@@ -347,7 +354,7 @@ class SavedSearchCreate(ActionBaseModel):
 
 @copy_model_fields
 class ConcurrencyLimitCreate(ActionBaseModel):
-    """Data used by the Orion API to create a concurrency limit."""
+    """Data used by the Prefect REST API to create a concurrency limit."""
 
     tag: str = FieldFrom(schemas.core.ConcurrencyLimit)
     concurrency_limit: int = FieldFrom(schemas.core.ConcurrencyLimit)
@@ -355,7 +362,7 @@ class ConcurrencyLimitCreate(ActionBaseModel):
 
 @copy_model_fields
 class BlockTypeCreate(ActionBaseModel):
-    """Data used by the Orion API to create a block type."""
+    """Data used by the Prefect REST API to create a block type."""
 
     name: str = FieldFrom(schemas.core.BlockType)
     slug: str = FieldFrom(schemas.core.BlockType)
@@ -374,7 +381,7 @@ class BlockTypeCreate(ActionBaseModel):
 
 @copy_model_fields
 class BlockTypeUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a block type."""
+    """Data used by the Prefect REST API to update a block type."""
 
     logo_url: Optional[schemas.core.HttpUrl] = FieldFrom(schemas.core.BlockType)
     documentation_url: Optional[schemas.core.HttpUrl] = FieldFrom(
@@ -386,7 +393,7 @@ class BlockTypeUpdate(ActionBaseModel):
 
 @copy_model_fields
 class BlockSchemaCreate(ActionBaseModel):
-    """Data used by the Orion API to create a block schema."""
+    """Data used by the Prefect REST API to create a block schema."""
 
     fields: dict = FieldFrom(schemas.core.BlockSchema)
     block_type_id: Optional[UUID] = FieldFrom(schemas.core.BlockSchema)
@@ -396,7 +403,7 @@ class BlockSchemaCreate(ActionBaseModel):
 
 @copy_model_fields
 class BlockDocumentCreate(ActionBaseModel):
-    """Data used by the Orion API to create a block document."""
+    """Data used by the Prefect REST API to create a block document."""
 
     name: Optional[str] = FieldFrom(schemas.core.BlockDocument)
     data: dict = FieldFrom(schemas.core.BlockDocument)
@@ -418,7 +425,7 @@ class BlockDocumentCreate(ActionBaseModel):
 
 @copy_model_fields
 class BlockDocumentUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a block document."""
+    """Data used by the Prefect REST API to update a block document."""
 
     block_schema_id: Optional[UUID] = Field(
         default=None, description="A block schema ID"
@@ -439,7 +446,7 @@ class BlockDocumentReferenceCreate(ActionBaseModel):
 
 @copy_model_fields
 class LogCreate(ActionBaseModel):
-    """Data used by the Orion API to create a log."""
+    """Data used by the Prefect REST API to create a log."""
 
     name: str = FieldFrom(schemas.core.Log)
     level: int = FieldFrom(schemas.core.Log)
@@ -451,7 +458,7 @@ class LogCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolCreate(ActionBaseModel):
-    """Data used by the Orion API to create a work pool."""
+    """Data used by the Prefect REST API to create a work pool."""
 
     name: str = FieldFrom(schemas.core.WorkPool)
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
@@ -463,7 +470,7 @@ class WorkPoolCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkPoolUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a work pool."""
+    """Data used by the Prefect REST API to update a work pool."""
 
     description: Optional[str] = FieldFrom(schemas.core.WorkPool)
     is_paused: Optional[bool] = FieldFrom(schemas.core.WorkPool)
@@ -473,13 +480,16 @@ class WorkPoolUpdate(ActionBaseModel):
 
 @copy_model_fields
 class WorkQueueCreate(ActionBaseModel):
-    """Data used by the Orion API to create a work queue."""
+    """Data used by the Prefect REST API to create a work queue."""
 
     name: str = FieldFrom(schemas.core.WorkQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
     is_paused: bool = FieldFrom(schemas.core.WorkQueue)
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
-    priority: Optional[int] = FieldFrom(schemas.core.WorkQueue)
+    priority: Optional[int] = Field(
+        default=None,
+        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+    )
 
     # DEPRECATED
 
@@ -492,7 +502,7 @@ class WorkQueueCreate(ActionBaseModel):
 
 @copy_model_fields
 class WorkQueueUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a work queue."""
+    """Data used by the Prefect REST API to update a work queue."""
 
     name: str = FieldFrom(schemas.core.WorkQueue)
     description: Optional[str] = FieldFrom(schemas.core.WorkQueue)
@@ -512,7 +522,7 @@ class WorkQueueUpdate(ActionBaseModel):
 
 @copy_model_fields
 class FlowRunNotificationPolicyCreate(ActionBaseModel):
-    """Data used by the Orion API to create a flow run notification policy."""
+    """Data used by the Prefect REST API to create a flow run notification policy."""
 
     is_active: bool = FieldFrom(schemas.core.FlowRunNotificationPolicy)
     state_names: List[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
@@ -523,7 +533,7 @@ class FlowRunNotificationPolicyCreate(ActionBaseModel):
 
 @copy_model_fields
 class FlowRunNotificationPolicyUpdate(ActionBaseModel):
-    """Data used by the Orion API to update a flow run notification policy."""
+    """Data used by the Prefect REST API to update a flow run notification policy."""
 
     is_active: Optional[bool] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
     state_names: Optional[List[str]] = FieldFrom(schemas.core.FlowRunNotificationPolicy)

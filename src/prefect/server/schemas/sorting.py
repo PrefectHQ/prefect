@@ -1,5 +1,5 @@
 """
-Schemas for sorting Orion API objects.
+Schemas for sorting Prefect REST API objects.
 """
 
 from typing import TYPE_CHECKING
@@ -9,7 +9,7 @@ from prefect.utilities.collections import AutoEnum
 if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement
 
-    from prefect.orion.database.interface import OrionDBInterface
+    from prefect.server.database.interface import PrefectDBInterface
 
 # TOOD: Consider moving the `as_sql_sort` functions out of here since they are a
 #       database model level function and do not properly separate concerns when
@@ -29,7 +29,7 @@ class FlowRunSort(AutoEnum):
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
     END_TIME_DESC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         from sqlalchemy.sql.functions import coalesce
 
         """Return an expression used to sort flow runs"""
@@ -62,7 +62,7 @@ class TaskRunSort(AutoEnum):
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
     END_TIME_DESC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort task runs"""
         sort_mapping = {
             "ID_DESC": db.TaskRun.id.desc(),
@@ -88,7 +88,7 @@ class LogSort(AutoEnum):
     TASK_RUN_ID_ASC = AutoEnum.auto()
     TASK_RUN_ID_DESC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort task runs"""
         sort_mapping = {
             "TIMESTAMP_ASC": db.Log.timestamp.asc(),
@@ -111,7 +111,7 @@ class FlowSort(AutoEnum):
     NAME_ASC = AutoEnum.auto()
     NAME_DESC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort flows"""
         sort_mapping = {
             "CREATED_DESC": db.Flow.created.desc(),
@@ -130,7 +130,7 @@ class DeploymentSort(AutoEnum):
     NAME_ASC = AutoEnum.auto()
     NAME_DESC = AutoEnum.auto()
 
-    def as_sql_sort(self, db: "OrionDBInterface") -> "ColumnElement":
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
         """Return an expression used to sort deployments"""
         sort_mapping = {
             "CREATED_DESC": db.Deployment.created.desc(),

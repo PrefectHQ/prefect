@@ -1,5 +1,5 @@
 """
-Defines the Orion FastAPI app.
+Defines the Prefect REST API FastAPI app.
 """
 
 import asyncio
@@ -20,32 +20,33 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 
 import prefect
-import prefect.orion.api as api
-import prefect.orion.services as services
+import prefect.server.api as api
+import prefect.server.services as services
 import prefect.settings
 from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
-from prefect.orion.api.dependencies import EnforceMinimumAPIVersion
-from prefect.orion.exceptions import ObjectNotFoundError
-from prefect.orion.utilities.server import method_paths_from_routes
+from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_DEBUG_MODE,
     PREFECT_MEMO_STORE_PATH,
     PREFECT_MEMOIZE_BLOCK_AUTO_REGISTRATION,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
 )
 from prefect.utilities.hashing import hash_objects
 
-TITLE = "Prefect Orion"
-API_TITLE = "Prefect Orion API"
-UI_TITLE = "Prefect Orion UI"
+TITLE = "Prefect Server"
+API_TITLE = "Prefect Prefect REST API"
+UI_TITLE = "Prefect Prefect REST API UI"
 API_VERSION = prefect.__version__
-ORION_API_VERSION = "0.8.4"
+SERVER_API_VERSION = "0.8.4"
+ORION_API_VERSION = SERVER_API_VERSION  # Deprecated. Available for compatibility.
 
-logger = get_logger("orion")
+logger = get_logger("server")
 
 enforce_minimum_version = EnforceMinimumAPIVersion(
-    # this should be <= ORION_API_VERSION; clients that send
+    # this should be <= SERVER_API_VERSION; clients that send
     # a version header under this value will be rejected
     minimum_api_version="0.8.0",
     logger=logger,
@@ -142,15 +143,16 @@ def create_orion_api(
     router_prefix: Optional[str] = "",
     dependencies: Optional[List[Depends]] = None,
     health_check_path: str = "/health",
+    version_check_path: str = "/version",
     fast_api_app_kwargs: dict = None,
     router_overrides: Mapping[str, Optional[APIRouter]] = None,
 ) -> FastAPI:
     """
-    Create a FastAPI app that includes the Orion API
+    Create a FastAPI app that includes the Prefect REST API
 
     Args:
         router_prefix: a prefix to apply to all included routers
-        dependencies: a list of global dependencies to add to each Orion router
+        dependencies: a list of global dependencies to add to each Prefect REST API router
         health_check_path: the health check route path
         fast_api_app_kwargs: kwargs to pass to the FastAPI constructor
         router_overrides: a mapping of route prefixes (i.e. "/admin") to new routers
@@ -158,7 +160,7 @@ def create_orion_api(
             as a value, the default router will be dropped from the application.
 
     Returns:
-        a FastAPI app that serves the Orion API
+        a FastAPI app that serves the Prefect REST API
     """
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
@@ -166,6 +168,10 @@ def create_orion_api(
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
         return True
+
+    @api_app.get(version_check_path, tags=["Root"])
+    async def orion_info():
+        return SERVER_API_VERSION
 
     # always include version checking
     if dependencies is None:
@@ -227,13 +233,13 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     @ui_app.get("/ui-settings")
     def ui_settings():
         return {
-            "api_url": prefect.settings.PREFECT_ORION_UI_API_URL.value(),
+            "api_url": prefect.settings.PREFECT_UI_API_URL.value(),
             "flags": enabled_experiments(),
         }
 
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and prefect.settings.PREFECT_ORION_UI_ENABLED.value()
+        and prefect.settings.PREFECT_UI_ENABLED.value()
         and not ephemeral
     ):
         ui_app.mount(
@@ -256,7 +262,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
     import toml
 
     from prefect.blocks.core import Block
-    from prefect.orion.models.block_registration import _load_collection_blocks_data
+    from prefect.server.models.block_registration import _load_collection_blocks_data
     from prefect.utilities.dispatch import get_registry_for_type
 
     @wraps(fn)
@@ -270,7 +276,7 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
         current_blocks_loading_hash = hash_objects(
             blocks_registry,
             collection_blocks_data,
-            PREFECT_ORION_DATABASE_CONNECTION_URL.value(),
+            PREFECT_API_DATABASE_CONNECTION_URL.value(),
             hash_algo=sha256,
         )
 
@@ -322,7 +328,7 @@ def create_app(
     ignore_cache: bool = False,
 ) -> FastAPI:
     """
-    Create an FastAPI app that includes the Orion API and UI
+    Create an FastAPI app that includes the Prefect REST API and UI
 
     Args:
         settings: The settings to use to create the app. If not set, settings are pulled
@@ -342,8 +348,8 @@ def create_app(
     #       another dedicated location
     async def run_migrations():
         """Ensure the database is created and up to date with the current migrations"""
-        if prefect.settings.PREFECT_ORION_DATABASE_MIGRATE_ON_START:
-            from prefect.orion.database.dependencies import provide_database_interface
+        if prefect.settings.PREFECT_API_DATABASE_MIGRATE_ON_START:
+            from prefect.server.database.dependencies import provide_database_interface
 
             db = provide_database_interface()
             await db.create_db()
@@ -351,11 +357,11 @@ def create_app(
     @_memoize_block_auto_registration
     async def add_block_types():
         """Add all registered blocks to the database"""
-        if not prefect.settings.PREFECT_ORION_BLOCKS_REGISTER_ON_START:
+        if not prefect.settings.PREFECT_API_BLOCKS_REGISTER_ON_START:
             return
 
-        from prefect.orion.database.dependencies import provide_database_interface
-        from prefect.orion.models.block_registration import run_block_auto_registration
+        from prefect.server.database.dependencies import provide_database_interface
+        from prefect.server.models.block_registration import run_block_auto_registration
 
         db = provide_database_interface()
         session = await db.session()
@@ -367,7 +373,7 @@ def create_app(
             logger.warn(f"Error occurred during block auto-registration: {exc!r}")
 
     async def start_services():
-        """Start additional services when the Orion API starts up."""
+        """Start additional services when the Prefect REST API starts up."""
 
         if ephemeral:
             app.state.services = None
@@ -375,27 +381,25 @@ def create_app(
 
         service_instances = []
 
-        if prefect.settings.PREFECT_ORION_SERVICES_SCHEDULER_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_SCHEDULER_ENABLED.value():
             service_instances.append(services.scheduler.Scheduler())
             service_instances.append(services.scheduler.RecentDeploymentsScheduler())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value():
             service_instances.append(services.late_runs.MarkLateRuns())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED.value():
             service_instances.append(services.pause_expirations.FailExpiredPauses())
 
-        if prefect.settings.PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
+        if prefect.settings.PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED.value():
             service_instances.append(
                 services.cancellation_cleanup.CancellationCleanup()
             )
 
-        if prefect.settings.PREFECT_ORION_ANALYTICS_ENABLED.value():
+        if prefect.settings.PREFECT_SERVER_ANALYTICS_ENABLED.value():
             service_instances.append(services.telemetry.Telemetry())
 
-        if (
-            prefect.settings.PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value()
-        ):
+        if prefect.settings.PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED.value():
             service_instances.append(
                 services.flow_run_notifications.FlowRunNotifications()
             )
@@ -411,7 +415,7 @@ def create_app(
             task.add_done_callback(partial(on_service_exit, service))
 
     async def stop_services():
-        """Ensure services are stopped before the Orion API shuts down."""
+        """Ensure services are stopped before the Prefect REST API shuts down."""
         if app.state.services:
             await asyncio.gather(*[service.stop() for service in app.state.services])
             try:
