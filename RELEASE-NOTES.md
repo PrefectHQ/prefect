@@ -64,7 +64,7 @@ With this release, **we've removed references to "Orion" and replaced them with 
 - Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
 
 ### Fixes
-- Fix default deployment parameters not populating on the UI — https://github.com/PrefectHQ/prefect/pull/8518
+- Fix default deployment parameters not populating in the UI — https://github.com/PrefectHQ/prefect/pull/8518
 
 ### Documentation
 - Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
