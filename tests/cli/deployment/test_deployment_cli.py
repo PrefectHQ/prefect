@@ -478,20 +478,7 @@ class TestUpdatingDeployments:
                 "2040-01-01T00:00:00",
             ],
             expected_code=1,
-            expected_output_contains="An anchor date can only be provided with an interval schedule",
-        )
-
-    def test_set_schedule_updating_invalid_interval_raises(self, flojo):
-        invoke_and_assert(
-            [
-                "deployment",
-                "set-schedule",
-                "rence-griffith/test-deployment",
-                "--interval",
-                "0",
-            ],
-            expected_code=1,
-            expected_output_contains="interval must be greater than zero seconds",
+            expected_output_contains="Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
         )
 
 

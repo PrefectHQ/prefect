@@ -241,12 +241,12 @@ async def set_schedule(
         None,
         "--interval",
         help="An interval to schedule on, specified in seconds",
+        min=0.0001,
     ),
     interval_anchor: Optional[str] = typer.Option(
         None,
         "--anchor-date",
         help="The anchor date for an interval schedule",
-        min=0.0001,
     ),
     rrule_string: Optional[str] = typer.Option(
         None, "--rrule", help="Deployment schedule rrule string"
