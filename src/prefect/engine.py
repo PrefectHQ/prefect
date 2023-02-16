@@ -393,6 +393,7 @@ async def begin_flow_run(
             msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
         )
         APILogHandler.flush(block=True)
+
         return terminal_or_paused_state
     else:
         terminal_state = terminal_or_paused_state
