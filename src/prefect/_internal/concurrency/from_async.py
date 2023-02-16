@@ -36,8 +36,10 @@ def call_soon_in_worker_thread(__fn, *args, **kwargs) -> AsyncWatchingFuture:
     Returns a watching future.
     """
     runtime = get_runtime_thread()
-    future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
-    return AsyncWatchingFuture().wrap_future(future)
+    watching_future = AsyncWatchingFuture()
+    with set_current_future(watching_future):
+        future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
+    return watching_future.wrap_future(future)
 
 
 def call_soon_in_main_thread(__fn, *args, **kwargs) -> asyncio.Future:
@@ -46,6 +48,9 @@ def call_soon_in_main_thread(__fn, *args, **kwargs) -> asyncio.Future:
 
     Must be used from a call scheduled by `call_soon_in_worker_thread` or
     `call_soon_in_runtime_thread` or the main thread will not be watching for work.
+
+    Note the future returned by this is an `asyncio.Future` and calling `.result()`
+    before awaiting the future will result in an error.
 
     Returns a future.
     """

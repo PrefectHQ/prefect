@@ -1,23 +1,157 @@
+import contextlib
+import contextvars
+
 import pytest
 
 from prefect._internal.concurrency import from_async, from_sync
 
 
-def sync_work(x, y):
-    return x + y
+def identity(x):
+    return x
 
 
-async def async_work(x, y):
-    return x + y
+async def aidentity(x):
+    return x
 
 
-@pytest.mark.parametrize("work", [sync_work, async_work])
-async def test_from_async_call_in_worker_thread(work):
-    future = from_async.call_soon_in_worker_thread(work, 1, 2)
-    assert await future.result() == 3
+TEST_CONTEXTVAR = contextvars.ContextVar("TEST_CONTEXTVAR")
 
 
-@pytest.mark.parametrize("work", [sync_work, async_work])
-def test_from_sync_call_in_worker_thread(work):
-    future = from_sync.call_soon_in_worker_thread(work, 1, 2)
-    assert future.result() == 3
+def get_contextvar():
+    return TEST_CONTEXTVAR.get()
+
+
+async def aget_contextvar():
+    return TEST_CONTEXTVAR.get()
+
+
+@contextlib.contextmanager
+def set_contextvar(value):
+    try:
+        token = TEST_CONTEXTVAR.set(value)
+        yield
+    finally:
+        TEST_CONTEXTVAR.reset(token)
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+async def test_from_async_call_soon_in_worker_thread(work):
+    future = from_async.call_soon_in_worker_thread(work, 1)
+    assert await future.result() == 1
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+def test_from_sync_call_soon_in_worker_thread(work):
+    future = from_sync.call_soon_in_worker_thread(work, 1)
+    assert future.result() == 1
+
+
+async def test_from_async_call_soon_in_runtime_thread():
+    future = from_async.call_soon_in_runtime_thread(aidentity, 1)
+    assert await future.result() == 1
+
+
+def test_from_sync_call_soon_in_runtime_thread():
+    future = from_sync.call_soon_in_runtime_thread(aidentity, 1)
+    assert future.result() == 1
+
+
+async def test_from_async_call_soon_in_runtime_thread_must_be_coroutine_fn():
+    with pytest.raises(TypeError, match="coroutine"):
+        from_async.call_soon_in_runtime_thread(identity, 1)
+
+
+def test_from_sync_call_soon_in_runtime_thread_must_be_coroutine_fn():
+    with pytest.raises(TypeError, match="coroutine"):
+        from_sync.call_soon_in_runtime_thread(identity, 1)
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+async def test_from_async_call_soon_in_main_thread_from_worker(work):
+    async def worker():
+        future = from_async.call_soon_in_main_thread(work, 1)
+        assert await future == 1
+        return 2
+
+    future = from_async.call_soon_in_worker_thread(worker)
+    assert await future.result() == 2
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+def test_from_sync_call_soon_in_main_thread_from_worker(work):
+    def worker():
+        future = from_sync.call_soon_in_main_thread(work, 1)
+        assert future.result() == 1
+        return 2
+
+    future = from_sync.call_soon_in_worker_thread(worker)
+    assert future.result() == 2
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+async def test_from_async_call_soon_in_main_thread_from_runtime(work):
+    async def from_runtime():
+        future = from_async.call_soon_in_main_thread(work, 1)
+        assert await future == 1
+        return 2
+
+    future = from_async.call_soon_in_runtime_thread(from_runtime)
+    assert await future.result() == 2
+
+
+@pytest.mark.parametrize("work", [identity, aidentity])
+def test_from_sync_call_soon_in_main_thread_from_runtime(work):
+    async def from_runtime():
+        future = from_async.call_soon_in_main_thread(work, 1)
+        assert await future == 1
+        return 2
+
+    future = from_sync.call_soon_in_runtime_thread(from_runtime)
+    assert future.result() == 2
+
+
+async def test_from_async_call_soon_in_runtime_thread_captures_context_variables():
+    with set_contextvar("test"):
+        future = from_async.call_soon_in_runtime_thread(aget_contextvar)
+        assert await future.result() == "test"
+
+
+def test_from_sync_call_soon_in_runtime_thread_captures_context_variables():
+    with set_contextvar("test"):
+        future = from_sync.call_soon_in_runtime_thread(aget_contextvar)
+        assert future.result() == "test"
+
+
+@pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
+async def test_from_async_call_soon_in_worker_thread_captures_context_variables(get):
+    with set_contextvar("test"):
+        future = from_async.call_soon_in_worker_thread(get)
+        assert await future.result() == "test"
+
+
+@pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
+def test_from_sync_call_soon_in_worker_thread_captures_context_variables(get):
+    with set_contextvar("test"):
+        future = from_sync.call_soon_in_worker_thread(get)
+        assert future.result() == "test"
+
+
+@pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
+async def test_from_async_call_soon_in_main_thread_captures_context_varaibles(get):
+    async def from_runtime():
+        with set_contextvar("test"):
+            future = from_async.call_soon_in_main_thread(get)
+
+    future = from_async.call_soon_in_runtime_thread(from_runtime)
+    await future.result()
+
+
+@pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
+def test_from_sync_call_soon_in_main_thread_captures_context_varaibles(get):
+    async def from_runtime():
+        with set_contextvar("test"):
+            future = from_async.call_soon_in_main_thread(get)
+        assert await future == "test"
+
+    future = from_sync.call_soon_in_runtime_thread(from_runtime)
+    future.result()

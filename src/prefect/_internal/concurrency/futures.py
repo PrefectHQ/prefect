@@ -15,7 +15,7 @@ from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, TypeVar
 
 from typing_extensions import Self
 
-from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -77,7 +77,12 @@ class WorkItem:
 
         # Execute the work and set the result on the future
         if inspect.iscoroutinefunction(self.fn):
-            return self._run_async()
+            if get_running_loop():
+                # If an event loop is available, return a coroutine to be awaited
+                return self._run_async()
+            else:
+                # Otherwise, execute the function here
+                return asyncio.run(self._run_async())
         else:
             return self._run_sync()
 
