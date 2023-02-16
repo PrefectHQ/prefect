@@ -2,17 +2,17 @@ import asyncio
 import concurrent.futures
 import contextlib
 import contextvars
-import dataclasses
 import inspect
 import os
 import threading
 from queue import Queue
-from typing import Any, Awaitable, Callable, Dict, Optional, Tuple, TypeVar, Union
+from typing import Any, Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.executor import Executor
+from prefect._internal.concurrency.futures import WorkItem
 from prefect._internal.concurrency.primitives import Event
 from prefect.context import ContextModel
 
@@ -37,64 +37,9 @@ class _FutureContext(ContextModel):
     callback_queue: Union[Queue, asyncio.Queue]
 
 
-@dataclasses.dataclass
-class _WorkItem:
-    future: concurrent.futures.Future
-    fn: Callable
-    args: Tuple
-    kwargs: Dict[str, Any]
-    context: contextvars.Context
-
-    def run(self):
-        """
-        Execute the work item.
-
-        All exceptions during execution of the work item are captured and attached to
-        the future.
-        """
-        # Do not execute if the future is cancelled
-        if not self.future.set_running_or_notify_cancel():
-            return
-
-        # Execute the work and set the result on the future
-        if inspect.iscoroutinefunction(self.fn):
-            return self._run_async()
-        else:
-            return self._run_sync()
-
-    def _run_sync(self):
-        try:
-            result = self.context.run(self.fn, *self.args, **self.kwargs)
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            # Prevent reference cycle in `exc`
-            self = None
-        else:
-            self.future.set_result(result)
-
-    async def _run_async(self):
-        loop = asyncio.get_running_loop()
-        try:
-            # Call the function in the context; this is not necessary if the function
-            # is a standard cortouine function but if it's a synchronous function that
-            # returns a coroutine we want to ensure the correct context is available
-            coro = self.context.run(self.fn, *self.args, **self.kwargs)
-
-            # Run the coroutine in a new task to run with the correct async context
-            task = self.context.run(loop.create_task, coro)
-            result = await task
-
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            # Prevent reference cycle in `exc`
-            self = None
-        else:
-            self.future.set_result(result)
-
-
-class _RuntimeLoopThread(threading.Thread):
+class RuntimeThread(threading.Thread):
     def __init__(self, name: str = "RuntimeLoopThread"):
-        super().__init__(name=name)
+        super().__init__(name=name, daemon=True)
 
         # Configure workers
         self._worker_threads = Executor(
@@ -165,7 +110,7 @@ class Runtime:
         self._owner_process_id = os.getpid()
 
         # A thread for an isolated event loop
-        self._loop_thread = _RuntimeLoopThread()
+        self._loop_thread = RuntimeThread()
 
     def run_in_thread(
         self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
@@ -324,7 +269,7 @@ class Runtime:
 
         self._put_in_callback_queue(
             context.callback_queue,
-            _WorkItem(
+            WorkItem(
                 future=future,
                 fn=__fn,
                 args=args,
@@ -342,3 +287,17 @@ class Runtime:
     def __exit__(self, *exc_info):
         self._loop_thread.shutdown()
         self._loop_thread.join()
+
+
+RUNTIME = None
+
+import atexit
+
+
+def get_runtime_thread() -> RuntimeThread:
+    global RUNTIME
+    if RUNTIME is None:
+        RUNTIME = RuntimeThread()
+        RUNTIME.start()
+        atexit.register(RUNTIME.shutdown)
+    return RUNTIME
