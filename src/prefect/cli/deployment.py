@@ -243,7 +243,10 @@ async def set_schedule(
         help="An interval to schedule on, specified in seconds",
     ),
     interval_anchor: Optional[str] = typer.Option(
-        None, "--anchor-date", help="The anchor date for an interval schedule"
+        None,
+        "--anchor-date",
+        help="The anchor date for an interval schedule",
+        min=0.0001,
     ),
     rrule_string: Optional[str] = typer.Option(
         None, "--rrule", help="Deployment schedule rrule string"
@@ -267,9 +270,21 @@ async def set_schedule(
     """
     assert_deployment_name_format(name)
 
+    if interval_anchor and not interval:
+        exit_with_error(
+            "An anchor date can only be provided with an interval schedule."
+        )
+    if interval_anchor:
+        try:
+            pendulum.parse(interval_anchor)
+        except ValueError:
+            exit_with_error("The anchor date must be a valid date string.")
+    if interval is not None and interval <= 0:
+        exit_with_error("The interval must be greater than zero seconds.")
+
     interval_schedule = {
         "interval": interval,
-        "interval_anchor": interval_anchor,
+        "anchor_date": interval_anchor,
         "timezone": timezone,
     }
     cron_schedule = {"cron": cron_string, "day_or": cron_day_or, "timezone": timezone}
