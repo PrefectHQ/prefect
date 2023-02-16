@@ -25,6 +25,11 @@ publish = "site"
   to = "/collections/catalog/"
   status = 301
 
+[[redirects]]
+  from = "/api-ref/orion/*"
+  to = "/api-ref/server/:splat"
+  status = 301
+
 # redirect v1 traffic to docs-v1.prefect.io
 [[redirects]]
   from = "/core/*"
@@ -47,8 +52,8 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://docs.prefect.io/migration_guide/"
-  to = "https://docs.prefect.io/migration-guide/"
+  from = "/migration_guide/"
+  to = "/migration-guide/"
   status = 301
 
 [[redirects]]
@@ -57,11 +62,11 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://docs.prefect.io/ui/work-queues/"
-  to = "https://docs.prefect.io/ui/work-pools/"
+  from = "/ui/work-queues/"
+  to = "/ui/work-pools/"
   status = 301
 
 [[redirects]]
-  from = "https://docs.prefect.io/concepts/work-queues/"
-  to = "https://docs.prefect.io/concepts/work-pools/"
+  from = "/concepts/work-queues/"
+  to = "/concepts/work-pools/"
   status = 301
