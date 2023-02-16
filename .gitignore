@@ -59,3 +59,4 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+!ui/.vscode/
