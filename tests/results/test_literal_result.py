@@ -42,6 +42,15 @@ async def test_result_literal_populates_default_artifact_metadata(value):
     assert result.artifact_description == f"Literal: `{value}`"
 
 
+@pytest.mark.parametrize("value", LITERAL_VALUES)
+async def test_result_literal_uses_result_description_fn(value):
+    def description_fn(obj, block, key):
+        return f"Custom: `{value}`"
+    result = await LiteralResult.create(value, result_description_fn=description_fn)
+    assert result.artifact_type == "result"
+    assert result.artifact_description == f"Custom: `{value}`"
+
+
 async def test_result_literal_does_not_allow_unsupported_types():
     with pytest.raises(TypeError, match="Unsupported type 'dict' for result literal"):
         await LiteralResult.create({"foo": "bar"})
