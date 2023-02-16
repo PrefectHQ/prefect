@@ -105,7 +105,7 @@ class _RuntimeLoopThread(threading.Thread):
         self._worker_processes = Executor(
             worker_type="process", initializer=_initialize_worker_process
         )
-        self._ready_event = threading.Event()
+        self._ready_future = concurrent.futures.Future()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def start(self):
@@ -113,9 +113,9 @@ class _RuntimeLoopThread(threading.Thread):
         Start the thread and wait until the event loop is ready.
         """
         super().start()
-        # Extends the typical thread start event to include a readiness event set from
-        # within the event loop.
-        self._ready_event.wait()
+        # Extends the typical thread start event to wait until `run` is ready and
+        # raise any errors encountered during setup
+        self._ready_future.result()
 
     def run(self):
         """
@@ -130,9 +130,14 @@ class _RuntimeLoopThread(threading.Thread):
         self._loop = asyncio.get_running_loop()
         self._shutdown_event = Event()
         async with contextlib.AsyncExitStack() as stack:
-            await stack.enter_async_context(self._worker_threads)
-            await stack.enter_async_context(self._worker_processes)
-            self._ready_event.set()
+            try:
+                await stack.enter_async_context(self._worker_threads)
+                await stack.enter_async_context(self._worker_processes)
+                self._ready_future.set_result(True)
+            except Exception as exc:
+                self._ready_future.set_exception(exc)
+                return
+
             await self._shutdown_event.wait()
 
     def submit_to_worker_process(
