@@ -411,7 +411,7 @@ class LiteralResult(BaseResult):
         else:
             description = f"Literal: `{obj}`"
 
-        result.description = description
+        result.artifact_description = description
         return result
 
 
@@ -511,7 +511,6 @@ class PersistedResult(BaseResult):
             storage_block_id=storage_block_id,
             storage_key=key,
             artifact_type="result",
-            artifact_description=description,
         )
 
         if result_description_fn:
@@ -519,7 +518,7 @@ class PersistedResult(BaseResult):
         else:
             description = cls._infer_description(obj, storage_block, key)
 
-        result.description = description
+        result.artifact_description = description
 
         if cache_object:
             # Attach the object to the result so it's available without deserialization
