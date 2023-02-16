@@ -38,7 +38,7 @@ def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncWatchingFuture:
     """
     runtime = get_runtime_thread()
     future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
-    return SyncWatchingFuture.from_future(future)
+    return SyncWatchingFuture().wrap_future(future)
 
 
 def call_soon_in_main_thread(__fn, *args, **kwargs) -> concurrent.futures.Future:

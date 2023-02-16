@@ -128,8 +128,9 @@ class WatchingFuture(abc.ABC):
         self.owner_thread_ident = threading.get_ident()
         logger.debug("Created future %r", self)
 
-    def wrap_future(self: Self, future) -> None:
+    def wrap_future(self: Self, future) -> Self:
         asyncio.futures._chain_future(future, self)
+        return self
 
     def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
         work_item = WorkItem.from_call(__fn, *args, **kwargs)

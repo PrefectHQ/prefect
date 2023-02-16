@@ -37,7 +37,7 @@ def call_soon_in_worker_thread(__fn, *args, **kwargs) -> AsyncWatchingFuture:
     """
     runtime = get_runtime_thread()
     future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
-    return AsyncWatchingFuture.from_future(future)
+    return AsyncWatchingFuture().wrap_future(future)
 
 
 def call_soon_in_main_thread(__fn, *args, **kwargs) -> asyncio.Future:
