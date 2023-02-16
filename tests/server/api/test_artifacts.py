@@ -5,8 +5,8 @@ import pydantic
 import pytest
 from fastapi import status
 
-from prefect.orion import models, schemas
-from prefect.orion.schemas import actions
+from prefect.server import models, schemas
+from prefect.server.schemas import actions
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS, temporary_settings
 
 
@@ -16,7 +16,7 @@ async def artifact(flow_run, task_run, client):
     artifact_schema = actions.ArtifactCreate(
         key="voltaic",
         data=1,
-        metadata_="opens many doors",
+        metadata_={"data": "opens many doors"},
         flow_run_id=flow_run.id,
         task_run_id=task_run.id,
     )
@@ -78,7 +78,7 @@ class TestCreateArtifact:
         artifact = actions.ArtifactCreate(
             key="voltaic",
             data=1,
-            metadata_="opens many doors",
+            metadata_={"data": "opens many doors"},
             flow_run_id=flow_run.id,
             task_run_id=task_run.id,
         ).dict(json_compatible=True)

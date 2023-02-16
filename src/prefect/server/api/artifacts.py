@@ -7,12 +7,12 @@ from uuid import UUID
 import pendulum
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
-import prefect.orion.api.dependencies as dependencies
-from prefect.orion import models
-from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.interface import OrionDBInterface
-from prefect.orion.schemas import actions, core, filters, sorting
-from prefect.orion.utilities.server import OrionRouter
+import prefect.server.api.dependencies as dependencies
+from prefect.server import models
+from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.schemas import actions, core, filters, sorting
+from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
 
@@ -21,7 +21,7 @@ def error_404_if_artifacts_not_enabled():
         raise HTTPException(status_code=404, detail="Artifacts are not enabled")
 
 
-router = OrionRouter(
+router = PrefectRouter(
     prefix="/experimental/artifacts",
     tags=["Artifacts"],
     dependencies=[Depends(error_404_if_artifacts_not_enabled)],
@@ -32,7 +32,7 @@ router = OrionRouter(
 async def create_artifact(
     artifact: actions.ArtifactCreate,
     response: Response = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
     artifact = core.Artifact(**artifact.dict())
 
@@ -54,7 +54,7 @@ async def read_artifact(
     artifact_id: UUID = Path(
         ..., description="The ID of the artifact to retrieve.", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
     """
     Retrieve an artifact from the database.
@@ -77,7 +77,7 @@ async def read_artifacts(
     artifacts: filters.ArtifactFilter = None,
     flow_runs: filters.FlowRunFilter = None,
     task_runs: filters.TaskRunFilter = None,
-    db: OrionDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[core.Artifact]:
     """
     Retrieve artifacts from the database.
@@ -100,8 +100,8 @@ async def update_artifact(
     artifact_id: UUID = Path(
         ..., description="The ID of the artifact to update.", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
-) -> None:
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
     """
     Update an artifact in the database.
     """
@@ -120,8 +120,8 @@ async def delete_artifact(
     artifact_id: UUID = Path(
         ..., description="The ID of the artifact to delete.", alias="id"
     ),
-    db: OrionDBInterface = Depends(provide_database_interface),
-) -> None:
+    db: PrefectDBInterface = Depends(provide_database_interface),
+):
     """
     Delete an artifact from the database.
     """
