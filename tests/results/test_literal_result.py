@@ -35,6 +35,13 @@ async def test_result_literal_json_roundtrip(value):
     assert await deserialized.get() == value
 
 
+@pytest.mark.parametrize("value", LITERAL_VALUES)
+async def test_result_literal_populates_default_artifact_metadata(value):
+    result = await LiteralResult.create(value)
+    assert result.artifact_type == "result"
+    assert result.artifact_description == f"Literal: `{value}`"
+
+
 async def test_result_literal_does_not_allow_unsupported_types():
     with pytest.raises(TypeError, match="Unsupported type 'dict' for result literal"):
         await LiteralResult.create({"foo": "bar"})

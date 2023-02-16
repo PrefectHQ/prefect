@@ -12,7 +12,12 @@
         <FlowRunsFilterGroup />
 
         <template v-if="media.md">
-          <FlowRunsScatterPlot :history="flowRunHistory" v-bind="{ startDate, endDate }" class="flow-runs__chart" />
+          <FlowRunsScatterPlot
+            :history="flowRunHistory"
+            :start-date="filter.flowRuns.expectedStartTimeAfter"
+            :end-date="filter.flowRuns.expectedStartTimeBefore"
+            class="flow-runs__chart"
+          />
         </template>
 
         <div class="flow-runs__list">
@@ -25,16 +30,16 @@
             </div>
 
             <template v-if="media.md">
-              <SearchInput v-model="name" placeholder="Search by run name" label="Search by run name" />
+              <SearchInput v-model="flowRunNameLike" placeholder="Search by run name" label="Search by run name" />
             </template>
-            <FlowRunsSort v-model="sort" />
+            <FlowRunsSort v-model="filter.sort" />
           </div>
 
           <FlowRunList v-model:selected="selectedFlowRuns" :flow-runs="flowRuns" />
 
           <template v-if="!flowRuns.length">
             <PEmptyResults>
-              <template v-if="hasFilters" #actions>
+              <template v-if="isCustomFilter" #actions>
                 <p-button size="sm" secondary @click="clear">
                   Clear Filters
                 </p-button>
@@ -49,8 +54,8 @@
 
 <script lang="ts" setup>
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, useFlowRunFilterFromRoute, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount } from '@prefecthq/prefect-ui-library'
-  import { useSubscription } from '@prefecthq/vue-compositions'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
+  import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -64,7 +69,13 @@
   const loaded = computed(() => flowRunsCountAllSubscription.executed)
   const empty = computed(() => flowRunsCountAllSubscription.response === 0)
 
-  const { filter, hasFilters, startDate, endDate, name, sort } = useFlowRunFilterFromRoute()
+  const flowRunNameLike = ref<string>()
+  const flowRunNameLikeDebounced = useDebouncedRef(flowRunNameLike, 1200)
+  const { filter, isCustomFilter } = useFlowRunsFilterFromRoute({
+    flowRuns: {
+      nameLike: flowRunNameLikeDebounced,
+    },
+  })
 
   const subscriptionOptions = {
     interval: 30000,
@@ -106,8 +117,12 @@
   sticky
   top-0
   bg-opacity-90
-  py-2
+  py-3
   z-10
+  bg-background
+  dark:bg-background-400
+  rounded-b
+  px-2
 }
 
 .flow-runs__list-controls--right { @apply
