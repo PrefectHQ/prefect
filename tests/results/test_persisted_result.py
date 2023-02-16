@@ -51,7 +51,7 @@ async def test_result_literal_populates_default_artifact_metadata(
 
 @pytest.mark.parametrize("cache_object", [True, False])
 async def test_result_literal_result_description_fn(cache_object, storage_block):
-    def description_fn(obj, block, key):
+    def description_fn(obj, res):
         return f"custom description {obj}"
 
     result = await PersistedResult.create(

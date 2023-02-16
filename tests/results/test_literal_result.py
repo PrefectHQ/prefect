@@ -44,8 +44,8 @@ async def test_result_literal_populates_default_artifact_metadata(value):
 
 @pytest.mark.parametrize("value", LITERAL_VALUES)
 async def test_result_literal_uses_result_description_fn(value):
-    def description_fn(obj, block, key):
-        return f"Custom: `{value}`"
+    def description_fn(obj, res):
+        return f"Custom: `{obj}`"
 
     result = await LiteralResult.create(value, result_description_fn=description_fn)
     assert result.artifact_type == "result"
