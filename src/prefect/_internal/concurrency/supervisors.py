@@ -1,5 +1,6 @@
 """
-Future implementations
+Implementations of supervisors for futures, which allow work to be sent back to the
+thread waiting for the result of the future.
 """
 
 import abc
@@ -11,9 +12,7 @@ import dataclasses
 import inspect
 import queue
 import threading
-from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, TypeVar
-
-from typing_extensions import Self
+from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, TypeVar, Union
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect.logging import get_logger
@@ -24,13 +23,13 @@ logger = get_logger("prefect._internal.concurrency.futures")
 current_future = contextvars.ContextVar("current_future")
 
 
-def get_current_future() -> Optional["WatchingFuture"]:
+def get_supervisor() -> Optional["Supervisor"]:
     return current_future.get(None)
 
 
 @contextlib.contextmanager
-def set_current_future(watcher: "WatchingFuture"):
-    token = current_future.set(watcher)
+def set_supervisor(supervisor: "Supervisor"):
+    token = current_future.set(supervisor)
     try:
         yield
     finally:
@@ -120,22 +119,17 @@ class WorkItem:
         logger.debug("Finished work item %r", self)
 
 
-class WatchingFuture(abc.ABC):
+class Supervisor(abc.ABC):
     """
-    A watching future allows work to be sent back to the thread that owns the future by
-    the call the future represents.
+    A supervisor allows work to be sent back to the thread that owns the supervisor.
 
-    Work sent back to the thread will be executed when the owner waits for the result
-    of the future.
+    Work sent to the supervisor will be executed when the owner waits for the result.
     """
 
     def __init__(self) -> None:
         self.owner_thread_ident = threading.get_ident()
-        logger.debug("Created future %r", self)
-
-    def wrap_future(self: Self, future) -> Self:
-        asyncio.futures._chain_future(future, self)
-        return self
+        self._future = None
+        logger.debug("Created supervisor %r", self)
 
     def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
         work_item = WorkItem.from_call(__fn, *args, **kwargs)
@@ -147,20 +141,26 @@ class WatchingFuture(abc.ABC):
         return f"<{self.__class__.__name__}(id={id(self)}, owner={self.owner_thread_ident})>"
 
 
-class SyncWatchingFuture(WatchingFuture, concurrent.futures.Future):
+class SyncSupervisor(Supervisor):
     def __init__(self) -> None:
         super().__init__()
-        concurrent.futures.Future.__init__(self)
-        self.queue = queue.Queue()
-        self.add_done_callback(lambda fut: fut.queue.put_nowait(None))
+        self._queue = queue.Queue()
+        self._future: Optional[concurrent.futures.Future] = None
 
     def _put_work_item(self, work_item: WorkItem):
-        self.queue.put_nowait(work_item)
+        self._queue.put_nowait(work_item)
+
+    def watch(self, future: concurrent.futures.Future):
+        future.add_done_callback(lambda _: self._queue.put_nowait(None))
+        self._future = future
 
     def result(self):
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
         while True:
             logger.debug("Watching for work sent to %r", self)
-            work_item: WorkItem = self.queue.get()
+            work_item: WorkItem = self._queue.get()
             if work_item is None:
                 break
 
@@ -168,26 +168,37 @@ class SyncWatchingFuture(WatchingFuture, concurrent.futures.Future):
             del work_item
 
         logger.debug("Retrieving result for %r", self)
-        return super().result()
+        return self._future.result()
 
 
-class AsyncWatchingFuture(WatchingFuture, asyncio.Future):
+class AsyncSupervisor(Supervisor):
     def __init__(self) -> None:
         super().__init__()
-        asyncio.Future.__init__(self)
-        self.queue = asyncio.Queue()
-        self.add_done_callback(
-            lambda fut: call_soon_in_loop(fut._loop, fut.queue.put_nowait(None))
+        self._queue = asyncio.Queue()
+        self._loop = asyncio.get_running_loop()
+        self._future: Optional[asyncio.Future] = None
+
+    def watch(self, future: Union[asyncio.Future, concurrent.futures.Future]) -> None:
+        # Ensure we're working with an asyncio future internally
+        if isinstance(future, concurrent.futures.Future):
+            future = asyncio.wrap_future(future)
+
+        future.add_done_callback(
+            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait(None))
         )
+        self._future = future
 
     def _put_work_item(self, work_item: WorkItem):
         # We must put items in the queue from the event loop that owns it
-        call_soon_in_loop(self._loop, self.queue.put_nowait, work_item)
+        call_soon_in_loop(self._loop, self._queue.put_nowait, work_item)
 
     async def result(self):
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
         while True:
             logger.debug("Watching for work sent to %r", self)
-            work_item: WorkItem = await self.queue.get()
+            work_item: WorkItem = await self._queue.get()
             if work_item is None:
                 break
 
@@ -198,4 +209,4 @@ class AsyncWatchingFuture(WatchingFuture, asyncio.Future):
             del work_item
 
         logger.debug("Retrieving result for %r", self)
-        return await self
+        return await self._future

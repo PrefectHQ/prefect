@@ -1,47 +1,47 @@
 import concurrent.futures
 import threading
 
-from prefect._internal.concurrency.futures import (
-    SyncWatchingFuture,
-    get_current_future,
-    set_current_future,
-)
 from prefect._internal.concurrency.runtime import get_runtime_thread
+from prefect._internal.concurrency.supervisors import (
+    SyncSupervisor,
+    get_supervisor,
+    set_supervisor,
+)
 
 
-def call_soon_in_runtime_thread(__fn, *args, **kwargs) -> SyncWatchingFuture:
+def call_soon_in_runtime_thread(__fn, *args, **kwargs) -> SyncSupervisor:
     """
     Schedule a coroutine function in the runtime thread.
 
-    Returns a watching future.
+    Returns a supervisor.
     """
-    current_future = get_current_future()
+    current_future = get_supervisor()
     runtime = get_runtime_thread()
 
-    watching_future = SyncWatchingFuture()
+    supervisor = SyncSupervisor()
 
-    with set_current_future(watching_future):
+    with set_supervisor(supervisor):
         if current_future is None or current_future.owner_thread_ident != runtime.ident:
             future = runtime.submit_to_loop(__fn, *args, **kwargs)
         else:
             future = current_future.send_call(__fn, *args, **kwargs)
 
-    watching_future.wrap_future(future)
-    return watching_future
+    supervisor.watch(future)
+    return supervisor
 
 
-def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncWatchingFuture:
+def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncSupervisor:
     """
     Schedule a function in a worker thread.
 
-    Returns a watching future.
+    Returns a supervisor.
     """
     runtime = get_runtime_thread()
-    watching_future = SyncWatchingFuture()
-    with set_current_future(watching_future):
+    supervisor = SyncSupervisor()
+    with set_supervisor(supervisor):
         future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
-    watching_future.wrap_future(future)
-    return watching_future
+    supervisor.watch(future)
+    return supervisor
 
 
 def call_soon_in_main_thread(__fn, *args, **kwargs) -> concurrent.futures.Future:
@@ -53,9 +53,9 @@ def call_soon_in_main_thread(__fn, *args, **kwargs) -> concurrent.futures.Future
 
     Returns a future.
     """
-    current_future = get_current_future()
+    current_future = get_supervisor()
     if current_future is None:
-        raise RuntimeError("No watching future found.")
+        raise RuntimeError("No supervisor found.")
 
     if current_future.owner_thread_ident != threading.main_thread().ident:
         raise RuntimeError("Watching future is not owned by the main thread.")
