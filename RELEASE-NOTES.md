@@ -3,6 +3,7 @@
 ## Release 2.8.1
 
 ### New names, same behavior
+
 We knew we were onto something big when we [first announced Prefect Orion](https://www.prefect.io/guide/blog/announcing-prefect-orion/), our second-generation orchestration engine, but we didn't know just how big. Orion's foundational design principles of dynamism, developer experience, and observability have shaped the Prefect 2 codebase to such an extent that it's difficult to tell where Orion ends and other components begin. In particular, it can be difficult to distinguish between the “Orion API” (the orchestration API), an “Orion Server” (a hosted instance of that API), and individual components of that server. 
 
 With this release, **we've removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backwards compatible**. These changes clarify the function of various components, commands, variables, and more:
@@ -61,10 +62,10 @@ With this release, **we've removed references to "Orion" and replaced them with 
 
 ### Enhancements
 - Add `MattermostWebhook` notification block — https://github.com/PrefectHQ/prefect/pull/8341
-- Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
 
 ### Fixes
 - Fix default deployment parameters not populating in the UI — https://github.com/PrefectHQ/prefect/pull/8518
+- Fix ability to use anchor date when setting an interval schedule with the `prefect set-schedule` command — https://github.com/PrefectHQ/prefect/pull/8524
 
 ### Documentation
 - Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
@@ -75,6 +76,7 @@ With this release, **we've removed references to "Orion" and replaced them with 
 
 ### Experimental
 - Add metadata fields to `BaseWorker` — https://github.com/PrefectHQ/prefect/pull/8527
+- Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
 
 ### Contributors
 - @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
