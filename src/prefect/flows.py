@@ -115,8 +115,9 @@ class Flow(Generic[P, R]):
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
         result_description_fn: An optional callable that, when passed the return value
-            of the flow, returns a markdown string that will be used to describe the
-            result of this flow.
+            of the flow, the WritableFilesystemBlock used to persist the result, and
+            key used to retrieve the persisted result; returns a markdown string that
+            will be used to describe the result of this flow.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -258,9 +259,10 @@ class Flow(Generic[P, R]):
             persist_result: A new option for enabling or disabling result persistence.
             result_storage: A new storage type to use for results.
             result_serializer: A new serializer to use for results.
-            result_description_fn: An optional callable that, when passed the return value
-                of the flow, returns a markdown string that will be used to describe the
-                result of this flow.
+            result_description_fn: An optional callable that, when passed the return
+                value of the flow, the WritableFilesystemBlock used to persist the
+                result, and key used to retrieve the persisted result; returns a
+                markdown string that will be used to describe the result of this flow.
             cache_result_in_memory: A new value indicating if the flow's result should
                 be cached in memory.
 
@@ -611,8 +613,9 @@ def flow(
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
         result_description_fn: An optional callable that, when passed the return value
-            of the flow, returns a markdown string that will be used to describe the
-            result of this flow.
+            of the flow, the WritableFilesystemBlock used to persist the result, and
+            key used to retrieve the persisted result; returns a markdown string that
+            will be used to describe the result of this flow.
         log_prints: If set, `print` statements in the flow will be redirected to the
             Prefect logger for the flow run. Defaults to `None`, which indicates that
             the value from the parent flow should be used. If this is a parent flow,
