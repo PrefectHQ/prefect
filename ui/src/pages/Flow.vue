@@ -14,7 +14,7 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="flowFilter" />
+        <FlowRunFilteredList :flow-run-filter="flowRunsFilter" />
       </template>
     </p-tabs>
 
@@ -26,7 +26,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useRecentFlowRunFilter, UseDeploymentFilterArgs, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useRecentFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -35,6 +35,7 @@
 
   const api = useWorkspaceApi()
   const flowId = useRouteParam('flowId')
+  const flowIds = computed(() => [flowId.value])
   const router = useRouter()
   const tabs = computed(() => {
     const values = ['Runs', 'Deployments']
@@ -53,11 +54,17 @@
   const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const flowFilter = useRecentFlowRunFilter({ flows: [flowId.value] })
-  const deploymentsFilter = computed<UseDeploymentFilterArgs>(() => ({
-    flows: [flowId.value],
-  }))
+  const { filter: flowRunsFilter } = useRecentFlowRunsFilter({
+    flows: {
+      id: flowIds,
+    },
+  })
 
+  const { filter: deploymentsFilter } = useDeploymentsFilter({
+    flows: {
+      id: flowIds,
+    },
+  })
 
   function deleteFlow(): void {
     router.push(routes.flows())

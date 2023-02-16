@@ -26,7 +26,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, useRecentFlowRunFilter, FlowRunFilteredList, WorkPoolQueuesTable } from '@prefecthq/prefect-ui-library'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -50,7 +50,11 @@
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
 
-  const flowRunFilter = useRecentFlowRunFilter({ workPoolName: [workPoolName.value] })
+  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
+    workPools: {
+      name: [workPoolName.value],
+    },
+  })
 
   const title = computed(() => {
     if (!workPool.value) {

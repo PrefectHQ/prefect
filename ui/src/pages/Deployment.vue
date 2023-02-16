@@ -52,7 +52,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useRecentFlowRunFilter, useTabs, useWorkspaceApi, CodeSnippet } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CodeSnippet, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
@@ -61,6 +61,7 @@
   import { routes } from '@/router'
 
   const deploymentId = useRouteParam('deploymentId')
+  const deploymentIds = computed(() => [deploymentId.value])
   const router = useRouter()
   const api = useWorkspaceApi()
   const showToast = useToast()
@@ -89,7 +90,12 @@
     return deployment.value?.infrastructureOverrides ? JSON.stringify(deployment.value.infrastructureOverrides, undefined, 2) : '{}'
   })
 
-  const deploymentFilter = useRecentFlowRunFilter({ deployments: [deploymentId.value] })
+  const { filter: deploymentFilter } = useRecentFlowRunsFilter({
+    deployments: {
+      id: deploymentIds,
+    },
+  })
+
 
   const title = computed(() => {
     if (!deployment.value) {
