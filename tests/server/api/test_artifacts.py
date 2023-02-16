@@ -262,6 +262,23 @@ class TestReadArtifacts:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
+    async def test_read_artifacts_with_applies_key_like_filter(
+        self, artifacts, flow_run, client
+    ):
+        artifact_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(like_=artifacts[0]["key"][:-1])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert all(
+            [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
+        )
+        assert len(response.json()) == 3
+
 
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifacts, client):
