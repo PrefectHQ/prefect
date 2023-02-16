@@ -54,7 +54,7 @@ async def test_result_literal_result_description_fn(
     cache_object, storage_block
 ):
     def description_fn(obj, block, key):
-        return "custom description {obj}"
+        return f"custom description {obj}"
 
     result = await PersistedResult.create(
         "test",
@@ -62,6 +62,7 @@ async def test_result_literal_result_description_fn(
         storage_block=storage_block,
         serializer=JSONSerializer(),
         cache_object=cache_object,
+        result_description_fn=description_fn,
     )
     assert result.artifact_type == "result"
     assert result.artifact_description == "custom description test"
