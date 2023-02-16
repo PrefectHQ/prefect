@@ -76,9 +76,9 @@ With this release, **we've removed references to "Orion" and replaced them with 
 ### Experimental
 - Add metadata fields to `BaseWorker` — https://github.com/PrefectHQ/prefect/pull/8527
 
-## Contributors
-* @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
-* @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
+### Contributors
+- @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
+- @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
 
 ## Release 2.8.0
 
