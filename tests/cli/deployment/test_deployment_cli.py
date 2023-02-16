@@ -304,6 +304,57 @@ class TestUpdatingDeployments:
             expected_output_contains=["'is_schedule_active': True"],
         )
 
+    def test_set_schedule_updating_anchor_date_respected(self, flojo):
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "1800",
+                "--anchor-date",
+                "2040-01-01T00:00:00",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+        )
+
+    def test_set_schedule_updating_anchor_date_without_interval_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--anchor-date",
+                "2040-01-01T00:00:00",
+            ],
+            expected_code=1,
+            expected_output_contains="An anchor date can only be provided with an interval schedule",
+        )
+
+    def test_set_schedule_updating_invalid_interval_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "0",
+            ],
+            expected_code=1,
+            expected_output_contains="interval must be greater than zero seconds",
+        )
+
 
 class TestDeploymentRun:
     @pytest.fixture
