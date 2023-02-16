@@ -31,7 +31,7 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
-from prefect.results import ResultSerializer, ResultStorage
+from prefect.results import ResultDescriptionFnType, ResultSerializer, ResultStorage
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -188,7 +188,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
-        result_description_fn: Optional[Callable[R, str]] = None,
+        result_description_fn: Optional[ResultDescriptionFnType] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
@@ -296,7 +296,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
-        result_description_fn: Optional[Callable[R, str]] = NotSet,
+        result_description_fn: Optional[ResultDescriptionFnType] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
@@ -870,7 +870,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R, str]] = None,
+    result_description_fn: Optional[ResultDescriptionFnType] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
@@ -900,7 +900,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R, str]] = None,
+    result_description_fn: Optional[ResultDescriptionFnType] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,

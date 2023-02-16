@@ -44,6 +44,7 @@ logger = get_logger("results")
 
 # from prefect.server.schemas.states import State
 R = TypeVar("R")
+ResultDescriptionFnType = Callable[R, str]
 
 
 def get_default_result_storage() -> ResultStorage:
@@ -298,7 +299,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @sync_compatible
     async def create_result(
-        self, obj: R, result_description_fn: Optional[Callable[R, str]] = None
+        self, obj: R, result_description_fn: Optional[ResultDescriptionFnType] = None
     ) -> Union[R, "BaseResult[R]"]:
         """
         Create a result type for the given object.
@@ -396,7 +397,7 @@ class LiteralResult(BaseResult):
     async def create(
         cls: "Type[LiteralResult]",
         obj: R,
-        result_description_fn: Optional[Callable[R, str]] = None,
+        result_description_fn: Optional[ResultDescriptionFnType] = None,
     ) -> "LiteralResult[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
@@ -489,7 +490,7 @@ class PersistedResult(BaseResult):
         storage_block_id: uuid.UUID,
         serializer: Serializer,
         cache_object: bool = True,
-        result_description_fn: Optional[Callable[R, str]] = None,
+        result_description_fn: Optional[ResultDescriptionFnType] = None,
     ) -> "PersistedResult[R]":
         """
         Create a new result reference from a user's object.

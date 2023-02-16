@@ -41,7 +41,7 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
-from prefect.results import ResultSerializer, ResultStorage
+from prefect.results import ResultDescriptionFnType, ResultSerializer, ResultStorage
 from prefect.server.schemas.core import raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
@@ -136,7 +136,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
-        result_description_fn: Optional[Callable[R, str]] = None,
+        result_description_fn: Optional[ResultDescriptionFnType] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
     ):
@@ -234,7 +234,7 @@ class Flow(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
-        result_description_fn: Optional[Callable[R, str]] = NotSet,
+        result_description_fn: Optional[ResultDescriptionFnType] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
     ):
@@ -540,7 +540,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R, str]] = None,
+    result_description_fn: Optional[ResultDescriptionFnType] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -562,7 +562,7 @@ def flow(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
-    result_description_fn: Optional[Callable[R, str]] = None,
+    result_description_fn: Optional[ResultDescriptionFnType] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
 ):
