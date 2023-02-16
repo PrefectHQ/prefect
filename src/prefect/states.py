@@ -204,7 +204,7 @@ async def exception_to_failed_state(
 async def return_value_to_state(
     retval: R,
     result_factory: ResultFactory,
-    result_description_fn: Optional[Callable[R, str]],
+    result_description_fn: Optional[Callable[R, str]] = None,
 ) -> State[R]:
     """
     Given a return value from a user's function, create a `State` the run should
