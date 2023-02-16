@@ -8,6 +8,8 @@ We knew we were onto something big when we [first announced Prefect Orion](https
 
 With this release, **we've removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backwards compatible** and will follow our standard deprecation cycle of six months. These changes clarify the function of various components, commands, variables, and more.
 
+See the [deprecated section](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#deprecated) for a full rundown of changes.
+
 Note: Many settings have been renamed but your old settings will be respected. To automatically convert all of the settings in your current profile to the new names, run the `prefect config validate` command.
 
 
