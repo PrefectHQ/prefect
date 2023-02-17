@@ -3,8 +3,9 @@ import pathlib
 import textwrap
 from unittest.mock import Mock
 
-import prefect
 import pytest
+
+import prefect
 from prefect.plugins import load_extra_entrypoints
 from prefect.settings import PREFECT_EXTRA_ENTRYPOINTS, temporary_settings
 from prefect.testing.utilities import exceptions_equal
