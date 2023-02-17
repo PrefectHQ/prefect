@@ -53,6 +53,7 @@ from prefect.exceptions import (
     NotPausedError,
     Pause,
     PausedRun,
+    PrefectException,
     TerminationSignal,
     UpstreamTaskError,
 )
@@ -1780,15 +1781,26 @@ async def resolve_inputs(
         # Only retrieve the result if requested as it may be expensive
         return state.result(raise_on_failure=False, fetch=True) if return_data else None
 
-    return await run_sync_in_worker_thread(
-        visit_collection,
-        parameters,
-        visit_fn=resolve_input,
-        return_data=return_data,
-        max_depth=max_depth,
-        remove_annotations=True,
-        context={},
-    )
+    resolved_parameters = {}
+    for parameter, value in tuple(parameters.items()):
+        try:
+            resolved_parameters[parameter] = await run_sync_in_worker_thread(
+                visit_collection,
+                value,
+                visit_fn=resolve_input,
+                return_data=return_data,
+                max_depth=max_depth,
+                remove_annotations=True,
+                context={},
+            )
+        except Exception as exc:
+            raise PrefectException(
+                f"Failed to resolve inputs in parameter {parameter!r}. "
+                "If your parameter type is not supported, consider using the `quote` "
+                "annotation to skip resolution of inputs."
+            ) from exc
+
+    return resolved_parameters
 
 
 async def propose_state(
