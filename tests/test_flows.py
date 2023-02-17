@@ -2080,19 +2080,19 @@ class TestFlowHooksOnCompletion:
         def completed1(flow, flow_run, state):
             my_mock("completed1")
 
-        def failed_hook(flow, flow_run, state):
+        def exception_hook(flow, flow_run, state):
             raise Exception("oops")
 
         def completed2(flow, flow_run, state):
             my_mock("completed2")
 
-        @flow(on_completion=[completed1, failed_hook, completed2])
+        @flow(on_completion=[completed1, exception_hook(), completed2])
         def my_flow():
-            raise Exception("oops")
+            pass
 
         state = my_flow._run()
-        assert state.type == StateType.FAILED
-        assert my_mock.call_args_list == []
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
     def test_on_completion_hooks_work_with_async_function(self):
         my_mock = MagicMock()
@@ -2173,13 +2173,13 @@ class TestFlowHooksOnFailure:
         def failed1(flow, flow_run, state):
             my_mock("failed1")
 
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
         def failed2(flow, flow_run, state):
             my_mock("failed2")
 
-        def failed3(flow, flow_run, state):
-            raise Exception("oops")
-
-        @flow(on_failure=[failed1, failed2, failed3])
+        @flow(on_failure=[failed1, exception_hook, failed2])
         def my_flow():
             raise Exception("oops")
 
