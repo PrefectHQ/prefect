@@ -12,7 +12,7 @@ import dataclasses
 import inspect
 import queue
 import threading
-from typing import Any, Callable, Coroutine, Dict, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect.logging import get_logger
@@ -131,11 +131,38 @@ class Supervisor(abc.ABC):
         self._future = None
         logger.debug("Created supervisor %r", self)
 
+    def set_future(
+        self, future: Union[asyncio.Future, concurrent.futures.Future]
+    ) -> None:
+        """
+        Assign a future to the supervisor.
+        """
+        self._future = future
+
     def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
+        """
+        Send a call to the supervisor from a worker.
+        """
         work_item = WorkItem.from_call(__fn, *args, **kwargs)
         self._put_work_item(work_item)
         logger.debug("Sent work item to %r", self)
         return work_item.future
+
+    @abc.abstractmethod
+    def _put_work_item(self, work_item: WorkItem) -> None:
+        """
+        Add a work item to the supervisor. Used by `send_call`.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def result(self) -> Any:
+        """
+        Retrieve the result of the supervised future.
+
+        Watch for and execute any work sent back.
+        """
+        raise NotImplementedError()
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__}(id={id(self)}, owner={self.owner_thread_ident})>"
@@ -150,9 +177,9 @@ class SyncSupervisor(Supervisor):
     def _put_work_item(self, work_item: WorkItem):
         self._queue.put_nowait(work_item)
 
-    def watch(self, future: concurrent.futures.Future):
+    def set_future(self, future: concurrent.futures.Future):
         future.add_done_callback(lambda _: self._queue.put_nowait(None))
-        self._future = future
+        super().set_future(future)
 
     def result(self):
         if not self._future:
@@ -178,7 +205,9 @@ class AsyncSupervisor(Supervisor):
         self._loop = asyncio.get_running_loop()
         self._future: Optional[asyncio.Future] = None
 
-    def watch(self, future: Union[asyncio.Future, concurrent.futures.Future]) -> None:
+    def set_future(
+        self, future: Union[asyncio.Future, concurrent.futures.Future]
+    ) -> None:
         # Ensure we're working with an asyncio future internally
         if isinstance(future, concurrent.futures.Future):
             future = asyncio.wrap_future(future)
@@ -186,7 +215,7 @@ class AsyncSupervisor(Supervisor):
         future.add_done_callback(
             lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait(None))
         )
-        self._future = future
+        super().set_future(future)
 
     def _put_work_item(self, work_item: WorkItem):
         # We must put items in the queue from the event loop that owns it
@@ -203,7 +232,7 @@ class AsyncSupervisor(Supervisor):
                 break
 
             result = work_item.run()
-            if isinstance(result, Coroutine):
+            if inspect.isawaitable(result):
                 await result
 
             del work_item

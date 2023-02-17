@@ -26,7 +26,7 @@ def call_soon_in_runtime_thread(__fn, *args, **kwargs) -> SyncSupervisor:
         else:
             future = current_future.send_call(__fn, *args, **kwargs)
 
-    supervisor.watch(future)
+    supervisor.set_future(future)
     return supervisor
 
 
@@ -40,7 +40,7 @@ def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncSupervisor:
     supervisor = SyncSupervisor()
     with set_supervisor(supervisor):
         future = runtime.submit_to_worker_thread(__fn, *args, **kwargs)
-    supervisor.watch(future)
+    supervisor.set_future(future)
     return supervisor
 
 
