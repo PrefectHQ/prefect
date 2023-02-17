@@ -1,5 +1,20 @@
 # Prefect Release Notes
 
+## Release 2.8.2
+
+### Fixes
+- Reenable plugin loading in `prefect` module init — https://github.com/PrefectHQ/prefect/pull/8569
+
+### Documentation
+- Fix logging format override example — https://github.com/PrefectHQ/prefect/pull/8565
+
+
+### Experimental
+- Add events client to `PrefectClient` — https://github.com/PrefectHQ/prefect/pull/8546
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.1...2.8.2
+
 ## Release 2.8.1
 
 ### New names, same behavior
