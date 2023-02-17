@@ -1,9 +1,11 @@
 import importlib
 import pathlib
 import textwrap
+from unittest.mock import Mock
 
 import pytest
 
+import prefect
 from prefect.plugins import load_extra_entrypoints
 from prefect.settings import PREFECT_EXTRA_ENTRYPOINTS, temporary_settings
 from prefect.testing.utilities import exceptions_equal
@@ -236,3 +238,20 @@ def test_load_extra_entrypoints_missing_attribute(capsys):
         "Warning! Failed to load extra entrypoint 'test_module_name:missing_attr': "
         "AttributeError"
     ) in stderr
+
+
+def test_plugins_load_on_prefect_package_init(monkeypatch):
+    mock_load_prefect_collections = Mock()
+    mock_load_extra_entrypoints = Mock()
+
+    monkeypatch.setattr(
+        prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
+    )
+    monkeypatch.setattr(
+        prefect.plugins, "load_extra_entrypoints", mock_load_extra_entrypoints
+    )
+
+    importlib.reload(prefect)
+
+    mock_load_prefect_collections.assert_called_once()
+    mock_load_extra_entrypoints.assert_called_once()
