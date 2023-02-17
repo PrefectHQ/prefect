@@ -2018,11 +2018,10 @@ if __name__ == "__main__":
         # Let the exit code be determined by the base exception type
         raise
 
-# Run the on_failure and on_completion hooks for a flow, making sure to
-# log any errors that occur and catch them
+
 async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
     """Run the on_failure and on_completion hooks for a flow, making sure to
-    log any errors that occur and catch them.
+    catch and log any errors that occur.
     """
     hooks = None
     if state.is_failed() and flow.on_failure:
