@@ -44,10 +44,11 @@
   provide(workspaceApiKey, api)
   provide(workspaceRoutesKey, routes)
 
-  const healthy = await api.health.checkHealth()
-  if (!healthy) {
-    showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
-  }
+  api.health.isHealthy().then(healthy => {
+    if (!healthy) {
+      showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+    }
+  })
 
   const { mobileMenuOpen, toggle, close } = useMobileMenuOpen()
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
