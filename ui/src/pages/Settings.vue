@@ -32,8 +32,10 @@
   const crumbs = [{ text: 'Settings' }]
 
   const api = usePrefectApi()
-  const engineSettings = await api.admin.getSettings()
-  const version = await api.admin.getVersion()
+  const [engineSettings, version] = await Promise.all([
+    api.admin.getSettings(),
+    api.admin.getVersion(),
+  ])
 
   usePageTitle('Settings')
 </script>
