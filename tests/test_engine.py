@@ -1497,7 +1497,6 @@ class TestTaskRunCrashes:
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
         self, flow_run, orion_client, interrupt_type, monkeypatch
     ):
-
         monkeypatch.setattr(
             "prefect.engine.orchestrate_task_run", AsyncMock(side_effect=interrupt_type)
         )
@@ -2022,7 +2021,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_with_untrackables(
         self, test_input, get_flow_run_context, state
     ):
-
         with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {}
@@ -2149,7 +2147,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_marks_trackability_in_state_details(
         self, get_flow_run_context, test_input, expected_status, state
     ):
-
         with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status

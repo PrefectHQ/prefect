@@ -60,7 +60,6 @@ async def test_version_route(client):
 
 
 class TestCreateOrionAPI:
-
     BUILTIN_ROUTES = {
         "GET /redoc",
         "GET /health",
@@ -307,7 +306,6 @@ class TestMemoizeBlockAutoRegistration:
     async def test_runs_wrapped_function_when_hashing_fails(
         self, memo_store_with_accurate_key
     ):
-
         test_func = AsyncMock()
 
         with patch("prefect.server.api.server.hash_objects") as mock:

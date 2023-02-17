@@ -50,7 +50,6 @@ async def data(flow_function, db):
     # auto-generated names never conflict.
 
     async with db.session_context(begin_transaction=True) as session:
-
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
         create_deployment = lambda deployment: models.deployments.create_deployment(
             session=session, deployment=deployment
@@ -293,7 +292,6 @@ async def data(flow_function, db):
 
 
 class TestCountFlowsModels:
-
     params = [
         [{}, 4],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
@@ -435,7 +433,6 @@ class TestCountFlowsModels:
 
 
 class TestCountFlowRunModels:
-
     params = [
         [{}, 12],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 8],
@@ -656,7 +653,6 @@ class TestCountFlowRunModels:
 
 
 class TestCountTaskRunsModels:
-
     params = [
         [{}, 10],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 6],
@@ -820,7 +816,6 @@ class TestCountTaskRunsModels:
 
 
 class TestCountDeploymentModels:
-
     params = [
         [{}, 3],
         [

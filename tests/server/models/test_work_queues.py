@@ -67,7 +67,6 @@ class TestCreateWorkQueue:
 
 class TestReadWorkQueue:
     async def test_read_work_queue_by_id(self, session, work_queue):
-
         read_work_queue = await models.work_queues.read_work_queue(
             session=session, work_queue_id=work_queue.id
         )
@@ -81,7 +80,6 @@ class TestReadWorkQueue:
 
 class TestReadWorkQueueByName:
     async def test_read_work_queue_by_name(self, session, work_queue):
-
         read_work_queue = await models.work_queues.read_work_queue_by_name(
             session=session, name=work_queue.name
         )
@@ -98,7 +96,6 @@ class TestReadWorkQueueByName:
 class TestReadWorkQueues:
     @pytest.fixture
     async def work_queues(self, session):
-
         work_queue_1 = await models.work_queues.create_work_queue(
             session=session,
             work_queue=schemas.actions.WorkQueueCreate(

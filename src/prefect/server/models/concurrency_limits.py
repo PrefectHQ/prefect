@@ -138,7 +138,6 @@ async def delete_concurrency_limit(
     concurrency_limit_id: UUID,
     db: PrefectDBInterface,
 ) -> bool:
-
     query = sa.delete(db.ConcurrencyLimit).where(
         db.ConcurrencyLimit.id == concurrency_limit_id
     )
@@ -153,7 +152,6 @@ async def delete_concurrency_limit_by_tag(
     tag: str,
     db: PrefectDBInterface,
 ) -> bool:
-
     query = sa.delete(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)

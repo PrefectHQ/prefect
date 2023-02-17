@@ -54,7 +54,6 @@ def upgrade():
     with op.get_context().autocommit_block():
         conn = op.get_bind()
         for query in migration_statements:
-
             batch_size = 500
 
             while True:

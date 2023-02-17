@@ -290,7 +290,6 @@ class BaseQueryComponents(ABC):
         scheduled_after: Optional[datetime.datetime] = None,
         respect_queue_priorities: bool = False,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
-
         template = jinja_env.get_template(
             self._get_scheduled_flow_runs_from_work_pool_template_path
         )
@@ -380,7 +379,6 @@ class BaseQueryComponents(ABC):
         offset: Optional[int] = None,
         limit: Optional[int] = None,
     ):
-
         # if no filter is provided, one is created that excludes anonymous blocks
         if block_document_filter is None:
             block_document_filter = schemas.filters.BlockDocumentFilter(
@@ -597,7 +595,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     async def get_flow_run_notifications_from_queue(
         self, session: AsyncSession, db: "PrefectDBInterface", limit: int
     ) -> List:
-
         # including this as a subquery in the where clause of the
         # `queued_notifications` statement below, leads to errors where the limit
         # is not respected if it is 1. pulling this out into a CTE statement
@@ -870,7 +867,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         limit_per_queue: Optional[int],
         scheduled_before: Optional[datetime.datetime],
     ):
-
         # precompute for readability
         scheduled_before_clause = (
             db.FlowRun.next_scheduled_start_time <= scheduled_before

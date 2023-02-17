@@ -444,7 +444,6 @@ class TestUpdatingDeployments:
         )
 
     def test_set_schedule_updating_anchor_date_respected(self, flojo):
-
         invoke_and_assert(
             [
                 "deployment",

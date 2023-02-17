@@ -37,7 +37,6 @@ def upgrade():
 
 
 def downgrade():
-
     op.execute(
         """
         UPDATE work_queue

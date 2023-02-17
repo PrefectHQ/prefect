@@ -86,10 +86,8 @@ async def work_queue(db, work_pool):
 
 @pytest.fixture(autouse=True, scope="module")
 async def data(db, work_queue):
-
     session = await db.session()
     async with session:
-
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
         create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
             session=session, flow_run=flow_run
@@ -103,7 +101,6 @@ async def data(db, work_queue):
 
         # have a completed flow every 12 hours except weekends
         for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 12):
-
             # skip weekends
             if d.day_of_week in (0, 6):
                 continue
@@ -119,7 +116,6 @@ async def data(db, work_queue):
 
         # have a failed flow every 36 hours except the last 3 days
         for d in pendulum.period(dt.subtract(days=14), dt).range("hours", 36):
-
             # skip recent runs
             if dt.subtract(days=3) <= d < dt:
                 continue
@@ -780,7 +776,6 @@ async def test_last_bin_contains_end_date(client, route):
 
 @pytest.mark.flaky(max_runs=3)
 async def test_flow_run_lateness(client, session):
-
     await session.execute("delete from flow where true;")
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))

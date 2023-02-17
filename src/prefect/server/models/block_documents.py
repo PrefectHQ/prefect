@@ -29,7 +29,6 @@ async def create_block_document(
     block_document: schemas.actions.BlockDocumentCreate,
     db: PrefectDBInterface,
 ):
-
     # anonymous block documents can be given a random name if none is provided
     if block_document.is_anonymous and not block_document.name:
         name = f"anonymous-{uuid4()}"
@@ -130,7 +129,6 @@ async def read_block_document_by_id(
     db: PrefectDBInterface,
     include_secrets: bool = False,
 ):
-
     block_documents = await read_block_documents(
         session=session,
         db=db,
@@ -412,7 +410,6 @@ async def delete_block_document(
     block_document_id: UUID,
     db: PrefectDBInterface,
 ) -> bool:
-
     query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
     result = await session.execute(query)
     return result.rowcount > 0
@@ -425,7 +422,6 @@ async def update_block_document(
     block_document: schemas.actions.BlockDocumentUpdate,
     db: PrefectDBInterface,
 ) -> bool:
-
     merge_existing_data = block_document.merge_existing_data
     current_block_document = await session.get(db.BlockDocument, block_document_id)
     if not current_block_document:

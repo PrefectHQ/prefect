@@ -182,7 +182,6 @@ def create_orion_api(
 
     if router_overrides:
         for prefix, router in router_overrides.items():
-
             # We may want to allow this behavior in the future to inject new routes, but
             # for now this will be treated an as an exception
             if prefix not in routers:
@@ -195,7 +194,6 @@ def create_orion_api(
 
             # Replace it with a new router if provided
             if router is not None:
-
                 if prefix != router.prefix:
                     # We may want to allow this behavior in the future, but it will
                     # break expectations without additional routing and is banned for

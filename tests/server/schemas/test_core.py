@@ -189,7 +189,6 @@ class TestTaskRunPolicy:
 class TestTaskRun:
     def test_task_run_cache_key_greater_than_user_configured_max_length(self):
         with temporary_settings({PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: 5}):
-
             cache_key_invalid_length = "X" * 6
             with pytest.raises(
                 pydantic.ValidationError,
@@ -233,7 +232,6 @@ class TestTaskRun:
             )
 
     def test_task_run_cache_key_greater_than_default_max_length(self):
-
         cache_key_invalid_length = "X" * 2001
         with pytest.raises(
             pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
@@ -257,7 +255,6 @@ class TestTaskRun:
             )
 
     def test_task_run_cache_key_length_within_default_max_length(self):
-
         cache_key_valid_length = "X" * 2000
         schemas.core.TaskRun(
             id=uuid4(),

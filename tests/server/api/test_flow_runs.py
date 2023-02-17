@@ -75,7 +75,6 @@ class TestCreateFlowRun:
         assert response.json()["state"]["type"] == "PENDING"
 
     async def test_create_multiple_flow_runs(self, flow, client, session, db):
-
         response1 = await client.post(
             "/flow_runs/",
             json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
@@ -177,7 +176,6 @@ class TestCreateFlowRun:
         client,
         session,
     ):
-
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=core.Deployment(

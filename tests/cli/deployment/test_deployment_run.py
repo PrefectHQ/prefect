@@ -270,7 +270,6 @@ async def test_start_in_option_displays_scheduled_start_time(
     start_in: str,
     expected_display: str,
 ):
-
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[

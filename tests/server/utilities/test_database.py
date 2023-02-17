@@ -305,7 +305,6 @@ class TestJSON:
     async def test_json_contains_both_sides_columns(
         self, session, id_for_keys, ids_for_results
     ):
-
         query = (
             sa.select(SQLJSONModel)
             .where(
@@ -445,7 +444,6 @@ class TestDateFunctions:
 
     @pytest.fixture(autouse=True)
     async def create_data(self, session):
-
         model = SQLTimestampModel(
             ts_1=pendulum.datetime(2021, 1, 1),
             ts_2=pendulum.datetime(2021, 1, 4, 0, 5),
@@ -511,7 +509,6 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
         RuntimeError,
         match="Prefect requires sqlite >= 3.24.0 but we found version 3.23.9",
     ):
-
         db = PrefectDBInterface(
             database_config=AioSqliteConfiguration(
                 connection_url="sqlite+aiosqlite:///file::memory",

@@ -74,7 +74,6 @@ class TestCreateFlowRunNotificationPolicy:
 
 class TestReadFlowRunNotificationPolicy:
     async def test_read_policy(self, client, completed_policy):
-
         response = await client.get(
             f"/flow_run_notification_policies/{completed_policy.id}"
         )

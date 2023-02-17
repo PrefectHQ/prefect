@@ -159,7 +159,6 @@ async def test_worker_applies_discovered_deployments(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
     read_deployment = await orion_client.read_deployment_by_name(
@@ -183,7 +182,6 @@ async def test_worker_applies_updates_to_deployments(
         work_pool_name=work_pool.name,
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -220,7 +218,6 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -255,7 +252,6 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         assert len(await orion_client.read_deployments()) == 0

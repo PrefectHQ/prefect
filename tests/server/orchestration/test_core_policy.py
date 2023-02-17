@@ -1489,7 +1489,6 @@ class TestTaskConcurrencyLimits:
         run_type,
         initialize_orchestration,
     ):
-
         await self.create_concurrency_limit(session, "a generous limit", 10)
 
         concurrency_policy = [

@@ -82,7 +82,6 @@ async def read_block_document_by_id(
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.BlockDocument:
-
     async with db.session_context() as session:
         block_document = await models.block_documents.read_block_document_by_id(
             session=session,

@@ -435,7 +435,6 @@ class TestReadBlockDocumentByNameForBlockType:
 
 class TestSystemBlockTypes:
     async def test_install_system_block_types(self, client):
-
         response = await client.post("/block_types/filter")
         block_types = pydantic.parse_obj_as(List[BlockType], response.json())
         assert len(block_types) == 0
@@ -448,7 +447,6 @@ class TestSystemBlockTypes:
         assert len(block_types) > 0
 
     async def test_install_system_block_types_multiple_times(self, client):
-
         response = await client.post("/block_types/filter")
         block_types = pydantic.parse_obj_as(List[BlockType], response.json())
         assert len(block_types) == 0

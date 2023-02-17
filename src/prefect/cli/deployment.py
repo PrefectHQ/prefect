@@ -483,7 +483,6 @@ async def run(
             warnings.filterwarnings("ignore", module="dateparser")
 
             try:
-
                 start_time_parsed = dateparser.parse(
                     start_time_raw,
                     settings={
@@ -618,7 +617,6 @@ async def apply(
     Create or update a deployment from a YAML file.
     """
     for path in paths:
-
         try:
             deployment = await Deployment.load_from_yaml(path)
             app.console.print(f"Successfully loaded {deployment.name!r}", style="green")

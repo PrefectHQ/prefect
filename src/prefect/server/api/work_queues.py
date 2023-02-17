@@ -156,7 +156,6 @@ async def _record_work_queue_polls(
     If an agent_id is provided, we update this agent id's last poll time.
     """
     async with db.session_context(begin_transaction=True) as session:
-
         await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue_id,

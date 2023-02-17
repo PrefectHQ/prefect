@@ -967,7 +967,6 @@ class TestTaskCaching:
         assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
-
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")

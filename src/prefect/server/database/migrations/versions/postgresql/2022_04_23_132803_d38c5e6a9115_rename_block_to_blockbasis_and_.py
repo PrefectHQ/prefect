@@ -32,7 +32,6 @@ def upgrade():
         batch_op.drop_constraint("pk_block_data")
 
     with op.batch_alter_table("block_document", schema=None) as batch_op:
-
         batch_op.create_index(
             batch_op.f("ix_block_document__is_default_storage_block_document"),
             ["is_default_storage_block_document"],

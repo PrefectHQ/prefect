@@ -114,7 +114,6 @@ class TestGetRunsInWorkQueue:
         flow_run_6_id,
         flow_run_7_id,
     ):
-
         # flow run 1 is in a SCHEDULED state 5 seconds ago
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -534,7 +533,6 @@ class TestCheckWorkQueuesForDeployment:
         # Generate all combinations of work queues
         for t in tags:
             for d in deployments:
-
                 await models.work_queues.create_work_queue(
                     session=session,
                     work_queue=schemas.actions.WorkQueueCreate(

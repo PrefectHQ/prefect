@@ -24,7 +24,6 @@ from prefect.testing.utilities import assert_does_not_warn
 
 @contextmanager
 def reload_prefect_base_model(test_mode_value) -> Type[PrefectBaseModel]:
-
     original_base_model = prefect.server.utilities.schemas.PrefectBaseModel
     original_environment = os.environ.get("PREFECT_TEST_MODE")
     if test_mode_value is not None:
@@ -62,7 +61,6 @@ class TestExtraForbidden:
 
     @pytest.mark.parametrize("falsey_value", ["0", "False", "", None])
     def test_extra_attributes_are_allowed_outside_test_mode(self, falsey_value):
-
         with reload_prefect_base_model(falsey_value) as PrefectBaseModel:
 
             class Model(PrefectBaseModel):
@@ -72,7 +70,6 @@ class TestExtraForbidden:
 
     @pytest.mark.parametrize("truthy_value", ["1", "True", "true"])
     def test_extra_attributes_are_not_allowed_with_truthy_test_mode(self, truthy_value):
-
         with reload_prefect_base_model(truthy_value) as PrefectBaseModel:
 
             class Model(PrefectBaseModel):
@@ -158,7 +155,6 @@ class TestPydanticSubclass:
 
     def test_validators_for_missing_fields_are_ok(self):
         class Parent2(pydantic.BaseModel):
-
             x: int
             y: int = 2
 
@@ -221,7 +217,6 @@ class TestNestedDict:
 
 class TestJsonCompatibleDict:
     class Model(PrefectBaseModel):
-
         x: UUID
         y: datetime.datetime
 

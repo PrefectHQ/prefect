@@ -96,7 +96,6 @@ async def ls(
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
-
         row = [
             f"{pool.name} [red](**)" if pool.is_paused else pool.name,
             str(pool.type),

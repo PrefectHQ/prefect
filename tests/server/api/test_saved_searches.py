@@ -89,7 +89,6 @@ class TestCreateSavedSearch:
 
 class TestReadSavedSearch:
     async def test_read_saved_search(self, client):
-
         # first create a saved_search to read
         data = SavedSearchCreate(
             name="My SavedSearch",
