@@ -23,16 +23,19 @@ def call_soon_in_runtime_thread(
 
     Returns a supervisor.
     """
-    current_future = get_supervisor()
+    current_supervisor = get_supervisor()
     runtime = get_runtime_thread()
 
     supervisor = SyncSupervisor()
 
     with set_supervisor(supervisor):
-        if current_future is None or current_future.owner_thread_ident != runtime.ident:
+        if (
+            current_supervisor is None
+            or current_supervisor.owner_thread_ident != runtime.ident
+        ):
             future = runtime.submit_to_loop(__fn, *args, **kwargs)
         else:
-            future = current_future.send_call(__fn, *args, **kwargs)
+            future = current_supervisor.send_call(__fn, *args, **kwargs)
 
     supervisor.set_future(future)
     return supervisor
@@ -65,12 +68,12 @@ def call_soon_in_main_thread(
 
     Returns a future.
     """
-    current_future = get_supervisor()
-    if current_future is None:
+    current_supervisor = get_supervisor()
+    if current_supervisor is None:
         raise RuntimeError("No supervisor found.")
 
-    if current_future.owner_thread_ident != threading.main_thread().ident:
+    if current_supervisor.owner_thread_ident != threading.main_thread().ident:
         raise RuntimeError("Watching future is not owned by the main thread.")
 
-    future = current_future.send_call(__fn, *args, **kwargs)
+    future = current_supervisor.send_call(__fn, *args, **kwargs)
     return future

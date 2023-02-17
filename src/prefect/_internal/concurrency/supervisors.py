@@ -28,9 +28,14 @@ from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_runn
 from prefect.logging import get_logger
 
 T = TypeVar("T")
-AnyFuture = Any  # Python uses duck typing for futures; asyncio/threaded futures do not share a base class
 
-logger = get_logger("prefect._internal.concurrency.futures")
+# Python uses duck typing for futures; asyncio/threaded futures do not share a base
+AnyFuture = Any
+
+# TODO: We should update the format for this logger to include the current thread
+logger = get_logger("prefect._internal.concurrency.supervisors")
+
+# Tracks the current supervisor managed by `set_supervisor`
 current_supervisor: contextvars.ContextVar["Supervisor"] = contextvars.ContextVar(
     "current_supervisor"
 )
@@ -52,7 +57,7 @@ def set_supervisor(supervisor: "Supervisor"):
 @dataclasses.dataclass
 class WorkItem:
     """
-    Transport of a deferred function call.
+    A deferred function call.
     """
 
     future: concurrent.futures.Future
