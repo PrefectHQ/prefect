@@ -100,7 +100,7 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import isiterable, visit_collection
+from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -1729,7 +1729,7 @@ async def resolve_inputs(
 
         # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
-            return expr
+            raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
