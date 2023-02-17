@@ -66,7 +66,6 @@ def upgrade():
     with op.get_context().autocommit_block():
         conn = op.get_bind()
         for query in data_migration_queries:
-
             batch_size = 500
             offset = 0
 
@@ -114,7 +113,6 @@ def downgrade():
     with op.get_context().autocommit_block():
         conn = op.get_bind()
         for query in data_migration_queries:
-
             batch_size = 500
 
             while True:

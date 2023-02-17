@@ -288,7 +288,6 @@ class TestUpdateBlockType:
 
 class TestDeleteBlockType:
     async def test_delete_block_type(self, session, block_type_x):
-
         await models.block_types.delete_block_type(
             session=session, block_type_id=block_type_x.id
         )

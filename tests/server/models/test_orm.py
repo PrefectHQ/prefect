@@ -96,7 +96,6 @@ class TestFlowRun:
     async def test_flow_run_state_relationship_retrieves_current_state(
         self, many_flow_run_states, session, db
     ):
-
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(db.FlowRunState)
@@ -244,7 +243,6 @@ class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
         self, many_task_run_states, session, db
     ):
-
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(db.TaskRunState)

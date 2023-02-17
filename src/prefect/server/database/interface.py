@@ -46,7 +46,6 @@ class PrefectDBInterface(metaclass=DBSingleton):
         query_components: BaseQueryComponents,
         orm: BaseORMConfiguration,
     ):
-
         self.database_config = database_config
         self.queries = query_components
         self.orm = orm

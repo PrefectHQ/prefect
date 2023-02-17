@@ -93,7 +93,6 @@ class TestOrchestrationResult:
 
 class TestBaseOrchestrationRule:
     async def test_orchestration_rules_are_context_managers(self, session, task_run):
-
         side_effect = 0
 
         class IllustrativeRule(BaseOrchestrationRule):
@@ -298,7 +297,6 @@ class TestBaseOrchestrationRule:
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
         async with fizzling_rule as ctx:
-
             # within the context, only the before-hook has fired and we can observe the side-effect
             assert side_effect == 1
 
@@ -1635,7 +1633,6 @@ class TestNullRejection:
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         async with contextlib.AsyncExitStack() as stack:
-
             # first enter a minimal rule that fires its pre-transition hook
             minimal_rule = MinimalRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(minimal_rule)
@@ -1722,7 +1719,6 @@ class TestNullRejection:
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         async with contextlib.AsyncExitStack() as stack:
-
             # the null rejection rule rejects the transition
             null_rejector = NullRejectionRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(null_rejector)

@@ -124,7 +124,6 @@ def deprecated_parameter(
     when = when or (lambda _: True)
 
     def decorator(fn: T):
-
         message = generate_deprecation_message(
             name=f"The parameter {name!r} for {fn.__name__!r}",
             start_date=start_date,

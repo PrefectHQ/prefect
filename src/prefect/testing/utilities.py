@@ -99,7 +99,6 @@ def kubernetes_environments_equal(
     actual: List[Dict[str, str]],
     expected: Union[List[Dict[str, str]], Dict[str, str]],
 ):
-
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
         expected = [{"name": key, "value": value} for key, value in expected.items()]

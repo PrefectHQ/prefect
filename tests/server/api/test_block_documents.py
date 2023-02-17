@@ -56,7 +56,6 @@ async def block_schemas(session, block_type_x, block_type_y):
     )
 
     class B(CanFly, Block):
-
         x: int
 
     block_type_b = await models.block_types.create_block_type(
@@ -329,7 +328,6 @@ class TestReadBlockDocument:
 class TestReadBlockDocuments:
     @pytest.fixture(autouse=True)
     async def block_documents(self, session, block_schemas):
-
         block_documents = []
         block_documents.append(
             await models.block_documents.create_block_document(
@@ -1149,7 +1147,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_id_obfuscates_results(
         self, client, secret_block_document
     ):
-
         response = await client.get(
             f"/block_documents/{secret_block_document.id}",
             params=dict(),
@@ -1164,7 +1161,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_id_with_secrets(
         self, client, secret_block_document
     ):
-
         response = await client.get(
             f"/block_documents/{secret_block_document.id}",
             params=dict(include_secrets=True),
@@ -1195,7 +1191,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_by_name_with_secrets(
         self, client, secret_block_document
     ):
-
         response = await client.get(
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents",
             params=dict(include_secrets=True),
@@ -1227,7 +1222,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_name_with_secrets(
         self, client, secret_block_document
     ):
-
         response = await client.get(
             f"/block_types/slug/{secret_block_document.block_type.slug}/block_documents/name/{secret_block_document.name}",
             params=dict(include_secrets=True),
@@ -1242,7 +1236,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_obfuscates_results(
         self, client, secret_block_document
     ):
-
         response = await client.post(
             f"/block_documents/filter",
             json=dict(),
@@ -1260,7 +1253,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_with_secrets(
         self, client, secret_block_document
     ):
-
         response = await client.post(
             f"/block_documents/filter",
             json=dict(include_secrets=True),

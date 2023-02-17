@@ -87,7 +87,6 @@ class TestCreateFlowRunState:
     async def test_database_is_not_updated_when_no_transition_takes_place(
         self, flow_run, session
     ):
-
         # place the run in a scheduled state in the future
         frs = await models.flow_runs.set_flow_run_state(
             session=session,

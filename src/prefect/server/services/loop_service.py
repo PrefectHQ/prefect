@@ -130,7 +130,6 @@ class LoopService:
         self._stop()
 
         if block:
-
             # if block=True, sleep until the service stops running,
             # but no more than `loop_seconds` to avoid a deadlock
             with anyio.move_on_after(self.loop_seconds):

@@ -2186,7 +2186,6 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: schemas.actions.WorkPoolUpdate,
     ):
-
         await self._client.patch(
             f"/work_pools/{work_pool_name}",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),

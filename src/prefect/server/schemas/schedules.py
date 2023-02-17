@@ -184,7 +184,6 @@ class IntervalSchedule(PrefectBaseModel):
         dates = set()
 
         while True:
-
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
@@ -343,7 +342,6 @@ class CronSchedule(PrefectBaseModel):
         counter = 0
 
         while True:
-
             next_date = pendulum.instance(cron.get_next(datetime.datetime))
             # if the end date was exceeded, exit
             if end and next_date > end:
@@ -575,7 +573,6 @@ class RRuleSchedule(PrefectBaseModel):
         # pass count = None to account for discrepancies with duplicates around DST
         # boundaries
         for next_date in self.to_rrule().xafter(start, count=None, inc=True):
-
             next_date = pendulum.instance(next_date).in_tz(self.timezone)
 
             # if the end date was exceeded, exit

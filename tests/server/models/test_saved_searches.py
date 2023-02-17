@@ -97,7 +97,6 @@ class TestReadSavedSearch:
 class TestReadSavedSearches:
     @pytest.fixture
     async def saved_searches(self, session):
-
         saved_search_1 = await models.saved_searches.create_saved_search(
             session=session,
             saved_search=schemas.core.SavedSearch(

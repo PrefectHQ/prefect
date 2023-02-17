@@ -135,7 +135,6 @@ class APILogWorker:
 
         # Loop until the queue is empty or we encounter an error
         while not done:
-
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
                 while self._pending_size < max_batch_size:

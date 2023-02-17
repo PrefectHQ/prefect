@@ -16,7 +16,6 @@ class TestCreateDeployment:
     async def test_create_deployment_succeeds(
         self, session, flow, infrastructure_document_id
     ):
-
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -59,7 +58,6 @@ class TestCreateDeployment:
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow
     ):
-
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -95,7 +93,6 @@ class TestCreateDeployment:
         infrastructure_document_id,
         infrastructure_document_id_2,
     ):
-
         openapi_schema = {
             "title": "Parameters",
             "type": "object",

@@ -90,7 +90,6 @@ def mock_docker_client(monkeypatch):
 def test_name_cast_to_valid_container_name(
     mock_docker_client, requested_name, container_name
 ):
-
     DockerContainer(command=["echo", "hello"], name=requested_name).run()
     mock_docker_client.containers.create.assert_called_once()
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
@@ -135,7 +134,6 @@ async def test_kill_raises_infra_not_available_with_bad_host_url(mock_docker_cli
 async def test_kill_raises_infra_not_found_with_bad_container_id(
     mock_docker_client,
 ):
-
     mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
 
     BAD_CONTAINER_ID = "bad-container-id"
@@ -265,7 +263,6 @@ def test_uses_network_setting(mock_docker_client, networks):
 def test_uses_label_setting(
     mock_docker_client,
 ):
-
     DockerContainer(
         command=["echo", "hello"], labels={"foo": "FOO", "bar": "BAR"}
     ).run()
@@ -277,7 +274,6 @@ def test_uses_label_setting(
 def test_uses_network_mode_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], network_mode="bridge").run()
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -287,7 +283,6 @@ def test_uses_network_mode_setting(
 def test_uses_env_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}).run()
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
@@ -417,7 +412,6 @@ def test_network_mode_defaults_to_none_if_using_networks(mock_docker_client):
 
 
 def test_network_mode_defaults_to_none_if_using_nonlocal_api(mock_docker_client):
-
     DockerContainer(
         command=["echo", "hello"], env=dict(PREFECT_API_URL="http://foo/test")
     ).run()
@@ -463,7 +457,6 @@ def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
 def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     mock_docker_client, hosted_orion_api
 ):
-
     DockerContainer(
         command=["echo", "hello"],
         network_mode="bridge",

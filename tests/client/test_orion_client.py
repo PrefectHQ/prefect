@@ -1148,7 +1148,6 @@ async def test_create_then_read_flow_run_notification_policy(
 
 
 async def test_read_filtered_logs(session, orion_client, deployment):
-
     flow_runs = [uuid4() for i in range(5)]
     logs = [
         LogCreate(

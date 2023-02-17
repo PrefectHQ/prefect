@@ -59,7 +59,6 @@ class MarkLateRuns(LoopService):
 
         while True:
             async with db.session_context(begin_transaction=True) as session:
-
                 query = self._get_select_late_flow_runs_query(
                     scheduled_to_start_before=scheduled_to_start_before, db=db
                 )

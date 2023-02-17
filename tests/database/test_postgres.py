@@ -14,7 +14,6 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture
 async def populate(session, tests_dir):
-
     with open(tests_dir.joinpath("scripts", "populate_database.sql"), "r") as sql_file:
         raw_sql = sql_file.read().rstrip()
         stmts = raw_sql.split(";")

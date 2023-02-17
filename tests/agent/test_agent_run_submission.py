@@ -341,7 +341,6 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
     async with PrefectAgent(
         work_queues=[work_queue.name], prefetch_seconds=10
     ) as agent:
-
         await agent.get_and_submit_flow_runs()
         mock.assert_awaited_once()
 

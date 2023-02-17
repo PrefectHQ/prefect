@@ -47,7 +47,6 @@ def manifest_orion(
     ),
     log_level: str = SettingsOption(PREFECT_LOGGING_SERVER_LEVEL),
 ):
-
     app.console.print(
         generate_deprecation_message(
             "The `prefect kubernetes manifest orion` command",

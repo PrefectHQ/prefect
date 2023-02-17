@@ -129,7 +129,6 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
     config_file.write_text("foo: bar")
 
     with temporary_settings({PREFECT_LOGGING_SETTINGS_PATH: config_file}):
-
         setup_logging()
         expected_config = load_logging_config(tmp_path.joinpath("exists.yaml"))
         expected_config["incremental"] = False
@@ -138,7 +137,6 @@ def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
-
     with temporary_settings(
         {PREFECT_LOGGING_SETTINGS_PATH: tmp_path.joinpath("does-not-exist.yaml")}
     ):
@@ -828,7 +826,6 @@ class TestAPILogWorker:
         assert len(logs) == 2
 
     def test_batch_interval_is_respected(self, get_worker):
-
         with temporary_settings(updates={PREFECT_LOGGING_TO_API_BATCH_INTERVAL: "5"}):
             worker = get_worker()
             worker._flush_event = MagicMock(return_val=False)
@@ -1269,7 +1266,6 @@ class TestJsonFormatter:
         assert deserialized["lineno"] == 1
 
     def test_json_log_formatter_with_exception(self):
-
         exc_info = None
         try:
             raise Exception("test exception")  # noqa

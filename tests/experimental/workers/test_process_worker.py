@@ -199,7 +199,6 @@ async def test_process_worker_logs_exit_code_help_message(
     work_pool,
     monkeypatch,
 ):
-
     read_deployment_mock = patch_read_deployment(monkeypatch)
     patch_run_process(returncode=exit_code)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:

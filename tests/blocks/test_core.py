@@ -808,7 +808,6 @@ class TestAPICompatibility:
         assert FlyingCat.get_block_capabilities() == {"fly", "run"}
 
     def test_create_block_schema_from_nested_blocks(self):
-
         block_schema_id = uuid4()
         block_type_id = uuid4()
 
@@ -2057,7 +2056,6 @@ class TestSyncCompatible:
         assert loaded_block.cool_factor == 1000000
 
     def test_block_in_flow_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2069,7 +2067,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_sync_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2081,7 +2078,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_async_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2093,7 +2089,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     def test_block_in_task_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -2109,7 +2104,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -2125,7 +2119,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_async_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
