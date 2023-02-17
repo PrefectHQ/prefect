@@ -2086,7 +2086,7 @@ class TestFlowHooksOnCompletion:
         def completed2(flow, flow_run, state):
             my_mock("completed2")
 
-        @flow(on_completion=[completed1, exception_hook(), completed2])
+        @flow(on_completion=[completed1, exception_hook, completed2])
         def my_flow():
             pass
 
