@@ -597,6 +597,7 @@ class KubernetesJob(Infrastructure):
                     self.namespace,
                     follow=True,
                     _preload_content=False,
+                    container="prefect-job",
                 )
                 try:
                     for log in logs.stream():
