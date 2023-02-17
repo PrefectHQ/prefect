@@ -4,7 +4,7 @@ import sys
 import time
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import anyio
 import pydantic
@@ -2037,3 +2037,200 @@ async def test_sets_run_name_with_params_including_defaults(orion_client):
     assert state.type == StateType.COMPLETED
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
     assert flow_run.name == "hi-one-two"
+
+
+class TestFlowHooksOnCompletion:
+    def test_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    def test_on_completion_hooks_dont_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == []
+
+    def test_other_completion_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def failed_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, failed_hook, completed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == []
+
+    def test_on_completion_hooks_work_with_async_function(self):
+        my_mock = MagicMock()
+
+        async def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        async def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    def test_on_completion_hooks_work_with_async_and_sync_function(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("sync_completed1")
+
+        async def completed2(flow, flow_run, state):
+            my_mock("async_completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [
+            call("sync_completed1"),
+            call("async_completed2"),
+        ]
+
+
+class TestFlowHooksOnFailure:
+    def test_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_dont_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == []
+
+    def test_other_failure_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        def failed3(flow, flow_run, state):
+            raise Exception("oops")
+
+        @flow(on_failure=[failed1, failed2, failed3])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_work_with_async_function(self):
+        my_mock = MagicMock()
+
+        async def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        async def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_work_with_async_and_sync_function(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("sync_failed1")
+
+        async def failed2(flow, flow_run, state):
+            my_mock("async_failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("sync_failed1"), call("async_failed2")]
+
+    def test_failure_hooks_dont_run_on_retries(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        @flow(retries=2, on_failure=[failed1])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1")]
