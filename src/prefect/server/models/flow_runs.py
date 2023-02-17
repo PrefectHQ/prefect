@@ -205,7 +205,6 @@ async def _apply_flow_run_filters(
         query = query.where(exists_clause.exists())
 
     if flow_filter or task_run_filter:
-
         if flow_filter:
             exists_clause = select(db.Flow).where(
                 db.Flow.id == db.FlowRun.flow_id,

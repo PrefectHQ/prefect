@@ -143,7 +143,6 @@ class WorkerFlowRunResponse(PrefectBaseModel):
 
 @copy_model_fields
 class FlowRunResponse(ORMBaseModel):
-
     name: str = FieldFrom(schemas.core.FlowRun)
     flow_id: UUID = FieldFrom(schemas.core.FlowRun)
     state_id: Optional[UUID] = FieldFrom(schemas.core.FlowRun)

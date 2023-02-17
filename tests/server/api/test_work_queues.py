@@ -141,7 +141,6 @@ class TestReadWorkQueueByName:
     async def test_read_work_queue_by_name_with_invalid_characters_fails(
         self, client, name
     ):
-
         response = await client.get(f"/work_queues/name/{name}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
 

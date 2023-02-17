@@ -132,7 +132,6 @@ def register_type(cls: T) -> T:
 
     # Check if a base type is registered
     if registry is None:
-
         # Include a description of registered base types
         known = ", ".join(repr(base.__name__) for base in _TYPE_REGISTRIES)
         known_message = (

@@ -178,7 +178,6 @@ class TestPydanticObjects:
         assert input._z == 5
 
     def test_immutable_pydantic_behaves_as_expected(self):
-
         input = ImmutablePrivatePydantic(x=1)
 
         # Public attr accessible immediately

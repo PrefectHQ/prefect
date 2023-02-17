@@ -38,7 +38,6 @@ def upgrade():
 
 
 def downgrade():
-
     op.execute(
         """
         DROP INDEX ix_flow_name_case_insensitive;
