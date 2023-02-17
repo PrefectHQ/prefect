@@ -418,7 +418,10 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",  # noqa
+            (  # noqa
+                "pip install -e /opt/prefect/repo\\[dev\\] && touch /READY &&"
+                f" {blocking_cmd}"
+            ),
         ],
         name=name,
         auto_remove=True,

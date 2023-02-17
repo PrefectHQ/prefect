@@ -110,7 +110,8 @@ class TestCreateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The `base_job_template` must contain both a `job_configuration` key and a `variables` key."
+            "The `base_job_template` must contain both a `job_configuration` key and a"
+            " `variables` key."
             in response.json()["exception_detail"][0]["msg"]
         )
 
@@ -137,10 +138,11 @@ class TestCreateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The variables specified in the job configuration template must be present as "
-            "attributes in the variables class. Your job expects the following variables: "
-            "{'other_variable'}, but your template provides: {'command'}"
-        ) in response.json()["exception_detail"][0]["msg"]
+            "The variables specified in the job configuration template must be present"
+            " as attributes in the variables class. Your job expects the following"
+            " variables: {'other_variable'}, but your template provides: {'command'}"
+            in response.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestDeleteWorkPool:
@@ -294,7 +296,8 @@ class TestUpdateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The `base_job_template` must contain both a `job_configuration` key and a `variables` key."
+            "The `base_job_template` must contain both a `job_configuration` key and a"
+            " `variables` key."
             in response.json()["exception_detail"][0]["msg"]
         )
 
@@ -332,10 +335,11 @@ class TestUpdateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The variables specified in the job configuration template must be present as "
-            "attributes in the variables class. Your job expects the following variables: "
-            "{'other_variable'}, but your template provides: {'command'}"
-        ) in response.json()["exception_detail"][0]["msg"]
+            "The variables specified in the job configuration template must be present"
+            " as attributes in the variables class. Your job expects the following"
+            " variables: {'other_variable'}, but your template provides: {'command'}"
+            in response.json()["exception_detail"][0]["msg"]
+        )
 
 
 class TestReadWorkPool:

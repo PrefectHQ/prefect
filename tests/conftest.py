@@ -150,14 +150,18 @@ def pytest_collection_modifyitems(session, config, items):
             if not item_services:
                 item.add_marker(
                     pytest.mark.skip(
-                        "Only running tests for services. This test does not require a service."
+                        "Only running tests for services. This test does not require a"
+                        " service."
                     )
                 )
         return
 
     only_services = set(config.getoption("--only-service"))
     if only_services:
-        only_running_blurb = f"Only running tests for service(s): {', '.join(repr(s) for s in only_services)}."
+        only_running_blurb = (
+            "Only running tests for service(s):"
+            f" {', '.join(repr(s) for s in only_services)}."
+        )
         for item in items:
             item_services = {mark.args[0] for mark in item.iter_markers(name="service")}
             not_in_only_services = only_services.difference(item_services)

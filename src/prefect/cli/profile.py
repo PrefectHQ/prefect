@@ -128,7 +128,10 @@ async def use(name: str):
         ),
         ConnectionStatus.EPHEMERAL: (
             exit_with_success,
-            f"No Prefect server specified using profile {name!r} - the API will run in ephemeral mode.",
+            (
+                f"No Prefect server specified using profile {name!r} - the API will run"
+                " in ephemeral mode."
+            ),
         ),
         ConnectionStatus.INVALID_API: (
             exit_with_error,
@@ -173,7 +176,8 @@ def delete(name: str):
     current_profile = prefect.context.get_settings_context().profile
     if current_profile.name == name:
         exit_with_error(
-            f"Profile {name!r} is the active profile. You must switch profiles before it can be deleted."
+            f"Profile {name!r} is the active profile. You must switch profiles before"
+            " it can be deleted."
         )
 
     profiles.remove_profile(name)

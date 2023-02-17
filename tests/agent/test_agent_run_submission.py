@@ -834,7 +834,8 @@ class TestInfrastructureIntegration:
         )
         assert (
             f"Reported flow run '{flow_run.id}' as crashed: "
-            "Flow run infrastructure exited with non-zero status code 9." in caplog.text
+            "Flow run infrastructure exited with non-zero status code 9."
+            in caplog.text
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state

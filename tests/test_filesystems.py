@@ -247,7 +247,9 @@ class TestRemoteFileSystem:
         fs = RemoteFileSystem(basepath="memory://foo")
         with pytest.raises(
             ValueError,
-            match="with scheme 'file' must use the same scheme as the base path 'memory'",
+            match=(
+                "with scheme 'file' must use the same scheme as the base path 'memory'"
+            ),
         ):
             await fs.write_path("file://foo/test.txt", content=b"hello")
 
