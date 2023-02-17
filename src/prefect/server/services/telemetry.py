@@ -109,7 +109,6 @@ class Telemetry(LoopService):
                 )
             result.raise_for_status()
         except Exception as exc:
-
             self.logger.error(
                 f"Failed to send telemetry: {exc}\n"
                 "Shutting down telemetry service...",

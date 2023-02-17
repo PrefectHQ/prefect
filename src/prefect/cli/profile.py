@@ -148,7 +148,6 @@ async def use(name: str):
         TextColumn("[progress.description]{task.description}"),
         transient=False,
     ) as progress:
-
         progress.add_task(
             description="Checking API connectivity...",
             total=None,

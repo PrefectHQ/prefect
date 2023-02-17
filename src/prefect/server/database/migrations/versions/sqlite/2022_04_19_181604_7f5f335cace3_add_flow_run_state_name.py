@@ -16,7 +16,6 @@ depends_on = None
 
 
 def upgrade():
-
     with op.batch_alter_table("flow_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("state_name", sa.String(), nullable=True))
         batch_op.create_index("ix_flow_run__state_name", ["state_name"], unique=False)

@@ -315,7 +315,6 @@ async def _record_work_queue_polls(
     If no work queue names are provided, all work queues in the work pool are recorded as polled.
     """
     async with db.session_context(begin_transaction=True) as session:
-
         work_queue_filter = (
             schemas.filters.WorkQueueFilter(
                 name=schemas.filters.WorkQueueFilterName(any_=work_queue_names)

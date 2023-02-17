@@ -160,7 +160,6 @@ async def test_get_run_context(orion_client, local_filesystem):
         get_run_context()
 
     async with anyio.create_task_group() as task_group:
-
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,

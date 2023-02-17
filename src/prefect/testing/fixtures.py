@@ -76,7 +76,6 @@ async def hosted_orion_api():
         stderr=sys.stderr,
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
-
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready

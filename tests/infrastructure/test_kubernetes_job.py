@@ -218,7 +218,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -239,7 +238,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -257,7 +255,6 @@ class TestKill:
     async def test_kill_uses_correct_grace_seconds(
         self, mock_k8s_batch_client, mock_k8s_client, mock_watch, monkeypatch
     ):
-
         GRACE_SECONDS = 42
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
@@ -307,7 +304,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=404)
         ]
@@ -328,7 +324,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=400)
         ]
@@ -428,7 +423,6 @@ async def test_sets_environment_variables(
     mock_watch,
     mock_k8s_batch_client,
 ):
-
     await KubernetesJob(
         command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}
     ).run()
