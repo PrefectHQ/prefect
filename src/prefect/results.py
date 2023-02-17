@@ -99,6 +99,7 @@ class ResultFactory(pydantic.BaseModel):
     serializer: Serializer
     storage_block_id: uuid.UUID
     storage_block: WritableFileSystem
+    result_cls: Type["BaseResult"]
 
     @classmethod
     @inject_client
@@ -119,6 +120,7 @@ class ResultFactory(pydantic.BaseModel):
         kwargs.setdefault("result_serializer", get_default_result_serializer())
         kwargs.setdefault("persist_result", get_default_persist_setting())
         kwargs.setdefault("cache_result_in_memory", True)
+        kwargs.setdefault("result_cls", PersistedResult)
 
         return await cls.from_settings(**kwargs, client=client)
 
@@ -194,6 +196,7 @@ class ResultFactory(pydantic.BaseModel):
 
         result_storage = task.result_storage or ctx.result_factory.storage_block
         result_serializer = task.result_serializer or ctx.result_factory.serializer
+        result_cls = task.result_cls or None
         persist_result = (
             task.persist_result
             if task.persist_result is not None
@@ -211,6 +214,7 @@ class ResultFactory(pydantic.BaseModel):
         return await cls.from_settings(
             result_storage=result_storage,
             result_serializer=result_serializer,
+            result_cls=result_cls,
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
             client=client,
@@ -222,6 +226,7 @@ class ResultFactory(pydantic.BaseModel):
         cls: Type[Self],
         result_storage: ResultStorage,
         result_serializer: ResultSerializer,
+        result_cls: Type["BaseResult"],
         persist_result: bool,
         cache_result_in_memory: bool,
         client: "PrefectClient",
@@ -235,6 +240,7 @@ class ResultFactory(pydantic.BaseModel):
             storage_block=storage_block,
             storage_block_id=storage_block_id,
             serializer=serializer,
+            result_cls=result_cls,
             persist_result=persist_result,
             cache_result_in_memory=cache_result_in_memory,
         )
@@ -314,7 +320,7 @@ class ResultFactory(pydantic.BaseModel):
         if type(obj) in LITERAL_TYPES:
             return await LiteralResult.create(obj)
 
-        return await PersistedResult.create(
+        return await self.result_cls.create(
             obj,
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,

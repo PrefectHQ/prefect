@@ -21,6 +21,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Type,
     TypeVar,
     Union,
     cast,
@@ -31,7 +32,7 @@ from typing_extensions import Literal, ParamSpec
 
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
-from prefect.results import ResultSerializer, ResultStorage
+from prefect.results import PersistedResult, ResultSerializer, ResultStorage
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -185,6 +186,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
         result_serializer: Optional[ResultSerializer] = None,
+        result_cls: Optional[Type[PersistedResult]] = None,
         cache_result_in_memory: bool = True,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
@@ -245,6 +247,7 @@ class Task(Generic[P, R]):
 
         self.persist_result = persist_result
         self.result_storage = result_storage
+        self.result_cls = result_cls
         self.result_serializer = result_serializer
         self.cache_result_in_memory = cache_result_in_memory
         self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
@@ -291,6 +294,7 @@ class Task(Generic[P, R]):
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
+        result_cls: Optional[Type[PersistedResult]] = NotSet,
         cache_result_in_memory: Optional[bool] = None,
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
@@ -388,6 +392,7 @@ class Task(Generic[P, R]):
             result_storage=(
                 result_storage if result_storage is not NotSet else self.result_storage
             ),
+            result_cls=(result_cls if result_cls is not NotSet else self.result_cls),
             result_serializer=(
                 result_serializer
                 if result_serializer is not NotSet
@@ -856,6 +861,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_cls: Optional[Type[PersistedResult]] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
@@ -885,6 +891,7 @@ def task(
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
+    result_cls: Optional[Type[PersistedResult]] = None,
     cache_result_in_memory: bool = True,
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
@@ -1006,6 +1013,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_cls=result_cls,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
@@ -1030,6 +1038,7 @@ def task(
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
+                result_cls=result_cls,
                 cache_result_in_memory=cache_result_in_memory,
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
