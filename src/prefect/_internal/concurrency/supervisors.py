@@ -12,28 +12,41 @@ import dataclasses
 import inspect
 import queue
 import threading
-from typing import Any, Callable, Dict, Optional, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Generic,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect.logging import get_logger
 
 T = TypeVar("T")
+AnyFuture = Any  # Python uses duck typing for futures; asyncio/threaded futures do not share a base class
 
 logger = get_logger("prefect._internal.concurrency.futures")
-current_future = contextvars.ContextVar("current_future")
+current_supervisor: contextvars.ContextVar["Supervisor"] = contextvars.ContextVar(
+    "current_supervisor"
+)
 
 
 def get_supervisor() -> Optional["Supervisor"]:
-    return current_future.get(None)
+    return current_supervisor.get(None)
 
 
 @contextlib.contextmanager
 def set_supervisor(supervisor: "Supervisor"):
-    token = current_future.set(supervisor)
+    token = current_supervisor.set(supervisor)
     try:
         yield
     finally:
-        current_future.reset(token)
+        current_supervisor.reset(token)
 
 
 @dataclasses.dataclass
@@ -119,7 +132,7 @@ class WorkItem:
         logger.debug("Finished work item %r", self)
 
 
-class Supervisor(abc.ABC):
+class Supervisor(abc.ABC, Generic[T]):
     """
     A supervisor allows work to be sent back to the thread that owns the supervisor.
 
@@ -128,12 +141,10 @@ class Supervisor(abc.ABC):
 
     def __init__(self) -> None:
         self.owner_thread_ident = threading.get_ident()
-        self._future = None
+        self._future: AnyFuture = None
         logger.debug("Created supervisor %r", self)
 
-    def set_future(
-        self, future: Union[asyncio.Future, concurrent.futures.Future]
-    ) -> None:
+    def set_future(self, future: AnyFuture) -> None:
         """
         Assign a future to the supervisor.
         """
@@ -156,7 +167,7 @@ class Supervisor(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def result(self) -> Any:
+    def result(self) -> Union[Awaitable[T], T]:
         """
         Retrieve the result of the supervised future.
 
@@ -168,10 +179,10 @@ class Supervisor(abc.ABC):
         return f"<{self.__class__.__name__}(id={id(self)}, owner={self.owner_thread_ident})>"
 
 
-class SyncSupervisor(Supervisor):
+class SyncSupervisor(Supervisor[T]):
     def __init__(self) -> None:
         super().__init__()
-        self._queue = queue.Queue()
+        self._queue: queue.Queue = queue.Queue()
         self._future: Optional[concurrent.futures.Future] = None
 
     def _put_work_item(self, work_item: WorkItem):
@@ -181,7 +192,7 @@ class SyncSupervisor(Supervisor):
         future.add_done_callback(lambda _: self._queue.put_nowait(None))
         super().set_future(future)
 
-    def result(self):
+    def result(self) -> T:
         if not self._future:
             raise ValueError("No future being supervised.")
 
@@ -198,11 +209,11 @@ class SyncSupervisor(Supervisor):
         return self._future.result()
 
 
-class AsyncSupervisor(Supervisor):
+class AsyncSupervisor(Supervisor[T]):
     def __init__(self) -> None:
         super().__init__()
-        self._queue = asyncio.Queue()
-        self._loop = asyncio.get_running_loop()
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._future: Optional[asyncio.Future] = None
 
     def set_future(
@@ -213,7 +224,7 @@ class AsyncSupervisor(Supervisor):
             future = asyncio.wrap_future(future)
 
         future.add_done_callback(
-            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait(None))
+            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
         )
         super().set_future(future)
 
@@ -221,7 +232,7 @@ class AsyncSupervisor(Supervisor):
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, work_item)
 
-    async def result(self):
+    async def result(self) -> T:
         if not self._future:
             raise ValueError("No future being supervised.")
 

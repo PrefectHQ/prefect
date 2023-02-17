@@ -1,5 +1,8 @@
 import concurrent.futures
 import threading
+from typing import Callable, TypeVar
+
+from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.runtime import get_runtime_thread
 from prefect._internal.concurrency.supervisors import (
@@ -8,8 +11,13 @@ from prefect._internal.concurrency.supervisors import (
     set_supervisor,
 )
 
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def call_soon_in_runtime_thread(__fn, *args, **kwargs) -> SyncSupervisor:
+
+def call_soon_in_runtime_thread(
+    __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+) -> SyncSupervisor[T]:
     """
     Schedule a coroutine function in the runtime thread.
 
@@ -30,7 +38,9 @@ def call_soon_in_runtime_thread(__fn, *args, **kwargs) -> SyncSupervisor:
     return supervisor
 
 
-def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncSupervisor:
+def call_soon_in_worker_thread(
+    __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+) -> SyncSupervisor[T]:
     """
     Schedule a function in a worker thread.
 
@@ -44,7 +54,9 @@ def call_soon_in_worker_thread(__fn, *args, **kwargs) -> SyncSupervisor:
     return supervisor
 
 
-def call_soon_in_main_thread(__fn, *args, **kwargs) -> concurrent.futures.Future:
+def call_soon_in_main_thread(
+    __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
+) -> concurrent.futures.Future:  # [T]
     """
     Call a function in the main thread.
 
