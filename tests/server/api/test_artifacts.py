@@ -12,7 +12,6 @@ from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS, temporary_se
 
 @pytest.fixture
 async def artifact(flow_run, task_run, client):
-
     artifact_schema = actions.ArtifactCreate(
         key="voltaic",
         data=1,
@@ -100,7 +99,6 @@ class TestCreateArtifact:
         artifact,
         client,
     ):
-
         data = actions.ArtifactCreate(
             key=artifact["key"],
             data=artifact["data"],
@@ -248,7 +246,6 @@ class TestReadArtifacts:
         )
 
     async def test_read_artifacts_with_task_run_filter(self, artifacts, client):
-
         task_run_id = artifacts[0]["task_run_id"]
         task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(

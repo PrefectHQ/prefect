@@ -208,7 +208,6 @@ class TestReadingMultipleArtifacts:
     async def test_reading_artifacts_flow_run_filter_returns_empty_list_if_missing(
         self, session
     ):
-
         tutored_artifacts = await models.artifacts.read_artifacts(session)
 
         assert len(tutored_artifacts) == 0
