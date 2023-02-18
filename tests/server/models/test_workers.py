@@ -424,7 +424,6 @@ class TestUpdateWorkQueuePriorities:
     async def test_bulk_update_priorities(
         self, session, work_pool, queues, new_priorities
     ):
-
         all_queues = await models.workers.read_work_queues(
             session=session, work_pool_id=work_pool.id
         )

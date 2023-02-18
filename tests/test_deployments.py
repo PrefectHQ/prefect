@@ -517,7 +517,6 @@ class TestYAML:
 
     async def test_deployment_yaml_roundtrip_handles_secret_dict(self, tmp_path):
         class CustomCredentials(Block):
-
             auth_info: SecretDict
 
         class CustomInfra(Infrastructure):
@@ -815,7 +814,6 @@ class TestRunDeployment:
         test_deployment,
         use_hosted_orion,
     ):
-
         d, deployment_id = test_deployment
 
         mock_flowrun_response = {

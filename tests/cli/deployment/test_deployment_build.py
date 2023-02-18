@@ -308,7 +308,6 @@ class TestSchedules:
     def test_providing_multiple_schedules_exits_with_error(
         self, patch_import, tmp_path, schedules
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -417,7 +416,6 @@ class TestFlowName:
     def test_flow_name_called_correctly(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -440,7 +438,6 @@ class TestFlowName:
         assert build_kwargs["name"] == name
 
     def test_not_providing_name_exits_with_error(self, patch_import, tmp_path):
-
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
         cmd = [
@@ -487,7 +484,6 @@ class TestEntrypoint:
     def test_poorly_formed_entrypoint_raises_correct_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
@@ -870,7 +866,6 @@ class TestInfraAndInfraBlock:
     def test_providing_infra_block_and_infra_type_exits_with_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -895,7 +890,6 @@ class TestInfraAndInfraBlock:
     def test_infra_block_called_correctly(
         self, patch_import, tmp_path, infra_block, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -922,7 +916,6 @@ class TestInfraAndInfraBlock:
     def test_infra_type_specifies_infra_block_on_deployment(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -952,7 +945,6 @@ class TestInfraOverrides:
     def test_overrides_called_correctly(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -980,7 +972,6 @@ class TestInfraOverrides:
     def test_overrides_default_is_empty(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -1007,7 +998,6 @@ class TestStorageBlock:
     def test_storage_block_called_correctly(
         self, patch_import, tmp_path, storage_block, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -1035,7 +1025,6 @@ class TestOutputFlag:
     def test_output_file_with_wrong_suffix_exits_with_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         file_name = "test.not_yaml"
         output_path = str(tmp_path / file_name)
@@ -1057,7 +1046,6 @@ class TestOutputFlag:
     def test_yaml_appended_to_out_file_without_suffix(
         self, monkeypatch, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
@@ -1085,7 +1073,6 @@ class TestOtherStuff:
     def test_correct_flow_passed_to_deployment_object(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)

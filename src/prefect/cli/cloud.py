@@ -226,7 +226,6 @@ async def login_with_browser() -> str:
 
     timeout_scope = None
     async with anyio.create_task_group() as tg:
-
         # Run a server in the background to get payload from the browser
         server = await tg.start(serve_login_api, tg.cancel_scope)
 

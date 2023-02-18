@@ -80,7 +80,6 @@ class BaseDockerLogin(Block, ABC):
     @staticmethod
     def _get_docker_client():
         try:
-
             with warnings.catch_warnings():
                 # Silence warnings due to use of deprecated methods within dockerpy
                 # See https://github.com/docker/docker-py/pull/2931
@@ -614,7 +613,6 @@ class DockerContainer(Infrastructure):
 
     def _get_client(self):
         try:
-
             with warnings.catch_warnings():
                 # Silence warnings due to use of deprecated methods within dockerpy
                 # See https://github.com/docker/docker-py/pull/2931

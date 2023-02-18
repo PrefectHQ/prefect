@@ -54,7 +54,6 @@ async def block_schemas(session):
     )
 
     class B(CanFly, Block):
-
         x: int
 
     block_type_b = await models.block_types.create_block_type(
@@ -705,7 +704,6 @@ class TestReadBlockDocument:
 class TestReadBlockDocuments:
     @pytest.fixture(autouse=True)
     async def block_documents(self, session, block_schemas):
-
         block_documents = []
         block_documents.append(
             await models.block_documents.create_block_document(
@@ -1484,7 +1482,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_id_obfuscates_results(
         self, session, secret_block_document
     ):
-
         block = await models.block_documents.read_block_document_by_id(
             session=session, block_document_id=secret_block_document.id
         )
@@ -1497,7 +1494,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_id_with_secrets(
         self, session, secret_block_document
     ):
-
         block = await models.block_documents.read_block_document_by_id(
             session=session,
             block_document_id=secret_block_document.id,
@@ -1512,7 +1508,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_name_obfuscates_results(
         self, session, secret_block_document
     ):
-
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
@@ -1527,7 +1522,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_document_by_name_with_secrets(
         self, session, secret_block_document
     ):
-
         block = await models.block_documents.read_block_document_by_name(
             session=session,
             name=secret_block_document.name,
@@ -1543,7 +1537,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_obfuscates_results(
         self, session, secret_block_document
     ):
-
         blocks = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
@@ -1559,7 +1552,6 @@ class TestSecretBlockDocuments:
     async def test_read_secret_block_documents_with_secrets(
         self, session, secret_block_document
     ):
-
         blocks = await models.block_documents.read_block_documents(
             session=session,
             block_document_filter=schemas.filters.BlockDocumentFilter(
@@ -1576,7 +1568,6 @@ class TestSecretBlockDocuments:
     async def test_updating_secret_block_document_with_obfuscated_result_is_ignored(
         self, session, secret_block_document
     ):
-
         block = await models.block_documents.read_block_document_by_id(
             session=session,
             block_document_id=secret_block_document.id,

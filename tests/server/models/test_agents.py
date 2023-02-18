@@ -58,7 +58,6 @@ class TestCreateAgent:
 
 class TestReadAgent:
     async def test_read_agent_by_id(self, session, agent):
-
         read_agent = await models.agents.read_agent(session=session, agent_id=agent.id)
         assert read_agent.name == agent.name
 
@@ -69,7 +68,6 @@ class TestReadAgent:
 class TestReadAgents:
     @pytest.fixture
     async def agents(self, session, work_queue):
-
         agent_1 = await models.agents.create_agent(
             session=session,
             agent=schemas.core.Agent(name="My Agent 1", work_queue_id=work_queue.id),

@@ -106,7 +106,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-
         self._applied_limits = []
         filtered_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(
@@ -115,7 +114,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         )
         run_limits = {limit.tag: limit for limit in filtered_limits}
         for tag, cl in run_limits.items():
-
             limit = cl.concurrency_limit
             if limit == 0:
                 # limits of 0 will deadlock, and the transition needs to abort
@@ -622,7 +620,6 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-
         # permit rerunning a task if the flow is retrying
         if proposed_state.is_running() and (
             initial_state.is_failed()
@@ -679,7 +676,6 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
-
             # Reset pause metadata on manual retry
             api_version = context.parameters.get("api-version", None)
             if api_version is None or api_version >= Version("0.8.4"):

@@ -389,7 +389,6 @@ async def ls(
             sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
-
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     str(queue.id),
@@ -426,7 +425,6 @@ async def ls(
             sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
-
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     pool_id_name_map[queue.work_pool_id],
@@ -460,7 +458,6 @@ async def ls(
             sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
             for queue in sorted(queues, key=sort_by_created_key):
-
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     f"{queue.priority}",

@@ -44,7 +44,6 @@ from prefect.utilities.importtools import load_script_as_module
 T = TypeVar("T")
 
 if TYPE_CHECKING:
-
     from prefect.flows import Flow
     from prefect.tasks import Task
 
