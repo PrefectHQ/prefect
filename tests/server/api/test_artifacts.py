@@ -30,22 +30,22 @@ async def artifact(flow_run, task_run, client):
 
 @pytest.fixture
 async def artifacts(flow_run, task_run, client):
-    artifact1 = actions.ArtifactCreate(
+    artifact1_schema = actions.ArtifactCreate(
         key="artifact-1", data=1, flow_run_id=flow_run.id, task_run_id=task_run.id
     ).dict(json_compatible=True)
-    await client.post("/experimental/artifacts/", json=artifact1)
+    artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
 
-    artifact2 = actions.ArtifactCreate(
-        key="artifact-2", flow_run_id=flow_run.id, task_run_id=task_run.id
+    artifact2_schema = actions.ArtifactCreate(
+        key="artifact-2", flow_run_id=uuid4(), task_run_id=uuid4()
     ).dict(json_compatible=True)
-    await client.post("/experimental/artifacts/", json=artifact2)
+    artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
 
-    artifact3 = actions.ArtifactCreate(key="artifact-3", flow_run_id=flow_run.id).dict(
-        json_compatible=True
-    )
-    await client.post("/experimental/artifacts/", json=artifact3)
+    artifact3_schema = actions.ArtifactCreate(
+        key="artifact-3",
+    ).dict(json_compatible=True)
+    artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
 
-    yield [artifact1, artifact2, artifact3]
+    yield [artifact1.json(), artifact2.json(), artifact3.json()]
 
 
 @pytest.fixture(autouse=True)
@@ -138,13 +138,11 @@ class TestReadArtifacts:
 
         assert {r["key"] for r in response.json()} == {a["key"] for a in artifacts}
         assert {r["data"] for r in response.json()} == {a["data"] for a in artifacts}
-        assert {str(r["flow_run_id"]) for r in response.json()} == {
+        assert {r["flow_run_id"] for r in response.json()} == {
             a["flow_run_id"] for a in artifacts
         }
 
-    async def test_read_artifacts_with_applies_filter(
-        self, artifacts, flow_run, client
-    ):
+    async def test_read_artifacts_with_artifact_key_filter(self, artifacts, client):
         artifact_filter = dict(
             artifacts=schemas.filters.ArtifactFilter(
                 key=schemas.filters.ArtifactFilterKey(
@@ -156,41 +154,60 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter", json=artifact_filter
         )
         assert response.status_code == status.HTTP_200_OK
-        assert all(
-            [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
-        )
         assert len(response.json()) == 2
+        assert {r["key"] for r in response.json()} == {
+            artifacts[0]["key"],
+            artifacts[1]["key"],
+        }
 
-    async def test_read_artifacts_with_flow_run_filter(
-        self, artifacts, flow_run, client
+    async def test_read_artifacts_with_artifact_id_filter(self, artifacts, client):
+        artifact_id = artifacts[0]["id"]
+
+        artifact_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                id=schemas.filters.ArtifactFilterId(any_=[artifact_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+
+    async def test_read_artifacts_with_artifact_flow_run_id_filter(
+        self, artifacts, client
     ):
+        flow_run_id = artifacts[0]["flow_run_id"]
         flow_run_filter = dict(
             artifacts=schemas.filters.ArtifactFilter(
-                flow_run_id=schemas.filters.ArtifactFilterFlowRunId(any_=[flow_run.id])
+                flow_run_id=schemas.filters.ArtifactFilterFlowRunId(any_=[flow_run_id])
             ).dict(json_compatible=True)
         )
         response = await client.post(
             "/experimental/artifacts/filter", json=flow_run_filter
         )
         assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
         assert all(
-            [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
+            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
         )
 
-    async def test_read_artifacts_with_task_run_filter(
-        self, artifacts, task_run, client
+    async def test_read_artifacts_with_artifact_task_run_id_filter(
+        self, artifacts, client
     ):
+        task_run_id = artifacts[0]["task_run_id"]
         task_run_filter = dict(
             artifacts=schemas.filters.ArtifactFilter(
-                task_run_id=schemas.filters.ArtifactFilterTaskRunId(any_=[task_run.id])
+                task_run_id=schemas.filters.ArtifactFilterTaskRunId(any_=[task_run_id])
             ).dict(json_compatible=True)
         )
         response = await client.post(
             "/experimental/artifacts/filter", json=task_run_filter
         )
         assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
         assert all(
-            [item["task_run_id"] == str(task_run.id) for item in response.json()]
+            [item["task_run_id"] == str(task_run_id) for item in response.json()]
         )
 
     async def test_read_artifacts_with_multiple_filters(
@@ -206,12 +223,45 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter", json=multiple_filters
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 2
+        assert len(response.json()) == 1
         assert all(
             [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
         )
         assert all(
             [item["task_run_id"] == str(task_run.id) for item in response.json()]
+        )
+
+    async def test_read_artifacts_with_flow_run_filter(self, artifacts, client):
+        flow_run_id = artifacts[0]["flow_run_id"]
+        flow_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=flow_run_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert all(
+            [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
+        )
+
+    async def test_read_artifacts_with_task_run_filter(self, artifacts, client):
+
+        task_run_id = artifacts[0]["task_run_id"]
+        task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=task_run_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert all(
+            [item["task_run_id"] == str(task_run_id) for item in response.json()]
         )
 
     async def test_read_artifacts_with_limit(self, artifacts, client):
@@ -262,26 +312,24 @@ class TestReadArtifacts:
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 0
 
-    async def test_read_artifacts_with_applies_key_like_filter(
-        self, artifacts, flow_run, client
-    ):
+    async def test_read_artifacts_with_applies_key_like_filter(self, artifacts, client):
+        like_first_key = artifacts[0]["key"][-1]
+
         artifact_filter = dict(
             artifacts=schemas.filters.ArtifactFilter(
-                key=schemas.filters.ArtifactFilterKey(like_=artifacts[0]["key"][:-1])
+                key=schemas.filters.ArtifactFilterKey(like_=like_first_key)
             ).dict(json_compatible=True)
         )
         response = await client.post(
             "/experimental/artifacts/filter", json=artifact_filter
         )
         assert response.status_code == status.HTTP_200_OK
-        assert all(
-            [item["flow_run_id"] == str(flow_run.id) for item in response.json()]
-        )
-        assert len(response.json()) == 3
+        assert len(response.json()) == 1
+        assert response.json()[0]["key"] == artifacts[0]["key"]
 
 
 class TestUpdateArtifact:
-    async def test_update_artifact_succeeds(self, artifacts, client):
+    async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/experimental/artifacts/filter")
         now = pendulum.now("utc")
         assert response.status_code == status.HTTP_200_OK

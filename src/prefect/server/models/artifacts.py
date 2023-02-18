@@ -66,7 +66,7 @@ async def _apply_artifact_filters(
 
     if flow_run_filter or task_run_filter:
         exists_clause = select(db.FlowRun).where(
-            db.Deployment.id == db.FlowRun.deployment_id
+            db.Artifact.flow_run_id == db.FlowRun.id
         )
 
         if flow_run_filter:
