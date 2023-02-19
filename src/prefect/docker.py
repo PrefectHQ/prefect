@@ -493,7 +493,7 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
     return image_name, tag
 
 
-def format_outlier_docker_version(version: str):
+def format_outlier_version_name(version: str):
     """
     Formats outlier docker version names to pass `packaging.version.parse` validation
     - Current cases are simple, but creats stub for more complicated formatting if eventually needed.

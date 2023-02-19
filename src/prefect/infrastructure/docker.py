@@ -14,7 +14,7 @@ from typing_extensions import Literal
 import prefect
 from prefect.blocks.core import Block, SecretStr
 from prefect.docker import (
-    format_outlier_docker_version,
+    format_outlier_version_name,
     get_prefect_image_name,
     parse_image_tag,
 )
@@ -672,7 +672,7 @@ class DockerContainer(Infrastructure):
             )
         ):
             user_version = packaging.version.parse(
-                format_outlier_docker_version(docker_client.version()["Version"])
+                format_outlier_version_name(docker_client.version()["Version"])
             )
             required_version = packaging.version.parse("20.10.0")
 
