@@ -37,7 +37,7 @@ def test_parse_image_tag(value, expected):
         ("20.10.10-ee", "20.10.10"),
     ],
 )
-def test_clean_docker_version(value, expected):
+def test_format_outlier_docker_version(value, expected):
     version = format_outlier_docker_version(value)
     # Basic test
     assert version == expected
