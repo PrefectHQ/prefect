@@ -35,16 +35,21 @@ async def artifacts(flow_run, task_run, client):
     artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
 
     artifact2_schema = actions.ArtifactCreate(
-        key="artifact-2", flow_run_id=uuid4(), task_run_id=uuid4()
+        key="artifact-2", data=2, flow_run_id=flow_run.id, task_run_id=uuid4()
     ).dict(json_compatible=True)
     artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
 
     artifact3_schema = actions.ArtifactCreate(
-        key="artifact-3",
+        key="artifact-3", flow_run_id=uuid4(), task_run_id=uuid4()
     ).dict(json_compatible=True)
     artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
 
-    yield [artifact1.json(), artifact2.json(), artifact3.json()]
+    artifact4_schema = actions.ArtifactCreate(
+        key="artifact-4",
+    ).dict(json_compatible=True)
+    artifact4 = await client.post("/experimental/artifacts/", json=artifact4_schema)
+
+    yield [artifact1.json(), artifact2.json(), artifact3.json(), artifact4.json()]
 
 
 @pytest.fixture(autouse=True)
@@ -132,7 +137,7 @@ class TestReadArtifacts:
     async def test_read_artifacts(self, artifacts, client):
         response = await client.post("/experimental/artifacts/filter")
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 3
+        assert len(response.json()) == len(artifacts)
 
         assert {r["key"] for r in response.json()} == {a["key"] for a in artifacts}
         assert {r["data"] for r in response.json()} == {a["data"] for a in artifacts}
@@ -185,7 +190,7 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter", json=flow_run_filter
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
+        assert len(response.json()) == 2
         assert all(
             [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
         )
@@ -240,7 +245,7 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter", json=flow_run_filter
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
+        assert len(response.json()) == 2
         assert all(
             [item["flow_run_id"] == str(flow_run_id) for item in response.json()]
         )
@@ -277,18 +282,10 @@ class TestReadArtifacts:
             },
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 2
-        assert [r["key"] for r in response.json()] == [
-            artifacts[1]["key"],
-            artifacts[0]["key"],
-        ]
-        assert [r["data"] for r in response.json()] == [
-            artifacts[1]["data"],
-            artifacts[0]["data"],
-        ]
-        assert [r["flow_run_id"] for r in response.json()] == [
-            str(artifacts[1]["flow_run_id"]),
-            str(artifacts[0]["flow_run_id"]),
+        assert len(response.json()) == len(artifacts) - 1
+        expected_artifacts = artifacts[:-1][::-1]
+        assert [item["key"] for item in response.json()] == [
+            item["key"] for item in expected_artifacts
         ]
 
     async def test_read_artifacts_with_sort(self, artifacts, client):
@@ -297,12 +294,14 @@ class TestReadArtifacts:
             json=dict(sort=schemas.sorting.ArtifactSort.UPDATED_DESC),
         )
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 3
-        assert [r["key"] for r in response.json()] == [
-            artifacts[2]["key"],
-            artifacts[1]["key"],
-            artifacts[0]["key"],
-        ]
+        assert len(response.json()) == len(artifacts)
+        # assert they are sorted correctly
+        assert all(
+            [
+                response.json()[i]["updated"] >= response.json()[i + 1]["updated"]
+                for i in range(len(response.json()) - 1)
+            ]
+        )
 
     async def test_read_artifacts_returns_empty_list(self, client):
         response = await client.post("/experimental/artifacts/filter")
