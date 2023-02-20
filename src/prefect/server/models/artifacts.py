@@ -64,18 +64,20 @@ async def _apply_artifact_filters(
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter(db))
 
-    if flow_run_filter or task_run_filter:
+    if flow_run_filter:
         exists_clause = select(db.FlowRun).where(
             db.Artifact.flow_run_id == db.FlowRun.id
         )
 
-        if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
-        if task_run_filter:
-            exists_clause = exists_clause.join(
-                db.TaskRun,
-                db.TaskRun.flow_run_id == db.FlowRun.id,
-            ).where(task_run_filter.as_sql_filter(db))
+        exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
+    if task_run_filter:
+        exists_clause = select(db.TaskRun).where(
+            db.Artifact.task_run_id == db.TaskRun.id
+        )
+        exists_clause = exists_clause.where(task_run_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
