@@ -4,7 +4,6 @@ from prefect._internal.concurrency.primitives import Event
 
 
 def test_event_set_in_sync_context_before_wait():
-
     event = Event()
     event.set()
 

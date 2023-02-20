@@ -1349,7 +1349,6 @@ class WorkPoolFilterType(PrefectFilterBaseModel):
 
 
 class WorkPoolFilter(PrefectOperatorFilterBaseModel):
-
     id: Optional[WorkPoolFilterId] = Field(
         default=None, description="Filter criteria for `WorkPool.id`"
     )
@@ -1409,7 +1408,6 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
 
 
 class WorkerFilter(PrefectOperatorFilterBaseModel):
-
     # worker_config_id: Optional[WorkerFilterWorkPoolId] = Field(
     #     default=None, description="Filter criteria for `Worker.worker_config_id`"
     # )

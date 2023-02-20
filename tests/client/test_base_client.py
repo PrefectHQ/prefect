@@ -278,7 +278,6 @@ class TestPrefectHttpxClient:
     async def test_prefect_httpx_client_raises_prefect_http_status_error(
         self, monkeypatch
     ):
-
         RESPONSE_400 = Response(
             status.HTTP_400_BAD_REQUEST,
             json={"extra_info": [{"message": "a test error message"}]},

@@ -345,7 +345,6 @@ async def begin_flow_run(
     flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
 
     async with AsyncExitStack() as stack:
-
         await stack.enter_async_context(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
@@ -393,6 +392,7 @@ async def begin_flow_run(
             msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
         )
         APILogHandler.flush(block=True)
+
         return terminal_or_paused_state
     else:
         terminal_state = terminal_or_paused_state
@@ -588,7 +588,6 @@ async def orchestrate_flow_run(
         if wait_for is not None:
             await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -624,7 +623,6 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
-
                     args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
                         f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
@@ -1151,7 +1149,6 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
-
     task_run = await create_task_run(
         task=task,
         name=task_run_name,
@@ -1287,7 +1284,6 @@ async def begin_task_run(
     maybe_flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-
         # The settings context may be null on a remote worker so we use the safe `.get`
         # method and compare it to the settings required for this task run
         if prefect.context.SettingsContext.get() != settings:
@@ -1419,7 +1415,6 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -1593,7 +1588,6 @@ async def wait_for_task_runs_and_report_crashes(
 
         task_run = await client.read_task_run(future.task_run.id)
         if not task_run.state.is_crashed():
-
             logger.info(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exception)
 

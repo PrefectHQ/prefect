@@ -23,6 +23,7 @@ from prefect.client.orchestration import PrefectClient, ServerType, get_client
 from prefect.client.schemas import OrchestrationResult
 from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
+from prefect.events.clients import NullEventsClient, PrefectCloudEventsClient
 from prefect.server import schemas
 from prefect.server.api.server import SERVER_API_VERSION, create_app
 from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
@@ -40,6 +41,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1146,7 +1148,6 @@ async def test_create_then_read_flow_run_notification_policy(
 
 
 async def test_read_filtered_logs(session, orion_client, deployment):
-
     flow_runs = [uuid4() for i in range(5)]
     logs = [
         LogCreate(
@@ -1587,3 +1588,39 @@ class TestWorkPools:
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)
+
+
+class TestEvents:
+    async def test_initializes_null_events_client_ephemeral(self, orion_client):
+        events_client = await orion_client.events()
+        assert isinstance(events_client, NullEventsClient)
+        assert events_client._in_context
+
+    async def test_initializes_null_events_client_server(self, hosted_orion_api):
+        async with PrefectClient(hosted_orion_api) as prefect_client:
+            events_client = await prefect_client.events()
+            assert isinstance(events_client, NullEventsClient)
+            assert events_client._in_context
+
+    async def test_initializes_null_events_client_cloud_experiment_disabled(self):
+        with temporary_settings(
+            updates={PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT: False}
+        ):
+            async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as prefect_client:
+                events_client = await prefect_client.events()
+                assert isinstance(events_client, NullEventsClient)
+                assert events_client._in_context
+
+    async def test_initializes_cloud_events_client_cloud_experiment_enabled(
+        self, events_api_url: str
+    ):
+        with temporary_settings(
+            updates={
+                PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT: True,
+                PREFECT_CLOUD_API_URL: events_api_url,
+            }
+        ):
+            async with PrefectClient(PREFECT_CLOUD_API_URL.value()) as prefect_client:
+                events_client = await prefect_client.events()
+                assert isinstance(events_client, PrefectCloudEventsClient)
+                assert events_client._in_context

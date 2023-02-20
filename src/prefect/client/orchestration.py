@@ -17,8 +17,14 @@ import prefect.server.schemas as schemas
 import prefect.settings
 import prefect.states
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.deprecated.data_documents import DataDocument
+from prefect.events.clients import (
+    EventsClient,
+    NullEventsClient,
+    PrefectCloudEventsClient,
+)
 from prefect.logging import get_logger
 from prefect.server.schemas.actions import (
     FlowRunNotificationPolicyCreate,
@@ -153,6 +159,8 @@ class PrefectClient:
         self._closed = False
         self._started = False
 
+        self._events_client: Optional[EventsClient] = None
+
         # Connect to an external application
         if isinstance(api, str):
             if httpx_settings.get("app"):
@@ -246,6 +254,24 @@ class PrefectClient:
         Get the base URL for the API.
         """
         return self._client.base_url
+
+    async def events(self) -> EventsClient:
+        if not self._events_client:
+            if (
+                experiment_enabled("events_client")
+                and self.server_type == ServerType.CLOUD
+            ):
+                self._events_client = PrefectCloudEventsClient(
+                    api_url=PREFECT_CLOUD_API_URL.value(),
+                    api_key=prefect.settings.PREFECT_API_KEY.value(),
+                )
+            else:
+                self._events_client = NullEventsClient()
+
+            await self._events_client.__aenter__()
+            self._exit_stack.push_async_exit(self._events_client)
+
+        return self._events_client
 
     # API methods ----------------------------------------------------------------------
 
@@ -2160,7 +2186,6 @@ class PrefectClient:
         work_pool_name: str,
         work_pool: schemas.actions.WorkPoolUpdate,
     ):
-
         await self._client.patch(
             f"/work_pools/{work_pool_name}",
             json=work_pool.dict(json_compatible=True, exclude_unset=True),
