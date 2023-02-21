@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Remove status labels on close
         if: github.event.action == 'closed'
-        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage" --remove "status:in-progress" --remove "status:accepted"
+        run: gh issue edit --repo prefecthq/prefect ${{ github.event.issue.number }} --remove-label "status:triage" --remove-label "status:in-progress" --remove-label "status:accepted"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
