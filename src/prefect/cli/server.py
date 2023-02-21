@@ -202,11 +202,17 @@ async def upgrade(
     revision: str = typer.Option(
         "head",
         "-r",
-        help="The revision to pass to `alembic upgrade`. If not provided, runs all migrations.",
+        help=(
+            "The revision to pass to `alembic upgrade`. If not provided, runs all"
+            " migrations."
+        ),
     ),
     dry_run: bool = typer.Option(
         False,
-        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
+        help=(
+            "Flag to show what migrations would be made without applying them. Will"
+            " emit sql statements to stdout."
+        ),
     ),
 ):
     """Upgrade the Prefect database"""
@@ -233,11 +239,17 @@ async def downgrade(
     revision: str = typer.Option(
         "base",
         "-r",
-        help="The revision to pass to `alembic downgrade`. If not provided, runs all migrations.",
+        help=(
+            "The revision to pass to `alembic downgrade`. If not provided, runs all"
+            " migrations."
+        ),
     ),
     dry_run: bool = typer.Option(
         False,
-        help="Flag to show what migrations would be made without applying them. Will emit sql statements to stdout.",
+        help=(
+            "Flag to show what migrations would be made without applying them. Will"
+            " emit sql statements to stdout."
+        ),
     ),
 ):
     """Downgrade the Prefect database"""

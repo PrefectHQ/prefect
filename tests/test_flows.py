@@ -2003,7 +2003,8 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
             "Consider updating the script to only call the flow"
-        ) in caplog.text
+            in caplog.text
+        )
 
     flow_runs = await orion_client.read_flows()
     assert len(flow_runs) == 0

@@ -120,7 +120,9 @@ class DockerRegistry(BaseDockerLogin):
     )
     registry_url: str = Field(
         default=...,
-        description='The URL to the registry. Generally, "http" or "https" can be omitted.',
+        description=(
+            'The URL to the registry. Generally, "http" or "https" can be omitted.'
+        ),
     )
     reauth: bool = Field(
         default=True,
@@ -130,7 +132,10 @@ class DockerRegistry(BaseDockerLogin):
     @sync_compatible
     async def login(self) -> "DockerClient":
         warnings.warn(
-            "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
+            (
+                "`login` is deprecated. Instead, use `get_docker_client` to obtain an"
+                " authenticated `DockerClient`."
+            ),
             category=DeprecationWarning,
             stacklevel=3,
         )
@@ -220,11 +225,16 @@ class DockerContainer(Infrastructure):
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(
         default_factory=list,
-        description="A list of strings specifying Docker networks to connect the container to.",
+        description=(
+            "A list of strings specifying Docker networks to connect the container to."
+        ),
     )
     network_mode: Optional[str] = Field(
         default=None,
-        description="The network mode for the created container (e.g. host, bridge). If 'networks' is set, this cannot be set.",
+        description=(
+            "The network mode for the created container (e.g. host, bridge). If"
+            " 'networks' is set, this cannot be set."
+        ),
     )
     auto_remove: bool = Field(
         default=False,
@@ -232,11 +242,17 @@ class DockerContainer(Infrastructure):
     )
     volumes: List[str] = Field(
         default_factory=list,
-        description='A list of volume mount strings in the format of "local_path:container_path".',
+        description=(
+            "A list of volume mount strings in the format of"
+            ' "local_path:container_path".'
+        ),
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, the output will be streamed from the container to local standard output.",
+        description=(
+            "If set, the output will be streamed from the container to local standard"
+            " output."
+        ),
     )
     memswap_limit: Union[int, str] = Field(
         default=None,
@@ -325,8 +341,14 @@ class DockerContainer(Infrastructure):
             raise InfrastructureNotAvailable(
                 "".join(
                     [
-                        f"Unable to stop container {container_id!r}: the current Docker API ",
-                        f"URL {docker_client.api.base_url!r} does not match the expected ",
+                        (
+                            f"Unable to stop container {container_id!r}: the current"
+                            " Docker API "
+                        ),
+                        (
+                            f"URL {docker_client.api.base_url!r} does not match the"
+                            " expected "
+                        ),
                         f"API base URL {base_url}.",
                     ]
                 )
@@ -335,7 +357,8 @@ class DockerContainer(Infrastructure):
             container = docker_client.containers.get(container_id=container_id)
         except docker.errors.NotFound:
             raise InfrastructureNotFound(
-                f"Unable to stop container {container_id!r}: The container was not found."
+                f"Unable to stop container {container_id!r}: The container was not"
+                " found."
             )
 
         try:
@@ -585,8 +608,9 @@ class DockerContainer(Infrastructure):
             except docker.errors.APIError as exc:
                 if "marked for removal" in str(exc):
                     self.logger.warning(
-                        f"Docker container {container.name} was marked for removal before "
-                        "logs could be retrieved. Output will not be streamed. "
+                        f"Docker container {container.name} was marked for removal"
+                        " before logs could be retrieved. Output will not be"
+                        " streamed. "
                     )
                 else:
                     self.logger.exception(
@@ -597,7 +621,8 @@ class DockerContainer(Infrastructure):
             container.reload()
             if container.status != status:
                 self.logger.info(
-                    f"Docker container {container.name!r} has status {container.status!r}"
+                    f"Docker container {container.name!r} has status"
+                    f" {container.status!r}"
                 )
             yield container
 
@@ -672,10 +697,10 @@ class DockerContainer(Infrastructure):
 
             if user_version < required_version:
                 warnings.warn(
-                    "`host.docker.internal` could not be automatically resolved to your "
-                    "local ip address. This feature is not supported on Docker Engine "
-                    f"v{user_version}, upgrade to v{required_version}+ if you "
-                    "encounter issues."
+                    "`host.docker.internal` could not be automatically resolved to"
+                    " your local ip address. This feature is not supported on Docker"
+                    f" Engine v{user_version}, upgrade to v{required_version}+ if you"
+                    " encounter issues."
                 )
                 return {}
             else:

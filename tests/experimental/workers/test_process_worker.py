@@ -239,7 +239,9 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
 
 @pytest.mark.skipif(
     sys.platform == "win32",
-    reason="The asyncio.open_process_*.creationflags argument is only supported on Windows",
+    reason=(
+        "The asyncio.open_process_*.creationflags argument is only supported on Windows"
+    ),
 )
 async def test_unix_process_worker_run_does_not_set_creation_flag(
     patch_run_process, flow_run, work_pool, monkeypatch

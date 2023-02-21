@@ -126,9 +126,9 @@ class PrefectObjectRegistry(ContextModel):
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[
-        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
-    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
+    _instance_init_failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = (
+        PrivateAttr(default_factory=lambda: defaultdict(list))
+    )
 
     block_code_execution: bool = False
     capture_failures: bool = False
@@ -317,8 +317,10 @@ class SettingsContext(ContextModel):
             os.makedirs(self.settings.value_of(PREFECT_HOME), exist_ok=True)
         except OSError:
             warnings.warn(
-                "Failed to create the Prefect home directory at "
-                f"{self.settings.value_of(PREFECT_HOME)}",
+                (
+                    "Failed to create the Prefect home directory at "
+                    f"{self.settings.value_of(PREFECT_HOME)}"
+                ),
                 stacklevel=2,
             )
 
@@ -523,8 +525,10 @@ def root_settings_context():
 
     if active_name not in profiles.names:
         print(
-            f"WARNING: Active profile {active_name!r} set {profile_source} not "
-            "found. The default profile will be used instead. ",
+            (
+                f"WARNING: Active profile {active_name!r} set {profile_source} not "
+                "found. The default profile will be used instead. "
+            ),
             file=sys.stderr,
         )
         active_name = "default"

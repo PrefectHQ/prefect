@@ -2571,7 +2571,10 @@ class TestTaskRegistration:
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
             UserWarning,
-            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+            match=(
+                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
+                r" task."
+            ),
         ):
 
             @task(name="my_task")

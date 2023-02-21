@@ -79,9 +79,11 @@ class PickleSerializer(Serializer):
             values["picklelib_version"] = pickler_version
         elif picklelib_version != pickler_version:
             warnings.warn(
-                f"Mismatched {picklelib!r} versions. Found {pickler_version} in the "
-                f"environment but {picklelib_version} was requested. This may cause "
-                "the serializer to fail.",
+                (
+                    f"Mismatched {picklelib!r} versions. Found {pickler_version} in the"
+                    f" environment but {picklelib_version} was requested. This may"
+                    " cause the serializer to fail."
+                ),
                 RuntimeWarning,
                 stacklevel=3,
             )
@@ -95,7 +97,8 @@ class PickleSerializer(Serializer):
         """
         if values.get("picklelib") != "cloudpickle" and values.get("pickle_modules"):
             raise ValueError(
-                f"`pickle_modules` cannot be used without 'cloudpickle'. Got {values.get('picklelib')!r}."
+                "`pickle_modules` cannot be used without 'cloudpickle'. Got"
+                f" {values.get('picklelib')!r}."
             )
         return values
 

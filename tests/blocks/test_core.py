@@ -1212,8 +1212,10 @@ class TestRegisterBlockTypeAndSchema:
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on the Block class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on the Block class directly."
+            ),
         ):
             await Block.register_type_and_schema()
 
@@ -1251,8 +1253,10 @@ class TestRegisterBlockTypeAndSchema:
 
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on a Block interface class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on a Block interface class directly."
+            ),
         ):
             await Interface.register_type_and_schema(client=orion_client)
 
@@ -1599,8 +1603,10 @@ class TestSaveBlock:
 
         with pytest.raises(
             ValueError,
-            match="You are attempting to save values with a name that is already in "
-            "use for this block type",
+            match=(
+                "You are attempting to save values with a name that is already in "
+                "use for this block type"
+            ),
         ):
             await inner_block.save("my-inner-block")
 

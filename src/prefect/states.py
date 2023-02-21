@@ -56,10 +56,12 @@ def get_state_result(
     if not fetch:
         if fetch is None and in_async_main_thread():
             warnings.warn(
-                "State.result() was called from an async context but not awaited. "
-                "This method will be updated to return a coroutine by default in "
-                "the future. Pass `fetch=True` and `await` the call to get rid of "
-                "this warning.",
+                (
+                    "State.result() was called from an async context but not awaited. "
+                    "This method will be updated to return a coroutine by default in "
+                    "the future. Pass `fetch=True` and `await` the call to get rid of "
+                    "this warning."
+                ),
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -148,13 +150,19 @@ async def exception_to_crashed_state(
             request: httpx.Request = exc.request
         except RuntimeError:
             # The request property is not set
-            state_message = f"Request failed while attempting to contact the server: {format_exception(exc)}"
+            state_message = (
+                "Request failed while attempting to contact the server:"
+                f" {format_exception(exc)}"
+            )
         else:
             # TODO: We can check if this is actually our API url
             state_message = f"Request to {request.url} failed: {format_exception(exc)}."
 
     else:
-        state_message = f"Execution was interrupted by an unexpected exception: {format_exception(exc)}"
+        state_message = (
+            "Execution was interrupted by an unexpected exception:"
+            f" {format_exception(exc)}"
+        )
 
     if result_factory:
         data = await result_factory.create_result(exc)

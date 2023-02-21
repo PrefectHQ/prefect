@@ -17,7 +17,8 @@ def test_generate_deprecation_message():
         generate_deprecation_message(
             "test name", start_date="Jan 2022", help="test help"
         )
-        == "test name has been deprecated. It will not be available after Jul 2022. test help"
+        == "test name has been deprecated. It will not be available after Jul 2022."
+        " test help"
     )
 
 
@@ -26,7 +27,8 @@ def test_generate_deprecation_message_when():
         generate_deprecation_message(
             "test name", start_date="Jan 2022", help="test help", when="testing"
         )
-        == "test name has been deprecated when testing. It will not be available after Jul 2022. test help"
+        == "test name has been deprecated when testing. It will not be available after"
+        " Jul 2022. test help"
     )
 
 
@@ -61,7 +63,10 @@ def test_deprecated_callable():
 
     with pytest.warns(
         PrefectDeprecationWarning,
-        match="test_deprecated.test_deprecated_callable.<locals>.foo has been deprecated. It will not be available after Jul 2022. test help",
+        match=(
+            "test_deprecated.test_deprecated_callable.<locals>.foo has been deprecated."
+            " It will not be available after Jul 2022. test help"
+        ),
     ):
         foo()
 
@@ -80,7 +85,10 @@ def test_deprecated_parameter():
 
     with pytest.warns(
         PrefectDeprecationWarning,
-        match="The parameter 'y' for 'foo' has been deprecated. It will not be available after Jul 2022. test help",
+        match=(
+            "The parameter 'y' for 'foo' has been deprecated. It will not be available"
+            " after Jul 2022. test help"
+        ),
     ):
         foo(y=10)
 
@@ -102,7 +110,10 @@ def test_deprecated_parameter_when():
 
     with pytest.warns(
         PrefectDeprecationWarning,
-        match="The parameter 'x' for 'foo' has been deprecated. It will not be available after Jul 2022. test help",
+        match=(
+            "The parameter 'x' for 'foo' has been deprecated. It will not be available"
+            " after Jul 2022. test help"
+        ),
     ):
         foo(10)
 
@@ -127,7 +138,10 @@ def test_deprecated_field():
 
     with pytest.warns(
         PrefectDeprecationWarning,
-        match="The field 'y' in 'Foo' has been deprecated. It will not be available after Jul 2022. test help",
+        match=(
+            "The field 'y' in 'Foo' has been deprecated. It will not be available after"
+            " Jul 2022. test help"
+        ),
     ):
         Foo(y=10)
 
@@ -147,6 +161,9 @@ def test_deprecated_field_when():
 
     with pytest.warns(
         PrefectDeprecationWarning,
-        match="The field 'x' in 'Foo' has been deprecated. It will not be available after Jul 2022. test help",
+        match=(
+            "The field 'x' in 'Foo' has been deprecated. It will not be available after"
+            " Jul 2022. test help"
+        ),
     ):
         Foo(x=10)

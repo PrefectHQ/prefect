@@ -111,7 +111,8 @@ def get_github_token() -> str:
 
     if not shutil.which("gh"):
         print(
-            "You must provide a GitHub access token via GITHUB_TOKEN or have the gh CLI installed."
+            "You must provide a GitHub access token via GITHUB_TOKEN or have the gh CLI"
+            " installed."
         )
         exit(1)
 
@@ -129,7 +130,10 @@ def get_github_token() -> str:
     match = TOKEN_REGEX.search(output)
     if not match:
         print(
-            f"Failed to find token in GitHub CLI output with regex {TOKEN_REGEX.pattern!r}:",
+            (
+                "Failed to find token in GitHub CLI output with regex"
+                f" {TOKEN_REGEX.pattern!r}:"
+            ),
             file=sys.stderr,
         )
         print(output, file=sys.stderr)

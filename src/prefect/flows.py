@@ -712,8 +712,11 @@ def select_flow(
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
-            "Specify a flow name to select a flow.",
+            (
+                f"Found {len(flows)} flows{from_message}:"
+                f" {listrepr(sorted(flows.keys()))}. Specify a flow name to select a"
+                " flow."
+            ),
         )
 
     if flow_name:

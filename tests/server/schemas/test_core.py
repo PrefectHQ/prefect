@@ -73,7 +73,10 @@ class TestBlockDocumentReference:
         same_id = uuid4()
         with pytest.raises(
             ValueError,
-            match="`parent_block_document_id` and `reference_block_document_id` cannot be the same",
+            match=(
+                "`parent_block_document_id` and `reference_block_document_id` cannot be"
+                " the same"
+            ),
         ):
             schemas.core.BlockDocumentReference(
                 parent_block_document_id=same_id,
@@ -106,7 +109,10 @@ class TestFlowRunNotificationPolicy:
                 state_names=[],
                 tags=[],
                 block_document_id=uuid4(),
-                message_template="This contains {flow_run_id} and {bad_variable} and {another_bad_variable}",
+                message_template=(
+                    "This contains {flow_run_id} and {bad_variable} and"
+                    " {another_bad_variable}"
+                ),
             )
 
 
@@ -333,7 +339,10 @@ class TestWorkPool:
         qid = uuid4()
         with pytest.raises(
             ValueError,
-            match=".*Your job expects the following variables: {'expected_variable'}, but your template provides: {'wrong_variable'}",
+            match=(
+                ".*Your job expects the following variables: {'expected_variable'}, but"
+                " your template provides: {'wrong_variable'}"
+            ),
         ):
             wp = schemas.core.WorkPool(
                 name="test", default_queue_id=qid, base_job_template=template

@@ -33,14 +33,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal[
-        "prefect_default", "info", "success", "warning", "failure"
-    ] = Field(
-        default=PrefectNotifyType.DEFAULT,
-        description=(
-            "The type of notification being performed; the prefect_default "
-            "is a plain notification that does not attach an image."
-        ),
+    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
+        Field(
+            default=PrefectNotifyType.DEFAULT,
+            description=(
+                "The type of notification being performed; the prefect_default "
+                "is a plain notification that does not attach an image."
+            ),
+        )
     )
 
     def _start_apprise_client(self, url: SecretStr):
@@ -129,7 +129,9 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         ...,
         title="Webhook URL",
         description="The Teams incoming webhook URL used to send notifications.",
-        example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
+        example=(
+            "https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ"
+        ),
     )
 
 
@@ -324,7 +326,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     apikey: SecretStr = Field(
         default=...,
         title="API Key",
-        description=("The API Key associated with your Opsgenie account."),
+        description="The API Key associated with your Opsgenie account.",
     )
 
     target_user: Optional[List] = Field(
@@ -354,13 +356,19 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
 
     tags: Optional[List] = Field(
         default=None,
-        description="A comma-separated list of tags you can associate with your Opsgenie message.",
+        description=(
+            "A comma-separated list of tags you can associate with your Opsgenie"
+            " message."
+        ),
         example='["tag1", "tag2"]',
     )
 
     priority: Optional[str] = Field(
         default=3,
-        description="The priority to associate with the message. It is on a scale between 1 (LOW) and 5 (EMERGENCY).",
+        description=(
+            "The priority to associate with the message. It is on a scale between 1"
+            " (LOW) and 5 (EMERGENCY)."
+        ),
     )
 
     alias: Optional[str] = Field(

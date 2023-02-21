@@ -165,9 +165,7 @@ class PrefectBaseModel(BaseModel):
         json_encoders = {
             # Uses secret fields and strange logic to avoid a circular import error
             # for Secret dict in prefect.blocks.fields
-            SecretField: lambda v: v.dict()
-            if getattr(v, "dict", None)
-            else str(v)
+            SecretField: lambda v: v.dict() if getattr(v, "dict", None) else str(v)
         }
 
         pydantic_version = getattr(pydantic, "__version__", None)
@@ -239,7 +237,8 @@ class PrefectBaseModel(BaseModel):
         if include_secrets:
             if "encoder" in kwargs:
                 raise ValueError(
-                    "Alternative encoder provided; can not set encoder for SecretFields."
+                    "Alternative encoder provided; can not set encoder for"
+                    " SecretFields."
                 )
             kwargs["encoder"] = partial(
                 custom_pydantic_encoder,
@@ -450,8 +449,8 @@ def copy_model_fields(model_class: Type[B]) -> Type[B]:
                 field.type_,
             ):
                 raise TypeError(
-                    f"Field {name} ({field.type_}) does not match the type of the origin "
-                    f"field {origin_field.type_}"
+                    f"Field {name} ({field.type_}) does not match the type of the"
+                    f" origin field {origin_field.type_}"
                 )
 
         # Create a copy of the origin field

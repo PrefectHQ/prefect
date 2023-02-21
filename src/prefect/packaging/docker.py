@@ -55,9 +55,11 @@ class DockerPackager(Packager):
     def set_default_base_image(cls, values):
         if not values.get("base_image") and not values.get("dockerfile"):
             values["base_image"] = get_prefect_image_name(
-                flavor="conda"
-                if isinstance(values.get("python_environment"), CondaEnvironment)
-                else None
+                flavor=(
+                    "conda"
+                    if isinstance(values.get("python_environment"), CondaEnvironment)
+                    else None
+                )
             )
         return values
 

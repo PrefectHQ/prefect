@@ -76,7 +76,10 @@ class TestSettingClass:
 
         with pytest.warns(
             DeprecationWarning,
-            match="Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be available after Jul 2023. test help",
+            match=(
+                "Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be"
+                " available after Jul 2023. test help"
+            ),
         ):
             PREFECT_TEST_SETTING.value()
 
@@ -102,7 +105,10 @@ class TestSettingClass:
         with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
             with pytest.warns(
                 DeprecationWarning,
-                match="Setting 'PREFECT_TEST_SETTING' has been deprecated when the value is foo. It will not be available after Jul 2023.",
+                match=(
+                    "Setting 'PREFECT_TEST_SETTING' has been deprecated when the value"
+                    " is foo. It will not be available after Jul 2023."
+                ),
             ):
                 PREFECT_TEST_SETTING.value()
 
@@ -352,7 +358,9 @@ class TestSettingAccess:
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: "${PREFECT_API_DATABASE_PASSWORD}/test",
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                ),
                 PREFECT_API_DATABASE_PASSWORD: "password",
             }
         ):
@@ -364,7 +372,9 @@ class TestSettingAccess:
         # a null value.
         with temporary_settings(
             {
-                PREFECT_API_DATABASE_CONNECTION_URL: "${PREFECT_API_DATABASE_PASSWORD}/test"
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                )
             }
         ):
             assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
@@ -406,7 +416,10 @@ class TestSettingAccess:
         with temporary_settings({PREFECT_CLOUD_URL: "test"}):
             with pytest.raises(
                 DeprecationWarning,
-                match="`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL`",
+                match=(
+                    "`PREFECT_CLOUD_URL` is set and will be used instead of"
+                    " `PREFECT_CLOUD_API_URL`"
+                ),
             ):
                 PREFECT_CLOUD_API_URL.value()
 

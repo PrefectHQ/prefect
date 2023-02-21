@@ -18,8 +18,12 @@ depends_on = None
 BLOCKS_TO_MIGRATE = [
     {
         "BLOCK_TYPE_NAME": "S3 Storage",
-        "OLD_CHECKSUM": "sha256:3ffda32926202a34fc30d7618e4792f71088d37fbcf92c18d070104ca6da7431",
-        "NEW_CHECKSUM": "sha256:68ed6efe6ab724c5f36519803012af68a22965eccfa5944c94fa809b8b9a6e04",
+        "OLD_CHECKSUM": (
+            "sha256:3ffda32926202a34fc30d7618e4792f71088d37fbcf92c18d070104ca6da7431"
+        ),
+        "NEW_CHECKSUM": (
+            "sha256:68ed6efe6ab724c5f36519803012af68a22965eccfa5944c94fa809b8b9a6e04"
+        ),
         "CAPABILITIES": ["readable", "storage", "writeable"],
         "NEW_FIELDS": {
             "title": "S3StorageBlock",
@@ -46,8 +50,12 @@ BLOCKS_TO_MIGRATE = [
     },
     {
         "BLOCK_TYPE_NAME": "Azure Blob Storage",
-        "OLD_CHECKSUM": "sha256:4488e8f7d196f7627e3ead24ca136860f0a54d54f6c98533cf3ef2f4ba9cf51b",
-        "NEW_CHECKSUM": "sha256:2aef5e384a1f4a2d8dd0ff8c3b96d2c5eb5852462078b6915f7d756847341a42",
+        "OLD_CHECKSUM": (
+            "sha256:4488e8f7d196f7627e3ead24ca136860f0a54d54f6c98533cf3ef2f4ba9cf51b"
+        ),
+        "NEW_CHECKSUM": (
+            "sha256:2aef5e384a1f4a2d8dd0ff8c3b96d2c5eb5852462078b6915f7d756847341a42"
+        ),
         "CAPABILITIES": ["readable", "storage", "writeable"],
         "NEW_FIELDS": {
             "title": "AzureBlobStorageBlock",

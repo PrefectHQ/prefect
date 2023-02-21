@@ -68,7 +68,10 @@ def test_register_base_type_can_be_called_more_than_once():
 def test_register_base_type_with_invalid_dispatch_key():
     with pytest.raises(
         TypeError,
-        match="Type 'Parent' has a '__dispatch_key__' of type int but a type of 'str' is required.",
+        match=(
+            "Type 'Parent' has a '__dispatch_key__' of type int but a type of 'str' is"
+            " required."
+        ),
     ):
 
         @register_base_type
@@ -118,7 +121,10 @@ def test_register_type_with_invalid_dispatch_key():
 
     with pytest.raises(
         TypeError,
-        match="Type 'Child' has a '__dispatch_key__' of type int but a type of 'str' is required.",
+        match=(
+            "Type 'Child' has a '__dispatch_key__' of type int but a type of 'str' is"
+            " required."
+        ),
     ):
 
         class Child(Parent):
@@ -170,7 +176,10 @@ def test_register_type_with_unregistered_parent_shows_known_bases():
 
     with pytest.raises(
         ValueError,
-        match="Did you mean to inherit from one of the following known types: 'RegisteredBase'.",
+        match=(
+            "Did you mean to inherit from one of the following known types:"
+            " 'RegisteredBase'."
+        ),
     ):
 
         @register_type
@@ -237,7 +246,10 @@ def test_get_dispatch_key_not_found_on_class():
 
     with pytest.raises(
         ValueError,
-        match="Type 'Foo' does not define a value for '__dispatch_key__' which is required for registry lookup.",
+        match=(
+            "Type 'Foo' does not define a value for '__dispatch_key__' which is"
+            " required for registry lookup."
+        ),
     ):
         get_dispatch_key(Foo)
 
@@ -248,7 +260,10 @@ def test_get_dispatch_key_not_found_on_instance():
 
     with pytest.raises(
         ValueError,
-        match="Type 'Foo' does not define a value for '__dispatch_key__' which is required for registry lookup.",
+        match=(
+            "Type 'Foo' does not define a value for '__dispatch_key__' which is"
+            " required for registry lookup."
+        ),
     ):
         get_dispatch_key(Foo())
 
@@ -259,7 +274,10 @@ def test_get_dispatch_key_not_a_string():
 
     with pytest.raises(
         TypeError,
-        match="Type 'Foo' has a '__dispatch_key__' of type int but a type of 'str' is required.",
+        match=(
+            "Type 'Foo' has a '__dispatch_key__' of type int but a type of 'str' is"
+            " required."
+        ),
     ):
         get_dispatch_key(Foo)
 
@@ -272,6 +290,9 @@ def test_get_dispatch_key_not_a_string_from_callable():
 
     with pytest.raises(
         TypeError,
-        match="Type 'Foo' has a '__dispatch_key__' of type int but a type of 'str' is required.",
+        match=(
+            "Type 'Foo' has a '__dispatch_key__' of type int but a type of 'str' is"
+            " required."
+        ),
     ):
         get_dispatch_key(Foo)

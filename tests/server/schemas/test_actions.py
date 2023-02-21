@@ -39,9 +39,11 @@ class TestDeploymentCreate:
     def test_create_with_worker_pool_queue_id_warns(self):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_queue_id` is no longer supported for creating "
-            "deployments. Please use `work_pool_name` and "
-            "`work_queue_name` instead.",
+            match=(
+                "`worker_pool_queue_id` is no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
         ):
             deployment_create = DeploymentCreate(
                 **dict(name="test-deployment", worker_pool_queue_id=uuid4())
@@ -60,11 +62,13 @@ class TestDeploymentCreate:
     def test_create_with_worker_pool_name_warns(self, kwargs):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_name`, `worker_pool_queue_name`, and "
-            "`work_pool_name` are"
-            "no longer supported for creating "
-            "deployments. Please use `work_pool_name` and "
-            "`work_queue_name` instead.",
+            match=(
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
         ):
             deployment_create = DeploymentCreate(
                 **dict(name="test-deployment", **kwargs)
@@ -78,9 +82,11 @@ class TestDeploymentUpdate:
     def test_update_with_worker_pool_queue_id_warns(self):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_queue_id` is no longer supported for updating "
-            "deployments. Please use `work_pool_name` and "
-            "`work_queue_name` instead.",
+            match=(
+                "`worker_pool_queue_id` is no longer supported for updating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
         ):
             deployment_update = DeploymentUpdate(**dict(worker_pool_queue_id=uuid4()))
 
@@ -97,11 +103,13 @@ class TestDeploymentUpdate:
     def test_update_with_worker_pool_name_warns(self, kwargs):
         with pytest.warns(
             UserWarning,
-            match="`worker_pool_name`, `worker_pool_queue_name`, and "
-            "`work_pool_name` are"
-            "no longer supported for creating "
-            "deployments. Please use `work_pool_name` and "
-            "`work_queue_name` instead.",
+            match=(
+                "`worker_pool_name`, `worker_pool_queue_name`, and "
+                "`work_pool_name` are"
+                "no longer supported for creating "
+                "deployments. Please use `work_pool_name` and "
+                "`work_queue_name` instead."
+            ),
         ):
             deployment_update = DeploymentCreate(**kwargs)
 

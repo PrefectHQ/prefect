@@ -79,9 +79,11 @@ class TestAlembicCommands:
         await asyncio.gather(*jobs)
 
     @pytest.mark.skip(
-        reason="This test is occasionally failing on CI because the tables aren't being "
-        "restored after the downgrade, which makes the DB cleanup fixture error "
-        "for the rest of the test suite"
+        reason=(
+            "This test is occasionally failing on CI because the tables aren't being "
+            "restored after the downgrade, which makes the DB cleanup fixture error "
+            "for the rest of the test suite"
+        )
     )
     async def test_concurrent_downgrade_upgrade(self):
         try:

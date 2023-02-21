@@ -513,7 +513,8 @@ async def update_block_document(
                 != current_block_document.block_type_id
             ):
                 raise ValueError(
-                    "Must migrate block document to a block schema of the same block type."
+                    "Must migrate block document to a block schema of the same block"
+                    " type."
                 )
             await session.execute(
                 sa.update(db.BlockDocument)

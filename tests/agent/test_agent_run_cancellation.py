@@ -284,7 +284,8 @@ async def test_agent_cancel_run_with_missing_infrastructure_pid(
 
     # Information broadcasted to user in logs and state message
     assert (
-        "does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+        "does not have an infrastructure pid attached. Cancellation cannot be"
+        " guaranteed."
         in caplog.text
     )
     assert "missing infrastructure tracking information" in post_flow_run.state.message
