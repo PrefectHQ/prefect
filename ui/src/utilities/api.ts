@@ -1,13 +1,18 @@
-import { showToast } from '@prefecthq/prefect-design'
-import { healthApi } from '@/services/healthApi'
-import { UiSettings } from '@/services/uiSettings'
+import { createApi, PrefectConfig } from '@prefecthq/prefect-ui-library'
+import { createActions } from '@prefecthq/vue-compositions'
+import { InjectionKey } from 'vue'
+import { AdminApi } from '@/services/adminApi'
 
-export async function healthCheck(): Promise<void> {
-  try {
-    await healthApi.getHealth()
-  } catch (error) {
-    const apiUrl = await UiSettings.get('apiUrl').then(res => res)
-    showToast(`Can't connect to Server API at ${apiUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
-    console.warn(error)
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export function createPrefectApi(config: PrefectConfig) {
+  const workspaceApi = createApi(config)
+
+  return {
+    ...workspaceApi,
+    admin: createActions(new AdminApi(config)),
   }
 }
+
+export type CreatePrefectApi = ReturnType<typeof createPrefectApi>
+
+export const prefectApiKey: InjectionKey<CreatePrefectApi> = Symbol('PrefectApi')
