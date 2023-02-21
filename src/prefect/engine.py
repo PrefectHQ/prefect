@@ -94,6 +94,7 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
+    is_async_fn,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
@@ -1550,6 +1551,12 @@ async def orchestrate_task_run(
 
         state = await propose_state(client, terminal_state, task_run_id=task_run.id)
 
+        await _run_task_hooks(
+            task=task,
+            task_run=task_run,
+            state=state,
+        )
+
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
@@ -1967,6 +1974,36 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
             return PREFECT_LOGGING_LOG_PRINTS.value()
 
     return flow_or_task.log_prints
+
+
+async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
+    """Run the on_failure and on_completion hooks for a task, making sure to
+    catch and log any errors that occur.
+    """
+    hooks = None
+    if state.is_failed() and task.on_failure:
+        hooks = task.on_failure
+    elif state.is_completed() and task.on_completion:
+        hooks = task.on_completion
+
+    if hooks:
+        logger = task_run_logger(task_run)
+        for hook in hooks:
+            try:
+                if is_async_fn(hook):
+                    await hook(task=task, task_run=task_run, state=state)
+                else:
+                    await run_sync_in_worker_thread(
+                        hook, task=task, task_run=task_run, state=state
+                    )
+                logger.info(
+                    f"Ran hook {hook!r} in response to entering state {state.name!r}"
+                )
+            except Exception as exc:
+                logger.error(
+                    f"Error running hook {hook!r} in response to entering state {state.name!r}: {exc}",
+                    exc_info=True,
+                )
 
 
 if __name__ == "__main__":
