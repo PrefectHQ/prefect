@@ -462,6 +462,35 @@ class TestFlowName:
         )
 
 
+class TestDescription:
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_description_set_correctly(
+        self, patch_import, tmp_path, mock_build_from_flow
+    ):
+        deployment_description = "TEST DEPLOYMENT"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            "TEST",
+            "--description",
+            deployment_description,
+            "-o",
+            output_path,
+        ]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["description"] == deployment_description
+
+
 class TestEntrypoint:
     def test_entrypoint_is_saved_as_relative_path(self, patch_import, tmp_path):
         invoke_and_assert(
