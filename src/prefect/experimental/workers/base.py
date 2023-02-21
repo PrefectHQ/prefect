@@ -471,13 +471,17 @@ class BaseWorker(abc.ABC):
         )
 
     async def _check_flow_run(self, flow_run: FlowRun) -> None:
+        """
+        Performs a check on a submitted flow run to warn the user if the flow run
+        was created from a deployment with a storage block.
+        """
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
                 self._logger.warning(
                     "Flow run %s was created from deployment %s which is configured "
                     "with a storage block. Workers currently only support local "
-                    "storage. This flow run will be submitted for execution, but ",
+                    "storage. This flow run will be submitted for execution, but "
                     "will fail if the flow code is not local to this worker's "
                     "filesystem.",
                     flow_run.id,
