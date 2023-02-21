@@ -1123,6 +1123,11 @@ The location where workers will scan for newly submitted deployments and store
 flow code for submitted deployments.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect artifacts.
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 
