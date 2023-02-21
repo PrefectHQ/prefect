@@ -1704,6 +1704,25 @@ class TestDeploymentFlowRun:
         with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
             await state.result()
 
+    async def test_accepts_ignore_storage(self, orion_client, caplog, flow_function):
+        flow_id = await orion_client.create_flow(flow_function)
+        deployment_id = await orion_client.create_deployment(
+            flow_id, name="test", entrypoint="tests/generic_flows.py:identity"
+        )
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run.id, client=orion_client, ignore_storage=True
+        )
+
+        assert await state.result() == 1
+        assert (
+            "Importing flow code from 'tests/generic_flows.py:identity'" in caplog.text
+        )
+
 
 class TestDynamicKeyHandling:
     async def test_dynamic_key_increases_sequentially(self, orion_client):

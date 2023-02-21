@@ -180,7 +180,9 @@ def enter_flow_run_engine_from_flow_call(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
+def enter_flow_run_engine_from_subprocess(
+    flow_run_id: UUID, ignore_storage: bool = False
+) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
@@ -191,7 +193,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id, ignore_storage)
 
 
 @inject_client
@@ -255,7 +257,7 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: PrefectClient
+    flow_run_id: UUID, client: PrefectClient, ignore_storage: bool = False
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -266,7 +268,9 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
     try:
-        flow = await load_flow_from_flow_run(flow_run, client=client)
+        flow = await load_flow_from_flow_run(
+            flow_run, client=client, ignore_storage=ignore_storage
+        )
     except Exception as exc:
         message = "Flow could not be retrieved from deployment."
         flow_run_logger(flow_run).exception(message)
@@ -1990,14 +1994,17 @@ if __name__ == "__main__":
         flow_run_id = UUID(
             sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")
         )
+        ignore_storage = "--ignore-storage" in sys.argv
     except Exception:
         engine_logger.error(
-            f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
+            f"Invalid flow run id. Received arguments: {sys.argv}", exc_info=True
         )
         exit(1)
 
     try:
-        enter_flow_run_engine_from_subprocess(flow_run_id)
+        enter_flow_run_engine_from_subprocess(
+            flow_run_id, ignore_storage=ignore_storage
+        )
     except Abort as exc:
         engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
