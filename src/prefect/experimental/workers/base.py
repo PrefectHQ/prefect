@@ -298,7 +298,7 @@ class BaseWorker(abc.ABC):
         if getattr(self._work_pool, "type", 0) != work_pool.type:
             if work_pool.type != self.__class__.type:
                 self._logger.warning(
-                    f"Worker type mismatch! This worker process expects type "
+                    "Worker type mismatch! This worker process expects type "
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
@@ -389,7 +389,8 @@ class BaseWorker(abc.ABC):
             )
         except Exception as exc:
             self._logger.exception(
-                "Unexpected error occurred while attempting to register discovered deployment."
+                "Unexpected error occurred while attempting to register discovered"
+                " deployment."
             )
 
     async def _get_scheduled_flow_runs(
@@ -436,7 +437,8 @@ class BaseWorker(abc.ABC):
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self._logger.info(
-                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -531,7 +533,10 @@ class BaseWorker(abc.ABC):
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -543,9 +548,11 @@ class BaseWorker(abc.ABC):
         """
         return {
             "name": self.name,
-            "work_pool": self._work_pool.dict(json_compatible=True)
-            if self._work_pool is not None
-            else None,
+            "work_pool": (
+                self._work_pool.dict(json_compatible=True)
+                if self._work_pool is not None
+                else None
+            ),
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
                 "workflow_storage_path": self._workflow_storage_path,
@@ -568,8 +575,10 @@ class BaseWorker(abc.ABC):
             )
         except Abort as exc:
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception:
@@ -580,8 +589,10 @@ class BaseWorker(abc.ABC):
 
         if not state.is_pending():
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 

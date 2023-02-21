@@ -28,7 +28,10 @@ T = TypeVar("T", bound=Callable)
 M = TypeVar("M", bound=pydantic.BaseModel)
 
 
-DEPRECATED_WARNING = "{name} has been deprecated{when}. It will not be available after {end_date}. {help}"
+DEPRECATED_WARNING = (
+    "{name} has been deprecated{when}. It will not be available after {end_date}."
+    " {help}"
+)
 DEPRECATED_MOVED_WARNING = (
     "{name} has moved to {new_location}. It will not be available at the old import "
     "path after {end_date}. {help}"
@@ -124,7 +127,6 @@ def deprecated_parameter(
     when = when or (lambda _: True)
 
     def decorator(fn: T):
-
         message = generate_deprecation_message(
             name=f"The parameter {name!r} for {fn.__name__!r}",
             start_date=start_date,

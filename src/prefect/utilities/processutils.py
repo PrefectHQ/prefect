@@ -260,7 +260,6 @@ async def run_process(
         stderr=subprocess.PIPE if stream_output else subprocess.DEVNULL,
         **kwargs,
     ) as process:
-
         if task_status is not None:
             if not task_status_handler:
                 task_status_handler = lambda process: process.pid

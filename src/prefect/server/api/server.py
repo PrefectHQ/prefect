@@ -68,6 +68,7 @@ API_ROUTERS = (
     api.block_documents.router,
     api.workers.router,
     api.work_queues.router,
+    api.artifacts.router,
     api.block_schemas.router,
     api.block_capabilities.router,
     api.ui.flow_runs.router,
@@ -182,12 +183,12 @@ def create_orion_api(
 
     if router_overrides:
         for prefix, router in router_overrides.items():
-
             # We may want to allow this behavior in the future to inject new routes, but
             # for now this will be treated an as an exception
             if prefix not in routers:
                 raise KeyError(
-                    f"Router override provided for prefix that does not exist: {prefix!r}"
+                    "Router override provided for prefix that does not exist:"
+                    f" {prefix!r}"
                 )
 
             # Drop the existing router
@@ -195,7 +196,6 @@ def create_orion_api(
 
             # Replace it with a new router if provided
             if router is not None:
-
                 if prefix != router.prefix:
                     # We may want to allow this behavior in the future, but it will
                     # break expectations without additional routing and is banned for
@@ -312,10 +312,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                 )
             except Exception as exc:
                 logger.warn(
-                    f"Unable to write to memo_store.toml at {PREFECT_MEMO_STORE_PATH} "
-                    f"after block auto-registration: {exc!r}.\n Subsequent server start "
-                    "ups will perform block auto-registration, which may result in "
-                    "slower server startup."
+                    "Unable to write to memo_store.toml at"
+                    f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
+                    f" {exc!r}.\n Subsequent server start ups will perform block"
+                    " auto-registration, which may result in slower server startup."
                 )
 
     return wrapper

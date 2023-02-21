@@ -66,22 +66,22 @@ async def create_deployment(
         if deployment.work_pool_name and deployment.work_queue_name:
             # If a specific pool name/queue name combination was provided, get the
             # ID for that work pool queue.
-            deployment_dict[
-                "work_queue_id"
-            ] = await worker_lookups._get_work_queue_id_from_name(
-                session=session,
-                work_pool_name=deployment.work_pool_name,
-                work_queue_name=deployment.work_queue_name,
-                create_queue_if_not_found=True,
+            deployment_dict["work_queue_id"] = (
+                await worker_lookups._get_work_queue_id_from_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                    work_queue_name=deployment.work_queue_name,
+                    create_queue_if_not_found=True,
+                )
             )
         elif deployment.work_pool_name:
             # If just a pool name was provided, get the ID for its default
             # work pool queue.
-            deployment_dict[
-                "work_queue_id"
-            ] = await worker_lookups._get_default_work_queue_id_from_work_pool_name(
-                session=session,
-                work_pool_name=deployment.work_pool_name,
+            deployment_dict["work_queue_id"] = (
+                await worker_lookups._get_default_work_queue_id_from_work_pool_name(
+                    session=session,
+                    work_pool_name=deployment.work_pool_name,
+                )
             )
         elif deployment.work_queue_name:
             # If just a queue name was provided, ensure that the queue exists and
@@ -104,7 +104,12 @@ async def create_deployment(
             if not infrastructure_block:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Error creating deployment. Could not find infrastructure block with id: {deployment.infrastructure_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+                    detail=(
+                        "Error creating deployment. Could not find infrastructure"
+                        f" block with id: {deployment.infrastructure_document_id}. This"
+                        " usually occurs when applying a deployment specification that"
+                        " was built against a different Prefect database / workspace."
+                    ),
                 )
 
         if deployment.storage_document_id is not None:
@@ -117,7 +122,12 @@ async def create_deployment(
             if not infrastructure_block:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Error creating deployment. Could not find storage block with id: {deployment.storage_document_id}. This usually occurs when applying a deployment specification that was built against a different Prefect database / workspace.",
+                    detail=(
+                        "Error creating deployment. Could not find storage block with"
+                        f" id: {deployment.storage_document_id}. This usually occurs"
+                        " when applying a deployment specification that was built"
+                        " against a different Prefect database / workspace."
+                    ),
                 )
 
         now = pendulum.now()
@@ -284,7 +294,9 @@ async def schedule_deployment(
     end_time: DateTimeTZ = Body(None, description="The latest date to schedule"),
     min_time: datetime.timedelta = Body(
         None,
-        description="Runs will be scheduled until at least this long after the `start_time`",
+        description=(
+            "Runs will be scheduled until at least this long after the `start_time`"
+        ),
     ),
     min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),

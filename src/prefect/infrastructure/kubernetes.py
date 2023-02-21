@@ -91,8 +91,10 @@ class KubernetesJob(Infrastructure):
     image: Optional[str] = Field(
         default=None,
         description=(
-            "The image reference of a container image to use for the job, for example, `docker.io/prefecthq/prefect:2-latest`."
-            "The behavior is as described in the Kubernetes documentation and uses the latest version of Prefect by default, unless an image is already present in a provided job manifest."
+            "The image reference of a container image to use for the job, for example,"
+            " `docker.io/prefecthq/prefect:2-latest`.The behavior is as described in"
+            " the Kubernetes documentation and uses the latest version of Prefect by"
+            " default, unless an image is already present in a provided job manifest."
         ),
     )
     namespace: Optional[str] = Field(
@@ -141,11 +143,17 @@ class KubernetesJob(Infrastructure):
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, output will be streamed from the job to local standard output.",
+        description=(
+            "If set, output will be streamed from the job to local standard output."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
-        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
+        description=(
+            "The number of seconds to retain jobs after completion. If set, finished"
+            " jobs will be cleaned up by Kubernetes after the given delay. If None"
+            " (default), jobs will need to be manually removed."
+        ),
     )
 
     # internal-use only right now
@@ -192,7 +200,8 @@ class KubernetesJob(Infrastructure):
                 return JsonPatch(json.loads(value))
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    f"Unable to parse customizations as JSON: {value}. Please make sure that the provided value is a valid JSON string."
+                    f"Unable to parse customizations as JSON: {value}. Please make sure"
+                    " that the provided value is a valid JSON string."
                 ) from exc
         return value
 
@@ -462,7 +471,9 @@ class KubernetesJob(Infrastructure):
         shortcuts += [
             {
                 "op": "add",
-                "path": f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}",
+                "path": (
+                    f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}"
+                ),
                 "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()
@@ -527,14 +538,16 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": "prefect-job-"
-                    # We generate a name using a hash of the primary job settings
-                    + stable_hash(
-                        *self.command,
-                        *self.env.keys(),
-                        *[v for v in self.env.values() if v is not None],
-                    )
-                    + "-",
+                    "value": (
+                        "prefect-job-"
+                        # We generate a name using a hash of the primary job settings
+                        + stable_hash(
+                            *self.command,
+                            *self.env.keys(),
+                            *[v for v in self.env.values() if v is not None],
+                        )
+                        + "-"
+                    ),
                 }
             )
 
@@ -597,15 +610,18 @@ class KubernetesJob(Infrastructure):
                     self.namespace,
                     follow=True,
                     _preload_content=False,
+                    container="prefect-job",
                 )
                 try:
                     for log in logs.stream():
                         print(log.decode().rstrip())
                 except Exception:
                     self.logger.warning(
-                        "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will "
-                        "no longer be streamed to stdout.",
+                        (
+                            "Error occurred while streaming logs - "
+                            "Job will continue to run but logs will "
+                            "no longer be streamed to stdout."
+                        ),
                         exc_info=True,
                     )
 
@@ -720,7 +736,11 @@ class KubernetesJob(Infrastructure):
             name = key
 
         name_slug = (
-            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+            slugify(
+                name,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_.]+",
+            ).strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or name
@@ -760,7 +780,11 @@ class KubernetesJob(Infrastructure):
             The slugified value
         """
         slug = (
-            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+            slugify(
+                value,
+                max_length=63,
+                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
+            ).strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value

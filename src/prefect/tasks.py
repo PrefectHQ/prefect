@@ -674,7 +674,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[Awaitable[PrefectFuture[T, Async]]]:
+    ) -> Awaitable[List[PrefectFuture[T, Async]]]:
         ...
 
     @overload
@@ -700,7 +700,7 @@ class Task(Generic[P, R]):
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    ) -> Any:
         """
         Submit a mapped run of the task to a worker.
 

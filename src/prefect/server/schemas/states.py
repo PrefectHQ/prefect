@@ -187,9 +187,11 @@ class State(StateBaseModel, Generic[R]):
         from prefect.states import State
 
         warnings.warn(
-            "`result` is no longer supported by `prefect.server.schemas.states.State` "
-            "and will be removed in a future release. When result retrieval is needed, "
-            "use `prefect.states.State`.",
+            (
+                "`result` is no longer supported by"
+                " `prefect.server.schemas.states.State` and will be removed in a future"
+                " release. When result retrieval is needed, use `prefect.states.State`."
+            ),
             DeprecationWarning,
             stacklevel=2,
         )
@@ -202,9 +204,11 @@ class State(StateBaseModel, Generic[R]):
         from prefect.client.schemas import State
 
         warnings.warn(
-            "Use of `prefect.server.schemas.states.State` from the client is deprecated "
-            "and support will be removed in a future release. "
-            "Use `prefect.states.State` instead.",
+            (
+                "Use of `prefect.server.schemas.states.State` from the client is"
+                " deprecated and support will be removed in a future release. Use"
+                " `prefect.states.State` instead."
+            ),
             DeprecationWarning,
             stacklevel=2,
         )

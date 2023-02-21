@@ -44,7 +44,9 @@ def test_both_start_in_and_start_at_raises():
     invoke_and_assert(
         command=["deployment", "run", "--start-in", "foo", "--start-at", "bar"],
         expected_code=1,
-        expected_output="Only one of `--start-in` or `--start-at` can be set, not both.",
+        expected_output=(
+            "Only one of `--start-in` or `--start-at` can be set, not both."
+        ),
     )
 
 
@@ -270,7 +272,6 @@ async def test_start_in_option_displays_scheduled_start_time(
     start_in: str,
     expected_display: str,
 ):
-
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[

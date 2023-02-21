@@ -109,14 +109,16 @@ class TaskRunnerStandardTestSuite(ABC):
         assert c.is_pending()
         assert c.name == "NotReady"
         assert (
-            f"Upstream task run '{b.state_details.task_run_id}' did not reach a 'COMPLETED' state"
+            f"Upstream task run '{b.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state"
             in c.message
         )
 
         assert d.is_pending()
         assert d.name == "NotReady"
         assert (
-            f"Upstream task run '{c.state_details.task_run_id}' did not reach a 'COMPLETED' state"
+            f"Upstream task run '{c.state_details.task_run_id}' did not reach a"
+            " 'COMPLETED' state"
             in d.message
         )
 
@@ -131,7 +133,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -158,7 +161,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -186,7 +190,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -212,7 +217,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -353,7 +359,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This will abort the run for {task_runner.concurrency_type} task runners."
+                f"This will abort the run for {task_runner.concurrency_type} task"
+                " runners."
             )
 
         task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
@@ -469,7 +476,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -495,7 +503,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -524,7 +533,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.SEQUENTIAL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task
@@ -550,7 +560,8 @@ class TaskRunnerStandardTestSuite(ABC):
     ):
         if task_runner.concurrency_type != TaskConcurrencyType.PARALLEL:
             pytest.skip(
-                f"This test does not apply to {task_runner.concurrency_type} task runners."
+                f"This test does not apply to {task_runner.concurrency_type} task"
+                " runners."
             )
 
         @task

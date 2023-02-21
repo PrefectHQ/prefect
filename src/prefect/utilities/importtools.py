@@ -234,10 +234,10 @@ class DelayedImportErrorModule(ModuleType):
         else:
             fd = self.__frame_data
             raise ModuleNotFoundError(
-                f"No module named '{fd['spec']}'\n\n"
-                "This module was originally imported at:\n"
-                f'  File "{fd["filename"]}", line {fd["lineno"]}, in {fd["function"]}\n\n'
-                f'    {"".join(fd["code_context"]).strip()}\n' + self.__help_message
+                f"No module named '{fd['spec']}'\n\nThis module was originally imported"
+                f" at:\n  File \"{fd['filename']}\", line {fd['lineno']}, in"
+                f" {fd['function']}\n\n    {''.join(fd['code_context']).strip()}\n"
+                + self.__help_message
             )
 
 

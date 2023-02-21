@@ -181,7 +181,10 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}(id={id(self)}, owner={self.owner_thread_ident})>"
+        return (
+            f"<{self.__class__.__name__}(id={id(self)},"
+            f" owner={self.owner_thread_ident})>"
+        )
 
 
 class SyncSupervisor(Supervisor[T]):

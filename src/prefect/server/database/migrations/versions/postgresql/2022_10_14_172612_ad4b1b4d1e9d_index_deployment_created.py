@@ -20,6 +20,5 @@ def upgrade():
 
 
 def downgrade():
-
     with op.batch_alter_table("deployment", schema=None) as batch_op:
         batch_op.drop_index("ix_deployment__created")

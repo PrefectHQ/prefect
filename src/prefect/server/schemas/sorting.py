@@ -139,3 +139,24 @@ class DeploymentSort(AutoEnum):
             "NAME_DESC": db.Deployment.name.desc(),
         }
         return sort_mapping[self.value]
+
+
+class ArtifactSort(AutoEnum):
+    """Defines artifact sorting options."""
+
+    CREATED_DESC = AutoEnum.auto()
+    UPDATED_DESC = AutoEnum.auto()
+    ID_DESC = AutoEnum.auto()
+    KEY_DESC = AutoEnum.auto()
+    KEY_ASC = AutoEnum.auto()
+
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
+        """Return an expression used to sort artifacts"""
+        sort_mapping = {
+            "CREATED_DESC": db.Artifact.created.desc(),
+            "UPDATED_DESC": db.Artifact.updated.desc(),
+            "ID_DESC": db.Artifact.id.desc(),
+            "KEY_DESC": db.Artifact.key.desc(),
+            "KEY_ASC": db.Artifact.key.asc(),
+        }
+        return sort_mapping[self.value]

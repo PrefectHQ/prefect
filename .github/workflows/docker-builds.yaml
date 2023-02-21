@@ -92,7 +92,7 @@ jobs:
             latest=false
 
       - name: Build and push image
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         env:
           CACHE_TO_STRING: type=registry,ref=prefecthq/prefect-dev:buildcache-python${{ matrix.python-version }}${{ matrix.flavor }},mode=max
         with:

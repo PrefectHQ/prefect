@@ -218,7 +218,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -239,7 +238,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -257,7 +255,6 @@ class TestKill:
     async def test_kill_uses_correct_grace_seconds(
         self, mock_k8s_batch_client, mock_k8s_client, mock_watch, monkeypatch
     ):
-
         GRACE_SECONDS = 42
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
@@ -278,10 +275,15 @@ class TestKill:
         BAD_NAMESPACE = "dog"
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"The job is running in namespace {BAD_NAMESPACE!r} but this block is configured to use 'default'",
+            match=(
+                f"The job is running in namespace {BAD_NAMESPACE!r} but this block is"
+                " configured to use 'default'"
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
-                infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
+                infrastructure_pid=(
+                    f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job"
+                ),
                 grace_seconds=0,
             )
 
@@ -292,8 +294,10 @@ class TestKill:
 
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
-            "cluster.",
+            match=(
+                f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                f"cluster."
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
                 infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
@@ -307,7 +311,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=404)
         ]
@@ -328,7 +331,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=400)
         ]
@@ -428,7 +430,6 @@ async def test_sets_environment_variables(
     mock_watch,
     mock_k8s_batch_client,
 ):
-
     await KubernetesJob(
         command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}
     ).run()
@@ -1173,17 +1174,30 @@ class TestCustomizingJob:
     def test_providing_a_string_customization(self):
         KubernetesJob(
             command=["echo", "hello"],
-            customizations='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-","value": {"name": "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name": "the-secret-name", "key": "api-token"}}}}]',
+            customizations=(
+                '[{"op": "add", "path":'
+                ' "/spec/template/spec/containers/0/env/-","value": {"name":'
+                ' "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name":'
+                ' "the-secret-name", "key": "api-token"}}}}]'
+            ),
         )
 
     def test_providing_an_illformatted_string_customization_raises(self):
         with pytest.raises(
             ValueError,
-            match=f"Unable to parse customizations as JSON: .* Please make sure that the provided value is a valid JSON string.",
+            match=(
+                f"Unable to parse customizations as JSON: .* Please make sure that the"
+                f" provided value is a valid JSON string."
+            ),
         ):
             KubernetesJob(
                 command=["echo", "hello"],
-                customizations='[{"op": ""add", "path": "/spec/template/spec/containers/0/env/-","value": {"name": "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name": "the-secret-name", "key": "api-token"}}}}]',
+                customizations=(
+                    '[{"op": ""add", "path":'
+                    ' "/spec/template/spec/containers/0/env/-","value": {"name":'
+                    ' "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name":'
+                    ' "the-secret-name", "key": "api-token"}}}}]'
+                ),
             )
 
     def test_setting_pod_resource_requests(self):

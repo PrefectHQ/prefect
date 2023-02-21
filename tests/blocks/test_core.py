@@ -808,7 +808,6 @@ class TestAPICompatibility:
         assert FlyingCat.get_block_capabilities() == {"fly", "run"}
 
     def test_create_block_schema_from_nested_blocks(self):
-
         block_schema_id = uuid4()
         block_type_id = uuid4()
 
@@ -1213,8 +1212,10 @@ class TestRegisterBlockTypeAndSchema:
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on the Block class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on the Block class directly."
+            ),
         ):
             await Block.register_type_and_schema()
 
@@ -1252,8 +1253,10 @@ class TestRegisterBlockTypeAndSchema:
 
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on a Block interface class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on a Block interface class directly."
+            ),
         ):
             await Interface.register_type_and_schema(client=orion_client)
 
@@ -1600,8 +1603,10 @@ class TestSaveBlock:
 
         with pytest.raises(
             ValueError,
-            match="You are attempting to save values with a name that is already in "
-            "use for this block type",
+            match=(
+                "You are attempting to save values with a name that is already in "
+                "use for this block type"
+            ),
         ):
             await inner_block.save("my-inner-block")
 
@@ -2057,7 +2062,6 @@ class TestSyncCompatible:
         assert loaded_block.cool_factor == 1000000
 
     def test_block_in_flow_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2069,7 +2073,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_sync_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2081,7 +2084,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_async_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -2093,7 +2095,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     def test_block_in_task_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -2109,7 +2110,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -2125,7 +2125,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_async_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task

@@ -106,7 +106,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-
         self._applied_limits = []
         filtered_limits = (
             await concurrency_limits.filter_concurrency_limits_for_orchestration(
@@ -115,7 +114,6 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         )
         run_limits = {limit.tag: limit for limit in filtered_limits}
         for tag, cl in run_limits.items():
-
             limit = cl.concurrency_limit
             if limit == 0:
                 # limits of 0 will deadlock, and the transition needs to abort
@@ -126,7 +124,10 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     stale_limit.active_slots = list(active_slots)
 
                 await self.abort_transition(
-                    reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
+                    reason=(
+                        f'The concurrency limit on tag "{tag}" is 0 and will deadlock'
+                        " if the task tries to run again."
+                    ),
                 )
             elif len(cl.active_slots) >= limit:
                 # if the limit has already been reached, delay the transition
@@ -506,7 +507,10 @@ class HandlePausingFlows(BaseOrchestrationRule):
 
             if context.run.deployment_id is None:
                 await self.abort_transition(
-                    reason="Cannot pause flows without a deployment with the reschedule option.",
+                    reason=(
+                        "Cannot pause flows without a deployment with the reschedule"
+                        " option."
+                    ),
                 )
                 return
 
@@ -542,7 +546,10 @@ class HandleResumingPausedFlows(BaseOrchestrationRule):
         ):
             await self.reject_transition(
                 state=None,
-                reason=f"This run cannot transition to the {proposed_state.type} state from the {initial_state.type} state.",
+                reason=(
+                    f"This run cannot transition to the {proposed_state.type} state"
+                    f" from the {initial_state.type} state."
+                ),
             )
             return
 
@@ -594,7 +601,10 @@ class UpdateFlowRunTrackerOnTasks(BaseOrchestrationRule):
             context.run.flow_run_run_count = self.flow_run.run_count
         else:
             raise ObjectNotFoundError(
-                f"Unable to read flow run associated with task run: {context.run.id}, this flow run might have been deleted",
+                (
+                    "Unable to read flow run associated with task run:"
+                    f" {context.run.id}, this flow run might have been deleted"
+                ),
             )
 
 
@@ -622,7 +632,6 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-
         # permit rerunning a task if the flow is retrying
         if proposed_state.is_running() and (
             initial_state.is_failed()
@@ -679,7 +688,6 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
 
         # permit transitions into back into a scheduled state for manual retries
         if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
-
             # Reset pause metadata on manual retry
             api_version = context.parameters.get("api-version", None)
             if api_version is None or api_version >= Version("0.8.4"):
@@ -751,7 +759,10 @@ class PreventRedundantTransitions(BaseOrchestrationRule):
             <= self.STATE_PROGRESS[initial_state_type]
         ):
             await self.abort_transition(
-                reason=f"This run cannot transition to the {proposed_state_type} state from the {initial_state_type} state."
+                reason=(
+                    f"This run cannot transition to the {proposed_state_type} state"
+                    f" from the {initial_state_type} state."
+                )
             )
 
 
@@ -780,7 +791,10 @@ class PreventRunningTasksFromStoppedFlows(BaseOrchestrationRule):
         elif flow_run.state.type == StateType.PAUSED:
             await self.reject_transition(
                 state=states.Paused(name="NotReady"),
-                reason=f"The flow is paused, new tasks can execute after resuming flow run: {flow_run.id}.",
+                reason=(
+                    "The flow is paused, new tasks can execute after resuming flow"
+                    f" run: {flow_run.id}."
+                ),
             )
         elif not flow_run.state.type == StateType.RUNNING:
             # task runners should abort task run execution
