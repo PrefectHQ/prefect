@@ -90,8 +90,9 @@ class LoopService:
             # that the interval might be too short
             if (end_time - start_time).total_seconds() > self.loop_seconds:
                 self.logger.warning(
-                    f"{self.name} took {(end_time-start_time).total_seconds()} seconds to run, "
-                    f"which is longer than its loop interval of {self.loop_seconds} seconds."
+                    f"{self.name} took {(end_time-start_time).total_seconds()} seconds"
+                    " to run, which is longer than its loop interval of"
+                    f" {self.loop_seconds} seconds."
                 )
 
             # check if early stopping was requested
@@ -139,10 +140,10 @@ class LoopService:
             # if the service is still running after `loop_seconds`, something's wrong
             if self._is_running:
                 self.logger.warning(
-                    f"`stop(block=True)` was called on {self.name} but more than one loop "
-                    f"interval ({self.loop_seconds} seconds) has passed. This usually "
-                    "means something is wrong. If `stop()` was called from inside the "
-                    "loop service, use `stop(block=False)` isntead."
+                    f"`stop(block=True)` was called on {self.name} but more than one"
+                    f" loop interval ({self.loop_seconds} seconds) has passed. This"
+                    " usually means something is wrong. If `stop()` was called from"
+                    " inside the loop service, use `stop(block=False)` isntead."
                 )
 
     def _stop(self, *_) -> None:

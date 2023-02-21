@@ -24,9 +24,10 @@ M = TypeVar("M", bound=pydantic.BaseModel)
 
 
 EXPERIMENTAL_WARNING = (
-    "{feature} is experimental. {help}"
-    "The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes. "
-    "To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}."
+    "{feature} is experimental. {help}The interface or behavior may change without"
+    " warning, we recommend pinning versions to prevent unexpected changes. To disable"
+    " warnings for this group of experiments, disable"
+    " PREFECT_EXPERIMENTAL_WARN_{group}."
 )
 
 EXPERIMENTAL_ERROR = (

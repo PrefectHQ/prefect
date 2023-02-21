@@ -187,7 +187,8 @@ def create_orion_api(
             # for now this will be treated an as an exception
             if prefix not in routers:
                 raise KeyError(
-                    f"Router override provided for prefix that does not exist: {prefix!r}"
+                    "Router override provided for prefix that does not exist:"
+                    f" {prefix!r}"
                 )
 
             # Drop the existing router
@@ -311,10 +312,10 @@ def _memoize_block_auto_registration(fn: Callable[[], Awaitable[None]]):
                 )
             except Exception as exc:
                 logger.warn(
-                    f"Unable to write to memo_store.toml at {PREFECT_MEMO_STORE_PATH} "
-                    f"after block auto-registration: {exc!r}.\n Subsequent server start "
-                    "ups will perform block auto-registration, which may result in "
-                    "slower server startup."
+                    "Unable to write to memo_store.toml at"
+                    f" {PREFECT_MEMO_STORE_PATH} after block auto-registration:"
+                    f" {exc!r}.\n Subsequent server start ups will perform block"
+                    " auto-registration, which may result in slower server startup."
                 )
 
     return wrapper

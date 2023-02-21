@@ -293,9 +293,11 @@ class PrefectFuture(Generic[R, A]):
 
     def __bool__(self) -> bool:
         warnings.warn(
-            "A 'PrefectFuture' from a task call was cast to a boolean; "
-            "did you mean to check the result of the task instead? "
-            "e.g. `if my_task().result(): ...`",
+            (
+                "A 'PrefectFuture' from a task call was cast to a boolean; "
+                "did you mean to check the result of the task instead? "
+                "e.g. `if my_task().result(): ...`"
+            ),
             stacklevel=2,
         )
         return True

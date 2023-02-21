@@ -94,7 +94,10 @@ class WorkerLookups:
             if not create_queue_if_not_found:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Work pool queue '{work_pool_name}/{work_queue_name}' not found.",
+                    detail=(
+                        f"Work pool queue '{work_pool_name}/{work_queue_name}' not"
+                        " found."
+                    ),
                 )
             work_pool_id = await self._get_work_pool_id_from_name(
                 session=session, work_pool_name=work_pool_name
@@ -204,8 +207,10 @@ async def update_work_pool(
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Work pools starting with 'Prefect' are reserved for internal use "
-            "and can only be updated to set concurrency limits or pause.",
+            detail=(
+                "Work pools starting with 'Prefect' are reserved for internal use "
+                "and can only be updated to set concurrency limits or pause."
+            ),
         )
 
     async with db.session_context(begin_transaction=True) as session:
@@ -233,7 +238,10 @@ async def delete_work_pool(
     if work_pool_name.lower().startswith("prefect"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Work pools starting with 'Prefect' are reserved for internal use and can not be deleted.",
+            detail=(
+                "Work pools starting with 'Prefect' are reserved for internal use and"
+                " can not be deleted."
+            ),
         )
 
     async with db.session_context(begin_transaction=True) as session:
@@ -375,7 +383,10 @@ async def create_work_queue(
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A work queue with this name already exists in work pool {work_pool_name!r}.",
+            detail=(
+                "A work queue with this name already exists in work pool"
+                " {work_pool_name!r}."
+            ),
         )
 
     return model

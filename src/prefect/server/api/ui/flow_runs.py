@@ -25,8 +25,10 @@ class SimpleFlowRun(PrefectBaseModel):
     )
     timestamp: DateTimeTZ = Field(
         default=...,
-        description="The start time of the run, or the expected start time "
-        "if it hasn't run yet.",
+        description=(
+            "The start time of the run, or the expected start time "
+            "if it hasn't run yet."
+        ),
     )
     duration: datetime.timedelta = Field(
         default=..., description="The total run time of the run."

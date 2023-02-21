@@ -111,7 +111,7 @@ async def reset_concurrency_limit_by_tag(
     slot_override: Optional[List[UUID]] = Body(
         None,
         embed=True,
-        description=("Manual override for active concurrency limit slots."),
+        description="Manual override for active concurrency limit slots.",
     ),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ):

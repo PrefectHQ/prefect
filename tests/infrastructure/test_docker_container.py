@@ -139,7 +139,10 @@ async def test_kill_raises_infra_not_found_with_bad_container_id(
     BAD_CONTAINER_ID = "bad-container-id"
     with pytest.raises(
         InfrastructureNotFound,
-        match=f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not found.",
+        match=(
+            f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not"
+            " found."
+        ),
     ):
         await DockerContainer().kill(
             infrastructure_pid=f"{FAKE_BASE_URL}:{BAD_CONTAINER_ID}", grace_seconds=0
@@ -670,7 +673,7 @@ def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     with pytest.warns(
         UserWarning,
         match=(
-            "`host.docker.internal` could not be automatically resolved.*"
+            f"`host.docker.internal` could not be automatically resolved.*"
             f"feature is not supported on Docker Engine v19.1.1"
         ),
     ):
@@ -858,7 +861,8 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
     ).run()
 
     assert (
-        "An unexpected Docker API error occured while streaming output from container fake-name."
+        "An unexpected Docker API error occured while streaming output from container"
+        " fake-name."
         in caplog.text
     )
 

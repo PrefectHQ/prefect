@@ -39,13 +39,15 @@ class BlockStandardTestSuite(ABC):
         code_example = block.get_code_example()
         assert code_example is not None, f"{block.__name__} is missing a code example"
         import_pattern = rf"from .* import {block.__name__}"
-        assert (
-            re.search(import_pattern, code_example) is not None
-        ), f"The code example for {block.__name__} is missing an import statement matching the pattern {import_pattern}"
+        assert re.search(import_pattern, code_example) is not None, (
+            f"The code example for {block.__name__} is missing an import statement"
+            f" matching the pattern {import_pattern}"
+        )
         block_load_pattern = rf'.* = {block.__name__}\.load\("BLOCK_NAME"\)'
-        assert re.search(
-            block_load_pattern, code_example
-        ), f"The code example for {block.__name__} is missing a .load statement matching the pattern {block_load_pattern}"
+        assert re.search(block_load_pattern, code_example), (
+            f"The code example for {block.__name__} is missing a .load statement"
+            f" matching the pattern {block_load_pattern}"
+        )
 
     def test_has_a_valid_image(self, block: Type[Block]):
         logo_url = block._logo_url
