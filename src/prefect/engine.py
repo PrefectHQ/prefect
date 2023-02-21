@@ -257,7 +257,9 @@ async def create_then_begin_flow_run(
 
 @inject_client
 async def retrieve_flow_then_begin_flow_run(
-    flow_run_id: UUID, client: PrefectClient, ignore_storage: bool = False
+    flow_run_id: UUID,
+    ignore_storage: bool = False,
+    client: PrefectClient = None,
 ) -> State:
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
@@ -1992,7 +1994,9 @@ if __name__ == "__main__":
 
     try:
         flow_run_id = UUID(
-            sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PREFECT__FLOW_RUN_ID")
+            sys.argv[-1]
+            if len(sys.argv) > 1
+            else os.environ.get("PREFECT__FLOW_RUN_ID")
         )
         ignore_storage = "--ignore-storage" in sys.argv
     except Exception:

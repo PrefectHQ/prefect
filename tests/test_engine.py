@@ -2,9 +2,11 @@ import asyncio
 import os
 import signal
 import statistics
+import sys
 import time
 from contextlib import contextmanager
 from functools import partial
+from pathlib import Path
 from typing import List
 from unittest.mock import MagicMock, Mock
 from uuid import uuid4
@@ -16,6 +18,7 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     begin_flow_run,
@@ -49,6 +52,7 @@ from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
 from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
 from prefect.utilities.annotations import quote
+from prefect.utilities.processutils import run_process
 from prefect.utilities.pydantic import PartialModel
 
 
@@ -1722,6 +1726,66 @@ class TestDeploymentFlowRun:
         assert (
             "Importing flow code from 'tests/generic_flows.py:identity'" in caplog.text
         )
+
+    async def test_start_from_module(
+        self, orion_client: PrefectClient, flow_function, tmp_path
+    ):
+        from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+        flow_id = await orion_client.create_flow(flow_function)
+        deployment_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            entrypoint="generic_flows.py:identity",
+            path=str(Path(__file__).parent),
+        )
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        await run_process(
+            [sys.executable, "-m", "prefect.engine", str(flow_run.id)],
+            env={
+                "PREFECT_API_DATABASE_CONNECTION_URL": PREFECT_API_DATABASE_CONNECTION_URL.value(),
+            },
+            cwd=tmp_path,
+        )
+
+        completed_flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert completed_flow_run.state_name == "Completed"
+
+    async def test_start_from_module_ignore_storage(
+        self, orion_client: PrefectClient, flow_function
+    ):
+        from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+
+        flow_id = await orion_client.create_flow(flow_function)
+        deployment_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            entrypoint="tests/generic_flows.py:identity",
+        )
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        await run_process(
+            [
+                sys.executable,
+                "-m",
+                "prefect.engine",
+                "--ignore-storage",
+                str(flow_run.id),
+            ],
+            env={
+                "PREFECT_API_DATABASE_CONNECTION_URL": PREFECT_API_DATABASE_CONNECTION_URL.value(),
+            },
+        )
+
+        completed_flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert completed_flow_run.state_name == "Completed"
 
 
 class TestDynamicKeyHandling:

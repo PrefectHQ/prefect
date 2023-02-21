@@ -121,13 +121,15 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            self._logger.debug(f"Process running command: {command} in {working_dir}")
+            command = f"{command} --ignore-storage {flow_run.id.hex}"
+            self._logger.debug(
+                f"Process running command: {command} in {working_dir}"
+            )
             process = await run_process(
                 command.split(" "),
                 stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
-                env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
                 cwd=working_dir,
                 **kwargs,
             )
