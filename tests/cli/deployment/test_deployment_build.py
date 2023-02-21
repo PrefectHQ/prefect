@@ -218,7 +218,9 @@ class TestSchedules:
             ],
             expected_code=1,
             temp_dir=tmp_path,
-            expected_output_contains="An anchor date can only be provided with an interval schedule",
+            expected_output_contains=(
+                "An anchor date can only be provided with an interval schedule"
+            ),
         )
 
     def test_parsing_rrule_schedule_string_literal(self, patch_import, tmp_path):
@@ -255,7 +257,11 @@ class TestSchedules:
                 "-o",
                 str(tmp_path / "test.yaml"),
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
             ],
             expected_code=0,
             temp_dir=tmp_path,
@@ -281,7 +287,11 @@ class TestSchedules:
                 "-o",
                 str(tmp_path / "test.yaml"),
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
                 "--timezone",
                 "Europe/Berlin",
             ],
@@ -451,7 +461,9 @@ class TestFlowName:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="A name for this deployment must be provided with the '--name' flag.\n",
+            expected_output=(
+                "A name for this deployment must be provided with the '--name' flag.\n"
+            ),
         )
 
     def test_name_must_be_provided_by_default(self, dep_path):
@@ -494,7 +506,10 @@ class TestEntrypoint:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>",
+            expected_output_contains=(
+                "Your flow entrypoint must include the name of the function that is"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            ),
         )
 
     def test_entrypoint_that_does_not_point_to_flow_raises_error(self, tmp_path):
@@ -513,7 +528,10 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Function with name 'fn' is not a flow. Make sure that it is decorated with '@flow'",
+            expected_output_contains=(
+                f"Function with name 'fn' is not a flow. Make sure that it is decorated"
+                f" with '@flow'"
+            ),
         )
 
     def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):
@@ -535,7 +553,9 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Flow function with name 'fn' not found in {str(fpath)!r}",
+            expected_output_contains=(
+                f"Flow function with name 'fn' not found in {str(fpath)!r}"
+            ),
         )
 
     def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
@@ -710,7 +730,8 @@ class TestAutoApply:
             ],
             expected_code=0,
             expected_output_contains=[
-                f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
+                f"Deployment '{d.flow_name}/{d.name}' successfully created with id"
+                f" '{deployment_id}'."
             ],
             temp_dir=tmp_path,
         )
@@ -736,7 +757,10 @@ class TestAutoApply:
             expected_code=1,
             expected_output_contains=(
                 [
-                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    (
+                        "This deployment specifies a work pool name of 'gibberish', but"
+                        " no such work pool exists."
+                    ),
                     "To create a work pool via the CLI:",
                     "$ prefect work-pool create 'gibberish'",
                 ]
@@ -883,7 +907,10 @@ class TestInfraAndInfraBlock:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="Only one of `infra` or `infra_block` can be provided, please choose one.",
+            expected_output=(
+                "Only one of `infra` or `infra_block` can be provided, please choose"
+                " one."
+            ),
         )
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")

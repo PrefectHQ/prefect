@@ -233,7 +233,9 @@ async def assert_uses_result_storage(
         Block._from_block_document(
             await client.read_block_document(state.data.storage_block_id)
         ),
-        storage
-        if isinstance(storage, Block)
-        else await Block.load(storage, client=client),
+        (
+            storage
+            if isinstance(storage, Block)
+            else await Block.load(storage, client=client)
+        ),
     )

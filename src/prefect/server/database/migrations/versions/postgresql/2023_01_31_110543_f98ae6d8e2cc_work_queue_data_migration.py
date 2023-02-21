@@ -18,10 +18,12 @@ depends_on = None
 def upgrade():
     # Create temporary indexes for migration
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON flow_run (work_queue_id, work_queue_name)"
+        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON"
+        " flow_run (work_queue_id, work_queue_name)"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON deployment (work_queue_id, work_queue_name)"
+        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON"
+        " deployment (work_queue_id, work_queue_name)"
     )
 
     # Create default agent work pool and associate all existing queues with it
@@ -29,7 +31,8 @@ def upgrade():
 
     connection.execute(
         sa.text(
-            "INSERT INTO work_pool (name, type) VALUES ('default-agent-pool', 'prefect-agent')"
+            "INSERT INTO work_pool (name, type) VALUES ('default-agent-pool',"
+            " 'prefect-agent')"
         )
     )
 
@@ -44,25 +47,29 @@ def upgrade():
     if not default_queue:
         connection.execute(
             sa.text(
-                f"INSERT INTO work_queue (name, work_pool_id) VALUES ('default', :default_pool_id)"
+                f"INSERT INTO work_queue (name, work_pool_id) VALUES ('default',"
+                f" :default_pool_id)"
             ).params({"default_pool_id": default_pool_id}),
         )
 
     connection.execute(
         sa.text(
-            "UPDATE work_queue SET work_pool_id = :default_pool_id WHERE work_pool_id IS NULL"
+            "UPDATE work_queue SET work_pool_id = :default_pool_id WHERE work_pool_id"
+            " IS NULL"
         ).params({"default_pool_id": default_pool_id}),
     )
 
     default_queue_id = connection.execute(
         sa.text(
-            "SELECT id FROM work_queue WHERE name = 'default' and work_pool_id = :default_pool_id"
+            "SELECT id FROM work_queue WHERE name = 'default' and work_pool_id ="
+            " :default_pool_id"
         ).params({"default_pool_id": default_pool_id}),
     ).fetchone()[0]
 
     connection.execute(
         sa.text(
-            "UPDATE work_pool SET default_queue_id = :default_queue_id WHERE id = :default_pool_id"
+            "UPDATE work_pool SET default_queue_id = :default_queue_id WHERE id ="
+            " :default_pool_id"
         ).params(
             {"default_pool_id": default_pool_id, "default_queue_id": default_queue_id}
         ),
@@ -135,10 +142,12 @@ def upgrade():
 def downgrade():
     # Create temporary indexes for migration
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON flow_run (work_queue_id, work_queue_name)"
+        "CREATE INDEX IF NOT EXISTS ix_flow_run__work_queue_id_work_queue_name ON"
+        " flow_run (work_queue_id, work_queue_name)"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON deployment (work_queue_id, work_queue_name)"
+        "CREATE INDEX IF NOT EXISTS ix_deployment__work_queue_id_work_queue_name ON"
+        " deployment (work_queue_id, work_queue_name)"
     )
 
     with op.batch_alter_table("work_queue", schema=None) as batch_op:

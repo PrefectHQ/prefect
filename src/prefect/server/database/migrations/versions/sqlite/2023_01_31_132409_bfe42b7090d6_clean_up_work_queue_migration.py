@@ -47,7 +47,12 @@ def downgrade():
             "id",
             sa.CHAR(length=36),
             server_default=sa.text(
-                "(((\n        lower(hex(randomblob(4)))\n        || '-'\n        || lower(hex(randomblob(2)))\n        || '-4'\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || substr('89ab',abs(random()) % 4 + 1, 1)\n        || substr(lower(hex(randomblob(2))),2)\n        || '-'\n        || lower(hex(randomblob(6)))\n    )))"
+                "(((\n        lower(hex(randomblob(4)))\n        || '-'\n        ||"
+                " lower(hex(randomblob(2)))\n        || '-4'\n        ||"
+                " substr(lower(hex(randomblob(2))),2)\n        || '-'\n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1)\n        ||"
+                " substr(lower(hex(randomblob(2))),2)\n        || '-'\n        ||"
+                " lower(hex(randomblob(6)))\n    )))"
             ),
             nullable=False,
         ),

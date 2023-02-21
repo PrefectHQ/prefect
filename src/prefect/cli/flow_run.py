@@ -135,7 +135,8 @@ async def cancel(id: UUID):
 
     if result.status == SetStateStatus.ABORT:
         exit_with_error(
-            f"Flow run '{id}' was unable to be cancelled. Reason: '{result.details.reason}'"
+            f"Flow run '{id}' was unable to be cancelled. Reason:"
+            f" '{result.details.reason}'"
         )
 
     exit_with_success(f"Flow run '{id}' was succcessfully scheduled for cancellation.")
@@ -148,13 +149,19 @@ async def logs(
         False,
         "--head",
         "-h",
-        help=f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of all logs.",
+        help=(
+            f"Show the first {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS} logs instead of"
+            " all logs."
+        ),
     ),
     num_logs: int = typer.Option(
         None,
         "--num-logs",
         "-n",
-        help=f"Number of logs to show when using the --head flag. If None, defaults to {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}.",
+        help=(
+            "Number of logs to show when using the --head flag. If None, defaults to"
+            f" {LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS}."
+        ),
         min=1,
     ),
 ):
@@ -197,7 +204,11 @@ async def logs(
             for log in page_logs:
                 app.console.print(
                     # Print following the flow run format (declared in logging.yml)
-                    f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} | {logging.getLevelName(log.level):7s} | Flow run {flow_run.name!r} - {log.message}",
+                    (
+                        f"{pendulum.instance(log.timestamp).to_datetime_string()}.{log.timestamp.microsecond // 1000:03d} |"
+                        f" {logging.getLevelName(log.level):7s} | Flow run"
+                        f" {flow_run.name!r} - {log.message}"
+                    ),
                     soft_wrap=True,
                 )
 

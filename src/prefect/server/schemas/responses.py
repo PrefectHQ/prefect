@@ -38,7 +38,10 @@ class StateAcceptDetails(PrefectBaseModel):
 
     type: Literal["accept_details"] = Field(
         default="accept_details",
-        description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
+        description=(
+            "The type of state transition detail. Used to ensure pydantic does not"
+            " coerce into a different type."
+        ),
     )
 
 
@@ -47,7 +50,10 @@ class StateRejectDetails(PrefectBaseModel):
 
     type: Literal["reject_details"] = Field(
         default="reject_details",
-        description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
+        description=(
+            "The type of state transition detail. Used to ensure pydantic does not"
+            " coerce into a different type."
+        ),
     )
     reason: Optional[str] = Field(
         default=None, description="The reason why the state transition was rejected."
@@ -59,7 +65,10 @@ class StateAbortDetails(PrefectBaseModel):
 
     type: Literal["abort_details"] = Field(
         default="abort_details",
-        description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
+        description=(
+            "The type of state transition detail. Used to ensure pydantic does not"
+            " coerce into a different type."
+        ),
     )
     reason: Optional[str] = Field(
         default=None, description="The reason why the state transition was aborted."
@@ -71,11 +80,17 @@ class StateWaitDetails(PrefectBaseModel):
 
     type: Literal["wait_details"] = Field(
         default="wait_details",
-        description="The type of state transition detail. Used to ensure pydantic does not coerce into a different type.",
+        description=(
+            "The type of state transition detail. Used to ensure pydantic does not"
+            " coerce into a different type."
+        ),
     )
     delay_seconds: int = Field(
         default=...,
-        description="The length of time in seconds the client should wait before transitioning states.",
+        description=(
+            "The length of time in seconds the client should wait before transitioning"
+            " states."
+        ),
     )
     reason: Optional[str] = Field(
         default=None, description="The reason why the state transition should wait."
@@ -99,7 +114,10 @@ class HistoryResponseState(PrefectBaseModel):
     )
     sum_estimated_lateness: datetime.timedelta = Field(
         default=...,
-        description="The sum of differences between actual and expected start time during the interval.",
+        description=(
+            "The sum of differences between actual and expected start time during the"
+            " interval."
+        ),
     )
 
 

@@ -24,9 +24,11 @@ def format_exception_info(exc_info: ExceptionInfoType) -> dict:
     return {
         "type": exception_type.__name__,
         "message": str(exception_obj),
-        "traceback": "".join(traceback.format_tb(exception_traceback))
-        if exception_traceback
-        else None,
+        "traceback": (
+            "".join(traceback.format_tb(exception_traceback))
+            if exception_traceback
+            else None
+        ),
     }
 
 

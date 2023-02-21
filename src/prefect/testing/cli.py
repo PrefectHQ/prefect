@@ -105,7 +105,7 @@ def invoke_and_assert(
     if expected_code is not None:
         assertion_error_message = (
             f"Expected code {expected_code} but got {result.exit_code}\n"
-            f"Output from CLI command:\n"
+            "Output from CLI command:\n"
             "-----------------------\n"
             f"{result.stdout}"
         )
@@ -116,11 +116,11 @@ def invoke_and_assert(
         expected_output = textwrap.dedent(expected_output).strip()
 
         compare_string = (
-            f"------ expected ------\n"
+            "------ expected ------\n"
             f"{expected_output}\n"
-            f"------ actual ------\n"
+            "------ actual ------\n"
             f"{output}\n"
-            f"------ end ------\n"
+            "------ end ------\n"
         )
         assert output == expected_output, compare_string
 
@@ -142,9 +142,10 @@ def invoke_and_assert(
 
     if expected_line_count is not None:
         line_count = len(result.stdout.splitlines())
-        assert (
-            expected_line_count == line_count
-        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
+        assert expected_line_count == line_count, (
+            f"Expected {expected_line_count} lines of CLI output, only"
+            f" {line_count} lines present"
+        )
 
     return result
 

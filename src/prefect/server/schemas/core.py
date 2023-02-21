@@ -100,7 +100,10 @@ class FlowRunnerSettings(PrefectBaseModel):
 
     type: Optional[str] = Field(
         default=None,
-        description="The type of the flow runner which can be used by the client for dispatching.",
+        description=(
+            "The type of the flow runner which can be used by the client for"
+            " dispatching."
+        ),
     )
     config: Optional[dict] = Field(
         default=None, description="The configuration for the given flow runner type."
@@ -124,12 +127,18 @@ class FlowRunPolicy(PrefectBaseModel):
     #       retries
     max_retries: int = Field(
         default=0,
-        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        description=(
+            "The maximum number of retries. Field is not used. Please use `retries`"
+            " instead."
+        ),
         deprecated=True,
     )
     retry_delay_seconds: float = Field(
         default=0,
-        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        description=(
+            "The delay between retries. Field is not used. Please use `retry_delay`"
+            " instead."
+        ),
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
@@ -164,7 +173,9 @@ class FlowRun(ORMBaseModel):
 
     name: str = Field(
         default_factory=lambda: generate_slug(2),
-        description="The name of the flow run. Defaults to a random slug if not specified.",
+        description=(
+            "The name of the flow run. Defaults to a random slug if not specified."
+        ),
         example="my-flow-run",
     )
     flow_id: UUID = Field(default=..., description="The id of the flow being run.")
@@ -173,7 +184,9 @@ class FlowRun(ORMBaseModel):
     )
     deployment_id: Optional[UUID] = Field(
         default=None,
-        description="The id of the deployment associated with this flow run, if available.",
+        description=(
+            "The id of the deployment associated with this flow run, if available."
+        ),
     )
     work_queue_name: Optional[str] = Field(
         default=None, description="The work queue that handled this flow run."
@@ -188,7 +201,10 @@ class FlowRun(ORMBaseModel):
     )
     idempotency_key: Optional[str] = Field(
         default=None,
-        description="An optional idempotency key for the flow run. Used to ensure the same flow run is not created multiple times.",
+        description=(
+            "An optional idempotency key for the flow run. Used to ensure the same flow"
+            " run is not created multiple times."
+        ),
     )
     context: dict = Field(
         default_factory=dict,
@@ -205,7 +221,10 @@ class FlowRun(ORMBaseModel):
     )
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
-        description="If the flow run is a subflow, the id of the 'dummy' task in the parent flow used to track subflow state.",
+        description=(
+            "If the flow run is a subflow, the id of the 'dummy' task in the parent"
+            " flow used to track subflow state."
+        ),
     )
 
     state_type: Optional[schemas.states.StateType] = Field(
@@ -233,7 +252,10 @@ class FlowRun(ORMBaseModel):
     )
     total_run_time: datetime.timedelta = Field(
         default=datetime.timedelta(0),
-        description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
+        description=(
+            "Total run time. If the flow run was executed multiple times, the time of"
+            " each run will be summed."
+        ),
     )
     estimated_run_time: datetime.timedelta = Field(
         default=datetime.timedelta(0),
@@ -295,12 +317,18 @@ class TaskRunPolicy(PrefectBaseModel):
 
     max_retries: int = Field(
         default=0,
-        description="The maximum number of retries. Field is not used. Please use `retries` instead.",
+        description=(
+            "The maximum number of retries. Field is not used. Please use `retries`"
+            " instead."
+        ),
         deprecated=True,
     )
     retry_delay_seconds: float = Field(
         default=0,
-        description="The delay between retries. Field is not used. Please use `retry_delay` instead.",
+        description=(
+            "The delay between retries. Field is not used. Please use `retry_delay`"
+            " instead."
+        ),
         deprecated=True,
     )
     retries: Optional[int] = Field(default=None, description="The number of retries.")
@@ -388,11 +416,18 @@ class TaskRun(ORMBaseModel):
     )
     dynamic_key: str = Field(
         default=...,
-        description="A dynamic key used to differentiate between multiple runs of the same task within the same flow run.",
+        description=(
+            "A dynamic key used to differentiate between multiple runs of the same task"
+            " within the same flow run."
+        ),
     )
     cache_key: Optional[str] = Field(
         default=None,
-        description="An optional cache key. If a COMPLETED state associated with this cache key is found, the cached COMPLETED state will be used instead of executing the task run.",
+        description=(
+            "An optional cache key. If a COMPLETED state associated with this cache key"
+            " is found, the cached COMPLETED state will be used instead of executing"
+            " the task run."
+        ),
     )
     cache_expiration: Optional[DateTimeTZ] = Field(
         default=None, description="Specifies when the cached state should expire."
@@ -413,7 +448,9 @@ class TaskRun(ORMBaseModel):
     )
     task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
         default_factory=dict,
-        description="Tracks the source of inputs to a task run. Used for internal bookkeeping.",
+        description=(
+            "Tracks the source of inputs to a task run. Used for internal bookkeeping."
+        ),
     )
     state_type: Optional[schemas.states.StateType] = Field(
         default=None, description="The type of the current task run state."
@@ -426,7 +463,10 @@ class TaskRun(ORMBaseModel):
     )
     flow_run_run_count: int = Field(
         default=0,
-        description="If the parent flow has retried, this indicates the flow retry this run is associated with.",
+        description=(
+            "If the parent flow has retried, this indicates the flow retry this run is"
+            " associated with."
+        ),
     )
     expected_start_time: Optional[DateTimeTZ] = Field(
         default=None,
@@ -447,7 +487,10 @@ class TaskRun(ORMBaseModel):
     )
     total_run_time: datetime.timedelta = Field(
         default=datetime.timedelta(0),
-        description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
+        description=(
+            "Total run time. If the task run was executed multiple times, the time of"
+            " each run will be summed."
+        ),
     )
     estimated_run_time: datetime.timedelta = Field(
         default=datetime.timedelta(0),
@@ -473,7 +516,8 @@ class TaskRun(ORMBaseModel):
     def validate_cache_key_length(cls, cache_key):
         if cache_key and len(cache_key) > PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value():
             raise ValueError(
-                f"Cache key exceeded maximum allowed length of {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
+                "Cache key exceeded maximum allowed length of"
+                f" {PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH.value()} characters."
             )
         return cache_key
 
@@ -512,7 +556,10 @@ class Deployment(ORMBaseModel):
     )
     work_queue_name: Optional[str] = Field(
         default=None,
-        description="The work queue for the deployment. If no work queue is set, work will not be scheduled.",
+        description=(
+            "The work queue for the deployment. If no work queue is set, work will not"
+            " be scheduled."
+        ),
     )
     parameter_openapi_schema: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -520,15 +567,22 @@ class Deployment(ORMBaseModel):
     )
     path: Optional[str] = Field(
         default=None,
-        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+        description=(
+            "The path to the working directory for the workflow, relative to remote"
+            " storage or an absolute path."
+        ),
     )
     entrypoint: Optional[str] = Field(
         default=None,
-        description="The path to the entrypoint for the workflow, relative to the `path`.",
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
     )
     manifest_path: Optional[str] = Field(
         default=None,
-        description="The path to the flow's manifest file, relative to the chosen storage.",
+        description=(
+            "The path to the flow's manifest file, relative to the chosen storage."
+        ),
     )
     storage_document_id: Optional[UUID] = Field(
         default=None,
@@ -548,7 +602,9 @@ class Deployment(ORMBaseModel):
     )
     work_queue_id: UUID = Field(
         default=None,
-        description="The id of the work pool queue to which this deployment is assigned.",
+        description=(
+            "The id of the work pool queue to which this deployment is assigned."
+        ),
     )
 
     @validator("name", check_fields=False)
@@ -645,7 +701,9 @@ class BlockDocument(ORMBaseModel):
 
     name: Optional[str] = Field(
         default=None,
-        description="The block document's name. Not required for anonymous block documents.",
+        description=(
+            "The block document's name. Not required for anonymous block documents."
+        ),
     )
     data: dict = Field(default_factory=dict, description="The block document's data")
     block_schema_id: UUID = Field(default=..., description="A block schema ID")
@@ -661,7 +719,10 @@ class BlockDocument(ORMBaseModel):
     )
     is_anonymous: bool = Field(
         default=False,
-        description="Whether the block is anonymous (anonymous blocks are usually created by Prefect automatically)",
+        description=(
+            "Whether the block is anonymous (anonymous blocks are usually created by"
+            " Prefect automatically)"
+        ),
     )
 
     @validator("name", check_fields=False)
@@ -753,7 +814,8 @@ class BlockDocumentReference(ORMBaseModel):
         ref_id = values.get("reference_block_document_id")
         if parent_id and ref_id and parent_id == ref_id:
             raise ValueError(
-                "`parent_block_document_id` and `reference_block_document_id` cannot be the same"
+                "`parent_block_document_id` and `reference_block_document_id` cannot be"
+                " the same"
             )
         return values
 
@@ -834,7 +896,9 @@ class WorkQueue(ORMBaseModel):
     )
     priority: conint(ge=1) = Field(
         default=1,
-        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+        description=(
+            "The queue's priority. Lower values are higher priority (1 is the highest)."
+        ),
     )
     # Will be required after a future migration
     work_pool_id: Optional[UUID] = Field(
@@ -858,11 +922,17 @@ class WorkQueue(ORMBaseModel):
 class WorkQueueHealthPolicy(PrefectBaseModel):
     maximum_late_runs: Optional[int] = Field(
         default=0,
-        description="The maximum number of late runs in the work queue before it is deemed unhealthy. Defaults to `0`.",
+        description=(
+            "The maximum number of late runs in the work queue before it is deemed"
+            " unhealthy. Defaults to `0`."
+        ),
     )
     maximum_seconds_since_last_polled: Optional[int] = Field(
         default=60,
-        description="The maximum number of time in seconds elapsed since work queue has been polled before it is deemed unhealthy. Defaults to `60`.",
+        description=(
+            "The maximum number of time in seconds elapsed since work queue has been"
+            " polled before it is deemed unhealthy. Defaults to `60`."
+        ),
     )
 
     def evaluate_health_status(
@@ -906,7 +976,9 @@ class WorkQueueStatusDetail(PrefectBaseModel):
     )
     health_check_policy: WorkQueueHealthPolicy = Field(
         ...,
-        description="The policy used to determine whether or not the work queue is healthy.",
+        description=(
+            "The policy used to determine whether or not the work queue is healthy."
+        ),
     )
 
 
@@ -929,10 +1001,14 @@ class FlowRunNotificationPolicy(ORMBaseModel):
     message_template: Optional[str] = Field(
         default=None,
         description=(
-            "A templatable notification message. Use {braces} to add variables. "
-            f'Valid variables include: {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=", ")}'
+            "A templatable notification message. Use {braces} to add variables."
+            " Valid variables include:"
+            f" {listrepr(sorted(FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS), sep=', ')}"
         ),
-        example="Flow run {flow_run_name} with id {flow_run_id} entered state {flow_run_state_name}.",
+        example=(
+            "Flow run {flow_run_name} with id {flow_run_id} entered state"
+            " {flow_run_state_name}."
+        ),
     )
 
     @validator("message_template")
@@ -950,7 +1026,10 @@ class Agent(ORMBaseModel):
 
     name: str = Field(
         default_factory=lambda: generate_slug(2),
-        description="The name of the agent. If a name is not provided, it will be auto-generated.",
+        description=(
+            "The name of the agent. If a name is not provided, it will be"
+            " auto-generated."
+        ),
     )
     work_queue_id: UUID = Field(
         default=..., description="The work queue with which the agent is associated."
@@ -1078,7 +1157,7 @@ class Artifact(ORMBaseModel):
     metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "Artifact metadata used for the UI. " "Content must be storable as JSON."
+            "Artifact metadata used for the UI. Content must be storable as JSON."
         ),
     )
     flow_run_id: Optional[UUID] = Field(

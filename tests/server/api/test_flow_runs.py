@@ -570,9 +570,9 @@ class TestReadFlowRunGraph:
                     task_key=str(r),
                     dynamic_key=str(r * 3),
                     state=states.Completed(),
-                    task_inputs=dict(x=[TaskRunResult(id=prev_tr.id)])
-                    if prev_tr
-                    else dict(),
+                    task_inputs=(
+                        dict(x=[TaskRunResult(id=prev_tr.id)]) if prev_tr else dict()
+                    ),
                 )
             )
 

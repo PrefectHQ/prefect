@@ -130,7 +130,10 @@ async def read_block_schema_by_checksum(
     db: PrefectDBInterface = Depends(provide_database_interface),
     version: Optional[str] = Query(
         None,
-        description="Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned.",
+        description=(
+            "Version of block schema. If not provided the most recently created block"
+            " schema with the matching checksum will be returned."
+        ),
     ),
 ) -> schemas.core.BlockSchema:
     async with db.session_context() as session:

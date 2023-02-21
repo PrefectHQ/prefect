@@ -1132,10 +1132,10 @@ async def test_create_then_read_flow_run_notification_policy(
         message_template=message_template,
     )
 
-    response: List[
-        FlowRunNotificationPolicy
-    ] = await orion_client.read_flow_run_notification_policies(
-        FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+    response: List[FlowRunNotificationPolicy] = (
+        await orion_client.read_flow_run_notification_policies(
+            FlowRunNotificationPolicyFilter(is_active={"eq_": True}),
+        )
     )
 
     assert len(response) == 1
@@ -1286,7 +1286,10 @@ class TestClientAPIVersionRequests:
                 await client.hello()
 
     @pytest.mark.skip(
-        reason="This test is no longer compatible with the current API version checking logic"
+        reason=(
+            "This test is no longer compatible with the current API version checking"
+            " logic"
+        )
     )
     async def test_minor_version(
         self, app, major_version, minor_version, patch_version
@@ -1306,7 +1309,10 @@ class TestClientAPIVersionRequests:
                 await client.hello()
 
     @pytest.mark.skip(
-        reason="This test is no longer compatible with the current API version checking logic"
+        reason=(
+            "This test is no longer compatible with the current API version checking"
+            " logic"
+        )
     )
     async def test_patch_version(
         self, app, major_version, minor_version, patch_version

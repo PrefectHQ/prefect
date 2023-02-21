@@ -115,9 +115,12 @@ class TestOutputMessages:
                 str(tmp_path / "test.yaml"),
             ],
             expected_output_contains=(
-                "This deployment does not specify a work queue name, which means agents "
-                "will not be able to pick up its runs. To add a work queue, "
-                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                (
+                    "This deployment does not specify a work queue name, which means"
+                    " agents will not be able to pick up its runs. To add a work queue,"
+                    " edit the deployment spec and re-run this command, or visit the"
+                    " deployment in the UI."
+                ),
             ),
         )
 
@@ -142,7 +145,10 @@ class TestOutputMessages:
             expected_code=1,
             expected_output_contains=(
                 [
-                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    (
+                        "This deployment specifies a work pool name of 'gibberish', but"
+                        " no such work pool exists."
+                    ),
                     "To create a work pool via the CLI:",
                     "$ prefect work-pool create 'gibberish'",
                 ]
@@ -216,7 +222,9 @@ class TestUpdatingDeployments:
                 "i dont know cron syntax dont judge",
             ],
             expected_code=1,
-            expected_output_contains="Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
         )
 
     def test_set_schedule_with_no_schedule_options_raises(self, flojo):
@@ -227,7 +235,9 @@ class TestUpdatingDeployments:
                 "rence-griffith/test-deployment",
             ],
             expected_code=1,
-            expected_output_contains="Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
         )
 
     def test_set_schedule_json_rrule(self, flojo):
@@ -237,7 +247,10 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20300910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20300910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}'
+                ),
             ],
             expected_code=0,
             expected_output_contains="Updated deployment schedule!",
@@ -260,7 +273,11 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
             ],
             expected_code=0,
             expected_output_contains="Updated deployment schedule!",
@@ -283,7 +300,10 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}'
+                ),
                 "--timezone",
                 "Asia/Seoul",
             ],
@@ -310,7 +330,11 @@ class TestUpdatingDeployments:
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
                 "--timezone",
                 "Asia/Seoul",
             ],
@@ -361,7 +385,10 @@ class TestUpdatingDeployments:
                 "DTSTART;TZID=US-Eastern:19970902T090000\nRRULE:FREQ=DAILY;COUNT=10",
             ],
             expected_code=1,
-            expected_output_contains="You can provide a timezone by providing a dict with a `timezone` key to the --rrule option",
+            expected_output_contains=(
+                "You can provide a timezone by providing a dict with a `timezone` key"
+                " to the --rrule option"
+            ),
         )
 
     def test_set_schedule_str_literal_rrule_with_timezone_arg(self, flojo):
@@ -477,7 +504,9 @@ class TestUpdatingDeployments:
                 "2040-01-01T00:00:00",
             ],
             expected_code=1,
-            expected_output_contains="Exactly one of `--interval`, `--rrule`, or `--cron` must be provided",
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
         )
 
 

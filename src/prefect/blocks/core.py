@@ -202,9 +202,9 @@ class Block(BaseModel, ABC):
                                     type_._to_block_schema_reference_dict(),
                                 ]
                             else:
-                                refs[
-                                    field.name
-                                ] = type_._to_block_schema_reference_dict()
+                                refs[field.name] = (
+                                    type_._to_block_schema_reference_dict()
+                                )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -716,7 +716,8 @@ class Block(BaseModel, ABC):
             )
         except prefect.exceptions.ObjectNotFound as e:
             raise ValueError(
-                f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
+                f"Unable to find block document named {block_document_name} for block"
+                f" type {block_type_slug}"
             ) from e
 
         try:
@@ -726,18 +727,20 @@ class Block(BaseModel, ABC):
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type {cls._block_type_slug!r} - "
-                    "this is likely because one or more required fields were added to the schema "
-                    f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
-                    f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
-                    f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)`, and '
-                    "load this block again before attempting to use it."
+                    f"Could not fully load {block_document_name!r} of block type"
+                    f" {cls._block_type_slug!r} - this is likely because one or more"
+                    " required fields were added to the schema for"
+                    f" {cls.__name__!r} that did not exist on the class when this block"
+                    " was last saved. Please specify values for new field(s):"
+                    f" {listrepr(missing_fields)}, then run"
+                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
+                    " and load this block again before attempting to use it."
                 )
                 return cls.construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
-                f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
-                "due to failed validation. To load without validation, try loading again "
-                "with `validate=False`."
+                f"Unable to load {block_document_name!r} of block type"
+                f" {cls._block_type_slug!r} due to failed validation. To load without"
+                " validation, try loading again with `validate=False`."
             ) from e
 
     @staticmethod
@@ -858,9 +861,9 @@ class Block(BaseModel, ABC):
                 )
             else:
                 raise ValueError(
-                    "You are attempting to save values with a name that is already in "
-                    "use for this block type. If you would like to overwrite the values that are saved, "
-                    "then save with `overwrite=True`."
+                    "You are attempting to save values with a name that is already in"
+                    " use for this block type. If you would like to overwrite the"
+                    " values that are saved, then save with `overwrite=True`."
                 ) from err
 
         # Update metadata on block instance for later use.

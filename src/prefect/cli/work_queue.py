@@ -58,7 +58,8 @@ async def _get_work_queue_id_from_name_or_id(
                     exit_with_error(f"No work queue named {name_or_id!r} found.")
 
                 exit_with_error(
-                    f"No work queue named {name_or_id!r} found in work pool {work_pool_name!r}."
+                    f"No work queue named {name_or_id!r} found in work pool"
+                    f" {work_pool_name!r}."
                 )
 
 
@@ -73,7 +74,10 @@ async def create(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags. This option will be removed on 2023-02-23.",
+        help=(
+            "DEPRECATED: One or more optional tags. This option will be removed on"
+            " 2023-02-23."
+        ),
     ),
     pool: Optional[str] = typer.Option(
         None,
@@ -87,9 +91,11 @@ async def create(
     """
     if tags:
         app.console.print(
-            "Supplying `tags` for work queues is deprecated. This work "
-            "queue will use legacy tag-matching behavior. "
-            "This option will be removed on 2023-02-23.",
+            (
+                "Supplying `tags` for work queues is deprecated. This work "
+                "queue will use legacy tag-matching behavior. "
+                "This option will be removed on 2023-02-23."
+            ),
             style="red",
         )
 
@@ -189,7 +195,10 @@ async def set_concurrency_limit(
             exit_with_error(error_message)
 
     if pool:
-        success_message = f"Concurrency limit of {limit} set on work queue {name!r} in work pool {pool!r}"
+        success_message = (
+            f"Concurrency limit of {limit} set on work queue {name!r} in work pool"
+            f" {pool!r}"
+        )
     else:
         success_message = f"Concurrency limit of {limit} set on work queue {name!r}"
     exit_with_success(success_message)
@@ -356,7 +365,10 @@ async def ls(
         None,
         "--match",
         "-m",
-        help="Will match work queues with names that start with the specified prefix string",
+        help=(
+            "Will match work queues with names that start with the specified prefix"
+            " string"
+        ),
     ),
     pool: Optional[str] = typer.Option(
         None,
@@ -392,9 +404,11 @@ async def ls(
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     str(queue.id),
-                    f"[red]{queue.concurrency_limit}"
-                    if queue.concurrency_limit
-                    else "[blue]None",
+                    (
+                        f"[red]{queue.concurrency_limit}"
+                        if queue.concurrency_limit
+                        else "[blue]None"
+                    ),
                 ]
                 if verbose and queue.filter is not None:
                     row.append(queue.filter.json())
@@ -429,9 +443,11 @@ async def ls(
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     pool_id_name_map[queue.work_pool_id],
                     str(queue.id),
-                    f"[red]{queue.concurrency_limit}"
-                    if queue.concurrency_limit
-                    else "[blue]None",
+                    (
+                        f"[red]{queue.concurrency_limit}"
+                        if queue.concurrency_limit
+                        else "[blue]None"
+                    ),
                 ]
                 if verbose and queue.filter is not None:
                     row.append(queue.filter.json())
@@ -461,9 +477,11 @@ async def ls(
                 row = [
                     f"{queue.name} [red](**)" if queue.is_paused else queue.name,
                     f"{queue.priority}",
-                    f"[red]{queue.concurrency_limit}"
-                    if queue.concurrency_limit
-                    else "[blue]None",
+                    (
+                        f"[red]{queue.concurrency_limit}"
+                        if queue.concurrency_limit
+                        else "[blue]None"
+                    ),
                 ]
                 if verbose:
                     row.append(queue.description)
@@ -536,9 +554,11 @@ async def preview(
 
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
-            f"{run.expected_start_time} [red](**)"
-            if run.expected_start_time < now
-            else f"{run.expected_start_time}",
+            (
+                f"{run.expected_start_time} [red](**)"
+                if run.expected_start_time < now
+                else f"{run.expected_start_time}"
+            ),
             str(run.id),
             run.name,
             str(run.deployment_id),
@@ -548,7 +568,10 @@ async def preview(
         app.console.print(table)
     else:
         app.console.print(
-            "No runs found - try increasing how far into the future you preview with the --hours flag",
+            (
+                "No runs found - try increasing how far into the future you preview"
+                " with the --hours flag"
+            ),
             style="yellow",
         )
 

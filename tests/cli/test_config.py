@@ -35,12 +35,10 @@ def test_set_using_default_profile():
     with use_profile("default"):
         invoke_and_assert(
             ["config", "set", "PREFECT_TEST_SETTING=DEBUG"],
-            expected_output=(
-                """
+            expected_output="""
                 Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
                 Updated profile 'default'.
-                """
-            ),
+                """,
         )
 
     profiles = load_profiles()
@@ -53,12 +51,10 @@ def test_set_using_profile_flag():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_TEST_SETTING=DEBUG"],
-        expected_output=(
-            """
+        expected_output="""
             Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -71,11 +67,9 @@ def test_set_with_unknown_setting():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_FOO=BAR"],
-        expected_output=(
-            """
+        expected_output="""
             Unknown setting name 'PREFECT_FOO'.
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -85,12 +79,10 @@ def test_set_with_invalid_value_type():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_DATABASE_TIMEOUT=HELLO"],
-        expected_output=(
-            """
+        expected_output="""
             Validation error for setting 'PREFECT_API_DATABASE_TIMEOUT': value is not a valid float
             Invalid setting value.
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -105,11 +97,9 @@ def test_set_with_unparsable_setting():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_FOO_BAR"],
-        expected_output=(
-            """
+        expected_output="""
             Failed to parse argument 'PREFECT_FOO_BAR'. Use the format 'VAR=VAL'.
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -119,12 +109,10 @@ def test_set_setting_with_equal_sign_in_value():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "set", "PREFECT_API_KEY=foo=bar"],
-        expected_output=(
-            """
+        expected_output="""
             Set 'PREFECT_API_KEY' to 'foo=bar'.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -144,13 +132,11 @@ def test_set_multiple_settings():
             "PREFECT_API_KEY=FOO",
             "PREFECT_TEST_SETTING=DEBUG",
         ],
-        expected_output=(
-            """
+        expected_output="""
             Set 'PREFECT_API_KEY' to 'FOO'.
             Set 'PREFECT_TEST_SETTING' to 'DEBUG'.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -185,12 +171,10 @@ def test_unset_retains_other_keys():
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output=(
-            """
+        expected_output="""
             Unset 'PREFECT_API_KEY'.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -220,13 +204,11 @@ def test_unset_warns_if_present_in_environment(monkeypatch):
             "unset",
             "PREFECT_API_KEY",
         ],
-        expected_output=(
-            """
+        expected_output="""
             Unset 'PREFECT_API_KEY'.
             'PREFECT_API_KEY' is also set by an environment variable. Use `unset PREFECT_API_KEY` to clear it.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -239,11 +221,9 @@ def test_unset_with_unknown_setting():
 
     invoke_and_assert(
         ["--profile", "foo", "config", "unset", "PREFECT_FOO"],
-        expected_output=(
-            """
+        expected_output="""
             Unknown setting name 'PREFECT_FOO'.
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -269,11 +249,9 @@ def test_unset_with_setting_not_in_profile():
             "unset",
             "PREFECT_TEST_SETTING",
         ],
-        expected_output=(
-            """
+        expected_output="""
            'PREFECT_TEST_SETTING' is not set in profile 'foo'.
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -303,13 +281,11 @@ def test_unset_multiple_settings():
             "PREFECT_API_KEY",
             "PREFECT_TEST_SETTING",
         ],
-        expected_output=(
-            """
+        expected_output="""
             Unset 'PREFECT_API_KEY'.
             Unset 'PREFECT_TEST_SETTING'.
             Updated profile 'foo'.
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()

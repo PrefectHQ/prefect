@@ -28,8 +28,9 @@ def test_version_server_server_type():
 def test_version_cloud_server_type():
     with temporary_settings(
         {
-            PREFECT_API_URL: PREFECT_CLOUD_API_URL.value()
-            + "/accounts/<test>/workspaces/<test>"
+            PREFECT_API_URL: (
+                PREFECT_CLOUD_API_URL.value() + "/accounts/<test>/workspaces/<test>"
+            )
         }
     ):
         invoke_and_assert(

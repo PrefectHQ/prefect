@@ -208,10 +208,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
                     if exc_info
                     else "Received response with retryable status code. "
                 )
-                + (
-                    f"Another attempt will be made in {retry_seconds}s. "
-                    f"This is attempt {try_count}/{self.RETRY_MAX + 1}."
-                ),
+                + f"Another attempt will be made in {retry_seconds}s. "
+                f"This is attempt {try_count}/{self.RETRY_MAX + 1}.",
                 exc_info=exc_info,
             )
             await anyio.sleep(retry_seconds)

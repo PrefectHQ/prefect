@@ -238,7 +238,9 @@ async def test_service_uses_message_template(
         session=session,
         flow_run_notification_policy_id=completed_policy.id,
         flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
-            message_template="Hi there {flow_run_name}! Also the url works: {flow_run_url}"
+            message_template=(
+                "Hi there {flow_run_name}! Also the url works: {flow_run_url}"
+            )
         ),
     )
 

@@ -659,9 +659,11 @@ class TestRRuleSchedule:
 
     async def test_rrule_schedule_handles_complex_rrulesets(self):
         s = RRuleSchedule(
-            rrule="DTSTART:19970902T090000\n"
-            "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
-            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            rrule=(
+                "DTSTART:19970902T090000\n"
+                "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+                "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            )
         )
         dates_from_1900 = await s.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))
         dates_from_2000 = await s.get_dates(5, start=datetime(2000, 1, 1, tz="UTC"))
@@ -671,9 +673,11 @@ class TestRRuleSchedule:
     async def test_rrule_schedule_preserves_and_localizes_rrules(self):
         timezone = "America/New_York"
         s = RRuleSchedule(
-            rrule="DTSTART:19970902T090000\n"
-            "rrule:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
-            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n",
+            rrule=(
+                "DTSTART:19970902T090000\n"
+                "rrule:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+                "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            ),
             timezone=timezone,
         )
         expected_tzinfo = dateutil.tz.gettz(timezone)
@@ -684,9 +688,11 @@ class TestRRuleSchedule:
     async def test_rrule_schedule_preserves_and_localizes_exrules(self):
         timezone = "America/New_York"
         s = RRuleSchedule(
-            rrule="DTSTART:19970902T090000\n"
-            "EXRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
-            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n",
+            rrule=(
+                "DTSTART:19970902T090000\n"
+                "EXRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+                "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            ),
             timezone=timezone,
         )
         expected_tzinfo = dateutil.tz.gettz(timezone)
@@ -750,9 +756,11 @@ class TestRRuleSchedule:
     )
     async def test_rrule_schedule_handles_rruleset_roundtrips(self):
         s1 = RRuleSchedule(
-            rrule="DTSTART:19970902T090000\n"
-            "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
-            "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            rrule=(
+                "DTSTART:19970902T090000\n"
+                "RRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU\n"
+                "RRULE:FREQ=YEARLY;COUNT=1;BYDAY=TH\n"
+            )
         )
         s2 = RRuleSchedule.from_rrule(s1.to_rrule())
         s1_dates = await s1.get_dates(5, start=datetime(1900, 1, 1, tz="UTC"))

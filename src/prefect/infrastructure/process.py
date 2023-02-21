@@ -74,12 +74,16 @@ class Process(Infrastructure):
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, output will be streamed from the process to local standard output.",
+        description=(
+            "If set, output will be streamed from the process to local standard output."
+        ),
     )
     working_dir: Union[str, Path, None] = Field(
         default=None,
-        description="If set, the process will open within the specified path as the working directory."
-        " Otherwise, a temporary directory will be created.",
+        description=(
+            "If set, the process will open within the specified path as the working"
+            " directory. Otherwise, a temporary directory will be created."
+        ),
     )  # Underlying accepted types are str, bytes, PathLike[str], None
 
     @sync_compatible
@@ -102,7 +106,8 @@ class Process(Infrastructure):
         )
         with working_dir_ctx as working_dir:
             self.logger.debug(
-                f"Process{display_name} running command: {' '.join(self.command)} in {working_dir}"
+                f"Process{display_name} running command: {' '.join(self.command)} in"
+                f" {working_dir}"
             )
 
             # We must add creationflags to a dict so it is only passed as a function
@@ -149,12 +154,12 @@ class Process(Infrastructure):
             ):
                 help_message = (
                     f"Process was terminated due to a Ctrl+C or Ctrl+Break signal. "
-                    "Typically, this is caused by manual cancellation."
+                    f"Typically, this is caused by manual cancellation."
                 )
 
             self.logger.error(
-                f"Process{display_name} exited with status code: "
-                f"{process.returncode}" + (f"; {help_message}" if help_message else "")
+                f"Process{display_name} exited with status code: {process.returncode}"
+                + (f"; {help_message}" if help_message else "")
             )
         else:
             self.logger.info(f"Process{display_name} exited cleanly.")
@@ -168,7 +173,8 @@ class Process(Infrastructure):
 
         if hostname != socket.gethostname():
             raise InfrastructureNotAvailable(
-                f"Unable to kill process {pid!r}: The process is running on a different host {hostname!r}."
+                f"Unable to kill process {pid!r}: The process is running on a different"
+                f" host {hostname!r}."
             )
 
         # In a non-windows environment first send a SIGTERM, then, after

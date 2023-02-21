@@ -114,7 +114,10 @@ class FlowFilterTags(PrefectOperatorFilterBaseModel):
     all_: Optional[List[str]] = Field(
         default=None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Flows will be returned only if their tags are a superset of the list",
+        description=(
+            "A list of tags. Flows will be returned only if their tags are a superset"
+            " of the list"
+        ),
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include flows without tags"
@@ -210,7 +213,10 @@ class FlowRunFilterTags(PrefectOperatorFilterBaseModel):
     all_: Optional[List[str]] = Field(
         default=None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
+        description=(
+            "A list of tags. Flow runs will be returned only if their tags are a"
+            " superset of the list"
+        ),
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include flow runs without tags"
@@ -388,11 +394,17 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
 
     before_: Optional[DateTimeTZ] = Field(
         default=None,
-        description="Only include flow runs with a next_scheduled_start_time or before this time",
+        description=(
+            "Only include flow runs with a next_scheduled_start_time or before this"
+            " time"
+        ),
     )
     after_: Optional[DateTimeTZ] = Field(
         default=None,
-        description="Only include flow runs with a next_scheduled_start_time at or after this time",
+        description=(
+            "Only include flow runs with a next_scheduled_start_time at or after this"
+            " time"
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -543,7 +555,10 @@ class TaskRunFilterTags(PrefectOperatorFilterBaseModel):
     all_: Optional[List[str]] = Field(
         default=None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Task runs will be returned only if their tags are a superset of the list",
+        description=(
+            "A list of tags. Task runs will be returned only if their tags are a"
+            " superset of the list"
+        ),
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include task runs without tags"
@@ -606,7 +621,10 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
 
     exists_: Optional[bool] = Field(
         default=None,
-        description="If true, only include task runs that are subflow run parents; if false, exclude parent task runs",
+        description=(
+            "If true, only include task runs that are subflow run parents; if false,"
+            " exclude parent task runs"
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -768,7 +786,10 @@ class DeploymentFilterTags(PrefectOperatorFilterBaseModel):
     all_: Optional[List[str]] = Field(
         default=None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Deployments will be returned only if their tags are a superset of the list",
+        description=(
+            "A list of tags. Deployments will be returned only if their tags are a"
+            " superset of the list"
+        ),
     )
     is_null_: Optional[bool] = Field(
         default=None, description="If true, only include deployments without tags"
@@ -985,7 +1006,7 @@ class BlockTypeFilterSlug(PrefectFilterBaseModel):
     """Filter by `BlockType.slug`"""
 
     any_: Optional[List[str]] = Field(
-        default=None, description=("A list of slugs to match")
+        default=None, description="A list of slugs to match"
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1052,8 +1073,10 @@ class BlockSchemaFilterCapabilities(PrefectFilterBaseModel):
     all_: Optional[List[str]] = Field(
         default=None,
         example=["write-storage", "read-storage"],
-        description="A list of block capabilities. Block entities will be returned "
-        "only if an associated block schema has a superset of the defined capabilities.",
+        description=(
+            "A list of block capabilities. Block entities will be returned only if an"
+            " associated block schema has a superset of the defined capabilities."
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1119,7 +1142,9 @@ class BlockDocumentFilterIsAnonymous(PrefectFilterBaseModel):
 
     eq_: Optional[bool] = Field(
         default=None,
-        description="Filter block documents for only those that are or are not anonymous.",
+        description=(
+            "Filter block documents for only those that are or are not anonymous."
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1210,7 +1235,9 @@ class FlowRunNotificationPolicyFilterIsActive(PrefectFilterBaseModel):
 
     eq_: Optional[bool] = Field(
         default=None,
-        description="Filter notification policies for only those that are or are not active.",
+        description=(
+            "Filter notification policies for only those that are or are not active."
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1225,7 +1252,7 @@ class FlowRunNotificationPolicyFilter(PrefectFilterBaseModel):
 
     is_active: Optional[FlowRunNotificationPolicyFilterIsActive] = Field(
         default=FlowRunNotificationPolicyFilterIsActive(eq_=False),
-        description=("Filter criteria for `FlowRunNotificationPolicy.is_active`. "),
+        description="Filter criteria for `FlowRunNotificationPolicy.is_active`. ",
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
@@ -1391,11 +1418,15 @@ class WorkerFilterLastHeartbeatTime(PrefectFilterBaseModel):
 
     before_: Optional[DateTimeTZ] = Field(
         default=None,
-        description="Only include processes whose last heartbeat was at or before this time",
+        description=(
+            "Only include processes whose last heartbeat was at or before this time"
+        ),
     )
     after_: Optional[DateTimeTZ] = Field(
         default=None,
-        description="Only include processes whose last heartbeat was at or after this time",
+        description=(
+            "Only include processes whose last heartbeat was at or after this time"
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:

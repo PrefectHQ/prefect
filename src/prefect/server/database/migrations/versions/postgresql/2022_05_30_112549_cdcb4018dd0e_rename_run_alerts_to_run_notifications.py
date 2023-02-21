@@ -21,10 +21,12 @@ def upgrade():
         "ALTER INDEX pk_flow_run_alert RENAME TO pk_flow_run_notification_policy;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_alert_policy__name RENAME TO ix_flow_run_notification_policy__name;"
+        "ALTER INDEX ix_flow_run_alert_policy__name RENAME TO"
+        " ix_flow_run_notification_policy__name;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_alert_policy__updated RENAME TO ix_flow_run_notification_policy__updated;"
+        "ALTER INDEX ix_flow_run_alert_policy__updated RENAME TO"
+        " ix_flow_run_notification_policy__updated;"
     )
 
     # queue table
@@ -33,7 +35,8 @@ def upgrade():
         "ALTER INDEX pk_flow_run_alert_queue RENAME TO pk_flow_run_notification_queue;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_alert_queue__updated RENAME TO ix_flow_run_notification_queue__updated;"
+        "ALTER INDEX ix_flow_run_alert_queue__updated RENAME TO"
+        " ix_flow_run_notification_queue__updated;"
     )
     op.alter_column(
         "flow_run_notification_queue",
@@ -49,7 +52,8 @@ def downgrade():
         "ALTER INDEX pk_flow_run_notification_queue RENAME TO pk_flow_run_alert_queue;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_notification_queue__updated RENAME TO ix_flow_run_alert_queue__updated;"
+        "ALTER INDEX ix_flow_run_notification_queue__updated RENAME TO"
+        " ix_flow_run_alert_queue__updated;"
     )
     op.alter_column(
         "flow_run_alert_queue",
@@ -63,8 +67,10 @@ def downgrade():
         "ALTER INDEX pk_flow_run_notification_policy RENAME TO pk_flow_run_alert;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_notification_policy__name RENAME TO ix_flow_run_alert_policy__name;"
+        "ALTER INDEX ix_flow_run_notification_policy__name RENAME TO"
+        " ix_flow_run_alert_policy__name;"
     )
     op.execute(
-        "ALTER INDEX ix_flow_run_notification_policy__updated RENAME TO ix_flow_run_alert_policy__updated;"
+        "ALTER INDEX ix_flow_run_notification_policy__updated RENAME TO"
+        " ix_flow_run_alert_policy__updated;"
     )

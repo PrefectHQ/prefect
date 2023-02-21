@@ -40,7 +40,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -73,7 +78,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -116,7 +126,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -157,7 +172,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -192,7 +212,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -239,7 +264,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -313,7 +343,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -492,7 +527,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -574,7 +614,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),
@@ -725,7 +770,12 @@ def upgrade():
             "id",
             prefect.server.utilities.database.UUID(),
             server_default=sa.text(
-                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n        || lower(hex(randomblob(2))) \n        || '-4' \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || substr('89ab',abs(random()) % 4 + 1, 1) \n        || substr(lower(hex(randomblob(2))),2) \n        || '-' \n        || lower(hex(randomblob(6)))\n    )\n    )"
+                "(\n    (\n        lower(hex(randomblob(4))) \n        || '-' \n       "
+                " || lower(hex(randomblob(2))) \n        || '-4' \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " substr('89ab',abs(random()) % 4 + 1, 1) \n        ||"
+                " substr(lower(hex(randomblob(2))),2) \n        || '-' \n        ||"
+                " lower(hex(randomblob(6)))\n    )\n    )"
             ),
             nullable=False,
         ),

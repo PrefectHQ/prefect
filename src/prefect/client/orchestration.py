@@ -207,7 +207,8 @@ class PrefectClient:
 
         else:
             raise TypeError(
-                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected 'str' or 'FastAPI'"
+                f"Unexpected type {type(api).__name__!r} for argument `api`. Expected"
+                " 'str' or 'FastAPI'"
             )
 
         # See https://www.python-httpx.org/advanced/#timeout-configuration
@@ -379,7 +380,7 @@ class PrefectClient:
             a list of Flow model representations of the flows
         """
         body = {
-            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
             ),
@@ -807,7 +808,10 @@ class PrefectClient:
         """
         if tags:
             warnings.warn(
-                "The use of tags for creating work queue filters is deprecated. This option will be removed on 2023-02-23.",
+                (
+                    "The use of tags for creating work queue filters is deprecated."
+                    " This option will be removed on 2023-02-23."
+                ),
                 DeprecationWarning,
             )
             filter = QueueFilter(tags=tags)
@@ -1445,9 +1449,11 @@ class PrefectClient:
         deployment_create = schemas.actions.DeploymentUpdate(
             version=deployment.version,
             schedule=schedule if schedule is not None else deployment.schedule,
-            is_schedule_active=is_schedule_active
-            if is_schedule_active is not None
-            else deployment.is_schedule_active,
+            is_schedule_active=(
+                is_schedule_active
+                if is_schedule_active is not None
+                else deployment.is_schedule_active
+            ),
             description=deployment.description,
             work_queue_name=deployment.work_queue_name,
             tags=deployment.tags,
@@ -1557,7 +1563,7 @@ class PrefectClient:
                 of the deployments
         """
         body = {
-            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
             ),
@@ -1679,7 +1685,7 @@ class PrefectClient:
                 of the flow runs
         """
         body = {
-            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
             ),
@@ -1871,7 +1877,7 @@ class PrefectClient:
                 of the task runs
         """
         body = {
-            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
             "flow_runs": (
                 flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
             ),
@@ -2007,11 +2013,11 @@ class PrefectClient:
                 of the notification policies
         """
         body = {
-            "flow_run_notification_policy_filter": flow_run_notification_policy_filter.dict(
-                json_compatible=True
-            )
-            if flow_run_notification_policy_filter
-            else None,
+            "flow_run_notification_policy_filter": (
+                flow_run_notification_policy_filter.dict(json_compatible=True)
+                if flow_run_notification_policy_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
         }
@@ -2229,11 +2235,11 @@ class PrefectClient:
             List of queues for the specified work pool.
         """
         json = {
-            "work_queues": work_queue_filter.dict(
-                json_compatible=True, exclude_unset=True
-            )
-            if work_queue_filter
-            else None,
+            "work_queues": (
+                work_queue_filter.dict(json_compatible=True, exclude_unset=True)
+                if work_queue_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
         }
