@@ -17,4 +17,5 @@ from . import (
     workers,
     work_queues,
     agents,
+    artifacts,
 )

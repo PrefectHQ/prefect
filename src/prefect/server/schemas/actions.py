@@ -552,3 +552,23 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
         schemas.core.FlowRunNotificationPolicy
     )
     message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+
+
+@copy_model_fields
+class ArtifactCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create an artifact."""
+
+    key: Optional[str] = FieldFrom(schemas.core.Artifact)
+    type: Optional[str] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+
+
+@copy_model_fields
+class ArtifactUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update an artifact."""
+
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
