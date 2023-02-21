@@ -15,6 +15,7 @@ from . import (
     concurrency_limits,
     workers,
     work_queues,
+    artifacts,
     block_schemas,
     block_types,
     block_capabilities,
