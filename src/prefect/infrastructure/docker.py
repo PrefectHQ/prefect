@@ -13,7 +13,11 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import get_prefect_image_name, parse_image_tag
+from prefect.docker import (
+    format_outlier_version_name,
+    get_prefect_image_name,
+    parse_image_tag,
+)
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
@@ -692,7 +696,9 @@ class DockerContainer(Infrastructure):
                 self.env["PREFECT_API_URL"],
             )
         ):
-            user_version = packaging.version.parse(docker_client.version()["Version"])
+            user_version = packaging.version.parse(
+                format_outlier_version_name(docker_client.version()["Version"])
+            )
             required_version = packaging.version.parse("20.10.0")
 
             if user_version < required_version:

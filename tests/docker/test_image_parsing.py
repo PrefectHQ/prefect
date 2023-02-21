@@ -1,6 +1,7 @@
+import packaging.version
 import pytest
 
-from prefect.docker import parse_image_tag
+from prefect.docker import format_outlier_version_name, parse_image_tag
 
 
 @pytest.mark.parametrize(
@@ -23,3 +24,22 @@ from prefect.docker import parse_image_tag
 )
 def test_parse_image_tag(value, expected):
     assert parse_image_tag(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("20.10.0", "20.10.0"),
+        ("v20.10.10", "v20.10.10"),
+        ("v20.10.0-ce", "v20.10.0"),
+        ("v20.10.10-ee", "v20.10.10"),
+        ("20.10.0-ce", "20.10.0"),
+        ("20.10.10-ee", "20.10.10"),
+    ],
+)
+def test_format_outlier_version_name(value, expected):
+    version = format_outlier_version_name(value)
+    # Basic test
+    assert version == expected
+    # Confirm return value can be parsed
+    assert isinstance(packaging.version.parse(version), packaging.version.Version)
