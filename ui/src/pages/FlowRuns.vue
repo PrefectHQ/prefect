@@ -60,7 +60,6 @@
   import { useRouter } from 'vue-router'
   import { usePageTitle } from '@/compositions/usePageTitle'
   import { routes } from '@/router'
-  import { uiApi } from '@/services/uiApi'
 
   const router = useRouter()
   const api = useWorkspaceApi()
@@ -84,7 +83,7 @@
   const flowRunCountSubscription = useSubscription(api.flowRuns.getFlowRunsCount, [filter], subscriptionOptions)
   const flowRunCount = computed(() => flowRunCountSubscription.response)
 
-  const flowRunHistorySubscription = useSubscription(uiApi.getFlowRunHistory, [filter], subscriptionOptions)
+  const flowRunHistorySubscription = useSubscription(api.ui.getFlowRunHistory, [filter], subscriptionOptions)
   const flowRunHistory = computed(() => flowRunHistorySubscription.response ?? [])
 
   const flowRunsSubscription = useSubscription(api.flowRuns.getFlowRuns, [filter], subscriptionOptions)
