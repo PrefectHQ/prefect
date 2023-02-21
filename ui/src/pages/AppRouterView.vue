@@ -22,42 +22,36 @@
 </template>
 
 <script lang="ts" setup>
-  import { PGlobalSidebar, PIcon, media } from '@prefecthq/prefect-design'
-  import { createApi, workspaceApiKey, createCan, canKey as designCanKey, workspacePermissions, createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/prefect-ui-library'
-  import { computed, provide, ref, watchEffect } from 'vue'
+  import { PGlobalSidebar, PIcon, media, showToast } from '@prefecthq/prefect-design'
+  import { workspaceApiKey, canKey as designCanKey, createWorkspaceRoutes, workspaceRoutesKey } from '@prefecthq/prefect-ui-library'
+  import { computed, provide, watchEffect } from 'vue'
   import { RouterView } from 'vue-router'
   import ContextSidebar from '@/components/ContextSidebar.vue'
-  import { UiSettings } from '@/services/uiSettings'
+  import { useApiConfig } from '@/compositions/useApiConfig'
+  import { useCreateCan } from '@/compositions/useCreateCan'
+  import { useMobileMenuOpen } from '@/compositions/useMobileMenuOpen'
+  import { createPrefectApi, prefectApiKey } from '@/utilities/api'
   import { canKey } from '@/utilities/permissions'
 
-  const baseUrl = await UiSettings.get('apiUrl')
-  const api = createApi({
-    baseUrl,
-  })
-  const flags = await UiSettings.get('flags')
-
-  const can = createCan([
-    ...workspacePermissions,
-    ...flags,
-  ])
-
+  const { can } = useCreateCan()
+  const { config } = await useApiConfig()
+  const api = createPrefectApi(config)
   const routes = createWorkspaceRoutes()
 
   provide(canKey, can)
   provide(designCanKey, can)
+  provide(prefectApiKey, api)
   provide(workspaceApiKey, api)
   provide(workspaceRoutesKey, routes)
 
-  const mobileMenuOpen = ref(false)
+  api.health.isHealthy().then(healthy => {
+    if (!healthy) {
+      showToast(`Can't connect to Server API at ${config.baseUrl}. Check that it's accessible from your machine.`, 'error', { timeout: false })
+    }
+  })
+
+  const { mobileMenuOpen, toggle, close } = useMobileMenuOpen()
   const showMenu = computed(() => media.lg || mobileMenuOpen.value)
-
-  function toggle(): void {
-    mobileMenuOpen.value = !mobileMenuOpen.value
-  }
-
-  function close(): void {
-    mobileMenuOpen.value = false
-  }
 
   watchEffect(() => document.body.classList.toggle('body-scrolling-disabled', showMenu.value && !media.lg))
 </script>
