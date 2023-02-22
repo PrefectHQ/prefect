@@ -180,9 +180,14 @@ class TestFlowWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
+            on_completion=[],
+            on_failure=[],
         )
         def initial_flow():
             pass
+
+        failure_hook = lambda task, task_run, state: print("Woof!")
+        success_hook = lambda task, task_run, state: print("Meow!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
@@ -197,6 +202,8 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
+            on_completion=[success_hook],
+            on_failure=[failure_hook],
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -211,6 +218,8 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert flow_with_options.cache_result_in_memory is True
+        assert flow_with_options.on_completion == [success_hook]
+        assert flow_with_options.on_failure == [failure_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
