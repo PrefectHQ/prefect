@@ -135,7 +135,6 @@ class APILogWorker:
 
         # Loop until the queue is empty or we encounter an error
         while not done:
-
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
                 while self._pending_size < max_batch_size:
@@ -169,7 +168,8 @@ class APILogWorker:
                         sys.stderr.write(self.worker_info())
                         if exiting:
                             sys.stderr.write(
-                                "The log worker is stopping and these logs will not be sent.\n"
+                                "The log worker is stopping and these logs will not be"
+                                " sent.\n"
                             )
                         elif self._retries > self._max_retries:
                             sys.stderr.write(
@@ -178,7 +178,8 @@ class APILogWorker:
                             )
                         else:
                             sys.stderr.write(
-                                "The log worker will attempt to send these logs again in "
+                                "The log worker will attempt to send these logs"
+                                " again in "
                                 f"{PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()}s\n"
                             )
 
@@ -326,9 +327,9 @@ class APILogHandler(logging.Handler):
                 context = prefect.context.get_run_context()
             except MissingContextError:
                 raise MissingContextError(
-                    f"Logger {record.name!r} attempted to send logs to the API without a "
-                    "flow run id. The API log handler can only send logs within flow "
-                    "run contexts unless the flow run id is manually provided."
+                    f"Logger {record.name!r} attempted to send logs to the API without"
+                    " a flow run id. The API log handler can only send logs within"
+                    " flow run contexts unless the flow run id is manually provided."
                 ) from None
 
             if hasattr(context, "flow_run"):

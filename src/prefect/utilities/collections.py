@@ -208,6 +208,15 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
+class StopVisiting(BaseException):
+    """
+    A special exception used to stop recursive visits in `visit_collection`.
+
+    When raised, the expression is returned without modification and recursive visits
+    in that path will end.
+    """
+
+
 def visit_collection(
     expr,
     visit_fn: Callable[[Any], Any],
@@ -278,7 +287,11 @@ def visit_collection(
             return visit_fn(expr)
 
     # Visit every expression
-    result = visit_expression(expr)
+    try:
+        result = visit_expression(expr)
+    except StopVisiting:
+        max_depth = 0
+        result = expr
 
     if return_data:
         # Only mutate the expression while returning data, otherwise it could be null

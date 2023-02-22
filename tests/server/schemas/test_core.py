@@ -73,7 +73,10 @@ class TestBlockDocumentReference:
         same_id = uuid4()
         with pytest.raises(
             ValueError,
-            match="`parent_block_document_id` and `reference_block_document_id` cannot be the same",
+            match=(
+                "`parent_block_document_id` and `reference_block_document_id` cannot be"
+                " the same"
+            ),
         ):
             schemas.core.BlockDocumentReference(
                 parent_block_document_id=same_id,
@@ -106,7 +109,10 @@ class TestFlowRunNotificationPolicy:
                 state_names=[],
                 tags=[],
                 block_document_id=uuid4(),
-                message_template="This contains {flow_run_id} and {bad_variable} and {another_bad_variable}",
+                message_template=(
+                    "This contains {flow_run_id} and {bad_variable} and"
+                    " {another_bad_variable}"
+                ),
             )
 
 
@@ -189,7 +195,6 @@ class TestTaskRunPolicy:
 class TestTaskRun:
     def test_task_run_cache_key_greater_than_user_configured_max_length(self):
         with temporary_settings({PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH: 5}):
-
             cache_key_invalid_length = "X" * 6
             with pytest.raises(
                 pydantic.ValidationError,
@@ -233,7 +238,6 @@ class TestTaskRun:
             )
 
     def test_task_run_cache_key_greater_than_default_max_length(self):
-
         cache_key_invalid_length = "X" * 2001
         with pytest.raises(
             pydantic.ValidationError, match="Cache key exceeded maximum allowed length"
@@ -257,7 +261,6 @@ class TestTaskRun:
             )
 
     def test_task_run_cache_key_length_within_default_max_length(self):
-
         cache_key_valid_length = "X" * 2000
         schemas.core.TaskRun(
             id=uuid4(),
@@ -336,7 +339,10 @@ class TestWorkPool:
         qid = uuid4()
         with pytest.raises(
             ValueError,
-            match=".*Your job expects the following variables: {'expected_variable'}, but your template provides: {'wrong_variable'}",
+            match=(
+                ".*Your job expects the following variables: {'expected_variable'}, but"
+                " your template provides: {'wrong_variable'}"
+            ),
         ):
             wp = schemas.core.WorkPool(
                 name="test", default_queue_id=qid, base_job_template=template

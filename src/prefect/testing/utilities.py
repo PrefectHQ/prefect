@@ -99,7 +99,6 @@ def kubernetes_environments_equal(
     actual: List[Dict[str, str]],
     expected: Union[List[Dict[str, str]], Dict[str, str]],
 ):
-
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
         expected = [{"name": key, "value": value} for key, value in expected.items()]
@@ -234,7 +233,9 @@ async def assert_uses_result_storage(
         Block._from_block_document(
             await client.read_block_document(state.data.storage_block_id)
         ),
-        storage
-        if isinstance(storage, Block)
-        else await Block.load(storage, client=client),
+        (
+            storage
+            if isinstance(storage, Block)
+            else await Block.load(storage, client=client)
+        ),
     )

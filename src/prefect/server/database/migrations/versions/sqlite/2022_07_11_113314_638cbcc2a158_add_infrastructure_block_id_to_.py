@@ -18,7 +18,6 @@ depends_on = None
 
 
 def upgrade():
-
     op.execute("PRAGMA foreign_keys=OFF")
 
     with op.batch_alter_table("deployment", schema=None) as batch_op:

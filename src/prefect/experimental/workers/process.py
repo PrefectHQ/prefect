@@ -143,8 +143,8 @@ class ProcessWorker(BaseWorker):
                 )
 
             self._logger.error(
-                f"Process{display_name} exited with status code: "
-                f"{process.returncode}" + (f"; {help_message}" if help_message else "")
+                f"Process{display_name} exited with status code: {process.returncode}"
+                + (f"; {help_message}" if help_message else "")
             )
         else:
             self._logger.info(f"Process{display_name} exited cleanly.")

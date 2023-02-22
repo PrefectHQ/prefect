@@ -9,8 +9,6 @@
 <script lang="ts" setup>
   import { useColorTheme } from '@prefecthq/prefect-design'
   import AppRouterView from '@/pages/AppRouterView.vue'
-  import { healthCheck } from '@/utilities/api'
 
-  healthCheck()
   useColorTheme()
 </script>

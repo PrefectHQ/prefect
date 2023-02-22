@@ -26,13 +26,16 @@
   import { PageHeading, ColorModeSelect } from '@prefecthq/prefect-ui-library'
   import SettingsCodeBlock from '@/components/SettingsCodeBlock.vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
-  import { adminApi } from '@/services/adminApi'
+  import { usePrefectApi } from '@/compositions/usePrefectApi'
   import { activeColorMode } from '@/utilities/colorMode'
 
   const crumbs = [{ text: 'Settings' }]
 
-  const engineSettings = await adminApi.getSettings()
-  const version = await adminApi.getVersion()
+  const api = usePrefectApi()
+  const [engineSettings, version] = await Promise.all([
+    api.admin.getSettings(),
+    api.admin.getVersion(),
+  ])
 
   usePageTitle('Settings')
 </script>

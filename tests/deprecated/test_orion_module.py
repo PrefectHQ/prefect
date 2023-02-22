@@ -8,7 +8,10 @@ import prefect.server
 def test_import_orion_module():
     with pytest.warns(
         DeprecationWarning,
-        match="The 'prefect.orion' module has been deprecated. It will not be available after Aug 2023. Use 'prefect.server' instead.",
+        match=(
+            "The 'prefect.orion' module has been deprecated. It will not be available"
+            " after Aug 2023. Use 'prefect.server' instead."
+        ),
     ):
         import prefect.orion  # noqa
 
@@ -16,7 +19,10 @@ def test_import_orion_module():
 def test_import_orion_submodule():
     with pytest.warns(
         DeprecationWarning,
-        match="The 'prefect.orion' module has been deprecated. It will not be available after Aug 2023. Use 'prefect.server' instead.",
+        match=(
+            "The 'prefect.orion' module has been deprecated. It will not be available"
+            " after Aug 2023. Use 'prefect.server' instead."
+        ),
     ):
         import prefect.orion.schemas
 
@@ -28,7 +34,10 @@ def test_import_module_from_orion_module():
 
     with pytest.warns(
         DeprecationWarning,
-        match="The 'prefect.orion' module has been deprecated. It will not be available after Aug 2023. Use 'prefect.server' instead.",
+        match=(
+            "The 'prefect.orion' module has been deprecated. It will not be available"
+            " after Aug 2023. Use 'prefect.server' instead."
+        ),
     ):
         from prefect.orion import models
 
@@ -38,7 +47,10 @@ def test_import_module_from_orion_module():
 def test_import_object_from_from_orion_submodule():
     with pytest.warns(
         DeprecationWarning,
-        match="The 'prefect.orion' module has been deprecated. It will not be available after Aug 2023. Use 'prefect.server' instead.",
+        match=(
+            "The 'prefect.orion' module has been deprecated. It will not be available"
+            " after Aug 2023. Use 'prefect.server' instead."
+        ),
     ):
         from prefect.orion.schemas.states import State
 

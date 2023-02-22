@@ -76,7 +76,6 @@ async def hosted_orion_api():
         stderr=sys.stderr,
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
-
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
@@ -180,7 +179,10 @@ def mock_anyio_sleep(monkeypatch):
             sleeptime - float(extra_tolerance)
             <= seconds
             <= sleeptime + runtime + extra_tolerance
-        ), f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of +{runtime + extra_tolerance}, -{extra_tolerance}"
+        ), (
+            f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of"
+            f" +{runtime + extra_tolerance}, -{extra_tolerance}"
+        )
 
     sleep.assert_sleeps_for = assert_sleeps_for
 

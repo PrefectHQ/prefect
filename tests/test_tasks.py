@@ -967,7 +967,6 @@ class TestTaskCaching:
         assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
-
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
@@ -2572,7 +2571,10 @@ class TestTaskRegistration:
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
             UserWarning,
-            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+            match=(
+                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
+                r" task."
+            ),
         ):
 
             @task(name="my_task")
