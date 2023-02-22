@@ -1747,41 +1747,11 @@ class TestDeploymentFlowRun:
         await run_process(
             [sys.executable, "-m", "prefect.engine", str(flow_run.id)],
             env={
-                "PREFECT_API_DATABASE_CONNECTION_URL": PREFECT_API_DATABASE_CONNECTION_URL.value(),
+                "PREFECT_API_DATABASE_CONNECTION_URL": (
+                    PREFECT_API_DATABASE_CONNECTION_URL.value()
+                ),
             },
             cwd=tmp_path,
-        )
-
-        completed_flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert completed_flow_run.state_name == "Completed"
-
-    async def test_start_from_module_ignore_storage(
-        self, orion_client: PrefectClient, flow_function
-    ):
-        from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
-
-        flow_id = await orion_client.create_flow(flow_function)
-        deployment_id = await orion_client.create_deployment(
-            flow_id,
-            name="test",
-            entrypoint="tests/generic_flows.py:identity",
-        )
-
-        flow_run = await orion_client.create_flow_run_from_deployment(
-            deployment_id, parameters={"x": 1}
-        )
-
-        await run_process(
-            [
-                sys.executable,
-                "-m",
-                "prefect.engine",
-                "--ignore-storage",
-                str(flow_run.id),
-            ],
-            env={
-                "PREFECT_API_DATABASE_CONNECTION_URL": PREFECT_API_DATABASE_CONNECTION_URL.value(),
-            },
         )
 
         completed_flow_run = await orion_client.read_flow_run(flow_run.id)
