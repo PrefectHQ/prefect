@@ -478,21 +478,24 @@ class BaseWorker(abc.ABC):
         if flow_run.deployment_id:
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
-                self._logger.warning(
-                    "Flow run %s was created from deployment %s which is configured "
+                raise ValueError(
+                    f"Flow run {flow_run.id!r} was created from deployment {deployment.name!r} which is configured "
                     "with a storage block. Workers currently only support local "
-                    "storage. This flow run will be submitted for execution, but "
-                    "will fail if the flow code is not local to this worker's "
-                    "filesystem.",
-                    flow_run.id,
-                    deployment.name,
+                    "storage. Please use an agent to execute this flow run."
                 )
 
     async def _submit_run(self, flow_run: FlowRun) -> None:
         """
         Submits a given flow run for execution by the worker.
         """
-        await self._check_flow_run(flow_run)
+        try:
+            await self._check_flow_run(flow_run)
+        except ValueError:
+            self._logger.exception(
+                "Flow run %s did not pass checks and will not be submitted for execution",
+                flow_run.id,
+            )
+
         ready_to_submit = await self._propose_pending_state(flow_run)
 
         if ready_to_submit:
