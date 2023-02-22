@@ -1,6 +1,6 @@
 import abc
 from pathlib import Path
-from typing import Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -479,9 +479,10 @@ class BaseWorker(abc.ABC):
             deployment = await self._client.read_deployment(flow_run.deployment_id)
             if deployment.storage_document_id:
                 raise ValueError(
-                    f"Flow run {flow_run.id!r} was created from deployment {deployment.name!r} which is configured "
-                    "with a storage block. Workers currently only support local "
-                    "storage. Please use an agent to execute this flow run."
+                    f"Flow run {flow_run.id!r} was created from deployment"
+                    f" {deployment.name!r} which is configured with a storage block."
+                    " Workers currently only support local storage. Please use an"
+                    " agent to execute this flow run."
                 )
 
     async def _submit_run(self, flow_run: FlowRun) -> None:
@@ -492,7 +493,10 @@ class BaseWorker(abc.ABC):
             await self._check_flow_run(flow_run)
         except ValueError:
             self._logger.exception(
-                "Flow run %s did not pass checks and will not be submitted for execution",
+                (
+                    "Flow run %s did not pass checks and will not be submitted for"
+                    " execution"
+                ),
                 flow_run.id,
             )
 
@@ -679,6 +683,15 @@ class BaseWorker(abc.ABC):
                 base_job_template=job_template,
             ),
         )
+
+    @staticmethod
+    def _base_flow_run_environment(flow_run: FlowRun) -> Dict[str, str]:
+        """
+        Generate a dictionary of environment variables for a flow run.
+        """
+        environment: Dict[str, Any] = {}
+        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+        return environment
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

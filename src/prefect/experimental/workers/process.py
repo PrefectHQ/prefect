@@ -106,7 +106,6 @@ class ProcessWorker(BaseWorker):
             command = f"{sys.executable} -m prefect.engine"
 
         # We must add creationflags to a dict so it is only passed as a function
-        # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
         kwargs: Dict[str, object] = {}
         if sys.platform == "win32":
@@ -121,16 +120,14 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            command = f"{command} --ignore-storage {flow_run.id.hex}"
-            self._logger.debug(
-                f"Process running command: {command} in {working_dir}"
-            )
+            self._logger.debug(f"Process running command: {command} in {working_dir}")
             process = await run_process(
                 command.split(" "),
                 stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 cwd=working_dir,
+                env=self._base_flow_run_environment(flow_run=flow_run),
                 **kwargs,
             )
 

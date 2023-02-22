@@ -157,10 +157,9 @@ async def test_worker_process_run_flow_run(
                 sys.executable,
                 "-m",
                 "prefect.engine",
-                "--ignore-storage",
-                flow_run.id.hex,
             ],
         )
+        assert mock.call_args.kwargs["env"] == {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
 
 
 async def test_process_created_then_marked_as_started(
@@ -346,8 +345,6 @@ async def test_process_worker_uses_correct_default_command(
         sys.executable,
         "-m",
         "prefect.engine",
-        "--ignore-storage",
-        flow_run.id.hex,
     ]
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
@@ -380,6 +377,4 @@ async def test_process_worker_command_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.args == (
-            [*override_command.split(" "), "--ignore-storage", flow_run.id.hex],
-        )
+        assert mock.call_args.args == (override_command.split(" "),)
