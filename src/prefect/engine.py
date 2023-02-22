@@ -2014,7 +2014,10 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                 )
             except Exception as exc:
                 logger.error(
-                    f"Error running hook {hook!r} in response to entering state {state.name!r}: {exc}",
+                    (
+                        f"Error running hook {hook!r} in response to entering state"
+                        f" {state.name!r}: {exc}"
+                    ),
                     exc_info=True,
                 )
 
