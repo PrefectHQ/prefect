@@ -2033,15 +2033,15 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         logger = flow_run_logger(flow_run)
         for hook in hooks:
             try:
+                logger.info(
+                    f"Running hook {hook!r} in response to entering state {state.name!r}"
+                )
                 if is_async_fn(hook):
                     await hook(flow=flow, flow_run=flow_run, state=state)
                 else:
                     await run_sync_in_worker_thread(
                         hook, flow=flow, flow_run=flow_run, state=state
                     )
-                logger.info(
-                    f"Ran hook {hook!r} in response to entering state {state.name!r}"
-                )
             except Exception as exc:
                 logger.error(
                     f"Error running hook {hook!r} in response to entering state {state.name!r}: {exc}",
