@@ -866,7 +866,7 @@ def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
     assert result.status_code == -1
 
 
-def test_watch_is_restarted_until_job_is_complete(
+def test_watch_deadline_is_computed_before_log_streams(
     mock_k8s_client, mock_watch, mock_k8s_batch_client
 ):
     def mock_stream(*args, **kwargs):
@@ -885,10 +885,92 @@ def test_watch_is_restarted_until_job_is_complete(
             )
             yield {"object": job}
 
+    def mock_log_stream(*args, **kwargs):
+        sleep(0.5)
+        return MagicMock()
+
+    mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
+
     mock_watch.stream.side_effect = mock_stream
-    result = KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+    result = KubernetesJob(
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+    ).run(MagicMock())
     assert result.status_code == 1
-    assert mock_watch.stream.call_count == 3
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # Starts with the full timeout minus the amount we slept streaming logs
+            # Approximate comparisons are needed since executing code takes some time
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(0.5, abs=0.01),
+            ),
+        ]
+    )
+
+
+def test_watch_deadline_is_checked_during_log_streams(
+    mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
+):
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the job then return exiting the stream
+            # After restarting the watch a few times, we'll report completion
+            job.status.completion_time = (
+                None if mock_watch.stream.call_count < 3 else True
+            )
+            yield {"object": job}
+
+    def mock_log_stream(*args, **kwargs):
+        for i in range(10):
+            sleep(0.25)
+            yield f"test {i}".encode()
+
+    mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
+    mock_watch.stream.side_effect = mock_stream
+
+    result = KubernetesJob(
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+    ).run(MagicMock())
+
+    # The job should timeout
+    assert result.status_code == -1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # No watch call is made because the deadline is exceeded beforehand
+        ]
+    )
+
+    # Check for logs
+    stdout, _ = capsys.readouterr()
+
+    # Before the deadline, logs should be displayed
+    for i in range(4):
+        assert f"test {i}" in stdout
+    for i in range(4, 10):
+        assert f"test {i}" not in stdout
 
 
 def test_watch_timeout_is_restarted_until_job_is_complete(
@@ -906,6 +988,66 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             # Sleep a little
             sleep(0.25)
 
+            # Yield the job then return exiting the stream
+            job.status.completion_time = None
+            yield {"object": job}
+
+    mock_watch.stream.side_effect = mock_stream
+    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=1).run(
+        MagicMock()
+    )
+    assert result.status_code == -1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # Starts with the full timeout
+            # Approximate comparisons are needed since executing code takes some time
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(1, abs=0.01),
+            ),
+            # Then, elapsed time removed on each call
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(0.75, abs=0.05),
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(0.5, abs=0.05),
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(0.25, abs=0.05),
+            ),
+        ]
+    )
+
+
+def test_watch_timeout_is_restarted_until_job_is_complete(
+    mock_k8s_client, mock_watch, mock_k8s_batch_client
+):
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
             # Yield the job then return exiting the stream
             job.status.completion_time = None
             yield {"object": job}

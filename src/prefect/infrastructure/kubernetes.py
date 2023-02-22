@@ -595,6 +595,8 @@ class KubernetesJob(Infrastructure):
 
         Return the final status code of the first container.
         """
+        self.logger.debug(f"Job {job_name!r}: Monitoring job...")
+
         job = self._get_job(job_name)
         if not job:
             return -1
@@ -602,6 +604,13 @@ class KubernetesJob(Infrastructure):
         pod = self._get_job_pod(job_name)
         if not pod:
             return -1
+
+        # Calculate the deadline before streaming output
+        deadline = (
+            (time.time() + self.job_watch_timeout_seconds)
+            if self.job_watch_timeout_seconds is not None
+            else None
+        )
 
         if self.stream_output:
             with self.get_client() as client:
@@ -615,6 +624,13 @@ class KubernetesJob(Infrastructure):
                 try:
                     for log in logs.stream():
                         print(log.decode().rstrip())
+
+                        # Check if we have passed the deadline and should stop streaming
+                        # logs
+                        remaining_time = deadline - time.time() if deadline else None
+                        if deadline and remaining_time <= 0:
+                            break
+
                 except Exception:
                     self.logger.warning(
                         (
@@ -625,12 +641,6 @@ class KubernetesJob(Infrastructure):
                         exc_info=True,
                     )
 
-        self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        deadline = (
-            (time.time() + self.job_watch_timeout_seconds)
-            if self.job_watch_timeout_seconds is not None
-            else None
-        )
         completed = False
         while not completed:
             remaining_time = deadline - time.time() if deadline else None
@@ -736,11 +746,7 @@ class KubernetesJob(Infrastructure):
             name = key
 
         name_slug = (
-            slugify(
-                name,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_.]+",
-            ).strip(
+            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or name
@@ -780,11 +786,7 @@ class KubernetesJob(Infrastructure):
             The slugified value
         """
         slug = (
-            slugify(
-                value,
-                max_length=63,
-                regex_pattern=r"[^a-zA-Z0-9-_\.]+",
-            ).strip(
+            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value
