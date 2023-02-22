@@ -10,7 +10,7 @@ from typing import Dict, Optional
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field
+from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
@@ -20,6 +20,7 @@ from prefect.experimental.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -50,6 +51,13 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(template="{{ stream_output }}")
     working_dir: Optional[Path] = Field(template="{{ working_dir }}")
 
+    @validator("working_dir")
+    def validate_command(cls, v):
+        """Make sure that the working directory is formatted for the current platform."""
+        if v:
+            return relative_path_to_current_platform(v)
+        return v
+
 
 class ProcessVariables(BaseVariables):
     stream_output: bool = Field(
@@ -61,6 +69,7 @@ class ProcessVariables(BaseVariables):
     )
     working_dir: Optional[Path] = Field(
         default=None,
+        title="Working Directory",
         description=(
             "If provided, workers will open flow run processes within the "
             "specified path as the working directory. Otherwise, a temporary"

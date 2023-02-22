@@ -278,7 +278,7 @@ async def test_process_worker_working_dir_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.kwargs["cwd"] != path_override_value
+        assert mock.call_args.kwargs["cwd"] != Path(path_override_value)
 
     # Check mock_path is used after setting the override
     read_deployment_mock = patch_read_deployment(
