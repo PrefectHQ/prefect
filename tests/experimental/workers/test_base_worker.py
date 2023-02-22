@@ -451,11 +451,12 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
         await worker.get_and_submit_flow_runs()
 
     assert (
-        f"Flow run {flow_run.id} was created from deployment {deployment.name} which "
-        "is configured with a storage block. Workers currently only support local storage. "
-        "This flow run will be submitted for execution, but will fail if the flow code is "
-        "not local to this worker's filesystem."
-    ) in caplog.text
+        f"Flow run {flow_run.id!r} was created from deployment"
+        f" {deployment.name!r} which is configured with a storage block. Workers"
+        " currently only support local storage. Please use an agent to execute this"
+        " flow run."
+        in caplog.text
+    )
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
