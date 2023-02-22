@@ -16,9 +16,9 @@ SHUTDOWN_TIMEOUT = 20
 
 
 @pytest.fixture(scope="function")
-async def orion_process():
+async def server_process():
     """
-    Runs an instance of the Orion server. Requires a port from 2222-2227 to be available.
+    Runs an instance of the server. Requires a port from 2222-2227 to be available.
     Uses the same database as the rest of the tests.
     Yields:
         The anyio.Process.
@@ -41,7 +41,7 @@ async def orion_process():
     async with open_process(
         command=[
             "prefect",
-            "orion",
+            "server",
             "start",
             "--host",
             "127.0.0.1",
@@ -75,7 +75,7 @@ async def orion_process():
                 response.raise_for_status()
             if not response:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to hosted test Orion."
+                    "Timed out while attempting to connect to hosted test server."
                 )
 
         # Yield to the consuming tests
@@ -94,83 +94,96 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm(self, orion_process):
-        orion_process.send_signal(signal.SIGINT)
+    async def test_sigint_sends_sigterm(self, server_process):
+        server_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await orion_process.wait()
-        orion_process.out.seek(0)
-        out = orion_process.out.read().decode()
+            await server_process.wait()
+        server_process.out.seek(0)
+        out = server_process.out.read().decode()
 
-        assert (
-            "Sending SIGTERM" in out
-        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:\n{out}"
+        assert "Sending SIGTERM" in out, (
+            "When sending a SIGTERM, the main process should send a SIGTERM to the"
+            f" uvicorn subprocess. Output:\n{out}"
+        )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_directly(self, orion_process):
-        orion_process.send_signal(signal.SIGTERM)
+    async def test_sigterm_sends_sigterm_directly(self, server_process):
+        server_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await orion_process.wait()
-        orion_process.out.seek(0)
-        out = orion_process.out.read().decode()
+            await server_process.wait()
+        server_process.out.seek(0)
+        out = server_process.out.read().decode()
 
-        assert (
-            "Sending SIGTERM" in out
-        ), f"When sending a SIGTERM, the main process should send a SIGTERM to the uvicorn subprocess. Output:\n{out}"
+        assert "Sending SIGTERM" in out, (
+            "When sending a SIGTERM, the main process should send a SIGTERM to the"
+            f" uvicorn subprocess. Output:\n{out}"
+        )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm_then_sigkill(self, orion_process):
-        orion_process.send_signal(signal.SIGINT)
+    async def test_sigint_sends_sigterm_then_sigkill(self, server_process):
+        server_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.001)  # some time needed for the recursive signal handler
-        orion_process.send_signal(signal.SIGINT)
+        server_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await orion_process.wait()
-        orion_process.out.seek(0)
-        out = orion_process.out.read().decode()
+            await server_process.wait()
+        server_process.out.seek(0)
+        out = server_process.out.read().decode()
 
         assert (
             # either the main PID is still waiting for shutdown, so forwards the SIGKILL
             "Sending SIGKILL" in out
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
-        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:\n{out}"
+            or "Server stopped!" in out
+        ), (
+            "When sending two SIGINT shortly after each other, the main process should"
+            " first send a SIGTERM and then a SIGKILL to the uvicorn subprocess."
+            f" Output:\n{out}"
+        )
 
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_then_sigkill(self, orion_process):
-        orion_process.send_signal(signal.SIGTERM)
+    async def test_sigterm_sends_sigterm_then_sigkill(self, server_process):
+        server_process.send_signal(signal.SIGTERM)
         await anyio.sleep(0.001)  # some time needed for the recursive signal handler
-        orion_process.send_signal(signal.SIGTERM)
+        server_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await orion_process.wait()
-        orion_process.out.seek(0)
-        out = orion_process.out.read().decode()
+            await server_process.wait()
+        server_process.out.seek(0)
+        out = server_process.out.read().decode()
 
         assert (
             # either the main PID is still waiting for shutdown, so forwards the SIGKILL
             "Sending SIGKILL" in out
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
-        ), f"When sending two SIGINT shortly after each other, the main process should first send a SIGTERM and then a SIGKILL to the uvicorn subprocess. Output:\n{out}"
+            or "Server stopped!" in out
+        ), (
+            "When sending two SIGINT shortly after each other, the main process should"
+            " first send a SIGTERM and then a SIGKILL to the uvicorn subprocess."
+            f" Output:\n{out}"
+        )
 
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
-    async def test_sends_ctrl_break_win32(self, orion_process):
-        orion_process.send_signal(signal.SIGINT)
+    async def test_sends_ctrl_break_win32(self, server_process):
+        server_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
-            await orion_process.wait()
-        orion_process.out.seek(0)
-        out = orion_process.out.read().decode()
+            await server_process.wait()
+        server_process.out.seek(0)
+        out = server_process.out.read().decode()
 
-        assert (
-            "Sending CTRL_BREAK_EVENT" in out
-        ), f"When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to the uvicorn subprocess. Output:\n{out}"
+        assert "Sending CTRL_BREAK_EVENT" in out, (
+            "When sending a SIGINT, the main process should send a CTRL_BREAK_EVENT to"
+            f" the uvicorn subprocess. Output:\n{out}"
+        )
