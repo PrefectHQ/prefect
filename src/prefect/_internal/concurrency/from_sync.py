@@ -1,5 +1,4 @@
 import concurrent.futures
-import threading
 from typing import Callable, TypeVar
 
 from typing_extensions import ParamSpec
@@ -57,23 +56,20 @@ def call_soon_in_worker_thread(
     return supervisor
 
 
-def call_soon_in_main_thread(
+def call_soon_in_supervising_thread(
     __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs
 ) -> concurrent.futures.Future:  # [T]
     """
-    Call a function in the main thread.
+    Call a function in the supervising thread.
 
     Must be used from a call scheduled by `call_soon_in_worker_thread` or
-    `call_soon_in_runtime_thread` or the main thread will not be watching for work.
+    `call_soon_in_runtime_thread` or there will not be a supervisor.
 
     Returns a future.
     """
     current_supervisor = get_supervisor()
     if current_supervisor is None:
         raise RuntimeError("No supervisor found.")
-
-    if current_supervisor.owner_thread_ident != threading.main_thread().ident:
-        raise RuntimeError("Watching future is not owned by the main thread.")
 
     future = current_supervisor.send_call(__fn, *args, **kwargs)
     return future
