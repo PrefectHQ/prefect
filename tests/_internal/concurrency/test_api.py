@@ -66,10 +66,16 @@ def test_from_sync_call_soon_in_runtime_thread_must_be_coroutine_fn():
         from_sync.call_soon_in_runtime_thread(identity, 1)
 
 
+@pytest.mark.parametrize("from_module", [from_async, from_sync])
+async def test_call_soon_in_supervising_thread_no_supervisor(from_module):
+    with pytest.raises(RuntimeError, match="No supervisor"):
+        getattr(from_module, "call_soon_in_supervising_thread")(identity, 1)
+
+
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_soon_in_main_thread_from_worker(work):
+async def test_from_async_call_soon_in_supervising_thread_from_worker(work):
     async def worker():
-        future = from_async.call_soon_in_main_thread(work, 1)
+        future = from_async.call_soon_in_supervising_thread(work, 1)
         assert await future == 1
         return 2
 
@@ -78,9 +84,9 @@ async def test_from_async_call_soon_in_main_thread_from_worker(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_soon_in_main_thread_from_worker(work):
+def test_from_sync_call_soon_in_supervising_thread_from_worker(work):
     def worker():
-        future = from_sync.call_soon_in_main_thread(work, 1)
+        future = from_sync.call_soon_in_supervising_thread(work, 1)
         assert future.result() == 1
         return 2
 
@@ -89,9 +95,9 @@ def test_from_sync_call_soon_in_main_thread_from_worker(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_soon_in_main_thread_from_runtime(work):
+async def test_from_async_call_soon_in_supervising_thread_from_runtime(work):
     async def from_runtime():
-        future = from_async.call_soon_in_main_thread(work, 1)
+        future = from_async.call_soon_in_supervising_thread(work, 1)
         assert await future == 1
         return 2
 
@@ -100,9 +106,9 @@ async def test_from_async_call_soon_in_main_thread_from_runtime(work):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_soon_in_main_thread_from_runtime(work):
+def test_from_sync_call_soon_in_supervising_thread_from_runtime(work):
     async def from_runtime():
-        future = from_async.call_soon_in_main_thread(work, 1)
+        future = from_async.call_soon_in_supervising_thread(work, 1)
         assert await future == 1
         return 2
 
@@ -137,10 +143,12 @@ def test_from_sync_call_soon_in_worker_thread_captures_context_variables(get):
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-async def test_from_async_call_soon_in_main_thread_captures_context_varaibles(get):
+async def test_from_async_call_soon_in_supervising_thread_captures_context_varaibles(
+    get,
+):
     async def from_runtime():
         with set_contextvar("test"):
-            future = from_async.call_soon_in_main_thread(get)
+            future = from_async.call_soon_in_supervising_thread(get)
         assert await future == "test"
 
     supervisor = from_async.call_soon_in_runtime_thread(from_runtime)
@@ -148,10 +156,10 @@ async def test_from_async_call_soon_in_main_thread_captures_context_varaibles(ge
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-def test_from_sync_call_soon_in_main_thread_captures_context_varaibles(get):
+def test_from_sync_call_soon_in_supervising_thread_captures_context_varaibles(get):
     async def from_runtime():
         with set_contextvar("test"):
-            future = from_async.call_soon_in_main_thread(get)
+            future = from_async.call_soon_in_supervising_thread(get)
         assert await future == "test"
 
     supervisor = from_sync.call_soon_in_runtime_thread(from_runtime)
