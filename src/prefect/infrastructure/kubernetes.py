@@ -641,18 +641,23 @@ class KubernetesJob(Infrastructure):
                         exc_info=True,
                     )
 
-        completed = False
-        while not completed:
-            remaining_time = deadline - time.time() if deadline else None
-            if deadline and remaining_time <= 0:
-                self.logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {self.job_watch_timeout_seconds}s."
-                )
-                return -1
+        with self.get_batch_client() as batch_client:
+            # Check if the job is completed before beginning a watch
+            job = batch_client.read_namespaced_job(
+                name=job_name, namespace=self.namespace
+            )
+            completed = job.status.completion_time is not None
 
-            watch = kubernetes.watch.Watch()
-            with self.get_batch_client() as batch_client:
+            while not completed:
+                remaining_time = deadline - time.time() if deadline else None
+                if deadline and remaining_time <= 0:
+                    self.logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {self.job_watch_timeout_seconds}s."
+                    )
+                    return -1
+
+                watch = kubernetes.watch.Watch()
                 # The kubernetes library will disable retries if the timeout kwarg is
                 # present regardless of the value so we do not pass it unless given
                 # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
