@@ -115,6 +115,7 @@ nav:
                 - tutorials/storage.md
                 - tutorials/docker.md
                 - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+                - Cloud Agent Quickstart: tutorials/cloud-agent.md
             - Advanced Tutorials:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
