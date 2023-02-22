@@ -1748,7 +1748,7 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
     if not parameters:
-        return parameters
+        return {}
 
     def resolve_input(expr, context):
         state = None
