@@ -103,7 +103,7 @@ class ProcessWorker(BaseWorker):
     ):
         command = configuration.command
         if not command:
-            command = (" ").join([sys.executable, "-m", "prefect.engine"])
+            command = f"{sys.executable} -m prefect.engine"
 
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
