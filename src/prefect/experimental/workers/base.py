@@ -499,6 +499,8 @@ class BaseWorker(abc.ABC):
                 ),
                 flow_run.id,
             )
+            self._submitting_flow_run_ids.remove(flow_run.id)
+            return
 
         ready_to_submit = await self._propose_pending_state(flow_run)
 

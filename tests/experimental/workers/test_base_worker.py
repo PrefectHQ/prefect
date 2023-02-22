@@ -429,8 +429,6 @@ async def test_worker_calls_run_with_expected_arguments(
 async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
     orion_client: PrefectClient, deployment, work_pool, caplog
 ):
-    run_mock = AsyncMock()
-
     @flow
     def test_flow():
         pass
@@ -447,7 +445,6 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
 
     async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
         worker._work_pool = work_pool
-        worker.run = run_mock  # don't run anything
         await worker.get_and_submit_flow_runs()
 
     assert (
@@ -457,6 +454,9 @@ async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
         " flow run."
         in caplog.text
     )
+
+    flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert flow_run.state_name == "Scheduled"
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
