@@ -14,7 +14,9 @@
       </template>
 
       <template #task-inputs>
-        <CodeSnippet language="json" :snippet="parameters" />
+        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+          <p-code-highlight lang="json" :text="parameters" class="task-run__inputs" />
+        </CopyableWrapper>
       </template>
     </p-tabs>
     <template #well>
@@ -25,7 +27,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CodeSnippet, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -74,3 +76,10 @@
   })
   usePageTitle(title)
 </script>
+
+<style>
+.task-run__inputs { @apply
+  px-4
+  py-3
+}
+</style>

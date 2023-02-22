@@ -27,7 +27,9 @@
       </template>
 
       <template #infra-overrides>
-        <CodeSnippet v-if="deployment" language="json" :snippet="overrides" />
+        <CopyableWrapper v-if="deployment" :text-to-copy="overrides">
+          <p-code-highlight lang="json" :text="overrides" class="deployment__infra-overrides" />
+        </CopyableWrapper>
       </template>
 
       <template #details>
@@ -52,7 +54,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CodeSnippet, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
@@ -112,3 +114,10 @@
     }
   })
 </script>
+
+<style>
+.deployment__infra-overrides { @apply
+  px-4
+  py-3
+}
+</style>
