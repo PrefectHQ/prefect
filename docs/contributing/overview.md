@@ -57,6 +57,9 @@ pytest tests/test_flows.py
 ```
 </div>
 
+!!! note "Troubleshooting Pytest Timeout Error"
+    If you are facing a timeout error when running pytest it is most likely that you need to change the timeout seconds. See [Troubleshooting Pytest Timeout error](common-mistakes.md#pytest-timeout-error) for instructions.
+
 !!! tip "Building the Prefect UI"
     If you intend to run a local Prefect server during development, you must first build the UI. See [UI development](#ui-development) for instructions.
 
