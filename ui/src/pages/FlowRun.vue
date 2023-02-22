@@ -24,7 +24,9 @@
       </template>
 
       <template #parameters>
-        <CodeSnippet language="json" :snippet="parameters" />
+        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+          <p-code-highlight lang="json" :text="parameters" class="flow-run__parameters" />
+        </CopyableWrapper>
       </template>
     </p-tabs>
 
@@ -49,7 +51,7 @@
     useWorkspaceApi,
     useDeployment,
     getSchemaValuesWithDefaultsJson,
-    CodeSnippet
+    CopyableWrapper
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, ref, watch } from 'vue'
@@ -122,5 +124,10 @@
   gap-2
   items-center
   xl:hidden
+}
+
+.flow-run__parameters { @apply
+  px-4
+  py-3
 }
 </style>
