@@ -22,9 +22,9 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion import models
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import StateType
+from prefect.server import models
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.states import StateType
 from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
@@ -967,7 +967,6 @@ class TestTaskCaching:
         assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
-
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
@@ -2305,7 +2304,7 @@ class TestTaskWaitFor:
         assert task_state.result() == 2
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @task
@@ -2572,7 +2571,10 @@ class TestTaskRegistration:
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
             UserWarning,
-            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+            match=(
+                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
+                r" task."
+            ),
         ):
 
             @task(name="my_task")

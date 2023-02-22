@@ -20,19 +20,11 @@ Prefect 2 is licensed under the [Apache 2.0 License](https://www.apache.org/lice
 
 Yes. Prefect Cloud for v2 is at [app.prefect.cloud/](https://app.prefect.cloud) while Prefect Cloud for v1 is at [cloud.prefect.io](https://cloud.prefect.io/).
 
-## The Orion Engine
+## The Prefect Orchestration Engine
 
-### Why "Orion"?
+### Why was the Prefect 2 orchestration engine created?
 
-As an advanced orchestration engine, Orion practically named itself: **OR**chestrat**ION**.
-
-The word "Prefect" stems from the Latin "praefectus," meaning "one who is in charge." A prefect is an official who oversees a domain and ensures that rules are followed. Similarly, Prefect software ensures that workflows are orchestrated properly.
-
-Curiously enough, Orion is also the home of Ford Prefect, a roving researcher for that wholly remarkable book, _The Hitchhiker's Guide to the Galaxy_.
-
-### Why was Orion created?
-
-Orion has three major objectives:
+The Prefect orchestration engine has three major objectives:
 
 - Embracing dynamic, DAG-free workflows
 - An extraordinary developer experience
@@ -46,15 +38,15 @@ Furthermore, as workflows have become more complex, it has become even more impo
 
 And finally, this additional complexity means that providing clear and consistent insight into the behavior of the orchestration engine and any decisions it makes is critically important.
 
-_Orion represents a unified solution to these three problems_.
+_The Prefect orchestration engine represents a unified solution to these three problems_.
 
-Orion is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code," but Orion represents "code as workflows": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work.
+The Prefect orchestration engine is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code," but the Prefect engine represents "code as workflows": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work.
 
-To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Orion engine as is useful for their objectives.
+To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Prefect engine as is useful for their objectives.
 
-### If I’m using Prefect Cloud 2, do I still need to run Orion locally?
+### If I’m using Prefect Cloud 2, do I still need to run a Prefect server locally?
 
-No, Prefect Cloud 2 hosts an instance of Orion for you. In fact, each workspace in Prefect Cloud 2 corresponds directly to a single instance of Prefect Orion. See the [Prefect Cloud Overview](/ui/cloud/) for more information.
+No, Prefect Cloud hosts an instance of the Prefect API for you. In fact, each workspace in Prefect Cloud corresponds directly to a single instance of the Prefect orchestration engine. See the [Prefect Cloud Overview](/ui/cloud/) for more information.
 
 
 ## Features
@@ -103,13 +95,13 @@ See the [Installation](/getting-started/installation/) documentation and [Window
 
 ### What external requirements does Prefect have?
 
-Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
+Prefect does not have any additional requirements besides those installed by `pip install --pre prefect`. The entire system, including the UI and services, can be run in a single process via `prefect server start` and does not require Docker.
 
-Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Orion server, users must provide the [connection string][prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable.
+Prefect Cloud users do not need to worry about the Prefect database. Prefect Cloud uses PostgreSQL on GCP behind the scenes. To use PostgreSQL with a self-hosted Prefect server, users must provide the [connection string][prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL] for a running database via the `PREFECT_API_DATABASE_CONNECTION_URL` environment variable.
 
 ### What databases does Prefect support?
 
-A self-hosted Prefect Orion server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/orion.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
+A self-hosted Prefect server can work with SQLite and PostgreSQL. New Prefect installs default to a SQLite database hosted at `~/.prefect/prefect.db` on Mac or Linux machines. SQLite and PostgreSQL are not installed by Prefect.
 
 ### How do I choose between SQLite and Postgres?
 

@@ -315,7 +315,6 @@ class TestSecretBlock:
 
     def test_secret_block_implementation(self, caplog):
         class ASecretBlock(SecretBlock):
-
             secret_name: str
 
             def __init__(self, secret_name: str):

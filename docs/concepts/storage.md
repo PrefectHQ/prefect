@@ -14,7 +14,7 @@ tags:
 
 # Storage
 
-Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect agents](/concepts/work-queues). Anytime you build a deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
+Storage lets you configure how flow code for deployments is persisted and retrieved by [Prefect agents](/concepts/work-pools). Anytime you build a deployment, a storage block is used to upload the entire directory containing your workflow code (along with supporting files) to its configured location.  This helps ensure portability of your relative imports, configuration files, and more.  Note that your environment dependencies (for example, external Python packages) still need to be managed separately.
 
 If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherent lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
 
@@ -64,11 +64,11 @@ Current options for deployment storage blocks include:
 
 You can create these blocks either via the UI or via Python. 
 
-You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI and Prefect Cloud. On a Prefect Orion server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
+You can [create, edit, and manage storage blocks](/ui/blocks/) in the Prefect UI and Prefect Cloud. On a Prefect server, blocks are created in the server's database. On Prefect Cloud, blocks are created on a workspace.
 
 To create a new block, select the **+** button. Prefect displays a library of block types you can configure to create blocks to be used by your flows.
 
-![Viewing the new block library in the Prefect UI](../img/ui/orion-block-library.png)
+![Viewing the new block library in the Prefect UI](../img/ui/block-library.png)
 
 Select **Add +** to configure a new storage block based on a specific block type. Prefect displays a **Create** page that enables specifying storage settings.
 

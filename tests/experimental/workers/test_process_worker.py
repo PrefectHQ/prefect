@@ -8,11 +8,11 @@ from pydantic import BaseModel
 
 import prefect
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
-from prefect.orion.schemas.core import WorkPool
-from prefect.orion.schemas.states import StateDetails, StateType
+from prefect.server.schemas.core import WorkPool
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock, MagicMock
 
@@ -46,7 +46,7 @@ def patch_run_process(monkeypatch):
 
 
 @pytest.fixture
-async def flow_run(orion_client: OrionClient):
+async def flow_run(orion_client: PrefectClient):
     flow_run = await orion_client.create_flow_run(
         flow=example_flow,
         state=State(
@@ -199,7 +199,6 @@ async def test_process_worker_logs_exit_code_help_message(
     work_pool,
     monkeypatch,
 ):
-
     read_deployment_mock = patch_read_deployment(monkeypatch)
     patch_run_process(returncode=exit_code)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
@@ -240,7 +239,9 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
 
 @pytest.mark.skipif(
     sys.platform == "win32",
-    reason="The asyncio.open_process_*.creationflags argument is only supported on Windows",
+    reason=(
+        "The asyncio.open_process_*.creationflags argument is only supported on Windows"
+    ),
 )
 async def test_unix_process_worker_run_does_not_set_creation_flag(
     patch_run_process, flow_run, work_pool, monkeypatch

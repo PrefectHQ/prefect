@@ -6,7 +6,7 @@ import pytest
 import prefect.exceptions
 from prefect import flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
-from prefect.orion.schemas.actions import LogCreate
+from prefect.server.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -241,7 +241,9 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=0,
-            expected_output_contains=f"Flow run '{before.id}' was succcessfully scheduled for cancellation.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
@@ -263,7 +265,9 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=1,
-            expected_output_contains=f"Flow run '{before.id}' was unable to be cancelled.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was unable to be cancelled."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
 
@@ -498,5 +502,7 @@ class TestFlowRunLogs:
                 "0",
             ],
             expected_code=2,
-            expected_output_contains="Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1.",
+            expected_output_contains=(
+                "Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1."
+            ),
         )

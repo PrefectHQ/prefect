@@ -41,8 +41,8 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.server.schemas.core import raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -712,8 +712,11 @@ def select_flow(
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
-            "Specify a flow name to select a flow.",
+            (
+                f"Found {len(flows)} flows{from_message}:"
+                f" {listrepr(sorted(flows.keys()))}. Specify a flow name to select a"
+                " flow."
+            ),
         )
 
     if flow_name:

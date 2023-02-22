@@ -1,7 +1,6 @@
 ---
 description: Prefect logging captures information about flows and tasks for monitoring, troubleshooting, and auditing.
 tags:
-    - Orion
     - UI
     - dashboard
     - Prefect Cloud
@@ -17,7 +16,7 @@ tags:
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 
-Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect Orion API server with `prefect orion start`.
+Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect server with `prefect server start`.
 
 You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API.
 
@@ -47,7 +46,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](../img/ui/orion-flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](../img/ui/flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -63,9 +62,9 @@ For example, to change the default logging levels for Prefect to `DEBUG`, you ca
 
 You may also configure the "root" Python logger. The root logger receives logs from all loggers unless they explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs to the console. As with other logging settings, you can override this from the environment or in the logging configuration file. For example, you can change the level with the variable `PREFECT_LOGGING_ROOT_LEVEL`.
 
-You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to Orion. The console handlers will still default to level `INFO`.
+You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_API_LEVEL=ERROR` to have only `ERROR` logs reported to the Prefect API. The console handlers will still default to level `INFO`.
 
-There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
+There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
 
 You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
@@ -99,7 +98,7 @@ Prefect automatically uses the flow run logger based on the flow context. If you
 The default flow run log formatter uses the flow run name for log messages.
 
 !!! note
-        Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore` or have the logger raise an error by setting the value to `error`.
+        Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore` or have the logger raise an error by setting the value to `error`.
 
 ### Logging in tasks
 
@@ -223,7 +222,7 @@ You can specify custom formatting by setting an environment variable or by modif
 
 <div class='terminal'>
 ```bash
-PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_FORMAT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
+PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
 ```
 </div>
 
@@ -363,7 +362,7 @@ log_email_flow()
 
 ## Log database schema
 
-Logged events are also persisted to the Orion database. A log record includes the following data:
+Logged events are also persisted to the Prefect database. A log record includes the following data:
 
 | Column | Description |
 | --- | --- |
@@ -377,4 +376,4 @@ Logged events are also persisted to the Orion database. A log record includes th
 | message | Log message. |
 | timestamp | The client-side timestamp of this logged statement. |
 
-For more information, see [Log schema](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Log) in the API documentation.
+For more information, see [Log schema](/api-ref/server/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.

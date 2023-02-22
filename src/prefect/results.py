@@ -1,6 +1,6 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Any, Generic, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type, TypeVar, Union
 
 import pydantic
 from typing_extensions import Self
@@ -23,7 +23,7 @@ from prefect.utilities.pydantic import add_type_dispatch
 
 if TYPE_CHECKING:
     from prefect import Flow, Task
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 
 ResultStorage = Union[WritableFileSystem, str]
@@ -32,7 +32,7 @@ LITERAL_TYPES = {type(None), bool}
 
 logger = get_logger("results")
 
-# from prefect.orion.schemas.states import State
+# from prefect.server.schemas.states import State
 R = TypeVar("R")
 
 
@@ -102,7 +102,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @classmethod
     @inject_client
-    async def default_factory(cls, client: "OrionClient" = None, **kwargs):
+    async def default_factory(cls, client: "PrefectClient" = None, **kwargs):
         """
         Create a new result factory with default options.
 
@@ -125,7 +125,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_flow(
-        cls: Type[Self], flow: "Flow", client: "OrionClient" = None
+        cls: Type[Self], flow: "Flow", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a flow.
@@ -179,7 +179,7 @@ class ResultFactory(pydantic.BaseModel):
     @classmethod
     @inject_client
     async def from_task(
-        cls: Type[Self], task: "Task", client: "OrionClient" = None
+        cls: Type[Self], task: "Task", client: "PrefectClient" = None
     ) -> Self:
         """
         Create a new result factory for a task.
@@ -224,7 +224,7 @@ class ResultFactory(pydantic.BaseModel):
         result_serializer: ResultSerializer,
         persist_result: bool,
         cache_result_in_memory: bool,
-        client: "OrionClient",
+        client: "PrefectClient",
     ) -> Self:
         storage_block_id, storage_block = await cls.resolve_storage_block(
             result_storage, client=client
@@ -241,7 +241,7 @@ class ResultFactory(pydantic.BaseModel):
 
     @staticmethod
     async def resolve_storage_block(
-        result_storage: ResultStorage, client: "OrionClient"
+        result_storage: ResultStorage, client: "PrefectClient"
     ) -> Tuple[uuid.UUID, WritableFileSystem]:
         """
         Resolve one of the valid `ResultStorage` input types into a saved block
@@ -326,6 +326,8 @@ class ResultFactory(pydantic.BaseModel):
 @add_type_dispatch
 class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
     type: str
+    artifact_type: Optional[str]
+    artifact_description: Optional[str]
 
     _cache: Any = pydantic.PrivateAttr(NotSet)
 
@@ -380,11 +382,12 @@ class LiteralResult(BaseResult):
     ) -> "LiteralResult[R]":
         if type(obj) not in LITERAL_TYPES:
             raise TypeError(
-                f"Unsupported type {type(obj).__name__!r} for result literal. "
-                f"Expected one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
+                f"Unsupported type {type(obj).__name__!r} for result literal. Expected"
+                f" one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        return cls(value=obj)
+        description = f"Literal: `{obj}`"
+        return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
 class PersistedResult(BaseResult):
@@ -407,10 +410,11 @@ class PersistedResult(BaseResult):
 
     @sync_compatible
     @inject_client
-    async def get(self, client: "OrionClient") -> R:
+    async def get(self, client: "PrefectClient") -> R:
         """
         Retrieve the data and deserialize it into the original object.
         """
+
         if self.has_cached_object():
             return self._cache
 
@@ -423,12 +427,36 @@ class PersistedResult(BaseResult):
         return obj
 
     @inject_client
-    async def _read_blob(self, client: "OrionClient") -> "PersistedResultBlob":
+    async def _read_blob(self, client: "PrefectClient") -> "PersistedResultBlob":
         block_document = await client.read_block_document(self.storage_block_id)
         storage_block: ReadableFileSystem = Block._from_block_document(block_document)
         content = await storage_block.read_path(self.storage_key)
         blob = PersistedResultBlob.parse_raw(content)
         return blob
+
+    @classmethod
+    def _infer_path(cls, storage_block, key) -> str:
+        """
+        Attempts to infer a path associated with a storage block key, this method will
+        defer to the block in the future
+        """
+
+        if hasattr(storage_block, "_resolve_path"):
+            return storage_block._resolve_path(key)
+        if hasattr(storage_block, "_remote_file_system"):
+            return storage_block._remote_file_system._resolve_path(key)
+
+    @classmethod
+    def _infer_description(cls, obj, storage_block, key) -> str:
+        uri = cls._infer_path(storage_block, key)
+        if uri is not None:
+            return f"<{uri}>"
+
+        description = repr(obj)
+        max_description_length = 500
+        if len(description) > max_description_length:
+            return description[:max_description_length] + "..."
+        return f"```\n{description}\n```"
 
     @classmethod
     @sync_compatible
@@ -452,10 +480,14 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
+        description = cls._infer_description(obj, storage_block, key)
+
         result = cls(
             serializer_type=serializer.type,
             storage_block_id=storage_block_id,
             storage_key=key,
+            artifact_type="result",
+            artifact_description=description,
         )
 
         if cache_object:

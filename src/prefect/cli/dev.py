@@ -1,5 +1,5 @@
 """
-Command line interface for working with Orion
+Command line interface for working with Prefect Server
 """
 import json
 import os
@@ -22,13 +22,13 @@ from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.agent import start as start_agent
 from prefect.cli.root import app
 from prefect.docker import get_prefect_image_name, python_version_minor
-from prefect.orion.api.server import create_app
+from prefect.server.api.server import create_app
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
-    PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_PORT,
+    PREFECT_SERVER_API_HOST,
+    PREFECT_SERVER_API_PORT,
 )
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import run_process
@@ -136,7 +136,7 @@ def build_docs(
 BUILD_UI_HELP = f"""
 Installs dependencies and builds UI locally.
 
-The built UI will be located at {prefect.__root_path__ / "orion-ui"}
+The built UI will be located at {prefect.__root_path__ / "ui"}
 
 Requires npm.
 """
@@ -146,13 +146,10 @@ Requires npm.
 def build_ui():
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
-
+        with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
             try:
-                subprocess.check_output(
-                    ["npm", "ci", "install"], shell=sys.platform == "win32"
-                )
+                subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
             except Exception:
                 app.console.print(
                     "npm call failed - try running `nvm use` first.", style="red"
@@ -161,7 +158,7 @@ def build_ui():
 
             app.console.print("Building for distribution...")
             env = os.environ.copy()
-            env["ORION_UI_SERVE_BASE"] = "/"
+            env["PREFECT_UI_SERVE_BASE"] = "/"
             subprocess.check_output(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
@@ -171,7 +168,7 @@ def build_ui():
             shutil.rmtree(prefect.__ui_static_path__)
 
         app.console.print("Copying build into src...")
-        shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
+        shutil.copytree("ui/dist", prefect.__ui_static_path__)
 
     app.console.print("Complete!")
 
@@ -183,7 +180,7 @@ async def ui():
     """
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
+        with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
 
@@ -193,8 +190,8 @@ async def ui():
 
 @dev_app.command()
 async def api(
-    host: str = SettingsOption(PREFECT_ORION_API_HOST),
-    port: int = SettingsOption(PREFECT_ORION_API_PORT),
+    host: str = SettingsOption(PREFECT_SERVER_API_HOST),
+    port: int = SettingsOption(PREFECT_SERVER_API_PORT),
     log_level: str = "DEBUG",
     services: bool = True,
 ):
@@ -204,14 +201,14 @@ async def api(
     import watchfiles
 
     server_env = os.environ.copy()
-    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
-    server_env["PREFECT_ORION_SERVICES_UI"] = "False"
-    server_env["PREFECT_ORION_UI_API_URL"] = f"http://{host}:{port}/api"
+    server_env["PREFECT_API_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_API_SERVICES_UI"] = "False"
+    server_env["PREFECT_UI_API_URL"] = f"http://{host}:{port}/api"
 
     command = [
         "uvicorn",
         "--factory",
-        "prefect.orion.api.server:create_app",
+        "prefect.server.api.server:create_app",
         "--host",
         str(host),
         "--port",
@@ -310,8 +307,8 @@ async def start(
             tg.start_soon(
                 partial(
                     api,
-                    host=PREFECT_ORION_API_HOST.value(),
-                    port=PREFECT_ORION_API_PORT.value(),
+                    host=PREFECT_SERVER_API_HOST.value(),
+                    port=PREFECT_SERVER_API_PORT.value(),
                 )
             )
         if not exclude_ui:
@@ -319,7 +316,7 @@ async def start(
         if not exclude_agent:
             # Hook the agent to the hosted API if running
             if not exclude_api:
-                host = f"http://{PREFECT_ORION_API_HOST.value()}:{PREFECT_ORION_API_PORT.value()}/api"  # noqa
+                host = f"http://{PREFECT_SERVER_API_HOST.value()}:{PREFECT_SERVER_API_PORT.value()}/api"  # noqa
             else:
                 host = PREFECT_API_URL.value()
             tg.start_soon(agent, host, work_queues)
@@ -421,7 +418,10 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",  # noqa
+            (  # noqa
+                "pip install -e /opt/prefect/repo\\[dev\\] && touch /READY &&"
+                f" {blocking_cmd}"
+            ),
         ],
         name=name,
         auto_remove=True,

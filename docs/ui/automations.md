@@ -2,7 +2,6 @@
 description: Configure automations based on flow state from the Prefect UI and Prefect Cloud.
 icon: material/cloud-outline
 tags:
-    - Orion
     - UI
     - states
     - flow runs
@@ -13,12 +12,12 @@ tags:
 
 # Automations <span class="badge cloud"></span>
 
-Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work queues. 
+Automations in Prefect Cloud enable you to configure [actions](#actions) that Prefect executes automatically based on [trigger](#triggers) conditions related to your flows and work pools. 
 
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/ui/notifications/) in the open-source Prefect Orion server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](/ui/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
 
 ## Automations overview
 
@@ -63,6 +62,75 @@ For example, in the case of flow run state change triggers, you might expect pro
 !!! note "Work queue health"
     A work queue is "unhealthy" if it has not been polled in over 60 seconds OR if it has one or more late runs.
 
+Custom Triggers
+
+Custom triggers allow advanced configuration of the conditions on which a trigger executes its actions.
+
+![Viewing a custom trigger for automations for a workspace in Prefect Cloud.](../img/ui/automations-custom.png)
+ 
+For example, if you would only like a trigger to execute an action if it receives 2 flow run failure events of a specific deployment within 10 seconds, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "match_related": {
+    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+  },
+  "for_each": [
+    "prefect.resource.id"
+  ],
+  "after": [],
+  "expect": [
+    "prefect.flow-run.Completed"
+  ],
+  "posture": "Reactive",
+  "threshold": 2,
+  "within": 10
+}
+```
+
+Or, if your work queue enters an unhealthy state and you want your trigger to execute an action if it doesn't recover within 30 minutes, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.work-queue.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+  },
+  "match_related": {},
+  "for_each": [
+    "prefect.resource.id"
+  ],
+  "after": [
+    "prefect.work-queue.unhealthy"
+  ],
+  "expect": [
+    "prefect.work-queue.healthy"
+  ],
+  "posture": "Proactive",
+  "threshold": 0,
+  "within": 1800
+}
+```
+
+Or, if you wanted your trigger to fire if your log write events passed a threshold of 100 within 10 seconds, you could paste in the following trigger configuration:
+
+```json
+{
+  "match": {
+    "prefect.resource.id": "prefect.flow-run.*"
+  },
+  "after": [],
+  "expect": [
+    "prefect.log.write"
+  ],
+  "posture": "Reactive",
+  "threshold": 100,
+  "within": 10
+}
+```
+
 ### Actions
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include: 
@@ -72,6 +140,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 - Run a deployment
 - Pause or resume a work queue
 - Send a [notification](#automation-notifications)
+- Call a webhook
 
 ![Configuring an action for an automation in Prefect Cloud.](../img/ui/automations-action.png)
 
@@ -120,10 +189,10 @@ Jinja templated variable syntax wraps the variable name in double curly brackets
 
 You can access properties of the underlying flow run objects including:
 
-- [flow_run](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRun)
-- [flow](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Flow)
-- [deployment](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Deployment)
-- [work_queue](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.WorkQueue)
+- [flow_run](/api-ref/server/schemas/core/#prefect.server.schemas.core.FlowRun)
+- [flow](/api-ref/server/schemas/core/#prefect.server.schemas.core.Flow)
+- [deployment](/api-ref/server/schemas/core/#prefect.server.schemas.core.Deployment)
+- [work_queue](/api-ref/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
 
 In addition to its native properites, each object includes an `id` along with `created` and `updated` timestamps. 
 
@@ -166,7 +235,7 @@ Name: {{ work_queue.name }}
 Last polled: {{ work_queue.last_polled }}
 ```
 
-In addition to those shortcuts for flows, deployments, and work queues, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
+In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the event that triggered the automation. See the [Automations API](#automations-api) for additional details.
 
 ```
 Automation: {{ automation.name }}

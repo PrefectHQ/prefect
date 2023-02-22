@@ -114,7 +114,7 @@ jobs:
 
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
@@ -136,7 +136,7 @@ jobs:
       - name: Build Conda flavored test image
         # Not yet supported for 3.11, see note at top
         if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           build-args: |
@@ -177,7 +177,7 @@ jobs:
           --tmpfs /var/lib/postgresql/data
           --env POSTGRES_USER="prefect"
           --env POSTGRES_PASSWORD="prefect"
-          --env POSTGRES_DB="orion"
+          --env POSTGRES_DB="prefect"
           --env LANG="C.UTF-8"
           --env LANGUAGE="C.UTF-8"
           --env LC_ALL="C.UTF-8"
@@ -187,7 +187,7 @@ jobs:
 
           ./scripts/wait-for-healthy-container.sh postgres 30
 
-          echo "PREFECT_ORION_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/orion" >> $GITHUB_ENV
+          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Run tests
         run: |

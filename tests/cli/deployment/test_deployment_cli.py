@@ -4,10 +4,10 @@ from datetime import timedelta
 import pytest
 
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.deployments import Deployment
-from prefect.orion.schemas.filters import DeploymentFilter, DeploymentFilterId
-from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.server.schemas.filters import DeploymentFilter, DeploymentFilterId
+from prefect.server.schemas.schedules import IntervalSchedule
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -115,9 +115,12 @@ class TestOutputMessages:
                 str(tmp_path / "test.yaml"),
             ],
             expected_output_contains=(
-                "This deployment does not specify a work queue name, which means agents "
-                "will not be able to pick up its runs. To add a work queue, "
-                "edit the deployment spec and re-run this command, or visit the deployment in the UI.",
+                (
+                    "This deployment does not specify a work queue name, which means"
+                    " agents will not be able to pick up its runs. To add a work queue,"
+                    " edit the deployment spec and re-run this command, or visit the"
+                    " deployment in the UI."
+                ),
             ),
         )
 
@@ -142,7 +145,10 @@ class TestOutputMessages:
             expected_code=1,
             expected_output_contains=(
                 [
-                    "This deployment specifies a work pool name of 'gibberish', but no such work pool exists.",
+                    (
+                        "This deployment specifies a work pool name of 'gibberish', but"
+                        " no such work pool exists."
+                    ),
                     "To create a work pool via the CLI:",
                     "$ prefect work-pool create 'gibberish'",
                 ]
@@ -172,7 +178,7 @@ class TestUpdatingDeployments:
         )
         return deployment_id
 
-    def test_updating_schedules(self, flojo):
+    def test_set_schedule_interval_without_anchor_date(self, flojo):
         invoke_and_assert(
             [
                 "deployment",
@@ -204,7 +210,7 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_incompatible_schedule_parameters(self, flojo):
+    def test_set_schedule_with_too_many_schedule_options_raises(self, flojo):
         invoke_and_assert(
             [
                 "deployment",
@@ -216,17 +222,62 @@ class TestUpdatingDeployments:
                 "i dont know cron syntax dont judge",
             ],
             expected_code=1,
-            expected_output_contains="Incompatible schedule parameters",
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
         )
 
-    def test_rrule_schedules_are_parsed_properly(self, flojo):
+    def test_set_schedule_with_no_schedule_options_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
+        )
+
+    def test_set_schedule_json_rrule(self, flojo):
         invoke_and_assert(
             [
                 "deployment",
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20300910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}'
+                ),
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["UTC"],
+            expected_code=0,
+        )
+
+    def test_set_schedule_json_rrule_has_timezone(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
             ],
             expected_code=0,
             expected_output_contains="Updated deployment schedule!",
@@ -242,14 +293,129 @@ class TestUpdatingDeployments:
             expected_code=0,
         )
 
-    def test_rrule_schedule_timezone_overrides_if_passed_explicitly(self, flojo):
+    def test_set_schedule_json_rrule_with_timezone_arg(self, flojo):
         invoke_and_assert(
             [
                 "deployment",
                 "set-schedule",
                 "rence-griffith/test-deployment",
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17"}'
+                ),
+                "--timezone",
+                "Asia/Seoul",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["Asia/Seoul"],
+            expected_code=0,
+        )
+
+    def test_set_schedule_json_rrule_with_timezone_arg_overrides_if_passed_explicitly(
+        self, flojo
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
+                "--timezone",
+                "Asia/Seoul",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["Asia/Seoul"],
+            expected_code=0,
+        )
+
+    def test_set_schedule_str_literal_rrule(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["UTC"],
+            expected_code=0,
+        )
+
+    def test_set_schedule_str_literal_rrule_has_timezone(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                "DTSTART;TZID=US-Eastern:19970902T090000\nRRULE:FREQ=DAILY;COUNT=10",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "You can provide a timezone by providing a dict with a `timezone` key"
+                " to the --rrule option"
+            ),
+        )
+
+    def test_set_schedule_str_literal_rrule_with_timezone_arg(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                "DTSTART:20220910T110000\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",
+                "--timezone",
+                "Asia/Seoul",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+    def test_set_schedule_str_literal_rrule_with_timezone_arg_overrides_if_passed_explicitly(
+        self, flojo
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--rrule",
+                "DTSTART;TZID=US-Eastern:19970902T090000\nRRULE:FREQ=DAILY;COUNT=10",
                 "--timezone",
                 "Asia/Seoul",
             ],
@@ -302,6 +468,45 @@ class TestUpdatingDeployments:
                 "rence-griffith/test-deployment",
             ],
             expected_output_contains=["'is_schedule_active': True"],
+        )
+
+    def test_set_schedule_updating_anchor_date_respected(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--interval",
+                "1800",
+                "--anchor-date",
+                "2040-01-01T00:00:00",
+            ],
+            expected_code=0,
+            expected_output_contains="Updated deployment schedule!",
+        )
+
+        invoke_and_assert(
+            [
+                "deployment",
+                "inspect",
+                "rence-griffith/test-deployment",
+            ],
+            expected_output_contains=["'anchor_date': '2040-01-01T00:00:00+00:00'"],
+        )
+
+    def test_set_schedule_updating_anchor_date_without_interval_raises(self, flojo):
+        invoke_and_assert(
+            [
+                "deployment",
+                "set-schedule",
+                "rence-griffith/test-deployment",
+                "--anchor-date",
+                "2040-01-01T00:00:00",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                "Exactly one of `--interval`, `--rrule`, or `--cron` must be provided"
+            ),
         )
 
 
@@ -366,7 +571,7 @@ class TestDeploymentRun:
         ],
     )
     async def test_passes_parameters_to_flow_run(
-        self, deployment, deployment_name, orion_client: OrionClient, given, expected
+        self, deployment, deployment_name, orion_client: PrefectClient, given, expected
     ):
         """
         This test ensures the parameters are set on the created flow run and that

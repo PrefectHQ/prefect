@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 import apprise
 from apprise import Apprise, AppriseAsset, NotifyType
+from apprise.plugins.NotifyMattermost import NotifyMattermost
 from apprise.plugins.NotifyOpsgenie import NotifyOpsgenie
 from apprise.plugins.NotifyPagerDuty import NotifyPagerDuty
 from apprise.plugins.NotifyTwilio import NotifyTwilio
@@ -32,14 +33,14 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
     An abstract class for sending notifications using Apprise.
     """
 
-    notify_type: Literal[
-        "prefect_default", "info", "success", "warning", "failure"
-    ] = Field(
-        default=PrefectNotifyType.DEFAULT,
-        description=(
-            "The type of notification being performed; the prefect_default "
-            "is a plain notification that does not attach an image."
-        ),
+    notify_type: Literal["prefect_default", "info", "success", "warning", "failure"] = (
+        Field(
+            default=PrefectNotifyType.DEFAULT,
+            description=(
+                "The type of notification being performed; the prefect_default "
+                "is a plain notification that does not attach an image."
+            ),
+        )
     )
 
     def _start_apprise_client(self, url: SecretStr):
@@ -128,7 +129,9 @@ class MicrosoftTeamsWebhook(AppriseNotificationBlock):
         ...,
         title="Webhook URL",
         description="The Teams incoming webhook URL used to send notifications.",
-        example="https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ",
+        example=(
+            "https://your-org.webhook.office.com/webhookb2/XXX/IncomingWebhook/YYY/ZZZ"
+        ),
     )
 
 
@@ -323,7 +326,7 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
     apikey: SecretStr = Field(
         default=...,
         title="API Key",
-        description=("The API Key associated with your Opsgenie account."),
+        description="The API Key associated with your Opsgenie account.",
     )
 
     target_user: Optional[List] = Field(
@@ -353,13 +356,19 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
 
     tags: Optional[List] = Field(
         default=None,
-        description="A comma-separated list of tags you can associate with your Opsgenie message.",
+        description=(
+            "A comma-separated list of tags you can associate with your Opsgenie"
+            " message."
+        ),
         example='["tag1", "tag2"]',
     )
 
     priority: Optional[str] = Field(
         default=3,
-        description="The priority to associate with the message. It is on a scale between 1 (LOW) and 5 (EMERGENCY).",
+        description=(
+            "The priority to associate with the message. It is on a scale between 1"
+            " (LOW) and 5 (EMERGENCY)."
+        ),
     )
 
     alias: Optional[str] = Field(
@@ -397,6 +406,81 @@ class OpsgenieWebhook(AbstractAppriseNotificationBlock):
                 entity=self.entity,
                 batch=self.batch,
                 tags=self.tags,
+            ).url()
+        )
+        self._start_apprise_client(url)
+
+
+class MattermostWebhook(AbstractAppriseNotificationBlock):
+    """
+    Enables sending notifications via a provided Mattermost webhook.
+    See [Apprise notify_Mattermost docs](https://github.com/caronc/apprise/wiki/Notify_Mattermost) # noqa
+
+
+    Examples:
+        Load a saved Mattermost webhook and send a message:
+        ```python
+        from prefect.blocks.notifications import MattermostWebhook
+
+        mattermost_webhook_block = MattermostWebhook.load("BLOCK_NAME")
+
+        mattermost_webhook_block.notify("Hello from Prefect!")
+        ```
+    """
+
+    _description = "Enables sending notifications via a provided Mattermost webhook."
+    _block_type_name = "Mattermost Webhook"
+    _block_type_slug = "mattermost-webhook"
+    _logo_url = "https://images.ctfassets.net/zscdif0zqppk/3mlbsJDAmK402ER1sf0zUF/a48ac43fa38f395dd5f56c6ed29f22bb/mattermost-logo-png-transparent.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MattermostWebhook"
+
+    hostname: str = Field(
+        default=...,
+        description="The hostname of your Mattermost server.",
+        example="Mattermost.example.com",
+    )
+
+    token: SecretStr = Field(
+        default=...,
+        description="The token associated with your Mattermost webhook.",
+    )
+
+    botname: Optional[str] = Field(
+        title="Bot name",
+        default=None,
+        description="The name of the bot that will send the message.",
+    )
+
+    channels: Optional[List[str]] = Field(
+        default=None,
+        description="The channel(s) you wish to notify.",
+    )
+
+    include_image: bool = Field(
+        default=False,
+        description="Whether to include the Apprise status image in the message.",
+    )
+
+    path: Optional[str] = Field(
+        default=None,
+        description="An optional sub-path specification to append to the hostname.",
+    )
+
+    port: int = Field(
+        default=8065,
+        description="The port of your Mattermost server.",
+    )
+
+    def block_initialization(self) -> None:
+        url = SecretStr(
+            NotifyMattermost(
+                token=self.token.get_secret_value(),
+                fullpath=self.path,
+                host=self.hostname,
+                botname=self.botname,
+                channels=self.channels,
+                include_image=self.include_image,
+                port=self.port,
             ).url()
         )
         self._start_apprise_client(url)

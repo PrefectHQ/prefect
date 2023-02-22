@@ -1,5 +1,182 @@
 # Prefect Release Notes
 
+## Release 2.8.2
+
+### Fixes
+- Reenable plugin loading in `prefect` module init — https://github.com/PrefectHQ/prefect/pull/8569
+
+### Documentation
+- Fix logging format override example — https://github.com/PrefectHQ/prefect/pull/8565
+
+
+### Experimental
+- Add events client to `PrefectClient` — https://github.com/PrefectHQ/prefect/pull/8546
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.1...2.8.2
+
+## Release 2.8.1
+
+### New names, same behavior
+
+We knew we were onto something big when we [first announced Prefect Orion](https://www.prefect.io/guide/blog/announcing-prefect-orion/), our second-generation orchestration engine, but we didn't know just how big. Orion's foundational design principles of dynamism, developer experience, and observability have shaped the Prefect 2 codebase to such an extent that it's difficult to tell where Orion ends and other components begin. For example, it's been challenging to communicate clearly about the “Orion API” (the orchestration API), an “Orion Server” (a hosted instance of the API and UI), and individual components of that server. 
+
+With this release, **we've removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. All changes are **fully backwards compatible** and will follow our standard deprecation cycle of six months. These changes clarify the function of various components, commands, variables, and more.
+
+See the [deprecated section](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#deprecated) for a full rundown of changes.
+
+Note: Many settings have been renamed but your old settings will be respected. To automatically convert all of the settings in your current profile to the new names, run the `prefect config validate` command.
+
+
+### Enhancements
+- Add `MattermostWebhook` notification block — https://github.com/PrefectHQ/prefect/pull/8341
+- Add ability to pass in RRule string to `--rrule` option in `prefect set-schedule` command - https://github.com/PrefectHQ/prefect/pull/8543
+
+### Fixes
+- Fix default deployment parameters not populating in the UI — https://github.com/PrefectHQ/prefect/pull/8518
+- Fix ability to use anchor date when setting an interval schedule with the `prefect set-schedule` command — https://github.com/PrefectHQ/prefect/pull/8524
+
+### Documentation
+- Add table listing available blocks — https://github.com/PrefectHQ/prefect/pull/8443
+- Fix work pools documentation links — https://github.com/PrefectHQ/prefect/pull/8477
+- Add examples for custom automation triggers — https://github.com/PrefectHQ/prefect/pull/8476
+- Add webhooks to Automations  docs — https://github.com/PrefectHQ/prefect/pull/8514
+- Document Prefect Cloud API rate limits — https://github.com/PrefectHQ/prefect/pull/8529
+
+### Experimental
+- Add metadata fields to `BaseWorker` — https://github.com/PrefectHQ/prefect/pull/8527
+- Add default artifact metadata to `LiteralResults` and `PersistedResults` — https://github.com/PrefectHQ/prefect/pull/8501
+
+### Deprecated
+- Default SQLite database name changed from `orion.db` to `prefect.db`
+- Logger `prefect.orion` renamed to `prefect.server`
+- Constant `ORION_API_VERSION` renamed to `SERVER_API_VERSION`
+- Kubernetes deployment template application name changed from `prefect-orion` to `prefect-server`
+- Command `prefect kubernetes manifest orion` renamed to `prefect kubernetes manifest server`
+- Log config handler `orion` renamed to `api`
+- Class `OrionLogWorker` renamed to `APILogWorker`
+- Class `OrionHandler` renamed to `APILogHandler`
+- Directory `orion-ui` renamed to `ui`
+- Class `OrionRouter` renamed to `PrefectRouter`
+- Class `OrionAPIRoute` renamed to `PrefectAPIRoute`
+- Class `OrionDBInterface` renamed to `PrefectDBInterface`
+- Class `OrionClient` renamed to `PrefectClient`
+- Module `prefect.client.orion` renamed to `prefect.client.orchestration`
+- Command group `prefect orion` renamed to `prefect server`
+- Module `prefect.orion` renamed to `prefect.server`
+- The following settings have been renamed:
+    - `PREFECT_LOGGING_ORION_ENABLED` → `PREFECT_LOGGING_TO_API_ENABLED`
+    - `PREFECT_LOGGING_ORION_BATCH_INTERVAL` → `PREFECT_LOGGING_TO_API_BATCH_INTERVAL`
+    - `PREFECT_LOGGING_ORION_BATCH_SIZE` → `PREFECT_LOGGING_TO_API_BATCH_SIZE`
+    - `PREFECT_LOGGING_ORION_MAX_LOG_SIZE` → `PREFECT_LOGGING_TO_API_MAX_LOG_SIZE`
+    - `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` → `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`
+    - `PREFECT_ORION_BLOCKS_REGISTER_ON_START` → `PREFECT_API_BLOCKS_REGISTER_ON_START`
+    - `PREFECT_ORION_DATABASE_CONNECTION_URL` → `PREFECT_API_DATABASE_CONNECTION_URL`
+    - `PREFECT_ORION_DATABASE_MIGRATE_ON_START` → `PREFECT_API_DATABASE_MIGRATE_ON_START`
+    - `PREFECT_ORION_DATABASE_TIMEOUT` → `PREFECT_API_DATABASE_TIMEOUT`
+    - `PREFECT_ORION_DATABASE_CONNECTION_TIMEOUT` → `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS` → `PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS` → `PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME` → `PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE` → `PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_LOOP_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_AFTER_SECONDS` → `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
+    - `PREFECT_ORION_API_DEFAULT_LIMIT` → `PREFECT_API_DEFAULT_LIMIT`
+    - `PREFECT_ORION_API_HOST` → `PREFECT_SERVER_API_HOST`
+    - `PREFECT_ORION_API_PORT` → `PREFECT_SERVER_API_PORT`
+    - `PREFECT_ORION_API_KEEPALIVE_TIMEOUT` → `PREFECT_SERVER_API_KEEPALIVE_TIMEOUT`
+    - `PREFECT_ORION_UI_ENABLED` → `PREFECT_UI_ENABLED`
+    - `PREFECT_ORION_UI_API_URL` → `PREFECT_UI_API_URL`
+    - `PREFECT_ORION_ANALYTICS_ENABLED` → `PREFECT_SERVER_ANALYTICS_ENABLED`
+    - `PREFECT_ORION_SERVICES_SCHEDULER_ENABLED` → `PREFECT_API_SERVICES_SCHEDULER_ENABLED`
+    - `PREFECT_ORION_SERVICES_LATE_RUNS_ENABLED` → `PREFECT_API_SERVICES_LATE_RUNS_ENABLED`
+    - `PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` → `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED`
+    - `PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_ENABLED` → `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_ENABLED`
+    - `PREFECT_ORION_TASK_CACHE_KEY_MAX_LENGTH` → `PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH`
+    - `PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_ENABLED` → `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_ENABLED`
+
+
+### Contributors
+- @qheuristics made their first contribution in https://github.com/PrefectHQ/prefect/pull/8478
+- @KernelErr made their first contribution in https://github.com/PrefectHQ/prefect/pull/8485
+
+## Release 2.8.0
+
+### Prioritize flow runs with work pools 🏊
+
+![Work pools allow you to organize and prioritize work](https://user-images.githubusercontent.com/12350579/217914094-e8064420-294b-4033-b12e-c0f58da521d5.png)
+
+With this release, flow runs can now be prioritized among work queues via work pools! Work pools allow you to organize and prioritize work by grouping related work queues together. Within work pools, you can assign a priority to each queue, and flow runs scheduled on higher priority work queues will be run before flow runs scheduled on lower priority work queues. This allows agents to prioritize work that is more important or time-sensitive even if there is a large backlog of flow runs on other work queues in a given work pool.
+
+All existing work queues will be assigned to a default work pool named `default-agent-pool`. Creating a new work pool can be done via the Work Pools page in the UI or via the CLI.
+
+To create a new work pool named "my-pool" via the CLI:
+
+```bash
+prefect work-pool create "my-pool"
+```
+
+Each work pool starts out with a default queue. New queues can be added to a work pool via the UI or the CLI.
+
+To create a new work queue in a work pool via the CLI:
+
+```bash
+prefect work-queue create "high-priority" --pool "my-pool"
+```
+
+Deployments can now be assigned to a work queue in a specific work pool. Use the `--pool` flag to specify the work pool and the `--queue` flag to specify the work queue when building a deployment.
+
+```bash
+prefect deployment build \
+    --pool my-pool \
+    --queue high-priority \   
+    --name high-priority \
+    high_priority_flow.py:high_priority_flow
+```
+
+Once a deployment has been created and is scheduling flow runs on a work queue, you can start an agent to pick up those flow runs by starting an agent with the `--pool` flag.
+
+```bash
+prefect agent start --pool my-pool
+```
+
+Starting an agent with the `--pool` command allows the agent to pick up flow runs for the entire pool even as new queues are added to the pool. If you want to start an agent that only picks up flow runs for a specific queue, you can use the `--queue` flag.
+
+```bash
+prefect agent start --pool my-pool --queue high-priority
+```
+
+To learn more about work pools, check out the [docs](https://docs.prefect.io/concepts/work-pools/) or see the relevant pull requests:
+
+### Enhancements
+- Add ability to filter on work pool and queue when querying flow runs — https://github.com/PrefectHQ/prefect/pull/8459
+- Ensure agent respects work queue priority — https://github.com/PrefectHQ/prefect/pull/8458
+- Add ability to create a flow run from the UI with parameters from a previous run — https://github.com/PrefectHQ/prefect/pull/8405
+- Add generic `Webhook` block — https://github.com/PrefectHQ/prefect/pull/8401
+- Add override customizations functionality to deployments via CLI — https://github.com/PrefectHQ/prefect/pull/8349
+- Add ability to reset concurrency limits in CLI to purge existing runs from taking concurrency slots — https://github.com/PrefectHQ/prefect/pull/8408
+- Ensure matching flow run state information in UI — https://github.com/PrefectHQ/prefect/pull/8441
+- Customize CLI block registration experience based on `PREFECT_UI_URL` — https://github.com/PrefectHQ/prefect/pull/8438
+
+### Fixes
+- Fix `prefect dev start` command — https://github.com/PrefectHQ/prefect/pull/8176
+- Fix display of long log messages when in the UI — https://github.com/PrefectHQ/prefect/pull/8449
+- Update `get_run_logger` to accomodate returning `logging.LoggerAdapter` — https://github.com/PrefectHQ/prefect/pull/8422
+- Restore Prefect wrapper around HTTP errors for nicer error messages — https://github.com/PrefectHQ/prefect/pull/8391
+- Fix display of work pool flow run filter in the UI — https://github.com/PrefectHQ/prefect/pull/8453
+
+### Documentation
+- Update Infrastructure concept documentation with `extra-pip-package` example and updated `deployment.yaml` — https://github.com/PrefectHQ/prefect/pull/8465
+- Add work pools documentation - https://github.com/PrefectHQ/prefect/pull/8377
+
+### Contributors
+- @carderne
+
 ## Release 2.7.12
 
 ### Custom flow and task run names 🎉
@@ -62,7 +239,7 @@ See [the docs](https://docs.prefect.io/tutorials/flow-task-config/#basic-flow-co
 
 ### Using loggers outside of flows
 
-Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
+Prefect now defaults to displaying a warning instead of raising an error when you attempt to use Prefect loggers outside of flow or task runs. We've also added a setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW` to allow configuration of this behavior to silence the warning or raise an error as before. This means that you can attach Prefect's logging handler to existing loggers without breaking your workflows.
 
 ```python
 from prefect import flow
@@ -94,15 +271,15 @@ example.py:6: UserWarning: Logger 'my-logger' attempted to send logs to Orion wi
 Notice, we got a warning. This helps avoid confusion when certain logs don't appear in the UI, but if you understand that you can turn it off:
 
 ```
-$ prefect config set PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW=ignore
-Set 'PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW' to 'ignore'.
+$ prefect config set PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore
+Set 'PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW' to 'ignore'.
 Updated profile 'default'.
 ```
 
 ### Enhancements
 - Update default task run name to exclude hash of task key — https://github.com/PrefectHQ/prefect/pull/8292
 - Update Docker images to update preinstalled packages on build — https://github.com/PrefectHQ/prefect/pull/8288
-- Add PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
+- Add PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW to allow loggers to be used outside of flows — https://github.com/PrefectHQ/prefect/pull/8311
 - Display Runs before Deployments on flow pages - https://github.com/PrefectHQ/prefect/pull/8386
 - Clearify output CLI message when switching profiles - https://github.com/PrefectHQ/prefect/pull/8383
 
@@ -2056,7 +2233,7 @@ The run metadata that Orion stores in its database is a valuable record of what 
 - `prefect orion database downgrade` runs downgrade migrations
 
 **Breaking Change**
-Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://docs.prefect.io/tutorials/orion/#the-database).
+Because these migrations were not in place initially, if you have installed any previous version of Orion, you must first delete or stamp the existing database with `rm ~/.prefect/orion.db` or `prefect orion database stamp`, respectively. Learn more about database migrations in [the documentation](https://docs.prefect.io/tutorials/orchestration/#the-database).
 
 ### CLI refinements
 

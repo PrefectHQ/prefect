@@ -1,6 +1,6 @@
 import abc
 from pathlib import Path
-from typing import List, Optional, Type, Union
+from typing import Dict, List, Optional, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -10,15 +10,15 @@ import pendulum
 from pydantic import BaseModel, Field, ValidationError, validator
 
 from prefect._internal.compatibility.experimental import experimental
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
-from prefect.orion import schemas
-from prefect.orion.schemas.actions import WorkPoolUpdate
-from prefect.orion.schemas.responses import WorkerFlowRunResponse
+from prefect.server import schemas
+from prefect.server.schemas.actions import WorkPoolUpdate
+from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import (
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
@@ -120,8 +120,12 @@ class BaseWorkerResult(BaseModel, abc.ABC):
 @register_base_type
 class BaseWorker(abc.ABC):
     type: str
-    job_configuration: Type[BaseJobConfiguration]
+    job_configuration: Type[BaseJobConfiguration] = BaseJobConfiguration
     job_configuration_variables: Optional[Type[BaseVariables]] = None
+
+    _documentation_url = ""
+    _logo_url = ""
+    _description = ""
 
     @experimental(feature="The workers feature", group="workers")
     def __init__(
@@ -171,10 +175,42 @@ class BaseWorker(abc.ABC):
 
         self._work_pool: Optional[schemas.core.WorkPool] = None
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
-        self._client: Optional[OrionClient] = None
+        self._client: Optional[PrefectClient] = None
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids = set()
+
+    @classmethod
+    def get_documentation_url(cls) -> str:
+        return cls._documentation_url
+
+    @classmethod
+    def get_logo_url(cls) -> str:
+        return cls._logo_url
+
+    @classmethod
+    def get_description(cls) -> str:
+        return cls._description
+
+    @classmethod
+    def get_default_base_job_configuration(cls) -> Dict:
+        if cls.job_configuration_variables is None:
+            schema = cls.job_configuration.schema()
+            # remove "template" key from all dicts in schema['properties'] because it is not a
+            # relevant field
+            for key, value in schema["properties"].items():
+                if isinstance(value, dict):
+                    schema["properties"][key].pop("template", None)
+            variables = schema
+        else:
+            variables = cls.job_configuration_variables.schema()
+        return {
+            "job_configuration": cls.job_configuration.json_template(),
+            "variables": {
+                "properties": variables["properties"],
+                "required": variables.get("required", []),
+            },
+        }
 
     @abc.abstractmethod
     async def run(
@@ -262,7 +298,7 @@ class BaseWorker(abc.ABC):
         if getattr(self._work_pool, "type", 0) != work_pool.type:
             if work_pool.type != self.__class__.type:
                 self._logger.warning(
-                    f"Worker type mismatch! This worker process expects type "
+                    "Worker type mismatch! This worker process expects type "
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
@@ -270,7 +306,7 @@ class BaseWorker(abc.ABC):
         # once the work pool is loaded, verify that it has a `base_job_template` and
         # set it if not
         if not work_pool.base_job_template:
-            job_template = self._create_job_template()
+            job_template = self.__class__.get_default_base_job_configuration()
             await self._set_work_pool_template(work_pool, job_template)
             work_pool.base_job_template = job_template
 
@@ -291,7 +327,7 @@ class BaseWorker(abc.ABC):
 
         await self._send_worker_heartbeat()
 
-        self._logger.debug("Worker synchronized with Orion server.")
+        self._logger.debug("Worker synchronized with the Prefect API server.")
 
     async def scan_storage_for_deployments(self):
         """
@@ -353,7 +389,8 @@ class BaseWorker(abc.ABC):
             )
         except Exception as exc:
             self._logger.exception(
-                "Unexpected error occurred while attempting to register discovered deployment."
+                "Unexpected error occurred while attempting to register discovered"
+                " deployment."
             )
 
     async def _get_scheduled_flow_runs(
@@ -400,7 +437,8 @@ class BaseWorker(abc.ABC):
                     self._limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self._logger.info(
-                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self._limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -495,7 +533,10 @@ class BaseWorker(abc.ABC):
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -507,9 +548,11 @@ class BaseWorker(abc.ABC):
         """
         return {
             "name": self.name,
-            "work_pool": self._work_pool.dict(json_compatible=True)
-            if self._work_pool is not None
-            else None,
+            "work_pool": (
+                self._work_pool.dict(json_compatible=True)
+                if self._work_pool is not None
+                else None
+            ),
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
                 "workflow_storage_path": self._workflow_storage_path,
@@ -532,8 +575,10 @@ class BaseWorker(abc.ABC):
             )
         except Abort as exc:
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception:
@@ -544,8 +589,10 @@ class BaseWorker(abc.ABC):
 
         if not state.is_pending():
             self._logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 
@@ -596,26 +643,6 @@ class BaseWorker(abc.ABC):
                 base_job_template=job_template,
             ),
         )
-
-    def _create_job_template(self) -> dict:
-        """Create a job template from a worker's configuration components."""
-        if self.job_configuration_variables is None:
-            schema = self.job_configuration.schema()
-            # remove "template" key from all dicts in schema['properties'] because it is not a
-            # relevant field
-            for key, value in schema["properties"].items():
-                if isinstance(value, dict):
-                    schema["properties"][key].pop("template", None)
-            variables = schema
-        else:
-            variables = self.job_configuration_variables.schema()
-        return {
-            "job_configuration": self.job_configuration.json_template(),
-            "variables": {
-                "properties": variables["properties"],
-                "required": variables.get("required", []),
-            },
-        }
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")

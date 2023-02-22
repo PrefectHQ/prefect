@@ -65,6 +65,9 @@ class ProcessWorker(BaseWorker):
     job_configuration = ProcessJobConfiguration
     job_configuration_variables = ProcessVariables
 
+    _description = "Worker that executes flow runs within processes."
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
+
     async def verify_submitted_deployment(self, deployment: Deployment):
         # TODO: Implement deployment verification for `ProcessWorker`
         pass
@@ -140,8 +143,8 @@ class ProcessWorker(BaseWorker):
                 )
 
             self._logger.error(
-                f"Process{display_name} exited with status code: "
-                f"{process.returncode}" + (f"; {help_message}" if help_message else "")
+                f"Process{display_name} exited with status code: {process.returncode}"
+                + (f"; {help_message}" if help_message else "")
             )
         else:
             self._logger.info(f"Process{display_name} exited cleanly.")

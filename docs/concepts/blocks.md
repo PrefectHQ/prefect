@@ -13,11 +13,113 @@ tags:
 
 Blocks are a primitive within Prefect that enable the storage of configuration and provide an interface for interacting with external systems.
 
-Blocks are useful for configuration that needs to be shared across flow runs and between flows. For configuration that will change between flow runs, we recommend using [parameters](/concepts/flows/#parameters).
+With blocks, you can securely store credentials for authenticating with services like AWS, GitHub, Slack, and any other system you'd like to orchestrate with Prefect. 
 
-With blocks, you are able to securely store credentials for authenticating with services like AWS, GitHub, Slack, or any other system you'd like to orchestrate with Prefect. Blocks also expose methods that provide pre-built functionality for performing actions against an external system. Blocks can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
+Blocks expose methods that provide pre-built functionality for performing actions against an external system. They can be used to download data from or upload data to an S3 bucket, query data from or write data to a database, or send a message to a Slack channel.
 
-Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog).
+You may configure blocks through code or via the Prefect Cloud and the Prefect server UI.
+
+You can access blocks for both configuring flow [deployments](/concepts/deployments/) and directly from within your flow code.
+
+Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Collections](/collections/catalog/). To use these blocks you can `pip install` the collection, then register the blocks you want to use with Prefect Cloud or a Prefect server.
+
+Prefect Cloud and the Prefect server UI display a library of block types available for you to configure blocks that may be used by your flows.
+
+![Viewing the new block library in the Prefect UI](../img/ui/block-library.png)
+
+!!! tip "Blocks and parameters"
+    Blocks are useful for configuration that needs to be shared across flow runs and between flows.
+
+    For configuration that will change between flow runs, we recommend using [parameters](/concepts/flows/#parameters).
+
+## Prefect built-in blocks
+
+Prefect provides a broad range of commonly used, built-in block types. These block types are available in Prefect Cloud and the Prefect server UI.
+
+| Block | Slug | Description |
+| --- | --- | --- |
+| [Azure](/concepts/filesystems/#azure) | `azure` | Store data as a file on Azure Datalake and Azure Blob Storage. |
+| [Date Time](/api-ref/prefect/blocks/system/#prefect.blocks.system.DateTime) | `date-time` | A block that represents a datetime. |
+| [Docker Container](/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer) | `docker-container` | Runs a command in a container. |
+| [Docker Registry](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry) | `docker-registry` | Connects to a Docker registry.  Requires a Docker Engine to be connectable. |
+| [GCS](/concepts/filesystems/#gcs) | `gcs` | Store data as a file on Google Cloud Storage. |
+| [GitHub](/concepts/filesystems/#github) | `github` | Interact with files stored on public GitHub repositories. |
+| [JSON](/api-ref/prefect/blocks/system/#prefect.blocks.system.JSON) | `json` | A block that represents JSON. |
+| [Kubernetes Cluster Config](/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig) | <span class="no-wrap">`kubernetes-cluster-config`</span> | Stores configuration for interaction with Kubernetes clusters. |
+| [Kubernetes Job](/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob) | `kubernetes-job` | Runs a command as a Kubernetes Job. |
+| [Local File System](/concepts/filesystems/#local-filesystem) | `local-file-system` | Store data as a file on a local file system. |
+| [Microsoft Teams Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.MicrosoftTeamsWebhook) | `ms-teams-webhook` | Enables sending notifications via a provided Microsoft Teams webhook. |
+| [Opsgenie Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.OpsgenieWebhook) | `opsgenie-webhook` | Enables sending notifications via a provided Opsgenie webhook. |
+| [Pager Duty Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.PagerDutyWebHook) | `pager-duty-webhook` | Enables sending notifications via a provided PagerDuty webhook. |
+| [Process](/concepts/infrastructure/#process) | `process` | Run a command in a new process. |
+| [Remote File System](/concepts/filesystems/#remote-file-system) | `remote-file-system` | Store data as a file on a remote file system.  Supports any remote file system supported by `fsspec`.  |
+| [S3](/concepts/filesystems/#s3) | `s3` | Store data as a file on AWS S3. |
+| [Secret](/api-ref/prefect/blocks/system/#prefect.blocks.system.Secret) | `secret` | A block that represents a secret value. The value stored in this block will be obfuscated when this block is logged or shown in the UI. |
+| [Slack Webhook](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.SlackWebhook) | `slack-webhook` | Enables sending notifications via a provided Slack webhook. |
+| [SMB](/concepts/filesystems/#smb) | `smb` | Store data as a file on a SMB share. |
+| [String](/api-ref/prefect/blocks/system/#prefect.blocks.system.String) | `string` | A block that represents a string. |
+| [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS) | `twilio-sms` | Enables sending notifications via Twilio SMS. |
+| [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook) | `webhook` | Block that enables calling webhooks. |
+
+## Blocks in Prefect Collections
+
+Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog/). The following table provides an overview of the blocks available from our most popular Prefect Collections.
+
+| Collection | Block | Slug |
+| --- | --- | --- |
+| [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/) | [Airbyte Connection](https://prefecthq.github.io/prefect-airbyte/connections/#prefect_airbyte.connections.AirbyteConnection) | `airbyte-connection` |
+| [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/) | [Airbyte Server](https://prefecthq.github.io/prefect-airbyte/server/#prefect_airbyte.server.AirbyteServer) | `airbyte-server` |
+| [prefect-aws](https://prefecthq.github.io/prefect-aws/) | [AWS Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.AwsCredentials) | `aws-credentials` |
+| [prefect-aws](https://prefecthq.github.io/prefect-aws/) | [ECS Task](https://prefecthq.github.io/prefect-aws/ecs/#prefect_aws.ecs.ECSTask) | `ecs-task` |
+| [prefect-aws](https://prefecthq.github.io/prefect-aws/) | [MinIO Credentials](https://prefecthq.github.io/prefect-aws/credentials/#prefect_aws.credentials.MinIOCredentials) | `minio-credentials` |
+| [prefect-aws](https://prefecthq.github.io/prefect-aws/) | [S3 Bucket](https://prefecthq.github.io/prefect-aws/s3/#prefect_aws.s3.S3Bucket) | `s3-bucket` |
+| [prefect-azure](https://prefecthq.github.io/prefect-azure/) | [Azure Blob Storage Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureBlobStorageCredentials) | `azure-blob-storage-credentials` |
+| [prefect-azure](https://prefecthq.github.io/prefect-azure/) | [Azure Container Instance Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureContainerInstanceCredentials) | `azure-container-instance-credentials` |
+| [prefect-azure](https://prefecthq.github.io/prefect-azure/) | [Azure Container Instance Job](https://prefecthq.github.io/prefect-azure/container_instance/#prefect_azure.container_instance.AzureContainerInstanceJob) | `azure-container-instance-job` |
+| [prefect-azure](https://prefecthq.github.io/prefect-azure/) | [Azure Cosmos DB Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureCosmosDbCredentials) | `azure-cosmos-db-credentials` |
+| [prefect-azure](https://prefecthq.github.io/prefect-azure/) | [AzureML Credentials](https://prefecthq.github.io/prefect-azure/credentials/#prefect_azure.credentials.AzureMlCredentials) | `azureml-credentials` |
+| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/) | [BitBucket Credentials](https://prefecthq.github.io/prefect-bitbucket/credentials/) | `bitbucket-credentials` |
+| [prefect-bitbucket](https://prefecthq.github.io/prefect-bitbucket/) | [BitBucket Repository](https://prefecthq.github.io/prefect-bitbucket/repository/) | `bitbucket-repository` |
+| [prefect-census](https://prefecthq.github.io/prefect-census/) | [Census Credentials](https://prefecthq.github.io/prefect-census/credentials/) | `census-credentials` |
+| [prefect-census](https://prefecthq.github.io/prefect-census/) | [Census Sync](https://prefecthq.github.io/prefect-census/syncs/) | `census-sync` |
+| [prefect-databricks](https://prefecthq.github.io/prefect-databricks/) | [Databricks Credentials](https://prefecthq.github.io/prefect-databricks/credentials/#prefect_databricks.credentials.DatabricksCredentials) | `databricks-credentials` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI BigQuery Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/bigquery/#prefect_dbt.cli.configs.bigquery.BigQueryTargetConfigs) | `dbt-cli-bigquery-target-configs` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI Profile](https://prefecthq.github.io/prefect-dbt/cli/credentials/#prefect_dbt.cli.credentials.DbtCliProfile) | `dbt-cli-profile` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt Cloud Credentials](https://prefecthq.github.io/prefect-dbt/cloud/credentials/#prefect_dbt.cloud.credentials.DbtCloudCredentials) | `dbt-cloud-credentials` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI Global Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/base/#prefect_dbt.cli.configs.base.GlobalConfigs) | `dbt-cli-global-configs` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI Postgres Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/postgres/#prefect_dbt.cli.configs.postgres.PostgresTargetConfigs) | `dbt-cli-postgres-target-configs` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI Snowflake Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/snowflake/#prefect_dbt.cli.configs.snowflake.SnowflakeTargetConfigs) | `dbt-cli-snowflake-target-configs` |
+| [prefect-dbt](https://prefecthq.github.io/prefect-dbt/) | [dbt CLI Target Configs](https://prefecthq.github.io/prefect-dbt/cli/configs/base/#prefect_dbt.cli.configs.base.TargetConfigs) | `dbt-cli-target-configs` |
+| [prefect-docker](https://prefecthq.github.io/prefect-docker/) | [Docker Host](https://prefecthq.github.io/prefect-docker/host/) | `docker-host` |
+| [prefect-docker](https://prefecthq.github.io/prefect-docker/) | [Docker Registry Credentials](https://prefecthq.github.io/prefect-docker/credentials/) | `docker-registry-credentials` |
+| [prefect-email](https://prefecthq.github.io/prefect-email/) | [Email Server Credentials](https://prefecthq.github.io/prefect-email/credentials/) | `email-server-credentials` |
+| [prefect-firebolt](https://prefecthq.github.io/prefect-firebolt/) | [Firebolt Credentials](https://prefecthq.github.io/prefect-firebolt/credentials/) | `firebolt-credentials` |
+| [prefect-firebolt](https://prefecthq.github.io/prefect-firebolt/) | [Firebolt Database](https://prefecthq.github.io/prefect-firebolt/database/) | `firebolt-database` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [BigQuery Warehouse](https://prefecthq.github.io/prefect-gcp/bigquery/#prefect_gcp.bigquery.BigQueryWarehouse) | `bigquery-warehouse` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [GCP Cloud Run Job](https://prefecthq.github.io/prefect-gcp/cloud_run/#prefect_gcp.cloud_run.CloudRunJob) | `cloud-run-job` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [GCP Credentials](https://prefecthq.github.io/prefect-gcp/credentials/#prefect_gcp.credentials.GcpCredentials) | `gcp-credentials` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [GcpSecret](https://prefecthq.github.io/prefect-gcp/secret_manager/#prefect_gcp.secret_manager.GcpSecret) | `gcpsecret` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [GCS Bucket](https://prefecthq.github.io/prefect-gcp/cloud_storage/#prefect_gcp.cloud_storage.GcsBucket) | `gcs-bucket` |
+| [prefect-gcp](https://prefecthq.github.io/prefect-gcp/) | [Vertex AI Custom Training Job](https://prefecthq.github.io/prefect-gcp/aiplatform/#prefect_gcp.aiplatform.VertexAICustomTrainingJob) | `vertex-ai-custom-training-job` |
+| [prefect-github](https://prefecthq.github.io/prefect-github/) | [GitHub Credentials](https://prefecthq.github.io/prefect-github/credentials/) | `github-credentials` |
+| [prefect-github](https://prefecthq.github.io/prefect-github/) | [GitHub Repository](https://prefecthq.github.io/prefect-github/repository/) | `github-repository` |
+| [prefect-gitlab](https://prefecthq.github.io/prefect-gitlab/) | [GitLab Credentials](https://prefecthq.github.io/prefect-gitlab/credentials/) | `gitlab-credentials` |
+| [prefect-gitlab](https://prefecthq.github.io/prefect-gitlab/) | [GitLab Repository](https://prefecthq.github.io/prefect-gitlab/repositories/) | `gitlab-repository` |
+| [prefect-hex](https://prefecthq.github.io/prefect-hex/) | [Hex Credentials](https://prefecthq.github.io/prefect-hex/credentials/#prefect_hex.credentials.HexCredentials) | `hex-credentials` |
+| [prefect-hightouch](https://prefecthq.github.io/prefect-hightouch/) | [Hightouch Credentials](https://prefecthq.github.io/prefect-hightouch/credentials/) | `hightouch-credentials` |
+| [prefect-kubernetes](https://prefecthq.github.io/prefect-kubernetes/) | [Kubernetes Credentials](https://prefecthq.github.io/prefect-kubernetes/credentials/) | `kubernetes-credentials` |
+| [prefect-monday](https://prefecthq.github.io/prefect-monday/) | [Monday Credentials](https://prefecthq.github.io/prefect-monday/credentials/) | `monday-credentials` |
+| [prefect-monte-carlo](https://prefecthq.github.io/prefect-monte-carlo/) | [Monte Carlo Credentials](https://prefecthq.github.io/prefect-monte-carlo/credentials/) | `monte-carlo-credentials` |
+| [prefect-openai](https://prefecthq.github.io/prefect-openai/) | [OpenAI Completion Model](https://prefecthq.github.io/prefect-openai/completion/#prefect_openai.completion.CompletionModel) | `openai-completion-model` |
+| [prefect-openai](https://prefecthq.github.io/prefect-openai/) | [OpenAI Image Model](https://prefecthq.github.io/prefect-openai/image/#prefect_openai.image.ImageModel) | `openai-image-model` |
+| [prefect-openai](https://prefecthq.github.io/prefect-openai/) | [OpenAI Credentials](https://prefecthq.github.io/prefect-openai/credentials/#prefect_openai.credentials.OpenAICredentials) | `openai-credentials` |
+| [prefect-slack](https://prefecthq.github.io/prefect-slack/) | [Slack Credentials](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackCredentials) | `slack-credentials` |
+| [prefect-slack](https://prefecthq.github.io/prefect-slack/) | [Slack Incoming Webhook](https://prefecthq.github.io/prefect-slack/credentials/#prefect_slack.credentials.SlackWebhook) | `slack-incoming-webhook` |
+| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/) | [Snowflake Connector](https://prefecthq.github.io/prefect-snowflake/database/#prefect_snowflake.database.SnowflakeConnector) | `snowflake-connector` |
+| [prefect-snowflake](https://prefecthq.github.io/prefect-snowflake/) | [Snowflake Credentials](https://prefecthq.github.io/prefect-snowflake/credentials/#prefect_snowflake.credentials.SnowflakeCredentials) | `snowflake-credentials` |
+| [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/) | [Database Credentials](https://prefecthq.github.io/prefect-sqlalchemy/credentials/#prefect_sqlalchemy.credentials.DatabaseCredentials) | `database-credentials` |
+| [prefect-sqlalchemy](https://prefecthq.github.io/prefect-sqlalchemy/) | [SQLAlchemy Connector](https://prefecthq.github.io/prefect-sqlalchemy/database/#prefect_sqlalchemy.database.SqlAlchemyConnector) | `sqlalchemy-connector` |
+| [prefect-twitter](https://prefecthq.github.io/prefect-twitter/) | [Twitter Credentials](https://prefecthq.github.io/prefect-twitter/credentials/) | `twitter-credentials` |
 
 ## Using existing block types
 
@@ -35,7 +137,7 @@ json_block = JSON(value={"the_answer": 42})
 
 ### Saving blocks
 
-If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Orion DB for retrieval later:
+If this JSON value needs to be retrieved later to be used within a flow or task, we can use the `.save()` method on the block to store the value in a block document on the Prefect database for retrieval later:
 
 ```python
 json_block.save(name="life-the-universe-everything")
@@ -300,7 +402,7 @@ class S3Bucket(Block):
     ...
 ```
 
-Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect Orion server.
+Then [register the updated block type](#registering-blocks-for-use-in-the-prefect-ui) with either Prefect Cloud or your self-hosted Prefect server.
 
 
 If you have any existing blocks of this type that were created before the update and you'd prefer to not re-create them, you can migrate them to the new version of your block type by adding the missing values:
@@ -320,16 +422,20 @@ my_s3_bucket_block.save("my-s3-bucket", overwrite=True)
 
 Blocks can be registered from a Python module available in the current virtual environment with a CLI command like this:
 
+<div class="terminal">
 ```bash
 $ prefect block register --module prefect_aws.credentials
 ```
+</div>
 
 This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/catalog/).
 
 Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
 
+<div class="terminal">
 ```bash
 $ prefect block register --file my_block.py
 ```
+</div>
 
 The registered block will then be available in the [Prefect UI](/ui/blocks/) for configuration.

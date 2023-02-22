@@ -9,7 +9,7 @@ import anyio
 import typer
 
 import prefect
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -56,8 +56,9 @@ async def start(
         "-m",
         "--match",
         help=(
-            "Dynamically matches work queue names with the specified prefix for the agent to pull from,"
-            "for example `dev-` will match all work queues with a name that starts with `dev-`"
+            "Dynamically matches work queue names with the specified prefix for the"
+            " agent to pull from,for example `dev-` will match all work queues with a"
+            " name that starts with `dev-`"
         ),
     ),
     work_pool_name: str = typer.Option(
@@ -77,7 +78,10 @@ async def start(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags that will be used to create a work queue. This option will be removed on 2023-02-23.",
+        help=(
+            "DEPRECATED: One or more optional tags that will be used to create a work"
+            " queue. This option will be removed on 2023-02-23."
+        ),
     ),
     limit: int = typer.Option(
         None,
@@ -102,8 +106,11 @@ async def start(
             pass
         work_queues.append(work_queue)
         app.console.print(
-            "Agents now support multiple work queues. Instead of passing a single argument, provide work queue names "
-            f"with the `-q` or `--work-queue` flag: `prefect agent start -q {work_queue}`\n",
+            (
+                "Agents now support multiple work queues. Instead of passing a single"
+                " argument, provide work queue names with the `-q` or `--work-queue`"
+                f" flag: `prefect agent start -q {work_queue}`\n"
+            ),
             style="blue",
         )
 
@@ -122,10 +129,12 @@ async def start(
     if tags:
         work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
         app.console.print(
-            "`tags` are deprecated. For backwards-compatibility with old "
-            f"versions of Prefect, this agent will create a work queue named `{work_queue_name}` "
-            "that uses legacy tag-based matching. "
-            "This option will be removed on 2023-02-23.",
+            (
+                "`tags` are deprecated. For backwards-compatibility with old versions"
+                " of Prefect, this agent will create a work queue named"
+                f" `{work_queue_name}` that uses legacy tag-based matching. This option"
+                " will be removed on 2023-02-23."
+            ),
             style="red",
         )
 
@@ -152,7 +161,7 @@ async def start(
                 f"Starting v{prefect.__version__} agent with ephemeral API..."
             )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
         work_pool_name=work_pool_name,
