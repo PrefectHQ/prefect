@@ -715,11 +715,7 @@ async def orchestrate_flow_run(
             flow_run_id=flow_run.id,
         )
 
-        await _run_flow_hooks(
-            flow=flow,
-            flow_run=flow_run,
-            state=state,
-        )
+        await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
