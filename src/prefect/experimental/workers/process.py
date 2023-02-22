@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import anyio
 import anyio.abc
@@ -48,12 +48,25 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
 
 class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(template="{{ stream_output }}")
-    working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
+    working_dir: Optional[Path] = Field(template="{{ working_dir }}")
 
 
 class ProcessVariables(BaseVariables):
-    stream_output: bool = True
-    working_dir: Optional[Union[str, Path]] = None
+    stream_output: bool = Field(
+        default=True,
+        description=(
+            "If enabled, workers will stream output from flow run processes to "
+            "local standard output."
+        ),
+    )
+    working_dir: Optional[Path] = Field(
+        default=None,
+        description=(
+            "If provided, workers will open flow run processes within the "
+            "specified path as the working directory. Otherwise, a temporary"
+            "directory will be created."
+        ),
+    )
 
 
 class ProcessWorkerResult(BaseWorkerResult):
@@ -81,7 +94,7 @@ class ProcessWorker(BaseWorker):
     ):
         command = configuration.command
         if not command:
-            command = [sys.executable, "-m", "prefect.engine"]
+            command = (" ").join([sys.executable, "-m", "prefect.engine"])
 
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
@@ -99,11 +112,9 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            self._logger.debug(
-                f"Process running command: {' '.join(command)} in {working_dir}"
-            )
+            self._logger.debug(f"Process running command: {command} in {working_dir}")
             process = await run_process(
-                command,
+                command.split(" "),
                 stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
