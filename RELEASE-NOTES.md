@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
 ### Documentation
 - Add Resume Flow Run Through UI — https://github.com/PrefectHQ/prefect/pull/8621
-- Add `prefect-sifflet` to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8599
+- Add [`prefect-sifflet`](https://siffletapp.github.io/prefect-sifflet/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8599
 
 
 ### Contributors
