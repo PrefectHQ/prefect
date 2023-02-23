@@ -152,7 +152,13 @@ async def test_worker_process_run_flow_run(
         assert result.status_code == 0
 
         mock.assert_awaited_once
-        assert mock.call_args.args == ([sys.executable, "-m", "prefect.engine"],)
+        assert mock.call_args.args == (
+            [
+                sys.executable,
+                "-m",
+                "prefect.engine",
+            ],
+        )
         assert mock.call_args.kwargs["env"] == {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
 
 
@@ -335,7 +341,11 @@ async def test_process_worker_uses_correct_default_command(
     flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
-    correct_default = [sys.executable, "-m", "prefect.engine"]
+    correct_default = [
+        sys.executable,
+        "-m",
+        "prefect.engine",
+    ]
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
@@ -354,7 +364,7 @@ async def test_process_worker_command_override(
     flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
-    override_command = "echo hello world"
+    override_command = f"echo hello world"
     override = {"command": override_command}
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides=override)
 

@@ -24,6 +24,7 @@ from prefect.settings import (
 )
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.callables import parameter_schema
 
 
 class WorkerTestImpl(BaseWorker):
@@ -61,6 +62,37 @@ async def ensure_default_agent_pool_exists(session):
             ),
         )
         await session.commit()
+
+
+@pytest.fixture
+async def worker_deployment(
+    session,
+    flow,
+    flow_function,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
 
 
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
@@ -258,7 +290,7 @@ async def test_worker_does_not_raise_on_malformed_manifests(
 
 
 async def test_worker_with_work_queue(
-    orion_client: PrefectClient, deployment, work_pool
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -266,7 +298,7 @@ async def test_worker_with_work_queue(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -298,7 +330,7 @@ async def test_worker_with_work_queue(
 
 
 async def test_worker_with_work_queue_and_limit(
-    orion_client: PrefectClient, deployment, work_pool
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -306,7 +338,7 @@ async def test_worker_with_work_queue_and_limit(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -351,7 +383,7 @@ async def test_worker_with_work_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: PrefectClient, deployment, work_pool
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     run_mock = AsyncMock()
 
@@ -361,7 +393,7 @@ async def test_worker_calls_run_with_expected_arguments(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -392,6 +424,39 @@ async def test_worker_calls_run_with_expected_arguments(
     assert {call.kwargs["flow_run"].id for call in run_mock.call_args_list} == {
         fr.id for fr in flow_runs[1:4]
     }
+
+
+async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
+    orion_client: PrefectClient, deployment, work_pool, caplog
+):
+    @flow
+    def test_flow():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
+    )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        await worker.get_and_submit_flow_runs()
+
+    assert (
+        f"Flow run {flow_run.id!r} was created from deployment"
+        f" {deployment.name!r} which is configured with a storage block. Workers"
+        " currently only support local storage. Please use an agent to execute this"
+        " flow run."
+        in caplog.text
+    )
+
+    flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert flow_run.state_name == "Scheduled"
 
 
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
