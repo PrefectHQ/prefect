@@ -70,7 +70,7 @@ if __name__ == "__main__":
 - Add experimental artifacts API — https://github.com/PrefectHQ/prefect/pull/8404
 
 ### Documentation
-- Add Resume Flow Run Through UI — https://github.com/PrefectHQ/prefect/pull/8621
+- Add documentation for resuming a flow run via the UI — https://github.com/PrefectHQ/prefect/pull/8621
 - Add [`prefect-sifflet`](https://siffletapp.github.io/prefect-sifflet/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8599
 
 
