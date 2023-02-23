@@ -33,7 +33,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
-Here is an example showing how failure hooks work. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the state of the flow or task will be called.
+Next, we'll include a failure hook as well. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the final state of the flow or task will be called.
 ```python
 from prefect import task, flow
 
