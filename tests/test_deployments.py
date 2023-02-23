@@ -14,7 +14,7 @@ from prefect import flow, task
 from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient
-from prefect.deployments import Deployment, run_deployment
+from prefect.deployments import Deployment, load_flow_from_flow_run, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
@@ -22,6 +22,7 @@ from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
 from prefect.utilities.slugify import slugify
+from tests.generic_flows import identity
 
 
 @pytest.fixture(autouse=True)
@@ -967,3 +968,18 @@ class TestRunDeployment:
                 )
             ]
         }
+
+
+class TestLoadFlowFromFlowRun:
+    async def test_loads_flow_from_flow_run(self, use_hosted_orion, orion_client):
+        flow_id = await orion_client.create_flow(identity)
+        deployment_id = await orion_client.create_deployment(
+            flow_id, name="test", entrypoint="tests/generic_flows.py:identity", path="."
+        )
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        flow = await load_flow_from_flow_run(flow_run, client=orion_client)
+        assert flow.name == identity.name

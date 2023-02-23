@@ -33,6 +33,7 @@ from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
 from prefect.server import schemas
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
+from prefect.settings import PREFECT_WORKER_WORKFLOW_STORAGE_PATH
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
@@ -167,12 +168,24 @@ async def load_flow_from_flow_run(
             storage_block = Block._from_block_document(storage_document)
         else:
             basepath = deployment.path or Path(deployment.manifest_path).parent
+            # Replace {workflows_dir} in the deployment path with the local workflow storage path
+            basepath = str(basepath).format(
+                workflows_dir=PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
+            )
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
 
-        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+        # Replace {workflows_dir} in the deployment path with the local workflow storage path
+        from_path = (
+            deployment.path.format(
+                workflows_dir=PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
+            )
+            if deployment.path
+            else None
+        )
+        logger.info(f"Downloading flow code from storage at {from_path!r}")
+        await storage_block.get_directory(from_path=from_path, local_path=".")
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     logger.debug(f"Importing flow code from '{import_path}'")
