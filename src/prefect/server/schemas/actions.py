@@ -555,15 +555,14 @@ class ArtifactCreate(ActionBaseModel):
         default=None,
         description="An identifier for how this artifact is persisted.",
     )
-    # data will eventually be typed as `Result | Any | None`
-    data: Dict[str, Any] | Any | None = Field(
+    data: Optional[Union[Dict[str, Any], Any]] = Field(
         default=None,
         description=(
             "Data associated with the artifact, e.g. a result. "
             "Content must be storable as JSON."
         ),
     )
-    metadata_: Dict[str, str] | None = Field(
+    metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. Content must be storable as JSON."
@@ -581,7 +580,7 @@ class ArtifactCreate(ActionBaseModel):
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    metadata_: Dict[str, str] | None = Field(
+    metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
             "Artifact metadata used for the UI. Content must be storable as JSON."
