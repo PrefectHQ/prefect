@@ -12,7 +12,7 @@ tags:
 
 ## Run an Agent with Azure Container Instances
 
-Microsoft Azure Container Instances (ACI) provides a convenient and simple service for quickly spinning up a Docker container that can host a Prefect Agent and execute flow runs for deployments.
+Microsoft Azure Container Instances (ACI) provides a convenient and simple service for quickly spinning up a Docker container that can host a Prefect Agent and execute flow runs.
 
 ## Prerequisites
 
@@ -53,7 +53,7 @@ az container create \
 ```
 </div>
 
-When the container instance is running, go to Prefect Cloud and select the [**Work Pools* page](/ui/work-pools/). Select **default-agent-pool**, then select the **Queues** tab to see work queues configured on this work pool. When the container instance is running and the agent has started, the `test` work queue displays "Healthy" status. This work queue and agent are ready to execute deployments configured to run on the `test` queue.
+When the container instance is running, go to Prefect Cloud and select the [**Work Pools** page](/ui/work-pools/). Select **default-agent-pool**, then select the **Queues** tab to see work queues configured on this work pool. When the container instance is running and the agent has started, the `test` work queue displays "Healthy" status. This work queue and agent are ready to execute deployments configured to run on the `test` queue.
 
 ![Prefect Cloud UI indicates a healthy work queue in the default work pool](../img/ui/healthy-work-queue.png)
 
@@ -135,7 +135,7 @@ Once created, any flow runs for this deployment will be picked up by the agent r
 
     You might wonder why your deployment needs process infrastructure rather than [`DockerContainer`](/concepts/infrastructure/#dockercontainer) infrastructure when you are deploying a Docker image to ACI.
 
-    A Prefect deployment’s infrastructure type describes how you want Prefect agents to run flows for the deployment. With `DockerContainer` infrastructure, the agent will try to use Docker to spin up a new container for each flow run. Since you’ll be starting your own container on ACI, you don’t need Prefect to do it for you. Using a process deployment tells Prefect you want to agent to run flows by starting a process in your ACI container.
+    A Prefect deployment’s infrastructure type describes how you want Prefect agents to run flows for the deployment. With `DockerContainer` infrastructure, the agent will try to use Docker to spin up a new container for each flow run. Since you’ll be starting your own container on ACI, you don’t need Prefect to do it for you. Specifying process infrastructure on the deployment tells Prefect you want to agent to run flows by starting a process in your ACI container.
 
     You can use any storage type as long as you've configured a block for it before creating the deployment.
 
