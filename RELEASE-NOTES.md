@@ -58,7 +58,7 @@ if __name__ == "__main__":
 - Add light and dark mode color and contrast enhancements — https://github.com/PrefectHQ/prefect/pull/8629
 
 ### Fixes
-- Fix `Task.map` type hint for async tasks — https://github.com/PrefectHQ/prefect/pull/8607
+- Fix `Task.map` type hint for type-checker compatibility with async tasks — https://github.com/PrefectHQ/prefect/pull/8607
 - Update docker container name sanitization to handle "ce" and "ee" — https://github.com/PrefectHQ/prefect/pull/8588
 - Fix Kubernetes job watch timeout when streaming logs — https://github.com/PrefectHQ/prefect/pull/8618
 - Fix flow run filters date range not working properly — https://github.com/PrefectHQ/prefect/pull/8616
