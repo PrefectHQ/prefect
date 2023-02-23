@@ -99,18 +99,22 @@ class DeploymentCreate(ActionBaseModel):
         work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
-                "`worker_pool_queue_id` is no longer supported for creating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_queue_name` instead.",
+                (
+                    "`worker_pool_queue_id` is no longer supported for creating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_queue_name` instead."
+                ),
                 UserWarning,
             )
         if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name`, `worker_pool_queue_name`, and "
-                "`work_pool_name` are"
-                "no longer supported for creating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_queue_name` instead.",
+                (
+                    "`worker_pool_name`, `worker_pool_queue_name`, and "
+                    "`work_pool_name` are"
+                    "no longer supported for creating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_queue_name` instead."
+                ),
                 UserWarning,
             )
         return values_copy
@@ -178,18 +182,22 @@ class DeploymentUpdate(ActionBaseModel):
         work_pool_queue_name = values_copy.pop("work_pool_queue_name", None)
         if worker_pool_queue_id:
             warnings.warn(
-                "`worker_pool_queue_id` is no longer supported for updating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_queue_name` instead.",
+                (
+                    "`worker_pool_queue_id` is no longer supported for updating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_queue_name` instead."
+                ),
                 UserWarning,
             )
         if worker_pool_name or worker_pool_queue_name or work_pool_queue_name:
             warnings.warn(
-                "`worker_pool_name`, `worker_pool_queue_name`, and "
-                "`work_pool_name` are"
-                "no longer supported for creating "
-                "deployments. Please use `work_pool_name` and "
-                "`work_queue_name` instead.",
+                (
+                    "`worker_pool_name`, `worker_pool_queue_name`, and "
+                    "`work_pool_name` are"
+                    "no longer supported for creating "
+                    "deployments. Please use `work_pool_name` and "
+                    "`work_queue_name` instead."
+                ),
                 UserWarning,
             )
         return values_copy
@@ -488,7 +496,9 @@ class WorkQueueCreate(ActionBaseModel):
     concurrency_limit: Optional[int] = FieldFrom(schemas.core.WorkQueue)
     priority: Optional[int] = Field(
         default=None,
-        description="The queue's priority. Lower values are higher priority (1 is the highest).",
+        description=(
+            "The queue's priority. Lower values are higher priority (1 is the highest)."
+        ),
     )
 
     # DEPRECATED
@@ -542,3 +552,23 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
         schemas.core.FlowRunNotificationPolicy
     )
     message_template: Optional[str] = FieldFrom(schemas.core.FlowRunNotificationPolicy)
+
+
+@copy_model_fields
+class ArtifactCreate(ActionBaseModel):
+    """Data used by the Prefect REST API to create an artifact."""
+
+    key: Optional[str] = FieldFrom(schemas.core.Artifact)
+    type: Optional[str] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+
+
+@copy_model_fields
+class ArtifactUpdate(ActionBaseModel):
+    """Data used by the Prefect REST API to update an artifact."""
+
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)

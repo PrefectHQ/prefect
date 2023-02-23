@@ -1,7 +1,14 @@
-import { AdminApi } from '@prefecthq/prefect-ui-library'
-import { createActions } from '@prefecthq/vue-compositions'
-import { ApiRoute } from '@/mixins/ApiRoute'
+import { Api } from '@prefecthq/prefect-ui-library'
+import { ServerSettings } from '@/models/ServerSettings'
 
-export class ServerAdminApi extends ApiRoute(AdminApi) {}
+export class AdminApi extends Api {
+  protected override routePrefix = '/admin'
 
-export const adminApi = createActions(new ServerAdminApi())
+  public getSettings(): Promise<ServerSettings> {
+    return this.get<ServerSettings>('/settings').then(({ data }) => data)
+  }
+
+  public async getVersion(): Promise<string> {
+    return await this.get<string>('/version').then(({ data }) => data)
+  }
+}

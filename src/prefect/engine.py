@@ -101,7 +101,7 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.callables import parameters_to_args_kwargs
-from prefect.utilities.collections import isiterable, visit_collection
+from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -129,9 +129,9 @@ def enter_flow_run_engine_from_flow_call(
     registry = PrefectObjectRegistry.get()
     if registry and registry.block_code_execution:
         engine_logger.warning(
-            f"Script loading is in progress, flow {flow.name!r} will not be executed. "
-            "Consider updating the script to only call the flow if executed directly:\n\n"
-            f'\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
+            f"Script loading is in progress, flow {flow.name!r} will not be executed."
+            " Consider updating the script to only call the flow if executed"
+            f' directly:\n\n\tif __name__ == "main":\n\t\t{flow.fn.__name__}()'
         )
         return None
 
@@ -238,7 +238,8 @@ async def create_then_begin_flow_run(
     if state.is_failed():
         flow_run_logger(flow_run).error(state.message)
         engine_logger.info(
-            f"Flow run {flow_run.name!r} received invalid parameters and is marked as failed."
+            f"Flow run {flow_run.name!r} received invalid parameters and is marked as"
+            " failed."
         )
     else:
         state = await begin_flow_run(
@@ -346,7 +347,6 @@ async def begin_flow_run(
     flow_run_context = PartialModel(FlowRunContext, log_prints=log_prints)
 
     async with AsyncExitStack() as stack:
-
         await stack.enter_async_context(
             report_flow_run_crashes(flow_run=flow_run, client=client)
         )
@@ -391,7 +391,10 @@ async def begin_flow_run(
         timeout = terminal_or_paused_state.state_details.pause_timeout
         logger.log(
             level=logging.INFO,
-            msg=f"Currently paused and suspending execution. Resume before {timeout.to_rfc3339_string()} to finish execution.",
+            msg=(
+                "Currently paused and suspending execution. Resume before"
+                f" {timeout.to_rfc3339_string()} to finish execution."
+            ),
         )
         APILogHandler.flush(block=True)
 
@@ -590,7 +593,6 @@ async def orchestrate_flow_run(
         if wait_for is not None:
             await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -626,10 +628,10 @@ async def orchestrate_flow_run(
                     client=client,
                     timeout_scope=timeout_scope,
                 ) as flow_run_context:
-
                     args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                     logger.debug(
-                        f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                        f"Executing flow {flow.name!r} for flow run"
+                        f" {flow_run.name!r}..."
                     )
 
                     if PREFECT_DEBUG_MODE:
@@ -719,13 +721,19 @@ async def orchestrate_flow_run(
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
-                f"Received new state {state} when proposing final state {terminal_state}",
+                (
+                    f"Received new state {state} when proposing final state"
+                    f" {terminal_state}"
+                ),
                 extra={"send_to_orion": False},
             )
 
         if not state.is_final():
             logger.info(
-                f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
+                (
+                    f"Received non-final state {state.name!r} when proposing final"
+                    f" state {terminal_state.name!r} and will attempt to run again..."
+                ),
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
@@ -863,7 +871,8 @@ async def _out_of_process_pause(
 ):
     if reschedule:
         raise RuntimeError(
-            "Pausing a flow run out of process requires the `reschedule` option set to True."
+            "Pausing a flow run out of process requires the `reschedule` option set to"
+            " True."
         )
 
     client = get_client()
@@ -913,7 +922,8 @@ def enter_task_run_engine(
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError(
-            "Tasks cannot be run outside of a flow. To call the underlying task function outside of a flow use `task.fn()`."
+            "Tasks cannot be run outside of a flow. To call the underlying task"
+            " function outside of a flow use `task.fn()`."
         )
 
     if TaskRunContext.get():
@@ -997,8 +1007,8 @@ async def begin_task_map(
     lengths = set(iterable_parameter_lengths.values())
     if len(lengths) > 1:
         raise MappingLengthMismatch(
-            "Received iterable parameters with different lengths. Parameters "
-            f"for map must all be the same length. Got lengths: {iterable_parameter_lengths}"
+            "Received iterable parameters with different lengths. Parameters for map"
+            f" must all be the same length. Got lengths: {iterable_parameter_lengths}"
         )
 
     map_length = list(lengths)[0]
@@ -1155,7 +1165,6 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
-
     task_run = await create_task_run(
         task=task,
         name=task_run_name,
@@ -1291,7 +1300,6 @@ async def begin_task_run(
     maybe_flow_run_context = prefect.context.FlowRunContext.get()
 
     async with AsyncExitStack() as stack:
-
         # The settings context may be null on a remote worker so we use the safe `.get`
         # method and compare it to the settings required for this task run
         if prefect.context.SettingsContext.get() != settings:
@@ -1423,7 +1431,6 @@ async def orchestrate_task_run(
         # Resolve futures in any non-data dependencies to ensure they are ready
         await resolve_inputs(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
-
         return await propose_state(
             client,
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -1555,13 +1562,19 @@ async def orchestrate_task_run(
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
-                f"Received new state {state} when proposing final state {terminal_state}",
+                (
+                    f"Received new state {state} when proposing final state"
+                    f" {terminal_state}"
+                ),
                 extra={"send_to_orion": False},
             )
 
         if not state.is_final():
             logger.info(
-                f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
+                (
+                    f"Received non-final state {state.name!r} when proposing final"
+                    f" state {terminal_state.name!r} and will attempt to run again..."
+                ),
                 extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
@@ -1597,7 +1610,6 @@ async def wait_for_task_runs_and_report_crashes(
 
         task_run = await client.read_task_run(future.task_run.id)
         if not task_run.state.is_crashed():
-
             logger.info(f"Crash detected! {state.message}")
             logger.debug("Crash details:", exc_info=exception)
 
@@ -1732,7 +1744,7 @@ async def resolve_inputs(
 
         # Expressions inside quotes should not be modified
         if isinstance(context.get("annotation"), quote):
-            return expr
+            raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
             state = run_async_from_worker_thread(expr._wait)
@@ -1753,7 +1765,8 @@ async def resolve_inputs(
             and state.is_failed()
         ):
             raise UpstreamTaskError(
-                f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
+                f"Upstream task run '{state.state_details.task_run_id}' did not reach a"
+                " 'COMPLETED' state."
             )
 
         # Only retrieve the result if requested as it may be expensive
@@ -1990,7 +2003,8 @@ if __name__ == "__main__":
         enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
         engine_logger.info(
-            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator:"
+            f" {exc}"
         )
         exit(0)
     except Pause as exc:
@@ -2000,15 +2014,19 @@ if __name__ == "__main__":
         exit(0)
     except Exception:
         engine_logger.error(
-            f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
-            "exception",
+            (
+                f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
+                "exception"
+            ),
             exc_info=True,
         )
         exit(1)
     except BaseException:
         engine_logger.error(
-            f"Engine execution of flow run '{flow_run_id}' interrupted by base "
-            "exception",
+            (
+                f"Engine execution of flow run '{flow_run_id}' interrupted by base "
+                "exception"
+            ),
             exc_info=True,
         )
         # Let the exit code be determined by the base exception type

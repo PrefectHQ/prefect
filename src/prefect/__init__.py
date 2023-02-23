@@ -62,8 +62,8 @@ prefect.client.schemas.State.update_forward_refs(
 # Ensure collections are imported and have the opportunity to register types
 import prefect.plugins
 
-# prefect.plugins.load_prefect_collections()
-# prefect.plugins.load_extra_entrypoints()
+prefect.plugins.load_prefect_collections()
+prefect.plugins.load_extra_entrypoints()
 
 # Configure logging
 import prefect.logging.configuration
@@ -113,11 +113,11 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
     def find_spec(self, fullname, path, target=None):
         if fullname in PREFECT_1_ATTRIBUTES:
             warnings.warn(
-                f"Attempted import of {fullname!r}, which is part of Prefect 1.x, "
-                f"while Prefect {__version__} is installed. If you're "
-                "upgrading you'll need to update your code, see the Prefect "
-                "2.x migration guide: `https://orion-docs.prefect.io/migration_guide/`. "
-                "Otherwise ensure that your code is pinned to the expected version."
+                f"Attempted import of {fullname!r}, which is part of Prefect 1.x, while"
+                f" Prefect {__version__} is installed. If you're upgrading you'll need"
+                " to update your code, see the Prefect 2.x migration guide:"
+                " `https://orion-docs.prefect.io/migration_guide/`. Otherwise ensure"
+                " that your code is pinned to the expected version."
             )
 
 

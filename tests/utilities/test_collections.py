@@ -10,6 +10,7 @@ import pytest
 from prefect.utilities.annotations import BaseAnnotation, quote
 from prefect.utilities.collections import (
     AutoEnum,
+    StopVisiting,
     dict_to_flatdict,
     flatdict_to_dict,
     isiterable,
@@ -178,7 +179,6 @@ class TestPydanticObjects:
         assert input._z == 5
 
     def test_immutable_pydantic_behaves_as_expected(self):
-
         input = ImmutablePrivatePydantic(x=1)
 
         # Public attr accessible immediately
@@ -452,6 +452,24 @@ class TestVisitCollection:
             foo, visit, context={}, return_data=True, remove_annotations=True
         )
         assert result == [2, 3, [4]]
+
+    def test_visit_collection_stop_visiting(self):
+        foo = [1, 2, quote([3, [4, 5, 6]])]
+
+        def visit(expr, context):
+            if isinstance(context.get("annotation"), quote):
+                raise StopVisiting()
+
+            if isinstance(expr, int):
+                return expr + 1
+            else:
+                return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        # Only the first two items should be visited
+        assert result == [2, 3, [3, [4, 5, 6]]]
 
 
 class TestRemoveKeys:

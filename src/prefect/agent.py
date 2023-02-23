@@ -52,10 +52,10 @@ class PrefectAgent:
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
     ) -> None:
-
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
-                "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
+                "Provide only one of 'default_infrastructure' and"
+                " 'default_infrastructure_document_id'."
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
@@ -145,7 +145,6 @@ class PrefectAgent:
                     work_pool_name=self.work_pool_name, name=name
                 )
             except ObjectNotFound:
-
                 # if the work queue wasn't found, create it
                 if not self.work_queue_prefix:
                     # do not attempt to create work queues if the agent is polling for
@@ -156,7 +155,8 @@ class PrefectAgent:
                         )
                         if self.work_pool_name:
                             self.logger.info(
-                                f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
+                                f"Created work queue {name!r} in work pool"
+                                f" {self.work_pool_name!r}."
                             )
                         else:
                             self.logger.info(f"Created work queue '{name}'.")
@@ -201,7 +201,6 @@ class PrefectAgent:
         else:
             # load runs from each work queue
             async for work_queue in self.get_work_queues():
-
                 # print a nice message if the work queue is paused
                 if work_queue.is_paused:
                     self.logger.info(
@@ -217,7 +216,8 @@ class PrefectAgent:
                         submittable_runs.extend(queue_runs)
                     except ObjectNotFound:
                         self.logger.error(
-                            f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                            f"Work queue {work_queue.name!r} ({work_queue.id}) not"
+                            " found."
                         )
                     except Exception as exc:
                         self.logger.exception(exc)
@@ -225,7 +225,6 @@ class PrefectAgent:
             submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
-
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
@@ -235,7 +234,8 @@ class PrefectAgent:
                     self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self.logger.info(
-                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -304,12 +304,16 @@ class PrefectAgent:
         """
         if not flow_run.infrastructure_pid:
             self.logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
+                " attached. Cancellation cannot be guaranteed."
             )
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
-                    "message": "This flow run is missing infrastructure tracking information and cancellation cannot be guaranteed."
+                    "message": (
+                        "This flow run is missing infrastructure tracking information"
+                        " and cancellation cannot be guaranteed."
+                    )
                 },
             )
             return
@@ -346,7 +350,7 @@ class PrefectAgent:
             self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
-                f"Encountered exception while killing infrastructure for flow run "
+                "Encountered exception while killing infrastructure for flow run "
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
@@ -451,8 +455,9 @@ class PrefectAgent:
                         )
                     except Exception as exc:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid` on "
-                            f"flow run {flow_run.id!r}. The flow run will not be cancellable."
+                            "An error occured while setting the `infrastructure_pid`"
+                            f" on flow run {flow_run.id!r}. The flow run will not be"
+                            " cancellable."
                         )
 
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
@@ -470,7 +475,6 @@ class PrefectAgent:
         infrastructure: Infrastructure,
         task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
-
         # Note: There is not a clear way to determine if task_status.started() has been
         #       called without peeking at the internal `_future`. Ideally we could just
         #       check if the flow run id has been removed from `submitting_flow_run_ids`
@@ -512,7 +516,10 @@ class PrefectAgent:
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -523,8 +530,10 @@ class PrefectAgent:
             state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception as exc:
@@ -536,8 +545,10 @@ class PrefectAgent:
 
         if not state.is_pending():
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 

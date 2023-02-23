@@ -875,7 +875,8 @@ class TestOrchestrateTaskRun:
         assert state.name == "NotReady"
         assert (
             state.message
-            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED' state."
+            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED'"
+            " state."
         )
 
     async def test_quoted_parameters_are_resolved(
@@ -1497,7 +1498,6 @@ class TestTaskRunCrashes:
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
         self, flow_run, orion_client, interrupt_type, monkeypatch
     ):
-
         monkeypatch.setattr(
             "prefect.engine.orchestrate_task_run", AsyncMock(side_effect=interrupt_type)
         )
@@ -1811,7 +1811,8 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1898,7 +1899,8 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1973,7 +1975,8 @@ class TestCreateAndBeginSubflowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -2022,7 +2025,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_with_untrackables(
         self, test_input, get_flow_run_context, state
     ):
-
         with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {}
@@ -2149,7 +2151,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_marks_trackability_in_state_details(
         self, get_flow_run_context, test_input, expected_status, state
     ):
-
         with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status

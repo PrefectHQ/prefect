@@ -169,9 +169,11 @@ class Setting(Generic[T]):
             )
             if deprecated_value is not None:
                 warnings.warn(
-                    f"{self.deprecated_renamed_from.deprecated_message} "
-                    f"Because {self.deprecated_renamed_from.name!r} is set it will be "
-                    f"used instead of {self.name!r} for backwards compatibility.",
+                    (
+                        f"{self.deprecated_renamed_from.deprecated_message} Because"
+                        f" {self.deprecated_renamed_from.name!r} is set it will be used"
+                        f" instead of {self.name!r} for backwards compatibility."
+                    ),
                     DeprecationWarning,
                     stacklevel=3,
                 )
@@ -304,7 +306,8 @@ def max_log_size_smaller_than_batch_size(values):
         < values["PREFECT_LOGGING_TO_API_MAX_LOG_SIZE"]
     ):
         raise ValueError(
-            "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
+            "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
+            " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
         )
     return values
 
@@ -334,8 +337,12 @@ def check_for_deprecated_cloud_url(settings, value):
     deprecated_value = PREFECT_CLOUD_URL.value_from(settings, bypass_callback=True)
     if deprecated_value is not None:
         warnings.warn(
-            "`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL` for backwards compatibility. "
-            "`PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL` instead.",
+            (
+                "`PREFECT_CLOUD_URL` is set and will be used instead of"
+                " `PREFECT_CLOUD_API_URL` for backwards compatibility."
+                " `PREFECT_CLOUD_URL` is deprecated, set `PREFECT_CLOUD_API_URL`"
+                " instead."
+            ),
             DeprecationWarning,
         )
     return deprecated_value or value
@@ -1123,6 +1130,11 @@ The location where workers will scan for newly submitted deployments and store
 flow code for submitted deployments.
 """
 
+PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)
+"""
+Whether or not to enable experimental Prefect artifacts.
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 
@@ -1293,7 +1305,9 @@ PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE = Setting(
     default=None,
     deprecated=True,
     deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead.",
+    deprecated_help=(
+        "Use `PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE` instead."
+    ),
     deprecated_renamed_to=PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE,
 )
 """
@@ -1389,7 +1403,9 @@ PREFECT_ORION_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS = Setting(
     default=None,
     deprecated=True,
     deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead.",
+    deprecated_help=(
+        "Use `PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS` instead."
+    ),
     deprecated_renamed_to=PREFECT_API_SERVICES_PAUSE_EXPIRATIONS_LOOP_SECONDS,
 )
 """
@@ -1401,7 +1417,9 @@ PREFECT_ORION_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS = Setting(
     default=None,
     deprecated=True,
     deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead.",
+    deprecated_help=(
+        "Use `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS` instead."
+    ),
     deprecated_renamed_to=PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS,
 )
 """
@@ -1522,7 +1540,9 @@ PREFECT_ORION_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED = Setting(
     default=None,
     deprecated=True,
     deprecated_start_date="Feb 2023",
-    deprecated_help="Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead.",
+    deprecated_help=(
+        "Use `PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED` instead."
+    ),
     deprecated_renamed_to=PREFECT_API_SERVICES_FLOW_RUN_NOTIFICATIONS_ENABLED,
 )
 """
@@ -2056,7 +2076,10 @@ class ProfilesCollection:
         )
 
     def __repr__(self) -> str:
-        return f"ProfilesCollection(profiles={list(self.profiles_by_name.values())!r}, active={self.active_name!r})>"
+        return (
+            f"ProfilesCollection(profiles={list(self.profiles_by_name.values())!r},"
+            f" active={self.active_name!r})>"
+        )
 
 
 def _read_profiles_from(path: Path) -> ProfilesCollection:

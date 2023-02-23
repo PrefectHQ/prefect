@@ -75,10 +75,10 @@ async def create_block_schema(
             insert_values["fields"], definitions
         )
         if non_block_definitions:
-            insert_values["fields"][
-                "definitions"
-            ] = _get_non_block_reference_definitions(
-                insert_values["fields"], definitions
+            insert_values["fields"]["definitions"] = (
+                _get_non_block_reference_definitions(
+                    insert_values["fields"], definitions
+                )
             )
         else:
             # Prevent storing definitions for blocks. Those are reconstructed on read.
@@ -169,8 +169,9 @@ async def _register_nested_block_schemas(
             )
             if reference_block_type is None:
                 raise MissingBlockTypeException(
-                    f"Cannot create block schema because block type {reference_values_entry['block_type_slug']!r} was not found."
-                    "Did you forget to register the block type?"
+                    "Cannot create block schema because block type"
+                    f" {reference_values_entry['block_type_slug']!r} was not found.Did"
+                    " you forget to register the block type?"
                 )
             # Checks to see if the visited block schema has been previously created
             reference_block_schema = await read_block_schema_by_checksum(
@@ -181,8 +182,8 @@ async def _register_nested_block_schemas(
             if reference_block_schema is None:
                 if definitions is None:
                     raise ValueError(
-                        "Unable to create nested block schema due to missing definitions "
-                        "in root block schema fields"
+                        "Unable to create nested block schema due to missing"
+                        " definitions in root block schema fields"
                     )
                 sub_block_schema_fields = _get_fields_for_child_schema(
                     definitions, base_fields, reference_name, reference_block_type
@@ -190,7 +191,8 @@ async def _register_nested_block_schemas(
 
                 if sub_block_schema_fields is None:
                     raise ValueError(
-                        f"Unable to create nested block schema for block type {reference_block_type.name!r} due to missing definition."
+                        "Unable to create nested block schema for block type"
+                        f" {reference_block_type.name!r} due to missing definition."
                     )
 
                 reference_block_schema = await create_block_schema(

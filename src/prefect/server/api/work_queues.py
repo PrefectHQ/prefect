@@ -109,11 +109,17 @@ async def read_work_queue_runs(
     limit: int = dependencies.LimitBody(),
     scheduled_before: DateTimeTZ = Body(
         None,
-        description="Only flow runs scheduled to start before this time will be returned.",
+        description=(
+            "Only flow runs scheduled to start before this time will be returned."
+        ),
     ),
     agent_id: Optional[UUID] = Body(
         None,
-        description="An optional unique identifier for the agent making this query. If provided, the Prefect REST API will track the last time this agent polled the work queue.",
+        description=(
+            "An optional unique identifier for the agent making this query. If"
+            " provided, the Prefect REST API will track the last time this agent polled"
+            " the work queue."
+        ),
     ),
     x_prefect_ui: Optional[bool] = Header(
         default=False,
@@ -156,7 +162,6 @@ async def _record_work_queue_polls(
     If an agent_id is provided, we update this agent id's last poll time.
     """
     async with db.session_context(begin_transaction=True) as session:
-
         await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue_id,

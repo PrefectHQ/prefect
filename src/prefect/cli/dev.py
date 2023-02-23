@@ -147,7 +147,6 @@ def build_ui():
     exit_with_error_if_not_editable_install()
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "ui"):
-
             app.console.print("Installing npm packages...")
             try:
                 subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
@@ -419,7 +418,10 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         command=[
             "/bin/bash",
             "-c",
-            f"pip install -e /opt/prefect/repo\\[dev\\] && touch /READY && {blocking_cmd}",  # noqa
+            (  # noqa
+                "pip install -e /opt/prefect/repo\\[dev\\] && touch /READY &&"
+                f" {blocking_cmd}"
+            ),
         ],
         name=name,
         auto_remove=True,

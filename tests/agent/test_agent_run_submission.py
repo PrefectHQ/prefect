@@ -341,7 +341,6 @@ async def test_agent_caches_work_queues(orion_client, deployment, monkeypatch):
     async with PrefectAgent(
         work_queues=[work_queue.name], prefetch_seconds=10
     ) as agent:
-
         await agent.get_and_submit_flow_runs()
         mock.assert_awaited_once()
 
@@ -835,7 +834,8 @@ class TestInfrastructureIntegration:
         )
         assert (
             f"Reported flow run '{flow_run.id}' as crashed: "
-            "Flow run infrastructure exited with non-zero status code 9." in caplog.text
+            "Flow run infrastructure exited with non-zero status code 9."
+            in caplog.text
         )
 
         state = (await orion_client.read_flow_run(flow_run.id)).state

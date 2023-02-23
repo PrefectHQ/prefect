@@ -284,7 +284,8 @@ async def test_agent_cancel_run_with_missing_infrastructure_pid(
 
     # Information broadcasted to user in logs and state message
     assert (
-        "does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+        "does not have an infrastructure pid attached. Cancellation cannot be"
+        " guaranteed."
         in caplog.text
     )
     assert "missing infrastructure tracking information" in post_flow_run.state.message
@@ -471,7 +472,6 @@ async def test_agent_cancel_run_without_infrastructure_support_for_kill(
     monkeypatch,
     cancelling_constructor,
 ):
-
     # Patch all infrastructure types
     types = get_registry_for_type(Block)
     for t in types.values():
