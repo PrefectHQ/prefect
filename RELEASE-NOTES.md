@@ -1,7 +1,7 @@
 # Prefect Release Notes
 ## Release 2.8.3
 
-### `on_completion` and `on_failure` hooks for flows and tasks 🎉
+### `on_completion` and `on_failure` hooks for flows and tasks
 With this release you can now add client-side hooks to your flows and tasks that will be called when the flow or task enters either a `Completed` or `Failed` state. This is great for any case where you might want to execute code without involvement of the Prefect API. 
 
 Both flows and tasks will accept the arguments `on_completion` and `on_failure` which take a list of callables. These callables will need to accept 3 arguments:
