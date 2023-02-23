@@ -4,7 +4,7 @@
 ### `on_completion` and `on_failure` hooks for flows and tasks
 With this release you can now add client-side hooks to your flows and tasks that will be called when the flow or task enters either a `Completed` or `Failed` state. This is great for any case where you might want to execute code without involvement of the Prefect API. 
 
-Both flows and tasks will accept the arguments `on_completion` and `on_failure` which take a list of callables. These callables will need to accept 3 arguments:
+Both flows and tasks will accept the arguments `on_completion` and `on_failure` that take a list of callables. These callables will need to accept 3 arguments:
 - `flow`, `flow_run`, and `state` in the case of a flow hook
 - `task`, `task_run`, and `state` in the case of a task hook
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 ```
 ### Enhancements
 - Update `quote` handling in input resolution to skip descending into the quoted expression — https://github.com/PrefectHQ/prefect/pull/8576
-- Add light and dark mode color and contrast enhancements — https://github.com/PrefectHQ/prefect/pull/8629
+- Add light and dark mode color and contrast enhancements to UI — https://github.com/PrefectHQ/prefect/pull/8629
 
 ### Fixes
 - Fix `Task.map` type hint for type-checker compatibility with async tasks — https://github.com/PrefectHQ/prefect/pull/8607
