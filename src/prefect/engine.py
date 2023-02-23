@@ -2010,16 +2010,16 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
                         hook, task=task, task_run=task_run, state=state
                     )
                 logger.info(
-                    f"Ran hook {hook!r} in response to entering state {state.name!r}"
+                    f"Ran hook {hook.__name__!r} in response to entering state"
+                    f" {state.name!r}"
                 )
             except Exception as exc:
                 logger.error(
-                    (
-                        f"Error running hook {hook!r} in response to entering state"
-                        f" {state.name!r}: {exc}"
-                    ),
+                    f"An error was encountered while running hook {hook.__name__!r}",
                     exc_info=True,
                 )
+            else:
+                logger.info(f"Hook {hook.__name__!r} finished running successfully")
 
 
 if __name__ == "__main__":
