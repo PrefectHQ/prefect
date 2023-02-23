@@ -54,7 +54,7 @@
 
 <script lang="ts" setup>
   import { PEmptyResults, media } from '@prefecthq/prefect-design'
-  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingFlowRuns, FlowRunsPageEmptyState, FlowRunsSort, FlowRunList, FlowRunsScatterPlot, SearchInput, ResultsCount, FlowRunsDeleteButton, FlowRunsFilterGroup, useWorkspaceApi, SelectedCount, useRecentFlowRunsFilterFromRoute } from '@prefecthq/prefect-ui-library'
   import { useDebouncedRef, useSubscription } from '@prefecthq/vue-compositions'
   import { computed, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -70,7 +70,7 @@
 
   const flowRunNameLike = ref<string>()
   const flowRunNameLikeDebounced = useDebouncedRef(flowRunNameLike, 1200)
-  const { filter, isCustomFilter } = useFlowRunsFilterFromRoute({
+  const { filter, isCustomFilter } = useRecentFlowRunsFilterFromRoute({
     flowRuns: {
       nameLike: flowRunNameLikeDebounced,
     },
