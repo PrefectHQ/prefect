@@ -9,6 +9,7 @@ Both flows and tasks will accept the arguments `on_completion` and `on_failure` 
 - `task`, `task_run`, and `state` in the case of a task hook
 
 Here is an example showing how completion hooks can be added to a flow and a task:
+
 ```python
 from prefect import task, flow
 
@@ -32,7 +33,9 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
+
 Here is an example showing how failure hooks work. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the state of the flow or task will be called.
+
 ```python
 from prefect import task, flow
 
@@ -53,6 +56,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
+
 ### Enhancements
 - Update `quote` handling in input resolution to skip descending into the quoted expression — https://github.com/PrefectHQ/prefect/pull/8576
 - Add light and dark mode color and contrast enhancements to UI — https://github.com/PrefectHQ/prefect/pull/8629
