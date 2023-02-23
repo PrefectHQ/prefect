@@ -546,7 +546,7 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
 
 @copy_model_fields
 class ArtifactCreate(ActionBaseModel):
-    """Data used by the Orion API to create an artifact."""
+    """Data used by the Prefect REST API to create an artifact."""
 
     key: Optional[str] = Field(
         default=None, description="An optional unique reference key for this artifact."
@@ -579,7 +579,7 @@ class ArtifactCreate(ActionBaseModel):
 
 @copy_model_fields
 class ArtifactUpdate(ActionBaseModel):
-    """Data used by the Orion API to update an artifact."""
+    """Data used by the Prefect REST API to update an artifact."""
 
     metadata_: Dict[str, str] | None = Field(
         default=None,
