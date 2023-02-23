@@ -654,7 +654,7 @@ await inspiring_joke()
 ```
 </div>
 
-Paused flows can be resumed via the resume flow run utility in another process.
+Paused flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
 
 ```python
 resume_flow_run(FLOW_RUN_ID)
