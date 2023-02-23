@@ -62,7 +62,7 @@ if __name__ == "__main__":
 - Update Docker container name sanitization to handle "ce" and "ee" when checking Docker version — https://github.com/PrefectHQ/prefect/pull/8588
 - Fix Kubernetes Job watch timeout behavior when streaming logs — https://github.com/PrefectHQ/prefect/pull/8618
 - Fix date range filter selection on the flow runs UI page — https://github.com/PrefectHQ/prefect/pull/8616
-- Fix Kubernetes not streaming logs when using multiple containers in job — https://github.com/PrefectHQ/prefect/pull/8430
+- Fix Kubernetes not streaming logs when using multiple containers in Job — https://github.com/PrefectHQ/prefect/pull/8430
 
 ### Experimental
 - Update worker variable typing for clearer display in the UI — https://github.com/PrefectHQ/prefect/pull/8613
