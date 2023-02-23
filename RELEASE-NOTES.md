@@ -8,7 +8,7 @@ Both flows and tasks include `on_completion` and `on_failure` options where a li
 - `flow`, `flow_run`, and `state` in the case of a flow hook
 - `task`, `task_run`, and `state` in the case of a task hook
 
-Here is an example showing how completion hooks can be added to a flow and a task:
+For example, here we add completion hooks to a flow and a task:
 ```python
 from prefect import task, flow
 
