@@ -20,9 +20,6 @@ Each deployment references a single "entrypoint" flow (though that flow may, in 
 
 At a high level, you can think of a deployment as configuration for managing flows, whether you run them via the CLI, the UI, or the API.
 
-!!! warning "Deployments have changed since beta"
-    Deployments based on `DeploymentSpec` are no longer supported. Instead, you can define deployments by using either the [`prefect deployment` CLI command](#create-a-deployment-on-the-cli) or [the `Deployment` Python object](/api-ref/prefect/deployments/).
-
 ## Deployments overview
 
 All Prefect flow runs are tracked by the API. The API does not require prior registration of flows. With Prefect, you can call a flow locally or on a remote environment and it will be tracked.
@@ -87,6 +84,8 @@ To define how your flow execution environment should be configured, you may eith
 
     Note that **backward compatibility is maintained** and work queues that use tag-based matching can still be created and will continue to work. However, those work queues are now considered legacy and we encourage you to use the new behavior by specifying work queues explicitly on agents and deployments.
 
+    See [Agents & Work Pools](/concepts/work-pools/) for details.
+
 ## Deployments and flows
 
 Each deployment is associated with a single flow, but any given flow can be referenced by multiple deployments.
@@ -150,7 +149,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect deployment build flows/marvin.py:say_hi -n marvin -q test
+$ prefect deployment build -n marvin -p default-agent-pool -q test flows/marvin.py:say_hi
 ```
 </div>
 
@@ -174,26 +173,30 @@ When you run this command, Prefect:
 
 You may specify additional options to further customize your deployment.
 
+<span class="no-wrap">
+
 | Options | Description |
 | ------- | ----------- |
 | PATH | Path, filename, and flow name of the flow definition. (Required) |
-|  `-v`, `--version TEXT`            | An optional version for the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline. |
-|  `-n`, `--name TEXT`               | The name of the deployment. |
-|  `-t`, `--tag TEXT`                | One or more optional tags to apply to the deployment. |
-|  `-q`. `--work-queue TEXT`        |  The work queue that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled.
-|  `-o`, `--output TEXT`            | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
-|  `-i`, `--infra`                   | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
-|  `-ib`, `--infra-block TEXT`       | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format. |
-|  `--override TEXT`       | One or more optional infrastructure overrides provided as a dot delimited path. For example, specify an environment variable: `env.env_key=env_value`. For Kubernetes, specify customizations: `customizations='[{"op": "add","path": "/spec/template/spec/containers/0/resources/limits", "value": {"memory": "8Gi","cpu": "4000m"}}]'` (note the string format).|
-|  <span class="no-wrap">`-sb`, `--storage-block TEXT`</span>    | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed. |
-|  `--cron TEXT`    | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
-|  `--interval INTEGER`     | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
-|  `--rrule TEXT`     | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
-| `--apply` | When provided, automatically registers the resulting deployment with the API. |
-| `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
-| `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
+| `--apply`, `-a` | When provided, automatically registers the resulting deployment with the API. |
+| `--cron TEXT` | A cron string that will be used to set a [`CronSchedule`](/concepts/schedules/) on the deployment. For example, `--cron "*/1 * * * *"` to create flow runs from that deployment every minute. |
+| `--help` | Display help for available commands and options. |
+| `--infra-block TEXT`, `-ib` | The [infrastructure block](#block-identifiers) to use, in `block-type/block-name` format. |
+| `--infra`, `-i` | The [infrastructure type](/concepts/infrastructure/) to use. (Default is `Process`) |
+| `--interval INTEGER` | An integer specifying an interval (in seconds) that will be used to set an [`IntervalSchedule`](/concepts/schedules/) on the deployment. For example, `--interval 60` to create flow runs from that deployment every minute. |
+| `--name TEXT`, `-n` | The name of the deployment. |
+| `--output TEXT`, `-o` | Optional location for the YAML manifest generated as a result of the `build` step. You can version-control that file, but it's not required since the CLI can generate everything you need to define a deployment. |
+| `--override TEXT` | One or more optional infrastructure overrides provided as a dot delimited path. For example, specify an environment variable: `env.env_key=env_value`. For Kubernetes, specify customizations: `customizations='[{"op": "add","path": "/spec/template/spec/containers/0/resources/limits", "value": {"memory": "8Gi","cpu": "4000m"}}]'` (note the string format).|
 | `--param` | An optional parameter override, values are parsed as JSON strings. For example, `--param question=ultimate --param answer=42`. |
 | `--params` | An optional parameter override in a JSON string format. For example, `--params=\'{"question": "ultimate", "answer": 42}\'`. |
+| `--path` | An optional path to specify a subdirectory of remote storage to upload to, or to point to a subdirectory of a locally stored flow. |
+| `--pool TEXT`, `-p` | The [work pool](/concepts/work-pools/) that will handle this deployment's runs. │
+| `--rrule TEXT` | An `RRule` that will be used to set an [`RRuleSchedule`](/concepts/schedules/) on the deployment. For example, `--rrule 'FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9,10,11,12,13,14,15,16,17'` to create flow runs from that deployment every hour but only during business hours. |
+| `--skip-upload` | When provided, skips uploading this deployment's files to remote storage. |
+| <span class="no-wrap">`--storage-block TEXT`, `-sb`</span> | The [storage block](#block-identifiers) to use, in `block-type/block-name` or `block-type/block-name/path` format. Note that the appropriate library supporting the storage filesystem must be installed. |
+| `--tag TEXT`, `-t` | One or more optional tags to apply to the deployment. |
+| `--version TEXT`, `-v` | An optional version for the deployment. This could be a git commit hash if you use this command from a CI/CD pipeline. |
+| `--work-queue TEXT`, `-q` |  The [work queue](/concepts/work-pools/) that will handle this deployment's runs. It will be created if it doesn't already exist. Defaults to `None`. Note that if a work queue is not set, work will not be scheduled. |
 
 ### Block identifiers
 
