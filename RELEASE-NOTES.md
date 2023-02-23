@@ -59,10 +59,10 @@ if __name__ == "__main__":
 
 ### Fixes
 - Fix `Task.map` type hint for type-checker compatibility with async tasks — https://github.com/PrefectHQ/prefect/pull/8607
-- Update docker container name sanitization to handle "ce" and "ee" — https://github.com/PrefectHQ/prefect/pull/8588
-- Fix Kubernetes job watch timeout when streaming logs — https://github.com/PrefectHQ/prefect/pull/8618
-- Fix flow run filters date range not working properly — https://github.com/PrefectHQ/prefect/pull/8616
-- Fix Kubernetes log stream when using multiple containers in job — https://github.com/PrefectHQ/prefect/pull/8430
+- Update docker container name sanitization to handle "ce" and "ee" when checking Docker version — https://github.com/PrefectHQ/prefect/pull/8588
+- Fix Kubernetes job watch timeout behavior when streaming logs — https://github.com/PrefectHQ/prefect/pull/8618
+- Fix date range filter selection on the flow runs UI page — https://github.com/PrefectHQ/prefect/pull/8616
+- Fix Kubernetes not streaming logs when using multiple containers in job — https://github.com/PrefectHQ/prefect/pull/8430
 
 ### Experimental
 - Update worker variable typing for clearer display in the UI — https://github.com/PrefectHQ/prefect/pull/8613
