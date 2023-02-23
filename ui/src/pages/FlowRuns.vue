@@ -116,11 +116,11 @@
   sticky
   top-0
   bg-opacity-90
+  dark:bg-opacity-90
   py-3
   z-10
-  bg-background
+  bg-background-600
   dark:bg-background-400
-  rounded-b
   px-2
 }
 
