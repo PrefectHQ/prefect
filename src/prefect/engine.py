@@ -1560,6 +1560,12 @@ async def orchestrate_task_run(
 
         state = await propose_state(client, terminal_state, task_run_id=task_run.id)
 
+        await _run_task_hooks(
+            task=task,
+            task_run=task_run,
+            state=state,
+        )
+
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
                 (
@@ -1983,6 +1989,39 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
             return PREFECT_LOGGING_LOG_PRINTS.value()
 
     return flow_or_task.log_prints
+
+
+async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
+    """Run the on_failure and on_completion hooks for a task, making sure to
+    catch and log any errors that occur.
+    """
+    hooks = None
+    if state.is_failed() and task.on_failure:
+        hooks = task.on_failure
+    elif state.is_completed() and task.on_completion:
+        hooks = task.on_completion
+
+    if hooks:
+        logger = task_run_logger(task_run)
+        for hook in hooks:
+            try:
+                if is_async_fn(hook):
+                    await hook(task=task, task_run=task_run, state=state)
+                else:
+                    await run_sync_in_worker_thread(
+                        hook, task=task, task_run=task_run, state=state
+                    )
+                logger.info(
+                    f"Ran hook {hook.__name__!r} in response to entering state"
+                    f" {state.name!r}"
+                )
+            except Exception as exc:
+                logger.error(
+                    f"An error was encountered while running hook {hook.__name__!r}",
+                    exc_info=True,
+                )
+            else:
+                logger.info(f"Hook {hook.__name__!r} finished running successfully")
 
 
 if __name__ == "__main__":
