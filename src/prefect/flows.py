@@ -42,7 +42,7 @@ from prefect.exceptions import (
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
-from prefect.server.schemas.core import raise_on_invalid_name
+from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -114,6 +114,8 @@ class Flow(Generic[P, R]):
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        on_failure: An optional list of callables to run when the flow enters a failed state.
+        on_completion: An optional list of callables to run when the flow enters a completed state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -135,6 +137,8 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
+        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -213,6 +217,8 @@ class Flow(Generic[P, R]):
                 "parameter in the flow definition:\n\n "
                 "`@flow(name='my_unique_name', ...)`"
             )
+        self.on_completion = on_completion
+        self.on_failure = on_failure
 
     def with_options(
         self,
@@ -231,6 +237,8 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
+        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -254,6 +262,8 @@ class Flow(Generic[P, R]):
             result_serializer: A new serializer to use for results.
             cache_result_in_memory: A new value indicating if the flow's result should
                 be cached in memory.
+            on_failure: A new list of callables to run when the flow enters a failed state.
+            on_completion: A new list of callables to run when the flow enters a completed state.
 
         Returns:
             A new `Flow` instance.
@@ -315,6 +325,8 @@ class Flow(Generic[P, R]):
                 else self.cache_result_in_memory
             ),
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
+            on_completion=on_completion or self.on_completion,
+            on_failure=on_failure or self.on_failure,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -528,6 +540,8 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
+    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -549,6 +563,8 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
+    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -656,6 +672,8 @@ def flow(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
     else:
@@ -677,6 +695,8 @@ def flow(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
 

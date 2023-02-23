@@ -94,6 +94,7 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     in_async_main_thread,
+    is_async_fn,
     run_async_from_worker_thread,
     run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
@@ -715,6 +716,8 @@ async def orchestrate_flow_run(
             state=terminal_state,
             flow_run_id=flow_run.id,
         )
+
+        await _run_flow_hooks(flow=flow, flow_run=flow_run, state=state)
 
         if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
             logger.debug(
@@ -2028,3 +2031,36 @@ if __name__ == "__main__":
         )
         # Let the exit code be determined by the base exception type
         raise
+
+
+async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
+    """Run the on_failure and on_completion hooks for a flow, making sure to
+    catch and log any errors that occur.
+    """
+    hooks = None
+    if state.is_failed() and flow.on_failure:
+        hooks = flow.on_failure
+    elif state.is_completed() and flow.on_completion:
+        hooks = flow.on_completion
+
+    if hooks:
+        logger = flow_run_logger(flow_run)
+        for hook in hooks:
+            try:
+                logger.info(
+                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f" {state.name!r}"
+                )
+                if is_async_fn(hook):
+                    await hook(flow=flow, flow_run=flow_run, state=state)
+                else:
+                    await run_sync_in_worker_thread(
+                        hook, flow=flow, flow_run=flow_run, state=state
+                    )
+            except Exception as exc:
+                logger.error(
+                    f"An error was encountered while running hook {hook.__name__!r}",
+                    exc_info=True,
+                )
+            else:
+                logger.info(f"Hook {hook.__name__!r} finished running successfully")
