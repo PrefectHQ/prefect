@@ -309,7 +309,60 @@ class ORMArtifact:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("key"),)
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                "key",
+            ),
+        )
+
+
+class ORMArtifactCollection:
+    key = sa.Column(
+        sa.String,
+        nullable=False,
+    )
+
+    @declared_attr
+    def _key(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="joined",
+            foreign_keys=[cls.key],
+            primaryjoin="Artifact.key==%s.key" % cls.__name__,
+        )
+
+    @declared_attr
+    def latest_id(cls):
+        return sa.Column(
+            UUID(),
+            sa.ForeignKey(
+                "artifact.id",
+            ),
+        )
+
+    @declared_attr
+    def _latest_id(cls):
+        return sa.orm.relationship(
+            "Artifact",
+            lazy="joined",
+            foreign_keys=[cls.latest_id],
+            primaryjoin="Artifact.id==%s.latest_id" % cls.__name__,
+        )
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_artifact_collection__key",
+                "key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_artifact_collection__latest_id",
+                "latest_id",
+            ),
+        )
 
 
 class ORMTaskRunStateCache:
@@ -1295,6 +1348,7 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1345,6 +1399,7 @@ class BaseORMConfiguration(ABC):
             task_run_mixin=task_run_mixin,
             task_run_state_mixin=task_run_state_mixin,
             artifact_mixin=artifact_mixin,
+            artifact_collection_mixin=artifact_collection_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
@@ -1389,6 +1444,7 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1422,6 +1478,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Artifact(artifact_mixin, self.Base):
+            pass
+
+        class ArtifactCollection(artifact_collection_mixin, self.Base):
             pass
 
         class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
@@ -1485,6 +1544,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
         self.Artifact = Artifact
+        self.ArtifactCollection = ArtifactCollection
         self.TaskRunStateCache = TaskRunStateCache
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun
@@ -1535,6 +1595,11 @@ class BaseORMConfiguration(ABC):
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
         return [self.BlockSchema.checksum, self.BlockSchema.version]
+
+    @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an ArtifactCollection"""
+        return [self.ArtifactCollection.key]
 
     @property
     def flow_unique_upsert_columns(self):

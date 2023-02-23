@@ -139,6 +139,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Artifact
 
     @property
+    def ArtifactCollection(self):
+        """An artifact collection orm model"""
+        return self.orm.ArtifactCollection
+
+    @property
     def TaskRunStateCache(self):
         """A task run state cache orm model"""
         return self.orm.TaskRunStateCache
@@ -252,6 +257,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
     def flow_unique_upsert_columns(self):
         """Unique columns for upserting a Flow"""
         return self.orm.flow_unique_upsert_columns
+
+    @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an Artifact"""
+        return self.orm.artifact_collection_unique_upsert_columns
 
     @property
     def saved_search_unique_upsert_columns(self):

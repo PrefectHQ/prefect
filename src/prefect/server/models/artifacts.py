@@ -16,6 +16,18 @@ async def create_artifact(
 ):
     now = pendulum.now("UTC")
     artifact_id = artifact.id
+
+    if key is not None:
+        upsert_new_latest_id = (
+            (await db.insert(db.ArtifactCollection))
+            .values(key=key, artifact_id=artifact_id)
+            .on_conflict_do_update(
+                index_elements=db.artifact_collection_unique_upsert_columns,
+                set_={"latest_id": artifact_id},
+            )
+        )
+        await session.execute(upsert_new_latest_id)
+
     insert_stmt = (await db.insert(db.Artifact)).values(
         created=now,
         updated=now,
@@ -172,6 +184,44 @@ async def delete_artifact(
     Returns:
         bool: True if the delete was successful, False otherwise
     """
+    current_artifact = await session.get(db.Artifact, artifact_id)
+    if current_artifact is None:
+        return False
+
+    is_latest_artifact_version = (
+        await session.execute(
+            sa.select(db.ArtifactCollection)
+            .where(db.ArtifactCollection.key == current_artifact.key)
+            .where(db.ArtifactCollection.latest_id == artifact_id)
+        )
+    ).scalar_one_or_none()
+
+    if is_latest_artifact_version is not None:
+        previous_artifact = (
+            await session.execute(
+                sa.select(db.Artifact)
+                .where(db.Artifact.key == current_artifact.key)
+                .where(db.Artifact.id != artifact_id)
+                .order_by(db.Artifact.created.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+        if previous_artifact is not None:
+            set_new_latest_artifact_version = (
+                sa.update(db.ArtifactCollection)
+                .where(db.ArtifactCollection.key == current_artifact.key)
+                .values(latest_id=previous_artifact.id)
+            )
+            await session.execute(set_new_latest_artifact_version)
+        else:
+            delete_stmt = (
+                sa.delete(db.ArtifactCollection)
+                .where(db.ArtifactCollection.key == current_artifact.key)
+                .where(db.ArtifactCollection.latest_id == artifact_id)
+            )
+            await session.execute(delete_stmt)
+
     delete_stmt = sa.delete(db.Artifact).where(db.Artifact.id == artifact_id)
 
     result = await session.execute(delete_stmt)
