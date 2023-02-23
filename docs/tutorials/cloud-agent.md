@@ -84,7 +84,7 @@ You can also build custom images and push them to a public container registry so
 
 Following the example of the [Flow deployments](/tutorials/deployments/) tutorial, let's create a deployment that can be executed by the agent on this container instance. You'll also need a storage block configured to save your flow code as described in the [Storage and Infrastructure](/tutorials/storage/) tutorial.
 
-In an environment where you have [installed Prefect](/getting-started/installation/), create a new folder called `health_test`, an within it create a new file called `health_flow.py` containing the following code.
+In an environment where you have [installed Prefect](/getting-started/installation/), create a new folder called `health_test`, and within it create a new file called `health_flow.py` containing the following code.
 
 
 ```python
