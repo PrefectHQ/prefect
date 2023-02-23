@@ -825,7 +825,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on public GitHub repositories.
+    Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
