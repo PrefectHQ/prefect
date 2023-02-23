@@ -2048,7 +2048,8 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
         for hook in hooks:
             try:
                 logger.info(
-                    f"Running hook {hook.__name__!r} in response to entering state {state.name!r}"
+                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f" {state.name!r}"
                 )
                 if is_async_fn(hook):
                     await hook(flow=flow, flow_run=flow_run, state=state)

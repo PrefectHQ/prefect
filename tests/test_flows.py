@@ -2206,7 +2206,6 @@ class TestFlowHooksOnFailure:
         ],
     )
     def test_on_failure_hooks_work_with_sync_and_async(self, hook1, hook2):
-
         my_mock = MagicMock()
         hook1_with_mock = hook1(my_mock)
         hook2_with_mock = hook2(my_mock)
