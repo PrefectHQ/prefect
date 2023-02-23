@@ -32,7 +32,7 @@ from prefect.settings import (
     PREFECT_UI_ENABLED,
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import run_process, setup_signal_handlers
+from prefect.utilities.processutils import run_process, setup_signal_handlers_server
 
 server_app = PrefectTyper(
     name="server",
@@ -170,7 +170,9 @@ async def start(
         # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/server/issues/2475
 
-        setup_signal_handlers(server_process_id, "the Prefect server", app.console.print)
+        setup_signal_handlers_server(
+            server_process_id, "the Prefect server", app.console.print
+        )
 
     app.console.print("Server stopped!")
 

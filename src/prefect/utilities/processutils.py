@@ -337,7 +337,8 @@ def forward_signal_handler(
     signal.signal(signum, handler)
 
 
-def setup_signal_handlers(pid: int, process_name: str, print_fn: Callable):
+def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable):
+    """Handle interrupts of the server gracefully."""
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
