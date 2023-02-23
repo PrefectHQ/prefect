@@ -79,7 +79,7 @@ if __name__ == "__main__":
 - @AzemaBaptiste made their first contribution in https://github.com/PrefectHQ/prefect/pull/8599
 - @darrida
 
-**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.2...preview
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.2...2.8.3
 
 ## Release 2.8.2
 
