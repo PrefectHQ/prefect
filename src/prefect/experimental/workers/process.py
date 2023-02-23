@@ -106,6 +106,7 @@ class ProcessWorker(BaseWorker):
             command = f"{sys.executable} -m prefect.engine"
 
         # We must add creationflags to a dict so it is only passed as a function
+        # parameter on Windows, because the presence of creationflags causes
         # errors on Unix even if set to None
         kwargs: Dict[str, object] = {}
         if sys.platform == "win32":
