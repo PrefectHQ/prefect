@@ -217,14 +217,14 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
+        extra = ""
+
         if self._future_call:
-            extra = f" submitted={self._future_call[0].__name__},"
-        else:
-            extra = ""
+            extra += f" submitted={self._future_call[0].__name__!r},"
 
         return (
-            f"<{self.__class__.__name__}({self._submit_fn.__name__},"
-            f"{extra} owner={self._owner_thread.name!r})>"
+            f"<{self.__class__.__name__} submit_fn={self._submit_fn.__name__!r},"
+            f"{extra} owner={self._owner_thread.name!r}>"
         )
 
 

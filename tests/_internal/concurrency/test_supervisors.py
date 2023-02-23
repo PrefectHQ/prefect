@@ -18,9 +18,13 @@ def fake_fn(*args, **kwargs):
 @pytest.mark.parametrize("cls", [AsyncSupervisor, SyncSupervisor])
 async def test_supervisor_repr(cls):
     supervisor = cls(submit_fn=fake_submit_fn)
-    assert repr(supervisor) == f"<{cls.__name__}(fake_submit_fn, owner='MainThread')>"
+    assert (
+        repr(supervisor)
+        == f"<{cls.__name__} submit_fn='fake_submit_fn', owner='MainThread'>"
+    )
     supervisor.submit(fake_fn, 1, 2)
     assert (
         repr(supervisor)
-        == f"<{cls.__name__}(fake_submit_fn, submitted=fake_fn, owner='MainThread')>"
+        == f"<{cls.__name__} submit_fn='fake_submit_fn', submitted='fake_fn',"
+        " owner='MainThread'>"
     )
