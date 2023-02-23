@@ -2005,16 +2005,16 @@ async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
         logger = task_run_logger(task_run)
         for hook in hooks:
             try:
+                logger.info(
+                    f"Running hook {hook.__name__!r} in response to entering state"
+                    f" {state.name!r}"
+                )
                 if is_async_fn(hook):
                     await hook(task=task, task_run=task_run, state=state)
                 else:
                     await run_sync_in_worker_thread(
                         hook, task=task, task_run=task_run, state=state
                     )
-                logger.info(
-                    f"Ran hook {hook.__name__!r} in response to entering state"
-                    f" {state.name!r}"
-                )
             except Exception as exc:
                 logger.error(
                     f"An error was encountered while running hook {hook.__name__!r}",
