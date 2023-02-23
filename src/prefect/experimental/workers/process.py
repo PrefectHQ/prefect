@@ -127,8 +127,8 @@ class ProcessWorker(BaseWorker):
                 stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
-                env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
                 cwd=working_dir,
+                env=self._base_flow_run_environment(flow_run=flow_run),
                 **kwargs,
             )
 
