@@ -170,7 +170,7 @@ async def start(
         # and will start shutting down subprocesses:
         # https://github.com/PrefectHQ/server/issues/2475
 
-        setup_signal_handlers(server_process_id, "Orion", app.console.print)
+        setup_signal_handlers(server_process_id, "the Prefect server", app.console.print)
 
     app.console.print("Server stopped!")
 
