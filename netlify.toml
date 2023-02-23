@@ -70,3 +70,8 @@ publish = "site"
   from = "/concepts/work-queues/"
   to = "/concepts/work-pools/"
   status = 301
+
+[[redirects]]
+  from = "/ui/cloud-getting-started/"
+  to = "/ui/cloud-quickstart/"
+  status = 301
