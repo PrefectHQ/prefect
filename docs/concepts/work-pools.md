@@ -21,14 +21,6 @@ To run deployments, you must configure at least one agent (and its associated wo
 1. [Start an agent](#starting-an-agent)
 2. [Configure a work pool](#work-pool-configuration) (optional)
 
-!!! tip "Agent role has changed from Prefect 1"
-    Work pools are a new concept. The role of agents has changed from their implementation in Prefect 1. If you're familiar with that model, please take some time to understand the new work pool/agent model. It requires a little more setup, but offers much greater control and flexibility with how deployments are executed.
-
-    Key changes: 
-    
-    - Work pools contain all the logic about what flows run and how. Agents just pick up work from pools and execute the flows.
-    - There is no global agent that picks up deployed work by default. You must configure an agent with a specific work pool.
-
 ## Agent overview
 
 Agent processes are lightweight polling services that get scheduled work from a [work pool](#work-pool-overview) and deploy the corresponding flow runs. 
@@ -41,16 +33,16 @@ Agents are configured to pull work from one or more work pool queues. If the age
 
 Configuration parameters you can specify when starting an agent include:
 
-| Option               | Description |
-|---|---|
-| -p, --pool     | A work pool name for the agent to pull from. [default: None]                                                                                 |
-| -q, --work-queue     | One or more work queue names for the agent to pull from. [default: None]                                                                                 |
-| -m, --match | Dynamically matches work queue names with the specified prefix for the agent to pull from,for example `dev-` will match all work queues with a name that starts with `dev-`[default: None]                 |   
-| --limit         | Maximum number of flow runs to start simultaneously. [default: None]                 |   
-| --api           | The API URL for the Prefect server. Default is the value of `PREFECT_API_URL`.                                                       |
-| --run-once           | Only run agent polling once. By default, the agent runs forever. [default: no-run-once]                                                                          |
-| <span class="no-wrap">--prefetch-seconds</span>   | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
-| --hide-welcome       | Do not display the startup ASCII art for the agent process.                                                                                |               
+| Option | Description |
+| --- | --- |
+| `--api` | The API URL for the Prefect server. Default is the value of `PREFECT_API_URL`. |
+| `--hide-welcome` | Do not display the startup ASCII art for the agent process. |               
+| `--limit` | Maximum number of flow runs to start simultaneously. [default: None] |   
+| `--match`, `-m` | Dynamically matches work queue names with the specified prefix for the agent to pull from,for example `dev-` will match all work queues with a name that starts with `dev-`. [default: None] |   
+| `--pool`, `-p` | A work pool name for the agent to pull from. [default: None] |
+| <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_AGENT_PREFETCH_SECONDS`. |
+| `--run-once` | Only run agent polling once. By default, the agent runs forever. [default: no-run-once] |
+| `--work-queue`, `-q` | One or more work queue names for the agent to pull from. [default: None] |
 
 You must start an agent within an environment that can access or create the infrastructure needed to execute flow runs. Your agent will deploy flow runs to the infrastructure specified by the deployment.
 
@@ -67,17 +59,14 @@ You must start an agent within an environment that can access or create the infr
 Use the `prefect agent start` CLI command to start an agent. You must pass at least one work pool name or match string that the agent will poll for work. If the work pool does not exist, it will be created.
 
 <div class="terminal">
-
 ```bash
 $ prefect agent start -p [work pool name]
 ```
-
 </div>
 
 For example:
 
 <div class="terminal">
-
 ```bash
 $ prefect agent start -p "my-pool"
 Starting agent with ephemeral API...
@@ -88,7 +77,6 @@ Starting agent with ephemeral API...
 
 Agent started! Looking for work from work pool 'my-pool'...
 ```
-
 </div>
 
 In this case, Prefect automatically created a new `my-queue` work queue.
@@ -98,12 +86,11 @@ By default, the agent polls the API specified by the `PREFECT_API_URL` environme
 In addition, agents can match multiple queues in a work pool by providing a `--match` string instead of specifying all of the queues. The agent will poll every queue with a name that starts with the given string. New queues matching this prefix will be found by the agent without needing to restart it.
 
 For example:
-<div class="terminal">
 
+<div class="terminal">
 ```bash
 $ prefect agent start --match "foo-"
 ```
-
 </div>
 
 This example will poll every work queue that starts with "foo-".
@@ -141,13 +128,14 @@ prefect work-pool create [OPTIONS] NAME
 
 Optional configuration parameters you can specify to filter work on the pool include:
 
-| Option      | Description                                                         |
-| ----------- | ------------------------------------------------------------------- |
-| --paused    | If provided, the work pool will be created in a paused state.       |
+| Option | Description |
+| ---- | --- |
+| `--paused` | If provided, the work pool will be created in a paused state. |
 
 For example, to create a work pool called `test-pool`, you would run this command: 
 
 <div class="terminal">
+
 ```bash
 $ prefect work-pool create test-pool
 
