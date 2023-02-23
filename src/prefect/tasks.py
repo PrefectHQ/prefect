@@ -29,6 +29,7 @@ from typing import (
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
@@ -158,6 +159,8 @@ class Task(Generic[P, R]):
         refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
+        on_failure: An optional list of callables to run when the task enters a failed state.
+        on_completion: An optional list of callables to run when the task enters a completed state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -189,6 +192,8 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
+        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -268,6 +273,8 @@ class Task(Generic[P, R]):
                 "parameter in the task definition:\n\n "
                 "`@task(name='my_unique_name', ...)`"
             )
+        self.on_completion = on_completion
+        self.on_failure = on_failure
 
     def with_options(
         self,
@@ -295,6 +302,8 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
         refresh_cache: Optional[bool] = NotSet,
+        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -325,6 +334,8 @@ class Task(Generic[P, R]):
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
+            on_completion: A new list of callables to run when the task enters a completed state.
+            on_failure: A new list of callables to run when the task enters a failed state.
 
         Returns:
             A new `Task` instance.
@@ -405,6 +416,8 @@ class Task(Generic[P, R]):
             refresh_cache=(
                 refresh_cache if refresh_cache is not NotSet else self.refresh_cache
             ),
+            on_completion=on_completion or self.on_completion,
+            on_failure=on_failure or self.on_failure,
         )
 
     @overload
@@ -860,6 +873,8 @@ def task(
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
+    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -889,6 +904,8 @@ def task(
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
+    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -939,6 +956,8 @@ def task(
         refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
+        on_failure: An optional list of callables to run when the task enters a failed state.
+        on_completion: An optional list of callables to run when the task enters a completed state.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -1010,6 +1029,8 @@ def task(
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
                 refresh_cache=refresh_cache,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
     else:
@@ -1034,5 +1055,7 @@ def task(
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
                 refresh_cache=refresh_cache,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
