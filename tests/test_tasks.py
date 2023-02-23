@@ -3031,6 +3031,20 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client)
     assert task_run.name == "chris-wuz-here"
 
 
+def create_hook(mock_obj):
+    def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+def create_async_hook(mock_obj):
+    async def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
 class TestTaskHooksOnCompletion:
     def test_on_completion_hooks_run_on_completed(self):
         my_mock = MagicMock()
@@ -3100,16 +3114,21 @@ class TestTaskHooksOnCompletion:
         assert state.type == StateType.COMPLETED
         assert my_mock.call_args_list == [call("completed1"), call("completed2")]
 
-    def test_on_completion_hooks_work_with_async_function(self):
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_completion_hooks_work_with_sync_and_async(self, hook1, hook2):
         my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
 
-        async def completed1(task, task_run, state):
-            my_mock("completed1")
-
-        async def completed2(task, task_run, state):
-            my_mock("completed2")
-
-        @task(on_completion=[completed1, completed2])
+        @task(on_completion=[hook1_with_mock, hook2_with_mock])
         def my_task():
             pass
 
@@ -3119,31 +3138,7 @@ class TestTaskHooksOnCompletion:
 
         state = my_flow()
         assert state.type == StateType.COMPLETED
-        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
-
-    def test_on_completion_hooks_work_with_async_and_sync_function(self):
-        my_mock = MagicMock()
-
-        def completed1(task, task_run, state):
-            my_mock("sync_completed1")
-
-        async def completed2(task, task_run, state):
-            my_mock("async_completed2")
-
-        @task(on_completion=[completed1, completed2])
-        def my_task():
-            pass
-
-        @flow
-        def my_flow():
-            return my_task._run()
-
-        state = my_flow()
-        assert state.type == StateType.COMPLETED
-        assert my_mock.call_args_list == [
-            call("sync_completed1"),
-            call("async_completed2"),
-        ]
+        assert my_mock.call_args_list == [call(), call()]
 
 
 class TestTaskHooksOnFailure:
@@ -3218,16 +3213,21 @@ class TestTaskHooksOnFailure:
             assert state.type == StateType.FAILED
             assert my_mock.call_args_list == [call("failed1"), call("failed2")]
 
-    def test_on_failure_hooks_work_with_async_function(self):
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_failure_hooks_work_with_sync_and_async_functions(self, hook1, hook2):
         my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
 
-        async def failed1(task, task_run, state):
-            my_mock("failed1")
-
-        async def failed2(task, task_run, state):
-            my_mock("failed2")
-
-        @task(on_failure=[failed1, failed2])
+        @task(on_failure=[hook1_with_mock, hook2_with_mock])
         def my_task():
             raise Exception("oops")
 
@@ -3239,33 +3239,7 @@ class TestTaskHooksOnFailure:
         with pytest.raises(Exception, match="oops"):
             state = my_flow()
             assert state.type == StateType.FAILED
-            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
-
-    def test_on_failure_hooks_work_with_async_and_sync_function(self):
-        my_mock = MagicMock()
-
-        def sync_failed1(task, task_run, state):
-            my_mock("failed1")
-
-        async def async_failed2(task, task_run, state):
-            my_mock("failed2")
-
-        @task(on_failure=[sync_failed1, async_failed2])
-        def my_task():
-            raise Exception("oops")
-
-        @flow
-        def my_flow():
-            future = my_task.submit()
-            return future.wait()
-
-        with pytest.raises(Exception, match="oops"):
-            state = my_flow()
-            assert state.type == StateType.FAILED
-            assert my_mock.call_args_list == [
-                call("sync_failed1"),
-                call("async_failed2"),
-            ]
+            assert my_mock.call_args_list == [call(), call()]
 
     def test_failure_hooks_dont_run_on_retries(self):
         my_mock = MagicMock()
