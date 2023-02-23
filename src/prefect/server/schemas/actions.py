@@ -566,7 +566,7 @@ class ArtifactCreate(ActionBaseModel):
     metadata_: Dict[str, str] | None = Field(
         default=None,
         description=(
-            "Artifact metadata used for the UI. " "Content must be storable as JSON."
+            "Artifact metadata used for the UI. Content must be storable as JSON."
         ),
     )
     flow_run_id: Optional[UUID] = Field(
@@ -584,6 +584,6 @@ class ArtifactUpdate(ActionBaseModel):
     metadata_: Dict[str, str] | None = Field(
         default=None,
         description=(
-            "Artifact metadata used for the UI. " "Content must be storable as JSON."
+            "Artifact metadata used for the UI. Content must be storable as JSON."
         ),
     )
