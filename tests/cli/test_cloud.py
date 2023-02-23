@@ -730,6 +730,44 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
     assert PREFECT_API_KEY not in previous_profile.settings
 
 
+def test_login_respects_current_profile_over_prefect_api_key_env_var(respx_mock):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[foo_workspace.dict(json_compatible=True)],
+        )
+    )
+
+    current_profile = load_current_profile()
+
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: foo_workspace.api_url(),
+                        PREFECT_API_KEY: "foo",
+                    },
+                ),
+                current_profile,
+            ],
+            active=current_profile.name,
+        )
+    )
+    with temporary_settings({PREFECT_API_KEY: "bar"}):
+        with use_profile("logged-in-profile"):
+            invoke_and_assert(
+                ["cloud", "login", "--key", "foo", "--workspace", "test/foo"],
+                expected_code=0,
+                expected_output_contains=[
+                    "This profile is already authenticated with that key.",
+                ],
+            )
+
+
 @pytest.mark.usefixtures("interactive_console")
 def test_login_already_logged_in_to_another_profile_cancel_during_select(respx_mock):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")

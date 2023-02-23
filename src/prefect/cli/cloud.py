@@ -309,8 +309,8 @@ async def login(
 
     profiles = load_profiles()
     current_profile = get_settings_context().profile
-
-    if key and PREFECT_API_KEY.value() == key:
+    current_profile_api_key = current_profile.settings.get(PREFECT_API_KEY)
+    if key and current_profile_api_key == key:
         exit_with_success("This profile is already authenticated with that key.")
 
     already_logged_in_profiles = []
