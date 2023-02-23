@@ -72,7 +72,7 @@ if __name__ == "__main__":
 ### Experimental
 - Update worker variable typing for clearer display in the UI — https://github.com/PrefectHQ/prefect/pull/8613
 - Update `BaseWorker` to ignore flow runs with associated storage block — https://github.com/PrefectHQ/prefect/pull/8619
-- Add experimental artifacts API — https://github.com/PrefectHQ/prefect/pull/8404
+- Add experimental API for artifacts — https://github.com/PrefectHQ/prefect/pull/8404
 
 ### Documentation
 - Add documentation for resuming a flow run via the UI — https://github.com/PrefectHQ/prefect/pull/8621
