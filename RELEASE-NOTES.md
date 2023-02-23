@@ -1,14 +1,15 @@
 # Prefect Release Notes
+
 ## Release 2.8.3
 
 ### `on_completion` and `on_failure` hooks for flows and tasks
-With this release you can now add client-side hooks to your flows and tasks that will be called when the flow or task enters either a `Completed` or `Failed` state. This is great for any case where you might want to execute code without involvement of the Prefect API. 
+With this release you can now add client-side hooks that will be called when your flow or task enters a `Completed` or `Failed` state. This is great for any case where you want to execute code without involvement of the Prefect API. 
 
-Both flows and tasks will accept the arguments `on_completion` and `on_failure` that take a list of callables. These callables will need to accept 3 arguments:
+Both flows and tasks include `on_completion` and `on_failure` options where a list of callable hooks can be provided. The callable will receive three arguments:
 - `flow`, `flow_run`, and `state` in the case of a flow hook
 - `task`, `task_run`, and `state` in the case of a task hook
 
-Here is an example showing how completion hooks can be added to a flow and a task:
+For example, here we add completion hooks to a flow and a task:
 
 ```python
 from prefect import task, flow
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     my_flow()
 ```
 
-Here is an example showing how failure hooks work. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the state of the flow or task will be called.
+Next, we'll include a failure hook as well. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the final state of the flow or task will be called.
 
 ```python
 from prefect import task, flow
@@ -74,7 +75,7 @@ if __name__ == "__main__":
 - Add experimental artifacts API — https://github.com/PrefectHQ/prefect/pull/8404
 
 ### Documentation
-- Add Resume Flow Run Through UI — https://github.com/PrefectHQ/prefect/pull/8621
+- Add documentation for resuming a flow run via the UI — https://github.com/PrefectHQ/prefect/pull/8621
 - Add [`prefect-sifflet`](https://siffletapp.github.io/prefect-sifflet/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8599
 
 
