@@ -261,14 +261,10 @@ class SyncSupervisor(Supervisor[T]):
         # deadline and enforce the timeout when retrieving the result as well
         deadline = (time.time() + timeout) if timeout is not None else None
 
-        with (
-            cancel_sync_after(timeout)
-            if timeout is not None
-            else contextlib.nullcontext()
-        ) as ctx:
+        with cancel_sync_after(timeout) as ctx:
             self._watch_for_work_items()
 
-        if timeout is not None and ctx.cancelled:
+        if ctx.cancelled:
             raise TimeoutError()
 
         logger.debug("Retrieving result for %r", self)
@@ -319,14 +315,10 @@ class AsyncSupervisor(Supervisor[T]):
         if not self._future:
             raise ValueError("No future being supervised.")
 
-        with (
-            cancel_async_after(timeout)
-            if timeout is not None
-            else contextlib.nullcontext()
-        ) as ctx:
+        with cancel_async_after(timeout) as ctx:
             await self._watch_for_work_items()
 
-        if timeout is not None and ctx.cancelled:
+        if ctx.cancelled:
             raise TimeoutError()
 
         logger.debug("Retrieving result for %r", self)

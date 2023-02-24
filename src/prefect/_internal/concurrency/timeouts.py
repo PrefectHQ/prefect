@@ -5,7 +5,7 @@ import signal
 import sys
 import threading
 import time
-from typing import Type
+from typing import Optional, Type
 
 import anyio
 
@@ -33,7 +33,7 @@ class CancelContext:
 
 
 @contextlib.contextmanager
-def cancel_async_after(timeout: float):
+def cancel_async_after(timeout: Optional[float]):
     """
     Cancel any async calls within the context if it does not exit after the given
     timeout.
@@ -43,6 +43,10 @@ def cancel_async_after(timeout: float):
     Yields a `CancelContext`.
     """
     ctx = CancelContext()
+    if timeout is None:
+        yield ctx
+        return
+
     try:
         with anyio.fail_after(timeout) as cancel_scope:
             yield ctx
@@ -51,7 +55,7 @@ def cancel_async_after(timeout: float):
 
 
 @contextlib.contextmanager
-def cancel_sync_after(timeout: float):
+def cancel_sync_after(timeout: Optional[float]):
     """
     Cancel any sync calls within the context if it does not exit after the given
     timeout.
@@ -62,6 +66,9 @@ def cancel_sync_after(timeout: float):
     Yields a `CancelContext`.
     """
     ctx = CancelContext()
+    if timeout is None:
+        yield ctx
+        return
 
     if sys.platform.startswith("win"):
         # Timeouts cannot be enforced on Windows
