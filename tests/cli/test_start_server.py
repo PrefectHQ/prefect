@@ -102,7 +102,7 @@ class TestUvicornSignalForwarding:
         out = server_process.out.read().decode()
 
         assert "Sending SIGTERM" in out, (
-            "When sending a SIGTERM, the main process should send a SIGTERM to the"
+            "When sending a SIGINT, the main process should send a SIGTERM to the"
             f" uvicorn subprocess. Output:\n{out}"
         )
 
@@ -167,7 +167,7 @@ class TestUvicornSignalForwarding:
             or "KeyboardInterrupt" in out
             or "Server stopped!" in out
         ), (
-            "When sending two SIGINT shortly after each other, the main process should"
+            "When sending two SIGTERM shortly after each other, the main process should"
             " first send a SIGTERM and then a SIGKILL to the uvicorn subprocess."
             f" Output:\n{out}"
         )
