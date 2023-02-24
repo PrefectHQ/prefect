@@ -25,7 +25,6 @@ class CancelContext:
     def __init__(self, timeout: Optional[float]) -> None:
         self._timeout = timeout
         self._cancelled: bool = False
-        self._lock = threading.Lock()
 
     @property
     def timeout(self) -> Optional[float]:
@@ -33,13 +32,10 @@ class CancelContext:
 
     @property
     def cancelled(self):
-        with self._lock:
-            return self._cancelled
+        return self._cancelled
 
-    @cancelled.setter
-    def cancelled(self, value: bool):
-        with self._lock:
-            self._cancelled = value
+    def mark_cancelled(self):
+        self._cancelled = True
 
 
 @contextlib.contextmanager
@@ -64,7 +60,8 @@ def cancel_async_after(timeout: Optional[float]):
             )
             yield ctx
     finally:
-        ctx.cancelled = cancel_scope.cancel_called
+        if cancel_scope.cancel_called:
+            ctx.mark_cancelled()
 
 
 def get_deadline(timeout: Optional[float]):
@@ -101,7 +98,8 @@ def cancel_async_at(deadline: Optional[float]):
         with cancel_async_after(timeout) as inner_ctx:
             yield ctx
     finally:
-        ctx.cancelled = inner_ctx.cancelled
+        if inner_ctx.cancelled:
+            ctx.mark_cancelled()
 
 
 @contextlib.contextmanager
@@ -127,7 +125,8 @@ def cancel_sync_at(deadline: Optional[float]):
         with cancel_sync_after(timeout) as inner_ctx:
             yield ctx
     finally:
-        ctx.cancelled = inner_ctx.cancelled
+        if inner_ctx.cancelled:
+            ctx.mark_cancelled()
 
 
 @contextlib.contextmanager
@@ -171,7 +170,8 @@ def cancel_sync_after(timeout: Optional[float]):
             )
             yield ctx
     finally:
-        ctx.cancelled = inner_ctx.cancelled
+        if inner_ctx.cancelled:
+            ctx.mark_cancelled()
 
 
 @contextlib.contextmanager
@@ -194,7 +194,7 @@ def _alarm_based_timeout(timeout: float):
     ctx = CancelContext(timeout=timeout)
 
     def raise_alarm_as_timeout(signum, frame):
-        ctx.cancelled = True
+        ctx.mark_cancelled()
         logger.debug(
             "Cancel fired for alarm based timeout of thread %r", current_thread.name
         )
@@ -229,7 +229,7 @@ def _watcher_thread_based_timeout(timeout: float):
                 "Cancel fired for watcher based timeout of thread %r",
                 supervised_thread.name,
             )
-            ctx.cancelled = True
+            ctx.mark_cancelled()
             _send_exception_to_thread(supervised_thread, TimeoutError)
 
     enforcer = threading.Thread(target=timeout_enforcer, daemon=True)
