@@ -209,10 +209,9 @@ class PrefectAgent:
 
                 else:
                     try:
-                        if not self.work_pool_name:
-                            queue_runs = await self.client.get_runs_in_work_queue(
-                                id=work_queue.id, limit=10, scheduled_before=before
-                            )
+                        queue_runs = await self.client.get_runs_in_work_queue(
+                            id=work_queue.id, limit=10, scheduled_before=before
+                        )
                         submittable_runs.extend(queue_runs)
                     except ObjectNotFound:
                         self.logger.error(
