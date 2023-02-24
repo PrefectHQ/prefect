@@ -68,11 +68,11 @@ class TestUvicornSignalForwarding:
 
         assert "Sending SIGINT" in out, (
             "When sending a SIGINT, the main process should receive a SIGINT."
-            " Output:\n{out}"
+            f" Output:\n{out}"
         )
         assert "Agent stopped!" in out, (
             "When sending a SIGINT, the main process should shutdown gracefully."
-            " Output:\n{out}"
+            f" Output:\n{out}"
         )
 
     @pytest.mark.skipif(
@@ -88,11 +88,11 @@ class TestUvicornSignalForwarding:
 
         assert "Sending SIGINT" in out, (
             "When sending a SIGTERM, the main process should receive a SIGINT."
-            " Output:\n{out}"
+            f" Output:\n{out}"
         )
         assert "Agent stopped!" in out, (
             "When sending a SIGTERM, the main process should shutdown gracefully."
-            " Output:\n{out}"
+            f" Output:\n{out}"
         )
 
     @pytest.mark.skipif(
@@ -116,7 +116,7 @@ class TestUvicornSignalForwarding:
             or "AGENT stopped!" in out
         ), (
             "When sending two SIGINT shortly after each other, the main process should"
-            " first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
     @pytest.mark.skipif(
@@ -140,7 +140,7 @@ class TestUvicornSignalForwarding:
             or "Server stopped!" in out
         ), (
             "When sending two SIGTERM shortly after each other, the main process should"
-            " first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
     @pytest.mark.skipif(
