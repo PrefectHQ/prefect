@@ -63,7 +63,7 @@
 
 .app-router-view { @apply
   text-foreground
-  bg-background
+  bg-background-600
   dark:bg-background-400
   flex
   flex-col
