@@ -60,7 +60,7 @@ def cancel_async_after(timeout: Optional[float]):
     try:
         with anyio.fail_after(timeout) as cancel_scope:
             logger.debug(
-                f"Entered asynchronous cancel context with {timeout:.2}s timeout"
+                f"Entered asynchronous cancel context with %.2f timeout", timeout
             )
             yield ctx
     finally:
@@ -149,8 +149,8 @@ def cancel_sync_after(timeout: Optional[float]):
     if sys.platform.startswith("win"):
         # Timeouts cannot be enforced on Windows
         logger.warning(
-            f"Entered cancel context on Windows; {timeout:.2}s timeout will not be"
-            " enforced."
+            f"Entered cancel context on Windows; %.2f timeout will not be enforced.",
+            timeout,
         )
         yield ctx
         return
@@ -165,8 +165,9 @@ def cancel_sync_after(timeout: Optional[float]):
     try:
         with method(timeout) as inner_ctx:
             logger.debug(
-                f"Entered synchronous cancel context with {timeout:.2}s"
-                f" {method_name} based timeout"
+                f"Entered synchronous cancel context with %.2f %s based timeout",
+                timeout,
+                method_name,
             )
             yield ctx
     finally:
