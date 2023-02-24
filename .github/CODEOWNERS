@@ -4,20 +4,16 @@
 # backend
 /src/prefect/server                   @PrefectHQ/open-source @zangell44
 
-# deployments
-/src/prefect/cli/deployment.py       @PrefectHQ/open-source @cicdw
-/src/prefect/deployments.py          @PrefectHQ/open-source @cicdw
-
 # ui
 /ui                            @pleek91
 
 # documentation
-/docs                                @tpdorsey
-mkdocs.yml                           @tpdorsey
-mkdocs.insiders.yml                  @tpdorsey
+/docs                                @cicdw
+mkdocs.yml                           @cicdw
+mkdocs.insiders.yml                  @cicdw
 
 # orchestration rules / policies
-/src/prefect/server/orchestration     @PrefectHQ/open-source @anticorrelator
+/src/prefect/server/orchestration     @PrefectHQ/open-source 
 
 # database configuration / models
-/src/prefect/server/database          @PrefectHQ/open-source @anticorrelator
+/src/prefect/server/database          @PrefectHQ/open-source
