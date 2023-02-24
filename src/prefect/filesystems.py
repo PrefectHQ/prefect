@@ -653,6 +653,15 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         title="Azure storage client secret",
         description="Equivalent to the AZURE_CLIENT_SECRET environment variable.",
     )
+    azure_storage_anon: bool = Field(
+        default=True,
+        title="Azure storage anonymous connection",
+        description=(
+            "Set the 'anon' flag for ADLFS. This should be False for systems that"
+            " require ADLFS to use DefaultAzureCredentials."
+        ),
+    )
+
     _remote_file_system: RemoteFileSystem = None
 
     @property
@@ -680,6 +689,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
             settings["client_secret"] = (
                 self.azure_storage_client_secret.get_secret_value()
             )
+        settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
             basepath=f"az://{self.bucket_path}", settings=settings
         )

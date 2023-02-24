@@ -7,8 +7,8 @@ import pytest
 
 import prefect
 from prefect.exceptions import InvalidRepositoryURLError
-from prefect.filesystems import GitHub, LocalFileSystem, RemoteFileSystem
-from prefect.testing.utilities import AsyncMock
+from prefect.filesystems import Azure, GitHub, LocalFileSystem, RemoteFileSystem
+from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
 TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
@@ -622,3 +622,52 @@ class TestGitHub:
             await g.get_directory(local_path=tmp_dst)
 
             assert any(".git" in f for f in os.listdir(tmp_dst)) == expect_git_objects
+
+
+class TestAzure:
+    def test_init(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        monkeypatch.setattr("prefect.filesystems.RemoteFileSystem", remote_storage_mock)
+        Azure(
+            azure_storage_tenant_id="tenant",
+            azure_storage_account_name="account",
+            azure_storage_client_id="client_id",
+            azure_storage_account_key="key",
+            azure_storage_client_secret="secret",
+            bucket_path="bucket",
+        ).filesystem
+        remote_storage_mock.assert_called_once_with(
+            basepath="az://bucket",
+            settings={
+                "account_name": "account",
+                "account_key": "key",
+                "tenant_id": "tenant",
+                "client_id": "client_id",
+                "client_secret": "secret",
+                "anon": True,
+            },
+        )
+
+    def test_init_with_anon(self, monkeypatch):
+        remote_storage_mock = MagicMock()
+        monkeypatch.setattr("prefect.filesystems.RemoteFileSystem", remote_storage_mock)
+        Azure(
+            azure_storage_tenant_id="tenant",
+            azure_storage_account_name="account",
+            azure_storage_client_id="client_id",
+            azure_storage_account_key="key",
+            azure_storage_client_secret="secret",
+            bucket_path="bucket",
+            azure_storage_anon=False,
+        ).filesystem
+        remote_storage_mock.assert_called_once_with(
+            basepath="az://bucket",
+            settings={
+                "account_name": "account",
+                "account_key": "key",
+                "tenant_id": "tenant",
+                "client_id": "client_id",
+                "client_secret": "secret",
+                "anon": False,
+            },
+        )
