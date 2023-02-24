@@ -42,10 +42,18 @@ def test_sync_supervisor_timeout_in_worker_thread():
     thread.
     """
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = SyncSupervisor(submit_fn=executor.submit)
-        supervisor.submit(sleep_repeatedly, 1)
+        supervisor = SyncSupervisor(submit_fn=executor.submit, timeout=0.1)
+        future = supervisor.submit(sleep_repeatedly, 1)
+
+        t0 = time.time()
         with pytest.raises(TimeoutError):
-            supervisor.result(timeout=0.1)
+            supervisor.result()
+        t1 = time.time()
+
+        with pytest.raises(TimeoutError):
+            future.result()
+
+        assert t1 - t0 < 1
 
 
 def test_sync_supervisor_timeout_in_main_thread():
@@ -54,36 +62,65 @@ def test_sync_supervisor_timeout_in_main_thread():
     thread by the worker thread.
     """
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = SyncSupervisor(submit_fn=executor.submit)
+        supervisor = SyncSupervisor(submit_fn=executor.submit, timeout=0.1)
 
         def on_worker_thread():
             # Send sleep to the main thread
-            supervisor.send_call(time.sleep, 3)
-            return None
+            future = supervisor.send_call(time.sleep, 2)
+            return future
 
         supervisor.submit(on_worker_thread)
+
+        t0 = time.time()
+        future = supervisor.result()
+        t1 = time.time()
+
+        # The timeout error is not raised by `supervisor.result()` because the worker
+        # does not check the result of the future; however, the work that was sent
+        # to the main thread should have a timeout error
         with pytest.raises(TimeoutError):
-            # main thread timeouts round up to the nearest second
-            supervisor.result(timeout=1)
+            future.result()
+
+        # main thread timeouts round up to the nearest second
+        assert t1 - t0 < 2
 
 
 async def test_async_supervisor_timeout_in_worker_thread():
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = AsyncSupervisor(submit_fn=executor.submit)
+        supervisor = AsyncSupervisor(submit_fn=executor.submit, timeout=0.1)
         future = supervisor.submit(sleep_repeatedly, 1)
+
+        t0 = time.time()
         with pytest.raises(TimeoutError):
-            await supervisor.result(timeout=0.1)
+            await supervisor.result()
+        t1 = time.time()
+
+        assert t1 - t0 < 1
+
+        # The future has a timeout error too
+        with pytest.raises(TimeoutError):
+            future.result()
 
 
 async def test_async_supervisor_timeout_in_main_thread():
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = AsyncSupervisor(submit_fn=executor.submit)
+        supervisor = AsyncSupervisor(submit_fn=executor.submit, timeout=0.1)
 
         def on_worker_thread():
             # Send sleep to the main thread
             future = supervisor.send_call(asyncio.sleep, 1)
-            return future.result()
+            return future
 
-        future = supervisor.submit(on_worker_thread)
-        with pytest.raises(TimeoutError):
-            await supervisor.result(timeout=0.1)
+        supervisor.submit(on_worker_thread)
+
+        t0 = time.time()
+        future = await supervisor.result()
+        t1 = time.time()
+
+        assert t1 - t0 < 1
+
+        # The timeout error is not raised by `supervisor.result()` because the worker
+        # does not check the result of the future; however, the work that was sent
+        # to the main thread should have a timeout error
+        with pytest.raises(asyncio.CancelledError):
+            future.result()

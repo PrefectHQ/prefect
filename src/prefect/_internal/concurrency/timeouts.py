@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import ctypes
 import math
@@ -10,6 +9,11 @@ from typing import Optional, Type
 
 import anyio
 
+from prefect.logging import get_logger
+
+# TODO: We should update the format for this logger to include the current thread
+logger = get_logger("prefect._internal.concurrency.timeouts")
+
 
 class CancelContext:
     """
@@ -18,9 +22,14 @@ class CancelContext:
     The `cancelled` property is threadsafe.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, timeout: Optional[float]) -> None:
+        self._timeout = timeout
         self._cancelled: bool = False
         self._lock = threading.Lock()
+
+    @property
+    def timeout(self) -> Optional[float]:
+        return self._timeout
 
     @property
     def cancelled(self):
@@ -43,26 +52,31 @@ def cancel_async_after(timeout: Optional[float]):
 
     Yields a `CancelContext`.
     """
-    ctx = CancelContext()
+    ctx = CancelContext(timeout=timeout)
     if timeout is None:
         yield ctx
         return
 
     try:
         with anyio.fail_after(timeout) as cancel_scope:
+            logger.debug(
+                f"Entered asynchronous cancel context with {timeout:.2}s timeout"
+            )
             yield ctx
     finally:
         ctx.cancelled = cancel_scope.cancel_called
 
 
-def get_async_deadline(timeout: Optional[float]):
+def get_deadline(timeout: Optional[float]):
     """
-    Compute an async deadline given a timeout.
+    Compute an deadline given a timeout.
+
+    Uses a monotonic clock.
     """
     if timeout is None:
         return None
 
-    return asyncio.get_running_loop().time() + timeout
+    return time.monotonic() + timeout
 
 
 @contextlib.contextmanager
@@ -70,22 +84,50 @@ def cancel_async_at(deadline: Optional[float]):
     """
     Cancel any async calls within the context if it does not exit by the given deadline.
 
-    A deadline
+    Deadlines must be computed with the monotonic clock. See `get_deadline`.
 
     A timeout error will be raised on the next `await` when the timeout expires.
 
     Yields a `CancelContext`.
     """
-    ctx = CancelContext()
     if deadline is None:
-        yield ctx
+        yield CancelContext(timeout=None)
         return
 
+    timeout = max(0, deadline - time.monotonic())
+
+    ctx = CancelContext(timeout=timeout)
     try:
-        with anyio.CancelScope(deadline=deadline) as cancel_scope:
+        with cancel_async_after(timeout) as inner_ctx:
             yield ctx
     finally:
-        ctx.cancelled = cancel_scope.cancel_called
+        ctx.cancelled = inner_ctx.cancelled
+
+
+@contextlib.contextmanager
+def cancel_sync_at(deadline: Optional[float]):
+    """
+    Cancel any sync calls within the context if it does not exit by the given deadline.
+
+    Deadlines must be computed with the monotonic clock. See `get_deadline`.
+
+    The cancel method varies depending on if this is called in the main thread or not.
+    See `cancel_sync_after` for details
+
+    Yields a `CancelContext`.
+    """
+    if deadline is None:
+        yield CancelContext(timeout=None)
+        return
+
+    timeout = max(0, deadline - time.monotonic())
+
+    ctx = CancelContext(timeout=timeout)
+    try:
+        with cancel_sync_after(timeout) as inner_ctx:
+            yield ctx
+    finally:
+        ctx.cancelled = inner_ctx.cancelled
 
 
 @contextlib.contextmanager
@@ -99,7 +141,7 @@ def cancel_sync_after(timeout: Optional[float]):
 
     Yields a `CancelContext`.
     """
-    ctx = CancelContext()
+    ctx = CancelContext(timeout=timeout)
     if timeout is None:
         yield ctx
         return
@@ -111,11 +153,17 @@ def cancel_sync_after(timeout: Optional[float]):
 
     if threading.current_thread() is threading.main_thread():
         method = _alarm_based_timeout
+        method_name = "alarm"
     else:
         method = _watcher_thread_based_timeout
+        method_name = "watcher"
 
     try:
         with method(timeout) as inner_ctx:
+            logger.debug(
+                f"Entered synchronous cancel context with {timeout:.2}s"
+                f" {method_name} based timeout"
+            )
             yield ctx
     finally:
         ctx.cancelled = inner_ctx.cancelled
@@ -134,13 +182,17 @@ def _alarm_based_timeout(timeout: float):
     Alarms have the benefit of interrupt sys calls like `sleep`, but signals are always
     raised in the main thread and this cannot be used elsewhere.
     """
-    if not threading.current_thread() is threading.main_thread():
+    current_thread = threading.current_thread()
+    if not current_thread is threading.main_thread():
         raise ValueError("Alarm based timeouts can only be used in the main thread.")
 
-    ctx = CancelContext()
+    ctx = CancelContext(timeout=timeout)
 
     def raise_alarm_as_timeout(signum, frame):
         ctx.cancelled = True
+        logger.debug(
+            "Cancel fired for alarm based timeout of thread %r", current_thread.name
+        )
         raise TimeoutError()
 
     try:
@@ -163,11 +215,15 @@ def _watcher_thread_based_timeout(timeout: float):
     """
     event = threading.Event()
     supervised_thread = threading.current_thread()
-    ctx = CancelContext()
+    ctx = CancelContext(timeout=timeout)
 
     def timeout_enforcer():
         time.sleep(timeout)
         if not event.is_set():
+            logger.debug(
+                "Cancel fired for watched based timeout of thread %r",
+                supervised_thread.name,
+            )
             ctx.cancelled = True
             _send_exception_to_thread(supervised_thread, TimeoutError)
 
