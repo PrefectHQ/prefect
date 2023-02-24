@@ -1,4 +1,6 @@
 import re
+from pathlib import Path
+from textwrap import dedent
 from uuid import uuid4
 
 import pendulum
@@ -20,9 +22,12 @@ from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
 from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
-from prefect.settings import PREFECT_API_URL
+from prefect.settings import (
+    PREFECT_API_URL,
+    PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
+    temporary_settings,
+)
 from prefect.utilities.slugify import slugify
-from tests.generic_flows import identity
 
 
 @pytest.fixture(autouse=True)
@@ -971,15 +976,94 @@ class TestRunDeployment:
 
 
 class TestLoadFlowFromFlowRun:
-    async def test_loads_flow_from_flow_run(self, use_hosted_orion, orion_client):
-        flow_id = await orion_client.create_flow(identity)
-        deployment_id = await orion_client.create_deployment(
-            flow_id, name="test", entrypoint="tests/generic_flows.py:identity", path="."
+    @pytest.fixture
+    def flow_in_current_dir(self):
+        @flow
+        def identity(x):
+            return x
+
+        (Path.cwd() / "flow.py").write_text(
+            dedent(
+                """
+        from prefect import flow
+
+        @flow
+        def identity(x):
+            return x
+        """
+            )
         )
 
+        yield identity
+
+        # Clean up file that was copied from current dir
+        Path("flow.py").unlink()
+
+    @pytest.fixture
+    def flow_in_workflows_dir(self, tmp_path):
+        @flow
+        def noop():
+            return
+
+        (tmp_path / "flow.py").write_text(
+            dedent(
+                """
+        from prefect import flow
+
+        @flow
+        def noop():
+            return
+        """
+            )
+        )
+
+        yield noop
+
+        # Clean up file that was copied from workflows dir
+        Path("flow.py").unlink()
+
+    async def test_loads_flow_from_flow_run(
+        self, use_hosted_orion, orion_client: PrefectClient, flow_in_current_dir
+    ):
+        # Create a flow
+        flow_id = await orion_client.create_flow(flow_in_current_dir)
+        # Create a deployment from the flow
+        deployment_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            entrypoint=f"flow.py:{flow_in_current_dir.name}",
+            path=".",
+        )
+        # Create a flow run from the deployment
         flow_run = await orion_client.create_flow_run_from_deployment(
             deployment_id, parameters={"x": 1}
         )
-
+        # Load the flow from the flow run
         flow = await load_flow_from_flow_run(flow_run, client=orion_client)
-        assert flow.name == identity.name
+        assert flow.name == flow_in_current_dir.name
+
+    async def test_load_from_flow_run_with_workflows_placeholder(
+        self,
+        use_hosted_orion,
+        orion_client: PrefectClient,
+        tmp_path: Path,
+        flow_in_workflows_dir,
+    ):
+        # Create a flow
+        flow_id = await orion_client.create_flow(flow_in_workflows_dir)
+        # Create a deployment from the flow. Use the {workflows_dir} placeholder
+        deployment_id = await orion_client.create_deployment(
+            flow_id,
+            name="test",
+            entrypoint=f"flow.py:{flow_in_workflows_dir.name}",
+            path="{workflows_dir}",
+        )
+        # Create a flow run from the deployment
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+        # Use tmp_path as the workflow storage location
+        with temporary_settings({PREFECT_WORKER_WORKFLOW_STORAGE_PATH: tmp_path}):
+            # Load the flow from the flow run
+            loaded_flow = await load_flow_from_flow_run(flow_run, client=orion_client)
+            assert loaded_flow.name == flow_in_workflows_dir.name
