@@ -16,8 +16,7 @@ SHUTDOWN_TIMEOUT = 20
 @pytest.fixture(scope="function")
 async def agent_process():
     """
-    Runs a worker. Requires a port from 2222-2227 to be available.
-    Uses the same database as the rest of the tests.
+    Runs an agent listening to all queues.
     Yields:
         The anyio.Process.
     """
