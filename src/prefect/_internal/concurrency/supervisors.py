@@ -265,8 +265,11 @@ class SyncSupervisor(Supervisor[T]):
             cancel_sync_after(timeout)
             if timeout is not None
             else contextlib.nullcontext()
-        ):
+        ) as ctx:
             self._watch_for_work_items()
+
+        if timeout is not None and ctx.cancelled:
+            raise TimeoutError()
 
         logger.debug("Retrieving result for %r", self)
         return self._future.result(
@@ -320,8 +323,11 @@ class AsyncSupervisor(Supervisor[T]):
             cancel_async_after(timeout)
             if timeout is not None
             else contextlib.nullcontext()
-        ):
+        ) as ctx:
             await self._watch_for_work_items()
+
+        if timeout is not None and ctx.cancelled:
+            raise TimeoutError()
 
         logger.debug("Retrieving result for %r", self)
         return await self._future

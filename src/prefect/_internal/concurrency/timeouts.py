@@ -10,17 +10,39 @@ from typing import Type
 import anyio
 
 
+class CancelContext:
+    def __init__(self) -> None:
+        self._cancelled: bool = False
+        self._lock = threading.Lock()
+
+    @property
+    def cancelled(self):
+        with self._lock:
+            return self._cancelled
+
+    @cancelled.setter
+    def cancelled(self, value: bool):
+        with self._lock:
+            self._cancelled = value
+
+
 @contextlib.contextmanager
 def cancel_async_after(timeout: float):
-    with anyio.fail_after(timeout):
-        yield
+    ctx = CancelContext()
+    try:
+        with anyio.fail_after(timeout) as cancel_scope:
+            yield ctx
+    finally:
+        ctx.cancelled = cancel_scope.cancel_called
 
 
 @contextlib.contextmanager
 def cancel_sync_after(timeout: float):
+    ctx = CancelContext()
+
     if sys.platform.startswith("win"):
         # Timeouts cannot be enforced on Windows
-        yield
+        yield ctx
         return
 
     if threading.current_thread() is threading.main_thread():
@@ -28,8 +50,11 @@ def cancel_sync_after(timeout: float):
     else:
         method = _watcher_thread_based_timeout
 
-    with method(timeout):
-        yield
+    try:
+        with method(timeout) as inner_ctx:
+            yield ctx
+    finally:
+        ctx.cancelled = inner_ctx.cancelled
 
 
 @contextlib.contextmanager
@@ -46,13 +71,16 @@ def _alarm_based_timeout(timeout: float):
     if not threading.current_thread() is threading.main_thread():
         raise ValueError("Alarm based timeouts can only be used in the main thread.")
 
+    ctx = CancelContext()
+
     def raise_alarm_as_timeout(signum, frame):
+        ctx.cancelled = True
         raise TimeoutError()
 
     try:
         signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
         signal.alarm(math.ceil(timeout))  # alarms do not support floats
-        yield
+        yield ctx
     finally:
         signal.alarm(0)  # Clear the alarm when the context exits
 
@@ -69,17 +97,19 @@ def _watcher_thread_based_timeout(timeout: float):
     """
     event = threading.Event()
     supervised_thread = threading.current_thread()
+    ctx = CancelContext()
 
     def timeout_enforcer():
         time.sleep(timeout)
         if not event.is_set():
+            ctx.cancelled = True
             _send_exception_to_thread(supervised_thread, TimeoutError)
 
     enforcer = threading.Thread(target=timeout_enforcer, daemon=True)
     enforcer.start()
 
     try:
-        yield
+        yield ctx
     finally:
         event.set()
 

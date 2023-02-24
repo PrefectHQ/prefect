@@ -37,6 +37,10 @@ async def test_supervisor_repr(cls):
 
 
 def test_sync_supervisor_timeout_in_worker_thread():
+    """
+    In this test, a timeout is raised due to a slow call that is occuring on the worker
+    thread.
+    """
     with concurrent.futures.ThreadPoolExecutor() as executor:
         supervisor = SyncSupervisor(submit_fn=executor.submit)
         supervisor.submit(sleep_repeatedly, 1)
@@ -45,13 +49,17 @@ def test_sync_supervisor_timeout_in_worker_thread():
 
 
 def test_sync_supervisor_timeout_in_main_thread():
+    """
+    In this test, a timeout is raised due to a slow call that is sent back to the main
+    thread by the worker thread.
+    """
     with concurrent.futures.ThreadPoolExecutor() as executor:
         supervisor = SyncSupervisor(submit_fn=executor.submit)
 
         def on_worker_thread():
             # Send sleep to the main thread
-            future = supervisor.send_call(time.sleep, 2)
-            return future.result()
+            supervisor.send_call(time.sleep, 3)
+            return None
 
         supervisor.submit(on_worker_thread)
         with pytest.raises(TimeoutError):
