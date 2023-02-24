@@ -38,10 +38,12 @@ async def agent_process():
     ) as process:
         process.out = out
 
-        for _ in range(10):
+        for _ in range(20):
             await anyio.sleep(0.5)
             if out.tell() > 100:
                 break
+
+        assert out.tell() > 100, "The agent did not start up in time"
 
         # Yield to the consuming tests
         yield process
