@@ -13,6 +13,7 @@ import functools
 import inspect
 import queue
 import threading
+import time
 from typing import (
     Any,
     Awaitable,
@@ -26,6 +27,7 @@ from typing import (
 )
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.timeouts import cancel_async_after, cancel_sync_after
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -241,10 +243,7 @@ class SyncSupervisor(Supervisor[T]):
         future.add_done_callback(lambda _: self._queue.put_nowait(None))
         self._future = future
 
-    def result(self) -> T:
-        if not self._future:
-            raise ValueError("No future being supervised.")
-
+    def _watch_for_work_items(self):
         while True:
             logger.debug("Watching for work sent to %r", self)
             work_item: WorkItem = self._queue.get()
@@ -254,8 +253,25 @@ class SyncSupervisor(Supervisor[T]):
             work_item.run()
             del work_item
 
+    def result(self, timeout: Optional[float] = None) -> T:
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
+        # Sometimes, `cancel_sync_after` cannot be enforced so we will track the
+        # deadline and enforce the timeout when retrieving the result as well
+        deadline = (time.time() + timeout) if timeout is not None else None
+
+        with (
+            cancel_sync_after(timeout)
+            if timeout is not None
+            else contextlib.nullcontext()
+        ):
+            self._watch_for_work_items()
+
         logger.debug("Retrieving result for %r", self)
-        return self._future.result()
+        return self._future.result(
+            timeout=max(deadline - time.time(), 0) if deadline else None
+        )
 
 
 class AsyncSupervisor(Supervisor[T]):
@@ -281,21 +297,31 @@ class AsyncSupervisor(Supervisor[T]):
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, work_item)
 
-    async def result(self) -> T:
-        if not self._future:
-            raise ValueError("No future being supervised.")
-
+    async def _watch_for_work_items(self):
         while True:
             logger.debug("Watching for work sent to %r", self)
             work_item: WorkItem = await self._queue.get()
             if work_item is None:
                 break
 
+            # TODO: We could use `cancel_sync_after` to guard this call as a sync call
+            #       could block a timeout here
             result = work_item.run()
             if inspect.isawaitable(result):
                 await result
 
             del work_item
+
+    async def result(self, timeout: Optional[float] = None) -> T:
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
+        with (
+            cancel_async_after(timeout)
+            if timeout is not None
+            else contextlib.nullcontext()
+        ):
+            await self._watch_for_work_items()
 
         logger.debug("Retrieving result for %r", self)
         return await self._future
