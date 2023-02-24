@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import ctypes
 import math
@@ -49,6 +50,39 @@ def cancel_async_after(timeout: Optional[float]):
 
     try:
         with anyio.fail_after(timeout) as cancel_scope:
+            yield ctx
+    finally:
+        ctx.cancelled = cancel_scope.cancel_called
+
+
+def get_async_deadline(timeout: Optional[float]):
+    """
+    Compute an async deadline given a timeout.
+    """
+    if timeout is None:
+        return None
+
+    return asyncio.get_running_loop().time() + timeout
+
+
+@contextlib.contextmanager
+def cancel_async_at(deadline: Optional[float]):
+    """
+    Cancel any async calls within the context if it does not exit by the given deadline.
+
+    A deadline
+
+    A timeout error will be raised on the next `await` when the timeout expires.
+
+    Yields a `CancelContext`.
+    """
+    ctx = CancelContext()
+    if deadline is None:
+        yield ctx
+        return
+
+    try:
+        with anyio.CancelScope(deadline=deadline) as cancel_scope:
             yield ctx
     finally:
         ctx.cancelled = cancel_scope.cancel_called

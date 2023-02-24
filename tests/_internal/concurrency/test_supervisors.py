@@ -72,9 +72,7 @@ async def test_async_supervisor_timeout_in_worker_thread():
         supervisor = AsyncSupervisor(submit_fn=executor.submit)
         future = supervisor.submit(sleep_repeatedly, 1)
         with pytest.raises(TimeoutError):
-            supervisor.result(timeout=0.1)
-
-        future.result()
+            await supervisor.result(timeout=0.1)
 
 
 async def test_async_supervisor_timeout_in_main_thread():
@@ -88,6 +86,4 @@ async def test_async_supervisor_timeout_in_main_thread():
 
         future = supervisor.submit(on_worker_thread)
         with pytest.raises(TimeoutError):
-            supervisor.result(timeout=0.1)
-
-        future.result()
+            await supervisor.result(timeout=0.1)

@@ -305,9 +305,10 @@ class AsyncSupervisor(Supervisor[T]):
 
             # TODO: We could use `cancel_sync_after` to guard this call as a sync call
             #       could block a timeout here
-            result = work_item.run()
-            if inspect.isawaitable(result):
-                await result
+            retval = work_item.run()
+
+            if inspect.isawaitable(retval):
+                await retval
 
             del work_item
 
@@ -319,7 +320,11 @@ class AsyncSupervisor(Supervisor[T]):
             await self._watch_for_work_items()
 
         if ctx.cancelled:
+            try:
+                await self._future
+            except:
+                pass
             raise TimeoutError()
 
         logger.debug("Retrieving result for %r", self)
-        return await self._future
+        return
