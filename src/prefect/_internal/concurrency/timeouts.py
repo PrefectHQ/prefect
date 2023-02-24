@@ -221,7 +221,7 @@ def _watcher_thread_based_timeout(timeout: float):
         time.sleep(timeout)
         if not event.is_set():
             logger.debug(
-                "Cancel fired for watched based timeout of thread %r",
+                "Cancel fired for watcher based timeout of thread %r",
                 supervised_thread.name,
             )
             ctx.cancelled = True
