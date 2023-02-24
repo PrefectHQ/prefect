@@ -656,7 +656,10 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     azure_storage_anon: bool = Field(
         default=True,
         title="Azure storage anonymous connection",
-        description="Set the 'anon' flag for ADLFS. This should be False for systems that require ADLFS to use DefaultAzureCredentials.",
+        description=(
+            "Set the 'anon' flag for ADLFS. This should be False for systems that"
+            " require ADLFS to use DefaultAzureCredentials."
+        ),
     )
 
     _remote_file_system: RemoteFileSystem = None
