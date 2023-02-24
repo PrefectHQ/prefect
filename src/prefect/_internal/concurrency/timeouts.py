@@ -148,6 +148,10 @@ def cancel_sync_after(timeout: Optional[float]):
 
     if sys.platform.startswith("win"):
         # Timeouts cannot be enforced on Windows
+        logger.warning(
+            f"Entered cancel context on Windows; {timeout:.2}s timeout will not be"
+            " enforced."
+        )
         yield ctx
         return
 
