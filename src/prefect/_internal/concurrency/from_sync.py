@@ -23,7 +23,7 @@ def call_soon_in_runtime_thread(
 
     if (
         current_supervisor is None
-        or current_supervisor.owner_thread_ident != runtime.ident
+        or current_supervisor.owner_thread.ident != runtime.ident
     ):
         submit_fn = runtime.submit_to_loop
     else:

@@ -147,9 +147,10 @@ class Supervisor(abc.ABC, Generic[T]):
 
     def __init__(self, submit_fn: Callable[..., concurrent.futures.Future]) -> None:
         self._submit_fn = submit_fn
-        self.owner_thread_ident = threading.get_ident()
+        self._owner_thread = threading.current_thread()
         self._future: AnyFuture = None
         self._future_thread = concurrent.futures.Future()
+        self._future_call: Tuple[Callable, Tuple, Dict] = None
         logger.debug("Created supervisor %r", self)
 
     def submit(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
@@ -175,6 +176,7 @@ class Supervisor(abc.ABC, Generic[T]):
             future = self._submit_fn(_call_in_supervised_thread)
 
         self._set_future(future)
+        self._future_call = (__fn, args, kwargs)
 
         return future
 
@@ -186,6 +188,10 @@ class Supervisor(abc.ABC, Generic[T]):
         self._put_work_item(work_item)
         logger.debug("Sent work item to %r", self)
         return work_item.future
+
+    @property
+    def owner_thread(self):
+        return self._owner_thread
 
     @abc.abstractmethod
     def _put_work_item(self, work_item: WorkItem) -> None:
@@ -211,9 +217,14 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
+        extra = ""
+
+        if self._future_call:
+            extra += f" submitted={self._future_call[0].__name__!r},"
+
         return (
-            f"<{self.__class__.__name__}(id={id(self)},"
-            f" owner={self.owner_thread_ident})>"
+            f"<{self.__class__.__name__} submit_fn={self._submit_fn.__name__!r},"
+            f"{extra} owner={self._owner_thread.name!r}>"
         )
 
 
