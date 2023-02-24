@@ -11,6 +11,12 @@ import anyio
 
 
 class CancelContext:
+    """
+    Tracks if a cancel context manager was cancelled.
+
+    The `cancelled` property is threadsafe.
+    """
+
     def __init__(self) -> None:
         self._cancelled: bool = False
         self._lock = threading.Lock()
@@ -28,6 +34,14 @@ class CancelContext:
 
 @contextlib.contextmanager
 def cancel_async_after(timeout: float):
+    """
+    Cancel any async calls within the context if it does not exit after the given
+    timeout.
+
+    A timeout error will be raised on the next `await` when the timeout expires.
+
+    Yields a `CancelContext`.
+    """
     ctx = CancelContext()
     try:
         with anyio.fail_after(timeout) as cancel_scope:
@@ -38,6 +52,15 @@ def cancel_async_after(timeout: float):
 
 @contextlib.contextmanager
 def cancel_sync_after(timeout: float):
+    """
+    Cancel any sync calls within the context if it does not exit after the given
+    timeout.
+
+    The timeout method varies depending on if this is called in the main thread or not.
+    See `_alarm_based_timeout` and `_watcher_thread_based_timeout` for details.
+
+    Yields a `CancelContext`.
+    """
     ctx = CancelContext()
 
     if sys.platform.startswith("win"):
@@ -64,6 +87,8 @@ def _alarm_based_timeout(timeout: float):
 
     Sets an alarm for `timeout` seconds, then raises a timeout error if the context is
     not exited before the deadline.
+
+    !!! Alarms cannot be floats, so the timeout is rounded up to the nearest integer.
 
     Alarms have the benefit of interrupt sys calls like `sleep`, but signals are always
     raised in the main thread and this cannot be used elsewhere.
