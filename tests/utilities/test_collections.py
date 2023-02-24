@@ -7,14 +7,20 @@ from typing import Any
 import pydantic
 import pytest
 
+from prefect.utilities.annotations import BaseAnnotation, quote
 from prefect.utilities.collections import (
     AutoEnum,
+    StopVisiting,
     dict_to_flatdict,
     flatdict_to_dict,
     isiterable,
     remove_nested_keys,
     visit_collection,
 )
+
+
+class ExampleAnnotation(BaseAnnotation):
+    pass
 
 
 class Color(AutoEnum):
@@ -173,7 +179,6 @@ class TestPydanticObjects:
         assert input._z == 5
 
     def test_immutable_pydantic_behaves_as_expected(self):
-
         input = ImmutablePrivatePydantic(x=1)
 
         # Public attr accessible immediately
@@ -214,6 +219,7 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), SimpleDataclass(x=1, y=-2)),
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
             (ExtraPydantic(x=1, y=2, z=3), ExtraPydantic(x=1, y=-2, z=3)),
+            (ExampleAnnotation(4), ExampleAnnotation(-4)),
         ],
     )
     def test_visit_collection_and_transform_data(self, inp, expected):
@@ -234,6 +240,8 @@ class TestVisitCollection:
             (SimpleDataclass(x=1, y=2), {2}),
             (SimplePydantic(x=1, y=2), {2}),
             (ExtraPydantic(x=1, y=2, z=4), {2, 4}),
+            (ExtraPydantic(x=1, y=2, z=4).copy(exclude={"z"}), {2}),
+            (ExampleAnnotation(4), {4}),
         ],
     )
     def test_visit_collection(self, inp, expected):
@@ -399,6 +407,69 @@ class TestVisitCollection:
             inp, visit_fn=all_negative_numbers, return_data=True, max_depth=depth
         )
         assert result == expected
+
+    def test_visit_collection_context(self):
+        # Create a list of integers with various levels of nesting
+        foo = [1, 2, [3, 4], [5, [6, 7]], 8, 9]
+
+        def visit(expr, context):
+            # When visiting a list, add one to the depth and return the list
+            if isinstance(expr, list):
+                context["depth"] += 1
+                return expr
+            # When visiting an integer, return it plus the depth
+            else:
+                return expr + context["depth"]
+
+        result = visit_collection(foo, visit, context={"depth": 0}, return_data=True)
+        # Seeded with a depth of 0, we expect all of the items in the root list to be
+        # incremented by one, items in a nested list to be incremented by one, etc.
+        # We confirm that integers in the root list visited after the nested lists see
+        # the depth of one
+        assert result == [2, 3, [5, 6], [7, [9, 10]], 9, 10]
+
+    def test_visit_collection_context_from_annotation(self):
+        foo = quote([1, 2, [3]])
+
+        def visit(expr, context):
+            # If we're not visiting the first expression...
+            if not isinstance(expr, quote):
+                assert isinstance(context.get("annotation"), quote)
+            return expr
+
+        result = visit_collection(foo, visit, context={}, return_data=True)
+        assert result == quote([1, 2, [3]])
+
+    def test_visit_collection_remove_annotations(self):
+        foo = quote([1, 2, quote([3])])
+
+        def visit(expr, context):
+            if isinstance(expr, int):
+                return expr + 1
+            return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        assert result == [2, 3, [4]]
+
+    def test_visit_collection_stop_visiting(self):
+        foo = [1, 2, quote([3, [4, 5, 6]])]
+
+        def visit(expr, context):
+            if isinstance(context.get("annotation"), quote):
+                raise StopVisiting()
+
+            if isinstance(expr, int):
+                return expr + 1
+            else:
+                return expr
+
+        result = visit_collection(
+            foo, visit, context={}, return_data=True, remove_annotations=True
+        )
+        # Only the first two items should be visited
+        assert result == [2, 3, [3, [4, 5, 6]]]
 
 
 class TestRemoveKeys:

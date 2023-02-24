@@ -28,8 +28,25 @@ async def test_result_reference_create_and_get(cache_object, storage_block):
 
     assert await result.get() == "test"
 
-    # After retrieval, it should be cached again
-    assert result.has_cached_object()
+    # Only cached after retrieval if enabled during initialization
+    assert result.has_cached_object() == cache_object
+
+
+@pytest.mark.parametrize("cache_object", [True, False])
+async def test_result_literal_populates_default_artifact_metadata(
+    cache_object, storage_block
+):
+    result = await PersistedResult.create(
+        "test",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        serializer=JSONSerializer(),
+        cache_object=cache_object,
+    )
+    assert result.artifact_type == "result"
+    assert isinstance(
+        result.artifact_description, str
+    ), "the artifact description should be populated, the form is block-specific"
 
 
 async def test_result_reference_create_uses_storage(storage_block):

@@ -75,6 +75,22 @@ class FailedRun(PrefectException):
     """
 
 
+class CancelledRun(PrefectException):
+    """
+    Raised when the result from a cancelled run is retrieved and an exception
+    is not attached.
+
+    This occurs when a string is attached to the state instead of an exception
+    or if the state's data is null.
+    """
+
+
+class PausedRun(PrefectException):
+    """
+    Raised when the result from a paused run is retrieved.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
@@ -104,7 +120,7 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
-        message = f"Script at {str(path)!r} encountered an exception"
+        message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)
         self.user_exc = user_exc
 
@@ -183,7 +199,10 @@ class SignatureMismatchError(PrefectException, TypeError):
 
     @classmethod
     def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
-        msg = f"Function expects parameters {expected_params} but was provided with parameters {provided_params}"
+        msg = (
+            f"Function expects parameters {expected_params} but was provided with"
+            f" parameters {provided_params}"
+        )
         return cls(msg)
 
 
@@ -254,6 +273,27 @@ class Abort(PrefectSignal):
     """
 
 
+class Pause(PrefectSignal):
+    """
+    Raised when a flow run is PAUSED and needs to exit for resubmission.
+    """
+
+
+class ExternalSignal(BaseException):
+    """
+    Base type for external signal-like exceptions that should never be caught by users.
+    """
+
+
+class TerminationSignal(ExternalSignal):
+    """
+    Raised when a flow run receives a termination signal.
+    """
+
+    def __init__(self, signal: int):
+        self.signal = signal
+
+
 class PrefectHTTPStatusError(HTTPStatusError):
     """
     Raised when client receives a `Response` that contains an HTTPStatusError.
@@ -311,3 +351,31 @@ class ProtectedBlockError(PrefectException):
 
 class InvalidRepositoryURLError(PrefectException):
     """Raised when an incorrect URL is provided to a GitHub filesystem block."""
+
+
+class InfrastructureError(PrefectException):
+    """
+    A base class for exceptions related to infrastructure blocks
+    """
+
+
+class InfrastructureNotFound(PrefectException):
+    """
+    Raised when infrastructure is missing, likely because it has exited or been
+    deleted.
+    """
+
+
+class InfrastructureNotAvailable(PrefectException):
+    """
+    Raised when infrastructure is not accessable from the current machine. For example,
+    if a process was spawned on another machine it cannot be managed.
+    """
+
+
+class NotPausedError(PrefectException):
+    """Raised when attempting to unpause a run that isn't paused."""
+
+
+class FlowPauseTimeout(PrefectException):
+    """Raised when a flow pause times out"""

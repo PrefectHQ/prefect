@@ -56,9 +56,9 @@ handlers:
             log.flow_run_name: magenta
             log.flow_name: bold magenta
 
-    orion:
+    api:
         level: 0
-        class: prefect.logging.handlers.OrionHandler
+        class: prefect.logging.handlers.APILogHandler
 
 loggers:
     prefect:
@@ -66,17 +66,17 @@ loggers:
 
     prefect.extra:
         level: "${PREFECT_LOGGING_LEVEL}"
-        handlers: [orion]
+        handlers: [api]
 
     prefect.flow_runs:
         level: NOTSET
-        handlers: [orion]
+        handlers: [api]
 
     prefect.task_runs:
         level: NOTSET
-        handlers: [orion]
+        handlers: [api]
 
-    prefect.orion:
+    prefect.server:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
     prefect.client:

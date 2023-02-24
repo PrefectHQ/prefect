@@ -4,7 +4,7 @@ import time
 import warnings
 from asyncio import Event, sleep
 from typing import Any, Dict, List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from uuid import UUID
 
 import anyio
@@ -22,9 +22,10 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
-from prefect.orion import models
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.states import StateType
+from prefect.server import models
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.states import StateType
+from prefect.settings import PREFECT_TASKS_REFRESH_CACHE, temporary_settings
 from prefect.states import State
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal, flaky_on_windows
@@ -75,6 +76,32 @@ class TestTaskName:
             pass
 
         assert my_task.name == "another_name"
+
+
+class TestTaskRunName:
+    def test_run_name_default(self):
+        @task
+        def my_task():
+            pass
+
+        assert my_task.task_run_name is None
+
+    def test_run_name_from_kwarg(self):
+        @task(task_run_name="another_name")
+        def my_task():
+            pass
+
+        assert my_task.task_run_name == "another_name"
+
+    def test_run_name_from_options(self):
+        @task(task_run_name="first_name")
+        def my_task():
+            pass
+
+        assert my_task.task_run_name == "first_name"
+
+        new_task = my_task.with_options(task_run_name="second_name")
+        assert new_task.task_run_name == "second_name"
 
 
 class TestTaskCall:
@@ -319,6 +346,18 @@ class TestTaskRun:
         assert isinstance(task_state, State)
         assert task_state.result() == 1
 
+    def test_task_returns_generator_implicit_list(self):
+        @task
+        def my_generator(n):
+            for i in range(n):
+                yield i
+
+        @flow
+        def my_flow():
+            return my_generator(5)
+
+        assert my_flow() == [0, 1, 2, 3, 4]
+
 
 class TestTaskSubmit:
     def test_task_submitted_outside_flow_raises(self):
@@ -466,6 +505,82 @@ class TestTaskSubmit:
         result = test_flow()
         assert isinstance(result, ValueError)
         assert "Fail task!" in str(result)
+
+    def test_downstream_receives_exception_in_collection_if_upstream_fails_and_allow_failure(
+        self,
+    ):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = bar.submit(allow_failure([f, 1, 2]))
+            return b.result()
+
+        result = test_flow()
+        assert isinstance(result, list), f"Expected list; got {type(result)}"
+        assert isinstance(result[0], ValueError)
+        assert result[1:] == [1, 2]
+        assert "Fail task!" in str(result)
+
+    def test_allow_failure_chained_mapped_tasks(
+        self,
+    ):
+        @task
+        def fails_on_two(x):
+            if x == 2:
+                raise ValueError("Fail task")
+            return x
+
+        @task
+        def identity(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails_on_two.map([1, 2, 3])
+            b = identity.map(allow_failure(f))
+            return b
+
+        states = test_flow()
+        assert isinstance(states, list), f"Expected list; got {type(states)}"
+
+        assert states[0].result(), states[2].result() == [1, 3]
+
+        assert states[1].is_completed()
+        assert exceptions_equal(states[1].result(), ValueError("Fail task"))
+
+    def test_allow_failure_mapped_with_noniterable_upstream(
+        self,
+    ):
+        @task
+        def fails():
+            raise ValueError("Fail task")
+
+        @task
+        def identity(y, z):
+            return y, z
+
+        @flow
+        def test_flow():
+            f = fails.submit()
+            b = identity.map([1, 2, 3], allow_failure(f))
+            return b
+
+        states = test_flow()
+        assert isinstance(states, list), f"Expected list; got {type(states)}"
+
+        assert len(states) == 3
+        for i, state in enumerate(states):
+            y, z = state.result()
+            assert y == i + 1
+            assert exceptions_equal(z, ValueError("Fail task"))
 
 
 class TestTaskStates:
@@ -852,7 +967,6 @@ class TestTaskCaching:
         assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
-
         # this hash fn won't return the same value twice
         def mutating_key(*_, tally=[]):
             tally.append("x")
@@ -982,6 +1096,64 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.result() != first_state.result()
+
+    def test_cache_misses_w_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Completed"
+        assert second_state.result() != first_state.result()
+
+    def test_cache_hits_wo_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return foo(1, return_state=True), foo(2, return_state=True)
+
+        first_state, second_state = bar()
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert second_state.result() == first_state.result()
+
+    def test_tasks_refresh_cache_setting(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=True)
+        def refresh_task(x):
+            return x
+
+        @task(cache_key_fn=lambda *_: "cache hit", refresh_cache=False)
+        def not_refresh_task(x):
+            return x
+
+        @flow
+        def bar():
+            foo(0)
+            return (
+                foo(1, return_state=True),
+                refresh_task(2, return_state=True),
+                not_refresh_task(3, return_state=True),
+            )
+
+        with temporary_settings({PREFECT_TASKS_REFRESH_CACHE: True}):
+            first_state, second_state, third_state = bar()
+            assert first_state.name == "Completed"
+            assert second_state.name == "Completed"
+            assert third_state.name == "Cached"
+            assert second_state.result() != first_state.result()
+            assert third_state.result() == second_state.result()
 
 
 class TestCacheFunctionBuiltins:
@@ -2132,7 +2304,7 @@ class TestTaskWaitFor:
         assert task_state.result() == 2
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestTaskRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @task
@@ -2227,6 +2399,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
             timeout_seconds=None,
+            refresh_cache=False,
         )
         def initial_task():
             pass
@@ -2244,6 +2417,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
             timeout_seconds=42,
+            refresh_cache=True,
         )
 
         assert task_with_options.name == "Copied task"
@@ -2258,6 +2432,7 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.refresh_cache == True
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2276,6 +2451,7 @@ class TestTaskWithOptions:
             result_storage=LocalFileSystem(),
             cache_result_in_memory=False,
             timeout_seconds=42,
+            refresh_cache=True,
         )
         def initial_task():
             pass
@@ -2298,12 +2474,14 @@ class TestTaskWithOptions:
         assert task_with_options.result_storage == LocalFileSystem()
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
+        assert task_with_options.refresh_cache == True
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
             persist_result=True,
             result_serializer="json",
             result_storage=LocalFileSystem(),
+            refresh_cache=True,
         )
         def initial_task():
             pass
@@ -2312,10 +2490,12 @@ class TestTaskWithOptions:
             persist_result=None,
             result_serializer=None,
             result_storage=None,
+            refresh_cache=None,
         )
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
+        assert task_with_options.refresh_cache is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
@@ -2353,6 +2533,31 @@ class TestTaskWithOptions:
         assert task_with_options.retries == 0
         assert task_with_options.retry_delay_seconds == 0
 
+    def test_with_options_refresh_cache(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            return (
+                foo(1, return_state=True),
+                foo(2, return_state=True),
+                foo.with_options(refresh_cache=True)(3, return_state=True),
+                foo(4, return_state=True),
+            )
+
+        first, second, third, fourth = bar()
+        assert first.name == "Completed"
+        assert second.name == "Cached"
+        assert third.name == "Completed"
+        assert fourth.name == "Cached"
+
+        assert first.result() == second.result()
+        assert second.result() != third.result()
+        assert third.result() == fourth.result()
+        assert fourth.result() != first.result()
+
 
 class TestTaskRegistration:
     def test_task_is_registered(self):
@@ -2366,7 +2571,10 @@ class TestTaskRegistration:
     def test_warning_name_conflict_different_function(self):
         with pytest.warns(
             UserWarning,
-            match=r"A task named 'my_task' and defined at '.+:\d+' conflicts with another task.",
+            match=(
+                r"A task named 'my_task' and defined at '.+:\d+' conflicts with another"
+                r" task."
+            ),
         ):
 
             @task(name="my_task")
@@ -2771,3 +2979,283 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+
+class TestTaskConstructorValidation:
+    async def test_task_cannot_configure_too_many_custom_retry_delays(self):
+        with pytest.raises(ValueError, match="Can not configure more"):
+
+            @task(retries=42, retry_delay_seconds=list(range(51)))
+            async def insanity():
+                raise RuntimeError("try again!")
+
+    async def test_task_cannot_configure_negative_relative_jitter(self):
+        with pytest.raises(ValueError, match="`retry_jitter_factor` must be >= 0"):
+
+            @task(retries=42, retry_delay_seconds=100, retry_jitter_factor=-10)
+            async def insanity():
+                raise RuntimeError("try again!")
+
+
+async def test_task_run_name_is_set(orion_client):
+    @task(task_run_name="fixed-name")
+    def my_task(name):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="chris")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "fixed-name"
+
+
+async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client):
+    @task(task_run_name="{name}-wuz-{where}")
+    def my_task(name, where="here"):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="chris")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "chris-wuz-here"
+
+
+def create_hook(mock_obj):
+    def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+def create_async_hook(mock_obj):
+    async def my_hook(task, task_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+class TestTaskHooksOnCompletion:
+    def test_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, completed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    def test_on_completion_hooks_dont_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, completed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state == StateType.FAILED
+            assert my_mock.call_args_list == []
+
+    def test_other_completion_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def completed1(task, task_run, state):
+            my_mock("completed1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("oops")
+
+        def completed2(task, task_run, state):
+            my_mock("completed2")
+
+        @task(on_completion=[completed1, exception_hook, completed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_completion_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_completion=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            return my_task._run()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
+class TestTaskHooksOnFailure:
+    def test_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, failed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_dont_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, failed2])
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        state = my_flow()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == []
+
+    def test_other_failure_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        def exception_hook(task, task_run, state):
+            raise Exception("bad hook")
+
+        def failed2(task, task_run, state):
+            my_mock("failed2")
+
+        @task(on_failure=[failed1, exception_hook, failed2])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_failure_hooks_work_with_sync_and_async_functions(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @task(on_failure=[hook1_with_mock, hook2_with_mock])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        with pytest.raises(Exception, match="oops"):
+            state = my_flow()
+            assert state.type == StateType.FAILED
+            assert my_mock.call_args_list == [call(), call()]
+
+    def test_failure_hooks_dont_run_on_retries(self):
+        my_mock = MagicMock()
+
+        def failed1(task, task_run, state):
+            my_mock("failed1")
+
+        @task(retries=2, on_failure=[failed1])
+        def my_task():
+            raise Exception("oops")
+
+        @flow
+        def my_flow():
+            future = my_task.submit()
+            return future.wait()
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1")]

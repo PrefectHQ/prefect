@@ -1,7 +1,6 @@
 ---
 description: Prefect logging captures information about flows and tasks for monitoring, troubleshooting, and auditing.
 tags:
-    - Orion
     - UI
     - dashboard
     - Prefect Cloud
@@ -17,9 +16,9 @@ tags:
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 
-Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect Orion API server with `prefect orion start`.
+Prefect captures logs for your flow and task runs by default, even if you have not started a Prefect server with `prefect server start`.
 
-You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API or CLI.
+You can view and filter logs in the [Prefect UI](/ui/flow-runs/#inspect-a-flow-run) or Prefect Cloud, or access log records via the API.
 
 Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
@@ -47,7 +46,7 @@ Completed('All states completed.')
 
 You can see logs for the flow run in the Prefect UI by navigating to the [**Flow Runs**](/ui/flow-runs/#inspect-a-flow-run) page and selecting a specific flow run to inspect.
 
-![Viewing logs for a flow run in the Prefect UI](/img/ui/orion-flow-run-details.png)
+![Viewing logs for a flow run in the Prefect UI](../img/ui/flow-run-details.png)
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
@@ -63,9 +62,9 @@ For example, to change the default logging levels for Prefect to `DEBUG`, you ca
 
 You may also configure the "root" Python logger. The root logger receives logs from all loggers unless they explicitly opt out by disabling propagation. By default, the root logger is configured to output `WARNING` level logs to the console. As with other logging settings, you can override this from the environment or in the logging configuration file. For example, you can change the level with the variable `PREFECT_LOGGING_ROOT_LEVEL`.
 
-You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to Orion. The console handlers will still default to level `INFO`.
+You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_API_LEVEL=ERROR` to have only `ERROR` logs reported to the Prefect API. The console handlers will still default to level `INFO`.
 
-There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
+There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
 
 You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
@@ -98,6 +97,9 @@ Prefect automatically uses the flow run logger based on the flow context. If you
 
 The default flow run log formatter uses the flow run name for log messages.
 
+!!! note
+        Starting in 2.7.11, if you use a logger that sends logs to the API outside of a flow or task run, a warning will be displayed instead of an error. You can silence this warning by setting `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore` or have the logger raise an error by setting the value to `error`.
+
 ### Logging in tasks
 
 Logging in tasks works much as logging in flows: retrieve a logger instance with `get_run_logger()`, then call the standard Python [logging methods](https://docs.python.org/3/library/logging.html).
@@ -124,6 +126,71 @@ Prefect automatically uses the task run logger based on the task context. The de
 </div>
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
+
+### Logging print statements
+
+Prefect provides the `log_prints` option to enable the logging of `print` statements at the task or flow level. When `log_prints=True` for a given task or flow, the Python builtin `print` will be patched to redirect to the Prefect logger for the scope of that task or flow.
+
+By default, tasks and subflows will inherit the `log_prints` setting from their parent flow, unless opted out with their own explicit `log_prints` setting.
+
+
+```python
+from prefect import task, flow
+
+@task
+def my_task():
+    print("we're logging print statements from a task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+Will output:
+
+<div class='terminal'>
+```bash
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+15:52:12.217 | INFO    | Task run 'my_task-20c6ece6-0' - we're logging print statements from a task
+```
+</div>
+
+```python
+from prefect import task, flow
+
+@task
+def my_task(log_prints=False):
+    print("not logging print statements in this task")
+
+@flow(log_prints=True)
+def my_flow():
+    print("we're logging print statements from a flow")
+    my_task()
+```
+
+Using `log_prints=False` at the task level will output:
+
+<div class='terminal'>
+```bash
+15:52:11.244 | INFO    | prefect.engine - Created flow run 'emerald-gharial' for flow 'my-flow'
+15:52:11.812 | INFO    | Flow run 'emerald-gharial' - we're logging print statements from a flow
+15:52:11.926 | INFO    | Flow run 'emerald-gharial' - Created task run 'my_task-20c6ece6-0' for task 'my_task'
+15:52:11.927 | INFO    | Flow run 'emerald-gharial' - Executing 'my_task-20c6ece6-0' immediately...
+not logging print statements in this task
+```
+</div>
+
+You can also configure this behavior globally for all Prefect flows, tasks, and subflows.
+
+<div class='terminal'>
+```bash
+prefect config set PREFECT_LOGGING_LOG_PRINTS=True
+```
+</div>
 
 ## Formatters
 
@@ -155,7 +222,7 @@ You can specify custom formatting by setting an environment variable or by modif
 
 <div class='terminal'>
 ```bash
-PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_FORMAT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
+PREFECT_LOGGING_FORMATTERS_STANDARD_FLOW_RUN_FMT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
 ```
 </div>
 
@@ -268,9 +335,34 @@ def log_email_flow():
 log_email_flow()
 ```
 
+## Applying markup in logs
+
+To use [Rich's markup](https://rich.readthedocs.io/en/stable/markup.html#console-markup) in Prefect logs, first configure `PREFECT_LOGGING_MARKUP`.
+
+<div class='terminal'>
+```bash
+PREFECT_LOGGING_MARKUP=True
+```
+</div>
+
+Then, the following will highlight "fancy" in red.
+```python
+from prefect import flow, get_run_logger
+
+@flow
+def my_flow():
+    logger = get_run_logger()
+    logger.info("This is [bold red]fancy[/]")
+
+log_email_flow()
+```
+
+!!! warning "Inaccurate logs could result"
+    Although this can be convenient, the downside is, if enabled, strings that contain square brackets may be inaccurately interpreted and lead to incomplete output, e.g. `DROP TABLE [dbo].[SomeTable];"` outputs `DROP TABLE .[SomeTable];`.
+
 ## Log database schema
 
-Logged events are also persisted to the Orion database. A log record includes the following data:
+Logged events are also persisted to the Prefect database. A log record includes the following data:
 
 | Column | Description |
 | --- | --- |
@@ -284,4 +376,4 @@ Logged events are also persisted to the Orion database. A log record includes th
 | message | Log message. |
 | timestamp | The client-side timestamp of this logged statement. |
 
-For more information, see [Log schema](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Log) in the API documentation.
+For more information, see [Log schema](/api-ref/server/schemas/core/#prefect.server.schemas.core.Log) in the API documentation.

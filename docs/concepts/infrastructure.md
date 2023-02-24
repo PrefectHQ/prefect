@@ -8,6 +8,8 @@ tags:
     - Kubernetes
     - Docker
     - ECS
+    - Cloud Run
+    - Container Instances
 ---
 
 # Infrastructure
@@ -32,7 +34,9 @@ Infrastructure is specific to the environments in which flows will run. Prefect 
 - [`Process`](/api-ref/prefect/infrastructure/#prefect.infrastructure.process.Process) runs flows in a local subprocess.
 - [`DockerContainer`](/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerContainer) runs flows in a Docker container.
 - [`KubernetesJob`](/api-ref/prefect/infrastructure/#prefect.infrastructure.kubernetes.KubernetesJob) runs flows in a Kubernetes Job.
-- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an ECS Task.
+- [`ECSTask`](https://prefecthq.github.io/prefect-aws/ecs/) runs flows in an Amazon ECS Task.
+- [`Cloud Run`](https://prefecthq.github.io/prefect-gcp/cloud_run/) runs flows in a Google Cloud Run Job.
+- [`Container Instance`](https://prefecthq.github.io/prefect-azure/container_instance/) runs flows in an Azure Container Instance.
 
 !!! question "What about tasks?"
     Flows and tasks can both use configuration objects to manage the environment in which code runs. 
@@ -56,10 +60,12 @@ For example, when creating your deployment files, the supported Prefect infrastr
 - `docker-container`
 - `kubernetes-job`
 - `ecs-task`
+- `cloud-run-job`
+- `container-instance-job`
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket
+$ prefect deployment build ./my_flow.py:my_flow -n my-flow-deployment -t test -i docker-container -sb s3/my-bucket --override env.EXTRA_PIP_PACKAGES=s3fs
 Found flow 'my-flow'
 Successfully uploaded 2 files to s3://bucket-full-of-sunshine
 Deployment YAML created at '/Users/terry/test/flows/infra/deployment.yaml'.
@@ -76,10 +82,17 @@ The default deployment YAML filename may be edited as needed to add an infrastru
 ###
 name: my-flow-deployment
 description: null
+version: e29de5d01b06d61b4e321d40f34a480c
+# The work queue that will handle this deployment's runs
+work_queue_name: default
+work_pool_name: default-agent-pool
 tags:
 - test
-schedule: null
 parameters: {}
+schedule: null
+is_schedule_active: true
+infra_overrides:
+  env.EXTRA_PIP_PACKAGES: s3fs
 infrastructure:
   type: docker-container
   env: {}
@@ -96,6 +109,12 @@ infrastructure:
   auto_remove: false
   volumes: []
   stream_output: true
+  memswap_limit: null
+  mem_limit: null
+  privileged: false
+  block_type_slug: docker-container
+  _block_type_slug: docker-container
+  
 ###
 ### DO NOT EDIT BELOW THIS LINE
 ###
@@ -108,13 +127,17 @@ storage:
   _is_anonymous: true
   _block_document_name: anonymous-xxxxxxxx-f1ff-4265-b55c-6353a6d65333
   _block_document_id: xxxxxxxx-06c2-4c3c-a505-4a8db0147011
+  block_type_slug: s3
   _block_type_slug: s3
+path: ''
+entrypoint: my_flow.py:my-flow
 parameter_openapi_schema:
   title: Parameters
   type: object
   properties: {}
   required: null
   definitions: null
+timestamp: '2023-02-08T23:00:14.974642+00:00'
 ```
 
 !!! note "Editing deployment YAML"
@@ -174,7 +197,7 @@ Requirements for `DockerContainer`:
 - Docker Engine must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with Docker and Kubernetes. You must have a Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
 `DockerContainer` supports the following settings:
 
@@ -203,29 +226,110 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with Docker and Kubernetes. You must have an Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
-The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
+The Prefect CLI command `prefect kubernetes manifest server` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
 `KubernetesJob` supports the following settings:
 
 | Attributes | Description |
 | ---- | ---- |
+| cluster_config | An optional Kubernetes cluster config to use for this job. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).|
 | env	| Environment variables to set for the container. |
+| finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |
 | image_pull_policy | The Kubernetes image pull policy to use for job containers. |
 | job	| The base manifest for the Kubernetes Job. |
-| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (default 5). |
+| job_watch_timeout_seconds	| Number of seconds to watch for job creation before timing out (defaults to None). |
 | labels | Dictionary of labels to add to the Job. |
 | name | An optional name for the job. |
 | namespace | String signifying the Kubernetes namespace to use. |
-| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 5). |
-| restart_policy | The Kubernetes restart policy to use for Jobs. |
+| pod_watch_timeout_seconds	| Number of seconds to watch for pod creation before timing out (default 60). |
 | service_account_name	| An optional string specifying which Kubernetes service account to use. | 
 | stream_output | Bool indicating whether to stream output from the subprocess to local standard output. |
 
+#### KubernetesJob overrides and customizations
+
+When creating deployments using `KubernetesJob` infrastructure, the `infra_overrides` parameter expects a dictionary. For a `KubernetesJob`, the `customizations` parameter expects a list. 
+
+Containers expect a list of objects, even if there is only one.
+For any patches applying to the container, the path value should be a list, for example:
+  `/spec/templates/spec/containers/0/resources`
+
+A `Kubernetes-Job` infrastructure block defined in Python:
+
+```python
+customizations = [
+	{
+	    "op": "add",
+	    "path": "/spec/template/spec/containers/0/resources",
+	    "value": {
+	        "requests": {
+	            "cpu": "2000m",
+	            "memory": "4gi"
+	        },
+	        "limits": {
+	            "cpu": "4000m",
+	            "memory": "8Gi",
+	            "nvidia.com/gpu": "1"
+	    	}
+		},
+	}
+]
+
+k8s_job = KubernetesJob(
+        namespace=namespace,
+        image=image_name,
+        image_pull_policy=KubernetesImagePullPolicy.ALWAYS,
+        finished_job_ttl=300,
+        job_watch_timeout_seconds=600,
+        pod_watch_timeout_seconds=600,
+        service_account_name="prefect-server",
+        customizations=customizations,
+    )
+k8s_job.save("devk8s")
+```
+
+A `Deployment` with infra-overrides defined in Python:
+
+```python
+infra_overrides={ 
+    "customizations": [
+            {
+                "op": "add",
+                "path": "/spec/template/spec/containers/0/resources",
+                "value": {
+                    "requests": {
+                        "cpu": "2000m",
+                        "memory": "4gi"
+                    },
+                    "limits": {
+                        "cpu": "4000m",
+                        "memory": "8Gi",
+                        "nvidia.com/gpu": "1"
+                }
+            },
+        }
+    ]
+}
+
+# Load an already created K8s Block
+k8sjob = k8s_job.load("devk8s")
+
+deployment = Deployment.build_from_flow(
+    flow=my_flow,
+    name="s3-example",
+    version=2,
+    work_queue_name="aws",
+    infrastructure=k8sjob,
+    storage=storage,
+    infra_overrides=infra_overrides,
+)
+
+deployment.apply()
+```
 
 ### ECSTask
 
@@ -233,7 +337,7 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 
 Requirements for `ECSTask`:
 
-- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with ECS directly. You must have a Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 - The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
 - The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  
@@ -246,8 +350,10 @@ RUN pip install s3fs prefect-aws
 To get started using Prefect with ECS, check out the repository template [dataflow-ops](https://github.com/anna-geller/dataflow-ops) demonstrating ECS agent setup and various deployment configurations for using `ECSTask` block. 
 
 
-!!! tip "Make sure to allocate enough CPU and memory to your agent"
+!!! tip "Make sure to allocate enough CPU and memory to your agent, and consider adding retries"
     When you start a Prefect agent on AWS ECS Fargate, allocate as much [CPU and memory](https://docs.aws.amazon.com/AmazonECS/latest/userguide/fargate-task-defs.html#fargate-tasks-size) as needed for your workloads. Your agent needs enough resources to appropriately provision infrastructure for your flow runs and to monitor their execution. Otherwise, your flow runs may [get stuck](https://github.com/PrefectHQ/prefect-aws/issues/156#issuecomment-1320748748) in a `Pending` state. Alternatively, set a work-queue concurrency limit to ensure that the agent will not try to process all runs at the same time.
+
+    Some API calls to provision infrastructure may fail due to unexpected issues on the client side (for example, transient errors such as `ConnectionError`, `HTTPClientError`, or `RequestTimeout`), or due to server-side rate limiting from the AWS service. To mitigate those issues, we recommend adding [environment variables](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#using-environment-variables) such as `AWS_MAX_ATTEMPTS` (can be set to an integer value such as 10) and `AWS_RETRY_MODE` (can be set to a string value including `standard` or `adaptive` modes). Those environment variables must be added within the *agent* environment, e.g. on your ECS service running the agent, rather than on the `ECSTask` infrastructure block. 
     
 
 ## Docker images

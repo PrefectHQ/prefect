@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
@@ -7,6 +8,7 @@ import docker
 import pytest
 
 from prefect.docker import get_prefect_image_name
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.docker import (
     CONTAINER_LABELS,
     DockerContainer,
@@ -18,6 +20,9 @@ from prefect.testing.utilities import assert_does_not_warn
 if TYPE_CHECKING:
     from docker import DockerClient
     from docker.models.containers import Container
+
+FAKE_CONTAINER_ID = "fake-id"
+FAKE_BASE_URL = "http+docker://my-url"
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +43,7 @@ def mock_docker_client(monkeypatch):
     fake_container.client = MagicMock(name="Container.client")
     fake_container.collection = MagicMock(name="Container.collection")
     attrs = {
-        "Id": "fake-id",
+        "Id": FAKE_CONTAINER_ID,
         "Name": "fake-name",
         "State": {
             "Status": "exited",
@@ -56,10 +61,15 @@ def mock_docker_client(monkeypatch):
     }
     fake_container.collection.get().attrs = attrs
     fake_container.attrs = attrs
-
+    fake_container.stop = MagicMock()
     # Return the fake container on lookups and creation
     mock.containers.get.return_value = fake_container
     mock.containers.create.return_value = fake_container
+
+    # Set attributes for infrastructure PID lookup
+    fake_api = MagicMock(name="APIClient")
+    fake_api.base_url = FAKE_BASE_URL
+    mock.api = fake_api
 
     monkeypatch.setattr("docker.from_env", MagicMock(return_value=mock))
     return mock
@@ -80,11 +90,63 @@ def mock_docker_client(monkeypatch):
 def test_name_cast_to_valid_container_name(
     mock_docker_client, requested_name, container_name
 ):
-
     DockerContainer(command=["echo", "hello"], name=requested_name).run()
     mock_docker_client.containers.create.assert_called_once()
     call_name = mock_docker_client.containers.create.call_args[1].get("name")
     assert call_name == container_name
+
+
+async def test_kill_calls_container_stop(mock_docker_client):
+    """Happy path for kill"""
+
+    await DockerContainer().kill(f"{FAKE_BASE_URL}:{FAKE_CONTAINER_ID}", 0)
+    mock_docker_client.containers.get.return_value.stop.assert_called_once()
+
+
+async def test_kill_calls_container_stop_with_correct_grace_seconds(mock_docker_client):
+    """Happy path for kill"""
+    GRACE_SECONDS = 42
+    await DockerContainer().kill(
+        infrastructure_pid=f"{FAKE_BASE_URL}:{FAKE_CONTAINER_ID}",
+        grace_seconds=GRACE_SECONDS,
+    )
+
+    mock_docker_client.containers.get.return_value.stop.assert_called_with(
+        timeout=GRACE_SECONDS
+    )
+
+
+async def test_kill_raises_infra_not_available_with_bad_host_url(mock_docker_client):
+    BAD_BASE_URL = "bad-base-url"
+    expected_string = "".join(
+        [
+            f"Unable to stop container {FAKE_CONTAINER_ID!r}: the current Docker API ",
+            f"URL {mock_docker_client.api.base_url!r} does not match the expected ",
+            f"API base URL {BAD_BASE_URL}.",
+        ]
+    )
+    with pytest.raises(InfrastructureNotAvailable, match=re.escape(expected_string)):
+        await DockerContainer().kill(
+            infrastructure_pid=f"{BAD_BASE_URL}:{FAKE_CONTAINER_ID}", grace_seconds=0
+        )
+
+
+async def test_kill_raises_infra_not_found_with_bad_container_id(
+    mock_docker_client,
+):
+    mock_docker_client.containers.get.side_effect = [docker.errors.NotFound("msg")]
+
+    BAD_CONTAINER_ID = "bad-container-id"
+    with pytest.raises(
+        InfrastructureNotFound,
+        match=(
+            f"Unable to stop container {BAD_CONTAINER_ID!r}: The container was not"
+            " found."
+        ),
+    ):
+        await DockerContainer().kill(
+            infrastructure_pid=f"{FAKE_BASE_URL}:{BAD_CONTAINER_ID}", grace_seconds=0
+        )
 
 
 def test_container_name_falls_back_to_null(mock_docker_client):
@@ -155,6 +217,28 @@ def test_uses_volumes_setting(mock_docker_client):
     assert "c:d" in call_volumes
 
 
+def test_uses_privileged_setting(mock_docker_client):
+    DockerContainer(command=["echo", "hello"], privileged=True).run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("privileged") is True
+
+
+def test_uses_memswap_limit_setting(mock_docker_client):
+    DockerContainer(
+        command=["echo", "hello"], mem_limit="500m", memswap_limit="1g"
+    ).run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert (
+        mock_docker_client.containers.create.call_args[1].get("memswap_limit") == "1g"
+    )
+
+
+def test_uses_mem_limit_setting(mock_docker_client):
+    DockerContainer(command=["echo", "hello"], mem_limit="1g").run()
+    mock_docker_client.containers.create.assert_called_once()
+    assert mock_docker_client.containers.create.call_args[1].get("mem_limit") == "1g"
+
+
 @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
 def test_uses_network_setting(mock_docker_client, networks):
     DockerContainer(command=["echo", "hello"], networks=networks).run()
@@ -182,7 +266,6 @@ def test_uses_network_setting(mock_docker_client, networks):
 def test_uses_label_setting(
     mock_docker_client,
 ):
-
     DockerContainer(
         command=["echo", "hello"], labels={"foo": "FOO", "bar": "BAR"}
     ).run()
@@ -194,7 +277,6 @@ def test_uses_label_setting(
 def test_uses_network_mode_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], network_mode="bridge").run()
     mock_docker_client.containers.create.assert_called_once()
     network_mode = mock_docker_client.containers.create.call_args[1].get("network_mode")
@@ -204,7 +286,6 @@ def test_uses_network_mode_setting(
 def test_uses_env_setting(
     mock_docker_client,
 ):
-
     DockerContainer(command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}).run()
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
@@ -334,7 +415,6 @@ def test_network_mode_defaults_to_none_if_using_networks(mock_docker_client):
 
 
 def test_network_mode_defaults_to_none_if_using_nonlocal_api(mock_docker_client):
-
     DockerContainer(
         command=["echo", "hello"], env=dict(PREFECT_API_URL="http://foo/test")
     ).run()
@@ -380,7 +460,6 @@ def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
 def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     mock_docker_client, hosted_orion_api
 ):
-
     DockerContainer(
         command=["echo", "hello"],
         network_mode="bridge",
@@ -594,7 +673,7 @@ def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     with pytest.warns(
         UserWarning,
         match=(
-            "`host.docker.internal` could not be automatically resolved.*"
+            f"`host.docker.internal` could not be automatically resolved.*"
             f"feature is not supported on Docker Engine v19.1.1"
         ),
     ):
@@ -630,7 +709,15 @@ def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_api_url(
     assert not call_extra_hosts
 
 
-def test_task_status_receives_container_id(mock_docker_client):
+def test_task_infra_pid_includes_host_and_container_id(mock_docker_client):
+    fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+    result = DockerContainer(command=["echo", "hello"], stream_output=False).run(
+        task_status=fake_status
+    )
+    assert result.identifier == f"{FAKE_BASE_URL}:{FAKE_CONTAINER_ID}"
+
+
+def test_task_status_receives_result_identifier(mock_docker_client):
     fake_status = MagicMock(spec=anyio.abc.TaskStatus)
     result = DockerContainer(command=["echo", "hello"], stream_output=False).run(
         task_status=fake_status
@@ -666,7 +753,8 @@ def test_container_result(docker: "DockerClient"):
     assert bool(result)
     assert result.status_code == 0
     assert result.identifier
-    container = docker.containers.get(result.identifier)
+    _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+    container = docker.containers.get(container_id)
     assert container is not None
 
 
@@ -679,7 +767,8 @@ def test_container_auto_remove(docker: "DockerClient"):
     assert result.status_code == 0
     assert result.identifier
     with pytest.raises(NotFound):
-        docker.containers.get(result.identifier)
+        _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+        docker.containers.get(container_id)
 
 
 @pytest.mark.service("docker")
@@ -689,7 +778,9 @@ def test_container_metadata(docker: "DockerClient"):
         name="test-name",
         labels={"test.foo": "a", "test.bar": "b"},
     ).run()
-    container: "Container" = docker.containers.get(result.identifier)
+
+    _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+    container: "Container" = docker.containers.get(container_id)
     assert container.name == "test-name"
     assert container.labels["test.foo"] == "a"
     assert container.labels["test.bar"] == "b"
@@ -708,11 +799,14 @@ def test_container_name_collision(docker: "DockerClient"):
         command=["echo", "hello"], name=base_name, auto_remove=False
     )
     result = container.run()
-    created_container: "Container" = docker.containers.get(result.identifier)
+
+    _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+    created_container: "Container" = docker.containers.get(container_id)
     assert created_container.name == base_name
 
     result = container.run()
-    created_container: "Container" = docker.containers.get(result.identifier)
+    _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+    created_container: "Container" = docker.containers.get(container_id)
     assert created_container.name == base_name + "-1"
 
 
@@ -722,7 +816,8 @@ async def test_container_result_async(docker: "DockerClient"):
     assert bool(result)
     assert result.status_code == 0
     assert result.identifier
-    container = docker.containers.get(result.identifier)
+    _, container_id = DockerContainer()._parse_infrastructure_pid(result.identifier)
+    container = docker.containers.get(container_id)
     assert container is not None
 
 
@@ -766,7 +861,8 @@ def test_logs_when_unexpected_docker_error(caplog, mock_docker_client):
     ).run()
 
     assert (
-        "An unexpected Docker API error occured while streaming output from container fake-name."
+        "An unexpected Docker API error occured while streaming output from container"
+        " fake-name."
         in caplog.text
     )
 

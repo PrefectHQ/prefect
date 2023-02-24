@@ -31,6 +31,10 @@ markdown_extensions:
     - toc:
         permalink: true
     - pymdownx.snippets
+    - pymdownx.emoji:
+        emoji_index: !!python/name:materialx.emoji.twemoji
+        emoji_generator: !!python/name:materialx.emoji.to_svg
+
 theme:
     name: material
     custom_dir: docs/overrides
@@ -40,7 +44,6 @@ theme:
         - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
-        - navigation.instant
         - search.suggest
         - search.highlight
     font:
@@ -69,17 +72,22 @@ theme:
             icon: material/weather-night
             name: Switch to light mode
 plugins:
+    mike:
     autorefs: {}
     mkdocstrings:
-        custom_templates: docs/templates
+        # custom_templates: docs/templates
         handlers:
             python:
                 options:
                     show_root_heading: True
                     show_object_full_path: False
                     show_category_heading: False
-                    show_bases: False
+                    show_bases: True
+                    show_submodules: False
+                    show_if_no_docstring: False
+                    show_signature: False
                     heading_level: 1
+                    filters: ["!^_"]
 
     render_swagger: {}
     search: {}
@@ -102,16 +110,18 @@ nav:
                 - tutorials/first-steps.md
                 - tutorials/flow-task-config.md
                 - tutorials/execution.md
-                - tutorials/orion.md
+                - tutorials/orchestration.md
                 - tutorials/deployments.md
                 - tutorials/storage.md
                 - tutorials/docker.md
-                - Prefect Cloud: ui/cloud-getting-started.md
+                - Prefect Cloud Quickstart: ui/cloud-quickstart.md
             - Advanced Tutorials:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
         - Migration Guide: migration-guide.md
-        - Prefect Recipes: recipes/recipes.md
+        - Prefect Recipes: 
+            - Recipes Catalog: recipes/recipes.md
+            - Contributing Recipes: recipes/contribute-recipes.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -121,7 +131,7 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
-        - Agents & Work Queues: concepts/work-queues.md
+        - Agents & Work Pools: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
@@ -130,23 +140,28 @@ nav:
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - Prefect UI & Prefect Cloud:
-        - Overview: ui/overview.md
+        - Prefect UI Overview: ui/overview.md
+        - Prefect Cloud Overview: ui/cloud.md
+        - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+        - Prefect Cloud Concepts: 
+            - Manage API keys: ui/cloud-api-keys.md
+            - Configure Local Environments: ui/cloud-local-environment.md
         - ui/flow-runs.md
         - ui/flows.md
         - ui/deployments.md
-        - ui/work-queues.md
+        - ui/work-pools.md
         - ui/blocks.md
         - ui/notifications.md
-        - Prefect Cloud:
-            - Prefect Cloud Overview: ui/cloud.md
-            - Prefect Cloud Quickstart: ui/cloud-getting-started.md
-            - Workspaces: ui/workspaces.md
-            - Organizations: ui/organizations.md
-            - Service Accounts: ui/service-accounts.md
-            - Roles (RBAC): ui/roles.md
-            - Single Sign-on (SSO): ui/sso.md
-            - Audit Log: ui/audit-log.md
-            - Troubleshooting: ui/troubleshooting.md
+        - ui/task-concurrency.md
+        - Workspaces: ui/workspaces.md
+        - Automations: ui/automations.md
+        - Organizations: ui/organizations.md
+        - Service Accounts: ui/service-accounts.md
+        - Roles (RBAC): ui/roles.md
+        - Single Sign-on (SSO): ui/sso.md
+        - Audit Log: ui/audit-log.md
+        - Troubleshooting: ui/troubleshooting.md
+        - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Integrations:
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
@@ -156,7 +171,7 @@ nav:
         - Overview: api-ref/overview.md
         - Prefect Python API:
             - 'prefect.agent': api-ref/prefect/agent.md
-            - 'prefect.client': api-ref/prefect/client.md
+            # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
@@ -177,6 +192,12 @@ nav:
                 - 'prefect.blocks.kubernetes': api-ref/prefect/blocks/kubernetes.md
                 - 'prefect.blocks.notifications': api-ref/prefect/blocks/notifications.md
                 - 'prefect.blocks.system': api-ref/prefect/blocks/system.md
+            - 'Client':
+                - 'prefect.client.base': api-ref/prefect/client/base.md
+                - 'prefect.client.cloud': api-ref/prefect/client/cloud.md
+                - 'prefect.client.orchestration': api-ref/prefect/client/orchestration.md
+                - 'prefect.client.schemas': api-ref/prefect/client/schemas.md
+                - 'prefect.client.utilities': api-ref/prefect/client/utilities.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
                 - 'prefect.cli.cloud': api-ref/prefect/cli/cloud.md
@@ -188,7 +209,7 @@ nav:
                 - 'prefect.cli.root': api-ref/prefect/cli/root.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
                 - 'prefect.cli.flow_run': api-ref/prefect/cli/flow_run.md
-                - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
+                - 'prefect.cli.server': api-ref/prefect/cli/server.md
             - 'Utilities':
                 - 'prefect.utilities.annotations': api-ref/prefect/utilities/annotations.md
                 - 'prefect.utilities.asyncutils': api-ref/prefect/utilities/asyncutils.md
@@ -197,49 +218,51 @@ nav:
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
-        - Orion Python API:
+        - Prefect Server API:
             - 'API':
-                - 'orion.api.admin': api-ref/orion/api/admin.md
-                - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
-                - 'orion.api.deployments': api-ref/orion/api/deployments.md
-                - 'orion.api.flows': api-ref/orion/api/flows.md
-                - 'orion.api.flow_runs': api-ref/orion/api/flow_runs.md
-                - 'orion.api.flow_run_states': api-ref/orion/api/flow_run_states.md
-                - 'orion.api.run_history': api-ref/orion/api/run_history.md
-                - 'orion.api.saved_searches': api-ref/orion/api/saved_searches.md
-                - 'orion.api.server': api-ref/orion/api/server.md
-                - 'orion.api.task_runs': api-ref/orion/api/task_runs.md
-                - 'orion.api.task_run_states': api-ref/orion/api/task_run_states.md
+                - 'server.api.admin': api-ref/server/api/admin.md
+                - 'server.api.dependencies': api-ref/server/api/dependencies.md
+                - 'server.api.deployments': api-ref/server/api/deployments.md
+                - 'server.api.flows': api-ref/server/api/flows.md
+                - 'server.api.flow_runs': api-ref/server/api/flow_runs.md
+                - 'server.api.flow_run_states': api-ref/server/api/flow_run_states.md
+                - 'server.api.run_history': api-ref/server/api/run_history.md
+                - 'server.api.saved_searches': api-ref/server/api/saved_searches.md
+                - 'server.api.server': api-ref/server/api/server.md
+                - 'server.api.task_runs': api-ref/server/api/task_runs.md
+                - 'server.api.task_run_states': api-ref/server/api/task_run_states.md
             - 'Models':
-                - 'orion.models.flows': api-ref/orion/models/flows.md
-                - 'orion.models.flow_runs': api-ref/orion/models/flow_runs.md
-                - 'orion.models.flow_run_states': api-ref/orion/models/flow_run_states.md
-                - 'orion.models.task_runs': api-ref/orion/models/task_runs.md
-                - 'orion.models.task_run_states': api-ref/orion/models/task_run_states.md
-                - 'orion.models.deployments': api-ref/orion/models/deployments.md
-                - 'orion.models.saved_searches': api-ref/orion/models/saved_searches.md
+                - 'server.models.flows': api-ref/server/models/flows.md
+                - 'server.models.flow_runs': api-ref/server/models/flow_runs.md
+                - 'server.models.flow_run_states': api-ref/server/models/flow_run_states.md
+                - 'server.models.task_runs': api-ref/server/models/task_runs.md
+                - 'server.models.task_run_states': api-ref/server/models/task_run_states.md
+                - 'server.models.deployments': api-ref/server/models/deployments.md
+                - 'server.models.saved_searches': api-ref/server/models/saved_searches.md
             - 'Orchestration':
-                - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
-                - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
-                - 'orion.orchestration.core_policy': api-ref/orion/orchestration/core_policy.md
-                - 'orion.orchestration.global_policy': api-ref/orion/orchestration/global_policy.md
+                - 'server.orchestration.rules': api-ref/server/orchestration/rules.md
+                - 'server.orchestration.policies': api-ref/server/orchestration/policies.md
+                - 'server.orchestration.core_policy': api-ref/server/orchestration/core_policy.md
+                - 'server.orchestration.global_policy': api-ref/server/orchestration/global_policy.md
             - 'Schemas':
-                - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
-                - 'orion.schemas.core': api-ref/orion/schemas/core.md
-                - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
-                - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
-                - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
-                - 'orion.schemas.sorting': api-ref/orion/schemas/sorting.md
-                - 'orion.schemas.states': api-ref/orion/schemas/states.md
+                - 'server.schemas.actions': api-ref/server/schemas/actions.md
+                - 'server.schemas.core': api-ref/server/schemas/core.md
+                - 'server.schemas.filters': api-ref/server/schemas/filters.md
+                - 'server.schemas.responses': api-ref/server/schemas/responses.md
+                - 'server.schemas.schedules': api-ref/server/schemas/schedules.md
+                - 'server.schemas.sorting': api-ref/server/schemas/sorting.md
+                - 'server.schemas.states': api-ref/server/schemas/states.md
             - 'Services':
-                - 'orion.services.late_runs': api-ref/orion/services/late_runs.md
-                - 'orion.services.loop_service': api-ref/orion/services/loop_service.md
-                - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
+                - 'server.services.late_runs': api-ref/server/services/late_runs.md
+                - 'server.services.loop_service': api-ref/server/services/loop_service.md
+                - 'server.services.scheduler': api-ref/server/services/scheduler.md
             - 'Utilities':
-                - 'orion.utilities.database': api-ref/orion/utilities/database.md
-                - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
-                - 'orion.utilities.server': api-ref/orion/utilities/server.md
-        - Prefect REST API: api-ref/rest-api.md
+                - 'server.utilities.database': api-ref/server/utilities/database.md
+                - 'server.utilities.schemas': api-ref/server/utilities/schemas.md
+                - 'server.utilities.server': api-ref/server/utilities/server.md
+        - Prefect REST API: 
+            - Prefect REST API Overview: api-ref/rest-api.md
+            - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Contributing:
         - Overview: contributing/overview.md
         - Style: contributing/style.md
@@ -247,6 +270,27 @@ nav:
         - Troubleshooting: contributing/common-mistakes.md
 
 extra:
+    version:
+        provider: mike
     analytics:
-        provider: google
+        provider: custom
         property: G-3M31G9B0QJ
+    social:
+        - icon: fontawesome/brands/slack
+          link: https://www.prefect.io/slack/
+        - icon: fontawesome/brands/discourse
+          link: https://discourse.prefect.io/
+        - icon: fontawesome/brands/youtube
+          link: https://www.youtube.com/c/PrefectIO/videos
+        - icon: fontawesome/regular/newspaper
+          link: https://prefect.io/guide/
+        - icon: fontawesome/brands/twitter
+          link: https://twitter.com/PrefectIO
+        - icon: fontawesome/brands/linkedin
+          link: https://www.linkedin.com/company/prefect/
+        - icon: fontawesome/brands/github
+          link: https://github.com/PrefectHQ/prefect
+        - icon: fontawesome/brands/docker
+          link: https://hub.docker.com/r/prefecthq/prefect/
+        - icon: fontawesome/brands/python
+          link: https://pypi.org/project/prefect/

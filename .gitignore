@@ -36,16 +36,19 @@ env/
 venv/
 
 # Documentation artifacts
-docs/api-ref/schema.json
+schema.json
 site/
 .cache/
 
 # UI artifacts
-src/prefect/orion/ui/*
+src/prefect/server/ui/*
 **/node_modules
 
 # Databases
 *.db
+
+# API artifacts
+
 
 # MacOS
 .DS_Store
@@ -56,3 +59,4 @@ dask-worker-space/
 # Editors
 .idea/
 .vscode/
+!ui/.vscode/

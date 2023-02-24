@@ -2,13 +2,17 @@ import os
 import socket
 import sys
 from contextlib import contextmanager
-from typing import Union
+from typing import AsyncGenerator, List, Optional, Union
+from uuid import UUID
 
 import anyio
 import httpx
 import pendulum
 import pytest
+from websockets.exceptions import ConnectionClosed
+from websockets.legacy.server import WebSocketServer, WebSocketServerProtocol, serve
 
+from prefect.events import Event
 from prefect.settings import PREFECT_API_URL, get_current_settings, temporary_settings
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.processutils import open_process
@@ -35,7 +39,7 @@ def is_port_in_use(port: int) -> bool:
 @pytest.fixture(scope="session")
 async def hosted_orion_api():
     """
-    Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
+    Runs an instance of the Prefect API at a dedicated URL instead of the ephemeral
     application. Requires a port from 2222-2227 to be available.
 
     Uses the same database as the rest of the tests.
@@ -60,7 +64,7 @@ async def hosted_orion_api():
         command=[
             "uvicorn",
             "--factory",
-            "prefect.orion.api.server:create_app",
+            "prefect.server.api.server:create_app",
             "--host",
             "127.0.0.1",
             "--port",
@@ -72,7 +76,6 @@ async def hosted_orion_api():
         stderr=sys.stderr,
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
-
         api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
@@ -92,7 +95,7 @@ async def hosted_orion_api():
                 response.raise_for_status()
             if not response:
                 raise RuntimeError(
-                    "Timed out while attempting to connect to hosted test Orion."
+                    "Timed out while attempting to connect to hosted test Prefect API."
                 )
 
         # Yield to the consuming tests
@@ -176,8 +179,75 @@ def mock_anyio_sleep(monkeypatch):
             sleeptime - float(extra_tolerance)
             <= seconds
             <= sleeptime + runtime + extra_tolerance
-        ), f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of +{runtime + extra_tolerance}, -{extra_tolerance}"
+        ), (
+            f"Sleep was called for {sleeptime}; expected {seconds} with tolerance of"
+            f" +{runtime + extra_tolerance}, -{extra_tolerance}"
+        )
 
     sleep.assert_sleeps_for = assert_sleeps_for
 
     return sleep
+
+
+class Recorder:
+    connections: int
+    path: Optional[str]
+    events: List[Event]
+
+    def __init__(self):
+        self.connections = 0
+        self.path = None
+        self.events = []
+
+
+class Puppeteer:
+    refuse_any_further_connections: bool
+    hard_disconnect_after: Optional[UUID]
+
+    def __init__(self):
+        self.refuse_any_further_connections = False
+        self.hard_disconnect_after = None
+
+
+@pytest.fixture
+def recorder() -> Recorder:
+    return Recorder()
+
+
+@pytest.fixture
+def puppeteer() -> Puppeteer:
+    return Puppeteer()
+
+
+@pytest.fixture
+async def events_server(
+    unused_tcp_port: int, recorder: Recorder, puppeteer: Puppeteer
+) -> AsyncGenerator[WebSocketServer, None]:
+    server: WebSocketServer
+
+    async def handler(socket: WebSocketServerProtocol, path: str) -> None:
+        recorder.connections += 1
+        if puppeteer.refuse_any_further_connections:
+            raise ValueError("nope")
+
+        recorder.path = path
+
+        while True:
+            try:
+                message = await socket.recv()
+            except ConnectionClosed:
+                return
+
+            event = Event.parse_raw(message)
+            recorder.events.append(event)
+
+            if puppeteer.hard_disconnect_after == event.id:
+                raise ValueError("zonk")
+
+    async with serve(handler, host="localhost", port=unused_tcp_port) as server:
+        yield server
+
+
+@pytest.fixture
+def events_api_url(events_server: WebSocketServer, unused_tcp_port: int) -> str:
+    return f"http://localhost:{unused_tcp_port}/accounts/A/workspaces/W"

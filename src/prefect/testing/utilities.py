@@ -12,16 +12,16 @@ from typing import Dict, List, Union
 import pytest
 
 import prefect.context
-import prefect.orion.schemas as schemas
+import prefect.server.schemas as schemas
 import prefect.settings
 from prefect.blocks.core import Block
-from prefect.client import OrionClient, get_client
-from prefect.client.orion import OrionClient
+from prefect.client import get_client
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.filesystems import ReadableFileSystem
-from prefect.orion.database.dependencies import temporary_database_interface
 from prefect.results import PersistedResult
 from prefect.serializers import Serializer
+from prefect.server.database.dependencies import temporary_database_interface
 from prefect.states import State
 
 
@@ -99,7 +99,6 @@ def kubernetes_environments_equal(
     actual: List[Dict[str, str]],
     expected: Union[List[Dict[str, str]], Dict[str, str]],
 ):
-
     # Convert to a required format and sort by name
     if isinstance(expected, dict):
         expected = [{"name": key, "value": value} for key, value in expected.items()]
@@ -164,14 +163,14 @@ def prefect_test_harness():
             # temporarily override any database interface components
             stack.enter_context(temporary_database_interface())
 
-            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "orion.db")
+            DB_PATH = "sqlite+aiosqlite:///" + str(Path(temp_dir) / "prefect-test.db")
             stack.enter_context(
                 prefect.settings.temporary_settings(
                     # Clear the PREFECT_API_URL
                     restore_defaults={prefect.settings.PREFECT_API_URL},
                     # Use a temporary directory for the database
                     updates={
-                        prefect.settings.PREFECT_ORION_DATABASE_CONNECTION_URL: DB_PATH,
+                        prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
                         prefect.settings.PREFECT_API_URL: None,
                     },
                 )
@@ -179,7 +178,7 @@ def prefect_test_harness():
             yield
 
 
-async def get_most_recent_flow_run(client: OrionClient = None):
+async def get_most_recent_flow_run(client: PrefectClient = None):
     if client is None:
         client = get_client()
 
@@ -227,14 +226,16 @@ async def assert_uses_result_serializer(
 
 @inject_client
 async def assert_uses_result_storage(
-    state: State, storage: Union[str, ReadableFileSystem], client: "OrionClient"
+    state: State, storage: Union[str, ReadableFileSystem], client: "PrefectClient"
 ):
     assert isinstance(state.data, PersistedResult)
     assert_blocks_equal(
         Block._from_block_document(
             await client.read_block_document(state.data.storage_block_id)
         ),
-        storage
-        if isinstance(storage, Block)
-        else await Block.load(storage, client=client),
+        (
+            storage
+            if isinstance(storage, Block)
+            else await Block.load(storage, client=client)
+        ),
     )

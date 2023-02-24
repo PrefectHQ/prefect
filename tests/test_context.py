@@ -160,7 +160,6 @@ async def test_get_run_context(orion_client, local_filesystem):
         get_run_context()
 
     async with anyio.create_task_group() as task_group:
-
         with FlowRunContext(
             flow=foo,
             flow_run=flow_run,
@@ -353,7 +352,8 @@ class TestSettingsContext:
         root_settings_context()
         _, err = capsys.readouterr()
         assert (
-            "profile 'bar' set by command line argument not found. The default profile will be used instead."
+            "profile 'bar' set by command line argument not found. The default profile"
+            " will be used instead."
             in err
         )
 
@@ -366,7 +366,8 @@ class TestSettingsContext:
         root_settings_context()
         _, err = capsys.readouterr()
         assert (
-            "profile 'bar' set by environment variable not found. The default profile will be used instead."
+            "profile 'bar' set by environment variable not found. The default profile"
+            " will be used instead."
             in err
         )
 

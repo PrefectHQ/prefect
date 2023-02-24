@@ -100,7 +100,7 @@ a.prefect-heading:hover {
     font-weight: bold;
 }
 
-.prefect-heading h2 {
+.doc.doc-heading h2 {
     font-size: var(--h2-font-size);
 }
 
@@ -222,9 +222,19 @@ a.prefect-heading:hover {
     font-size: var(--code-font-size);
 }
 
+div.linenodiv {
+    margin-top: 0.45em;
+}
+
+.linenodiv span {
+    font-size: var(--code-font-size);
+    line-height: 1.4;
+}
+
 details.quote:not([open]),
 details.quote[open] {
     border-color: var(--pink);
+    border: none;
 }
 
 details.quote:not([open]) > summary,

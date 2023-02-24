@@ -7,10 +7,12 @@ jinja2
 mkdocs
 mkdocs-gen-files
 mkdocs-material
-mkdocstrings-python-legacy
+mkdocstrings-python
+mike
 mock; python_version < '3.8'
 moto
 mypy
+numpy
 pillow
 pre-commit
 pytest > 7

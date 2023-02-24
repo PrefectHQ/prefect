@@ -17,6 +17,7 @@ from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_CLOUD_UI_URL,
     PREFECT_PROFILES_PATH,
     Profile,
     ProfilesCollection,
@@ -88,15 +89,25 @@ def mock_webbrowser(monkeypatch):
     [
         (
             "pcu_foo",
-            "Unable to authenticate with Prefect Cloud. It looks like you're using API key from Cloud 1 (https://cloud.prefect.io). Make sure that you generate API key using Cloud 2 (https://app.prefect.cloud)",
+            (
+                "Unable to authenticate with Prefect Cloud. It looks like you're using"
+                " API key from Cloud 1 (https://cloud.prefect.io). Make sure that you"
+                " generate API key using Cloud 2 (https://app.prefect.cloud)"
+            ),
         ),
         (
             "pnu_foo",
-            "Unable to authenticate with Prefect Cloud. Please ensure your credentials are correct.",
+            (
+                "Unable to authenticate with Prefect Cloud. Please ensure your"
+                " credentials are correct."
+            ),
         ),
         (
             "foo",
-            "Unable to authenticate with Prefect Cloud. Your key is not in our expected format.",
+            (
+                "Unable to authenticate with Prefect Cloud. Your key is not in our"
+                " expected format."
+            ),
         ),
     ],
 )
@@ -128,11 +139,14 @@ def test_login_with_key_and_missing_workspace(respx_mock):
     invoke_and_assert(
         ["cloud", "login", "--key", "foo", "--workspace", "apple/berry"],
         expected_code=1,
-        expected_output="Workspace 'apple/berry' not found. Available workspaces: 'test/foo', 'test/bar'",
+        expected_output=(
+            "Workspace 'apple/berry' not found. Available workspaces: 'test/foo',"
+            " 'test/bar'"
+        ),
     )
 
 
-def test_login_with_key_and_no_workspaces(respx_mock):
+def test_login_with_key_and_workspace_with_no_workspaces(respx_mock):
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(status.HTTP_200_OK, json=[])
     )
@@ -173,7 +187,29 @@ def test_login_with_non_interactive_missing_args(args):
     invoke_and_assert(
         ["cloud", "login", *args],
         expected_code=1,
-        expected_output="When not using an interactive terminal, you must supply a `--key` and `--workspace`.",
+        expected_output=(
+            "When not using an interactive terminal, you must supply a `--key` and"
+            " `--workspace`."
+        ),
+    )
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_login_with_key_and_no_workspaces(respx_mock):
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[],
+        )
+    )
+    invoke_and_assert(
+        ["cloud", "login", "--key", "foo"],
+        expected_code=1,
+        user_input=readchar.key.ENTER,
+        expected_output_contains=[
+            "No workspaces found! Create a workspace at"
+            f" {PREFECT_CLOUD_UI_URL.value()} and try again."
+        ],
     )
 
 
@@ -253,7 +289,10 @@ def test_login_with_interactive_key_single_workspace(respx_mock):
         expected_code=0,
         user_input=readchar.key.DOWN + readchar.key.ENTER + "foo" + readchar.key.ENTER,
         expected_output_contains=[
-            "? How would you like to authenticate? [Use arrows to move; enter to select]",
+            (
+                "? How would you like to authenticate? [Use arrows to move; enter to"
+                " select]"
+            ),
             "Log in with a web browser",
             "Paste an API key",
             "Paste your API key:",
@@ -296,7 +335,10 @@ def test_login_with_interactive_key_multiple_workspaces(respx_mock):
             + readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? How would you like to authenticate? [Use arrows to move; enter to select]",
+            (
+                "? How would you like to authenticate? [Use arrows to move; enter to"
+                " select]"
+            ),
             "Log in with a web browser",
             "Paste an API key",
             "Paste your API key:",
@@ -338,7 +380,10 @@ def test_login_with_browser_single_workspace(respx_mock, mock_webbrowser):
             readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? How would you like to authenticate? [Use arrows to move; enter to select]",
+            (
+                "? How would you like to authenticate? [Use arrows to move; enter to"
+                " select]"
+            ),
             "Log in with a web browser",
             "Paste an API key",
             "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
@@ -380,7 +425,10 @@ def test_login_with_browser_failure_in_browser(respx_mock, mock_webbrowser):
             readchar.key.ENTER
         ),
         expected_output_contains=[
-            "? How would you like to authenticate? [Use arrows to move; enter to select]",
+            (
+                "? How would you like to authenticate? [Use arrows to move; enter to"
+                " select]"
+            ),
             "Log in with a web browser",
             "Paste an API key",
             "Failed to log in. Oh no!",
@@ -484,7 +532,10 @@ def test_login_already_logged_in_to_current_profile_no_reauth_new_workspace(resp
             expected_output_contains=[
                 "Would you like to reauthenticate? [y/N]",
                 "Using the existing authentication on this profile.",
-                "? Which workspace would you like to use? [Use arrows to move; enter to select]",
+                (
+                    "? Which workspace would you like to use? [Use arrows to move;"
+                    " enter to select]"
+                ),
                 "Authenticated with Prefect Cloud! Using workspace 'test/bar'.",
             ],
         )
@@ -538,10 +589,76 @@ def test_login_already_logged_in_to_current_profile_yes_reauth(respx_mock):
             ),
             expected_output_contains=[
                 "Would you like to reauthenticate? [y/N]",
-                "? How would you like to authenticate? [Use arrows to move; enter to select]",
+                (
+                    "? How would you like to authenticate? [Use arrows to move; enter"
+                    " to select]"
+                ),
                 "Log in with a web browser",
                 "Paste an API key",
                 "Paste your API key:",
+                "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
+            ],
+        )
+
+        settings = load_current_profile().settings
+
+    assert settings[PREFECT_API_KEY] == "bar"
+    assert settings[PREFECT_API_URL] == foo_workspace.api_url()
+
+
+@pytest.mark.usefixtures("interactive_console")
+def test_login_already_logged_in_with_invalid_api_url_prompts_workspace_change(
+    respx_mock,
+):
+    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
+
+    respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
+        return_value=httpx.Response(
+            status.HTTP_200_OK,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
+            ],
+        )
+    )
+
+    save_profiles(
+        ProfilesCollection(
+            [
+                Profile(
+                    name="logged-in-profile",
+                    settings={
+                        PREFECT_API_URL: "oh-no",
+                        PREFECT_API_KEY: "foo",
+                    },
+                )
+            ],
+            active=None,
+        )
+    )
+
+    with use_profile("logged-in-profile"):
+        invoke_and_assert(
+            ["cloud", "login"],
+            expected_code=0,
+            user_input=(
+                # Yes, reauth
+                "y"
+                + readchar.key.ENTER
+                # Enter a key
+                + readchar.key.DOWN
+                + readchar.key.ENTER
+                + "bar"
+                + readchar.key.ENTER
+                # Select the first workspace
+                + readchar.key.ENTER
+            ),
+            expected_output_contains=[
+                "It looks like you're already authenticated on this profile.",
+                "? Which workspace would you like to use?",
+                "test/foo",
+                "test/bar",
                 "Authenticated with Prefect Cloud! Using workspace 'test/foo'.",
             ],
         )
@@ -689,7 +806,9 @@ def test_logout_current_profile_is_not_logged_in():
         invoke_and_assert(
             ["cloud", "logout"],
             expected_code=1,
-            expected_output_contains="Current profile is not logged into Prefect Cloud.",
+            expected_output_contains=(
+                "Current profile is not logged into Prefect Cloud."
+            ),
         )
 
 

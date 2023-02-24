@@ -17,6 +17,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Optional,
     Set,
     Tuple,
     Type,
@@ -28,8 +29,8 @@ from unittest.mock import Mock
 
 import pydantic
 
-# Moved to `prefect.utilities.annotations` but preserved here for compatibility
-from prefect.utilities.annotations import Quote, quote  # noqa
+# Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
+from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
 
 
 class AutoEnum(str, Enum):
@@ -207,11 +208,22 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
+class StopVisiting(BaseException):
+    """
+    A special exception used to stop recursive visits in `visit_collection`.
+
+    When raised, the expression is returned without modification and recursive visits
+    in that path will end.
+    """
+
+
 def visit_collection(
     expr,
     visit_fn: Callable[[Any], Any],
     return_data: bool = False,
     max_depth: int = -1,
+    context: Optional[dict] = None,
+    remove_annotations: bool = False,
 ):
     """
     This function visits every element of an arbitrary Python collection. If an element
@@ -244,6 +256,16 @@ def visit_collection(
             descend to N layers deep. If set to any negative integer, no limit will be
             enforced and recursion will continue until terminal items are reached. By
             default, recursion is unlimited.
+        context: An optional dictionary. If passed, the context will be sent to each
+            call to the `visit_fn`. The context can be mutated by each visitor and will
+            be available for later visits to expressions at the given depth. Values
+            will not be available "up" a level from a given expression.
+
+            The context will be automatically populated with an 'annotation' key when
+            visiting collections within a `BaseAnnotation` type. This requires the
+            caller to pass `context={}` and will not be activated by default.
+        remove_annotations: If set, annotations will be replaced by their contents. By
+            default, annotations are preserved but their contents are visited.
     """
 
     def visit_nested(expr):
@@ -252,11 +274,25 @@ def visit_collection(
             expr,
             visit_fn=visit_fn,
             return_data=return_data,
+            remove_annotations=remove_annotations,
             max_depth=max_depth - 1,
+            # Copy the context on nested calls so it does not "propagate up"
+            context=context.copy() if context is not None else None,
         )
 
+    def visit_expression(expr):
+        if context is not None:
+            return visit_fn(expr, context)
+        else:
+            return visit_fn(expr)
+
     # Visit every expression
-    result = visit_fn(expr)
+    try:
+        result = visit_expression(expr)
+    except StopVisiting:
+        max_depth = 0
+        result = expr
+
     if return_data:
         # Only mutate the expression while returning data, otherwise it could be null
         expr = result
@@ -276,6 +312,16 @@ def visit_collection(
         # Do not attempt to recurse into mock objects
         result = expr
 
+    elif isinstance(expr, BaseAnnotation):
+        if context is not None:
+            context["annotation"] = expr
+        value = visit_nested(expr.unwrap())
+
+        if remove_annotations:
+            result = value if return_data else None
+        else:
+            result = expr.rewrap(value) if return_data else None
+
     elif typ in (list, tuple, set):
         items = [visit_nested(o) for o in expr]
         result = typ(items) if return_data else None
@@ -294,7 +340,10 @@ def visit_collection(
         # NOTE: This implementation *does not* traverse private attributes
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
-        model_fields = expr.__fields_set__.union(expr.__fields__)
+        # Check for presence of attrs even if they're in the field set due to pydantic#4916
+        model_fields = {
+            f for f in expr.__fields_set__.union(expr.__fields__) if hasattr(expr, f)
+        }
         items = [visit_nested(getattr(expr, key)) for key in model_fields]
 
         if return_data:

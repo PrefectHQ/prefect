@@ -2,19 +2,24 @@ import uuid
 
 import pytest
 
-from prefect.exceptions import CrashedRun, FailedRun
+from prefect import flow
+from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
 from prefect.results import LiteralResult, PersistedResult, ResultFactory
 from prefect.states import (
+    Cancelled,
     Completed,
     Crashed,
     Failed,
     Pending,
     Running,
+    State,
+    StateGroup,
     is_state,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
 )
+from prefect.utilities.annotations import quote
 
 
 def test_is_state():
@@ -44,7 +49,7 @@ def test_is_not_state_iterable_if_empty(iterable_type):
     assert not is_state_iterable(iterable_type())
 
 
-@pytest.mark.parametrize("state_cls", [Failed, Crashed])
+@pytest.mark.parametrize("state_cls", [Failed, Crashed, Cancelled])
 class TestRaiseStateException:
     def test_works_in_sync_context(self, state_cls):
         with pytest.raises(ValueError, match="Test"):
@@ -94,9 +99,13 @@ class TestRaiseStateException:
     async def test_raises_wrapper_with_message_if_result_is_string(
         self, state_cls, value
     ):
-        with pytest.raises(
-            FailedRun if state_cls == Failed else CrashedRun, match="foo"
-        ):
+        state_to_exception = {
+            Failed: FailedRun,
+            Crashed: CrashedRun,
+            Cancelled: CancelledRun,
+        }
+
+        with pytest.raises(state_to_exception[state_cls]):
             await raise_state_exception(state_cls(data=value))
 
     async def test_raises_base_exception(self, state_cls):
@@ -104,9 +113,13 @@ class TestRaiseStateException:
             await raise_state_exception(state_cls(data=BaseException("foo")))
 
     async def test_raises_wrapper_with_state_message_if_result_is_null(self, state_cls):
-        with pytest.raises(
-            FailedRun if state_cls == Failed else CrashedRun, match="foo"
-        ):
+        state_to_exception = {
+            Failed: FailedRun,
+            Crashed: CrashedRun,
+            Cancelled: CancelledRun,
+        }
+
+        with pytest.raises(state_to_exception[state_cls]):
             await raise_state_exception(state_cls(data=None, message="foo"))
 
     async def test_raises_error_if_failed_state_does_not_contain_exception(
@@ -115,10 +128,19 @@ class TestRaiseStateException:
         with pytest.raises(TypeError, match="int cannot be resolved into an exception"):
             await raise_state_exception(state_cls(data=2))
 
+    async def test_quoted_state_does_not_raise_state_exception(self, state_cls):
+        @flow
+        def test_flow():
+            return quote(state_cls())
+
+        actual = test_flow()
+        assert isinstance(actual, quote)
+        assert isinstance(actual.unquote(), State)
+
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def factory(orion_client):
+    async def factory(self, orion_client):
         return await ResultFactory.default_factory(client=orion_client)
 
     async def test_returns_single_state_unaltered(self, factory):
@@ -129,7 +151,8 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data == LiteralResult(value=None)
+        assert isinstance(result_state.data, LiteralResult)
+        assert result_state.data.value is None
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self, factory):
@@ -201,3 +224,115 @@ class TestReturnValueToState:
         result_state = await return_value_to_state("foo", factory)
         assert result_state.is_completed()
         assert await result_state.result() == "foo"
+
+
+class TestStateGroup:
+    def test_fail_count(self):
+        states = [
+            Failed(data=ValueError("1")),
+            Failed(data=ValueError("2")),
+            Failed(data=ValueError("3")),
+            Crashed(data=ValueError("4")),
+            Crashed(data=ValueError("5")),
+        ]
+
+        assert StateGroup(states).fail_count == 5
+
+    def test_all_completed(self):
+        states = [
+            Completed(data="test"),
+            Completed(data="test"),
+            Completed(data="test"),
+        ]
+
+        assert StateGroup(states).all_completed()
+
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert not StateGroup(states).all_completed()
+
+    def test_any_cancelled(self):
+        states = [
+            Cancelled(),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert StateGroup(states).any_cancelled()
+
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert not StateGroup(states).any_cancelled()
+
+    def test_any_failed(self):
+        states = [
+            Completed(data="test"),
+            Failed(data=ValueError("1")),
+        ]
+
+        assert StateGroup(states).any_failed()
+
+        states = [
+            Completed(data="test"),
+            Completed(data="test"),
+            Completed(data="test"),
+        ]
+
+        assert not StateGroup(states).any_failed()
+
+    def test_all_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+        ]
+
+        assert StateGroup(states).all_final()
+
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+            Running(),
+        ]
+
+        assert not StateGroup(states).all_final()
+
+    def test_counts_message_all_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Crashed(data=ValueError("crashed")),
+            Completed(data="complete"),
+            Cancelled(data="cancelled"),
+        ]
+
+        counts_message = StateGroup(states).counts_message()
+
+        assert "total=4" in counts_message
+        assert "'FAILED'=1" in counts_message
+        assert "'CRASHED'=1" in counts_message
+        assert "'COMPLETED'=1" in counts_message
+        assert "'CANCELLED'=1" in counts_message
+
+    def test_counts_message_some_non_final(self):
+        states = [
+            Failed(data=ValueError("failed")),
+            Running(),
+            Crashed(data=ValueError("crashed")),
+            Running(),
+        ]
+
+        counts_message = StateGroup(states).counts_message()
+
+        assert "total=4" in counts_message
+        assert "not_final=2" in counts_message
+        assert "'FAILED'=1" in counts_message
+        assert "'CRASHED'=1" in counts_message
+        assert "'RUNNING'=2" in counts_message

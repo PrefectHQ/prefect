@@ -1,7 +1,9 @@
+import io
 import logging
+from builtins import print
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import prefect
 from prefect.exceptions import MissingContextError
@@ -9,7 +11,7 @@ from prefect.exceptions import MissingContextError
 if TYPE_CHECKING:
     from prefect.context import RunContext
     from prefect.flows import Flow
-    from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.server.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -35,7 +37,7 @@ def get_logger(name: str = None) -> logging.Logger:
     `prefect` package.
 
     See `get_run_logger` for retrieving loggers for use within task or flow runs.
-    By default, only run-related loggers are connected to the `OrionHandler`.
+    By default, only run-related loggers are connected to the `APILogHandler`.
     """
 
     parent_logger = logging.getLogger("prefect")
@@ -53,14 +55,16 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def get_run_logger(
+    context: "RunContext" = None, **kwargs: str
+) -> Union[logging.Logger, logging.LoggerAdapter]:
     """
     Get a Prefect logger for the current task run or flow run.
 
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
 
-    These loggers are connected to the `OrionHandler` by default to send log records to
+    These loggers are connected to the `APILogHandler` by default to send log records to
     the API.
 
     Arguments:
@@ -194,3 +198,42 @@ def disable_run_logger():
     """
     with disable_logger("prefect.flow_run"), disable_logger("prefect.task_run"):
         yield
+
+
+def print_as_log(*args, **kwargs):
+    """
+    A patch for `print` to send printed messages to the Prefect run logger.
+
+    If no run is active, `print` will behave as if it were not patched.
+    """
+    from prefect.context import FlowRunContext, TaskRunContext
+
+    context = TaskRunContext.get() or FlowRunContext.get()
+    if not context or not context.log_prints:
+        return print(*args, **kwargs)
+
+    logger = get_run_logger()
+
+    # Print to an in-memory buffer; so we do not need to implement `print`
+    buffer = io.StringIO()
+    kwargs["file"] = buffer
+    print(*args, **kwargs)
+
+    # Remove trailing whitespace to prevent duplicates
+    logger.info(buffer.getvalue().rstrip())
+
+
+@contextmanager
+def patch_print():
+    """
+    Patches the Python builtin `print` method to use `print_as_log`
+    """
+    import builtins
+
+    original = builtins.print
+
+    try:
+        builtins.print = print_as_log
+        yield
+    finally:
+        builtins.print = original

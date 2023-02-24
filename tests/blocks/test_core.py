@@ -7,16 +7,17 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr
+from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
 
 import prefect
 from prefect.blocks.core import Block, InvalidBlockRegistration
+from prefect.blocks.fields import SecretDict
 from prefect.blocks.system import JSON, Secret
-from prefect.client import OrionClient
+from prefect.client import PrefectClient
 from prefect.exceptions import PrefectHTTPStatusError
-from prefect.orion import models
-from prefect.orion.schemas.actions import BlockDocumentCreate
-from prefect.orion.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.server import models
+from prefect.server.schemas.actions import BlockDocumentCreate
+from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
@@ -77,18 +78,20 @@ class TestAPICompatibility:
 
     def test_create_api_block_with_secret_fields_reflected_in_schema(self):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        assert SecretBlock.schema()["secret_fields"] == ["x", "y"]
+        assert SecretBlock.schema()["secret_fields"] == ["w.*", "x", "y"]
 
         schema = SecretBlock._to_block_schema(block_type_id=uuid4())
-        assert schema.fields["secret_fields"] == ["x", "y"]
+        assert schema.fields["secret_fields"] == ["w.*", "x", "y"]
         assert schema.fields == {
             "block_schema_references": {},
             "block_type_slug": "secretblock",
             "properties": {
+                "w": {"title": "W", "type": "object"},
                 "x": {
                     "format": "password",
                     "title": "X",
@@ -103,8 +106,8 @@ class TestAPICompatibility:
                 },
                 "z": {"title": "Z", "type": "string"},
             },
-            "required": ["x", "y", "z"],
-            "secret_fields": ["x", "y"],
+            "required": ["w", "x", "y", "z"],
+            "secret_fields": ["w.*", "x", "y"],
             "title": "SecretBlock",
             "type": "object",
         }
@@ -113,20 +116,21 @@ class TestAPICompatibility:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        assert Child.schema()["secret_fields"] == ["a"]
-        assert Parent.schema()["secret_fields"] == ["a", "child.a"]
+        assert Child.schema()["secret_fields"] == ["a", "c.*"]
+        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
         schema = Parent._to_block_schema(block_type_id=uuid4())
-        assert schema.fields["secret_fields"] == ["a", "child.a"]
+        assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
         assert schema.fields == {
             "block_schema_references": {
                 "child": {
-                    "block_schema_checksum": "sha256:95a2b74a0d1d31fcaaef6561ee1249bba3de2445baa60dd6b5f9e0bdad8da60b",
+                    "block_schema_checksum": "sha256:3e50c75591f4071c7df082d8a7969c57ae97f6a62c2345017e6b64bc13c39cd0",
                     "block_type_slug": "child",
                 }
             },
@@ -143,9 +147,10 @@ class TestAPICompatibility:
                             "writeOnly": True,
                         },
                         "b": {"title": "B", "type": "string"},
+                        "c": {"title": "C", "type": "object"},
                     },
-                    "required": ["a", "b"],
-                    "secret_fields": ["a"],
+                    "required": ["a", "b", "c"],
+                    "secret_fields": ["a", "c.*"],
                     "title": "Child",
                     "type": "object",
                 }
@@ -161,29 +166,237 @@ class TestAPICompatibility:
                 "child": {"$ref": "#/definitions/Child"},
             },
             "required": ["a", "b", "child"],
-            "secret_fields": ["a", "child.a"],
+            "secret_fields": ["a", "child.a", "child.c.*"],
             "title": "Parent",
             "type": "object",
         }
 
+    def test_create_api_block_with_nested_secret_fields_in_base_model_reflected_in_schema(
+        self,
+    ):
+        class Child(BaseModel):
+            a: SecretStr
+            b: str
+            c: SecretDict
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert schema.fields == {
+            "title": "Parent",
+            "type": "object",
+            "properties": {
+                "a": {
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {"$ref": "#/definitions/Child"},
+            },
+            "required": ["a", "b", "child"],
+            "block_type_slug": "parent",
+            "secret_fields": ["a", "child.a", "child.c.*"],
+            "block_schema_references": {},
+            "definitions": {
+                "Child": {
+                    "title": "Child",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "b": {"title": "B", "type": "string"},
+                        "c": {"title": "C", "type": "object"},
+                    },
+                    "required": ["a", "b", "c"],
+                }
+            },
+        }
+
+    def test_create_api_block_with_nested_union_secret_fields_in_base_model_reflected_in_schema(
+        self,
+    ):
+        class Child(BaseModel):
+            a: SecretStr
+            b: str
+            c: SecretDict
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Union[Child, str]
+
+        assert Parent.schema()["secret_fields"] == ["a", "child.a", "child.c.*"]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == ["a", "child.a", "child.c.*"]
+        assert schema.fields == {
+            "title": "Parent",
+            "type": "object",
+            "properties": {
+                "a": {
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {
+                    "title": "Child",
+                    "anyOf": [{"$ref": "#/definitions/Child"}, {"type": "string"}],
+                },
+            },
+            "required": ["a", "b", "child"],
+            "block_type_slug": "parent",
+            "secret_fields": ["a", "child.a", "child.c.*"],
+            "block_schema_references": {},
+            "definitions": {
+                "Child": {
+                    "title": "Child",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "b": {"title": "B", "type": "string"},
+                        "c": {"title": "C", "type": "object"},
+                    },
+                    "required": ["a", "b", "c"],
+                }
+            },
+        }
+
+    def test_create_api_block_with_deeply_nested_secret_fields_in_base_model_reflected_in_schema(
+        self,
+    ):
+        class SubChild(BaseModel):
+            a: str
+            b: SecretDict
+            c: SecretBytes
+
+        class Child(BaseModel):
+            a: SecretStr
+            b: str
+            sub_child: SubChild
+
+        class Parent(Block):
+            a: SecretStr
+            b: str
+            child: Child
+
+        assert Parent.schema()["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.sub_child.b.*",
+            "child.sub_child.c",
+        ]
+        schema = Parent._to_block_schema(block_type_id=uuid4())
+        assert schema.fields["secret_fields"] == [
+            "a",
+            "child.a",
+            "child.sub_child.b.*",
+            "child.sub_child.c",
+        ]
+        assert schema.fields == {
+            "title": "Parent",
+            "type": "object",
+            "properties": {
+                "a": {
+                    "title": "A",
+                    "type": "string",
+                    "writeOnly": True,
+                    "format": "password",
+                },
+                "b": {"title": "B", "type": "string"},
+                "child": {"$ref": "#/definitions/Child"},
+            },
+            "required": ["a", "b", "child"],
+            "block_type_slug": "parent",
+            "secret_fields": [
+                "a",
+                "child.a",
+                "child.sub_child.b.*",
+                "child.sub_child.c",
+            ],
+            "block_schema_references": {},
+            "definitions": {
+                "SubChild": {
+                    "title": "SubChild",
+                    "type": "object",
+                    "properties": {
+                        "a": {"title": "A", "type": "string"},
+                        "b": {"title": "B", "type": "object"},
+                        "c": {
+                            "title": "C",
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                    },
+                    "required": ["a", "b", "c"],
+                },
+                "Child": {
+                    "title": "Child",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "string",
+                            "writeOnly": True,
+                            "format": "password",
+                        },
+                        "b": {"title": "B", "type": "string"},
+                        "sub_child": {"$ref": "#/definitions/SubChild"},
+                    },
+                    "required": ["a", "b", "sub_child"],
+                },
+            },
+        }
+
     def test_create_api_block_with_secret_values_are_obfuscated_by_default(self):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(x="x", y=b"y", z="z")
+        block = SecretBlock(
+            w={
+                "Here's my shallow secret": "I don't like olives",
+                "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
+            },
+            x="x",
+            y=b"y",
+            z="z",
+        )
 
         block_type_id = uuid4()
         block_schema_id = uuid4()
         blockdoc = block._to_block_document(
             name="name", block_type_id=block_type_id, block_schema_id=block_schema_id
         )
+        assert isinstance(blockdoc.data["w"], SecretDict)
         assert isinstance(blockdoc.data["x"], SecretStr)
         assert isinstance(blockdoc.data["y"], SecretBytes)
 
         json_blockdoc = json.loads(blockdoc.json())
         assert json_blockdoc["data"] == {
+            "w": {
+                "Here's my shallow secret": "**********",
+                "deeper secrets": "**********",
+            },
             "x": "**********",
             "y": "**********",
             "z": "z",
@@ -191,6 +404,10 @@ class TestAPICompatibility:
 
         json_blockdoc_with_secrets = json.loads(blockdoc.json(include_secrets=True))
         assert json_blockdoc_with_secrets["data"] == {
+            "w": {
+                "Here's my shallow secret": "I don't like olives",
+                "deeper secrets": {"Here's my deeper secret": "I've never seen Lost"},
+            },
             "x": "x",
             "y": "y",
             "z": "z",
@@ -200,13 +417,14 @@ class TestAPICompatibility:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         block_type_id = uuid4()
         block_schema_id = uuid4()
         blockdoc = block._to_block_document(
@@ -223,6 +441,7 @@ class TestAPICompatibility:
             "child": {
                 "a": "**********",
                 "b": "b",
+                "c": {"secret": "**********"},
                 "block_type_slug": "child",
             },
         }
@@ -232,7 +451,12 @@ class TestAPICompatibility:
             "a": "a",
             "b": "b",
             # The child includes the type slug because it is not a block document
-            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": "a",
+                "b": "b",
+                "c": {"secret": "value"},
+                "block_type_slug": "child",
+            },
         }
 
     def test_registering_blocks_with_capabilities(self):
@@ -474,6 +698,33 @@ class TestAPICompatibility:
         assert "authentic_field" in api_block.data
         assert "evil_fake_field" not in api_block.data
 
+    @pytest.mark.parametrize("block_name", ["a_block", "a.block"])
+    def test_create_block_document_create_invalid_characters(self, block_name):
+        """This gets raised on instantiation of BlockDocumentCreate"""
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name must only contain"):
+            a_block.save(block_name)
+
+    @pytest.mark.parametrize("block_name", ["a/block", "a\\block"])
+    def test_create_block_document_invalid_characters(self, block_name):
+        """
+        This gets raised on instantiation of BlockDocument which shares
+        INVALID_CHARACTERS with Flow, Deployment, etc.
+        """
+
+        @register_type
+        class ABlock(Block):
+            a_field: str
+
+        a_block = ABlock(a_field="my_field")
+        with pytest.raises(ValidationError, match="name"):
+            a_block.save(block_name)
+
     def test_create_block_schema_from_block_without_capabilities(
         self, test_block: Type[Block], block_type_x
     ):
@@ -557,7 +808,6 @@ class TestAPICompatibility:
         assert FlyingCat.get_block_capabilities() == {"fly", "run"}
 
     def test_create_block_schema_from_nested_blocks(self):
-
         block_schema_id = uuid4()
         block_type_id = uuid4()
 
@@ -795,7 +1045,7 @@ class TestRegisterBlockTypeAndSchema:
         b: str
         c: int
 
-    async def test_register_type_and_schema(self, orion_client: OrionClient):
+    async def test_register_type_and_schema(self, orion_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
 
         block_type = await orion_client.read_block_type_by_slug(slug="newblock")
@@ -811,7 +1061,7 @@ class TestRegisterBlockTypeAndSchema:
         assert isinstance(self.NewBlock._block_type_id, UUID)
         assert isinstance(self.NewBlock._block_schema_id, UUID)
 
-    async def test_register_idempotent(self, orion_client: OrionClient):
+    async def test_register_idempotent(self, orion_client: PrefectClient):
         await self.NewBlock.register_type_and_schema()
         await self.NewBlock.register_type_and_schema()
 
@@ -826,7 +1076,7 @@ class TestRegisterBlockTypeAndSchema:
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_existing_block_type_new_block_schema(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -852,7 +1102,7 @@ class TestRegisterBlockTypeAndSchema:
         assert block_schema.fields == self.NewBlock.schema()
 
     async def test_register_new_block_schema_when_version_changes(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
@@ -879,7 +1129,7 @@ class TestRegisterBlockTypeAndSchema:
 
         self.NewBlock._block_schema_version = None
 
-    async def test_register_nested_block(self, orion_client: OrionClient):
+    async def test_register_nested_block(self, orion_client: PrefectClient):
         class Big(Block):
             id: UUID = Field(default_factory=uuid4)
             size: int
@@ -916,7 +1166,7 @@ class TestRegisterBlockTypeAndSchema:
         )
         assert biggest_block_schema is not None
 
-    async def test_register_nested_block_union(self, orion_client: OrionClient):
+    async def test_register_nested_block_union(self, orion_client: PrefectClient):
         class A(Block):
             a: str
 
@@ -962,12 +1212,14 @@ class TestRegisterBlockTypeAndSchema:
     async def test_register_raises_block_base_class(self):
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on the Block class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on the Block class directly."
+            ),
         ):
             await Block.register_type_and_schema()
 
-    async def test_register_updates_block_type(self, orion_client: OrionClient):
+    async def test_register_updates_block_type(self, orion_client: PrefectClient):
         # Ignore warning caused by matching key in registry
         warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -1001,8 +1253,10 @@ class TestRegisterBlockTypeAndSchema:
 
         with pytest.raises(
             InvalidBlockRegistration,
-            match="`register_type_and_schema` should be called on a Block "
-            "subclass and not on a Block interface class directly.",
+            match=(
+                "`register_type_and_schema` should be called on a Block "
+                "subclass and not on a Block interface class directly."
+            ),
         ):
             await Interface.register_type_and_schema(client=orion_client)
 
@@ -1181,11 +1435,12 @@ class TestSaveBlock:
 
     async def test_save_and_load_block_with_secrets_includes_secret_data(self, session):
         class SecretBlock(Block):
+            w: SecretDict
             x: SecretStr
             y: SecretBytes
             z: str
 
-        block = SecretBlock(x="x", y=b"y", z="z")
+        block = SecretBlock(w=dict(secret="value"), x="x", y=b"y", z="z")
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1196,6 +1451,7 @@ class TestSaveBlock:
             )
         )
         assert db_block_without_secrets.data == {
+            "w": {"secret": obfuscate_string("value")},
             "x": obfuscate_string("x"),
             "y": obfuscate_string("x"),
             "z": "z",
@@ -1207,10 +1463,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"x": "x", "y": "y", "z": "z"}
+        assert db_block.data == {"w": {"secret": "value"}, "x": "x", "y": "y", "z": "z"}
 
         # load block with secrets
         api_block = await SecretBlock.load("secret-block")
+        assert api_block.w.get_secret_value() == {"secret": "value"}
         assert api_block.x.get_secret_value() == "x"
         assert api_block.y.get_secret_value() == b"y"
         assert api_block.z == "z"
@@ -1221,13 +1478,14 @@ class TestSaveBlock:
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        block = Parent(a="a", b="b", child=dict(a="a", b="b"))
+        block = Parent(a="a", b="b", child=dict(a="a", b="b", c=dict(secret="value")))
         await block.save("secret-block")
 
         # read from DB without secrets
@@ -1240,7 +1498,12 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": obfuscate_string("a"),
+                "b": "b",
+                "c": {"secret": obfuscate_string("value")},
+                "block_type_slug": "child",
+            },
         }
 
         # read from DB with secrets
@@ -1252,7 +1515,12 @@ class TestSaveBlock:
         assert db_block.data == {
             "a": "a",
             "b": "b",
-            "child": {"a": "a", "b": "b", "block_type_slug": "child"},
+            "child": {
+                "a": "a",
+                "b": "b",
+                "c": {"secret": "value"},
+                "block_type_slug": "child",
+            },
         }
 
         # load block with secrets
@@ -1261,18 +1529,20 @@ class TestSaveBlock:
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
+        assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_and_load_nested_block_with_secrets_saved_child(self, session):
         class Child(Block):
             a: SecretStr
             b: str
+            c: SecretDict
 
         class Parent(Block):
             a: SecretStr
             b: str
             child: Child
 
-        child = Child(a="a", b="b")
+        child = Child(a="a", b="b", c=dict(secret="value"))
         await child.save("child-block")
         block = Parent(a="a", b="b", child=child)
         await block.save("parent-block")
@@ -1287,7 +1557,11 @@ class TestSaveBlock:
         assert db_block_without_secrets.data == {
             "a": obfuscate_string("a"),
             "b": "b",
-            "child": {"a": obfuscate_string("a"), "b": "b"},
+            "child": {
+                "a": obfuscate_string("a"),
+                "b": "b",
+                "c": {"secret": obfuscate_string("value")},
+            },
         }
 
         # read from DB with secrets
@@ -1296,7 +1570,11 @@ class TestSaveBlock:
             block_document_id=block._block_document_id,
             include_secrets=True,
         )
-        assert db_block.data == {"a": "a", "b": "b", "child": {"a": "a", "b": "b"}}
+        assert db_block.data == {
+            "a": "a",
+            "b": "b",
+            "child": {"a": "a", "b": "b", "c": {"secret": "value"}},
+        }
 
         # load block with secrets
         api_block = await Parent.load("parent-block")
@@ -1304,6 +1582,7 @@ class TestSaveBlock:
         assert api_block.b == "b"
         assert api_block.child.a.get_secret_value() == "a"
         assert api_block.child.b == "b"
+        assert api_block.child.c.get_secret_value() == {"secret": "value"}
 
     async def test_save_block_with_overwrite(self, InnerBlock):
         inner_block = InnerBlock(size=1)
@@ -1324,8 +1603,10 @@ class TestSaveBlock:
 
         with pytest.raises(
             ValueError,
-            match="You are attempting to save values with a name that is already in "
-            "use for this block type",
+            match=(
+                "You are attempting to save values with a name that is already in "
+                "use for this block type"
+            ),
         ):
             await inner_block.save("my-inner-block")
 
@@ -1372,6 +1653,27 @@ class TestSaveBlock:
             loaded_shifty_block.something_to_hide.get_secret_value()
             == "a birthday present"
         )
+
+    async def test_update_block_with_secret_dict(self):
+        class HasSomethingToHide(Block):
+            something_to_hide: SecretDict
+
+        shifty_block = HasSomethingToHide(
+            something_to_hide={
+                "what I'm hiding": "a surprise birthday party",
+            }
+        )
+        await shifty_block.save("my-shifty-block")
+
+        updated_shifty_block = HasSomethingToHide(
+            something_to_hide={"what I'm hiding": "a birthday present"}
+        )
+        await updated_shifty_block.save("my-shifty-block", overwrite=True)
+
+        loaded_shifty_block = await HasSomethingToHide.load("my-shifty-block")
+        assert loaded_shifty_block.something_to_hide.get_secret_value() == {
+            "what I'm hiding": "a birthday present"
+        }
 
     async def test_block_with_alias(self):
         class AliasBlock(Block):
@@ -1760,7 +2062,6 @@ class TestSyncCompatible:
         assert loaded_block.cool_factor == 1000000
 
     def test_block_in_flow_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -1772,7 +2073,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_sync_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -1784,7 +2084,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_flow_async_test_async_flow(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.flow
@@ -1796,7 +2095,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     def test_block_in_task_sync_test_sync_flow(self):
-
         CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -1812,7 +2110,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -1828,7 +2125,6 @@ class TestSyncCompatible:
         assert result == 1000000
 
     async def test_block_in_task_async_test_async_task(self):
-
         await CoolBlock(cool_factor=1000000).save("blk")
 
         @prefect.task
@@ -1996,3 +2292,134 @@ class TestTypeDispatch:
         model.block = BChildBlock(b=4).dict()
         assert type(model.block) == BChildBlock
         assert model.block.b == 4
+
+
+class TestBlockSchemaMigration:
+    def test_schema_mismatch_with_validation_raises(self):
+        class A(Block):
+            _block_type_name = "a"
+            _block_type_slug = "a"
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A_Alias(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
+
+        with pytest.raises(
+            RuntimeError, match="try loading again with `validate=False`"
+        ):
+            A_Alias.load("test")
+
+    def test_add_field_to_schema_partial_load_with_skip_validation(self):
+        class A(Block):
+            x: int = 1
+
+        a = A()
+
+        a.save("test")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'A'"):
+
+            class A_Alias(Block):
+                _block_type_name = "a"
+                _block_type_slug = "a"
+                x: int = 1
+                y: int
+
+        with pytest.warns(UserWarning, match="Could not fully load"):
+            a = A_Alias.load("test", validate=False)
+
+        assert a.x == 1
+        assert a.y == None
+
+    def test_rm_field_from_schema_loads_with_validation(self):
+        class Foo(Block):
+            _block_type_name = "foo"
+            _block_type_slug = "foo"
+            x: int = 1
+            y: int = 2
+
+        foo = Foo()
+
+        foo.save("xy")
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'Foo'"):
+
+            class Foo_Alias(Block):
+                _block_type_name = "foo"
+                _block_type_slug = "foo"
+                x: int = 1
+
+        foo_alias = Foo_Alias.load("xy")
+
+        assert foo_alias.x == 1
+
+        # TODO: This should raise an AttributeError, but it doesn't
+        # because `Config.extra = "allow"`
+        # with pytest.raises(AttributeError):
+        #     foo_alias.y
+
+    def test_load_with_skip_validation_keeps_metadata(self):
+        class Bar(Block):
+            x: int = 1
+
+        bar = Bar()
+
+        bar.save("test")
+
+        bar_new = Bar.load("test", validate=False)
+
+        assert bar.dict() == bar_new.dict()
+
+    async def test_save_new_schema_with_overwrite(self, orion_client):
+        class Baz(Block):
+            _block_type_name = "baz"
+            _block_type_slug = "baz"
+            x: int = 1
+
+        baz = Baz()
+
+        await baz.save("test")
+
+        block_document = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        old_schema_id = block_document.block_schema_id
+
+        with pytest.warns(UserWarning, match="matches existing registered type 'Baz'"):
+
+            class Baz_Alias(Block):
+                _block_type_name = "baz"
+                _block_type_slug = "baz"
+                x: int = 1
+                y: int = 2
+
+        baz_alias = await Baz_Alias.load("test", validate=False)
+
+        await baz_alias.save("test", overwrite=True)
+
+        baz_alias_RELOADED = await Baz_Alias.load("test")
+
+        assert baz_alias_RELOADED.x == 1
+        assert baz_alias_RELOADED.y == 2
+
+        new_schema_id = baz_alias._block_schema_id
+
+        # new local schema ID should be different because field added
+        assert old_schema_id != new_schema_id
+
+        updated_schema = await orion_client.read_block_document_by_name(
+            name="test", block_type_slug="baz"
+        )
+        updated_schema_id = updated_schema.block_schema_id
+
+        # new local schema ID should now be saved to Prefect
+        assert updated_schema_id == new_schema_id

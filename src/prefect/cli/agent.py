@@ -1,13 +1,15 @@
 """
 Command line interface for working with agent services
 """
+from functools import partial
 from typing import List
 from uuid import UUID
 
+import anyio
 import typer
 
 import prefect
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -54,9 +56,16 @@ async def start(
         "-m",
         "--match",
         help=(
-            "Dynamically matches work queue names with the specified prefix for the agent to pull from,"
-            "for example `dev-` will match all work queues with a name that starts with `dev-`"
+            "Dynamically matches work queue names with the specified prefix for the"
+            " agent to pull from,for example `dev-` will match all work queues with a"
+            " name that starts with `dev-`"
         ),
+    ),
+    work_pool_name: str = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="A work pool name for the agent to pull from.",
     ),
     hide_welcome: bool = typer.Option(False, "--hide-welcome"),
     api: str = SettingsOption(PREFECT_API_URL),
@@ -69,7 +78,16 @@ async def start(
         None,
         "-t",
         "--tag",
-        help="DEPRECATED: One or more optional tags that will be used to create a work queue",
+        help=(
+            "DEPRECATED: One or more optional tags that will be used to create a work"
+            " queue. This option will be removed on 2023-02-23."
+        ),
+    ),
+    limit: int = typer.Option(
+        None,
+        "-l",
+        "--limit",
+        help="Maximum number of flow runs to start simultaneously.",
     ),
 ):
     """
@@ -88,25 +106,35 @@ async def start(
             pass
         work_queues.append(work_queue)
         app.console.print(
-            "Agents now support multiple work queues. Instead of passing a single argument, provide work queue names "
-            f"with the `-q` or `--work-queue` flag: `prefect agent start -q {work_queue}`\n",
+            (
+                "Agents now support multiple work queues. Instead of passing a single"
+                " argument, provide work queue names with the `-q` or `--work-queue`"
+                f" flag: `prefect agent start -q {work_queue}`\n"
+            ),
             style="blue",
         )
 
-    if not work_queues and not tags and not work_queue_prefix:
+    if not work_queues and not tags and not work_queue_prefix and not work_pool_name:
         exit_with_error("No work queues provided!", style="red")
     elif bool(work_queues) + bool(tags) + bool(work_queue_prefix) > 1:
         exit_with_error(
             "Only one of `work_queues`, `match`, or `tags` can be provided.",
             style="red",
         )
+    if work_pool_name and tags:
+        exit_with_error(
+            "`tag` and `pool` options cannot be used together.", style="red"
+        )
 
     if tags:
         work_queue_name = f"Agent queue {'-'.join(sorted(tags))}"
         app.console.print(
-            "`tags` are deprecated. For backwards-compatibility with old "
-            f"versions of Prefect, this agent will create a work queue named `{work_queue_name}` "
-            "that uses legacy tag-based matching.",
+            (
+                "`tags` are deprecated. For backwards-compatibility with old versions"
+                " of Prefect, this agent will create a work queue named"
+                f" `{work_queue_name}` that uses legacy tag-based matching. This option"
+                " will be removed on 2023-02-23."
+            ),
             style="red",
         )
 
@@ -133,14 +161,21 @@ async def start(
                 f"Starting v{prefect.__version__} agent with ephemeral API..."
             )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=work_queues,
         work_queue_prefix=work_queue_prefix,
+        work_pool_name=work_pool_name,
         prefetch_seconds=prefetch_seconds,
+        limit=limit,
     ) as agent:
         if not hide_welcome:
             app.console.print(ascii_name)
-            if work_queue_prefix:
+            if work_pool_name:
+                app.console.print(
+                    "Agent started! Looking for work from "
+                    f"work pool '{work_pool_name}'..."
+                )
+            elif work_queue_prefix:
                 app.console.print(
                     "Agent started! Looking for work from "
                     f"queue(s) that start with the prefix: {work_queue_prefix}..."
@@ -151,11 +186,27 @@ async def start(
                     f"queue(s): {', '.join(work_queues)}..."
                 )
 
-        await critical_service_loop(
-            agent.get_and_submit_flow_runs,
-            PREFECT_AGENT_QUERY_INTERVAL.value(),
-            printer=app.console.print,
-            run_once=run_once,
-        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.get_and_submit_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
+
+            tg.start_soon(
+                partial(
+                    critical_service_loop,
+                    agent.check_for_cancelled_flow_runs,
+                    PREFECT_AGENT_QUERY_INTERVAL.value(),
+                    printer=app.console.print,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                )
+            )
 
     app.console.print("Agent stopped!")

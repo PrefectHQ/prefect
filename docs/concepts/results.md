@@ -32,7 +32,7 @@ result = my_flow()
 assert result == 2
 ```
 
-When working with flow and task states, the result can be retreived with the `State.result()` method:
+When working with flow and task states, the result can be retrieved with the `State.result()` method:
 
 ```python
 from prefect import flow, task
@@ -50,7 +50,7 @@ state = my_flow(return_state=True)
 assert state.result() == 2
 ```
 
-When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+When submitting tasks to a runner, the result can be retrieved with the `Future.result()` method:
 
 ```python
 from prefect import flow, task
@@ -215,7 +215,7 @@ result = asyncio.run(my_flow())
 assert result == 2
 ```
 
-When working with flow and task states, the result can be retreived with the `State.result()` method:
+When working with flow and task states, the result can be retrieved with the `State.result()` method:
 
 ```python
 import asyncio
@@ -250,7 +250,7 @@ asyncio.run(main())
     You may also opt-out by setting `fetch=False`.
     This will silence the warning, but you will need to retrieve your result manually from the result type.
 
-When submitting tasks to a runner, the result can be retreived with the `Future.result()` method:
+When submitting tasks to a runner, the result can be retrieved with the `Future.result()` method:
 
 ```python
 import asyncio
@@ -285,7 +285,7 @@ If results are not persisted, these features may not be usable.
 
 ### Configuring persistence of results
 
-Persistence of results requires a [**serializer**](#result-serializers) and a [**storage** location](#result-storage). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
+Persistence of results requires a [**serializer**](#result-serializer) and a [**storage** location](#result-storage-location). Prefect sets defaults for these, and you should not need to adjust them until you want to customize behavior. You can configure results on the `flow` and `task` decorators with the following options:
 
 - `persist_result`: Whether the result should be persisted to storage.
 - `result_storage`: Where to store the result when persisted.

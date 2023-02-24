@@ -2,7 +2,8 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import Iterator, List, Optional, Set, Union
+import inspect
+from typing import AsyncIterator, List, Optional, Set, Union
 from uuid import UUID
 
 import anyio
@@ -10,39 +11,65 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.engine import propose_state
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import (
+    Abort,
+    InfrastructureNotAvailable,
+    InfrastructureNotFound,
+    ObjectNotFound,
+)
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.server import schemas
+from prefect.server.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.server.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterId,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    FlowRunFilterWorkQueueName,
+)
 from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
-from prefect.states import Pending, exception_to_failed_state
+from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
-class OrionAgent:
+class PrefectAgent:
+    @experimental_parameter(
+        "work_pool_name", group="work_pools", when=lambda y: y is not None
+    )
     def __init__(
         self,
         work_queues: List[str] = None,
         work_queue_prefix: Union[str, List[str]] = None,
+        work_pool_name: str = None,
         prefetch_seconds: int = None,
         default_infrastructure: Infrastructure = None,
         default_infrastructure_document_id: UUID = None,
+        limit: Optional[int] = None,
     ) -> None:
-
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
-                "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
+                "Provide only one of 'default_infrastructure' and"
+                " 'default_infrastructure_document_id'."
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
+        self.work_pool_name = work_pool_name
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
+        self.cancelling_flow_run_ids = set()
+        self.scheduled_task_scopes = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[anyio.abc.TaskGroup] = None
-        self.client: Optional[OrionClient] = None
+        self.limit: Optional[int] = limit
+        self.limiter: Optional[anyio.CapacityLimiter] = None
+        self.client: Optional[PrefectClient] = None
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -65,7 +92,19 @@ class OrionAgent:
 
     async def update_matched_agent_work_queues(self):
         if self.work_queue_prefix:
-            matched_queues = await self.client.match_work_queues(self.work_queue_prefix)
+            if self.work_pool_name:
+                matched_queues = await self.client.read_work_queues(
+                    work_pool_name=self.work_pool_name,
+                    work_queue_filter=schemas.filters.WorkQueueFilter(
+                        name=schemas.filters.WorkQueueFilterName(
+                            startswith_=self.work_queue_prefix
+                        )
+                    ),
+                )
+            else:
+                matched_queues = await self.client.match_work_queues(
+                    self.work_queue_prefix
+                )
             matched_queues = set(q.name for q in matched_queues)
             if matched_queues != self.work_queues:
                 new_queues = matched_queues - self.work_queues
@@ -80,7 +119,7 @@ class OrionAgent:
                     )
             self.work_queues = matched_queues
 
-    async def get_work_queues(self) -> Iterator[WorkQueue]:
+    async def get_work_queues(self) -> AsyncIterator[WorkQueue]:
         """
         Loads the work queue objects corresponding to the agent's target work
         queues. If any of them don't exist, they are created.
@@ -102,16 +141,25 @@ class OrionAgent:
 
         for name in self.work_queues:
             try:
-                work_queue = await self.client.read_work_queue_by_name(name)
+                work_queue = await self.client.read_work_queue_by_name(
+                    work_pool_name=self.work_pool_name, name=name
+                )
             except ObjectNotFound:
-
                 # if the work queue wasn't found, create it
                 if not self.work_queue_prefix:
                     # do not attempt to create work queues if the agent is polling for
                     # queues using a regex
                     try:
-                        work_queue = await self.client.create_work_queue(name=name)
-                        self.logger.info(f"Created work queue '{name}'.")
+                        work_queue = await self.client.create_work_queue(
+                            work_pool_name=self.work_pool_name, name=name
+                        )
+                        if self.work_pool_name:
+                            self.logger.info(
+                                f"Created work queue {name!r} in work pool"
+                                f" {self.work_pool_name!r}."
+                            )
+                        else:
+                            self.logger.info(f"Created work queue '{name}'.")
 
                     # if creating it raises an exception, it was probably just
                     # created by some other agent; rather than entering a re-read
@@ -130,52 +178,204 @@ class OrionAgent:
         them for execution in parallel.
         """
         if not self.started:
-            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
+            )
 
-        self.logger.debug("Checking for flow runs...")
+        self.logger.debug("Checking for scheduled flow runs...")
 
         before = pendulum.now("utc").add(
             seconds=self.prefetch_seconds or PREFECT_AGENT_PREFETCH_SECONDS.value()
         )
 
-        submittable_runs = []
+        submittable_runs: List[FlowRun] = []
 
-        # load runs from each work queue
-        async for work_queue in self.get_work_queues():
+        if self.work_pool_name:
+            responses = await self.client.get_scheduled_flow_runs_for_work_pool(
+                work_pool_name=self.work_pool_name,
+                work_queue_names=[wq.name async for wq in self.get_work_queues()],
+                scheduled_before=before,
+            )
+            submittable_runs.extend([response.flow_run for response in responses])
 
-            # print a nice message if the work queue is paused
-            if work_queue.is_paused:
-                self.logger.info(
-                    f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
-                )
-
-            else:
-                try:
-                    queue_runs = await self.client.get_runs_in_work_queue(
-                        id=work_queue.id, limit=10, scheduled_before=before
+        else:
+            # load runs from each work queue
+            async for work_queue in self.get_work_queues():
+                # print a nice message if the work queue is paused
+                if work_queue.is_paused:
+                    self.logger.info(
+                        f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
                     )
-                    submittable_runs.extend(queue_runs)
-                except ObjectNotFound:
-                    self.logger.error(
-                        f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
-                    )
-                except Exception as exc:
-                    self.logger.exception(exc)
+
+                else:
+                    try:
+                        if not self.work_pool_name:
+                            queue_runs = await self.client.get_runs_in_work_queue(
+                                id=work_queue.id, limit=10, scheduled_before=before
+                            )
+                        submittable_runs.extend(queue_runs)
+                    except ObjectNotFound:
+                        self.logger.error(
+                            f"Work queue {work_queue.name!r} ({work_queue.id}) not"
+                            " found."
+                        )
+                    except Exception as exc:
+                        self.logger.exception(exc)
+
+            submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
-            self.logger.info(f"Submitting flow run '{flow_run.id}'")
-
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
 
-            self.submitting_flow_run_ids.add(flow_run.id)
-            self.task_group.start_soon(
-                self.submit_run,
-                flow_run,
+            try:
+                if self.limiter:
+                    self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
+            except anyio.WouldBlock:
+                self.logger.info(
+                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs"
+                    " in progress."
+                )
+                break
+            else:
+                self.logger.info(f"Submitting flow run '{flow_run.id}'")
+                self.submitting_flow_run_ids.add(flow_run.id)
+                self.task_group.start_soon(
+                    self.submit_run,
+                    flow_run,
+                )
+
+        return list(
+            filter(lambda run: run.id in self.submitting_flow_run_ids, submittable_runs)
+        )
+
+    async def check_for_cancelled_flow_runs(self):
+        if not self.started:
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
             )
 
-        return submittable_runs
+        self.logger.debug("Checking for cancelled flow runs...")
+
+        work_queue_names = set()
+        async for work_queue in self.get_work_queues():
+            work_queue_names.add(work_queue.name)
+
+        named_cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLED]),
+                    name=FlowRunFilterStateName(any_=["Cancelling"]),
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
+            ),
+        )
+
+        typed_cancelling_flow_runs = await self.client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                state=FlowRunFilterState(
+                    type=FlowRunFilterStateType(any_=[StateType.CANCELLING]),
+                ),
+                work_queue_name=FlowRunFilterWorkQueueName(any_=list(work_queue_names)),
+                # Avoid duplicate cancellation calls
+                id=FlowRunFilterId(not_any_=list(self.cancelling_flow_run_ids)),
+            ),
+        )
+
+        cancelling_flow_runs = named_cancelling_flow_runs + typed_cancelling_flow_runs
+
+        if cancelling_flow_runs:
+            self.logger.info(
+                f"Found {len(cancelling_flow_runs)} flow runs awaiting cancellation."
+            )
+
+        for flow_run in cancelling_flow_runs:
+            self.cancelling_flow_run_ids.add(flow_run.id)
+            self.task_group.start_soon(self.cancel_run, flow_run)
+
+        return cancelling_flow_runs
+
+    async def cancel_run(self, flow_run: FlowRun) -> None:
+        """
+        Cancel a flow run by killing its infrastructure
+        """
+        if not flow_run.infrastructure_pid:
+            self.logger.error(
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
+                " attached. Cancellation cannot be guaranteed."
+            )
+            await self._mark_flow_run_as_cancelled(
+                flow_run,
+                state_updates={
+                    "message": (
+                        "This flow run is missing infrastructure tracking information"
+                        " and cancellation cannot be guaranteed."
+                    )
+                },
+            )
+            return
+
+        try:
+            infrastructure = await self.get_infrastructure(flow_run)
+        except Exception:
+            self.logger.exception(
+                f"Failed to get infrastructure for flow run '{flow_run.id}'. "
+                "Flow run cannot be cancelled."
+            )
+            # Note: We leave this flow run in the cancelling set because it cannot be
+            #       cancelled and this will prevent additional attempts.
+            return
+
+        if not hasattr(infrastructure, "kill"):
+            self.logger.error(
+                f"Flow run '{flow_run.id}' infrastructure {infrastructure.type!r} "
+                "does not support killing created infrastructure. "
+                "Cancellation cannot be guaranteed."
+            )
+            return
+
+        self.logger.info(
+            f"Killing {infrastructure.type} {flow_run.infrastructure_pid} for flow run "
+            f"'{flow_run.id}'..."
+        )
+        try:
+            await infrastructure.kill(flow_run.infrastructure_pid)
+        except InfrastructureNotFound as exc:
+            self.logger.warning(f"{exc} Marking flow run as cancelled.")
+            await self._mark_flow_run_as_cancelled(flow_run)
+        except InfrastructureNotAvailable as exc:
+            self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
+        except Exception:
+            self.logger.exception(
+                "Encountered exception while killing infrastructure for flow run "
+                f"'{flow_run.id}'. Flow run may not be cancelled."
+            )
+            # We will try again on generic exceptions
+            self.cancelling_flow_run_ids.remove(flow_run.id)
+            return
+        else:
+            await self._mark_flow_run_as_cancelled(flow_run)
+            self.logger.info(f"Cancelled flow run '{flow_run.id}'!")
+
+    async def _mark_flow_run_as_cancelled(
+        self, flow_run: FlowRun, state_updates: Optional[dict] = None
+    ) -> None:
+        state_updates = state_updates or {}
+        state_updates.setdefault("name", "Cancelled")
+        state_updates.setdefault("type", StateType.CANCELLED)
+        state = flow_run.state.copy(update=state_updates)
+
+        await self.client.set_flow_run_state(flow_run.id, state, force=True)
+
+        # Do not remove the flow run from the cancelling set immediately because
+        # the API caches responses for the `read_flow_runs` and we do not want to
+        # duplicate cancellations.
+        await self._schedule_task(
+            60 * 10, self.cancelling_flow_run_ids.remove, flow_run.id
+        )
 
     async def get_infrastructure(self, flow_run: FlowRun) -> Infrastructure:
         deployment = await self.client.read_deployment(flow_run.deployment_id)
@@ -238,13 +438,34 @@ class OrionAgent:
                     f"Failed to get infrastructure for flow run '{flow_run.id}'."
                 )
                 await self._propose_failed_state(flow_run, exc)
+                if self.limiter:
+                    self.limiter.release_on_behalf_of(flow_run.id)
             else:
                 # Wait for submission to be completed. Note that the submission function
                 # may continue to run in the background after this exits.
-                await self.task_group.start(
+                readiness_result = await self.task_group.start(
                     self._submit_run_and_capture_errors, flow_run, infrastructure
                 )
+
+                if readiness_result and not isinstance(readiness_result, Exception):
+                    try:
+                        await self.client.update_flow_run(
+                            flow_run_id=flow_run.id,
+                            infrastructure_pid=str(readiness_result),
+                        )
+                    except Exception as exc:
+                        self.logger.exception(
+                            "An error occured while setting the `infrastructure_pid`"
+                            f" on flow run {flow_run.id!r}. The flow run will not be"
+                            " cancellable."
+                        )
+
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+
+        else:
+            # If the run is not ready to submit, release the concurrency slot
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
 
         self.submitting_flow_run_ids.remove(flow_run.id)
 
@@ -254,7 +475,6 @@ class OrionAgent:
         infrastructure: Infrastructure,
         task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
-
         # Note: There is not a clear way to determine if task_status.started() has been
         #       called without peeking at the internal `_future`. Ideally we could just
         #       check if the flow run id has been removed from `submitting_flow_run_ids`
@@ -279,6 +499,9 @@ class OrionAgent:
                     "occurred."
                 )
             return exc
+        finally:
+            if self.limiter:
+                self.limiter.release_on_behalf_of(flow_run.id)
 
         if not task_status._future.done():
             self.logger.error(
@@ -290,8 +513,15 @@ class OrionAgent:
             # Mark the task as started to prevent agent crash
             task_status.started()
 
-        # TODO: Check the result for a bad exit code and proposing a crashed state for the
-        #       run
+        if result.status_code != 0:
+            await self._propose_crashed_state(
+                flow_run,
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
+            )
+
         return result
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
@@ -300,8 +530,10 @@ class OrionAgent:
             state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception as exc:
@@ -313,8 +545,10 @@ class OrionAgent:
 
         if not state.is_pending():
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 
@@ -337,22 +571,76 @@ class OrionAgent:
                 exc_info=True,
             )
 
+    async def _propose_crashed_state(self, flow_run: FlowRun, message: str) -> None:
+        try:
+            state = await propose_state(
+                self.client,
+                Crashed(message=message),
+                flow_run_id=flow_run.id,
+            )
+        except Abort:
+            # Flow run already marked as failed
+            pass
+        except Exception:
+            self.logger.exception(f"Failed to update state of flow run '{flow_run.id}'")
+        else:
+            if state.is_crashed():
+                self.logger.info(
+                    f"Reported flow run '{flow_run.id}' as crashed: {message}"
+                )
+
+    async def _schedule_task(self, __in_seconds: int, fn, *args, **kwargs):
+        """
+        Schedule a background task to start after some time.
+
+        These tasks will be run immediately when the agent exits instead of waiting.
+
+        The function may be async or sync. Async functions will be awaited.
+        """
+
+        async def wrapper(task_status):
+            # If we are shutting down, do not sleep; otherwise sleep until the scheduled
+            # time or shutdown
+            if self.started:
+                with anyio.CancelScope() as scope:
+                    self.scheduled_task_scopes.add(scope)
+                    task_status.started()
+                    await anyio.sleep(__in_seconds)
+
+                self.scheduled_task_scopes.remove(scope)
+            else:
+                task_status.started()
+
+            result = fn(*args, **kwargs)
+            if inspect.iscoroutine(result):
+                await result
+
+        await self.task_group.start(wrapper)
+
     # Context management ---------------------------------------------------------------
 
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
+        self.limiter = (
+            anyio.CapacityLimiter(self.limit) if self.limit is not None else None
+        )
         self.client = get_client()
         await self.client.__aenter__()
         await self.task_group.__aenter__()
 
     async def shutdown(self, *exc_info):
         self.started = False
+        # We must cancel scheduled task scopes before closing the task group
+        for scope in self.scheduled_task_scopes:
+            scope.cancel()
         await self.task_group.__aexit__(*exc_info)
         await self.client.__aexit__(*exc_info)
         self.task_group = None
         self.client = None
-        self.submitting_flow_run_ids = set()
+        self.submitting_flow_run_ids.clear()
+        self.cancelling_flow_run_ids.clear()
+        self.scheduled_task_scopes.clear()
         self._work_queue_cache_expiration = None
         self._work_queue_cache = []
 
@@ -362,3 +650,10 @@ class OrionAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
+class OrionAgent(PrefectAgent):
+    """
+    Deprecated. Use `PrefectAgent` instead.
+    """

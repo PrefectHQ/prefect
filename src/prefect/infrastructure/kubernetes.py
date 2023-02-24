@@ -1,7 +1,10 @@
 import copy
 import enum
+import json
+import os
+import time
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import yaml
@@ -10,6 +13,7 @@ from typing_extensions import Literal
 
 from prefect.blocks.kubernetes import KubernetesClusterConfig
 from prefect.docker import get_prefect_image_name
+from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.hashing import stable_hash
@@ -20,6 +24,7 @@ from prefect.utilities.slugify import slugify
 if TYPE_CHECKING:
     import kubernetes
     import kubernetes.client
+    import kubernetes.client.exceptions
     import kubernetes.config
     from kubernetes.client import BatchV1Api, CoreV1Api, V1Job, V1Pod
 else:
@@ -48,29 +53,36 @@ class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
 
+    Click [here](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/) to see a tutorial.
+
     Attributes:
         cluster_config: An optional Kubernetes cluster config to use for this job.
         command: A list of strings specifying the command to run in the container to
             start the flow run. In most cases you should not override this.
         customizations: A list of JSON 6902 patches to apply to the base Job manifest.
         env: Environment variables to set for the container.
-        image: An optional string specifying the tag of a Docker image to use for the job.
-            Defaults to the Prefect image.
-        image_pull_policy: The Kubernetes image pull policy to use for job containers.
-        job: The base manifest for the Kubernetes Job.
-        job_watch_timeout_seconds: Number of seconds to watch for job creation before timing out (default 5).
-        labels: An optional dictionary of labels to add to the job.
-        name: An optional name for the job.
-        namespace: An optional string signifying the Kubernetes namespace to use.
-        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 5).
-        service_account_name: An optional string specifying which Kubernetes service account to use.
-        stream_output: If set, stream output from the job to local standard output.
         finished_job_ttl: The number of seconds to retain jobs after completion. If set, finished jobs will
             be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be
             manually removed.
+        image: An optional string specifying the image reference of a container image
+            to use for the job, for example, docker.io/prefecthq/prefect:2-latest. The
+            behavior is as described in https://kubernetes.io/docs/concepts/containers/images/#image-names.
+            Defaults to the Prefect image.
+        image_pull_policy: The Kubernetes image pull policy to use for job containers.
+        job: The base manifest for the Kubernetes Job.
+        job_watch_timeout_seconds: Number of seconds to wait for each event emitted by the job before
+            timing out. Defaults to `None`, which means no timeout will be enforced
+            while waiting for each event in the job lifecycle.
+        labels: An optional dictionary of labels to add to the job.
+        name: An optional name for the job.
+        namespace: An optional string signifying the Kubernetes namespace to use.
+        pod_watch_timeout_seconds: Number of seconds to watch for pod creation before timing out (default 60).
+        service_account_name: An optional string specifying which Kubernetes service account to use.
+        stream_output: If set, stream output from the job to local standard output.
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.KubernetesJob"
 
     type: Literal["kubernetes-job"] = Field(
         default="kubernetes-job", description="The type of infrastructure."
@@ -79,8 +91,10 @@ class KubernetesJob(Infrastructure):
     image: Optional[str] = Field(
         default=None,
         description=(
-            "The tag of a Docker image to use for the job. Defaults to the Prefect "
-            "image unless an image is already present in a provided job manifest."
+            "The image reference of a container image to use for the job, for example,"
+            " `docker.io/prefecthq/prefect:2-latest`.The behavior is as described in"
+            " the Kubernetes documentation and uses the latest version of Prefect by"
+            " default, unless an image is already present in a provided job manifest."
         ),
     )
     namespace: Optional[str] = Field(
@@ -115,9 +129,13 @@ class KubernetesJob(Infrastructure):
     )
 
     # controls the behavior of execution
-    job_watch_timeout_seconds: int = Field(
-        default=5,
-        description="Number of seconds to watch for job creation before timing out.",
+    job_watch_timeout_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "Number of seconds to wait for each event emitted by the job before "
+            "timing out. Defaults to `None`, which means no timeout will be enforced "
+            "while waiting for each event in the job lifecycle."
+        ),
     )
     pod_watch_timeout_seconds: int = Field(
         default=60,
@@ -125,11 +143,17 @@ class KubernetesJob(Infrastructure):
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, output will be streamed from the job to local standard output.",
+        description=(
+            "If set, output will be streamed from the job to local standard output."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
-        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
+        description=(
+            "The number of seconds to retain jobs after completion. If set, finished"
+            " jobs will be cleaned up by Kubernetes after the given delay. If None"
+            " (default), jobs will need to be manually removed."
+        ),
     )
 
     # internal-use only right now
@@ -167,10 +191,18 @@ class KubernetesJob(Infrastructure):
 
     @validator("customizations", pre=True)
     def cast_customizations_to_a_json_patch(
-        cls, value: Union[List[Dict], JsonPatch]
+        cls, value: Union[List[Dict], JsonPatch, str]
     ) -> JsonPatch:
         if isinstance(value, list):
             return JsonPatch(value)
+        elif isinstance(value, str):
+            try:
+                return JsonPatch(json.loads(value))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Unable to parse customizations as JSON: {value}. Please make sure"
+                    " that the provided value is a valid JSON string."
+                ) from exc
         return value
 
     @root_validator
@@ -259,31 +291,63 @@ class KubernetesJob(Infrastructure):
     async def run(
         self,
         task_status: Optional[anyio.abc.TaskStatus] = None,
-    ) -> Optional[bool]:
+    ) -> KubernetesJobResult:
         if not self.command:
             raise ValueError("Kubernetes job cannot be run with empty command.")
 
-        # if a k8s cluster block is provided to the flow runner, use that
-        if self.cluster_config:
-            self.cluster_config.configure_client()
-        else:
-            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
-            # work, try to load the configuration from the local environment, allowing
-            # any further ConfigExceptions to bubble up.
-            try:
-                kubernetes.config.load_incluster_config()
-            except kubernetes.config.ConfigException:
-                kubernetes.config.load_kube_config()
-
+        self._configure_kubernetes_library_client()
         manifest = self.build_job()
-        job_name = await run_sync_in_worker_thread(self._create_job, manifest)
+        job = await run_sync_in_worker_thread(self._create_job, manifest)
 
+        pid = await run_sync_in_worker_thread(self._get_infrastructure_pid, job)
         # Indicate that the job has started
         if task_status is not None:
-            task_status.started(job_name)
+            task_status.started(pid)
 
-        # Monitor the job
-        return await run_sync_in_worker_thread(self._watch_job, job_name)
+        # Monitor the job until completion
+        status_code = await run_sync_in_worker_thread(
+            self._watch_job, job.metadata.name
+        )
+        return KubernetesJobResult(identifier=pid, status_code=status_code)
+
+    async def kill(self, infrastructure_pid: str, grace_seconds: int = 30):
+        self._configure_kubernetes_library_client()
+        job_cluster_uid, job_namespace, job_name = self._parse_infrastructure_pid(
+            infrastructure_pid
+        )
+
+        if not job_namespace == self.namespace:
+            raise InfrastructureNotAvailable(
+                f"Unable to kill job {job_name!r}: The job is running in namespace "
+                f"{job_namespace!r} but this block is configured to use "
+                f"{self.namespace!r}."
+            )
+
+        current_cluster_uid = self._get_cluster_uid()
+        if job_cluster_uid != current_cluster_uid:
+            raise InfrastructureNotAvailable(
+                f"Unable to kill job {job_name!r}: The job is running on another "
+                "cluster."
+            )
+
+        with self.get_batch_client() as batch_client:
+            try:
+                batch_client.delete_namespaced_job(
+                    name=job_name,
+                    namespace=job_namespace,
+                    grace_period_seconds=grace_seconds,
+                    # Foreground propagation deletes dependent objects before deleting owner objects.
+                    # This ensures that the pods are cleaned up before the job is marked as deleted.
+                    # See: https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion
+                    propagation_policy="Foreground",
+                )
+            except kubernetes.client.exceptions.ApiException as exc:
+                if exc.status == 404:
+                    raise InfrastructureNotFound(
+                        f"Unable to kill job {job_name!r}: The job was not found."
+                    ) from exc
+                else:
+                    raise
 
     def preview(self):
         return yaml.dump(self.build_job())
@@ -310,6 +374,75 @@ class KubernetesJob(Infrastructure):
                 yield kubernetes.client.CoreV1Api(api_client=client)
             finally:
                 client.rest_client.pool_manager.clear()
+
+    def _get_infrastructure_pid(self, job: "V1Job") -> str:
+        """
+        Generates a Kubernetes infrastructure PID.
+
+        The PID is in the format: "<cluster uid>:<namespace>:<job name>".
+        """
+        cluster_uid = self._get_cluster_uid()
+        pid = f"{cluster_uid}:{self.namespace}:{job.metadata.name}"
+        return pid
+
+    def _parse_infrastructure_pid(
+        self, infrastructure_pid: str
+    ) -> Tuple[str, str, str]:
+        """
+        Parse a Kubernetes infrastructure PID into its component parts.
+
+        Returns a cluster UID, namespace, and job name.
+        """
+        cluster_uid, namespace, job_name = infrastructure_pid.split(":", 2)
+        return cluster_uid, namespace, job_name
+
+    def _get_cluster_uid(self) -> str:
+        """
+        Gets a unique id for the current cluster being used.
+
+        There is no real unique identifier for a cluster. However, the `kube-system`
+        namespace is immutable and has a persistence UID that we use instead.
+
+        PREFECT_KUBERNETES_CLUSTER_UID can be set in cases where the `kube-system`
+        namespace cannot be read e.g. when a cluster role cannot be created. If set,
+        this variable will be used and we will not attempt to read the `kube-system`
+        namespace.
+
+        See https://github.com/kubernetes/kubernetes/issues/44954
+        """
+        # Default to an environment variable
+        env_cluster_uid = os.environ.get("PREFECT_KUBERNETES_CLUSTER_UID")
+        if env_cluster_uid:
+            return env_cluster_uid
+
+        # Read the UID from the cluster namespace
+        with self.get_client() as client:
+            namespace = client.read_namespace("kube-system")
+        cluster_uid = namespace.metadata.uid
+
+        return cluster_uid
+
+    def _configure_kubernetes_library_client(self) -> None:
+        """
+        Set the correct kubernetes client configuration.
+
+        WARNING: This action is not threadsafe and may override the configuration
+                  specified by another `KubernetesJob` instance.
+        """
+        # TODO: Investigate returning a configured client so calls on other threads
+        #       will not invalidate the config needed here
+
+        # if a k8s cluster block is provided to the flow runner, use that
+        if self.cluster_config:
+            self.cluster_config.configure_client()
+        else:
+            # If no block specified, try to load Kubernetes configuration within a cluster. If that doesn't
+            # work, try to load the configuration from the local environment, allowing
+            # any further ConfigExceptions to bubble up.
+            try:
+                kubernetes.config.load_incluster_config()
+            except kubernetes.config.ConfigException:
+                kubernetes.config.load_kube_config()
 
     def _shortcut_customizations(self) -> JsonPatch:
         """Produces the JSON 6902 patch for the most commonly used customizations, like
@@ -338,7 +471,9 @@ class KubernetesJob(Infrastructure):
         shortcuts += [
             {
                 "op": "add",
-                "path": f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}",
+                "path": (
+                    f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}"
+                ),
                 "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()
@@ -403,14 +538,16 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": "prefect-job-"
-                    # We generate a name using a hash of the primary job settings
-                    + stable_hash(
-                        *self.command,
-                        *self.env.keys(),
-                        *[v for v in self.env.values() if v is not None],
-                    )
-                    + "-",
+                    "value": (
+                        "prefect-job-"
+                        # We generate a name using a hash of the primary job settings
+                        + stable_hash(
+                            *self.command,
+                            *self.env.keys(),
+                            *[v for v in self.env.values() if v is not None],
+                        )
+                        + "-"
+                    ),
                 }
             )
 
@@ -420,8 +557,8 @@ class KubernetesJob(Infrastructure):
         with self.get_batch_client() as batch_client:
             try:
                 job = batch_client.read_namespaced_job(job_id, self.namespace)
-            except kubernetes.ApiException:
-                self.logger.error(f"Job{job_id!r} was removed.", exc_info=True)
+            except kubernetes.client.exceptions.ApiException:
+                self.logger.error(f"Job {job_id!r} was removed.", exc_info=True)
                 return None
             return job
 
@@ -429,6 +566,7 @@ class KubernetesJob(Infrastructure):
         """Get the first running pod for a job."""
 
         # Wait until we find a running pod for the job
+        # if `pod_watch_timeout_seconds` is None, no timeout will be enforced
         watch = kubernetes.watch.Watch()
         self.logger.debug(f"Job {job_name!r}: Starting watch for pod start...")
         last_phase = None
@@ -451,14 +589,28 @@ class KubernetesJob(Infrastructure):
 
         self.logger.error(f"Job {job_name!r}: Pod never started.")
 
-    def _watch_job(self, job_name: str) -> bool:
+    def _watch_job(self, job_name: str) -> int:
+        """
+        Watch a job.
+
+        Return the final status code of the first container.
+        """
+        self.logger.debug(f"Job {job_name!r}: Monitoring job...")
+
         job = self._get_job(job_name)
         if not job:
-            return KubernetesJobResult(status_code=-1, identifier=job_name)
+            return -1
 
         pod = self._get_job_pod(job_name)
         if not pod:
-            return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+            return -1
+
+        # Calculate the deadline before streaming output
+        deadline = (
+            (time.time() + self.job_watch_timeout_seconds)
+            if self.job_watch_timeout_seconds is not None
+            else None
+        )
 
         if self.stream_output:
             with self.get_client() as client:
@@ -467,26 +619,65 @@ class KubernetesJob(Infrastructure):
                     self.namespace,
                     follow=True,
                     _preload_content=False,
+                    container="prefect-job",
                 )
-                for log in logs.stream():
-                    print(log.decode().rstrip())
+                try:
+                    for log in logs.stream():
+                        print(log.decode().rstrip())
 
-        # Wait for job to complete
-        self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        watch = kubernetes.watch.Watch()
+                        # Check if we have passed the deadline and should stop streaming
+                        # logs
+                        remaining_time = deadline - time.time() if deadline else None
+                        if deadline and remaining_time <= 0:
+                            break
+
+                except Exception:
+                    self.logger.warning(
+                        (
+                            "Error occurred while streaming logs - "
+                            "Job will continue to run but logs will "
+                            "no longer be streamed to stdout."
+                        ),
+                        exc_info=True,
+                    )
+
         with self.get_batch_client() as batch_client:
-            for event in watch.stream(
-                func=batch_client.list_namespaced_job,
-                field_selector=f"metadata.name={job_name}",
-                namespace=self.namespace,
-                timeout_seconds=self.job_watch_timeout_seconds,
-            ):
-                if event["object"].status.completion_time:
-                    watch.stop()
-                    break
-            else:
-                self.logger.error(f"Job {job_name!r}: Job did not complete.")
-                return KubernetesJobResult(status_code=-1, identifier=job.metadata.name)
+            # Check if the job is completed before beginning a watch
+            job = batch_client.read_namespaced_job(
+                name=job_name, namespace=self.namespace
+            )
+            completed = job.status.completion_time is not None
+
+            while not completed:
+                remaining_time = deadline - time.time() if deadline else None
+                if deadline and remaining_time <= 0:
+                    self.logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {self.job_watch_timeout_seconds}s."
+                    )
+                    return -1
+
+                watch = kubernetes.watch.Watch()
+                # The kubernetes library will disable retries if the timeout kwarg is
+                # present regardless of the value so we do not pass it unless given
+                # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
+                timeout_seconds = (
+                    {"timeout_seconds": remaining_time} if deadline else {}
+                )
+
+                for event in watch.stream(
+                    func=batch_client.list_namespaced_job,
+                    field_selector=f"metadata.name={job_name}",
+                    namespace=self.namespace,
+                    **timeout_seconds,
+                ):
+                    if event["object"].status.completion_time:
+                        if not event["object"].status.succeeded:
+                            # Job failed, exit while loop and return pod exit code
+                            self.logger.error(f"Job {job_name!r}: Job failed.")
+                        completed = True
+                        watch.stop()
+                        break
 
         with self.get_client() as client:
             pod_status = client.read_namespaced_pod_status(
@@ -494,19 +685,16 @@ class KubernetesJob(Infrastructure):
             )
             first_container_status = pod_status.status.container_statuses[0]
 
-        return KubernetesJobResult(
-            status_code=first_container_status.state.terminated.exit_code,
-            identifier=job.metadata.name,
-        )
+        return first_container_status.state.terminated.exit_code
 
-    def _create_job(self, job_manifest: KubernetesManifest) -> str:
+    def _create_job(self, job_manifest: KubernetesManifest) -> "V1Job":
         """
         Given a Kubernetes Job Manifest, create the Job on the configured Kubernetes
         cluster and return its name.
         """
         with self.get_batch_client() as batch_client:
             job = batch_client.create_namespaced_job(self.namespace, job_manifest)
-        return job.metadata.name
+        return job
 
     def _slugify_name(self, name: str) -> str:
         """
@@ -563,7 +751,7 @@ class KubernetesJob(Infrastructure):
             name = key
 
         name_slug = (
-            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or name
@@ -603,7 +791,7 @@ class KubernetesJob(Infrastructure):
             The slugified value
         """
         slug = (
-            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value

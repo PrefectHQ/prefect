@@ -1,5 +1,6 @@
 ---
 description: Configure single sign-on (SSO) for your Prefect Cloud users.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -32,15 +33,15 @@ Within your organization, select the **SSO** page to enable SSO for users.
 
 If you haven't enabled SSO for a domain yet, enter the email domains for which you want to configure SSO in Prefect Cloud. Select **Save** to accept the domains.
 
-![Adding an email domain for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso.png)
+![Adding an email domain for single sign-on in the Prefect Cloud UI.](../img/ui/cloud-sso.png)
 
 Under **Enabled Domains**, select the domains from the **Domains** list, then select **Generate Link**. This step creates a link you can use to configure SSO with your identity provider.
 
-![Generating a configuration link for single sign-on in the Prefect Cloud UI.](/img/ui/cloud-sso-provider.png)
+![Generating a configuration link for single sign-on in the Prefect Cloud UI.](../img/ui/cloud-sso-provider.png)
 
 Using the provided link navigate to the Identity Provider Configuration dashboard and select your identity provider to continue configuration. If your provider isn't listed, you can continue with the `SAML` or `Open ID Connect` choices instead.
 
-![Opening the Identity Provider Configuration dashboard.](/img/ui/cloud-sso-dashboard.png)
+![Opening the Identity Provider Configuration dashboard.](../img/ui/cloud-sso-dashboard.png)
 
 Once you complete SSO configuration your users will be required to authenticate via your identity provider when accessing organization resources, giving you full control over application access.
 

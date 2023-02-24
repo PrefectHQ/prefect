@@ -11,7 +11,13 @@ setup(
     description="Workflow orchestration and management.",
     author="Prefect Technologies, Inc.",
     author_email="help@prefect.io",
-    url="https://github.com/PrefectHQ/prefect/tree/orion",
+    url="https://www.prefect.io",
+    project_urls={
+        "Changelog": "https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md",
+        "Documentation": "https://docs.prefect.io",
+        "Source": "https://github.com/PrefectHQ/prefect",
+        "Tracker": "https://github.com/PrefectHQ/prefect/issues",
+    },
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Versioning

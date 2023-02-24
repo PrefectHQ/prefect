@@ -11,8 +11,8 @@ base = ""
 command = """
 pip install --upgrade pip \
 && pip install --upgrade --upgrade-strategy eager  -e ".[dev]" \
-&& pip install git+https://${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git; \
-prefect dev build-docs  \
+&& pip install git+https://oauth:${MKDOCS_INSIDERS_PAT}@github.com/PrefectHQ/mkdocs-material-insiders.git \
+&& prefect dev build-docs \
 && mkdocs build --config-file mkdocs.insiders.yml \
 || mkdocs build --config-file mkdocs.yml \
 """
@@ -23,6 +23,11 @@ publish = "site"
 [[redirects]]
   from = "/collections/overview/"
   to = "/collections/catalog/"
+  status = 301
+
+[[redirects]]
+  from = "/api-ref/orion/*"
+  to = "/api-ref/server/:splat"
   status = 301
 
 # redirect v1 traffic to docs-v1.prefect.io
@@ -42,8 +47,13 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://docs.prefect.io/migration_guide/"
-  to = "https://docs.prefect.io/migration-guide/"
+  from = "https://orion-docs.prefect.io/*"
+  to = "https://docs.prefect.io/:splat"
+  status = 301
+
+[[redirects]]
+  from = "/migration_guide/"
+  to = "/migration-guide/"
   status = 301
 
 [[redirects]]
@@ -52,6 +62,16 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://orion-docs.prefect.io/*"
-  to = "https://docs.prefect.io/:splat"
+  from = "/ui/work-queues/"
+  to = "/ui/work-pools/"
+  status = 301
+
+[[redirects]]
+  from = "/concepts/work-queues/"
+  to = "/concepts/work-pools/"
+  status = 301
+
+[[redirects]]
+  from = "/ui/cloud-getting-started/"
+  to = "/ui/cloud-quickstart/"
   status = 301

@@ -28,9 +28,16 @@ Once the Prefect Collection is installed, [register the blocks](/concepts/blocks
 As an example, to register the blocks available in `prefect-aws`:
 
 ```bash
-prefect block register -m prefect_aws.credentials
-prefect block register -m prefect_aws.ecs
+prefect block register -m prefect_aws
 ```
+
+!!! tip "Updating blocks from Prefect Collections"
+    If you install an updated Prefect collection that adds fields to a block type, you will need to re-register that block type.
+
+!!! tip "Loading a block in code"
+    To use the `load` method on a Block, you must already have a block document [saved](/concepts/blocks/#saving-blocks) either through code or through the Prefect UI.
+
+Learn more about Blocks [here](/concepts/blocks)!
 
 ## Using Tasks and Flows from a Collection
 
@@ -54,4 +61,31 @@ def connect_to_database():
     # Use secret_value to connect to a database
 ```
 
-**Note**, to use the load method on Blocks, you must already have a block document [saved](/concepts/blocks/#saving-blocks) through code or saved through the UI.
+## Customizing Tasks and Flows from a Collection
+
+To customize the settings of a task or flow pre-configured in a collection, use `with_options`:
+    
+```python
+from prefect import flow
+from prefect_dbt.cloud import DbtCloudCredentials
+from prefect_dbt.cloud.jobs import trigger_dbt_cloud_job_run_and_wait_for_completion
+
+custom_run_dbt_cloud_job = trigger_dbt_cloud_job_run_and_wait_for_completion.with_options(
+    name="Run My DBT Cloud Job",
+    retries=2,
+    retry_delay_seconds=10
+)
+
+@flow
+def run_dbt_job_flow():
+    run_result = custom_run_dbt_cloud_job(
+        dbt_cloud_credentials=DbtCloudCredentials.load("my-dbt-cloud-credentials"),
+        job_id=1
+    )
+
+run_dbt_job_flow()
+
+``` 
+## Recipes and Tutorials
+
+To learn more about how to use Collections, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Collections can be used in various scenarios.
