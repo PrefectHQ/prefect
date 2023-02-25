@@ -45,7 +45,7 @@ jobs:
         database:
           - "postgres:13"
         os:
-          - ubuntu-latest
+          - "ubuntu-latest"
         python-version:
           - "3.7"
         pytest-options:
@@ -197,7 +197,3 @@ jobs:
           docker container inspect postgres
           && docker container logs postgres
           || echo "Ignoring bad exit code"
-
-      - name: Run Stoat Action
-        uses: stoat-dev/stoat-action@v0
-        if: always()
