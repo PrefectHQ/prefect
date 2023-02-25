@@ -1,0 +1,9 @@
+---
+version: 1
+enabled: true
+plugins:
+  job_runtime:
+    enabled: true
+ static_hosting:
+   pip_freeze:
+     path: freeze.txt
