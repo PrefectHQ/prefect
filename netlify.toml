@@ -76,7 +76,7 @@ publish = "site"
   to = "/ui/cloud-quickstart/"
   status = 301
 
-  [[headers]]
+[[headers]]
   # Define which paths this specific [[headers]] block will cover.
   for = "/*"
 
@@ -192,3 +192,7 @@ publish = "site"
       web-share=(), \
       xr-spatial-tracking=() \
       """
+
+[[edge_functions]]
+  path = "/segment/*"
+  function = "segment"
