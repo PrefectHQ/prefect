@@ -54,7 +54,7 @@ def main(
         None,
         "--profile",
         "-p",
-        help="Select a profile for this this CLI run.",
+        help="Select a profile for this CLI run.",
         is_eager=True,
     ),
 ):
