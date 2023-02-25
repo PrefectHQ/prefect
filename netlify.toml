@@ -101,6 +101,7 @@ publish = "site"
     #   'none' - all resources from current origin are blocked by default
     # connect-src
     #   'self' - all connections to current current origin are permitted
+    #   https://api.github.com - required to display release information
     #   https://api.segment.io - default domain for Segment analytics
     #   https://cdn.segment.com - default domain for Segment analytics.js
     #   https://api.segment.prefect.io - custom proxy for Segment analytics
