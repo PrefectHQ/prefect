@@ -203,19 +203,12 @@ async def logs(
             )
 
             # Get the next page of logs
-            if reverse:
-                page_logs = await client.read_logs(
-                    log_filter=log_filter,
-                    limit=num_logs_to_return_from_page,
-                    offset=offset,
-                    sort=schemas.sorting.LogSort.TIMESTAMP_DESC,
-                )
-            else:
-                page_logs = await client.read_logs(
-                    log_filter=log_filter,
-                    limit=num_logs_to_return_from_page,
-                    offset=offset,
-                )
+            page_logs = await client.read_logs(
+                log_filter=log_filter,
+                limit=num_logs_to_return_from_page,
+                offset=offset,
+                sort=schemas.sorting.LogSort.TIMESTAMP_DESC if reverse else schemas.sorting.LogSort.TIMESTAMP_ASC
+            )
 
             # Print the logs
             for log in page_logs:
