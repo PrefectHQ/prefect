@@ -134,19 +134,19 @@ publish = "site"
     #   'unsafe-inline' - required for styles loaded in partials
     # worker-src
     #   'self' - allow web workers from current origin
-    Content-Security-Policy = """\
-      default-src 'none'; \
-      connect-src 'self' https://api.segment.io https://cdn.segment.com https://api.segment.prefect.io https://cdn.segment.prefect.io https://www.google-analytics.com; \
-      font-src https://fonts.gstatic.com; \
-      frame-ancestors 'none'; \
-      frame-src https://www.youtube.com; \
-      img-src 'self' data: https://avatars.githubusercontent.com; \
-      media-src 'none'; \
-      object-src 'none'; \
-      script-src 'self' 'unsafe-inline' https://cdn.segment.com/ https://cdn.segment.prefect.io https://www.googletagmanager.com; \
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com/; \
-      worker-src 'self'
-      """
+    # Content-Security-Policy = """\
+    #   default-src 'none'; \
+    #   connect-src 'self' https://api.segment.io https://cdn.segment.com https://api.segment.prefect.io https://cdn.segment.prefect.io https://www.google-analytics.com; \
+    #   font-src https://fonts.gstatic.com; \
+    #   frame-ancestors 'none'; \
+    #   frame-src https://www.youtube.com; \
+    #   img-src 'self' data: https://avatars.githubusercontent.com; \
+    #   media-src 'none'; \
+    #   object-src 'none'; \
+    #   script-src 'self' 'unsafe-inline' https://cdn.segment.com/ https://cdn.segment.prefect.io https://www.googletagmanager.com; \
+    #   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com/; \
+    #   worker-src 'self'
+    #   """
 
     # Referrer-Policy controls the Referer header in requests.
     #
