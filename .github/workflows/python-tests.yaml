@@ -164,6 +164,11 @@ jobs:
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
           pip freeze > freeze.txt
 
+
+      - name: Run Stoat Action
+        uses: stoat-dev/stoat-action@v0
+        if: always()
+
       # - name: Start database container
       #   if: ${{ startsWith(matrix.database, 'postgres') }}
       #   run: >
