@@ -166,7 +166,7 @@ async def logs(
         min=1,
     ),
     reverse: bool = typer.Option(
-        None,
+        False,
         "--reverse",
         "-r",
         help="Reverse the logs order to print the most recent logs first",
