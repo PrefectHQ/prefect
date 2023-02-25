@@ -11,7 +11,6 @@ extra_css:
     - stylesheets/termynal.css
     - stylesheets/extra.css
 extra_javascript:
-    - js/segment.js
     - js/termynal.js
     - js/custom.js
 markdown_extensions:
