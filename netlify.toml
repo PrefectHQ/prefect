@@ -136,7 +136,7 @@ publish = "site"
     #   'self' - allow web workers from current origin
     Content-Security-Policy = """\
       default-src 'none'; \
-      connect-src 'self' https://api.segment.io https://cdn.segment.com https://api.segment.prefect.io https://cdn.segment.prefect.io https://www.google-analytics.com; \
+      connect-src 'self' https://api.github.com https://api.segment.io https://cdn.segment.com https://api.segment.prefect.io https://cdn.segment.prefect.io https://www.google-analytics.com; \
       font-src https://fonts.gstatic.com; \
       frame-ancestors 'none'; \
       frame-src https://www.youtube.com; \
