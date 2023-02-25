@@ -11,6 +11,7 @@ extra_css:
     - stylesheets/termynal.css
     - stylesheets/extra.css
 extra_javascript:
+    - js/segment.js
     - js/termynal.js
     - js/custom.js
 markdown_extensions:
@@ -274,7 +275,7 @@ extra:
     version:
         provider: mike
     analytics:
-        provider: custom
+        provider: google
         property: G-3M31G9B0QJ
     social:
         - icon: fontawesome/brands/slack
