@@ -105,6 +105,7 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | azure_storage_tenant_id | Azure storage tenant ID. |
 | azure_storage_client_id | Azure storage client ID. |
 | azure_storage_client_secret | Azure storage client secret. |
+| azure_storage_anon | Anonymous authentication, disable to use `DefaultAzureCredential`. |
 
 
 To create a block:

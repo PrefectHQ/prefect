@@ -1,5 +1,91 @@
 # Prefect Release Notes
 
+## Release 2.8.3
+
+### `on_completion` and `on_failure` hooks for flows and tasks
+With this release you can now add client-side hooks that will be called when your flow or task enters a `Completed` or `Failed` state. This is great for any case where you want to execute code without involvement of the Prefect API. 
+
+Both flows and tasks include `on_completion` and `on_failure` options where a list of callable hooks can be provided. The callable will receive three arguments:
+- `flow`, `flow_run`, and `state` in the case of a flow hook
+- `task`, `task_run`, and `state` in the case of a task hook
+
+For example, here we add completion hooks to a flow and a task:
+
+```python
+from prefect import task, flow
+
+def my_completion_task_hook_1(task, task_run, state):
+    print("This is the first hook - Task completed!!!")
+    
+def my_completion_task_hook_2(task, task_run, state):
+  print("This is the second hook - Task completed!!!")
+    
+def my_completion_flow_hook(flow, flow_run, state):
+    print("Flow completed!!!")
+    
+@task(on_completion=[my_completion_task_hook_1, my_completion_task_hook_2])
+def my_task():
+    print("This is the task!")
+
+@flow(on_completion=[my_completion_flow_hook])
+def my_flow():
+    my_task()
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+Next, we'll include a failure hook as well. It's worth noting that you can supply both `on_completion` and `on_failure` hooks to a flow or task. Only the hooks that are relevant to the final state of the flow or task will be called.
+
+```python
+from prefect import task, flow
+
+def my_task_completion_hook(task, task_run, state):
+    print("Our task completed successfully!")
+
+def my_task_failure_hook(task, task_run, state):
+    print("Our task failed :(")
+
+@task(on_completion=[my_task_completion_hook], on_failure=[my_task_failure_hook])
+def my_task():
+    raise Exception("Oh no!")
+
+@flow
+def my_flow():
+    my_task.submit()
+
+if __name__ == "__main__":
+    my_flow()
+```
+
+### Enhancements
+- Update `quote` handling in input resolution to skip descending into the quoted expression — https://github.com/PrefectHQ/prefect/pull/8576
+- Add light and dark mode color and contrast enhancements to UI — https://github.com/PrefectHQ/prefect/pull/8629
+
+### Fixes
+- Fix `Task.map` type hint for type-checker compatibility with async tasks — https://github.com/PrefectHQ/prefect/pull/8607
+- Update Docker container name sanitization to handle "ce" and "ee" when checking Docker version — https://github.com/PrefectHQ/prefect/pull/8588
+- Fix Kubernetes Job watch timeout behavior when streaming logs — https://github.com/PrefectHQ/prefect/pull/8618
+- Fix date range filter selection on the flow runs UI page — https://github.com/PrefectHQ/prefect/pull/8616
+- Fix Kubernetes not streaming logs when using multiple containers in Job — https://github.com/PrefectHQ/prefect/pull/8430
+
+### Experimental
+- Update worker variable typing for clearer display in the UI — https://github.com/PrefectHQ/prefect/pull/8613
+- Update `BaseWorker` to ignore flow runs with associated storage block — https://github.com/PrefectHQ/prefect/pull/8619
+- Add experimental API for artifacts — https://github.com/PrefectHQ/prefect/pull/8404
+
+### Documentation
+- Add documentation for resuming a flow run via the UI — https://github.com/PrefectHQ/prefect/pull/8621
+- Add [`prefect-sifflet`](https://siffletapp.github.io/prefect-sifflet/) to Collections catalog — https://github.com/PrefectHQ/prefect/pull/8599
+
+
+### Contributors
+- @jefflaporte made their first contribution in https://github.com/PrefectHQ/prefect/pull/8430
+- @AzemaBaptiste made their first contribution in https://github.com/PrefectHQ/prefect/pull/8599
+- @darrida
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.2...2.8.3
+
 ## Release 2.8.2
 
 ### Fixes

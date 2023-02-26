@@ -9,6 +9,7 @@ import concurrent.futures
 import contextlib
 import contextvars
 import dataclasses
+import functools
 import inspect
 import queue
 import threading
@@ -144,16 +145,40 @@ class Supervisor(abc.ABC, Generic[T]):
     Work sent to the supervisor will be executed when the owner waits for the result.
     """
 
-    def __init__(self) -> None:
-        self.owner_thread_ident = threading.get_ident()
+    def __init__(self, submit_fn: Callable[..., concurrent.futures.Future]) -> None:
+        self._submit_fn = submit_fn
+        self._owner_thread = threading.current_thread()
         self._future: AnyFuture = None
+        self._future_thread = concurrent.futures.Future()
+        self._future_call: Tuple[Callable, Tuple, Dict] = None
         logger.debug("Created supervisor %r", self)
 
-    def set_future(self, future: AnyFuture) -> None:
+    def submit(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
         """
-        Assign a future to the supervisor.
+        Submit a call to a worker.
+
+        The supervisor will use the `submit_fn` from initialization to send the call to
+        the worker. It will wrap the call to provide supervision.
+
+        This method may only be called once per supervisor.
         """
-        self._future = future
+        if self._future:
+            raise RuntimeError("A supervisor can only monitor a single future")
+
+        @functools.wraps(__fn)
+        def _call_in_supervised_thread():
+            # Capture the worker thread before running the function
+            thread = threading.current_thread()
+            self._future_thread.set_result(thread)
+            return __fn(*args, **kwargs)
+
+        with set_supervisor(self):
+            future = self._submit_fn(_call_in_supervised_thread)
+
+        self._set_future(future)
+        self._future_call = (__fn, args, kwargs)
+
+        return future
 
     def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
         """
@@ -164,10 +189,21 @@ class Supervisor(abc.ABC, Generic[T]):
         logger.debug("Sent work item to %r", self)
         return work_item.future
 
+    @property
+    def owner_thread(self):
+        return self._owner_thread
+
     @abc.abstractmethod
     def _put_work_item(self, work_item: WorkItem) -> None:
         """
         Add a work item to the supervisor. Used by `send_call`.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def _set_future(self, future: AnyFuture) -> None:
+        """
+        Assign a future to the supervisor.
         """
         raise NotImplementedError()
 
@@ -181,24 +217,29 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
+        extra = ""
+
+        if self._future_call:
+            extra += f" submitted={self._future_call[0].__name__!r},"
+
         return (
-            f"<{self.__class__.__name__}(id={id(self)},"
-            f" owner={self.owner_thread_ident})>"
+            f"<{self.__class__.__name__} submit_fn={self._submit_fn.__name__!r},"
+            f"{extra} owner={self._owner_thread.name!r}>"
         )
 
 
 class SyncSupervisor(Supervisor[T]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, submit_fn: Callable[..., concurrent.futures.Future]) -> None:
+        super().__init__(submit_fn=submit_fn)
         self._queue: queue.Queue = queue.Queue()
         self._future: Optional[concurrent.futures.Future] = None
 
     def _put_work_item(self, work_item: WorkItem):
         self._queue.put_nowait(work_item)
 
-    def set_future(self, future: concurrent.futures.Future):
+    def _set_future(self, future: concurrent.futures.Future):
         future.add_done_callback(lambda _: self._queue.put_nowait(None))
-        super().set_future(future)
+        self._future = future
 
     def result(self) -> T:
         if not self._future:
@@ -218,13 +259,13 @@ class SyncSupervisor(Supervisor[T]):
 
 
 class AsyncSupervisor(Supervisor[T]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, submit_fn: Callable[..., concurrent.futures.Future]) -> None:
+        super().__init__(submit_fn=submit_fn)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._future: Optional[asyncio.Future] = None
 
-    def set_future(
+    def _set_future(
         self, future: Union[asyncio.Future, concurrent.futures.Future]
     ) -> None:
         # Ensure we're working with an asyncio future internally
@@ -234,7 +275,7 @@ class AsyncSupervisor(Supervisor[T]):
         future.add_done_callback(
             lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
         )
-        super().set_future(future)
+        self._future = future
 
     def _put_work_item(self, work_item: WorkItem):
         # We must put items in the queue from the event loop that owns it
