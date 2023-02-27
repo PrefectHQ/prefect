@@ -27,7 +27,7 @@ def call_soon_in_runtime_thread(
     ):
         submit_fn = runtime.submit_to_loop
     else:
-        submit_fn = current_supervisor.send_call
+        submit_fn = current_supervisor.send_call_to_supervisor
 
     supervisor = AsyncSupervisor(submit_fn=submit_fn)
     supervisor.submit(__fn, *args, **kwargs)
@@ -66,5 +66,5 @@ def call_soon_in_supervising_thread(
     if current_future is None:
         raise RuntimeError("No supervisor found.")
 
-    future = current_future.send_call(__fn, *args, **kwargs)
+    future = current_future.send_call_to_supervisor(__fn, *args, **kwargs)
     return asyncio.wrap_future(future)
