@@ -279,6 +279,17 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
 
+    async def test_build_from_flow_sets_description(self, flow_function):
+        description = "test description"
+        d = await Deployment.build_from_flow(
+            flow=flow_function, description=description, name="foo"
+        )
+        assert d.description == description
+
+    async def test_description_defaults_to_flow_description(self, flow_function):
+        d = await Deployment.build_from_flow(flow=flow_function, name="foo")
+        assert d.description == flow_function.description
+
     @pytest.mark.parametrize("skip_upload", [True, False])
     async def test_build_from_flow_sets_path(self, flow_function, skip_upload):
         d = await Deployment.build_from_flow(

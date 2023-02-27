@@ -782,6 +782,15 @@ async def build(
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
     ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        "-d",
+        help=(
+            "The description to give the deployment. "
+            "If not provided, the description will be populated from the flow's description."
+        ),
+    ),
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
@@ -1085,6 +1094,7 @@ async def build(
     deployment = await Deployment.build_from_flow(
         flow=flow,
         name=name,
+        description=description,
         output=deployment_loc,
         skip_upload=skip_upload,
         apply=False,
