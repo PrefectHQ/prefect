@@ -25,6 +25,18 @@ def get_running_loop() -> Optional[asyncio.BaseEventLoop]:
         return None
 
 
+def in_async_context():
+    try:
+        current_task = asyncio.current_task
+    except AttributeError:
+        current_task = asyncio.Task.current_task
+    try:
+        if current_task() is not None:
+            return True
+    except RuntimeError:
+        pass
+
+
 def call_in_loop(
     __loop: asyncio.AbstractEventLoop,
     __fn: Callable[P, T],
