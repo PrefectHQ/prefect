@@ -66,7 +66,7 @@ def test_sync_supervisor_timeout_in_main_thread():
 
         def on_worker_thread():
             # Send sleep to the main thread
-            future = supervisor.send_call(time.sleep, 2)
+            future = supervisor.send_call_to_supervisor(time.sleep, 2)
             return future
 
         supervisor.submit(on_worker_thread)
@@ -108,7 +108,7 @@ async def test_async_supervisor_timeout_in_main_thread():
 
         def on_worker_thread():
             # Send sleep to the main thread
-            future = supervisor.send_call(asyncio.sleep, 1)
+            future = supervisor.send_call_to_supervisor(asyncio.sleep, 1)
             return future
 
         supervisor.submit(on_worker_thread)
