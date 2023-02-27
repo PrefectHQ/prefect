@@ -207,7 +207,11 @@ async def logs(
                 log_filter=log_filter,
                 limit=num_logs_to_return_from_page,
                 offset=offset,
-                sort=schemas.sorting.LogSort.TIMESTAMP_DESC if reverse else schemas.sorting.LogSort.TIMESTAMP_ASC
+                sort=(
+                    schemas.sorting.LogSort.TIMESTAMP_DESC
+                    if reverse
+                    else schemas.sorting.LogSort.TIMESTAMP_ASC
+                ),
             )
 
             # Print the logs
