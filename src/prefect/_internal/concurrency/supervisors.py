@@ -196,9 +196,11 @@ class Supervisor(abc.ABC, Generic[T]):
 
         return future
 
-    def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
+    def send_call_to_supervisor(
+        self, __fn, *args, **kwargs
+    ) -> concurrent.futures.Future:
         """
-        Send a call to the supervisor from a worker.
+        Send a call to the supervisor thread from a worker thread.
         """
         work_item = WorkItem.from_call(__fn, *args, **kwargs)
         self._put_work_item(work_item)

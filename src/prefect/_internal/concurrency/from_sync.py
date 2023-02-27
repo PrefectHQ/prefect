@@ -27,7 +27,7 @@ def call_soon_in_runtime_thread(
     ):
         submit_fn = runtime.submit_to_loop
     else:
-        submit_fn = current_supervisor.send_call
+        submit_fn = current_supervisor.send_call_to_supervisor
 
     supervisor = SyncSupervisor(submit_fn=submit_fn)
     supervisor.submit(__fn, *args, **kwargs)
@@ -63,5 +63,5 @@ def call_soon_in_supervising_thread(
     if current_supervisor is None:
         raise RuntimeError("No supervisor found.")
 
-    future = current_supervisor.send_call(__fn, *args, **kwargs)
+    future = current_supervisor.send_call_to_supervisor(__fn, *args, **kwargs)
     return future
