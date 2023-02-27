@@ -13,7 +13,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, load_only
+from sqlalchemy.orm import load_only, selectinload
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
@@ -93,7 +93,7 @@ async def create_flow_run(
             .limit(1)
             .execution_options(populate_existing=True)
             .options(
-                joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool)
+                selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
             )
         )
         result = await session.execute(query)
@@ -158,7 +158,9 @@ async def read_flow_run(
     result = await session.execute(
         sa.select(db.FlowRun)
         .where(db.FlowRun.id == flow_run_id)
-        .options(joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool))
+        .options(
+            selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+        )
     )
     return result.scalar()
 
@@ -266,7 +268,9 @@ async def read_flow_runs(
     query = (
         select(db.FlowRun)
         .order_by(sort.as_sql_sort(db))
-        .options(joinedload(db.FlowRun.work_queue).joinedload(db.WorkQueue.work_pool))
+        .options(
+            selectinload(db.FlowRun.work_queue).selectinload(db.WorkQueue.work_pool)
+        )
     )
 
     if columns:
