@@ -18,13 +18,13 @@ SHUTDOWN_TIMEOUT = 20
 @pytest.fixture(scope="function")
 async def server_process():
     """
-    Runs an instance of the server. Requires a port from 2222-2227 to be available.
+    Runs an instance of the server. Requires a port from 2222-2229 to be available.
     Uses the same database as the rest of the tests.
     Yields:
         The anyio.Process.
     """
 
-    ports = [2222 + i for i in range(5)]
+    ports = list(range(2222, 2230))
 
     while True:
         try:
