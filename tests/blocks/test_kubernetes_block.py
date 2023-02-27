@@ -1,7 +1,9 @@
 import base64
+import re
 from pathlib import Path
 from typing import Dict
 
+import pydantic
 import pytest
 import yaml
 from kubernetes.client import ApiClient
@@ -52,6 +54,43 @@ async def test_instantiation_from_file(config_file):
 
     assert cluster_config.config == yaml.safe_load(CONFIG_CONTENT)
     assert cluster_config.context_name == "docker-desktop"
+
+
+async def test_instantiation_from_dict(config_file):
+    cluster_config = KubernetesClusterConfig(
+        config=yaml.safe_load(CONFIG_CONTENT), context_name="docker-desktop"
+    )
+
+    assert isinstance(cluster_config, KubernetesClusterConfig)
+    assert isinstance(cluster_config.config, Dict)
+    assert isinstance(cluster_config.context_name, str)
+
+    assert cluster_config.config == yaml.safe_load(CONFIG_CONTENT)
+    assert cluster_config.context_name == "docker-desktop"
+
+
+async def test_instantiation_from_str():
+    cluster_config = KubernetesClusterConfig(
+        config=CONFIG_CONTENT, context_name="docker-desktop"
+    )
+
+    assert isinstance(cluster_config, KubernetesClusterConfig)
+    assert isinstance(cluster_config.config, Dict)
+    assert isinstance(cluster_config.context_name, str)
+
+    assert cluster_config.config == yaml.safe_load(CONFIG_CONTENT)
+    assert cluster_config.context_name == "docker-desktop"
+
+
+async def test_instantiation_from_invalid_str():
+    with pytest.raises(
+        pydantic.ValidationError,
+        match=re.escape(
+            "1 validation error for KubernetesClusterConfig\nconfig\n  value is not a"
+            " valid dict (type=type_error.dict)"
+        ),
+    ):
+        KubernetesClusterConfig(config="foo", context_name="docker-desktop")
 
 
 async def test_instantiation_from_file_with_unknown_context_name(config_file):
