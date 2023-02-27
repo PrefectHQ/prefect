@@ -687,6 +687,7 @@ class Deployment(BaseModel):
         cls,
         flow: Flow,
         name: str,
+        description: str = None,
         output: str = None,
         skip_upload: bool = False,
         ignore_file: str = ".prefectignore",
@@ -700,6 +701,7 @@ class Deployment(BaseModel):
         Args:
             flow: A flow function to deploy
             name: A name for the deployment
+            description (optional): A description for the deployment; defaults to the flow's description
             output (optional): if provided, the full deployment specification will be written as a YAML
                 file in the location specified by `output`
             skip_upload: if True, deployment files are not automatically uploaded to remote storage
@@ -716,7 +718,7 @@ class Deployment(BaseModel):
 
         # note that `deployment.load` only updates settings that were *not*
         # provided at initialization
-        deployment = cls(name=name, **kwargs)
+        deployment = cls(name=name, description=description, **kwargs)
         deployment.flow_name = flow.name
         if not deployment.entrypoint:
             ## first see if an entrypoint can be determined
