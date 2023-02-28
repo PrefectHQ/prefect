@@ -3,7 +3,7 @@ import contextvars
 
 import pytest
 
-from prefect._internal.concurrency import from_async, from_sync
+from prefect._internal.concurrency.api import from_async, from_sync
 
 
 def identity(x):
