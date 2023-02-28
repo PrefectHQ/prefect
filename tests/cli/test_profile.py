@@ -66,7 +66,7 @@ class TestChangingProfileAndCheckingOrionConnection:
                     },
                 ),
                 Profile(
-                    name="ephemeral-orion",
+                    name="ephemeral-prefect",
                     settings={},
                 ),
             ],
@@ -76,7 +76,7 @@ class TestChangingProfileAndCheckingOrionConnection:
     @pytest.fixture
     def authorized_cloud(self):
         # attempts to reach the Cloud 2 workspaces endpoint implies a good connection
-        # to Prefect Cloud as opposed to a hosted Prefect Orion instance
+        # to Prefect Cloud as opposed to a hosted Prefect server instance
         with respx.mock:
             authorized = respx.get(
                 "https://mock-cloud.prefect.io/api/me/workspaces",
@@ -106,7 +106,7 @@ class TestChangingProfileAndCheckingOrionConnection:
 
     @pytest.fixture
     def hosted_orion_has_no_cloud_api(self):
-        # if the API URL points to a hosted Prefect Orion instance, no Cloud API will be found
+        # if the API URL points to a hosted Prefect server instance, no Cloud API will be found
         with respx.mock:
             hosted = respx.get(
                 "https://hosted-orion.prefect.io/api/me/workspaces",
@@ -139,7 +139,9 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "prefect-cloud"],
-            expected_output_contains="Connected to Prefect Cloud using profile 'prefect-cloud'",
+            expected_output_contains=(
+                "Connected to Prefect Cloud using profile 'prefect-cloud'"
+            ),
             expected_code=0,
         )
 
@@ -150,7 +152,10 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "prefect-cloud-with-invalid-key"],
-            expected_output_contains="Error authenticating with Prefect Cloud using profile 'prefect-cloud-with-invalid-key'",
+            expected_output_contains=(
+                "Error authenticating with Prefect Cloud using profile"
+                " 'prefect-cloud-with-invalid-key'"
+            ),
             expected_code=1,
         )
 
@@ -174,7 +179,9 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Connected to Prefect Orion using profile 'hosted-orion'",
+            expected_output_contains=(
+                "Connected to Prefect server using profile 'hosted-orion'"
+            ),
             expected_code=0,
         )
 
@@ -187,7 +194,7 @@ class TestChangingProfileAndCheckingOrionConnection:
         save_profiles(profiles)
         invoke_and_assert(
             ["profile", "use", "hosted-orion"],
-            expected_output_contains="Error connecting to Prefect Orion",
+            expected_output_contains="Error connecting to Prefect server",
             expected_code=1,
         )
 
@@ -197,13 +204,15 @@ class TestChangingProfileAndCheckingOrionConnection:
     def test_using_ephemeral_orion(self, profiles):
         save_profiles(profiles)
         invoke_and_assert(
-            ["profile", "use", "ephemeral-orion"],
-            expected_output_contains="No Prefect Orion instance specified using profile 'ephemeral-orion'",
+            ["profile", "use", "ephemeral-prefect"],
+            expected_output_contains=(
+                "No Prefect server specified using profile 'ephemeral-prefect'"
+            ),
             expected_code=0,
         )
 
         profiles = load_profiles()
-        assert profiles.active_name == "ephemeral-orion"
+        assert profiles.active_name == "ephemeral-prefect"
 
 
 def test_ls_default_profiles():
@@ -281,8 +290,7 @@ def test_ls_respects_current_from_context():
 def test_create_profile():
     invoke_and_assert(
         ["profile", "create", "foo"],
-        expected_output=(
-            f"""
+        expected_output=f"""
             Created profile with properties:
                 name - 'foo'
                 from name - None
@@ -292,8 +300,7 @@ def test_create_profile():
 
             Use created profile temporarily for a single command:
                 prefect -p 'foo' config view
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -314,8 +321,7 @@ def test_create_profile_from_existing():
 
     invoke_and_assert(
         ["profile", "create", "bar", "--from", "foo"],
-        expected_output=(
-            f"""
+        expected_output=f"""
             Created profile with properties:
                 name - 'bar'
                 from name - foo
@@ -325,8 +331,7 @@ def test_create_profile_from_existing():
 
             Use created profile temporarily for a single command:
                 prefect -p 'bar' config view
-            """
-        ),
+            """,
     )
 
     profiles = load_profiles()
@@ -349,14 +354,12 @@ def test_create_profile_from_unknown_profile():
 def test_create_profile_with_existing_profile():
     invoke_and_assert(
         ["profile", "create", "default"],
-        expected_output=(
-            """
+        expected_output="""
             Profile 'default' already exists.
             To create a new profile, remove the existing profile first:
 
                 prefect profile delete 'default'
-            """
-        ),
+            """,
         expected_code=1,
     )
 
@@ -424,7 +427,10 @@ def test_delete_profile_cannot_target_active_profile():
     with use_profile("foo"):
         invoke_and_assert(
             ["profile", "delete", "foo"],
-            expected_output="Profile 'foo' is the active profile. You must switch profiles before it can be deleted.",
+            expected_output=(
+                "Profile 'foo' is the active profile. You must switch profiles before"
+                " it can be deleted."
+            ),
             expected_code=1,
         )
 
@@ -550,12 +556,10 @@ def test_inspect_profile():
 
     invoke_and_assert(
         ["profile", "inspect", "foo"],
-        expected_output=(
-            """
+        expected_output="""
             PREFECT_API_KEY='foo'
             PREFECT_DEBUG_MODE='True'
-            """
-        ),
+            """,
     )
 
 
@@ -569,9 +573,7 @@ def test_inspect_profile_without_settings():
 
     invoke_and_assert(
         ["profile", "inspect", "foo"],
-        expected_output=(
-            """
+        expected_output="""
             Profile 'foo' is empty.
-            """
-        ),
+            """,
     )

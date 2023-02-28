@@ -7,10 +7,13 @@ tags:
 
 # Welcome to Prefect 2
 
+!!! tip "Changing 'Orion' nomenclature"
+    With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
+
 !!! help "Looking for Prefect 1 Core and Server?"
     Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
 
-    If you're looking for the [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/), they're available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
+    [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/) is available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
 
 ## Prefect coordinates your dataflow
 
@@ -45,10 +48,9 @@ Begin by [installing Prefect 2](/getting-started/installation/) on your machine,
 
 Even if you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workflows, we still recommend reading through these first steps. Prefect 2 offers significant new functionality.
 
-
 **Concepts**
 
-Learn more about Prefect 2's features and design by reading our in-depth [concept docs](/concepts/overview/). The concept docs introduce the building blocks of Prefect, build up to orchestration and deployment, and finally cover some of the advanced use cases that Prefect makes possible.
+Learn more about Prefect 2's design by reading our in-depth [concept docs](/concepts/overview/). The concept docs introduce the building blocks of Prefect, build up to orchestration and deployment, and cover some of the advanced use cases that Prefect makes possible.
 
 **Prefect UI & Prefect Cloud**
 
@@ -76,7 +78,7 @@ The [Prefect Discourse](https://discourse.prefect.io/) is an additional communit
 
 **Recipes**
 
-[Prefect Recipes](/recipes/recipes/) are common, extensible examples for setting up Prefect in your execution environment with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
+[Prefect Recipes](/recipes/recipes/) are general, extensible examples to common needs related to setting up Prefect, with ready-made ingredients such as Dockerfiles, Terraform files, and GitHub Actions.
 
 ## Prefect highlights
 
@@ -123,7 +125,7 @@ Prefect Technologies is SOC2 Type II compliant and our enterprise product makes 
 
 **A user friendly, interactive dashboard for your dataflows**
 
-In the [Prefect Orion UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
+In the [Prefect UI](/ui/overview/) you can quickly set up notifications, visualize run history, and schedule your dataflows.  
 
 **Faster and easier than building from scratch**
 
@@ -199,18 +201,17 @@ Fire up the Prefect UI locally by entering this command in your terminal:
 
 <div class="terminal">
 ```bash
-prefect orion start
+prefect server start
 ```
 </div>
 
 Follow the link in your terminal to see the dashboard.
 
-![screenshot of prefect orion dashboard with flow runs in a scatter plot](../img/intro-ui-dashboard.png)
+![screenshot of the Prefect dashboard with flow runs in a scatter plot](/img/intro-ui-dashboard.png)
 
 Click on your flow name to see logs and other details.
 
-![screenshot of prefect orion dashboard with logs, radar plot, and flow info](../img/intro-ui-logs.png)
-
+![screenshot of the Prefect dashboard with logs, radar plot, and flow info](/img/intro-ui-logs.png)
 
 The above example just scratch the surface of how Prefect can help you coordinate your dataflows.
 
@@ -220,4 +221,4 @@ Follow the [Getting Started docs](getting-started/overview/) and start building!
 
 While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
 
-Thank you for joining our mission to coordinate the world's dataflow and, of course, **happy engineering!**
+Thank you for joining us in our mission to coordinate the world's dataflow and, of course, **happy engineering!**

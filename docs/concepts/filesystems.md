@@ -40,7 +40,7 @@ fs = LocalFileSystem(basepath="/foo/bar")
 ```
 
 !!! warning "Limited access to local file system"
-    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the enviornment you are writing and deploying your code on. 
+    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the environment you are writing and deploying your code on. 
     
     Use of this file system can limit the availability of results after a flow run has completed or prevent the code for a flow from being retrieved successfully at the start of a run.
 
@@ -105,6 +105,7 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | azure_storage_tenant_id | Azure storage tenant ID. |
 | azure_storage_client_id | Azure storage client ID. |
 | azure_storage_client_secret | Azure storage client secret. |
+| azure_storage_anon | Anonymous authentication, disable to use `DefaultAzureCredential`. |
 
 
 To create a block:

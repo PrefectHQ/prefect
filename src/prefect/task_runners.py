@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     import anyio.abc
 
 from prefect.logging import get_logger
-from prefect.orion.schemas.states import State
+from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.collections import AutoEnum
 
@@ -308,7 +308,6 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         result_event = self._result_events.get(key)
 
         with anyio.move_on_after(timeout):
-
             # Attempt to use the event to wait for the result. This is much more efficient
             # than the spin-lock that follows but does not work if the wait call
             # happens from an event loop in a different thread than the one from which

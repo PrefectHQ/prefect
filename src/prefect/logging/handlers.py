@@ -16,24 +16,25 @@ from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
 
 import prefect.context
-from prefect.client.orion import get_client
+from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect.client.orchestration import get_client
 from prefect.exceptions import MissingContextError
 from prefect.logging.highlighters import PrefectConsoleHighlighter
-from prefect.orion.schemas.actions import LogCreate
+from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_LOGGING_COLORS,
     PREFECT_LOGGING_MARKUP,
-    PREFECT_LOGGING_ORION_BATCH_INTERVAL,
-    PREFECT_LOGGING_ORION_BATCH_SIZE,
-    PREFECT_LOGGING_ORION_ENABLED,
-    PREFECT_LOGGING_ORION_MAX_LOG_SIZE,
-    PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW,
+    PREFECT_LOGGING_TO_API_BATCH_INTERVAL,
+    PREFECT_LOGGING_TO_API_BATCH_SIZE,
+    PREFECT_LOGGING_TO_API_ENABLED,
+    PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
+    PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW,
 )
 
 
-class OrionLogWorker:
+class APILogWorker:
     """
-    Manages the submission of logs to Orion in a background thread.
+    Manages the submission of logs to the API in a background thread.
     """
 
     def __init__(self, profile_context: prefect.context.SettingsContext) -> None:
@@ -83,7 +84,9 @@ class OrionLogWorker:
             with self.profile_context:
                 while not self._stop_event.is_set():
                     # Wait until flush is called or the batch interval is reached
-                    self._flush_event.wait(PREFECT_LOGGING_ORION_BATCH_INTERVAL.value())
+                    self._flush_event.wait(
+                        PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()
+                    )
                     self._flush_event.clear()
 
                     anyio.run(self.send_logs)
@@ -98,7 +101,7 @@ class OrionLogWorker:
 
         except Exception:
             if logging.raiseExceptions and sys.stderr:
-                sys.stderr.write("--- Orion logging error ---\n")
+                sys.stderr.write("--- Error logging to API ---\n")
                 sys.stderr.write("The log worker encountered a fatal error.\n")
                 traceback.print_exc(file=sys.stderr)
                 sys.stderr.write(self.worker_info())
@@ -125,14 +128,13 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            PREFECT_LOGGING_ORION_BATCH_SIZE.value()
-            - PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
-            PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value(),
+            PREFECT_LOGGING_TO_API_BATCH_SIZE.value()
+            - PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
+            PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value(),
         )
 
         # Loop until the queue is empty or we encounter an error
         while not done:
-
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
                 while self._pending_size < max_batch_size:
@@ -161,12 +163,13 @@ class OrionLogWorker:
 
                     # Roughly replicate the behavior of the stdlib logger error handling
                     if logging.raiseExceptions and sys.stderr:
-                        sys.stderr.write("--- Orion logging error ---\n")
+                        sys.stderr.write("--- Error logging to API ---\n")
                         traceback.print_exc(file=sys.stderr)
                         sys.stderr.write(self.worker_info())
                         if exiting:
                             sys.stderr.write(
-                                "The log worker is stopping and these logs will not be sent.\n"
+                                "The log worker is stopping and these logs will not be"
+                                " sent.\n"
                             )
                         elif self._retries > self._max_retries:
                             sys.stderr.write(
@@ -175,8 +178,9 @@ class OrionLogWorker:
                             )
                         else:
                             sys.stderr.write(
-                                "The log worker will attempt to send these logs again in "
-                                f"{PREFECT_LOGGING_ORION_BATCH_INTERVAL.value()}s\n"
+                                "The log worker will attempt to send these logs"
+                                " again in "
+                                f"{PREFECT_LOGGING_TO_API_BATCH_INTERVAL.value()}s\n"
                             )
 
                     if self._retries > self._max_retries:
@@ -197,7 +201,7 @@ class OrionLogWorker:
     def enqueue(self, log: Dict[str, Any], log_size: int):
         if self._stopped:
             raise RuntimeError(
-                "Logs cannot be enqueued after the Orion log worker is stopped."
+                "Logs cannot be enqueued after the API log worker is stopped."
             )
         self._queue.put((log, log_size))
 
@@ -220,7 +224,7 @@ class OrionLogWorker:
                 self._started = True
             elif self._stopped:
                 raise RuntimeError(
-                    "The Orion log worker cannot be started after stopping."
+                    "The API log worker cannot be started after stopping."
                 )
 
     def stop(self) -> None:
@@ -238,19 +242,19 @@ class OrionLogWorker:
             return not self._stopped
 
 
-class OrionHandler(logging.Handler):
+class APILogHandler(logging.Handler):
     """
-    A logging handler that sends logs to the Orion API.
+    A logging handler that sends logs to the Prefect API.
 
-    Sends log records to the `OrionLogWorker` which manages sending batches of logs in
+    Sends log records to the `APILogWorker` which manages sending batches of logs in
     the background.
     """
 
-    workers: Dict[prefect.context.SettingsContext, OrionLogWorker] = {}
+    workers: Dict[prefect.context.SettingsContext, APILogWorker] = {}
 
-    def get_worker(self, context: prefect.context.SettingsContext) -> OrionLogWorker:
+    def get_worker(self, context: prefect.context.SettingsContext) -> APILogWorker:
         if context not in self.workers:
-            worker = self.workers[context] = OrionLogWorker(context)
+            worker = self.workers[context] = APILogWorker(context)
             worker.start()
 
         return self.workers[context]
@@ -258,7 +262,7 @@ class OrionHandler(logging.Handler):
     @classmethod
     def flush(cls, block: bool = False):
         """
-        Tell the `OrionLogWorker` to send any currently enqueued logs.
+        Tell the `APILogWorker` to send any currently enqueued logs.
 
         Blocks until enqueued logs are sent if `block` is set.
         """
@@ -267,12 +271,12 @@ class OrionHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         """
-        Send a log to the `OrionLogWorker`
+        Send a log to the `APILogWorker`
         """
         try:
             profile = prefect.context.get_settings_context()
 
-            if not PREFECT_LOGGING_ORION_ENABLED.value_from(profile.settings):
+            if not PREFECT_LOGGING_TO_API_ENABLED.value_from(profile.settings):
                 return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
@@ -287,7 +291,7 @@ class OrionHandler(logging.Handler):
 
         if isinstance(exc, MissingContextError):
             log_handling_when_missing_flow = (
-                PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW.value()
+                PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW.value()
             )
             if log_handling_when_missing_flow == "warn":
                 # Warn when a logger is used outside of a run context, the stack level here
@@ -306,7 +310,7 @@ class OrionHandler(logging.Handler):
         self, record: logging.LogRecord, settings: prefect.settings.Settings
     ) -> Tuple[Dict[str, Any], int]:
         """
-        Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
+        Convert a `logging.LogRecord` to the API `LogCreate` schema and serialize.
 
         This infers the linked flow or task run from the log record or the current
         run context.
@@ -323,9 +327,9 @@ class OrionHandler(logging.Handler):
                 context = prefect.context.get_run_context()
             except MissingContextError:
                 raise MissingContextError(
-                    f"Logger {record.name!r} attempted to send logs to Orion without a "
-                    "flow run id. The Orion log handler can only send logs within flow "
-                    "run contexts unless the flow run id is manually provided."
+                    f"Logger {record.name!r} attempted to send logs to the API without"
+                    " a flow run id. The API log handler can only send logs within"
+                    " flow run contexts unless the flow run id is manually provided."
                 ) from None
 
             if hasattr(context, "flow_run"):
@@ -354,17 +358,17 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = self.get_log_size(log)
-        if log_size > PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value():
+        if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{PREFECT_LOGGING_ORION_MAX_LOG_SIZE.value()}"
+                f"{PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value()}"
             )
 
         return (log, log_size)
 
     def close(self) -> None:
         """
-        Shuts down this handler and the flushes the `OrionLogWorkers`
+        Shuts down this handler and the flushes the `APILogWorkers`
         """
         for worker in self.workers.values():
             # Flush instead of closing ecause another instance may be using the worker
@@ -422,3 +426,17 @@ class PrefectConsoleHandler(logging.StreamHandler):
             raise
         except Exception:
             self.handleError(record)
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `APILogHandler` instead.")
+class OrionHandler(APILogHandler):
+    """
+    Deprecated. Use `APILogHandler` instead.
+    """
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `APILogWorker` instead.")
+class OrionLogWorker(APILogWorker):
+    """
+    Deprecated. Use `APILogWorker` instead.
+    """

@@ -14,7 +14,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
-from prefect.orion.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
@@ -96,14 +96,15 @@ async def ls(
     sort_by_created_key = lambda q: pendulum.now("utc") - q.created
 
     for pool in sorted(pools, key=sort_by_created_key):
-
         row = [
             f"{pool.name} [red](**)" if pool.is_paused else pool.name,
             str(pool.type),
             str(pool.id),
-            f"[red]{pool.concurrency_limit}"
-            if pool.concurrency_limit
-            else "[blue]None",
+            (
+                f"[red]{pool.concurrency_limit}"
+                if pool.concurrency_limit
+                else "[blue]None"
+            ),
         ]
         if verbose:
             row.append(str(pool.base_job_template))
@@ -336,9 +337,11 @@ async def preview(
     sort_by_created_key = lambda r: now - r.created
     for run in sorted(runs, key=sort_by_created_key):
         table.add_row(
-            f"{run.expected_start_time} [red](**)"
-            if run.expected_start_time < now
-            else f"{run.expected_start_time}",
+            (
+                f"{run.expected_start_time} [red](**)"
+                if run.expected_start_time < now
+                else f"{run.expected_start_time}"
+            ),
             str(run.id),
             run.name,
             str(run.deployment_id),
@@ -348,6 +351,9 @@ async def preview(
         app.console.print(table)
     else:
         app.console.print(
-            "No runs found - try increasing how far into the future you preview with the --hours flag",
+            (
+                "No runs found - try increasing how far into the future you preview"
+                " with the --hours flag"
+            ),
             style="yellow",
         )

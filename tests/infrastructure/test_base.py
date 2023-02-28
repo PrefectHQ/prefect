@@ -15,7 +15,7 @@ from prefect.infrastructure import (
     Process,
 )
 from prefect.infrastructure.base import MIN_COMPAT_PREFECT_VERSION
-from prefect.orion.schemas.core import Deployment
+from prefect.server.schemas.core import Deployment
 
 
 @pytest.fixture
@@ -83,7 +83,6 @@ async def test_flow_run_by_infrastructure_type(
     orion_client,
     patch_manifest_load,
 ):
-
     await patch_manifest_load(flow)
     flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     infrastructure = infrastructure_type().prepare_for_flow_run(flow_run)

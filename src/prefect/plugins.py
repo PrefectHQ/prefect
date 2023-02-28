@@ -56,7 +56,10 @@ def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
             entrypoint = EntryPoint(name=None, value=value, group="prefect-extra")
         except Exception as exc:
             print(
-                f"Warning! Failed to parse extra entrypoint {value!r}: {type(result).__name__}: {result}",
+                (
+                    f"Warning! Failed to parse extra entrypoint {value!r}:"
+                    f" {type(result).__name__}: {result}"
+                ),
                 file=sys.stderr,
             )
             results[value] = exc
@@ -70,7 +73,10 @@ def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
 
         if isinstance(result, Exception):
             print(
-                f"Warning! Failed to load extra entrypoint {value!r}: {type(result).__name__}: {result}",
+                (
+                    f"Warning! Failed to load extra entrypoint {value!r}:"
+                    f" {type(result).__name__}: {result}"
+                ),
                 file=sys.stderr,
             )
         elif callable(result):
@@ -78,7 +84,10 @@ def load_extra_entrypoints() -> Dict[str, Union[Exception, Any]]:
                 results[value] = result()
             except Exception as exc:
                 print(
-                    f"Warning! Failed to run callable entrypoint {value!r}: {type(exc).__name__}: {exc}",
+                    (
+                        f"Warning! Failed to run callable entrypoint {value!r}:"
+                        f" {type(exc).__name__}: {exc}"
+                    ),
                     file=sys.stderr,
                 )
                 results[value] = exc
@@ -107,7 +116,8 @@ def load_prefect_collections() -> Dict[str, ModuleType]:
         if isinstance(result, Exception):
             print(
                 # TODO: Use exc_info if we have a logger
-                f"Warning!  Failed to load collection {name!r}: {type(result).__name__}: {result}"
+                f"Warning!  Failed to load collection {name!r}:"
+                f" {type(result).__name__}: {result}"
             )
         else:
             if prefect.settings.PREFECT_DEBUG_MODE:

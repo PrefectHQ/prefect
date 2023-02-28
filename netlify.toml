@@ -25,6 +25,11 @@ publish = "site"
   to = "/collections/catalog/"
   status = 301
 
+[[redirects]]
+  from = "/api-ref/orion/*"
+  to = "/api-ref/server/:splat"
+  status = 301
+
 # redirect v1 traffic to docs-v1.prefect.io
 [[redirects]]
   from = "/core/*"
@@ -42,8 +47,13 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://docs.prefect.io/migration_guide/"
-  to = "https://docs.prefect.io/migration-guide/"
+  from = "https://orion-docs.prefect.io/*"
+  to = "https://docs.prefect.io/:splat"
+  status = 301
+
+[[redirects]]
+  from = "/migration_guide/"
+  to = "/migration-guide/"
   status = 301
 
 [[redirects]]
@@ -52,6 +62,137 @@ publish = "site"
   status = 301
 
 [[redirects]]
-  from = "https://orion-docs.prefect.io/*"
-  to = "https://docs.prefect.io/:splat"
+  from = "/ui/work-queues/"
+  to = "/ui/work-pools/"
   status = 301
+
+[[redirects]]
+  from = "/concepts/work-queues/"
+  to = "/concepts/work-pools/"
+  status = 301
+
+[[redirects]]
+  from = "/ui/cloud-getting-started/"
+  to = "/ui/cloud-quickstart/"
+  status = 301
+
+[[headers]]
+  # Define which paths this specific [[headers]] block will cover.
+  for = "/*"
+
+  [headers.values]
+    # X-Content-Type-Options controls whether browsers attempt to detect
+    # the content type, rather than relyihng on the Content-Type header.
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
+    X-Content-Type-Options = "nosniff"
+
+    # Strict-Transport-Security to require HTTPS connections in supported
+    # browsers. These settings are required to be eligible for inclusion
+    # in the HSTS Preload list; see: https://hstspreload.org/
+    Strict-Transport-Security = """
+      max-age=31536000; \
+      includeSubDomains; \
+      preload \
+      """
+
+    # Content-Security-Policy to prevent XSS attacks.
+    #
+    # default-src
+    #   'none' - all resources from current origin are blocked by default
+    # connect-src
+    #   'self' - all connections to current current origin are permitted
+    #   https://api.github.com - required to display release information
+    #   https://api.segment.io - default domain for Segment analytics
+    #   https://cdn.segment.com - default domain for Segment analytics.js
+    #   https://api.segment.prefect.io - custom proxy for Segment analytics
+    #   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
+    #   https://www.google-analytics.com - Google Analytics
+    # font-src
+    #   https://fonts.gstatic.com - load fonts from Google Fonts
+    # frame-ancestors
+    #   'none' - prevent embedding as a frame
+    # frame-src
+    #   'none' - prevent framing by default
+    #   https://www.youtube.com - allow embedding of YouTube videos
+    # img-src
+    #   'self' - all images from current origin are permitted
+    #   data: - images embedded inline are permitted
+    #   https://avatars.githubusercontent.com - embed user images from GitHub
+    # media-src
+    #   'none' - no audio or video files are permitted
+    # object-src
+    #   'none' - no legacy objects are allowed; see
+    #            https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/object-src
+    # script-src
+    #   'self' - all resources from current origin are permitted
+    #   'unsafe-inline' - required for scripts loaded in partials
+    #   https://cdn.segment.com - default domain for Segment analytics.js
+    #   https://cdn.segment.prefect.io - custom proxy for Segment analytics.js
+    #   https://www.googletagmanager.com - allow snippet customization using Google Tag Manager
+    # style-src
+    #   'self' - all styles from current origin are permitted
+    #   'unsafe-inline' - required for styles loaded in partials
+    # worker-src
+    #   'self' - allow web workers from current origin
+    Content-Security-Policy = """\
+      default-src 'none'; \
+      connect-src 'self' https://api.github.com https://api.segment.io https://cdn.segment.com https://api.segment.prefect.io https://cdn.segment.prefect.io https://www.google-analytics.com; \
+      font-src https://fonts.gstatic.com; \
+      frame-ancestors 'none'; \
+      frame-src https://www.youtube.com; \
+      img-src 'self' data: https://avatars.githubusercontent.com; \
+      media-src 'none'; \
+      object-src 'none'; \
+      script-src 'self' 'unsafe-inline' https://cdn.segment.com/ https://cdn.segment.prefect.io https://www.googletagmanager.com; \
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com/; \
+      worker-src 'self'
+      """
+
+    # Referrer-Policy controls the Referer header in requests.
+    #
+    # same-origin allows analytics tools to understand user journeys.
+    Referrer-Policy = "same-origin"
+
+    # X-Permitted-Cross-Domain-Policies controls whether this site can be
+    # embedded into Flash applications or PDF documents.
+    X-Permitted-Cross-Domain-Policies = "none"
+
+    # Permissions-Policy controls the features that the site can request.
+    #
+    # https://developer.chrome.com/en/docs/privacy-sandbox/permissions-policy/
+    # https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md
+    Permissions-Policy = """\
+      accelerometer=(), \
+      ambient-light-sensor=(), \
+      autoplay=(), \
+      battery=(), \
+      camera=(), \
+      cross-origin-isolated=(), \
+      display-capture=(), \
+      document-domain=(), \
+      encrypted-media=(), \
+      execution-while-not-rendered=(), \
+      execution-while-out-of-viewport=(), \
+      fullscreen=(), \
+      geolocation=(), \
+      gyroscope=(), \
+      hid=(), \
+      idle-detection=(), \
+      magnetometer=(), \
+      microphone=(), \
+      midi=(), \
+      navigation-override=(), \
+      payment=(), \
+      picture-in-picture=(), \
+      publickey-credentials-get=(), \
+      screen-wake-lock=(), \
+      serial=(), \
+      sync-xhr=(), \
+      usb=(), \
+      web-share=(), \
+      xr-spatial-tracking=() \
+      """
+
+[[edge_functions]]
+  path = "/segment/*"
+  function = "segment"

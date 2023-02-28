@@ -10,6 +10,8 @@ import prefect.context
 import prefect.settings
 from prefect.settings import (
     DEFAULT_PROFILES_PATH,
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_API_DATABASE_PASSWORD,
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
@@ -20,14 +22,12 @@ from prefect.settings import (
     PREFECT_LOGGING_EXTRA_LOGGERS,
     PREFECT_LOGGING_LEVEL,
     PREFECT_LOGGING_SERVER_LEVEL,
-    PREFECT_ORION_API_HOST,
-    PREFECT_ORION_API_PORT,
-    PREFECT_ORION_DATABASE_CONNECTION_URL,
-    PREFECT_ORION_DATABASE_PASSWORD,
-    PREFECT_ORION_UI_API_URL,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_API_HOST,
+    PREFECT_SERVER_API_PORT,
     PREFECT_TEST_MODE,
     PREFECT_TEST_SETTING,
+    PREFECT_UI_API_URL,
     PREFECT_UI_URL,
     SETTING_VARIABLES,
     Profile,
@@ -76,7 +76,10 @@ class TestSettingClass:
 
         with pytest.warns(
             DeprecationWarning,
-            match="Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be available after Jul 2023. test help",
+            match=(
+                "Setting 'PREFECT_TEST_SETTING' has been deprecated. It will not be"
+                " available after Jul 2023. test help"
+            ),
         ):
             PREFECT_TEST_SETTING.value()
 
@@ -102,7 +105,10 @@ class TestSettingClass:
         with temporary_settings({PREFECT_TEST_SETTING: "foo"}):
             with pytest.warns(
                 DeprecationWarning,
-                match="Setting 'PREFECT_TEST_SETTING' has been deprecated when the value is foo. It will not be available after Jul 2023.",
+                match=(
+                    "Setting 'PREFECT_TEST_SETTING' has been deprecated when the value"
+                    " is foo. It will not be available after Jul 2023."
+                ),
             ):
                 PREFECT_TEST_SETTING.value()
 
@@ -162,29 +168,29 @@ class TestSettingsClass:
 
     def test_settings_to_environment_casts_to_strings(self):
         assert (
-            Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables()[
-                "PREFECT_ORION_API_PORT"
+            Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables()[
+                "PREFECT_SERVER_API_PORT"
             ]
             == "3000"
         )
 
     def test_settings_to_environment_respects_includes(self):
-        include = [PREFECT_ORION_API_PORT]
+        include = [PREFECT_SERVER_API_PORT]
 
-        assert Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables(
+        assert Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables(
             include=include
-        ) == {"PREFECT_ORION_API_PORT": "3000"}
+        ) == {"PREFECT_SERVER_API_PORT": "3000"}
 
-        assert include == [PREFECT_ORION_API_PORT], "Passed list should not be mutated"
+        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
 
     def test_settings_to_environment_respects_includes(self):
-        include = [PREFECT_ORION_API_PORT]
+        include = [PREFECT_SERVER_API_PORT]
 
-        assert Settings(PREFECT_ORION_API_PORT=3000).to_environment_variables(
+        assert Settings(PREFECT_SERVER_API_PORT=3000).to_environment_variables(
             include=include
-        ) == {"PREFECT_ORION_API_PORT": "3000"}
+        ) == {"PREFECT_SERVER_API_PORT": "3000"}
 
-        assert include == [PREFECT_ORION_API_PORT], "Passed list should not be mutated"
+        assert include == [PREFECT_SERVER_API_PORT], "Passed list should not be mutated"
 
     def test_settings_to_environment_exclude_unset_empty_if_none_set(self, monkeypatch):
         for key in SETTING_VARIABLES:
@@ -234,10 +240,10 @@ class TestSettingsClass:
         assert settings.dict() == new_settings.dict()
 
     def test_settings_to_environment_does_not_use_value_callback(self):
-        settings = Settings(PREFECT_ORION_UI_API_URL=None)
+        settings = Settings(PREFECT_UI_API_URL=None)
         # This would be cast to a non-null value if the value callback was used when
         # generating the environment variables
-        assert "PREFECT_ORION_UI_API_URL" not in settings.to_environment_variables()
+        assert "PREFECT_UI_API_URL" not in settings.to_environment_variables()
 
     @pytest.mark.parametrize(
         "log_level_setting",
@@ -281,16 +287,15 @@ class TestSettingsClass:
         assert settings == original
         assert original != obfuscated
         for setting in SETTING_VARIABLES.values():
+            if setting.deprecated:
+                continue
+
             if setting.is_secret:
                 assert obfuscated.value_of(setting) == obfuscate(
                     original.value_of(setting)
                 )
             else:
-                # Bypass callbacks to avoid warnings on deprecated settings
-                # TODO: Add a deprecated flag to settings so we can handle this better
-                assert obfuscated.value_of(
-                    setting, bypass_callback=True
-                ) == original.value_of(setting, bypass_callback=True)
+                assert obfuscated.value_of(setting) == original.value_of(setting)
 
 
 class TestSettingAccess:
@@ -326,38 +331,40 @@ class TestSettingAccess:
 
         # Test with a non-boolean setting
 
-        if PREFECT_ORION_API_HOST:
+        if PREFECT_SERVER_API_HOST:
             assert True, "Treated as truth"
         else:
             assert False, "Not treated as truth"
 
-        with temporary_settings(updates={PREFECT_ORION_API_HOST: ""}):
-            if not PREFECT_ORION_API_HOST:
+        with temporary_settings(updates={PREFECT_SERVER_API_HOST: ""}):
+            if not PREFECT_SERVER_API_HOST:
                 assert True, "Treated as truth"
             else:
                 assert False, "Not treated as truth"
 
     def test_ui_api_url_from_api_url(self):
         with temporary_settings({PREFECT_API_URL: "http://test/api"}):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test/api"
+            assert PREFECT_UI_API_URL.value() == "http://test/api"
 
     def test_ui_api_url_from_orion_host_and_port(self):
         with temporary_settings(
-            {PREFECT_ORION_API_HOST: "test", PREFECT_ORION_API_PORT: "1111"}
+            {PREFECT_SERVER_API_HOST: "test", PREFECT_SERVER_API_PORT: "1111"}
         ):
-            assert PREFECT_ORION_UI_API_URL.value() == "http://test:1111/api"
+            assert PREFECT_UI_API_URL.value() == "http://test:1111/api"
 
     def test_ui_api_url_from_defaults(self):
-        assert PREFECT_ORION_UI_API_URL.value() == "http://127.0.0.1:4200/api"
+        assert PREFECT_UI_API_URL.value() == "http://127.0.0.1:4200/api"
 
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {
-                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test",
-                PREFECT_ORION_DATABASE_PASSWORD: "password",
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                ),
+                PREFECT_API_DATABASE_PASSWORD: "password",
             }
         ):
-            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "password/test"
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "password/test"
 
     def test_database_connection_url_templates_null_password(self):
         # Not exactly beautiful behavior here, but I think it's clear.
@@ -365,24 +372,26 @@ class TestSettingAccess:
         # a null value.
         with temporary_settings(
             {
-                PREFECT_ORION_DATABASE_CONNECTION_URL: "${PREFECT_ORION_DATABASE_PASSWORD}/test"
+                PREFECT_API_DATABASE_CONNECTION_URL: (
+                    "${PREFECT_API_DATABASE_PASSWORD}/test"
+                )
             }
         ):
-            assert PREFECT_ORION_DATABASE_CONNECTION_URL.value() == "None/test"
+            assert PREFECT_API_DATABASE_CONNECTION_URL.value() == "None/test"
 
     def test_warning_if_database_password_set_without_template_string(self):
         with pytest.warns(
             UserWarning,
             match=(
-                "PREFECT_ORION_DATABASE_PASSWORD is set but not included in the "
-                "PREFECT_ORION_DATABASE_CONNECTION_URL. "
+                "PREFECT_API_DATABASE_PASSWORD is set but not included in the "
+                "PREFECT_API_DATABASE_CONNECTION_URL. "
                 "The provided password will be ignored."
             ),
         ):
             with temporary_settings(
                 {
-                    PREFECT_ORION_DATABASE_CONNECTION_URL: "test",
-                    PREFECT_ORION_DATABASE_PASSWORD: "password",
+                    PREFECT_API_DATABASE_CONNECTION_URL: "test",
+                    PREFECT_API_DATABASE_PASSWORD: "password",
                 }
             ):
                 pass
@@ -407,7 +416,10 @@ class TestSettingAccess:
         with temporary_settings({PREFECT_CLOUD_URL: "test"}):
             with pytest.raises(
                 DeprecationWarning,
-                match="`PREFECT_CLOUD_URL` is set and will be used instead of `PREFECT_CLOUD_API_URL`",
+                match=(
+                    "`PREFECT_CLOUD_URL` is set and will be used instead of"
+                    " `PREFECT_CLOUD_API_URL`"
+                ),
             ):
                 PREFECT_CLOUD_API_URL.value()
 
@@ -673,7 +685,7 @@ class TestProfile:
         assert profile.settings == {PREFECT_DEBUG_MODE: 1}
 
     def test_validate_settings(self):
-        profile = Profile(name="test", settings={PREFECT_ORION_API_PORT: "foo"})
+        profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
         with pytest.raises(pydantic.ValidationError):
             profile.validate_settings()
 
@@ -682,8 +694,8 @@ class TestProfile:
         If using `context.use_profile` to validate settings, environment variables may
         override the setting and hide validation errors
         """
-        monkeypatch.setenv("PREFECT_ORION_API_PORT", "1234")
-        profile = Profile(name="test", settings={PREFECT_ORION_API_PORT: "foo"})
+        monkeypatch.setenv("PREFECT_SERVER_API_PORT", "1234")
+        profile = Profile(name="test", settings={PREFECT_SERVER_API_PORT: "foo"})
         with pytest.raises(pydantic.ValidationError):
             profile.validate_settings()
 

@@ -197,7 +197,7 @@ Requirements for `DockerContainer`:
 - Docker Engine must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Docker.
 - The API must be available from within the flow run container. To facilitate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
-- The ephemeral Orion API won't work with Docker and Kubernetes. You must have an Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with Docker and Kubernetes. You must have a Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
 `DockerContainer` supports the following settings:
 
@@ -226,9 +226,9 @@ Requirements for `KubernetesJob`:
 
 - `kubectl` must be available.
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for Kubernetes.
-- The ephemeral Prefect Orion API won't work with Docker and Kubernetes. You must have an Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with Docker and Kubernetes. You must have an Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 
-The Prefect CLI command `prefect kubernetes manifest orion` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
+The Prefect CLI command `prefect kubernetes manifest server` automatically generates a Kubernetes manifest with default settings for Prefect deployments. By default, it simply prints out the YAML configuration for a manifest. You can pipe this output to a file of your choice and edit as necessary.
 
 `KubernetesJob` supports the following settings:
 
@@ -236,7 +236,7 @@ The Prefect CLI command `prefect kubernetes manifest orion` automatically genera
 | ---- | ---- |
 | cluster_config | An optional Kubernetes cluster config to use for this job. |
 | command | A list of strings specifying the command to run in the container to start the flow run. In most cases you should not override this. |
-| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. |
+| customizations	| A list of JSON 6902 patches to apply to the base Job manifest. Alternatively, a valid JSON string is allowed (handy for deployments CLI).|
 | env	| Environment variables to set for the container. |
 | finished_job_ttl | The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed. |
 | image | String specifying the tag of a Docker image to use for the Job. |
@@ -337,7 +337,7 @@ deployment.apply()
 
 Requirements for `ECSTask`:
 
-- The ephemeral Prefect Orion API won't work with ECS directly. You must have a Prefect Orion or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-queues/).
+- The ephemeral Prefect API won't work with ECS directly. You must have a Prefect server or Prefect Cloud API endpoint set in your [agent's configuration](/concepts/work-pools/).
 - The `prefect-aws` [collection](https://github.com/PrefectHQ/prefect-aws) must be installed within the agent environment: `pip install prefect-aws`
 - The `ECSTask` and `AwsCredentials` blocks must be registered within the agent environment: `prefect block register -m prefect_aws.ecs`
 - You must configure remote [Storage](/concepts/storage/). Local storage is not supported for ECS tasks. The most commonly used type of storage with `ECSTask` is S3. If you leverage that type of block, make sure that [`s3fs`](https://s3fs.readthedocs.io/en/latest/) is installed within your agent and flow run environment. The easiest way to satisfy all the installation-related points mentioned above is to include the following commands in your Dockerfile:  

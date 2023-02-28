@@ -1,19 +1,18 @@
 ---
-description: Prefect REST API for interacting with the Orion orchestration engine and Prefect Cloud.
+description: Prefect REST API for interacting with the orchestration engine and Prefect Cloud.
 tags:
     - REST API
-    - Orion
     - Prefect Cloud
 ---
 
-Both Prefect Cloud and locally run Prefect Orion servers host a REST API that gives you access to many observability, coordination, and account management functions of the platform.
+Both Prefect Cloud and locally run Prefect servers host a REST API that gives you access to many observability, coordination, and account management functions of the platform.
 
 Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
 
-The Prefect Orion REST API documentation for locally run open-source Prefect Orion servers is available in the [Prefect Orion REST API Reference](/api-ref/rest-api-reference/).
+The Prefect REST API documentation for locally run open-source Prefect servers is available in the [Prefect REST API Reference](/api-ref/rest-api-reference/).
 
-!!! note "Prefect Orion REST API interactive documentation"
-    If you are running a local instance of the Prefect Orion server with `prefect orion start`, the Prefect Orion REST API documentation for your instance is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
+!!! note "Prefect REST API interactive documentation"
+    If you are running a local instance of the Prefect server with `prefect server start`, the Prefect REST API documentation for your instance is available at <a href="http://localhost:4200/docs" target="_blank">http://localhost:4200/docs</a> or the `/docs` endpoint of the [`PREFECT_API_URL`](/concepts/settings/#prefect_api_url) you have configured to access the server.
 
 ## REST Guidelines
 
@@ -98,7 +97,7 @@ The Prefect REST API can be fully described with an OpenAPI 3.0 compliant docume
 To generate Prefect's complete OpenAPI document, run the following commands in an interactive Python session:
 
 ```python
-from prefect.orion.api.server import create_app
+from prefect.server.api.server import create_app
 
 app = create_app()
 openapi_doc = app.openapi()

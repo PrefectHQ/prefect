@@ -4,7 +4,7 @@ import sys
 import time
 from textwrap import dedent
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import anyio
 import pydantic
@@ -12,7 +12,7 @@ import pytest
 
 from prefect import flow, get_run_logger, tags, task
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.context import PrefectObjectRegistry
 from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
@@ -24,10 +24,10 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
-from prefect.orion.schemas.core import TaskRunResult
-from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
-from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.results import PersistedResult
+from prefect.server.schemas.core import TaskRunResult
+from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.server.schemas.sorting import FlowRunSort
 from prefect.settings import PREFECT_LOCAL_STORAGE_PATH, temporary_settings
 from prefect.states import Cancelled, State, StateType, raise_state_exception
 from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
@@ -180,9 +180,14 @@ class TestFlowWithOptions:
             result_serializer="pickle",
             result_storage=LocalFileSystem(basepath="foo"),
             cache_result_in_memory=False,
+            on_completion=[],
+            on_failure=[],
         )
         def initial_flow():
             pass
+
+        failure_hook = lambda task, task_run, state: print("Woof!")
+        success_hook = lambda task, task_run, state: print("Meow!")
 
         flow_with_options = initial_flow.with_options(
             name="Copied flow",
@@ -197,6 +202,8 @@ class TestFlowWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(basepath="bar"),
             cache_result_in_memory=True,
+            on_completion=[success_hook],
+            on_failure=[failure_hook],
         )
 
         assert flow_with_options.name == "Copied flow"
@@ -211,6 +218,8 @@ class TestFlowWithOptions:
         assert flow_with_options.result_serializer == "json"
         assert flow_with_options.result_storage == LocalFileSystem(basepath="bar")
         assert flow_with_options.cache_result_in_memory is True
+        assert flow_with_options.on_completion == [success_hook]
+        assert flow_with_options.on_failure == [failure_hook]
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         @flow(
@@ -1308,7 +1317,7 @@ class TestSubflowTaskInputs:
         )
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @flow
@@ -1395,7 +1404,7 @@ class TestFlowRunLogs:
         assert all([log.task_run_id is None for log in logs])
 
 
-@pytest.mark.enable_orion_handler
+@pytest.mark.enable_api_log_handler
 class TestSubflowRunLogs:
     async def test_subflow_logs_are_written_correctly(self, orion_client):
         @flow
@@ -1673,7 +1682,7 @@ class TestFlowRetries:
         # after a flow run retry, the stale value will be pulled from the cache.
 
     async def test_flow_retry_with_no_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_run_count = 0
         flow_run_count = 0
@@ -1739,7 +1748,7 @@ class TestFlowRetries:
         assert child_run_count == 1, "Child flow should not run again"
 
     async def test_flow_retry_with_error_in_flow_and_one_failed_child_flow(
-        self, orion_client: OrionClient
+        self, orion_client: PrefectClient
     ):
         child_flow_run_count = 0
         flow_run_count = 0
@@ -2003,7 +2012,8 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
         assert (
             "Script loading is in progress, flow 'dog' will not be executed. "
             "Consider updating the script to only call the flow"
-        ) in caplog.text
+            in caplog.text
+        )
 
     flow_runs = await orion_client.read_flows()
     assert len(flow_runs) == 0
@@ -2037,3 +2047,173 @@ async def test_sets_run_name_with_params_including_defaults(orion_client):
     assert state.type == StateType.COMPLETED
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
     assert flow_run.name == "hi-one-two"
+
+
+def create_hook(mock_obj):
+    def my_hook(flow, flow_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+def create_async_hook(mock_obj):
+    async def my_hook(flow, flow_run, state):
+        mock_obj()
+
+    return my_hook
+
+
+class TestFlowHooksOnCompletion:
+    def test_on_completion_hooks_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    def test_on_completion_hooks_dont_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, completed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == []
+
+    def test_other_completion_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def completed1(flow, flow_run, state):
+            my_mock("completed1")
+
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def completed2(flow, flow_run, state):
+            my_mock("completed2")
+
+        @flow(on_completion=[completed1, exception_hook, completed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call("completed1"), call("completed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_completion_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_completion=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == [call(), call()]
+
+
+class TestFlowHooksOnFailure:
+    def test_on_failure_hooks_run_on_failure(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    def test_on_failure_hooks_dont_run_on_completed(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, failed2])
+        def my_flow():
+            pass
+
+        state = my_flow._run()
+        assert state.type == StateType.COMPLETED
+        assert my_mock.call_args_list == []
+
+    def test_other_failure_hooks_run_if_a_hook_fails(self):
+        my_mock = MagicMock()
+
+        def failed1(flow, flow_run, state):
+            my_mock("failed1")
+
+        def exception_hook(flow, flow_run, state):
+            raise Exception("oops")
+
+        def failed2(flow, flow_run, state):
+            my_mock("failed2")
+
+        @flow(on_failure=[failed1, exception_hook, failed2])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call("failed1"), call("failed2")]
+
+    @pytest.mark.parametrize(
+        "hook1, hook2",
+        [
+            (create_hook, create_hook),
+            (create_hook, create_async_hook),
+            (create_async_hook, create_hook),
+            (create_async_hook, create_async_hook),
+        ],
+    )
+    def test_on_failure_hooks_work_with_sync_and_async(self, hook1, hook2):
+        my_mock = MagicMock()
+        hook1_with_mock = hook1(my_mock)
+        hook2_with_mock = hook2(my_mock)
+
+        @flow(on_failure=[hook1_with_mock, hook2_with_mock])
+        def my_flow():
+            raise Exception("oops")
+
+        state = my_flow._run()
+        assert state.type == StateType.FAILED
+        assert my_mock.call_args_list == [call(), call()]

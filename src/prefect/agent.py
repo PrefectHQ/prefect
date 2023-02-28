@@ -11,9 +11,10 @@ import anyio.abc
 import anyio.to_process
 import pendulum
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.compatibility.experimental import experimental_parameter
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient, get_client
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.engine import propose_state
 from prefect.exceptions import (
     Abort,
@@ -23,9 +24,9 @@ from prefect.exceptions import (
 )
 from prefect.infrastructure import Infrastructure, InfrastructureResult, Process
 from prefect.logging import get_logger
-from prefect.orion import schemas
-from prefect.orion.schemas.core import BlockDocument, FlowRun, WorkQueue
-from prefect.orion.schemas.filters import (
+from prefect.server import schemas
+from prefect.server.schemas.core import BlockDocument, FlowRun, WorkQueue
+from prefect.server.schemas.filters import (
     FlowRunFilter,
     FlowRunFilterId,
     FlowRunFilterState,
@@ -37,7 +38,7 @@ from prefect.settings import PREFECT_AGENT_PREFETCH_SECONDS
 from prefect.states import Crashed, Pending, StateType, exception_to_failed_state
 
 
-class OrionAgent:
+class PrefectAgent:
     @experimental_parameter(
         "work_pool_name", group="work_pools", when=lambda y: y is not None
     )
@@ -51,10 +52,10 @@ class OrionAgent:
         default_infrastructure_document_id: UUID = None,
         limit: Optional[int] = None,
     ) -> None:
-
         if default_infrastructure and default_infrastructure_document_id:
             raise ValueError(
-                "Provide only one of 'default_infrastructure' and 'default_infrastructure_document_id'."
+                "Provide only one of 'default_infrastructure' and"
+                " 'default_infrastructure_document_id'."
             )
 
         self.work_queues: Set[str] = set(work_queues) if work_queues else set()
@@ -68,7 +69,7 @@ class OrionAgent:
         self.task_group: Optional[anyio.abc.TaskGroup] = None
         self.limit: Optional[int] = limit
         self.limiter: Optional[anyio.CapacityLimiter] = None
-        self.client: Optional[OrionClient] = None
+        self.client: Optional[PrefectClient] = None
 
         if isinstance(work_queue_prefix, str):
             work_queue_prefix = [work_queue_prefix]
@@ -144,7 +145,6 @@ class OrionAgent:
                     work_pool_name=self.work_pool_name, name=name
                 )
             except ObjectNotFound:
-
                 # if the work queue wasn't found, create it
                 if not self.work_queue_prefix:
                     # do not attempt to create work queues if the agent is polling for
@@ -155,7 +155,8 @@ class OrionAgent:
                         )
                         if self.work_pool_name:
                             self.logger.info(
-                                f"Created work queue {name!r} in work pool {self.work_pool_name!r}."
+                                f"Created work queue {name!r} in work pool"
+                                f" {self.work_pool_name!r}."
                             )
                         else:
                             self.logger.info(f"Created work queue '{name}'.")
@@ -177,7 +178,9 @@ class OrionAgent:
         them for execution in parallel.
         """
         if not self.started:
-            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
+            )
 
         self.logger.debug("Checking for scheduled flow runs...")
 
@@ -198,7 +201,6 @@ class OrionAgent:
         else:
             # load runs from each work queue
             async for work_queue in self.get_work_queues():
-
                 # print a nice message if the work queue is paused
                 if work_queue.is_paused:
                     self.logger.info(
@@ -207,22 +209,21 @@ class OrionAgent:
 
                 else:
                     try:
-                        if not self.work_pool_name:
-                            queue_runs = await self.client.get_runs_in_work_queue(
-                                id=work_queue.id, limit=10, scheduled_before=before
-                            )
+                        queue_runs = await self.client.get_runs_in_work_queue(
+                            id=work_queue.id, limit=10, scheduled_before=before
+                        )
                         submittable_runs.extend(queue_runs)
                     except ObjectNotFound:
                         self.logger.error(
-                            f"Work queue {work_queue.name!r} ({work_queue.id}) not found."
+                            f"Work queue {work_queue.name!r} ({work_queue.id}) not"
+                            " found."
                         )
                     except Exception as exc:
                         self.logger.exception(exc)
 
-        submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
+            submittable_runs.sort(key=lambda run: run.next_scheduled_start_time)
 
         for flow_run in submittable_runs:
-
             # don't resubmit a run
             if flow_run.id in self.submitting_flow_run_ids:
                 continue
@@ -232,7 +233,8 @@ class OrionAgent:
                     self.limiter.acquire_on_behalf_of_nowait(flow_run.id)
             except anyio.WouldBlock:
                 self.logger.info(
-                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs in progress."
+                    f"Flow run limit reached; {self.limiter.borrowed_tokens} flow runs"
+                    " in progress."
                 )
                 break
             else:
@@ -249,7 +251,9 @@ class OrionAgent:
 
     async def check_for_cancelled_flow_runs(self):
         if not self.started:
-            raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
+            raise RuntimeError(
+                "Agent is not started. Use `async with PrefectAgent()...`"
+            )
 
         self.logger.debug("Checking for cancelled flow runs...")
 
@@ -299,12 +303,16 @@ class OrionAgent:
         """
         if not flow_run.infrastructure_pid:
             self.logger.error(
-                f"Flow run '{flow_run.id}' does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+                f"Flow run '{flow_run.id}' does not have an infrastructure pid"
+                " attached. Cancellation cannot be guaranteed."
             )
             await self._mark_flow_run_as_cancelled(
                 flow_run,
                 state_updates={
-                    "message": "This flow run is missing infrastructure tracking information and cancellation cannot be guaranteed."
+                    "message": (
+                        "This flow run is missing infrastructure tracking information"
+                        " and cancellation cannot be guaranteed."
+                    )
                 },
             )
             return
@@ -341,7 +349,7 @@ class OrionAgent:
             self.logger.warning(f"{exc} Flow run cannot be cancelled by this agent.")
         except Exception:
             self.logger.exception(
-                f"Encountered exception while killing infrastructure for flow run "
+                "Encountered exception while killing infrastructure for flow run "
                 f"'{flow_run.id}'. Flow run may not be cancelled."
             )
             # We will try again on generic exceptions
@@ -446,8 +454,9 @@ class OrionAgent:
                         )
                     except Exception as exc:
                         self.logger.exception(
-                            "An error occured while setting the `infrastructure_pid` on "
-                            f"flow run {flow_run.id!r}. The flow run will not be cancellable."
+                            "An error occured while setting the `infrastructure_pid`"
+                            f" on flow run {flow_run.id!r}. The flow run will not be"
+                            " cancellable."
                         )
 
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
@@ -465,7 +474,6 @@ class OrionAgent:
         infrastructure: Infrastructure,
         task_status: anyio.abc.TaskStatus = None,
     ) -> Union[InfrastructureResult, Exception]:
-
         # Note: There is not a clear way to determine if task_status.started() has been
         #       called without peeking at the internal `_future`. Ideally we could just
         #       check if the flow run id has been removed from `submitting_flow_run_ids`
@@ -507,7 +515,10 @@ class OrionAgent:
         if result.status_code != 0:
             await self._propose_crashed_state(
                 flow_run,
-                f"Flow run infrastructure exited with non-zero status code {result.status_code}.",
+                (
+                    "Flow run infrastructure exited with non-zero status code"
+                    f" {result.status_code}."
+                ),
             )
 
         return result
@@ -518,8 +529,10 @@ class OrionAgent:
             state = await propose_state(self.client, Pending(), flow_run_id=flow_run.id)
         except Abort as exc:
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}'. "
-                f"Server sent an abort signal: {exc}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}"
+                ),
             )
             return False
         except Exception as exc:
@@ -531,8 +544,10 @@ class OrionAgent:
 
         if not state.is_pending():
             self.logger.info(
-                f"Aborted submission of flow run '{flow_run.id}': "
-                f"Server returned a non-pending state {state.type.value!r}",
+                (
+                    f"Aborted submission of flow run '{flow_run.id}': "
+                    f"Server returned a non-pending state {state.type.value!r}"
+                ),
             )
             return False
 
@@ -634,3 +649,10 @@ class OrionAgent:
 
     async def __aexit__(self, *exc_info):
         await self.shutdown(*exc_info)
+
+
+@deprecated_callable(start_date="Feb 2023", help="Use `PrefectAgent` instead.")
+class OrionAgent(PrefectAgent):
+    """
+    Deprecated. Use `PrefectAgent` instead.
+    """

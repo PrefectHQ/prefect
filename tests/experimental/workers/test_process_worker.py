@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import anyio
 import anyio.abc
@@ -8,11 +9,11 @@ from pydantic import BaseModel
 
 import prefect
 from prefect import flow
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
-from prefect.orion.schemas.core import WorkPool
-from prefect.orion.schemas.states import StateDetails, StateType
+from prefect.server.schemas.core import WorkPool
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock, MagicMock
 
@@ -46,7 +47,7 @@ def patch_run_process(monkeypatch):
 
 
 @pytest.fixture
-async def flow_run(orion_client: OrionClient):
+async def flow_run(orion_client: PrefectClient):
     flow_run = await orion_client.create_flow_run(
         flow=example_flow,
         state=State(
@@ -151,7 +152,13 @@ async def test_worker_process_run_flow_run(
         assert result.status_code == 0
 
         mock.assert_awaited_once
-        assert mock.call_args.args == ([sys.executable, "-m", "prefect.engine"],)
+        assert mock.call_args.args == (
+            [
+                sys.executable,
+                "-m",
+                "prefect.engine",
+            ],
+        )
         assert mock.call_args.kwargs["env"] == {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
 
 
@@ -164,7 +171,7 @@ async def test_process_created_then_marked_as_started(
     fake_status.started.side_effect = RuntimeError("Started called!")
     read_deployment_mock = patch_read_deployment(monkeypatch)
     fake_configuration = MagicMock()
-    fake_configuration.command = ["echo", "hello"]
+    fake_configuration.command = "echo hello"
     with pytest.raises(RuntimeError, match="Started called!"):
         async with ProcessWorker(
             work_pool_name=work_pool.name,
@@ -199,7 +206,6 @@ async def test_process_worker_logs_exit_code_help_message(
     work_pool,
     monkeypatch,
 ):
-
     read_deployment_mock = patch_read_deployment(monkeypatch)
     patch_run_process(returncode=exit_code)
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
@@ -240,7 +246,9 @@ async def test_windows_process_worker_run_sets_process_group_creation_flag(
 
 @pytest.mark.skipif(
     sys.platform == "win32",
-    reason="The asyncio.open_process_*.creationflags argument is only supported on Windows",
+    reason=(
+        "The asyncio.open_process_*.creationflags argument is only supported on Windows"
+    ),
 )
 async def test_unix_process_worker_run_does_not_set_creation_flag(
     patch_run_process, flow_run, work_pool, monkeypatch
@@ -276,7 +284,7 @@ async def test_process_worker_working_dir_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.kwargs["cwd"] != path_override_value
+        assert mock.call_args.kwargs["cwd"] != Path(path_override_value)
 
     # Check mock_path is used after setting the override
     read_deployment_mock = patch_read_deployment(
@@ -291,7 +299,7 @@ async def test_process_worker_working_dir_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.kwargs["cwd"] == path_override_value
+        assert mock.call_args.kwargs["cwd"] == Path(path_override_value)
 
 
 async def test_process_worker_stream_output_override(
@@ -333,7 +341,11 @@ async def test_process_worker_uses_correct_default_command(
     flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
-    correct_default = [sys.executable, "-m", "prefect.engine"]
+    correct_default = [
+        sys.executable,
+        "-m",
+        "prefect.engine",
+    ]
     read_deployment_mock = patch_read_deployment(monkeypatch)
 
     async with ProcessWorker(work_pool_name=work_pool.name) as worker:
@@ -352,7 +364,7 @@ async def test_process_worker_command_override(
     flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
-    override_command = ["echo", "hello", "world"]
+    override_command = f"echo hello world"
     override = {"command": override_command}
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides=override)
 
@@ -365,4 +377,4 @@ async def test_process_worker_command_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock.call_args.args == (override_command,)
+        assert mock.call_args.args == (override_command.split(" "),)

@@ -1,5 +1,6 @@
 import copy
 import enum
+import json
 import os
 import time
 from contextlib import contextmanager
@@ -90,8 +91,10 @@ class KubernetesJob(Infrastructure):
     image: Optional[str] = Field(
         default=None,
         description=(
-            "The image reference of a container image to use for the job, for example, `docker.io/prefecthq/prefect:2-latest`."
-            "The behavior is as described in the Kubernetes documentation and uses the latest version of Prefect by default, unless an image is already present in a provided job manifest."
+            "The image reference of a container image to use for the job, for example,"
+            " `docker.io/prefecthq/prefect:2-latest`.The behavior is as described in"
+            " the Kubernetes documentation and uses the latest version of Prefect by"
+            " default, unless an image is already present in a provided job manifest."
         ),
     )
     namespace: Optional[str] = Field(
@@ -140,11 +143,17 @@ class KubernetesJob(Infrastructure):
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, output will be streamed from the job to local standard output.",
+        description=(
+            "If set, output will be streamed from the job to local standard output."
+        ),
     )
     finished_job_ttl: Optional[int] = Field(
         default=None,
-        description="The number of seconds to retain jobs after completion. If set, finished jobs will be cleaned up by Kubernetes after the given delay. If None (default), jobs will need to be manually removed.",
+        description=(
+            "The number of seconds to retain jobs after completion. If set, finished"
+            " jobs will be cleaned up by Kubernetes after the given delay. If None"
+            " (default), jobs will need to be manually removed."
+        ),
     )
 
     # internal-use only right now
@@ -182,10 +191,18 @@ class KubernetesJob(Infrastructure):
 
     @validator("customizations", pre=True)
     def cast_customizations_to_a_json_patch(
-        cls, value: Union[List[Dict], JsonPatch]
+        cls, value: Union[List[Dict], JsonPatch, str]
     ) -> JsonPatch:
         if isinstance(value, list):
             return JsonPatch(value)
+        elif isinstance(value, str):
+            try:
+                return JsonPatch(json.loads(value))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Unable to parse customizations as JSON: {value}. Please make sure"
+                    " that the provided value is a valid JSON string."
+                ) from exc
         return value
 
     @root_validator
@@ -454,7 +471,9 @@ class KubernetesJob(Infrastructure):
         shortcuts += [
             {
                 "op": "add",
-                "path": f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}",
+                "path": (
+                    f"/metadata/labels/{self._slugify_label_key(key).replace('/', '~1', 1)}"
+                ),
                 "value": self._slugify_label_value(value),
             }
             for key, value in self.labels.items()
@@ -519,14 +538,16 @@ class KubernetesJob(Infrastructure):
                 {
                     "op": "add",
                     "path": "/metadata/generateName",
-                    "value": "prefect-job-"
-                    # We generate a name using a hash of the primary job settings
-                    + stable_hash(
-                        *self.command,
-                        *self.env.keys(),
-                        *[v for v in self.env.values() if v is not None],
-                    )
-                    + "-",
+                    "value": (
+                        "prefect-job-"
+                        # We generate a name using a hash of the primary job settings
+                        + stable_hash(
+                            *self.command,
+                            *self.env.keys(),
+                            *[v for v in self.env.values() if v is not None],
+                        )
+                        + "-"
+                    ),
                 }
             )
 
@@ -574,6 +595,8 @@ class KubernetesJob(Infrastructure):
 
         Return the final status code of the first container.
         """
+        self.logger.debug(f"Job {job_name!r}: Monitoring job...")
+
         job = self._get_job(job_name)
         if not job:
             return -1
@@ -582,6 +605,13 @@ class KubernetesJob(Infrastructure):
         if not pod:
             return -1
 
+        # Calculate the deadline before streaming output
+        deadline = (
+            (time.time() + self.job_watch_timeout_seconds)
+            if self.job_watch_timeout_seconds is not None
+            else None
+        )
+
         if self.stream_output:
             with self.get_client() as client:
                 logs = client.read_namespaced_pod_log(
@@ -589,36 +619,45 @@ class KubernetesJob(Infrastructure):
                     self.namespace,
                     follow=True,
                     _preload_content=False,
+                    container="prefect-job",
                 )
                 try:
                     for log in logs.stream():
                         print(log.decode().rstrip())
+
+                        # Check if we have passed the deadline and should stop streaming
+                        # logs
+                        remaining_time = deadline - time.time() if deadline else None
+                        if deadline and remaining_time <= 0:
+                            break
+
                 except Exception:
                     self.logger.warning(
-                        "Error occurred while streaming logs - "
-                        "Job will continue to run but logs will "
-                        "no longer be streamed to stdout.",
+                        (
+                            "Error occurred while streaming logs - "
+                            "Job will continue to run but logs will "
+                            "no longer be streamed to stdout."
+                        ),
                         exc_info=True,
                     )
 
-        self.logger.debug(f"Job {job_name!r}: Starting watch for job completion")
-        deadline = (
-            (time.time() + self.job_watch_timeout_seconds)
-            if self.job_watch_timeout_seconds is not None
-            else None
-        )
-        completed = False
-        while not completed:
-            remaining_time = deadline - time.time() if deadline else None
-            if deadline and remaining_time <= 0:
-                self.logger.error(
-                    f"Job {job_name!r}: Job did not complete within "
-                    f"timeout of {self.job_watch_timeout_seconds}s."
-                )
-                return -1
+        with self.get_batch_client() as batch_client:
+            # Check if the job is completed before beginning a watch
+            job = batch_client.read_namespaced_job(
+                name=job_name, namespace=self.namespace
+            )
+            completed = job.status.completion_time is not None
 
-            watch = kubernetes.watch.Watch()
-            with self.get_batch_client() as batch_client:
+            while not completed:
+                remaining_time = deadline - time.time() if deadline else None
+                if deadline and remaining_time <= 0:
+                    self.logger.error(
+                        f"Job {job_name!r}: Job did not complete within "
+                        f"timeout of {self.job_watch_timeout_seconds}s."
+                    )
+                    return -1
+
+                watch = kubernetes.watch.Watch()
                 # The kubernetes library will disable retries if the timeout kwarg is
                 # present regardless of the value so we do not pass it unless given
                 # https://github.com/kubernetes-client/python/blob/84f5fea2a3e4b161917aa597bf5e5a1d95e24f5a/kubernetes/base/watch/watch.py#LL160
@@ -712,7 +751,7 @@ class KubernetesJob(Infrastructure):
             name = key
 
         name_slug = (
-            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+",).strip(
+            slugify(name, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or name
@@ -752,7 +791,7 @@ class KubernetesJob(Infrastructure):
             The slugified value
         """
         slug = (
-            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+",).strip(
+            slugify(value, max_length=63, regex_pattern=r"[^a-zA-Z0-9-_\.]+").strip(
                 "_-."  # Must start or end with alphanumeric characters
             )
             or value

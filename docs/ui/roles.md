@@ -46,10 +46,10 @@ The following built-in roles have permissions within a given workspace in Prefec
 
 | Role | Abilities |
 | --- | --- |
-| Owner | &bull; Run flows. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
-| Developer | &bull; Run flows within a workspace. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work queues within a workspace. <br> &bull; Create, view, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; View workspace setting within a workspace. |
-| Runner | &bull; View flow runs within a workspace. <br> &bull; View and run deployments within a workspace. <br> &bull; View all work queues within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
-| Viewer | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all work queues within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
+| Owner | &bull; Run flows. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work pools within a workspace. <br> &bull; Create, view, edit, and delete blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
+| Developer | &bull; Run flows within a workspace. <br> &bull; View and delete flow runs within a workspace. <br> &bull; Create, view, edit, and delete deployments within a workspace. <br> &bull; Create, view, edit, and delete work pools within a workspace. <br> &bull; Create, view, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, view, edit, and delete automations within a workspace. <br> &bull; View workspace setting within a workspace. |
+| Runner | &bull; View flow runs within a workspace. <br> &bull; View and run deployments within a workspace. <br> &bull; View all work pools within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
+| Viewer | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all work pools within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace settings (handle and description currently). |
 
 ## Custom workspace roles
 
@@ -125,13 +125,13 @@ The following permissions are available for custom roles.
 | View concurrency limits | User can see configured task run concurrency limits within a workspace. |		
 | Create, edit, and delete concurrency limits | User can create, edit, and delete task run concurrency limits within a workspace. Includes permissions of **View concurrency limits**. |		
 
-### Work queues
+### Work pools
 
 | Permission | Description |
 | --- | --- |
-| View work queues | User can see work queues configured within a workspace. |
-| Create, edit, and pause work queues | User can create, edit, and pause work queues configured within a workspace. Includes permissions of **View work queues**. |
-| Delete work queues | User can delete work queues configured within a workspace. Includes permissions of **View work queues** and **Create, edit, and pause work queues**. |
+| View work pools | User can see work pools configured within a workspace. |
+| Create, edit, and pause work pools | User can create, edit, and pause work pools configured within a workspace. Includes permissions of **View work pools**. |
+| Delete work pools | User can delete work pools configured within a workspace. Includes permissions of **View work pools** and **Create, edit, and pause work pools**. |
 
 ### Workspace management
 
