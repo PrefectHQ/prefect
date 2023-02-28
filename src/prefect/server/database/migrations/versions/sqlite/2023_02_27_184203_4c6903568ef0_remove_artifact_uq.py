@@ -23,4 +23,4 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("artifact", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_artifact__key"))
-        batch_op.create_index("ix_artifact__key", ["key"], unique=False)
+        batch_op.create_index("ix_artifact__key", ["key"], unique=True)
