@@ -21,6 +21,8 @@ def upgrade():
         batch_op.drop_index("ix_artifact__key")
         batch_op.create_index(batch_op.f("ix_artifact__key"), ["key"], unique=False)
 
+    op.execute("PRAGMA foreign_keys=ON")
+
 
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
@@ -28,3 +30,5 @@ def downgrade():
     with op.batch_alter_table("artifact", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_artifact__key"))
         batch_op.create_index("ix_artifact__key", ["key"], unique=True)
+
+    op.execute("PRAGMA foreign_keys=ON")
