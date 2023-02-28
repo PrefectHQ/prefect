@@ -1,13 +1,14 @@
 import abc
 import asyncio
 import concurrent.futures
-from typing import Callable, TypeVar, Union
+from typing import Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.runtime import get_runtime_thread
 from prefect._internal.concurrency.supervisors import (
     AsyncSupervisor,
+    Call,
     Supervisor,
     SyncSupervisor,
     get_supervisor,
@@ -18,11 +19,15 @@ T = TypeVar("T")
 Future = Union[concurrent.futures.Future, asyncio.Future]
 
 
+def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call[T]:
+    return Call(fn=__fn, args=args, kwargs=kwargs)
+
+
 class _base(abc.ABC):
     @abc.abstractstaticmethod
-    def call_soon_in_runtime_thread(
-        __call: Callable[..., T], *args, **kwargs
-    ) -> Supervisor:
+    def supervise_call_in_runtime_thread(
+        call: Call[T], timeout: Optional[float] = None
+    ) -> Supervisor[T]:
         """
         Schedule a coroutine function in the runtime thread.
 
@@ -31,9 +36,9 @@ class _base(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def call_soon_in_worker_thread(
-        __call: Callable[..., T], *args, **kwargs
-    ) -> Supervisor:
+    def supervise_call_in_worker_thread(
+        call: Call[T], timeout: Optional[float] = None
+    ) -> Supervisor[T]:
         """
         Schedule a function in a worker thread.
 
@@ -42,8 +47,8 @@ class _base(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def call_soon_in_supervising_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def send_call_to_supervising_thread(
+        call: Call[T], timeout: Optional[float] = None
     ) -> Future:
         """
         Call a function in the supervising thread.
@@ -58,14 +63,9 @@ class _base(abc.ABC):
 
 class from_async(_base):
     @staticmethod
-    def call_soon_in_runtime_thread(
-        __call: Callable[..., T], *args, **kwargs
-    ) -> AsyncSupervisor[T]:
-        """
-        Schedule a coroutine function in the runtime thread.
-
-        Returns a supervisor.
-        """
+    def supervise_call_in_runtime_thread(
+        call: Call[Awaitable[T]], timeout: Optional[float] = None
+    ) -> AsyncSupervisor[Awaitable[T]]:
         current_supervisor = get_supervisor()
         runtime = get_runtime_thread()
 
@@ -77,54 +77,38 @@ class from_async(_base):
         else:
             submit_fn = current_supervisor.send_call_to_supervisor
 
-        supervisor = AsyncSupervisor(submit_fn=submit_fn)
-        supervisor.submit(__call, *args)
+        supervisor = AsyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
+        supervisor.submit()
         return supervisor
 
     @staticmethod
-    def call_soon_in_worker_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def supervise_call_in_worker_thread(
+        call: Call, timeout: Optional[float] = None
     ) -> AsyncSupervisor[T]:
-        """
-        Schedule a function in a worker thread.
-
-        Returns a supervisor.
-        """
         runtime = get_runtime_thread()
-        supervisor = AsyncSupervisor(runtime.submit_to_worker_thread)
-        supervisor.submit(__call, *args)
+        supervisor = AsyncSupervisor(
+            call, runtime.submit_to_worker_thread, timeout=timeout
+        )
+        supervisor.submit()
         return supervisor
 
     @staticmethod
-    def call_soon_in_supervising_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def send_call_to_supervising_thread(
+        call: Call, timeout: Optional[float] = None
     ) -> asyncio.Future:
-        """
-        Call a function in the supervising thread.
-
-        Must be used from a call scheduled by `call_soon_in_worker_thread` or
-        `call_soon_in_runtime_thread` or there will not be a supervisor.
-
-        Returns a future.
-        """
-        current_future = get_supervisor()
-        if current_future is None:
+        current_supervisor = get_supervisor()
+        if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_future.send_call_to_supervisor(__call, *args)
+        future = current_supervisor.send_call_to_supervisor(call)
         return asyncio.wrap_future(future)
 
 
 class from_sync(_base):
     @staticmethod
-    def call_soon_in_runtime_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def supervise_call_in_runtime_thread(
+        call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        """
-        Schedule a coroutine function in the runtime thread.
-
-        Returns a supervisor.
-        """
         current_supervisor = get_supervisor()
         runtime = get_runtime_thread()
 
@@ -136,39 +120,28 @@ class from_sync(_base):
         else:
             submit_fn = current_supervisor.send_call_to_supervisor
 
-        supervisor = SyncSupervisor(submit_fn=submit_fn)
-        supervisor.submit(__call, *args)
+        supervisor = SyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
+        supervisor.submit()
         return supervisor
 
     @staticmethod
-    def call_soon_in_worker_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def supervise_call_in_worker_thread(
+        call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        """
-        Schedule a function in a worker thread.
-
-        Returns a supervisor.
-        """
         runtime = get_runtime_thread()
-        supervisor = SyncSupervisor(runtime.submit_to_worker_thread)
-        supervisor.submit(__call, *args)
+        supervisor = SyncSupervisor(
+            call, runtime.submit_to_worker_thread, timeout=timeout
+        )
+        supervisor.submit()
         return supervisor
 
     @staticmethod
-    def call_soon_in_supervising_thread(
-        __call: Callable[..., T], *args, **kwargs
+    def send_call_to_supervising_thread(
+        call: Call, timeout: Optional[float] = None
     ) -> concurrent.futures.Future:
-        """
-        Call a function in the supervising thread.
-
-        Must be used from a call scheduled by `call_soon_in_worker_thread` or
-        `call_soon_in_runtime_thread` or there will not be a supervisor.
-
-        Returns a future.
-        """
-        current_future = get_supervisor()
-        if current_future is None:
+        current_supervisor = get_supervisor()
+        if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_future.send_call_to_supervisor(__call, *args)
+        future = current_supervisor.send_call_to_supervisor(call)
         return future

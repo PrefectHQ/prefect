@@ -4,7 +4,11 @@ import time
 
 import pytest
 
-from prefect._internal.concurrency.supervisors import AsyncSupervisor, SyncSupervisor
+from prefect._internal.concurrency.supervisors import (
+    AsyncSupervisor,
+    Call,
+    SyncSupervisor,
+)
 
 
 def fake_submit_fn(__fn, *args, **kwargs):
@@ -23,15 +27,10 @@ def sleep_repeatedly(seconds: int):
 
 @pytest.mark.parametrize("cls", [AsyncSupervisor, SyncSupervisor])
 async def test_supervisor_repr(cls):
-    supervisor = cls(submit_fn=fake_submit_fn)
+    supervisor = cls(Call.new(fake_fn, 1, 2), submit_fn=fake_submit_fn)
     assert (
         repr(supervisor)
-        == f"<{cls.__name__} submit_fn='fake_submit_fn', owner='MainThread'>"
-    )
-    supervisor.submit(fake_fn, 1, 2)
-    assert (
-        repr(supervisor)
-        == f"<{cls.__name__} submit_fn='fake_submit_fn', submitted='fake_fn',"
+        == f"<{cls.__name__} call=fake_fn(1, 2), submit_fn='fake_submit_fn',"
         " owner='MainThread'>"
     )
 
@@ -42,8 +41,10 @@ def test_sync_supervisor_timeout_in_worker_thread():
     thread.
     """
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = SyncSupervisor(submit_fn=executor.submit, timeout=0.1)
-        future = supervisor.submit(sleep_repeatedly, 1)
+        supervisor = SyncSupervisor(
+            Call.new(sleep_repeatedly, 1), submit_fn=executor.submit, timeout=0.1
+        )
+        future = supervisor.submit()
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
@@ -62,14 +63,16 @@ def test_sync_supervisor_timeout_in_main_thread():
     thread by the worker thread.
     """
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = SyncSupervisor(submit_fn=executor.submit, timeout=0.1)
 
         def on_worker_thread():
             # Send sleep to the main thread
-            future = supervisor.send_call_to_supervisor(time.sleep, 2)
+            future = supervisor.send_call_to_supervisor(Call.new(time.sleep, 2))
             return future
 
-        supervisor.submit(on_worker_thread)
+        supervisor = SyncSupervisor(
+            Call.new(on_worker_thread), submit_fn=executor.submit, timeout=0.1
+        )
+        supervisor.submit()
 
         t0 = time.time()
         future = supervisor.result()
@@ -87,8 +90,10 @@ def test_sync_supervisor_timeout_in_main_thread():
 
 async def test_async_supervisor_timeout_in_worker_thread():
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = AsyncSupervisor(submit_fn=executor.submit, timeout=0.1)
-        future = supervisor.submit(sleep_repeatedly, 1)
+        supervisor = AsyncSupervisor(
+            Call.new(sleep_repeatedly, 1), submit_fn=executor.submit, timeout=0.1
+        )
+        future = supervisor.submit()
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
@@ -104,14 +109,16 @@ async def test_async_supervisor_timeout_in_worker_thread():
 
 async def test_async_supervisor_timeout_in_main_thread():
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        supervisor = AsyncSupervisor(submit_fn=executor.submit, timeout=0.1)
 
         def on_worker_thread():
             # Send sleep to the main thread
-            future = supervisor.send_call_to_supervisor(asyncio.sleep, 1)
+            future = supervisor.send_call_to_supervisor(Call.new(asyncio.sleep, 1))
             return future
 
-        supervisor.submit(on_worker_thread)
+        supervisor = AsyncSupervisor(
+            Call.new(on_worker_thread), submit_fn=executor.submit, timeout=0.1
+        )
+        supervisor.submit()
 
         t0 = time.time()
         future = await supervisor.result()
