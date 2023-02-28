@@ -35,9 +35,7 @@ class EventsWorker:
 
     def _start_loop(self):
         """Entrypoint for the thread."""
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self._main_loop())
-        loop.close()
+        asyncio.run(self._main_loop())
 
     async def _main_loop(self):
         """Orchestrate the events client and emit any queued events."""
@@ -75,8 +73,7 @@ class EventsWorker:
 
 @asynccontextmanager
 async def async_get_events_worker():
-    cm = get_events_worker()
-    with cm as worker:
+    with get_events_worker() as worker:
         yield worker
 
 
