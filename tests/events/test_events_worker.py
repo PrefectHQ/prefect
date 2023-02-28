@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import pytest
@@ -39,7 +40,6 @@ def test_controls_client_and_thread_lifecycle(worker: EventsWorker):
     assert not worker._thread.is_alive()
     assert not hasattr(worker, "_client")
     worker.start()
-    worker._ready_event.wait(timeout=5)
 
     assert worker._thread.is_alive()
     assert isinstance(worker._client, AssertingEventsClient)
@@ -48,7 +48,6 @@ def test_controls_client_and_thread_lifecycle(worker: EventsWorker):
     worker.stop()
     assert not hasattr(worker._client, "_in_context")
     assert not worker._thread.is_alive()
-    assert not worker._ready_event.is_set()
 
 
 def test_start_is_idempontent(worker: EventsWorker):
@@ -66,7 +65,6 @@ def test_stop_is_idempontent(worker: EventsWorker):
 def test_emit_starts_worker(worker: EventsWorker, event: Event):
     assert not worker._thread.is_alive()
     worker.emit(event)
-    worker._ready_event.wait(timeout=5)
 
     assert worker._thread.is_alive()
 
@@ -76,14 +74,13 @@ def test_emit_starts_worker(worker: EventsWorker, event: Event):
 def test_emit_start_idempontent(worker: EventsWorker, event: Event):
     worker.start()
     worker.emit(event)  # Would raise RuntimeError if thread was started again.
-    worker._ready_event.wait(timeout=5)
     worker.stop()
 
 
 def test_emits_event_via_client(worker: EventsWorker, event: Event):
     worker.emit(event)
-    worker._ready_event.wait(timeout=5)
     assert isinstance(worker._client, AssertingEventsClient)
+    time.sleep(0.1)
     assert worker._client.events == [event]
     worker.stop()
 
@@ -131,7 +128,6 @@ def test_worker_from_settings_null_client_cloud_api_url_experiment_enabled():
 
 def test_get_events_worker_context_manager():
     with get_events_worker() as worker:
-        worker._ready_event.wait(timeout=5)
         assert worker._thread.is_alive()
         assert isinstance(worker._client, NullEventsClient)
         assert worker._client._in_context
@@ -154,7 +150,6 @@ def test_get_events_worker_unmanaged_lifecycle(worker: EventsWorker):
 
 async def test_async_get_events_worker_context_manager():
     async with async_get_events_worker() as worker:
-        worker._ready_event.wait(timeout=5)
         assert worker._thread.is_alive()
         assert isinstance(worker._client, NullEventsClient)
         assert worker._client._in_context
