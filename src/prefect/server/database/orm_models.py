@@ -327,8 +327,7 @@ class ORMArtifactCollection:
     def _key(cls):
         return sa.orm.relationship(
             "Artifact",
-            lazy="joined",
-            foreign_keys=[cls.key],
+            lazy="selectin",
             primaryjoin="Artifact.key==%s.key" % cls.__name__,
         )
 
@@ -336,18 +335,6 @@ class ORMArtifactCollection:
     def latest_id(cls):
         return sa.Column(
             UUID(),
-            sa.ForeignKey(
-                "artifact.id",
-            ),
-        )
-
-    @declared_attr
-    def _latest_id(cls):
-        return sa.orm.relationship(
-            "Artifact",
-            lazy="joined",
-            foreign_keys=[cls.latest_id],
-            primaryjoin="Artifact.id==%s.latest_id" % cls.__name__,
         )
 
     @declared_attr
