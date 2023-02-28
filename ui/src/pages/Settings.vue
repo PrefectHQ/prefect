@@ -3,7 +3,7 @@
     <template #header>
       <PageHeading :crumbs="crumbs">
         <template #actions>
-          <p-key-value label="Version" :value="version" alternate />
+          <p-key-value class="settings__version" label="Version" :value="version" alternate />
         </template>
       </PageHeading>
     </template>
@@ -41,6 +41,10 @@
 </script>
 
 <style>
+.settings__version { @apply
+  w-auto
+}
+
 .settings__color-mode { @apply
   w-96
   max-w-full
