@@ -100,7 +100,10 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import (
+    get_parameter_defaults,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -310,6 +313,9 @@ async def retrieve_flow_then_begin_flow_run(
             return failed_state
     else:
         parameters = flow_run.parameters
+
+    # Ensure default values are populated
+    parameters = {**get_parameter_defaults(flow.fn), **parameters}
 
     return await begin_flow_run(
         flow=flow,

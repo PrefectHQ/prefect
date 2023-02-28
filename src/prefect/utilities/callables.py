@@ -47,8 +47,26 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
+def get_parameter_defaults(
+    fn: Callable,
+) -> Dict[str, Any]:
+    """
+    Get default parameter values for a callable.
+    """
+    signature = inspect.signature(fn)
+
+    parameter_defaults = {}
+
+    for name, param in signature.parameters.items():
+        if param.default is not signature.empty:
+            parameter_defaults[name] = param.default
+
+    return parameter_defaults
+
+
 def parameters_to_args_kwargs(
-    fn: Callable, parameters: Dict[str, Any]
+    fn: Callable,
+    parameters: Dict[str, Any],
 ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
     """
     Convert a `parameters` dictionary to positional and keyword arguments
