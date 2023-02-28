@@ -787,8 +787,8 @@ async def build(
         "--description",
         "-d",
         help=(
-            "The description to give the deployment. "
-            "If not provided, the description will be populated from the flow's description."
+            "The description to give the deployment. If not provided, the description"
+            " will be populated from the flow's description."
         ),
     ),
     version: str = typer.Option(
