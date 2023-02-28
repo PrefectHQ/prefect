@@ -1,12 +1,12 @@
 import asyncio
 import atexit
 import concurrent.futures
-import queue
 import threading
 from contextlib import asynccontextmanager, contextmanager
 from typing import Any, Dict, Optional, Type
 
 from prefect._internal.compatibility.experimental import experiment_enabled
+from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 
 from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
@@ -23,14 +23,14 @@ class EventsWorker:
         self._client_kwargs = client_kwargs or {}
         self._client: EventsClient
 
-        self._queue: queue.SimpleQueue[Event] = queue.SimpleQueue()
-
         self._thread = threading.Thread(
             target=self._start_loop, name="events-worker", daemon=True
         )
-        self._stop_event = threading.Event()
         self._ready_future = concurrent.futures.Future()
         self._lock = threading.Lock()
+
+        self._loop: asyncio.AbstractEventLoop
+        self._queue: asyncio.Queue[Optional[Event]]
 
         atexit.register(self.stop)
 
@@ -40,19 +40,25 @@ class EventsWorker:
 
     async def _main_loop(self):
         """Orchestrate the events client and emit any queued events."""
+        self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        self._queue: asyncio.Queue[Optional[Event]] = asyncio.Queue()
+
         try:
             self._client = self._client_type(**self._client_kwargs)
             async with self._client:
                 self._ready_future.set_result(True)
-                while not self._stop_event.is_set():
-                    try:
-                        event = self._queue.get_nowait()
-                    except queue.Empty:
-                        await asyncio.sleep(0.1)
-                    else:
-                        await self._client.emit(event)
+                while True:
+                    event = await self._queue.get()
+
+                    if event is None:
+                        break
+
+                    await self._client.emit(event)
         except Exception as exc:
             self._ready_future.set_exception(exc)
+
+    def _enqueue(self, value: Optional[Event]):
+        call_soon_in_loop(self._loop, self._queue.put_nowait, value)
 
     def start(self):
         """Start worker thread if not already started."""
@@ -66,13 +72,14 @@ class EventsWorker:
         """Stop worker thread if started."""
         if self._thread.is_alive():
             with self._lock:
-                self._stop_event.set()
+                # Enqueuing `None` unblocks the main loop and signals that it
+                # should shut down.
+                self._enqueue(None)
                 self._thread.join()
 
     def emit(self, event: Event) -> None:
-        """Emit `event` and ensure that the worker thread is running."""
-        self.start()
-        self._queue.put(event)
+        """Put the `event` in the queue to be processed by the worker thread."""
+        self._enqueue(event)
 
 
 @asynccontextmanager

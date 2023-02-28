@@ -40,6 +40,7 @@ def test_controls_client_and_thread_lifecycle(worker: EventsWorker):
     assert not worker._thread.is_alive()
     assert not hasattr(worker, "_client")
     worker.start()
+    worker.emit(None)
 
     assert worker._thread.is_alive()
     assert isinstance(worker._client, AssertingEventsClient)
@@ -62,25 +63,11 @@ def test_stop_is_idempontent(worker: EventsWorker):
     worker.stop()
 
 
-def test_emit_starts_worker(worker: EventsWorker, event: Event):
-    assert not worker._thread.is_alive()
-    worker.emit(event)
-
-    assert worker._thread.is_alive()
-
-    worker.stop()
-
-
-def test_emit_start_idempontent(worker: EventsWorker, event: Event):
-    worker.start()
-    worker.emit(event)  # Would raise RuntimeError if thread was started again.
-    worker.stop()
-
-
 def test_emits_event_via_client(worker: EventsWorker, event: Event):
+    worker.start()
     worker.emit(event)
     assert isinstance(worker._client, AssertingEventsClient)
-    time.sleep(0.1)
+    time.sleep(0.3)
     assert worker._client.events == [event]
     worker.stop()
 
