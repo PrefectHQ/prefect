@@ -36,26 +36,26 @@ class EventsWorker:
 
     def _start_loop(self):
         """Entrypoint for the thread."""
-        asyncio.run(self._main_loop())
+        try:
+            asyncio.run(self._main_loop())
+        except Exception as exc:
+            self._ready_future.set_exception(exc)
 
     async def _main_loop(self):
         """Orchestrate the events client and emit any queued events."""
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self._queue: asyncio.Queue[Optional[Event]] = asyncio.Queue()
 
-        try:
-            self._client = self._client_type(**self._client_kwargs)
-            async with self._client:
-                self._ready_future.set_result(True)
-                while True:
-                    event = await self._queue.get()
+        self._client = self._client_type(**self._client_kwargs)
+        async with self._client:
+            self._ready_future.set_result(True)
+            while True:
+                event = await self._queue.get()
 
-                    if event is None:
-                        break
+                if event is None:
+                    break
 
-                    await self._client.emit(event)
-        except Exception as exc:
-            self._ready_future.set_exception(exc)
+                await self._client.emit(event)
 
     def _enqueue(self, value: Optional[Event]):
         call_soon_in_loop(self._loop, self._queue.put_nowait, value)
@@ -63,8 +63,7 @@ class EventsWorker:
     def start(self):
         """Start worker thread if not already started."""
         if not self._thread.is_alive():
-            with self._lock:
-                self._thread.start()
+            self._thread.start()
 
         self._ready_future.result(timeout=5)
 
