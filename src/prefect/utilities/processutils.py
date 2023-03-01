@@ -5,6 +5,7 @@ import subprocess
 import sys
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from functools import partial
 from io import TextIOBase
 from typing import (
     IO,
@@ -311,28 +312,43 @@ async def stream_text(source: TextReceiveStream, sink: Optional[TextSink]):
             raise TypeError(f"Unsupported sink type {type(sink).__name__}")
 
 
-def kill_on_interrupt(pid: int, process_name: str, print_fn: Callable):
-    """Kill a process with the given `pid` when a SIGNINT is received."""
+def forward_signal_handler(
+    pid: int, signum: int, *signums: int, process_name: str, print_fn: Callable
+):
+    """Forward subsequent signum events (e.g. interrupts) to respective signums."""
+    current_signal, future_signals = signums[0], signums[1:]
 
-    # In a non-windows enviornment first interrupt with send a SIGTERM, then
-    # subsequent interrupts will send SIGKILL. In Windows we use
-    # CTRL_BREAK_EVENT as SIGTERM is useless:
+    def handler(*args):
+        print_fn(
+            f"Received {getattr(signum, 'name', signum)}. "
+            f"Sending {getattr(current_signal, 'name', current_signal)} to"
+            f" {process_name} (PID {pid})..."
+        )
+        os.kill(pid, current_signal)
+        if future_signals:
+            forward_signal_handler(
+                pid,
+                signum,
+                *future_signals,
+                process_name=process_name,
+                print_fn=print_fn,
+            )
+
+    # register current and future signal handlers
+    signal.signal(signum, handler)
+
+
+def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable):
+    """Handle interrupts of the server gracefully."""
+    setup_handler = partial(
+        forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
+    )
+    # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
     # https://bugs.python.org/issue26350
     if sys.platform == "win32":
-
-        def stop_process(*args):
-            print_fn(f"\nStopping {process_name}...")
-            os.kill(pid, signal.CTRL_BREAK_EVENT)
-
+        setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
     else:
-
-        def stop_process(*args):
-            print_fn(f"\nStopping {process_name}...")
-            os.kill(pid, signal.SIGTERM)
-            signal.signal(signal.SIGINT, kill_process)
-
-        def kill_process(*args):
-            print_fn(f"\nKilling {process_name}...")
-            os.kill(pid, signal.SIGKILL)
-
-    signal.signal(signal.SIGINT, stop_process)
+        # first interrupt: SIGTERM, second interrupt: SIGKILL
+        setup_handler(signal.SIGINT, signal.SIGTERM, signal.SIGKILL)
+        # forward first SIGTERM directly, send SIGKILL on subsequent SIGTERM
+        setup_handler(signal.SIGTERM, signal.SIGTERM, signal.SIGKILL)
