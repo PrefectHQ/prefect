@@ -9,7 +9,6 @@ import pytest
 from prefect.settings import get_current_settings
 from prefect.utilities.processutils import open_process
 
-STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
 
 
