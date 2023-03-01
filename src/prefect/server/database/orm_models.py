@@ -446,7 +446,7 @@ class ORMFlowRun(ORMRun):
     @declared_attr
     def deployment_id(cls):
         return sa.Column(
-            UUID(), sa.ForeignKey("deployment.id", ondelete="set null"), index=True
+            UUID(),
         )
 
     work_queue_name = sa.Column(sa.String, index=True)

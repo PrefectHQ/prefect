@@ -26,9 +26,7 @@ def upgrade():
 def downgrade():
     with op.get_context().autocommit_block():
         op.execute(
-            """ALTER TABLE flow_run ADD CONSTRAINT fk_flow_run__deployment_id__deployment FOREIGN KEY(deployment_id) REFERENCES deployment (id) ON DELETE SET NULL;"""
+            """
+            ALTER TABLE flow_run ADD CONSTRAINT fk_flow_run__deployment_id__deployment FOREIGN KEY(deployment_id) REFERENCES deployment (id) ON DELETE SET NULL;
+            """
         )
-
-    # Adding a foreign key can lock tables and should not be done during normal migrations
-    # if this foreign key needs to be restored, it can be done with the following sql:
-    #
