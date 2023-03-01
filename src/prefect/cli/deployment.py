@@ -782,6 +782,15 @@ async def build(
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
     ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        "-d",
+        help=(
+            "The description to give the deployment. If not provided, the description"
+            " will be populated from the flow's description."
+        ),
+    ),
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
     ),
@@ -1067,6 +1076,9 @@ async def build(
 
     if parameters:
         init_kwargs["parameters"] = parameters
+
+    if description:
+        init_kwargs["description"] = description
 
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server

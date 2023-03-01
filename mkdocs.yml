@@ -115,6 +115,7 @@ nav:
                 - tutorials/storage.md
                 - tutorials/docker.md
                 - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+                - Cloud Agent Quickstart: tutorials/cloud-agent.md
             - Advanced Tutorials:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
@@ -273,7 +274,7 @@ extra:
     version:
         provider: mike
     analytics:
-        provider: custom
+        provider: google
         property: G-3M31G9B0QJ
     social:
         - icon: fontawesome/brands/slack

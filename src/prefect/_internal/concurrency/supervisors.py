@@ -9,6 +9,7 @@ import concurrent.futures
 import contextlib
 import contextvars
 import dataclasses
+import functools
 import inspect
 import queue
 import threading
@@ -25,9 +26,17 @@ from typing import (
 )
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.timeouts import (
+    cancel_async_after,
+    cancel_async_at,
+    cancel_sync_after,
+    cancel_sync_at,
+    get_deadline,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
+Fn = TypeVar("Fn", bound=Callable)
 
 # Python uses duck typing for futures; asyncio/threaded futures do not share a base
 AnyFuture = Any
@@ -108,12 +117,12 @@ class WorkItem:
             result = self.context.run(self.fn, *self.args, **self.kwargs)
         except BaseException as exc:
             self.future.set_exception(exc)
+            logger.debug("Encountered exception in work item %r", self)
             # Prevent reference cycle in `exc`
-            self = None
+            del self
         else:
             self.future.set_result(result)
-
-        logger.debug("Finished work item %r", self)
+            logger.debug("Finished work item %r", self)
 
     async def _run_async(self):
         loop = asyncio.get_running_loop()
@@ -130,11 +139,11 @@ class WorkItem:
         except BaseException as exc:
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
-            self = None
+            logger.debug("Encountered exception %s in work item %r", exc, self)
+            del self
         else:
             self.future.set_result(result)
-
-        logger.debug("Finished work item %r", self)
+            logger.debug("Finished work item %r", self)
 
 
 class Supervisor(abc.ABC, Generic[T]):
@@ -144,25 +153,96 @@ class Supervisor(abc.ABC, Generic[T]):
     Work sent to the supervisor will be executed when the owner waits for the result.
     """
 
-    def __init__(self) -> None:
-        self.owner_thread_ident = threading.get_ident()
-        self._future: AnyFuture = None
+    def __init__(
+        self,
+        submit_fn: Callable[..., concurrent.futures.Future],
+        timeout: Optional[float] = None,
+    ) -> None:
+        self._submit_fn = submit_fn
+        self._owner_thread = threading.current_thread()
+        self._future: Optional[concurrent.futures.Future] = None
+        self._future_call: Tuple[Callable, Tuple, Dict] = None
+        self._timeout: Optional[float] = timeout
+
+        # Delayed computation
+        self._worker_thread_future = concurrent.futures.Future()
+        self._deadline_future = concurrent.futures.Future()
+
         logger.debug("Created supervisor %r", self)
 
-    def set_future(self, future: AnyFuture) -> None:
+    def submit(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
         """
-        Assign a future to the supervisor.
-        """
-        self._future = future
+        Submit a call to a worker.
 
-    def send_call(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
+        The supervisor will use the `submit_fn` from initialization to send the call to
+        the worker. It will wrap the call to provide supervision.
+
+        This method may only be called once per supervisor.
         """
-        Send a call to the supervisor from a worker.
+        if self._future:
+            raise RuntimeError("A supervisor can only monitor a single future")
+
+        with set_supervisor(self):
+            future = self._submit_fn(self._add_supervision(__fn), *args, **kwargs)
+
+        logger.debug(
+            "Call to %r submitted to supervisor %r tracked by future %r",
+            __fn.__name__,
+            self,
+            future,
+        )
+        self._future = future
+        self._future_call = (__fn, args, kwargs)
+
+        return future
+
+    def send_call_to_supervisor(
+        self, __fn, *args, **kwargs
+    ) -> concurrent.futures.Future:
+        """
+        Send a call to the supervisor thread from a worker thread.
         """
         work_item = WorkItem.from_call(__fn, *args, **kwargs)
         self._put_work_item(work_item)
-        logger.debug("Sent work item to %r", self)
+        logger.debug("Sent work item to supervisor %r", self)
         return work_item.future
+
+    @property
+    def owner_thread(self):
+        return self._owner_thread
+
+    def _add_supervision(self, fn: Fn) -> Fn:
+        """
+        Attach supervision to a callable.
+        """
+
+        @functools.wraps(fn)
+        def _call_in_supervised_thread(*args, **kwargs):
+            # Capture the worker thread before running the function
+            thread = threading.current_thread()
+            self._worker_thread_future.set_result(thread)
+
+            # Set the execution deadline
+            self._deadline_future.set_result(get_deadline(self._timeout))
+
+            # Enforce timeouts on synchronous execution
+            with cancel_sync_after(self._timeout):
+                retval = fn(*args, **kwargs)
+
+            # Enforce timeouts on asynchronous execution
+            if inspect.isawaitable(retval):
+
+                async def _call_in_supervised_coro():
+                    # TODO: Technnically, this should use the deadline but it is not
+                    #       clear how to mix sync/async deadlines yet
+                    with cancel_async_after(self._timeout):
+                        return await retval
+
+                return _call_in_supervised_coro()
+
+            return retval
+
+        return _call_in_supervised_thread
 
     @abc.abstractmethod
     def _put_work_item(self, work_item: WorkItem) -> None:
@@ -181,31 +261,32 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
+        extra = ""
+
+        if self._future_call:
+            extra += f" submitted={self._future_call[0].__name__!r},"
+
         return (
-            f"<{self.__class__.__name__}(id={id(self)},"
-            f" owner={self.owner_thread_ident})>"
+            f"<{self.__class__.__name__} submit_fn={self._submit_fn.__name__!r},"
+            f"{extra} owner={self._owner_thread.name!r}>"
         )
 
 
 class SyncSupervisor(Supervisor[T]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        submit_fn: Callable[..., concurrent.futures.Future],
+        timeout: Optional[float] = None,
+    ) -> None:
+        super().__init__(submit_fn=submit_fn, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
-        self._future: Optional[concurrent.futures.Future] = None
 
     def _put_work_item(self, work_item: WorkItem):
         self._queue.put_nowait(work_item)
 
-    def set_future(self, future: concurrent.futures.Future):
-        future.add_done_callback(lambda _: self._queue.put_nowait(None))
-        super().set_future(future)
-
-    def result(self) -> T:
-        if not self._future:
-            raise ValueError("No future being supervised.")
-
+    def _watch_for_work_items(self):
+        logger.debug("Watching for work sent to supervisor %r", self)
         while True:
-            logger.debug("Watching for work sent to %r", self)
             work_item: WorkItem = self._queue.get()
             if work_item is None:
                 break
@@ -213,48 +294,83 @@ class SyncSupervisor(Supervisor[T]):
             work_item.run()
             del work_item
 
-        logger.debug("Retrieving result for %r", self)
+    def result(self) -> T:
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
+        # Stop watching for work once the future is done
+        self._future.add_done_callback(lambda _: self._queue.put_nowait(None))
+
+        # Cancel work sent to the supervisor if the future exceeds its timeout
+        deadline = self._deadline_future.result()
+        try:
+            with cancel_sync_at(deadline) as ctx:
+                self._watch_for_work_items()
+        except TimeoutError:
+            # Timeouts will be generally be raised on future result retrieval but
+            # if its not our timeout it should be reraised
+            if not ctx.cancelled:
+                raise
+
+        logger.debug("Supervisor %r retrieving result of future %r", self, self._future)
         return self._future.result()
 
 
 class AsyncSupervisor(Supervisor[T]):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(
+        self,
+        submit_fn: Callable[..., concurrent.futures.Future],
+        timeout: Optional[float] = None,
+    ) -> None:
+        super().__init__(submit_fn=submit_fn, timeout=timeout)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
-        self._future: Optional[asyncio.Future] = None
-
-    def set_future(
-        self, future: Union[asyncio.Future, concurrent.futures.Future]
-    ) -> None:
-        # Ensure we're working with an asyncio future internally
-        if isinstance(future, concurrent.futures.Future):
-            future = asyncio.wrap_future(future)
-
-        future.add_done_callback(
-            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
-        )
-        super().set_future(future)
 
     def _put_work_item(self, work_item: WorkItem):
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, work_item)
 
-    async def result(self) -> T:
-        if not self._future:
-            raise ValueError("No future being supervised.")
-
+    async def _watch_for_work_items(self):
+        logger.debug("Watching for work sent to %r", self)
         while True:
-            logger.debug("Watching for work sent to %r", self)
             work_item: WorkItem = await self._queue.get()
             if work_item is None:
                 break
 
-            result = work_item.run()
-            if inspect.isawaitable(result):
-                await result
+            # TODO: We could use `cancel_sync_after` to guard this call as a sync call
+            #       could block a timeout here
+            retval = work_item.run()
+
+            if inspect.isawaitable(retval):
+                await retval
 
             del work_item
 
-        logger.debug("Retrieving result for %r", self)
-        return await self._future
+    async def result(self) -> T:
+        if not self._future:
+            raise ValueError("No future being supervised.")
+
+        future = (
+            # Convert to an asyncio future if necessary for non-blocking wait
+            asyncio.wrap_future(self._future)
+            if isinstance(self._future, concurrent.futures.Future)
+            else self._future
+        )
+
+        # Stop watching for work once the future is done
+        future.add_done_callback(
+            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+        )
+
+        # Cancel work sent to the supervisor if the future exceeds its timeout
+        deadline = await asyncio.wrap_future(self._deadline_future)
+        try:
+            with cancel_async_at(deadline) as ctx:
+                await self._watch_for_work_items()
+        except TimeoutError:
+            # Timeouts will be re-raised on future result retrieval
+            if not ctx.cancelled:
+                raise
+
+        logger.debug("Supervisor %r retrieving result of future %r", self, future)
+        return await future
