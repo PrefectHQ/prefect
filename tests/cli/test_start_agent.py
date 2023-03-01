@@ -29,6 +29,7 @@ async def agent_process():
             "agent",
             "start",
             "--match=",
+            "--api=",  # ephemeral API
         ],
         stdout=out,
         stderr=out,
