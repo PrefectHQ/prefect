@@ -320,7 +320,8 @@ def forward_signal_handler(
 
     def handler(*args):
         print_fn(
-            f"\nSending {getattr(current_signal, 'name', current_signal)} to"
+            f"Received {getattr(signum, 'name', current_signal)}. "
+            f"Sending {getattr(current_signal, 'name', current_signal)} to"
             f" {process_name} (PID {pid})..."
         )
         os.kill(pid, current_signal)
