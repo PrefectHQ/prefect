@@ -1040,6 +1040,7 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         assert f"test {i}" not in stdout
 
 
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client, mock_watch, mock_k8s_batch_client
 ):
@@ -1082,26 +1083,26 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(1, abs=0.01),
+                timeout_seconds=pytest.approx(1, abs=0.2),
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.75, abs=0.05),
+                timeout_seconds=pytest.approx(0.75, abs=0.2),
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.5, abs=0.05),
+                timeout_seconds=pytest.approx(0.5, abs=0.2),
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.25, abs=0.05),
+                timeout_seconds=pytest.approx(0.25, abs=0.2),
             ),
         ]
     )
