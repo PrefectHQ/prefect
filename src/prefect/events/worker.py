@@ -27,7 +27,6 @@ class EventsWorker:
             target=self._start_loop, name="events-worker", daemon=True
         )
         self._ready_future = concurrent.futures.Future()
-        self._lock = threading.Lock()
 
         self._loop: asyncio.AbstractEventLoop
         self._queue: asyncio.Queue[Optional[Event]]
@@ -70,11 +69,10 @@ class EventsWorker:
     def stop(self) -> None:
         """Stop worker thread if started."""
         if self._thread.is_alive():
-            with self._lock:
-                # Enqueuing `None` unblocks the main loop and signals that it
-                # should shut down.
-                self._enqueue(None)
-                self._thread.join()
+            # Enqueuing `None` unblocks the main loop and signals that it
+            # should shut down.
+            self._enqueue(None)
+            self._thread.join()
 
     def emit(self, event: Event) -> None:
         """Put the `event` in the queue to be processed by the worker thread."""
