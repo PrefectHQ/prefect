@@ -1,11 +1,11 @@
 import functools
 import inspect
-from typing import Any, Callable, Dict, Generator, List, Tuple, Type, TypeAlias, Union
+from typing import Any, Callable, Dict, Generator, List, Tuple, Type, Union
 
 from prefect.events import Event
 from prefect.events.worker import get_events_worker
 
-ResourceTuple: TypeAlias = Tuple[Dict[str, Any], List[Dict[str, Any]]]
+ResourceTuple = Tuple[Dict[str, Any], List[Dict[str, Any]]]
 
 
 def emit_instance_method_called_event(

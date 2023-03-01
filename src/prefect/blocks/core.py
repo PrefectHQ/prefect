@@ -28,6 +28,11 @@ import prefect
 import prefect.exceptions
 from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
+from prefect.events.instrument import (
+    ResourceTuple,
+    emit_instance_method_called_event,
+    instrument_method_calls_on_class_instances,
+)
 from prefect.logging.loggers import disable_logger
 from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -134,6 +139,7 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 
 
 @register_base_type
+@instrument_method_calls_on_class_instances(exclude_methods=["block_initialization"])
 class Block(BaseModel, ABC):
     """
         A base class for implementing a block that wraps an external service.
@@ -575,6 +581,10 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
+        block_cls = instrument_method_calls_on_class_instances(
+            exclude_methods=["block_initialization"],
+        )(block_cls)
+
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -585,7 +595,33 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
+        # Due to the way blocks are loaded we can't directly instrument the
+        # `load` method and have the data be about the block document. Instead
+        # this will emit a proxy event for the load method so that block
+        # document data can be included instead of the event being about an
+        # 'anonymous' block.
+        emit_instance_method_called_event(block, "load", successful=True)
+
         return block
+
+    def _event_kind(self) -> str:
+        return "prefect.block"
+
+    def _event_method_called_resources(self, method_name: str) -> ResourceTuple:
+        name = self._block_document_name if self._block_document_name else "anonymous"
+        return (
+            {
+                "prefect.resource.id": f"prefect.block-document.{name}.{method_name}",
+            },
+            [
+                {
+                    "prefect.resource.id": (
+                        f"prefect.block-type.{self.get_block_type_slug()}"
+                    ),
+                    "prefect.resource.role": "block-type",
+                }
+            ],
+        )
 
     @classmethod
     def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
