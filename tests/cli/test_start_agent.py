@@ -60,7 +60,7 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm(self, agent_process):
+    async def test_sigint_sends_sigint(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
@@ -80,7 +80,7 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_directly(self, agent_process):
+    async def test_sigterm_sends_sigint(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
@@ -100,9 +100,9 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm_then_sigkill(self, agent_process):
+    async def test_sigint_sends_sigint_then_sigkill(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.001)  # some time needed for the recursive signal handler
+        await anyio.sleep(0.002)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGINT)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
@@ -124,9 +124,9 @@ class TestUvicornSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_then_sigkill(self, agent_process):
+    async def test_sigterm_sends_sigint_then_sigkill(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.001)  # some time needed for the recursive signal handler
+        await anyio.sleep(0.002)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGTERM)
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
