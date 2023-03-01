@@ -1040,6 +1040,7 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         assert f"test {i}" not in stdout
 
 
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
 def test_watch_timeout_is_restarted_until_job_is_complete(
     mock_k8s_client, mock_watch, mock_k8s_batch_client
 ):
