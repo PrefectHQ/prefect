@@ -343,6 +343,7 @@ def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
+    # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
     # https://bugs.python.org/issue26350
     if sys.platform == "win32":
         setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
