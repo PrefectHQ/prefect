@@ -160,26 +160,14 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    supervisor = None
-    if not is_subflow_run:
-        if flow.isasync:  # Async flow run
-            # Returns an awaitable
-            supervisor = from_async.supervise_call_in_runtime_thread(begin_run)
-        else:  # Sync flow run
-            # An event loop is not running so we will create one
-            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
+    if flow.isasync and (
+        not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
+    ):
+        # return a coroutine for async flows
+        # unless it is an async subflow called in a sync flow
+        return from_async.supervise_call_in_runtime_thread(begin_run).result()
     else:
-        if not parent_flow_run_context.flow.isasync:
-            # Async subflow run in sync flow run
-            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
-        elif parent_flow_run_context.flow.isasync and flow.isasync:
-            # Async subflow run in async flow run
-            supervisor = from_async.supervise_call_in_runtime_thread(begin_run)
-        else:
-            # Sync subflow run in async flow run
-            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
-
-    return supervisor.result()
+        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
