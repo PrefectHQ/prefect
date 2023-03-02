@@ -185,3 +185,19 @@ async def test_async_call_async_function():
     coro = call()  # should not raise
     with pytest.raises(ValueError):
         await coro
+
+
+@pytest.mark.parametrize("fn", [identity, aidentity])
+def test_sync_call_kwarg(fn):
+    call = Call.new(fn, x=1)
+    assert call() == 1
+
+
+async def test_async_call_kwarg_sync_function():
+    call = Call.new(identity, x=1)
+    assert call() == 1
+
+
+async def test_async_call_kwarg_async_function():
+    call = Call.new(aidentity, x=1)
+    assert await call() == 1
