@@ -58,7 +58,8 @@ async def _insert_into_artifact_collection(
     if model is not None:
         if model.latest_id != artifact_id:
             raise ValueError(
-                f"Artifact {artifact_id} was not inserted into the artifact collection table."
+                f"Artifact {artifact_id} was not inserted into the artifact collection"
+                " table."
             )
 
     return model
@@ -273,45 +274,61 @@ async def delete_artifact(
     Returns:
         bool: True if the delete was successful, False otherwise
     """
-    current_artifact = await session.get(db.Artifact, artifact_id)
-    if current_artifact is None:
+    artifact = await session.get(db.Artifact, artifact_id)
+    if artifact is None:
         return False
 
-    is_latest_artifact_version = (
+    is_latest_version = (
         await session.execute(
             sa.select(db.ArtifactCollection)
-            .where(db.ArtifactCollection.key == current_artifact.key)
+            .where(db.ArtifactCollection.key == artifact.key)
             .where(db.ArtifactCollection.latest_id == artifact_id)
         )
-    ).scalar_one_or_none()
+    ).scalar_one_or_none() is not None
 
-    if is_latest_artifact_version is not None:
-        previous_artifact = (
+    if is_latest_version:
+        next_latest_version = (
             await session.execute(
                 sa.select(db.Artifact)
-                .where(db.Artifact.key == current_artifact.key)
+                .where(db.Artifact.key == artifact.key)
                 .where(db.Artifact.id != artifact_id)
                 .order_by(db.Artifact.created.desc())
                 .limit(1)
             )
         ).scalar_one_or_none()
 
-        if previous_artifact is not None:
-            set_new_latest_artifact_version = (
+        if next_latest_version is not None:
+            update_latest_version = (
                 sa.update(db.ArtifactCollection)
-                .where(db.ArtifactCollection.key == current_artifact.key)
-                .values(latest_id=previous_artifact.id)
+                .where(db.ArtifactCollection.key == artifact.key)
+                .values(latest_id=next_latest_version.id)
             )
-            await session.execute(set_new_latest_artifact_version)
+            await session.execute(update_latest_version)
+
         else:
-            delete_stmt = (
+            await session.execute(
                 sa.delete(db.ArtifactCollection)
-                .where(db.ArtifactCollection.key == current_artifact.key)
+                .where(db.ArtifactCollection.key == artifact.key)
                 .where(db.ArtifactCollection.latest_id == artifact_id)
             )
-            await session.execute(delete_stmt)
 
     delete_stmt = sa.delete(db.Artifact).where(db.Artifact.id == artifact_id)
 
     result = await session.execute(delete_stmt)
     return result.rowcount > 0
+
+
+"""
+The ArtifactCollection table is used to track the latest version of an artifact
+by key. If we are deleting the latest version of an artifact from the Artifact
+table, we need to first update the latest version referenced in ArtifactCollection
+so that it points to the next latest version of the artifact.
+For example, if we have the following artifacts in Artifact:
+ - key: "foo", id: 1, created: 2020-01-01
+ - key: "foo", id: 2, created: 2020-01-02
+ - key: "foo", id: 3, created: 2020-01-03
+the ArtifactCollection table has the following entry:
+ - key: "foo", latest_id: 3
+If we delete the artifact with id 3, we need to update the latest version of the
+artifact with key "foo" to be the artifact with id 2.
+"""

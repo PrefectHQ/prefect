@@ -548,41 +548,16 @@ class FlowRunNotificationPolicyUpdate(ActionBaseModel):
 class ArtifactCreate(ActionBaseModel):
     """Data used by the Prefect REST API to create an artifact."""
 
-    key: Optional[str] = Field(
-        default=None, description="An optional unique reference key for this artifact."
-    )
-    type: Optional[str] = Field(
-        default=None,
-        description="An identifier for how this artifact is persisted.",
-    )
-    data: Optional[Union[Dict[str, Any], Any]] = Field(
-        default=None,
-        description=(
-            "Data associated with the artifact, e.g. a result. "
-            "Content must be storable as JSON."
-        ),
-    )
-    metadata_: Optional[Dict[str, str]] = Field(
-        default=None,
-        description=(
-            "Artifact metadata used for the UI. Content must be storable as JSON."
-        ),
-    )
-    flow_run_id: Optional[UUID] = Field(
-        default=None, description="The flow run associated with the artifact."
-    )
-    task_run_id: Optional[UUID] = Field(
-        default=None, description="The task run associated with the artifact."
-    )
+    key: Optional[str] = FieldFrom(schemas.core.Artifact)
+    type: Optional[str] = FieldFrom(schemas.core.Artifact)
+    data: Optional[Union[Dict[str, Any], Any]] = FieldFrom(schemas.core.Artifact)
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
+    flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+    task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
 
 
 @copy_model_fields
 class ArtifactUpdate(ActionBaseModel):
     """Data used by the Prefect REST API to update an artifact."""
 
-    metadata_: Optional[Dict[str, str]] = Field(
-        default=None,
-        description=(
-            "Artifact metadata used for the UI. Content must be storable as JSON."
-        ),
-    )
+    metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
