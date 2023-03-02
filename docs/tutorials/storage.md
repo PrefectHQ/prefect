@@ -110,7 +110,7 @@ To demonstrate using a storage block, we'll create a new variation of the deploy
 
 <div class="terminal">
 ```bash
-$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -p test -o log-flow-s3-deployment.yaml
+$ prefect deployment build ./log_flow.py:log_flow -n log-flow-s3 -sb s3/log-test -q test -o log-flow-s3-deployment.yaml
 Found flow 'log-flow'
 Successfully uploaded 3 files to s3://bucket-full-of-sunshine/flows/log-test
 Deployment YAML created at
