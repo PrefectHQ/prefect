@@ -8,7 +8,7 @@
 - Add `--description` flag to `prefect deployment build` CLI command — https://github.com/PrefectHQ/prefect/pull/8603
 - Handle SIGTERM received by server gracefully — https://github.com/PrefectHQ/prefect/pull/7948
 - Optimize database query performance by changing SQLAlchemy lazy loads from `joined` to `selectin` — https://github.com/PrefectHQ/prefect/pull/8659
-- Add clarifying modal to `Task Inputs` tab in UI — https://github.com/PrefectHQ/prefect/pull/8295
+- Add clarifying modal to the task run page in the UI — https://github.com/PrefectHQ/prefect/pull/8295
 
 ### Fixes
 - Ensure flow parameters default values are present during deployment runs — https://github.com/PrefectHQ/prefect/pull/8666
