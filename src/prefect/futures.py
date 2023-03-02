@@ -228,7 +228,7 @@ class PrefectFuture(Generic[R, A]):
                 create_call(
                     self._result, timeout=timeout, raise_on_failure=raise_on_failure
                 )
-            )
+            ).result()
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
