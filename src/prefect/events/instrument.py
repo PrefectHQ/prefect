@@ -1,6 +1,6 @@
 import functools
 import inspect
-from typing import Any, Callable, Dict, Generator, List, Tuple, Type, Union
+from typing import Any, Callable, Dict, Generator, List, Set, Tuple, Type, Union
 
 from prefect.events import Event
 from prefect.events.worker import get_events_worker
@@ -73,7 +73,7 @@ def is_instrumented(function: Callable) -> bool:
 
 def instrumentable_methods(
     cls: Type,
-    exclude_methods: Union[list[str], set[str], None] = None,
+    exclude_methods: Union[List[str], Set[str], None] = None,
 ) -> Generator[Tuple[str, Callable], None, None]:
     """Returns all of the public methods on a class."""
 
@@ -91,7 +91,7 @@ def instrumentable_methods(
 
 
 def instrument_method_calls_on_class_instances(
-    exclude_methods: Union[list[str], set[str], None] = None,
+    exclude_methods: Union[List[str], Set[str], None] = None,
 ) -> Type:
     def instrument(cls: Type):
         """Given a Python class, instruments all "public" and "private" methods that are
