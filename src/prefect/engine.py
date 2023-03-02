@@ -31,6 +31,8 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.supervisors import get_supervisor
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -94,10 +96,8 @@ from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
-    in_async_main_thread,
     is_async_fn,
     run_async_from_worker_thread,
-    run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -151,7 +151,7 @@ def enter_flow_run_engine_from_flow_call(
     if wait_for is not None and not is_subflow_run:
         raise ValueError("Only flows run as subflows can wait for dependencies.")
 
-    begin_run = partial(
+    begin_run = create_call(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
@@ -160,29 +160,26 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
+    supervisor = None
     if not is_subflow_run:
-        # Async flow run
-        if flow.isasync:
-            return begin_run()  # Return a coroutine for the user to await
-        # Sync flow run
-        elif in_async_main_thread():
-            # An event loop is already running and we must create a blocking portal to
-            # run async code from this synchronous context
-            with start_blocking_portal() as portal:
-                return portal.call(begin_run)
-        else:
+        if flow.isasync:  # Async flow run
+            # Returns an awaitable
+            supervisor = from_async.supervise_call_in_runtime_thread(begin_run)
+        else:  # Sync flow run
             # An event loop is not running so we will create one
-            return anyio.run(begin_run)
-
-    if not parent_flow_run_context.flow.isasync:
-        # Async subflow run in sync flow run
-        return run_async_from_worker_thread(begin_run)
-    elif parent_flow_run_context.flow.isasync and flow.isasync:
-        # Async subflow run in async flow run
-        return begin_run()
+            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
     else:
-        # Sync subflow run in async flow run
-        return parent_flow_run_context.sync_portal.call(begin_run)
+        if not parent_flow_run_context.flow.isasync:
+            # Async subflow run in sync flow run
+            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
+        elif parent_flow_run_context.flow.isasync and flow.isasync:
+            # Async subflow run in async flow run
+            supervisor = from_async.supervise_call_in_runtime_thread(begin_run)
+        else:
+            # Sync subflow run in async flow run
+            supervisor = from_sync.supervise_call_in_runtime_thread(begin_run)
+
+    return supervisor.result()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -628,41 +625,38 @@ async def orchestrate_flow_run(
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
-            timeout_context = anyio.fail_after(
-                flow.timeout_seconds if flow.timeout_seconds else None
-            )
+            with partial_flow_run_context.finalize(
+                flow=flow,
+                flow_run=flow_run,
+                client=client,
+            ) as flow_run_context:
+                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                logger.debug(
+                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                )
 
-            with timeout_context as timeout_scope:
-                with partial_flow_run_context.finalize(
-                    flow=flow,
-                    flow_run=flow_run,
-                    client=client,
-                    timeout_scope=timeout_scope,
-                ) as flow_run_context:
-                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                if PREFECT_DEBUG_MODE:
+                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                else:
                     logger.debug(
-                        f"Executing flow {flow.name!r} for flow run"
-                        f" {flow_run.name!r}..."
+                        f"Beginning execution...", extra={"state_message": True}
                     )
 
-                    if PREFECT_DEBUG_MODE:
-                        logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
-                        )
+                flow_call = create_call(flow.fn, *args, **kwargs)
 
-                    flow_call = partial(flow.fn, *args, **kwargs)
+                parent_supervisor = get_supervisor()
+                supervisor = None
 
-                    if flow.isasync:
-                        result = await flow_call()
-                    else:
-                        run_sync = (
-                            run_sync_in_interruptible_worker_thread
-                            if interruptible or timeout_scope
-                            else run_sync_in_worker_thread
-                        )
-                        result = await run_sync(flow_call)
+                if parent_supervisor and parent_supervisor.is_async == flow.isasync:
+                    supervisor = from_async.supervise_call_in_supervising_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
+                else:
+                    supervisor = from_async.supervise_call_in_worker_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
+
+                result = await supervisor.result()
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -676,10 +670,10 @@ async def orchestrate_flow_run(
             if (
                 # Flow run timeouts
                 isinstance(exc, TimeoutError)
-                and timeout_scope
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
-                and timeout_scope.cancel_called
+                # TODO: Add cancellation check again
+                # and supervisor.cancelled
             ):
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
@@ -946,7 +940,7 @@ def enter_task_run_engine(
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
-    begin_run = partial(
+    begin_run = create_call(
         begin_task_map if mapped else get_task_call_return_value,
         task=task,
         flow_run_context=flow_run_context,
@@ -958,16 +952,16 @@ def enter_task_run_engine(
 
     # Async task run in async flow run
     if task.isasync and flow_run_context.flow.isasync:
-        return begin_run()  # Return a coroutine for the user to await
+        # Return a coroutine for the user to await
+        return from_async.supervise_call_in_runtime_thread(begin_run).result()
 
     # Async or sync task run in sync flow run
     elif not flow_run_context.flow.isasync:
-        return run_async_from_worker_thread(begin_run)
+        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
 
     # Sync task run in async flow run
     else:
-        # Call out to the sync portal since we are not in a worker thread
-        return flow_run_context.sync_portal.call(begin_run)
+        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
 
 
 async def begin_task_map(
@@ -1522,15 +1516,9 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    if task.isasync:
-                        result = await task.fn(*args, **kwargs)
-                    else:
-                        run_sync = (
-                            run_sync_in_interruptible_worker_thread
-                            if interruptible or timeout_scope
-                            else run_sync_in_worker_thread
-                        )
-                        result = await run_sync(task.fn, *args, **kwargs)
+                    result = await from_async.supervise_call_in_worker_thread(
+                        create_call(task.fn, *args, **kwargs)
+                    ).result()
 
         except Exception as exc:
             name = message = None

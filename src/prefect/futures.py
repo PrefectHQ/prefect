@@ -22,6 +22,7 @@ from uuid import UUID
 
 import anyio
 
+from prefect._internal.concurrency.api import from_sync
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
@@ -223,7 +224,7 @@ class PrefectFuture(Generic[R, A]):
         if self.asynchronous:
             return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
         else:
-            return sync(
+            return from_sync.send_call_to_runtime_thread(
                 self._result, timeout=timeout, raise_on_failure=raise_on_failure
             )
 

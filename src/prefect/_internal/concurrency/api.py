@@ -73,7 +73,7 @@ class from_async(_base):
         ):
             submit_fn = runtime.submit_to_loop
         else:
-            submit_fn = current_supervisor.send_call_to_supervisor
+            submit_fn = current_supervisor.submit_to_supervisor
 
         supervisor = AsyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
         supervisor.submit()
@@ -86,6 +86,20 @@ class from_async(_base):
         runtime = get_runtime_thread()
         supervisor = AsyncSupervisor(
             call, runtime.submit_to_worker_thread, timeout=timeout
+        )
+        supervisor.submit()
+        return supervisor
+
+    @staticmethod
+    def supervise_call_in_supervising_thread(
+        call: Call, timeout: Optional[float] = None
+    ) -> AsyncSupervisor:
+        current_supervisor = get_supervisor()
+        if current_supervisor is None:
+            raise RuntimeError("No supervisor found.")
+
+        supervisor = AsyncSupervisor(
+            call, submit_fn=current_supervisor.submit_to_supervisor, timeout=timeout
         )
         supervisor.submit()
         return supervisor
@@ -114,7 +128,7 @@ class from_sync(_base):
         ):
             submit_fn = runtime.submit_to_loop
         else:
-            submit_fn = current_supervisor.send_call_to_supervisor
+            submit_fn = current_supervisor.submit_to_supervisor
 
         supervisor = SyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
         supervisor.submit()
@@ -139,3 +153,18 @@ class from_sync(_base):
 
         future = current_supervisor.send_call_to_supervisor(call)
         return future
+
+    @staticmethod
+    def send_call_to_runtime_thread(call: Call) -> concurrent.futures.Future:
+        current_supervisor = get_supervisor()
+        runtime = get_runtime_thread()
+
+        if (
+            current_supervisor is None
+            or current_supervisor.owner_thread.ident != runtime.ident
+        ):
+            submit_fn = runtime.submit_to_loop
+        else:
+            submit_fn = current_supervisor.submit_to_supervisor
+
+        return submit_fn(call.fn, *call.args, *call.kwargs)

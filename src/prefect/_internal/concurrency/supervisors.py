@@ -243,6 +243,13 @@ class Supervisor(abc.ABC, Generic[T]):
         logger.debug("Sent call back to supervisor %r", self)
         return call.future
 
+    def submit_to_supervisor(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
+        """
+        Submit a function call to the supervisor thread from a worker thread.
+        """
+        call = Call.new(__fn, *args, **kwargs)
+        return self.send_call_to_supervisor(call)
+
     @property
     def owner_thread(self):
         return self._owner_thread
@@ -313,6 +320,7 @@ class SyncSupervisor(Supervisor[T]):
     ) -> None:
         super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
+        self.is_async = False
 
     def put_call(self, callback: Call):
         self._queue.put_nowait(callback)
@@ -359,6 +367,7 @@ class AsyncSupervisor(Supervisor[T]):
         super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        self.is_async = True
 
     def put_call(self, callback: Call):
         # We must put items in the queue from the event loop that owns it
