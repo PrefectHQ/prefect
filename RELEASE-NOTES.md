@@ -1,5 +1,42 @@
 # Prefect Release Notes
 
+## Release 2.8.4
+
+### Enhancements
+- Create `EventsWorker` to manage client lifecycle and abstract async nature — https://github.com/PrefectHQ/prefect/pull/8673
+- Enable DefaultAzureCredential authentication for Azure filesystem block — https://github.com/PrefectHQ/prefect/pull/7513
+- Add support for yaml config strings to `KubernetesClusterConfig` — https://github.com/PrefectHQ/prefect/pull/8643
+- Add `--description` flag to `prefect deployment build` CLI command — https://github.com/PrefectHQ/prefect/pull/8603
+- Track flow run id when generating task run results — https://github.com/PrefectHQ/prefect/pull/8674
+- Handle SIGTERM received by server gracefully — https://github.com/PrefectHQ/prefect/pull/7948
+- Optimize database query performance — https://github.com/PrefectHQ/prefect/pull/8659
+- Add clarifying modal to Task Inputs tab in UI — https://github.com/PrefectHQ/prefect/pull/8295
+
+### Fixes
+- Fix loading of existing deployment descriptions from the server — https://github.com/PrefectHQ/prefect/pull/8675
+- Ensure flow parameters default values are present during deployment runs — https://github.com/PrefectHQ/prefect/pull/8666
+- Use a monotonic clock for Kubernetes job watch timeout deadline calculation — https://github.com/PrefectHQ/prefect/pull/8680
+- Fix version misaligned on the settings page in the UI — https://github.com/PrefectHQ/prefect/pull/8676
+
+### Experimental
+- Refactor supervisors to manage submission — https://github.com/PrefectHQ/prefect/pull/8631
+- Improve supervisor repr for debugging — https://github.com/PrefectHQ/prefect/pull/8633
+- Add timeout support to supervisors — https://github.com/PrefectHQ/prefect/pull/8649
+- Update `send_call` to `send_call_to_supervisor` — https://github.com/PrefectHQ/prefect/pull/8653
+
+### Documentation
+- Add tutorial for running an agent on Azure Container Instances — https://github.com/PrefectHQ/prefect/pull/8620
+- Minor markdown link fix in orchestration docs — https://github.com/PrefectHQ/prefect/pull/8660
+- Add security headers for docs — https://github.com/PrefectHQ/prefect/pull/8655
+
+## New Contributors
+* @samdyzon made their first contribution in https://github.com/PrefectHQ/prefect/pull/7513
+* @mjschock made their first contribution in https://github.com/PrefectHQ/prefect/pull/8660
+* @jcorrado76 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8603
+* @scharlottej13 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8669
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.3...preview
+
 ## Release 2.8.3
 
 ### `on_completion` and `on_failure` hooks for flows and tasks
