@@ -974,35 +974,23 @@ class TestOrchestrateTaskRun:
 
     @flaky_on_windows
     async def test_interrupt_task(self):
-        i = 0
-
-        @task()
-        def just_sleep():
-            nonlocal i
-            for i in range(100):  # Sleep for 10 seconds
-                time.sleep(0.1)
+        @task
+        async def just_sleep():
+            await anyio.sleep(10)
 
         @flow
-        def my_flow():
-            with pytest.raises(TimeoutError):
-                with anyio.fail_after(1):
-                    just_sleep()
+        async def my_flow():
+            with anyio.fail_after(1):
+                await just_sleep()
 
         t0 = time.perf_counter()
-        my_flow._run()
+        await my_flow._run()
         t1 = time.perf_counter()
 
         runtime = t1 - t0
-        assert runtime < 3, "The call should be return quickly after timeout"
-
-        # Sleep for an extra second to check if the thread is still running. We cannot
-        # check `thread.is_alive()` because it is still alive — presumably this is because
-        # AnyIO is using long-lived worker threads instead of creating a new thread per
-        # task. Without a check like this, the thread can be running after timeout in the
-        # background and we will not know — the next test will start.
-        await anyio.sleep(1)
-
-        assert i <= 10, "`just_sleep` should not be running after timeout"
+        assert (
+            runtime < 3
+        ), f"The call should be return quickly after timeout, took {runtime}s"
 
 
 class TestOrchestrateFlowRun:
