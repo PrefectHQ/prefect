@@ -298,12 +298,12 @@ async def delete_artifact(
         ).scalar_one_or_none()
 
         if next_latest_version is not None:
-            update_latest_version = (
+            set_next_latest_version = (
                 sa.update(db.ArtifactCollection)
                 .where(db.ArtifactCollection.key == artifact.key)
                 .values(latest_id=next_latest_version.id)
             )
-            await session.execute(update_latest_version)
+            await session.execute(set_next_latest_version)
 
         else:
             await session.execute(
