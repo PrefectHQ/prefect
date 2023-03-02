@@ -21,6 +21,8 @@ def fake_fn(*args, **kwargs):
 
 
 def sleep_repeatedly(seconds: int):
+    # Synchronous sleeps cannot be interrupted unless a signal is used, so we check
+    # for cancellation between sleep calls
     for i in range(seconds * 10):
         time.sleep(float(i) / 10)
 

@@ -1,5 +1,7 @@
+import asyncio
 import contextlib
 import contextvars
+import time
 
 import pytest
 
@@ -23,6 +25,13 @@ def get_contextvar():
 
 async def aget_contextvar():
     return TEST_CONTEXTVAR.get()
+
+
+def sleep_repeatedly(seconds: int):
+    # Synchronous sleeps cannot be interrupted unless a signal is used, so we check
+    # for cancellation between sleep calls
+    for i in range(seconds * 10):
+        time.sleep(float(i) / 10)
 
 
 @contextlib.contextmanager
@@ -170,3 +179,39 @@ def test_from_sync_send_call_to_supervising_thread_captures_context_varaibles(ge
 
     supervisor = from_sync.supervise_call_in_runtime_thread(create_call(from_runtime))
     supervisor.result()
+
+
+async def test_from_async_supervise_call_in_runtime_thread_timeout():
+    supervisor = from_async.supervise_call_in_runtime_thread(
+        create_call(asyncio.sleep, 1),
+        timeout=0.1,
+    )
+    with pytest.raises(TimeoutError):
+        assert await supervisor.result() == 1
+
+
+def test_from_sync_supervise_call_in_runtime_thread_timeout():
+    supervisor = from_sync.supervise_call_in_runtime_thread(
+        create_call(asyncio.sleep, 1),
+        timeout=0.1,
+    )
+    with pytest.raises(TimeoutError):
+        assert supervisor.result() == 1
+
+
+async def test_from_async_supervise_call_in_worker_thread_timeout():
+    supervisor = from_async.supervise_call_in_worker_thread(
+        create_call(sleep_repeatedly, 1),
+        timeout=0.1,
+    )
+    with pytest.raises(TimeoutError):
+        assert await supervisor.result() == 1
+
+
+def test_from_sync_supervise_call_in_worker_thread_timeout():
+    supervisor = from_sync.supervise_call_in_worker_thread(
+        create_call(sleep_repeatedly, 1),
+        timeout=0.1,
+    )
+    with pytest.raises(TimeoutError):
+        assert supervisor.result() == 1
