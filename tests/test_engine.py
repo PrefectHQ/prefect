@@ -1093,33 +1093,6 @@ class TestOrchestrateFlowRun:
             StateType.COMPLETED,
         ]
 
-    async def test_task_timeouts_retry_properly(self, flow_run, orion_client):
-        mock_func = MagicMock()
-
-        @task(timeout_seconds=1, retries=1)
-        async def my_task():
-            mock_func.should_call()
-            await asyncio.sleep(2)
-            mock_func.should_not_call()
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        task_run = task_runs[0]
-
-        assert task_run.state.type == StateType.FAILED
-        assert task_run.state.name == "TimedOut"
-
-        calls = [str(call) for call in mock_func.mock_calls]
-        assert calls == ["call.should_call()", "call.should_call()"]
-
 
 class TestFlowRunCrashes:
     @staticmethod

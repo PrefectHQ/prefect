@@ -84,3 +84,29 @@ async def test_async_task_timeout_in_async_flow():
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         await task_state.result()
+
+
+async def test_task_timeout_deadline_is_reset_on_retry():
+    run_count: int = 0
+
+    @prefect.task(timeout_seconds=0.1, retries=2)
+    async def sleep_task():
+        nonlocal run_count
+        run_count += 1
+
+        # Task should timeout 2 times then succeed on the third run
+        if run_count < 3:
+            await anyio.sleep(1)
+
+        return run_count
+
+    @prefect.flow
+    async def parent_flow():
+        t0 = time.monotonic()
+        state = await sleep_task(return_state=True)
+        t1 = time.monotonic()
+        return t1 - t0, state
+
+    runtime, task_state = await parent_flow()
+    assert runtime < 1, "Task should exit early; ran for {runtime}s"
+    assert await task_state.result() == 3  # Task should run 3 times
