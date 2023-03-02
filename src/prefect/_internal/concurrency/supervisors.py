@@ -29,7 +29,6 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect._internal.concurrency.timeouts import (
-    cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
     cancel_sync_at,
@@ -266,7 +265,8 @@ class Supervisor(abc.ABC, Generic[T]):
             self._worker_thread_future.set_result(thread)
 
             # Set the execution deadline
-            self._deadline_future.set_result(get_deadline(self._timeout))
+            deadline = get_deadline(self._timeout)
+            self._deadline_future.set_result(deadline)
 
             # Enforce timeouts on synchronous execution
             with cancel_sync_after(self._timeout):
@@ -276,9 +276,7 @@ class Supervisor(abc.ABC, Generic[T]):
             if inspect.isawaitable(retval):
 
                 async def _call_in_supervised_coro():
-                    # TODO: Technnically, this should use the deadline but it is not
-                    #       clear how to mix sync/async deadlines yet
-                    with cancel_async_after(self._timeout):
+                    with cancel_async_at(deadline):
                         return await retval
 
                 return _call_in_supervised_coro()
