@@ -20,6 +20,22 @@ def fake_fn(*args, **kwargs):
     pass
 
 
+def identity(x):
+    return x
+
+
+async def aidentity(x):
+    return x
+
+
+def raises(exc):
+    raise exc
+
+
+async def araises(exc):
+    raise exc
+
+
 def sleep_repeatedly(seconds: int):
     # Synchronous sleeps cannot be interrupted unless a signal is used, so we check
     # for cancellation between sleep calls
@@ -133,3 +149,39 @@ async def test_async_supervisor_timeout_in_main_thread():
         # to the main thread should have a timeout error
         with pytest.raises(asyncio.CancelledError):
             future.result()
+
+
+@pytest.mark.parametrize("fn", [identity, aidentity])
+def test_sync_call(fn):
+    call = Call.new(fn, 1)
+    assert call() == 1
+
+
+async def test_async_call_sync_function():
+    call = Call.new(identity, 1)
+    assert call() == 1
+
+
+async def test_async_call_async_function():
+    call = Call.new(aidentity, 1)
+    assert await call() == 1
+
+
+@pytest.mark.parametrize("fn", [raises, araises])
+def test_sync_call_with_exception(fn):
+    call = Call.new(fn, ValueError("test"))
+    with pytest.raises(ValueError, match="test"):
+        call()
+
+
+async def test_async_call_sync_function():
+    call = Call.new(raises, ValueError("test"))
+    with pytest.raises(ValueError, match="test"):
+        call()
+
+
+async def test_async_call_async_function():
+    call = Call.new(araises, ValueError("test"))
+    coro = call()  # should not raise
+    with pytest.raises(ValueError):
+        await coro

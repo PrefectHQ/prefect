@@ -20,7 +20,7 @@ Future = Union[concurrent.futures.Future, asyncio.Future]
 
 
 def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call[T]:
-    return Call(fn=__fn, args=args, kwargs=kwargs)
+    return Call.new(__fn, *args, **kwargs)
 
 
 class _base(abc.ABC):
