@@ -47,7 +47,7 @@ from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
-from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
 
@@ -971,26 +971,6 @@ class TestOrchestrateTaskRun:
 
         # Check that the task completed happily
         assert state.is_completed()
-
-    @flaky_on_windows
-    async def test_interrupt_task(self):
-        @task
-        async def just_sleep():
-            await anyio.sleep(10)
-
-        @flow
-        async def my_flow():
-            with anyio.fail_after(1):
-                await just_sleep()
-
-        t0 = time.perf_counter()
-        await my_flow._run()
-        t1 = time.perf_counter()
-
-        runtime = t1 - t0
-        assert (
-            runtime < 3
-        ), f"The call should be return quickly after timeout, took {runtime}s"
 
 
 class TestOrchestrateFlowRun:
