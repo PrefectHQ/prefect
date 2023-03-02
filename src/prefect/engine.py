@@ -163,7 +163,7 @@ def enter_flow_run_engine_from_flow_call(
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
-        # return a coroutine for async flows
+        # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
         return from_async.supervise_call_in_runtime_thread(begin_run).result()
     else:
