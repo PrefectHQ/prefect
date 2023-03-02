@@ -7,6 +7,7 @@ from prefect.blocks.notifications import PagerDutyWebHook
 from prefect.blocks.system import Secret
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
+from prefect.testing.utilities import AsyncMock
 
 
 async def test_async_blocks_instrumented(
@@ -78,7 +79,7 @@ def test_notifications_notify_instrumented_sync(
 ):
     with mock.patch("apprise.Apprise", autospec=True) as AppriseMock:
         apprise_instance_mock = AppriseMock.return_value
-        apprise_instance_mock.async_notify = mock.AsyncMock()
+        apprise_instance_mock.async_notify = AsyncMock()
 
         block = PagerDutyWebHook(
             integration_key=SecretStr("integration_key"), api_key=SecretStr("api_key")
@@ -117,7 +118,7 @@ async def test_notifications_notify_instrumented_async(
 ):
     with mock.patch("apprise.Apprise", autospec=True) as AppriseMock:
         apprise_instance_mock = AppriseMock.return_value
-        apprise_instance_mock.async_notify = mock.AsyncMock()
+        apprise_instance_mock.async_notify = AsyncMock()
 
         block = PagerDutyWebHook(
             integration_key=SecretStr("integration_key"), api_key=SecretStr("api_key")
