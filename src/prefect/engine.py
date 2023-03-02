@@ -938,16 +938,9 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    # Async task run in async flow run
     if task.isasync and flow_run_context.flow.isasync:
-        # Return a coroutine for the user to await
+        # return a coro for the user to await if an async task in an async flow
         return from_async.supervise_call_in_runtime_thread(begin_run).result()
-
-    # Async or sync task run in sync flow run
-    elif not flow_run_context.flow.isasync:
-        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
-
-    # Sync task run in async flow run
     else:
         return from_sync.supervise_call_in_runtime_thread(begin_run).result()
 
