@@ -59,8 +59,8 @@ def example_event_5() -> Event:
     )
 
 
-@pytest.fixture(scope="session")
-def events_worker() -> Generator[EventsWorker, None, None]:
+@pytest.fixture(scope="module")
+def asserting_events_worker() -> Generator[EventsWorker, None, None]:
     worker = EventsWorker(AssertingEventsClient)
 
     # Mock `get_worker_from_run_context` so that `get_events_worker` context
@@ -75,7 +75,7 @@ def events_worker() -> Generator[EventsWorker, None, None]:
         worker.stop()
 
 
-@pytest.fixture(autouse=True)
-def reset_worker_events(events_worker: EventsWorker):
-    assert isinstance(events_worker._client, AssertingEventsClient)
-    events_worker._client.events = []
+@pytest.fixture()
+def reset_worker_events(asserting_events_worker: EventsWorker):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    asserting_events_worker._client.events = []

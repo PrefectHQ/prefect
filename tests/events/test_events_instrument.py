@@ -61,8 +61,10 @@ class InstrumentedClass:
         pass
 
 
-async def test_instruments_methods(events_worker: EventsWorker):
-    assert isinstance(events_worker._client, AssertingEventsClient)
+async def test_instruments_methods(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     instance = InstrumentedClass()
     instance.sync_method()
@@ -70,23 +72,25 @@ async def test_instruments_methods(events_worker: EventsWorker):
 
     time.sleep(0.1)
 
-    assert len(events_worker._client.events) == 2
+    assert len(asserting_events_worker._client.events) == 2
 
-    sync_event = events_worker._client.events[0]
+    sync_event = asserting_events_worker._client.events[0]
     assert sync_event.resource.id == "prefect.some-class.sync_method"
     assert sync_event.resource["prefect.result"] == "successful"
     assert sync_event.related[0].id == "prefect.class.InstrumentedClass"
     assert sync_event.related[0].role == "class"
 
-    async_event = events_worker._client.events[1]
+    async_event = asserting_events_worker._client.events[1]
     assert async_event.resource.id == "prefect.some-class.async_method"
     assert async_event.resource["prefect.result"] == "successful"
     assert async_event.related[0].id == "prefect.class.InstrumentedClass"
     assert async_event.related[0].role == "class"
 
 
-async def test_handles_method_failure(events_worker: EventsWorker):
-    assert isinstance(events_worker._client, AssertingEventsClient)
+async def test_handles_method_failure(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     instance = InstrumentedClass()
 
@@ -102,23 +106,25 @@ async def test_handles_method_failure(events_worker: EventsWorker):
 
     time.sleep(0.1)
 
-    assert len(events_worker._client.events) == 2
+    assert len(asserting_events_worker._client.events) == 2
 
-    sync_event = events_worker._client.events[0]
+    sync_event = asserting_events_worker._client.events[0]
     assert sync_event.resource.id == "prefect.some-class.sync_fail"
     assert sync_event.resource["prefect.result"] == "failure"
     assert sync_event.related[0].id == "prefect.class.InstrumentedClass"
     assert sync_event.related[0].role == "class"
 
-    async_event = events_worker._client.events[1]
+    async_event = asserting_events_worker._client.events[1]
     assert async_event.resource.id == "prefect.some-class.async_fail"
     assert async_event.resource["prefect.result"] == "failure"
     assert async_event.related[0].id == "prefect.class.InstrumentedClass"
     assert async_event.related[0].role == "class"
 
 
-async def test_ignores_excluded_and_private_methods(events_worker: EventsWorker):
-    assert isinstance(events_worker._client, AssertingEventsClient)
+async def test_ignores_excluded_and_private_methods(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     instance = InstrumentedClass()
 
@@ -128,11 +134,13 @@ async def test_ignores_excluded_and_private_methods(events_worker: EventsWorker)
 
     time.sleep(0.1)
 
-    assert len(events_worker._client.events) == 0
+    assert len(asserting_events_worker._client.events) == 0
 
 
-async def test_instrument_idempotent(events_worker: EventsWorker):
-    assert isinstance(events_worker._client, AssertingEventsClient)
+async def test_instrument_idempotent(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     class AClass:
         def _event_kind(self):
@@ -152,4 +160,4 @@ async def test_instrument_idempotent(events_worker: EventsWorker):
 
     time.sleep(0.1)
 
-    assert len(events_worker._client.events) == 1
+    assert len(asserting_events_worker._client.events) == 1
