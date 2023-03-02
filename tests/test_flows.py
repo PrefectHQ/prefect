@@ -1033,17 +1033,17 @@ class TestFlowTimeouts:
         canary_file = tmp_path / "canary"
 
         @flow(timeout_seconds=1)
-        def downstream_flow():
+        async def downstream_flow():
             canary_file.touch()
 
         @task
-        def sleep_task(n):
-            time.sleep(n)
+        async def sleep_task(n):
+            await anyio.sleep(n)
 
         @flow
         async def my_flow():
-            upstream_sleepers = sleep_task.map(list(range(3)))
-            downstream_flow(wait_for=upstream_sleepers)
+            upstream_sleepers = await sleep_task.map([0.5, 1.0])
+            await downstream_flow(wait_for=upstream_sleepers)
 
         t0 = anyio.current_time()
         state = await my_flow._run()
@@ -1051,9 +1051,8 @@ class TestFlowTimeouts:
 
         assert state.is_completed()
 
-        # Validate the sleep tasks have ran.
-        # Note: t1 - t0 can be less than exactly 3 (i.e., around 2.9). By comparing with 2.7 we have some leeway.
-        assert t1 - t0 >= 2.7
+        # Validate the sleep tasks have ran
+        assert t1 - t0 >= 1
         assert canary_file.exists()  # Validate subflow has ran
 
 
