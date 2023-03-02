@@ -1,5 +1,6 @@
 import time
 import uuid
+from unittest import mock
 
 import pytest
 
@@ -61,6 +62,13 @@ def test_stop_is_idempontent(worker: EventsWorker):
     worker.start()
     worker.stop()
     worker.stop()
+
+
+def test_worker_failure(worker: EventsWorker):
+    with mock.patch.object(worker, "_main_loop") as main_loop:
+        main_loop.side_effect = Exception("Boom!")
+        with pytest.raises(Exception, match="Boom!"):
+            worker.start()
 
 
 def test_emits_event_via_client(worker: EventsWorker, event: Event):
