@@ -25,6 +25,8 @@ from typing import (
     Union,
 )
 
+from typing_extensions import ParamSpec
+
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect._internal.concurrency.timeouts import (
     cancel_async_after,
@@ -36,6 +38,7 @@ from prefect._internal.concurrency.timeouts import (
 from prefect.logging import get_logger
 
 T = TypeVar("T")
+P = ParamSpec("P")
 Fn = TypeVar("Fn", bound=Callable)
 
 # Python uses duck typing for futures; asyncio/threaded futures do not share a base
@@ -61,6 +64,37 @@ def set_supervisor(supervisor: "Supervisor"):
         yield
     finally:
         current_supervisor.reset(token)
+
+
+@dataclasses.dataclass
+class Call(Generic[T]):
+    """
+    A deferred function call; a convenience for transport.
+    """
+
+    fn: Callable[..., T]
+    args: Tuple
+    kwargs: Dict[str, Any]
+
+    def __call__(self) -> Any:
+        return self.fn(*self.args, **self.kwargs)
+
+    @classmethod
+    def new(self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
+        return Call(fn=__fn, args=args, kwargs=kwargs)
+
+    def __repr__(self) -> str:
+        name = self.fn.__name__
+        call_args = ", ".join(
+            [repr(arg) for arg in self.args]
+            + [f"{key}={repr(val)}" for key, val in self.kwargs.items()]
+        )
+
+        # Enforce a maximum length
+        if len(call_args) > 100:
+            call_args = call_args[:100] + "..."
+
+        return f"{name}({call_args})"
 
 
 @dataclasses.dataclass
@@ -155,9 +189,15 @@ class Supervisor(abc.ABC, Generic[T]):
 
     def __init__(
         self,
+        call: Call[T],
         submit_fn: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
+        if not isinstance(call, Call):
+            # This is a common mistake
+            raise TypeError(f"Expected call of type `Call`; got {call!r}.")
+
+        self._call = call
         self._submit_fn = submit_fn
         self._owner_thread = threading.current_thread()
         self._future: Optional[concurrent.futures.Future] = None
@@ -170,9 +210,9 @@ class Supervisor(abc.ABC, Generic[T]):
 
         logger.debug("Created supervisor %r", self)
 
-    def submit(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
+    def submit(self) -> concurrent.futures.Future:
         """
-        Submit a call to a worker.
+        Submit the call to the worker.
 
         The supervisor will use the `submit_fn` from initialization to send the call to
         the worker. It will wrap the call to provide supervision.
@@ -180,29 +220,25 @@ class Supervisor(abc.ABC, Generic[T]):
         This method may only be called once per supervisor.
         """
         if self._future:
-            raise RuntimeError("A supervisor can only monitor a single future")
+            raise RuntimeError("A supervisor's call can only be submitted once.")
 
         with set_supervisor(self):
-            future = self._submit_fn(self._add_supervision(__fn), *args, **kwargs)
+            future = self._submit_fn(
+                self._add_supervision(self._call.fn),
+                *self._call.args,
+                **self._call.kwargs,
+            )
 
-        logger.debug(
-            "Call to %r submitted to supervisor %r tracked by future %r",
-            __fn.__name__,
-            self,
-            future,
-        )
         self._future = future
-        self._future_call = (__fn, args, kwargs)
+        logger.debug("Call for supervisor %r submitted", self)
 
         return future
 
-    def send_call_to_supervisor(
-        self, __fn, *args, **kwargs
-    ) -> concurrent.futures.Future:
+    def send_call_to_supervisor(self, call: Call) -> concurrent.futures.Future:
         """
         Send a call to the supervisor thread from a worker thread.
         """
-        work_item = WorkItem.from_call(__fn, *args, **kwargs)
+        work_item = WorkItem.from_call(call.fn, *call.args, **call.kwargs)
         self._put_work_item(work_item)
         logger.debug("Sent work item to supervisor %r", self)
         return work_item.future
@@ -261,24 +297,21 @@ class Supervisor(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
-        extra = ""
-
-        if self._future_call:
-            extra += f" submitted={self._future_call[0].__name__!r},"
-
         return (
-            f"<{self.__class__.__name__} submit_fn={self._submit_fn.__name__!r},"
-            f"{extra} owner={self._owner_thread.name!r}>"
+            f"<{self.__class__.__name__} call={self._call},"
+            f" submit_fn={self._submit_fn.__name__!r},"
+            f" owner={self._owner_thread.name!r}>"
         )
 
 
 class SyncSupervisor(Supervisor[T]):
     def __init__(
         self,
+        call: Call[T],
         submit_fn: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(submit_fn=submit_fn, timeout=timeout)
+        super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
 
     def _put_work_item(self, work_item: WorkItem):
@@ -319,10 +352,11 @@ class SyncSupervisor(Supervisor[T]):
 class AsyncSupervisor(Supervisor[T]):
     def __init__(
         self,
+        call: Call[T],
         submit_fn: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(submit_fn=submit_fn, timeout=timeout)
+        super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
