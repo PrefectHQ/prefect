@@ -33,7 +33,6 @@ def test_loop_wait_for_many_tasks():
     run(500)
 
 
-@pytest.mark.skip(reason="Causes a deadlock.")
 def test_sleep_wait_for():
     @flow
     def run(sleep_time: float, n: int):
@@ -42,7 +41,6 @@ def test_sleep_wait_for():
     run(5, 50)
 
 
-@pytest.mark.skip(reason="Causes a deadlock.")
 async def test_async_task_as_dependency():
     @flow
     async def run():
@@ -52,7 +50,6 @@ async def test_async_task_as_dependency():
     await run()
 
 
-@pytest.mark.skip(reason="Causes a deadlock.")
 async def test_sync_task_after_async_in_async_flow(use_hosted_orion):
     @flow
     async def run():
