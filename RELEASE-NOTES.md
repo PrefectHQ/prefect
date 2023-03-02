@@ -4,13 +4,13 @@
 
 ### Enhancements
 - Create `EventsWorker` to manage client lifecycle and abstract async nature — https://github.com/PrefectHQ/prefect/pull/8673
-- Enable DefaultAzureCredential authentication for Azure filesystem block — https://github.com/PrefectHQ/prefect/pull/7513
+- Enable `DefaultAzureCredential` authentication for Azure filesystem block — https://github.com/PrefectHQ/prefect/pull/7513
 - Add support for yaml config strings to `KubernetesClusterConfig` — https://github.com/PrefectHQ/prefect/pull/8643
 - Add `--description` flag to `prefect deployment build` CLI command — https://github.com/PrefectHQ/prefect/pull/8603
 - Track flow run id when generating task run results — https://github.com/PrefectHQ/prefect/pull/8674
 - Handle SIGTERM received by server gracefully — https://github.com/PrefectHQ/prefect/pull/7948
 - Optimize database query performance — https://github.com/PrefectHQ/prefect/pull/8659
-- Add clarifying modal to Task Inputs tab in UI — https://github.com/PrefectHQ/prefect/pull/8295
+- Add clarifying modal to `Task Inputs` tab in UI — https://github.com/PrefectHQ/prefect/pull/8295
 
 ### Fixes
 - Fix loading of existing deployment descriptions from the server — https://github.com/PrefectHQ/prefect/pull/8675
@@ -26,8 +26,8 @@
 
 ### Documentation
 - Add tutorial for running an agent on Azure Container Instances — https://github.com/PrefectHQ/prefect/pull/8620
-- Minor markdown link fix in orchestration docs — https://github.com/PrefectHQ/prefect/pull/8660
 - Add security headers for docs — https://github.com/PrefectHQ/prefect/pull/8655
+- Add markdown link fix in orchestration docs — https://github.com/PrefectHQ/prefect/pull/8660
 
 ## New Contributors
 * @samdyzon made their first contribution in https://github.com/PrefectHQ/prefect/pull/7513
