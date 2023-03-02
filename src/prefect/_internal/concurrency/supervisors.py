@@ -69,19 +69,100 @@ def set_supervisor(supervisor: "Supervisor"):
 @dataclasses.dataclass
 class Call(Generic[T]):
     """
-    A deferred function call; a convenience for transport.
+    A deferred function call.
     """
 
+    future: concurrent.futures.Future
     fn: Callable[..., T]
     args: Tuple
     kwargs: Dict[str, Any]
-
-    def __call__(self) -> Any:
-        return self.fn(*self.args, **self.kwargs)
+    context: contextvars.Context
 
     @classmethod
-    def new(self, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
-        return Call(fn=__fn, args=args, kwargs=kwargs)
+    def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
+        return cls(
+            future=concurrent.futures.Future(),
+            fn=__fn,
+            args=args,
+            kwargs=kwargs,
+            context=contextvars.copy_context(),
+        )
+
+    def run(self) -> None:
+        """
+        Execute the call and place the result on the future.
+
+        All exceptions during execution of the call are captured.
+        """
+        # Do not execute if the future is cancelled
+        if not self.future.set_running_or_notify_cancel():
+            logger.debug("Skipping execution of cancelled callback %s", self)
+            return
+
+        logger.debug("Running callback %s", self)
+
+        coro = self._run_sync()
+        if coro is not None:
+            if get_running_loop():
+                # If an event loop is available, return a coroutine to be awaited
+                return self._run_async(coro)
+            else:
+                # Otherwise, execute the function here
+                return asyncio.run(self._run_async(coro))
+
+        return None
+
+    def _run_sync(self):
+        try:
+            result = self.context.run(self.fn, *self.args, **self.kwargs)
+
+            # Return the coroutine for async execution
+            if inspect.isawaitable(result):
+                return result
+
+        except BaseException as exc:
+            self.future.set_exception(exc)
+            logger.debug("Encountered exception in callback %r", self)
+            # Prevent reference cycle in `exc`
+            del self
+        else:
+            self.future.set_result(result)
+            logger.debug("Finished callback %r", self)
+
+    async def _run_async(self, coro):
+        loop = asyncio.get_running_loop()
+        try:
+            # Run the coroutine in a new task to run with the correct async context
+            task = self.context.run(loop.create_task, coro)
+            result = await task
+
+        except BaseException as exc:
+            self.future.set_exception(exc)
+            # Prevent reference cycle in `exc`
+            logger.debug("Encountered exception %s in callback %r", exc, self)
+            del self
+        else:
+            self.future.set_result(result)
+            logger.debug("Finished callback %r", self)
+
+    def __call__(self) -> T:
+        """
+        Execute the call and return its result.
+
+        All executions during excecution of the call are re-raised.
+        """
+        coro = self.run()
+
+        # Return an awaitable if in an async context
+        if coro is not None:
+
+            async def run_and_return_result():
+                await coro
+                return self.future.result()
+
+            return run_and_return_result()
+        else:
+            return self.future.result()
 
     def __repr__(self) -> str:
         name = self.fn.__name__
@@ -96,88 +177,8 @@ class Call(Generic[T]):
 
         return f"{name}({call_args})"
 
-
-@dataclasses.dataclass
-class WorkItem:
-    """
-    A deferred function call.
-    """
-
-    future: concurrent.futures.Future
-    fn: Callable
-    args: Tuple
-    kwargs: Dict[str, Any]
-    context: contextvars.Context
-
-    @classmethod
-    def from_call(cls, __fn, *args, **kwargs) -> "WorkItem":
-        return cls(
-            future=concurrent.futures.Future(),
-            fn=__fn,
-            args=args,
-            kwargs=kwargs,
-            context=contextvars.copy_context(),
-        )
-
     def __post_init__(self):
-        logger.debug("Created work item %r", self)
-
-    def run(self):
-        """
-        Execute the work item.
-
-        All exceptions during execution of the work item are captured and attached to
-        the future.
-        """
-        # Do not execute if the future is cancelled
-        if not self.future.set_running_or_notify_cancel():
-            return
-
-        logger.debug("Running work item %s", self)
-
-        # Execute the work and set the result on the future
-        if inspect.iscoroutinefunction(self.fn):
-            if get_running_loop():
-                # If an event loop is available, return a coroutine to be awaited
-                return self._run_async()
-            else:
-                # Otherwise, execute the function here
-                return asyncio.run(self._run_async())
-        else:
-            return self._run_sync()
-
-    def _run_sync(self):
-        try:
-            result = self.context.run(self.fn, *self.args, **self.kwargs)
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            logger.debug("Encountered exception in work item %r", self)
-            # Prevent reference cycle in `exc`
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished work item %r", self)
-
-    async def _run_async(self):
-        loop = asyncio.get_running_loop()
-        try:
-            # Call the function in the context; this is not necessary if the function
-            # is a standard cortouine function but if it's a synchronous function that
-            # returns a coroutine we want to ensure the correct context is available
-            coro = self.context.run(self.fn, *self.args, **self.kwargs)
-
-            # Run the coroutine in a new task to run with the correct async context
-            task = self.context.run(loop.create_task, coro)
-            result = await task
-
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            # Prevent reference cycle in `exc`
-            logger.debug("Encountered exception %s in work item %r", exc, self)
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished work item %r", self)
+        logger.debug("Created call %r", self)
 
 
 class Supervisor(abc.ABC, Generic[T]):
@@ -238,10 +239,9 @@ class Supervisor(abc.ABC, Generic[T]):
         """
         Send a call to the supervisor thread from a worker thread.
         """
-        work_item = WorkItem.from_call(call.fn, *call.args, **call.kwargs)
-        self._put_work_item(work_item)
-        logger.debug("Sent work item to supervisor %r", self)
-        return work_item.future
+        self.put_call(call)
+        logger.debug("Sent call back to supervisor %r", self)
+        return call.future
 
     @property
     def owner_thread(self):
@@ -281,9 +281,9 @@ class Supervisor(abc.ABC, Generic[T]):
         return _call_in_supervised_thread
 
     @abc.abstractmethod
-    def _put_work_item(self, work_item: WorkItem) -> None:
+    def put_call(self, call: Call) -> None:
         """
-        Add a work item to the supervisor. Used by `send_call`.
+        Add a call to the supervisor. Used by `send_call`.
         """
         raise NotImplementedError()
 
@@ -314,18 +314,18 @@ class SyncSupervisor(Supervisor[T]):
         super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
 
-    def _put_work_item(self, work_item: WorkItem):
-        self._queue.put_nowait(work_item)
+    def put_call(self, callback: Call):
+        self._queue.put_nowait(callback)
 
-    def _watch_for_work_items(self):
+    def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to supervisor %r", self)
         while True:
-            work_item: WorkItem = self._queue.get()
-            if work_item is None:
+            callback: Call = self._queue.get()
+            if callback is None:
                 break
 
-            work_item.run()
-            del work_item
+            callback.run()
+            del callback
 
     def result(self) -> T:
         if not self._future:
@@ -338,7 +338,7 @@ class SyncSupervisor(Supervisor[T]):
         deadline = self._deadline_future.result()
         try:
             with cancel_sync_at(deadline) as ctx:
-                self._watch_for_work_items()
+                self._watch_for_callbacks()
         except TimeoutError:
             # Timeouts will be generally be raised on future result retrieval but
             # if its not our timeout it should be reraised
@@ -360,25 +360,25 @@ class AsyncSupervisor(Supervisor[T]):
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
-    def _put_work_item(self, work_item: WorkItem):
+    def put_call(self, callback: Call):
         # We must put items in the queue from the event loop that owns it
-        call_soon_in_loop(self._loop, self._queue.put_nowait, work_item)
+        call_soon_in_loop(self._loop, self._queue.put_nowait, callback)
 
-    async def _watch_for_work_items(self):
+    async def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to %r", self)
         while True:
-            work_item: WorkItem = await self._queue.get()
-            if work_item is None:
+            callback: Call = await self._queue.get()
+            if callback is None:
                 break
 
             # TODO: We could use `cancel_sync_after` to guard this call as a sync call
             #       could block a timeout here
-            retval = work_item.run()
+            retval = callback.run()
 
             if inspect.isawaitable(retval):
                 await retval
 
-            del work_item
+            del callback
 
     async def result(self) -> T:
         if not self._future:
@@ -400,7 +400,7 @@ class AsyncSupervisor(Supervisor[T]):
         deadline = await asyncio.wrap_future(self._deadline_future)
         try:
             with cancel_async_at(deadline) as ctx:
-                await self._watch_for_work_items()
+                await self._watch_for_callbacks()
         except TimeoutError:
             # Timeouts will be re-raised on future result retrieval
             if not ctx.cancelled:
