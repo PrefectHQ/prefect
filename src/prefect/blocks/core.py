@@ -140,11 +140,7 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 
 
 @register_base_type
-@instrument_method_calls_on_class_instances(
-    # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
-    # decorated directly.
-    exclude_methods=["block_initialization", "save"]
-)
+@instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
     """
         A base class for implementing a block that wraps an external service.
@@ -259,6 +255,10 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
+    # decorated directly.
+    _events_excluded_methods = ["block_initialization", "save", "dict"]
 
     @classmethod
     def __dispatch_key__(cls):
@@ -586,9 +586,7 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        block_cls = instrument_method_calls_on_class_instances(
-            exclude_methods=["block_initialization"],
-        )(block_cls)
+        block_cls = instrument_method_calls_on_class_instances(block_cls)
 
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
@@ -611,13 +609,13 @@ class Block(BaseModel, ABC):
         return block
 
     def _event_kind(self) -> str:
-        return "prefect.block"
+        return f"prefect.block.{self.get_block_type_slug()}"
 
-    def _event_method_called_resources(self, method_name: str) -> ResourceTuple:
+    def _event_method_called_resources(self) -> ResourceTuple:
         name = self._block_document_name if self._block_document_name else "anonymous"
         return (
             {
-                "prefect.resource.id": f"prefect.block-document.{name}.{method_name}",
+                "prefect.resource.id": f"prefect.block-document.{name}",
             },
             [
                 {

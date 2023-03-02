@@ -13,22 +13,23 @@ from prefect.events.worker import EventsWorker
 def test_requires_events_methods_to_be_defined():
     with pytest.raises(RuntimeError, match="Class must define '_event_kind'."):
 
-        @instrument_method_calls_on_class_instances()
+        @instrument_method_calls_on_class_instances
         class Nope:
             pass
 
 
-@instrument_method_calls_on_class_instances(exclude_methods=["excluded_method"])
+@instrument_method_calls_on_class_instances
 class InstrumentedClass:
+    _events_excluded_methods = ["excluded_method"]
     not_callable = "some value"
 
     def _event_kind(self):
         return "prefect.instrumented"
 
-    def _event_method_called_resources(self, method_name: str) -> ResourceTuple:
+    def _event_method_called_resources(self) -> ResourceTuple:
         return (
             {
-                "prefect.resource.id": f"prefect.some-class.{method_name}",
+                "prefect.resource.id": f"prefect.instrumented-class",
             },
             [
                 {
@@ -75,14 +76,14 @@ async def test_instruments_methods(
     assert len(asserting_events_worker._client.events) == 2
 
     sync_event = asserting_events_worker._client.events[0]
-    assert sync_event.resource.id == "prefect.some-class.sync_method"
-    assert sync_event.resource["prefect.result"] == "successful"
+    assert sync_event.event == "prefect.instrumented.sync_method.called"
+    assert sync_event.resource.id == "prefect.instrumented-class"
     assert sync_event.related[0].id == "prefect.class.InstrumentedClass"
     assert sync_event.related[0].role == "class"
 
     async_event = asserting_events_worker._client.events[1]
-    assert async_event.resource.id == "prefect.some-class.async_method"
-    assert async_event.resource["prefect.result"] == "successful"
+    assert async_event.event == "prefect.instrumented.async_method.called"
+    assert async_event.resource.id == "prefect.instrumented-class"
     assert async_event.related[0].id == "prefect.class.InstrumentedClass"
     assert async_event.related[0].role == "class"
 
@@ -109,14 +110,14 @@ async def test_handles_method_failure(
     assert len(asserting_events_worker._client.events) == 2
 
     sync_event = asserting_events_worker._client.events[0]
-    assert sync_event.resource.id == "prefect.some-class.sync_fail"
-    assert sync_event.resource["prefect.result"] == "failure"
+    assert sync_event.event == "prefect.instrumented.sync_fail.failed"
+    assert sync_event.resource.id == "prefect.instrumented-class"
     assert sync_event.related[0].id == "prefect.class.InstrumentedClass"
     assert sync_event.related[0].role == "class"
 
     async_event = asserting_events_worker._client.events[1]
-    assert async_event.resource.id == "prefect.some-class.async_fail"
-    assert async_event.resource["prefect.result"] == "failure"
+    assert async_event.event == "prefect.instrumented.async_fail.failed"
+    assert async_event.resource.id == "prefect.instrumented-class"
     assert async_event.related[0].id == "prefect.class.InstrumentedClass"
     assert async_event.related[0].role == "class"
 
@@ -146,14 +147,14 @@ async def test_instrument_idempotent(
         def _event_kind(self):
             return "prefect.a-class"
 
-        def _event_method_called_resources(self, method_name: str) -> ResourceTuple:
+        def _event_method_called_resources(self) -> ResourceTuple:
             return ({"prefect.resource.id": "some-id"}, [])
 
         def some_method(self):
             pass
 
-    Instrumented = instrument_method_calls_on_class_instances()(AClass)
-    InstrumentedTwice = instrument_method_calls_on_class_instances()(Instrumented)
+    Instrumented = instrument_method_calls_on_class_instances(AClass)
+    InstrumentedTwice = instrument_method_calls_on_class_instances(Instrumented)
 
     instance = InstrumentedTwice()
     instance.some_method()

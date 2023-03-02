@@ -14,11 +14,13 @@ def emit_instance_method_called_event(
     successful: bool,
 ):
     kind = instance._event_kind()
-    resources: ResourceTuple = instance._event_method_called_resources(method_name)
+    resources: ResourceTuple = instance._event_method_called_resources()
     resource, related = resources
-    resource["prefect.result"] = "successful" if successful else "failure"
+    result = "called" if successful else "failed"
 
-    event = Event(event=f"{kind}-method.called", resource=resource, related=related)
+    event = Event(
+        event=f"{kind}.{method_name}.{result}", resource=resource, related=related
+    )
 
     with get_events_worker() as events:
         events.emit(event)
@@ -67,7 +69,6 @@ def instrument_instance_method_call():
 
 def is_instrumented(function: Callable) -> bool:
     """Indicates whether the given function is already instrumented"""
-
     return getattr(function, "__events_instrumented__", False)
 
 
@@ -77,50 +78,43 @@ def instrumentable_methods(
 ) -> Generator[Tuple[str, Callable], None, None]:
     """Returns all of the public methods on a class."""
 
-    for name, kind, definer, method in inspect.classify_class_attrs(cls):
-        if kind == "method":
+    for name, kind, _, method in inspect.classify_class_attrs(cls):
+        if kind == "method" and callable(method):
             if exclude_methods and name in exclude_methods:
                 continue
             if name.startswith("_"):
                 continue
-            if definer != cls:
-                continue
-            if not callable(method):
-                continue
+
             yield name, method
 
 
-def instrument_method_calls_on_class_instances(
-    exclude_methods: Union[List[str], Set[str], None] = None,
-) -> Type:
-    def instrument(cls: Type):
-        """Given a Python class, instruments all "public" methods that are
-        defined directly on the class to emit events when called.
+def instrument_method_calls_on_class_instances(cls: Type) -> Type:
+    """Given a Python class, instruments all "public" methods that are
+    defined directly on the class to emit events when called.
 
-        Examples:
+    Examples:
 
-            @instrument_class
-            class MyClass(MyBase):
-                def my_method(self):
-                    ... this method will be instrumented ...
+        @instrument_class
+        class MyClass(MyBase):
+            def my_method(self):
+                ... this method will be instrumented ...
 
-                def _my_method(self):
-                    ... this method will not ...
-        """
+            def _my_method(self):
+                ... this method will not ...
+    """
 
-        required_events_methods = ["_event_kind", "_event_method_called_resources"]
-        for method in required_events_methods:
-            if not hasattr(cls, method):
-                raise RuntimeError(
-                    f"Unable to instrument class {cls}. Class must define {method!r}."
-                )
+    required_events_methods = ["_event_kind", "_event_method_called_resources"]
+    for method in required_events_methods:
+        if not hasattr(cls, method):
+            raise RuntimeError(
+                f"Unable to instrument class {cls}. Class must define {method!r}."
+            )
 
-        decorator = instrument_instance_method_call()
-        for name, method in instrumentable_methods(
-            cls,
-            exclude_methods=exclude_methods,
-        ):
-            setattr(cls, name, decorator(method))
-        return cls
+    decorator = instrument_instance_method_call()
 
-    return instrument
+    for name, method in instrumentable_methods(
+        cls,
+        exclude_methods=getattr(cls, "_events_excluded_methods", []),
+    ):
+        setattr(cls, name, decorator(method))
+    return cls
