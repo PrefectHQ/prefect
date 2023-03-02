@@ -217,7 +217,16 @@ def sync_compatible(async_fn: T) -> T:
 
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
-        if in_async_main_thread():
+        from prefect._internal.concurrency.api import create_call, from_sync
+        from prefect._internal.concurrency.supervisors import get_supervisor
+
+        supervisor = get_supervisor()
+        if supervisor and not is_async_fn(supervisor._call.fn):
+            # In a supervised call that is not async; send the async call to the parent
+            return from_sync.send_call_to_supervising_thread(
+                create_call(async_fn, *args, **kwargs)
+            ).result()
+        elif in_async_main_thread():
             # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
         elif in_async_worker_thread():
