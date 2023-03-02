@@ -22,6 +22,8 @@ def upgrade():
             "fk_flow_run__deployment_id__deployment", type_="foreignkey"
         )
 
+    op.execute("PRAGMA foreign_keys=ON")
+
 
 def downgrade():
     op.execute("PRAGMA foreign_keys=OFF")
@@ -33,3 +35,5 @@ def downgrade():
             ["deployment_id"],
             ["id"],
         )
+
+    op.execute("PRAGMA foreign_keys=ON")
