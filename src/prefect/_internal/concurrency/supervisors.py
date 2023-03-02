@@ -164,7 +164,7 @@ class Call(Generic[T]):
             return self.future.result()
 
     def __repr__(self) -> str:
-        name = self.fn.__name__
+        name = getattr(self.fn, "__name__", str(self.fn))
         call_args = ", ".join(
             [repr(arg) for arg in self.args]
             + [f"{key}={repr(val)}" for key, val in self.kwargs.items()]
