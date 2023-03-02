@@ -96,20 +96,54 @@ class Call(Generic[T]):
         """
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
+            logger.debug("Skipping execution of cancelled callback %s", self)
             return
 
-        logger.debug("Running call %s", self)
+        logger.debug("Running callback %s", self)
 
-        # Execute the work and set the result on the future
-        if inspect.iscoroutinefunction(self.fn):
+        coro = self._run_sync()
+        if coro is not None:
             if get_running_loop():
                 # If an event loop is available, return a coroutine to be awaited
-                return self._run_async()
+                return self._run_async(coro)
             else:
                 # Otherwise, execute the function here
-                return asyncio.run(self._run_async())
+                return asyncio.run(self._run_async(coro))
+
+        return None
+
+    def _run_sync(self):
+        try:
+            result = self.context.run(self.fn, *self.args, **self.kwargs)
+
+            # Return the coroutine for async execution
+            if inspect.isawaitable(result):
+                return result
+
+        except BaseException as exc:
+            self.future.set_exception(exc)
+            logger.debug("Encountered exception in callback %r", self)
+            # Prevent reference cycle in `exc`
+            del self
         else:
-            return self._run_sync()
+            self.future.set_result(result)
+            logger.debug("Finished callback %r", self)
+
+    async def _run_async(self, coro):
+        loop = asyncio.get_running_loop()
+        try:
+            # Run the coroutine in a new task to run with the correct async context
+            task = self.context.run(loop.create_task, coro)
+            result = await task
+
+        except BaseException as exc:
+            self.future.set_exception(exc)
+            # Prevent reference cycle in `exc`
+            logger.debug("Encountered exception %s in callback %r", exc, self)
+            del self
+        else:
+            self.future.set_result(result)
+            logger.debug("Finished callback %r", self)
 
     def __call__(self) -> T:
         """
@@ -117,8 +151,18 @@ class Call(Generic[T]):
 
         All executions during excecution of the call are re-raised.
         """
-        self.run()
-        return self.future.result()
+        coro = self.run()
+
+        # Return an awaitable if in an async context
+        if coro is not None:
+
+            async def run_and_return_result():
+                await coro
+                return self.future.result()
+
+            return run_and_return_result()
+        else:
+            return self.future.result()
 
     def __repr__(self) -> str:
         name = self.fn.__name__
@@ -135,39 +179,6 @@ class Call(Generic[T]):
 
     def __post_init__(self):
         logger.debug("Created call %r", self)
-
-    def _run_sync(self):
-        try:
-            result = self.context.run(self.fn, *self.args, **self.kwargs)
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            logger.debug("Encountered exception in call %r", self)
-            # Prevent reference cycle in `exc`
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished call %r", self)
-
-    async def _run_async(self):
-        loop = asyncio.get_running_loop()
-        try:
-            # Call the function in the context; this is not necessary if the function
-            # is a standard cortouine function but if it's a synchronous function that
-            # returns a coroutine we want to ensure the correct context is available
-            coro = self.context.run(self.fn, *self.args, **self.kwargs)
-
-            # Run the coroutine in a new task to run with the correct async context
-            task = self.context.run(loop.create_task, coro)
-            result = await task
-
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            # Prevent reference cycle in `exc`
-            logger.debug("Encountered exception %s in call %r", exc, self)
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished call %r", self)
 
 
 class Supervisor(abc.ABC, Generic[T]):

@@ -20,6 +20,14 @@ def fake_fn(*args, **kwargs):
     pass
 
 
+def identity(x):
+    return x
+
+
+async def aidentity(x):
+    return x
+
+
 def sleep_repeatedly(seconds: int):
     # Synchronous sleeps cannot be interrupted unless a signal is used, so we check
     # for cancellation between sleep calls
@@ -133,3 +141,19 @@ async def test_async_supervisor_timeout_in_main_thread():
         # to the main thread should have a timeout error
         with pytest.raises(asyncio.CancelledError):
             future.result()
+
+
+@pytest.mark.parametrize("fn", [identity, aidentity])
+def test_sync_call(fn):
+    call = Call.new(fn, 1)
+    assert call() == 1
+
+
+async def test_async_call_sync_function():
+    call = Call.new(identity, 1)
+    assert call() == 1
+
+
+async def test_async_call_async_function():
+    call = Call.new(aidentity, 1)
+    assert await call() == 1
