@@ -323,19 +323,7 @@ class ORMArtifactCollection:
         nullable=False,
     )
 
-    @declared_attr
-    def _key(cls):
-        return sa.orm.relationship(
-            "Artifact",
-            lazy="selectin",
-            primaryjoin="Artifact.key==%s.key" % cls.__name__,
-        )
-
-    @declared_attr
-    def latest_id(cls):
-        return sa.Column(
-            UUID(),
-        )
+    latest_id = sa.Column(UUID(), nullable=False)
 
     @declared_attr
     def __table_args__(cls):

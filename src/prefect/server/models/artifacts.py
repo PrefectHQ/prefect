@@ -11,27 +11,75 @@ from prefect.server.schemas.core import Artifact
 
 
 @inject_db
-async def create_artifact(
-    session: sa.orm.Session, artifact: Artifact, db: PrefectDBInterface, key: str = None
+async def _insert_into_artifact_collection(
+    session: sa.orm.Session,
+    key: str,
+    artifact_id: UUID,
+    db: PrefectDBInterface,
+    now: pendulum.DateTime = None,
 ):
-    now = pendulum.now("UTC")
-    artifact_id = artifact.id
+    """
+    Inserts a new artifact into the artifact collection table or updates it.
+    """
+    upsert_new_latest_id = (
+        (await db.insert(db.ArtifactCollection))
+        .values(
+            key=key,
+            latest_id=artifact_id,
+            created=now,
+            updated=now,
+        )
+        .on_conflict_do_update(
+            index_elements=db.artifact_collection_unique_upsert_columns,
+            set_=dict(
+                latest_id=artifact_id,
+                updated=now,
+            ),
+        )
+    )
 
-    if key is not None:
-        upsert_new_latest_id = (
-            (await db.insert(db.ArtifactCollection))
-            .values(key=key, artifact_id=artifact_id)
-            .on_conflict_do_update(
-                index_elements=db.artifact_collection_unique_upsert_columns,
-                set_={"latest_id": artifact_id},
+    await session.execute(upsert_new_latest_id)
+
+    query = (
+        sa.select(db.ArtifactCollection)
+        .where(
+            sa.and_(
+                db.ArtifactCollection.key == key,
+                db.ArtifactCollection.latest_id == artifact_id,
             )
         )
-        await session.execute(upsert_new_latest_id)
+        .execution_options(populate_existing=True)
+    )
+
+    result = await session.execute(query)
+
+    model = result.scalar()
+
+    if model is not None:
+        if model.latest_id != artifact_id:
+            raise ValueError(
+                f"Artifact {artifact_id} was not inserted into the artifact collection table."
+            )
+
+    return model
+
+
+@inject_db
+async def _insert_into_artifact(
+    session: sa.orm.Session,
+    artifact: Artifact,
+    db: PrefectDBInterface,
+    now: pendulum.DateTime = None,
+) -> Artifact:
+    """
+    Inserts a new artifact into the artifact table.
+    """
+    artifact_id = artifact.id
 
     insert_stmt = (await db.insert(db.Artifact)).values(
         created=now,
         updated=now,
-        **artifact.dict(exclude={"created", "updated"}, shallow=True)
+        **artifact.dict(exclude={"created", "updated"}, shallow=True),
     )
     await session.execute(insert_stmt)
 
@@ -43,9 +91,31 @@ async def create_artifact(
     )
 
     result = await session.execute(query)
+
     model = result.scalar()
 
     return model
+
+
+@inject_db
+async def create_artifact(
+    session: sa.orm.Session, artifact: Artifact, db: PrefectDBInterface, key: str = None
+):
+    now = pendulum.now("UTC")
+
+    if key is not None:
+        await _insert_into_artifact_collection(
+            session=session, key=key, now=now, db=db, artifact_id=artifact.id
+        )
+
+    result = await _insert_into_artifact(
+        session=session,
+        now=now,
+        db=db,
+        artifact=artifact,
+    )
+
+    return result
 
 
 @inject_db
@@ -59,6 +129,25 @@ async def read_artifact(
     """
 
     query = sa.select(db.Artifact).where(db.Artifact.id == artifact_id)
+
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@inject_db
+async def read_latest_artifact(
+    session: sa.orm.Session,
+    key: str,
+    db: PrefectDBInterface,
+):
+    """
+    Reads the latest artifact by key.
+    """
+    query = (
+        sa.select(db.ArtifactCollection)
+        .where(db.ArtifactCollection.key == key)
+        .limit(1)
+    )
 
     result = await session.execute(query)
     return result.scalar()

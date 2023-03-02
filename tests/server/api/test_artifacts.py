@@ -99,7 +99,7 @@ class TestCreateArtifact:
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["task_run_id"] == str(task_run.id)
 
-    async def test_create_artifact_raises_error_on_existing_key(
+    async def test_create_artifact_on_existing_key_succeeds(
         self,
         artifact,
         client,
@@ -114,7 +114,7 @@ class TestCreateArtifact:
             json=data,
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 201
 
 
 class TestReadArtifact:
@@ -335,14 +335,14 @@ class TestUpdateArtifact:
 
         response = await client.patch(
             f"/experimental/artifacts/{artifact_id}",
-            json={"data": {"new": "data"}},
+            json={"metadata_": {"new": "data"}},
         )
 
         assert response.status_code == 204
 
         response = await client.get(f"/experimental/artifacts/{artifact_id}")
         updated_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
-        assert updated_artifact.data == {"new": "data"}
+        assert updated_artifact.metadata_ == {"new": "data"}
         assert updated_artifact.key == artifact_key
         assert str(updated_artifact.flow_run_id) == artifact_flow_run_id
         assert updated_artifact.created < now
@@ -373,7 +373,7 @@ class TestUpdateArtifact:
     ):
         response = await client.patch(
             f"/experimental/artifacts/{str(uuid4())}",
-            json={"data": {"new": "data"}},
+            json={"metadata_": {"new": "data"}},
         )
 
         assert response.status_code == 404

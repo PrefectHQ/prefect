@@ -40,6 +40,7 @@ async def create_artifact(
 
     async with db.session_context(begin_transaction=True) as session:
         model = await models.artifacts.create_artifact(
+            key=artifact.key,
             session=session,
             artifact=artifact,
         )

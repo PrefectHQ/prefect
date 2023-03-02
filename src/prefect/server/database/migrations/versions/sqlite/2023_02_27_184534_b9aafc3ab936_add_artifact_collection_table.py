@@ -51,11 +51,6 @@ def upgrade():
         sa.Column(
             "latest_id", prefect.server.utilities.database.UUID(), nullable=False
         ),
-        sa.ForeignKeyConstraint(
-            ["latest_id"],
-            ["artifact.id"],
-            name=op.f("fk_artifact_collection__latest_id__artifact"),
-        ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_artifact_collection")),
     )
 
