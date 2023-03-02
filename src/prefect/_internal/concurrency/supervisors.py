@@ -68,6 +68,10 @@ def set_supervisor(supervisor: "Supervisor"):
 
 @dataclasses.dataclass
 class Call(Generic[T]):
+    """
+    A deferred function call; a convenience for transport.
+    """
+
     fn: Callable[..., T]
     args: Tuple
     kwargs: Dict[str, Any]
