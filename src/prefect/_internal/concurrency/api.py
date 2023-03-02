@@ -47,9 +47,7 @@ class _base(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def send_call_to_supervising_thread(
-        call: Call[T], timeout: Optional[float] = None
-    ) -> Future:
+    def send_call_to_supervising_thread(call: Call[T]) -> Future:
         """
         Call a function in the supervising thread.
 
@@ -93,9 +91,7 @@ class from_async(_base):
         return supervisor
 
     @staticmethod
-    def send_call_to_supervising_thread(
-        call: Call, timeout: Optional[float] = None
-    ) -> asyncio.Future:
+    def send_call_to_supervising_thread(call: Call) -> asyncio.Future:
         current_supervisor = get_supervisor()
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
@@ -136,9 +132,7 @@ class from_sync(_base):
         return supervisor
 
     @staticmethod
-    def send_call_to_supervising_thread(
-        call: Call, timeout: Optional[float] = None
-    ) -> concurrent.futures.Future:
+    def send_call_to_supervising_thread(call: Call) -> concurrent.futures.Future:
         current_supervisor = get_supervisor()
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
