@@ -94,8 +94,8 @@ def instrument_method_calls_on_class_instances(
     exclude_methods: Union[List[str], Set[str], None] = None,
 ) -> Type:
     def instrument(cls: Type):
-        """Given a Python class, instruments all "public" and "private" methods that are
-        defined directly on the class (excluding base class methods).
+        """Given a Python class, instruments all "public" methods that are
+        defined directly on the class to emit events when called.
 
         Examples:
 
@@ -105,10 +105,7 @@ def instrument_method_calls_on_class_instances(
                     ... this method will be instrumented ...
 
                 def _my_method(self):
-                    ... as will this ...
-
-        The tracer used to instrument the class will be the one defined for the class's
-        module.
+                    ... this method will not ...
         """
 
         required_events_methods = ["_event_kind", "_event_method_called_resources"]

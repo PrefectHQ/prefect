@@ -31,6 +31,7 @@ from prefect.client.utilities import inject_client
 from prefect.events.instrument import (
     ResourceTuple,
     emit_instance_method_called_event,
+    instrument_instance_method_call,
     instrument_method_calls_on_class_instances,
 )
 from prefect.logging.loggers import disable_logger
@@ -139,7 +140,11 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 
 
 @register_base_type
-@instrument_method_calls_on_class_instances(exclude_methods=["block_initialization"])
+@instrument_method_calls_on_class_instances(
+    # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
+    # decorated directly.
+    exclude_methods=["block_initialization", "save"]
+)
 class Block(BaseModel, ABC):
     """
         A base class for implementing a block that wraps an external service.
@@ -600,6 +605,7 @@ class Block(BaseModel, ABC):
         # this will emit a proxy event for the load method so that block
         # document data can be included instead of the event being about an
         # 'anonymous' block.
+
         emit_instance_method_called_event(block, "load", successful=True)
 
         return block
@@ -908,6 +914,7 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
+    @instrument_instance_method_call()
     async def save(
         self, name: str, overwrite: bool = False, client: "PrefectClient" = None
     ):
