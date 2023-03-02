@@ -28,6 +28,14 @@ async def aidentity(x):
     return x
 
 
+def raises(exc):
+    raise exc
+
+
+async def araises(exc):
+    raise exc
+
+
 def sleep_repeatedly(seconds: int):
     # Synchronous sleeps cannot be interrupted unless a signal is used, so we check
     # for cancellation between sleep calls
@@ -157,3 +165,23 @@ async def test_async_call_sync_function():
 async def test_async_call_async_function():
     call = Call.new(aidentity, 1)
     assert await call() == 1
+
+
+@pytest.mark.parametrize("fn", [raises, araises])
+def test_sync_call_with_exception(fn):
+    call = Call.new(fn, ValueError("test"))
+    with pytest.raises(ValueError, match="test"):
+        call()
+
+
+async def test_async_call_sync_function():
+    call = Call.new(raises, ValueError("test"))
+    with pytest.raises(ValueError, match="test"):
+        call()
+
+
+async def test_async_call_async_function():
+    call = Call.new(araises, ValueError("test"))
+    coro = call()  # should not raise
+    with pytest.raises(ValueError):
+        await coro
