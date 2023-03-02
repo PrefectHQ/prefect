@@ -11,6 +11,7 @@ from pydantic import AnyHttpUrl, Field, SecretStr
 from typing_extensions import Literal
 
 from prefect.blocks.abstract import NotificationBlock
+from prefect.events.instrument import instrument_instance_method_call
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -59,6 +60,7 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         self._start_apprise_client(self.url)
 
     @sync_compatible
+    @instrument_instance_method_call()
     async def notify(self, body: str, subject: Optional[str] = None):
         await self._apprise_client.async_notify(
             body=body, title=subject, notify_type=self.notify_type

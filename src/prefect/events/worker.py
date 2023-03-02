@@ -3,7 +3,7 @@ import atexit
 import concurrent.futures
 import threading
 from contextlib import asynccontextmanager, contextmanager
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, Union
 
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
@@ -56,7 +56,7 @@ class EventsWorker:
 
                 await self._client.emit(event)
 
-    def _enqueue(self, value: Optional[Event]):
+    def _enqueue(self, value: Union[Event, None]):
         call_soon_in_loop(self._loop, self._queue.put_nowait, value)
 
     def start(self):
