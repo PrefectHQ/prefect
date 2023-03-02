@@ -167,4 +167,4 @@ class from_sync(_base):
         else:
             submit_fn = current_supervisor.submit_to_supervisor
 
-        return submit_fn(call.fn, *call.args, *call.kwargs)
+        return submit_fn(call.fn, *call.args, **call.kwargs)
