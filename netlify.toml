@@ -171,7 +171,7 @@ Content-Security-Policy = """\
         https://cdn.segment.com/ \
         https://cdn.segment.prefect.io \
         https://www.googletagmanager.com \
-        https://unpkg.com/mermaid \
+        https://unpkg.com \
         ; \
       style-src \
         'self' \
