@@ -351,7 +351,9 @@ def setup_signal_handlers_server(pid: int, process_name: str, print_fn: Callable
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
+    # when server receives a signal, it needs to be propagated to the uvicorn subprocess
     if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
         # https://bugs.python.org/issue26350
         setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
     else:
@@ -369,6 +371,7 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: Callable)
     # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
     # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
     if sys.platform == "win32":
+        # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
         # https://bugs.python.org/issue26350
         setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
     else:

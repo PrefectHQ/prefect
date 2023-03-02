@@ -607,7 +607,7 @@ class KubernetesJob(Infrastructure):
 
         # Calculate the deadline before streaming output
         deadline = (
-            (time.time() + self.job_watch_timeout_seconds)
+            (time.monotonic() + self.job_watch_timeout_seconds)
             if self.job_watch_timeout_seconds is not None
             else None
         )
@@ -627,7 +627,9 @@ class KubernetesJob(Infrastructure):
 
                         # Check if we have passed the deadline and should stop streaming
                         # logs
-                        remaining_time = deadline - time.time() if deadline else None
+                        remaining_time = (
+                            deadline - time.monotonic() if deadline else None
+                        )
                         if deadline and remaining_time <= 0:
                             break
 
@@ -649,7 +651,7 @@ class KubernetesJob(Infrastructure):
             completed = job.status.completion_time is not None
 
             while not completed:
-                remaining_time = deadline - time.time() if deadline else None
+                remaining_time = deadline - time.monotonic() if deadline else None
                 if deadline and remaining_time <= 0:
                     self.logger.error(
                         f"Job {job_name!r}: Job did not complete within "
