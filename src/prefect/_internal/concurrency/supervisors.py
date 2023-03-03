@@ -130,19 +130,25 @@ class Call(Generic[T]):
 
     async def _run_async(self, coro):
         loop = asyncio.get_running_loop()
-        try:
-            # Run the coroutine in a new task to run with the correct async context
-            task = self.context.run(loop.create_task, coro)
-            result = await task
 
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            # Prevent reference cycle in `exc`
-            logger.debug("Encountered exception %s in callback %r", exc, self)
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished callback %r", self)
+        # When using `loop.create_task`, base exceptions can be thrown in the event
+        # loop instead of being raised here and attached to the future so we must wrap
+        # the coroutine with another that eats up the exception
+        async def capture_result(self: Call):
+            try:
+                result = await coro
+            except BaseException as exc:
+                self.future.set_exception(exc)
+                # Prevent reference cycle in `exc`
+                logger.debug("Encountered exception %s in call %r", exc, self)
+                del self
+            else:
+                self.future.set_result(result)
+                logger.debug("Finished call %r", self)
+
+        # Run the coroutine in a new task to run with the correct async context
+        task = self.context.run(loop.create_task, capture_result(self))
+        await task
 
     def __call__(self) -> T:
         """
@@ -272,10 +278,11 @@ class Supervisor(abc.ABC, Generic[T]):
             with cancel_sync_after(self._timeout):
                 retval = fn(*args, **kwargs)
 
-            # Enforce timeouts on asynchronous execution
+            # Add supervision to returned coroutines
             if inspect.isawaitable(retval):
 
                 async def _call_in_supervised_coro():
+                    # Enforce timeouts on asynchronous execution
                     with cancel_async_at(deadline):
                         return await retval
 

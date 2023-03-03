@@ -8,12 +8,14 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.executor import Executor
 from prefect._internal.concurrency.primitives import Event
+from prefect.logging import get_logger
 
 T = TypeVar("T")
 P = ParamSpec("P")
 
 
 threadlocals = threading.local()
+logger = get_logger("prefect._internal.concurrency.runtime")
 
 
 def _initialize_worker_process():
@@ -71,7 +73,15 @@ class RuntimeThread(threading.Thread):
                 self._ready_future.set_exception(exc)
                 return
 
-            await self._shutdown_event.wait()
+            try:
+                await self._shutdown_event.wait()
+            except BaseException as exc:
+                # Log exceptions that crash the runtime thread
+                logger.exception("Runtime thread encountered exception")
+            finally:
+                # Clear the thread from the cache on shutdown so a new one can be made
+                global RUNTIME_THREAD
+                RUNTIME_THREAD = None
 
     def submit_to_worker_process(
         self, __fn, *args, **kwargs
