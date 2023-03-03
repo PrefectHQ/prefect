@@ -443,12 +443,7 @@ class ORMFlowRun(ORMRun):
             index=True,
         )
 
-    @declared_attr
-    def deployment_id(cls):
-        return sa.Column(
-            UUID(),
-        )
-
+    deployment_id = sa.Column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
