@@ -237,30 +237,26 @@ class AsyncSupervisor(Supervisor[T]):
 
     async def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to %r", self)
+        tasks = []
+
         while True:
             callback: Call = await self._queue.get()
             if callback is None:
                 break
 
-            # TODO: We could use `cancel_sync_after` to guard this call as a sync call
-            #       could block a timeout here
             retval = callback.run()
-
             if inspect.isawaitable(retval):
-                await retval
+                tasks.append(retval)
 
             del callback
 
-    async def result(self) -> T:
-        if not self._call.future:
-            raise ValueError("No future being supervised.")
+        # Tasks are collected and awaited as a group; if each task was awaited in the
+        # above loop, async work would not be executed concurrently
+        await asyncio.gather(*tasks)
 
-        future = (
-            # Convert to an asyncio future if necessary for non-blocking wait
-            asyncio.wrap_future(self._call.future)
-            if isinstance(self._call.future, concurrent.futures.Future)
-            else self._call.future
-        )
+    async def result(self) -> T:
+        # Wrap the future for a non-blocking wait
+        future = asyncio.wrap_future(self._call.future)
 
         # Stop watching for work once the future is done
         future.add_done_callback(
