@@ -131,9 +131,10 @@ class Call(Generic[T]):
     async def _run_async(self, coro):
         loop = asyncio.get_running_loop()
 
-        # When using `loop.create_task`, base exceptions can be thrown in the event
-        # loop instead of being raised here and attached to the future so we must wrap
-        # the coroutine with another that eats up the exception
+        # When using `loop.create_task`, interrupts are thrown in the event loop
+        # instead of being sent back to the task handle so we must wrap the coroutine
+        # with another that eats up the exception
+        # ref https://github.com/python/cpython/blob/4e7c0cbf59595714848cf9827f6e5b40c3985924/Lib/asyncio/events.py#L85-L86
         async def capture_result(self: Call):
             try:
                 result = await coro
