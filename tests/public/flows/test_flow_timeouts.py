@@ -18,7 +18,7 @@ def test_sync_flow_timeout():
     t1 = time.monotonic()
     runtime = t1 - t0
 
-    assert runtime < 3, "Flow should exit early; ran for {runtime}s"
+    assert runtime < 3, f"Flow should exit early; ran for {runtime}s"
     assert state.is_failed()
     with pytest.raises(TimeoutError):
         state.result()
@@ -34,7 +34,7 @@ async def test_async_flow_timeout():
     t1 = time.monotonic()
     runtime = t1 - t0
 
-    assert runtime < 3, "Flow should exit early; ran for {runtime}s"
+    assert runtime < 3, f"Flow should exit early; ran for {runtime}s"
     assert state.is_failed()
     with pytest.raises(TimeoutError):
         await state.result()
@@ -56,7 +56,7 @@ def test_sync_flow_timeout_in_sync_flow():
 
     runtime, flow_state = parent_flow()
 
-    assert runtime < 3, "Flow should exit early; ran for {runtime}s"
+    assert runtime < 3, f"Flow should exit early; ran for {runtime}s"
     assert flow_state.is_failed()
     with pytest.raises(TimeoutError):
         flow_state.result()
@@ -118,7 +118,7 @@ async def test_async_flow_timeout_in_async_flow():
 
     runtime, flow_state = await parent_flow()
 
-    assert runtime < 1, "Flow should exit early; ran for {runtime}s"
+    assert runtime < 1, f"Flow should exit early; ran for {runtime}s"
     assert flow_state.is_failed()
     with pytest.raises(TimeoutError):
         await flow_state.result()
