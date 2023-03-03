@@ -58,7 +58,16 @@ class RuntimeThread(threading.Thread):
 
         Immediately create a new event loop and pass control to `run_until_shutdown`.
         """
-        asyncio.run(self._run_until_shutdown())
+        try:
+            asyncio.run(self._run_until_shutdown())
+        except BaseException as exc:
+            # Log exceptions that crash the runtime thread
+            logger.exception("Runtime thread encountered exception")
+            raise
+        finally:
+            # Clear the thread from the cache on shutdown so a new one can be made
+            global RUNTIME_THREAD
+            RUNTIME_THREAD = None
 
     async def _run_until_shutdown(self):
         threadlocals.is_runtime = True
@@ -73,15 +82,7 @@ class RuntimeThread(threading.Thread):
                 self._ready_future.set_exception(exc)
                 return
 
-            try:
-                await self._shutdown_event.wait()
-            except BaseException as exc:
-                # Log exceptions that crash the runtime thread
-                logger.exception("Runtime thread encountered exception")
-            finally:
-                # Clear the thread from the cache on shutdown so a new one can be made
-                global RUNTIME_THREAD
-                RUNTIME_THREAD = None
+            await self._shutdown_event.wait()
 
     def submit_to_worker_process(
         self, __fn, *args, **kwargs

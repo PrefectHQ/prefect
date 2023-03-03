@@ -62,7 +62,7 @@ def test_sync_supervisor_timeout_in_worker_thread():
         supervisor = SyncSupervisor(
             Call.new(sleep_repeatedly, 1), submit_fn=executor.submit, timeout=0.1
         )
-        future = supervisor.submit()
+        future = supervisor.start()
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
@@ -90,7 +90,7 @@ def test_sync_supervisor_timeout_in_main_thread():
         supervisor = SyncSupervisor(
             Call.new(on_worker_thread), submit_fn=executor.submit, timeout=0.1
         )
-        supervisor.submit()
+        supervisor.start()
 
         t0 = time.time()
         future = supervisor.result()
@@ -111,7 +111,7 @@ async def test_async_supervisor_timeout_in_worker_thread():
         supervisor = AsyncSupervisor(
             Call.new(sleep_repeatedly, 1), submit_fn=executor.submit, timeout=0.1
         )
-        future = supervisor.submit()
+        future = supervisor.start()
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
@@ -136,7 +136,7 @@ async def test_async_supervisor_timeout_in_main_thread():
         supervisor = AsyncSupervisor(
             Call.new(on_worker_thread), submit_fn=executor.submit, timeout=0.1
         )
-        supervisor.submit()
+        supervisor.start()
 
         t0 = time.time()
         future = await supervisor.result()

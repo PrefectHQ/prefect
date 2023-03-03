@@ -95,10 +95,10 @@ class Call(Generic[T]):
         """
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
-            logger.debug("Skipping execution of cancelled callback %s", self)
+            logger.debug("Skipping execution of cancelled call %r", self)
             return
 
-        logger.debug("Running callback %s", self)
+        logger.debug("Running call %r", self)
 
         coro = self._run_sync()
         if coro is not None:
@@ -106,9 +106,13 @@ class Call(Generic[T]):
             if loop:
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
+                logger.debug(
+                    "Executing coroutine for call %r in running loop %r", self, loop
+                )
                 return self.context.run(loop.create_task, self._run_async(coro))
             else:
                 # Otherwise, execute the function here
+                logger.debug("Executing coroutine for call %r in new loop", self)
                 return self.context.run(asyncio.run, self._run_async(coro))
 
         return None
@@ -123,24 +127,24 @@ class Call(Generic[T]):
 
         except BaseException as exc:
             self.future.set_exception(exc)
-            logger.debug("Encountered exception in callback %r", self)
-            # Prevent reference cycle in `exc`
-            del self
-        else:
-            self.future.set_result(result)
-            logger.debug("Finished callback %r", self)
-
-    async def _run_async(self, coro):
-        try:
-            result = await coro
-        except BaseException as exc:
-            self.future.set_exception(exc)
-            logger.debug("Encountered exception %s in call %r", exc, self)
+            logger.debug("Encountered exception in call %r", self)
             # Prevent reference cycle in `exc`
             del self
         else:
             self.future.set_result(result)
             logger.debug("Finished call %r", self)
+
+    async def _run_async(self, coro):
+        try:
+            result = await coro
+        except BaseException as exc:
+            logger.debug("Encountered exception %s in async call %r", exc, self)
+            self.future.set_exception(exc)
+            # Prevent reference cycle in `exc`
+            del self
+        else:
+            self.future.set_result(result)
+            logger.debug("Finished async call %r", self)
 
     def __call__(self) -> T:
         """
@@ -174,9 +178,6 @@ class Call(Generic[T]):
 
         return f"{name}({call_args})"
 
-    def __post_init__(self):
-        logger.debug("Created call %r", self)
-
 
 class Supervisor(abc.ABC, Generic[T]):
     """
@@ -190,6 +191,7 @@ class Supervisor(abc.ABC, Generic[T]):
         call: Call[T],
         submit_fn: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
+        allow_callbacks: bool = True,
     ) -> None:
         if not isinstance(call, Call):
             # This is a common mistake
@@ -197,6 +199,7 @@ class Supervisor(abc.ABC, Generic[T]):
 
         self._call = call
         self._submit_fn = submit_fn
+        self.allow_callbacks = allow_callbacks
         self._owner_thread = threading.current_thread()
         self._future: Optional[concurrent.futures.Future] = None
         self._future_call: Tuple[Callable, Tuple, Dict] = None
@@ -206,11 +209,9 @@ class Supervisor(abc.ABC, Generic[T]):
         self._worker_thread_future = concurrent.futures.Future()
         self._deadline_future = concurrent.futures.Future()
 
-        logger.debug("Created supervisor %r", self)
-
-    def submit(self) -> concurrent.futures.Future:
+    def start(self) -> concurrent.futures.Future:
         """
-        Submit the call to the worker.
+        Start the supervisor.
 
         The supervisor will use the `submit_fn` from initialization to send the call to
         the worker. It will wrap the call to provide supervision.
@@ -218,7 +219,7 @@ class Supervisor(abc.ABC, Generic[T]):
         This method may only be called once per supervisor.
         """
         if self._future:
-            raise RuntimeError("A supervisor's call can only be submitted once.")
+            raise RuntimeError("A supervisor can only be started once.")
 
         with set_supervisor(self):
             future = self._submit_fn(
@@ -228,7 +229,7 @@ class Supervisor(abc.ABC, Generic[T]):
             )
 
         self._future = future
-        logger.debug("Call for supervisor %r submitted", self)
+        logger.debug("Started supervisor %r", self)
 
         return future
 
@@ -236,8 +237,11 @@ class Supervisor(abc.ABC, Generic[T]):
         """
         Send a call to the supervisor thread from a worker thread.
         """
+        if not self.allow_callbacks:
+            raise RuntimeError("Supervisor does not allow callbacks.")
+
         self.put_call(call)
-        logger.debug("Sent call back to supervisor %r", self)
+        logger.debug("Sent call %r to supervisor %r", call, self)
         return call.future
 
     def submit_to_supervisor(self, __fn, *args, **kwargs) -> concurrent.futures.Future:
@@ -323,7 +327,7 @@ class SyncSupervisor(Supervisor[T]):
         self._queue.put_nowait(callback)
 
     def _watch_for_callbacks(self):
-        logger.debug("Watching for work sent to supervisor %r", self)
+        logger.debug("Watching for calls sent to supervisor %r", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
@@ -360,8 +364,14 @@ class AsyncSupervisor(Supervisor[T]):
         call: Call[T],
         submit_fn: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
+        allow_callbacks: bool = True,
     ) -> None:
-        super().__init__(call=call, submit_fn=submit_fn, timeout=timeout)
+        super().__init__(
+            call=call,
+            submit_fn=submit_fn,
+            timeout=timeout,
+            allow_callbacks=allow_callbacks,
+        )
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
         self.is_async = True
@@ -371,7 +381,10 @@ class AsyncSupervisor(Supervisor[T]):
         call_soon_in_loop(self._loop, self._queue.put_nowait, callback)
 
     async def _watch_for_callbacks(self):
-        logger.debug("Watching for work sent to %r", self)
+        if not self.allow_callbacks:
+            return
+
+        logger.debug("Watching for calls sent to %r", self)
         tasks = []
 
         while True:
@@ -416,4 +429,13 @@ class AsyncSupervisor(Supervisor[T]):
                 raise
 
         logger.debug("Supervisor %r retrieving result of future %r", self, future)
-        return await future
+        try:
+            result = await future
+        except asyncio.CancelledError:
+            # If the asyncio future is cancelled, raise the result of the real future
+            # which
+            if self._future.done():
+                self._future.result()
+            raise
+
+        return result

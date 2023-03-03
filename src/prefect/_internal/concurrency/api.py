@@ -66,17 +66,10 @@ class from_async(_base):
     ) -> AsyncSupervisor[Awaitable[T]]:
         current_supervisor = get_supervisor()
         runtime = get_runtime_thread()
-
-        if (
-            current_supervisor is None
-            or current_supervisor.owner_thread.ident != runtime.ident
-        ):
-            submit_fn = runtime.submit_to_loop
-        else:
-            submit_fn = current_supervisor.submit_to_supervisor
+        submit_fn = runtime.submit_to_loop
 
         supervisor = AsyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.submit()
+        supervisor.start()
         return supervisor
 
     @staticmethod
@@ -87,7 +80,7 @@ class from_async(_base):
         supervisor = AsyncSupervisor(
             call, runtime.submit_to_worker_thread, timeout=timeout
         )
-        supervisor.submit()
+        supervisor.start()
         return supervisor
 
     @staticmethod
@@ -99,9 +92,12 @@ class from_async(_base):
             raise RuntimeError("No supervisor found.")
 
         supervisor = AsyncSupervisor(
-            call, submit_fn=current_supervisor.submit_to_supervisor, timeout=timeout
+            call,
+            submit_fn=current_supervisor.submit_to_supervisor,
+            timeout=timeout,
+            allow_callbacks=False,
         )
-        supervisor.submit()
+        supervisor.start()
         return supervisor
 
     @staticmethod
@@ -121,17 +117,10 @@ class from_sync(_base):
     ) -> SyncSupervisor[T]:
         current_supervisor = get_supervisor()
         runtime = get_runtime_thread()
-
-        if (
-            current_supervisor is None
-            or current_supervisor.owner_thread.ident != runtime.ident
-        ):
-            submit_fn = runtime.submit_to_loop
-        else:
-            submit_fn = current_supervisor.submit_to_supervisor
+        submit_fn = runtime.submit_to_loop
 
         supervisor = SyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.submit()
+        supervisor.start()
         return supervisor
 
     @staticmethod
@@ -142,7 +131,7 @@ class from_sync(_base):
         supervisor = SyncSupervisor(
             call, runtime.submit_to_worker_thread, timeout=timeout
         )
-        supervisor.submit()
+        supervisor.start()
         return supervisor
 
     @staticmethod

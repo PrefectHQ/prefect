@@ -207,7 +207,7 @@ def event_loop(request):
 
     # configure asyncio logging to capture long running tasks
     asyncio_logger = logging.getLogger("asyncio")
-    asyncio_logger.setLevel("WARNING")
+    asyncio_logger.setLevel("DEBUG")
     asyncio_logger.addHandler(logging.StreamHandler())
     loop.set_debug(True)
     loop.slow_callback_duration = 0.25
