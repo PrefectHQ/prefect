@@ -102,12 +102,13 @@ class Call(Generic[T]):
 
         coro = self._run_sync()
         if coro is not None:
-            if get_running_loop():
-                # If an event loop is available, return a coroutine to be awaited
-                return self._run_async(coro)
+            loop = get_running_loop()
+            if loop:
+                # If an event loop is available, return a task to be awaited
+                return self.context.run(loop.create_task, self._run_async(coro))
             else:
                 # Otherwise, execute the function here
-                return asyncio.run(self._run_async(coro))
+                return self.context.run(asyncio.run, self._run_async(coro))
 
         return None
 
@@ -129,27 +130,21 @@ class Call(Generic[T]):
             logger.debug("Finished callback %r", self)
 
     async def _run_async(self, coro):
-        loop = asyncio.get_running_loop()
-
         # When using `loop.create_task`, interrupts are thrown in the event loop
         # instead of being sent back to the task handle so we must wrap the coroutine
         # with another that eats up the exception
         # ref https://github.com/python/cpython/blob/4e7c0cbf59595714848cf9827f6e5b40c3985924/Lib/asyncio/events.py#L85-L86
-        async def capture_result(self: Call):
-            try:
-                result = await coro
-            except BaseException as exc:
-                self.future.set_exception(exc)
-                # Prevent reference cycle in `exc`
-                logger.debug("Encountered exception %s in call %r", exc, self)
-                del self
-            else:
-                self.future.set_result(result)
-                logger.debug("Finished call %r", self)
 
-        # Run the coroutine in a new task to run with the correct async context
-        task = self.context.run(loop.create_task, capture_result(self))
-        await task
+        try:
+            result = await coro
+        except BaseException as exc:
+            self.future.set_exception(exc)
+            logger.debug("Encountered exception %s in call %r", exc, self)
+            # Prevent reference cycle in `exc`
+            del self
+        else:
+            self.future.set_result(result)
+            logger.debug("Finished call %r", self)
 
     def __call__(self) -> T:
         """
@@ -381,19 +376,22 @@ class AsyncSupervisor(Supervisor[T]):
 
     async def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to %r", self)
+        tasks = []
+
         while True:
             callback: Call = await self._queue.get()
             if callback is None:
                 break
 
-            # TODO: We could use `cancel_sync_after` to guard this call as a sync call
-            #       could block a timeout here
             retval = callback.run()
-
             if inspect.isawaitable(retval):
-                await retval
+                tasks.append(retval)
 
             del callback
+
+        # Tasks are collected and awaited as a group; if each task was awaited in the
+        # above loop, async work would not be executed concurrently
+        await asyncio.gather(*tasks)
 
     async def result(self) -> T:
         if not self._future:

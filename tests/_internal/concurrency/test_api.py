@@ -116,6 +116,35 @@ async def test_from_async_send_call_to_supervising_thread_from_runtime(work):
     assert await supervisor.result() == 2
 
 
+async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_concurrency():
+    last_task_run = None
+
+    async def sleep_then_set(n):
+        # Sleep for an inverse amount so later tasks sleep less
+        print(f"Starting task {n}")
+        await asyncio.sleep(1 / (n * 100))
+        nonlocal last_task_run
+        last_task_run = n
+        print(f"Finished task {n}")
+
+    async def from_runtime():
+        futures = []
+        futures.append(
+            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 1))
+        )
+        futures.append(
+            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 2))
+        )
+        futures.append(
+            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 3))
+        )
+        await asyncio.gather(*futures)
+        return last_task_run
+
+    supervisor = from_async.supervise_call_in_runtime_thread(create_call(from_runtime))
+    assert await supervisor.result() == 1
+
+
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_from_sync_send_call_to_supervising_thread_from_runtime(work):
     async def from_runtime():
