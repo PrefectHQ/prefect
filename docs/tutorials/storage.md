@@ -126,7 +126,7 @@ What did we do here? Let's break down the command:
 -  `./log_flow.py:log_flow` specifies the location of the flow script file and the name of the entrypoint flow function, separated by a colon.
 - `-n log-flow-s3` specifies a name for the deployment. For ease of identification, the name includes a reference to the S3 storage.
 - `-sb s3/log-test` specifies a storage block by type and name.
-- `-q test` specifies a work pool for the deployment. Work pools direct scheduled runs to agents.
+- `-q test` specifies a work queue for the deployment. Work pools direct scheduled runs to agents. Since we didn't specify a work pool with `-p`, the default work pool will be used. 
 - `-o log-flow-s3-deployment.yaml` specifies the name for the deployment YAML file. We do this to create a new deployment file rather than overwriting the previous one.
 
 In deployments, storage blocks are always referenced by name in the format `type/name`, with `type` and `name` separated by a forward slash. 
