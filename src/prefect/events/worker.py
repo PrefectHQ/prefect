@@ -127,7 +127,7 @@ def get_worker_from_settings() -> EventsWorker:
         return EventsWorker(
             PrefectCloudEventsClient,
             {
-                "api_url": PREFECT_CLOUD_API_URL.value(),
+                "api_url": PREFECT_API_URL.value(),
                 "api_key": PREFECT_API_KEY.value(),
             },
         )
