@@ -105,6 +105,7 @@ class Call(Generic[T]):
             loop = get_running_loop()
             if loop:
                 # If an event loop is available, return a task to be awaited
+                # Note we must create a task for context variables to propagate
                 return self.context.run(loop.create_task, self._run_async(coro))
             else:
                 # Otherwise, execute the function here
@@ -130,11 +131,6 @@ class Call(Generic[T]):
             logger.debug("Finished callback %r", self)
 
     async def _run_async(self, coro):
-        # When using `loop.create_task`, interrupts are thrown in the event loop
-        # instead of being sent back to the task handle so we must wrap the coroutine
-        # with another that eats up the exception
-        # ref https://github.com/python/cpython/blob/4e7c0cbf59595714848cf9827f6e5b40c3985924/Lib/asyncio/events.py#L85-L86
-
         try:
             result = await coro
         except BaseException as exc:
