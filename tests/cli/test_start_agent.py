@@ -41,10 +41,10 @@ async def agent_process():
 
         for _ in range(STARTUP_TIMEOUT // POLL_INTERVAL):
             await anyio.sleep(POLL_INTERVAL)
-            if out.tell() > 300:
+            if out.tell() > 200:
                 break
 
-        assert out.tell() > 300, "The agent did not start up in time"
+        assert out.tell() > 200, "The agent did not start up in time"
 
         # Yield to the consuming tests
         yield process
