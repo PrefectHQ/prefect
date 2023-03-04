@@ -9,6 +9,8 @@ import pytest
 from prefect.settings import get_current_settings
 from prefect.utilities.processutils import open_process
 
+POLL_INTERVAL = 0.5
+STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
 
 
@@ -37,12 +39,12 @@ async def agent_process():
     ) as process:
         process.out = out
 
-        for _ in range(20):
-            await anyio.sleep(0.5)
-            if out.tell() > 100:
+        for _ in range(STARTUP_TIMEOUT // POLL_INTERVAL):
+            await anyio.sleep(POLL_INTERVAL)
+            if out.tell() > 300:
                 break
 
-        assert out.tell() > 100, "The agent did not start up in time"
+        assert out.tell() > 300, "The agent did not start up in time"
 
         # Yield to the consuming tests
         yield process
