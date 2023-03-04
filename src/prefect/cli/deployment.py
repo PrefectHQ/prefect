@@ -1077,6 +1077,9 @@ async def build(
     if parameters:
         init_kwargs["parameters"] = parameters
 
+    if description:
+        init_kwargs["description"] = description
+
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server
     if schedule:
@@ -1094,7 +1097,6 @@ async def build(
     deployment = await Deployment.build_from_flow(
         flow=flow,
         name=name,
-        description=description,
         output=deployment_loc,
         skip_upload=skip_upload,
         apply=False,

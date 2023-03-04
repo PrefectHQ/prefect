@@ -65,7 +65,8 @@ class AssertingEventsClient(EventsClient):
 
     @classmethod
     def reset(cls) -> None:
-        """Reset all captured instances and their events.  For use this between tests"""
+        """Reset all captured instances and their events. For use between
+        tests"""
         cls.last = None
         cls.all = []
 

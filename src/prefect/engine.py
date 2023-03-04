@@ -41,6 +41,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.events.worker import async_get_events_worker
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -100,7 +101,10 @@ from prefect.utilities.asyncutils import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import (
+    get_parameter_defaults,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -311,6 +315,9 @@ async def retrieve_flow_then_begin_flow_run(
     else:
         parameters = flow_run.parameters
 
+    # Ensure default values are populated
+    parameters = {**get_parameter_defaults(flow.fn), **parameters}
+
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
@@ -371,6 +378,10 @@ async def begin_flow_run(
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
             flow, client=client
+        )
+
+        flow_run_context.events = await stack.enter_async_context(
+            async_get_events_worker()
         )
 
         if log_prints:
