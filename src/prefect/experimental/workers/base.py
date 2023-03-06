@@ -207,7 +207,7 @@ class BaseWorker(abc.ABC):
         return cls._description
 
     @classmethod
-    def get_default_base_job_configuration(cls) -> Dict:
+    def get_default_base_job_template(cls) -> Dict:
         if cls.job_configuration_variables is None:
             schema = cls.job_configuration.schema()
             # remove "template" key from all dicts in schema['properties'] because it is not a
@@ -320,7 +320,7 @@ class BaseWorker(abc.ABC):
         # once the work pool is loaded, verify that it has a `base_job_template` and
         # set it if not
         if not work_pool.base_job_template:
-            job_template = self.__class__.get_default_base_job_configuration()
+            job_template = self.__class__.get_default_base_job_template()
             await self._set_work_pool_template(work_pool, job_template)
             work_pool.base_job_template = job_template
 
