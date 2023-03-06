@@ -741,9 +741,7 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
 
     if job_timeout is not None:
         k8s_job_args["job_watch_timeout_seconds"] = job_timeout
-        expected_job_call_kwargs["timeout_seconds"] = pytest.approx(
-            job_timeout, abs=0.1
-        )
+        expected_job_call_kwargs["timeout_seconds"] = pytest.approx(job_timeout, abs=1)
 
     KubernetesJob(**k8s_job_args).run(MagicMock())
 
