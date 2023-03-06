@@ -5,12 +5,39 @@ import time
 import pytest
 
 from prefect._internal.concurrency.timeouts import (
+    CancelContext,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
     cancel_sync_at,
     get_deadline,
 )
+
+
+async def test_cancel_context():
+    ctx = CancelContext(timeout=1)
+    assert not ctx.cancelled
+    ctx.mark_cancelled()
+    assert ctx.cancelled
+
+
+async def test_cancel_context_chain():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2)
+    assert not ctx2.cancelled
+    ctx1.mark_cancelled()
+    assert ctx1.cancelled
+    assert ctx2.cancelled
+
+
+async def test_cancel_context_chain_cancelled_first():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.mark_cancelled()
+    ctx1.chain(ctx2)
+    assert ctx1.cancelled
+    assert ctx2.cancelled
 
 
 async def test_cancel_async_after():
