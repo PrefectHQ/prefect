@@ -20,7 +20,7 @@
         </ExtraInfoModal>
       </template>
       <template #task-inputs>
-        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+        <CopyableWrapper v-if="taskRun" :text-to-copy="parameters">
           <p-code-highlight lang="json" :text="parameters" class="task-run__inputs" />
         </CopyableWrapper>
       </template>
