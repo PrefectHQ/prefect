@@ -54,7 +54,7 @@ async def start(
                 f"Discovered worker type {worker_type!r} for work pool"
                 f" {work_pool.name!r}."
             )
-        Worker = lookup_type(BaseWorker, worker_type)
+        worker_cls = lookup_type(BaseWorker, worker_type)
     except KeyError:
         # TODO: Use collection registry info to direct users on how to install the worker type
         exit_with_error(
@@ -63,14 +63,11 @@ async def start(
         )
     except ObjectNotFound:
         exit_with_error(
-            f"Unable to join work pool. Work pool {work_pool_name!r} does not "
-            "exist and a worker type was not provided.\nIf you want the worker "
-            f"to create a new work pool named {work_pool_name!r}, please "
-            "run your worker start command again with the --type option "
-            "provided."
+            f"Work pool {work_pool_name!r} does not exist. To create a new work pool "
+            "on worker startup, include a worker type with the --type option."
         )
 
-    async with Worker(
+    async with worker_cls(
         name=worker_name,
         work_pool_name=work_pool_name,
         limit=limit,

@@ -217,10 +217,7 @@ async def test_worker_errors_if_no_type_and_non_existent_work_pool():
         ],
         expected_code=1,
         expected_output_contains=[
-            f"Unable to join work pool. Work pool 'not-here' does not "
-            f"exist and a worker type was not provided.\nIf you want the worker "
-            f"to create a new work pool named 'not-here', please "
-            f"run your worker start command again with the --type option "
-            f"provided."
+            "Work pool 'not-here' does not exist. To create a new work pool "
+            "on worker startup, include a worker type with the --type option."
         ],
     )
