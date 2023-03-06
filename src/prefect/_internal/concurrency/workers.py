@@ -183,7 +183,7 @@ class WorkerThread(Worker):
         )
         self._ready_future = concurrent.futures.Future()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._shutdown_event: Optional[Event] = None
+        self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
         self._submitted_count: int = 0
 
@@ -204,7 +204,7 @@ class WorkerThread(Worker):
                 "Worker configured to only run once. A call has already been submitted."
             )
 
-        if not self._shutdown_event:
+        if self._loop is None:
             self.start()
 
         if self._shutdown_event.is_set():
@@ -218,6 +218,9 @@ class WorkerThread(Worker):
         return call
 
     def shutdown(self) -> None:
+        """
+        Shutdown the worker thread. Does not wait for the thread to stop.
+        """
         if not self._shutdown_event:
             return
 
@@ -240,7 +243,6 @@ class WorkerThread(Worker):
     async def _run_until_shutdown(self):
         try:
             self._loop = asyncio.get_running_loop()
-            self._shutdown_event = Event()
             self._ready_future.set_result(True)
         except Exception as exc:
             self._ready_future.set_exception(exc)
