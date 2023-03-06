@@ -154,8 +154,7 @@ class DeploymentCreate(ActionBaseModel):
         if variables_schema is not None:
             schema = {
                 "type": "object",
-                "properties": variables_schema["properties"],
-                "required": variables_schema["required"],
+                **variables_schema,
             }
             jsonschema.validate(self.infra_overrides, schema)
 
