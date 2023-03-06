@@ -148,6 +148,32 @@ async def test_async_supervisor_timeout_in_main_thread():
         future.result()
 
 
+async def test_async_supervisor_timeout_in_worker_thread_mixed_sleeps():
+    def sync_then_async_sleep():
+        # With a timeout of 0.3 and a total sleep of 0.35 but partial sleeps less than
+        # that, we ensure that we are enforcing a consistent deadline rather than
+        # starting the timeout once for the sync part and again for the async part
+        time.sleep(0.1)
+        return asyncio.sleep(0.25)
+
+    worker = WorkerThread(run_once=True)
+    supervisor = AsyncSupervisor(
+        Call.new(sync_then_async_sleep), worker=worker, timeout=0.3
+    )
+    supervisor.start()
+
+    t0 = time.time()
+    with pytest.raises(TimeoutError):
+        await supervisor.result()
+    t1 = time.time()
+
+    assert t1 - t0 < 1
+
+    # The call has a timeout error too
+    with pytest.raises(TimeoutError):
+        supervisor._call.result()
+
+
 @pytest.mark.parametrize("fn", [identity, aidentity])
 def test_sync_call(fn):
     call = Call.new(fn, 1)
