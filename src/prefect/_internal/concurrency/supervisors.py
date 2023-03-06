@@ -1,6 +1,6 @@
 """
-Implementations of supervisors for futures, which allow work to be sent back to the
-thread waiting for the result of the future.
+Implementations of supervisors for calls, which allow work to be sent back to the
+thread waiting for the result of the call.
 """
 
 import abc
@@ -11,9 +11,7 @@ import contextvars
 import inspect
 import queue
 import threading
-from typing import Any, Awaitable, Callable, Generic, Optional, TypeVar, Union
-
-from typing_extensions import ParamSpec
+from typing import Awaitable, Callable, Generic, Optional, TypeVar, Union
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.portals import Call, Portal
@@ -21,11 +19,6 @@ from prefect._internal.concurrency.timeouts import cancel_async_at, cancel_sync_
 from prefect.logging import get_logger
 
 T = TypeVar("T")
-P = ParamSpec("P")
-Fn = TypeVar("Fn", bound=Callable)
-
-# Python uses duck typing for futures; asyncio/threaded futures do not share a base
-AnyFuture = Any
 
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.supervisors")
@@ -51,10 +44,10 @@ def set_supervisor(supervisor: "Supervisor"):
 
 class Supervisor(Portal, abc.ABC, Generic[T]):
     """
-    A supervisor monitors a call running on another thread and allows work to be sent
-    back to its own thread.
+    A supervisor allows a waiting for the result of a call running via another portal
+    while providing a portal for the call to send calls back to the current thread.
 
-    Calls sent to the supervisor will be executed when waiting for the result.
+    Calls sent back to the supervisor will be executed when waiting for the result.
     """
 
     def __init__(self, call: Call[T], portal: Portal) -> None:
