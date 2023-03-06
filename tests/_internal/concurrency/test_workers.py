@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect._internal.concurrency.workers import Call, Worker
+from prefect._internal.concurrency.workers import Call, WorkerThread
 
 
 def identity(x):
@@ -10,7 +10,7 @@ def identity(x):
 
 
 def test_worker_with_failure_in_start():
-    worker = Worker()
+    worker = WorkerThread()
 
     # Simulate a failure during loop thread start
     worker._ready_future.set_result = MagicMock(side_effect=ValueError("test"))
@@ -22,14 +22,14 @@ def test_worker_with_failure_in_start():
 
 @pytest.mark.parametrize("daemon", [True, False])
 def test_worker_daemon(daemon):
-    worker = Worker(daemon=daemon)
+    worker = WorkerThread(daemon=daemon)
     worker.start()
     assert worker.thread.daemon is daemon
     worker.shutdown()
 
 
 def test_worker_run_once():
-    worker = Worker(run_once=True)
+    worker = WorkerThread(run_once=True)
     worker.start()
 
     call = Call.new(identity, 1)

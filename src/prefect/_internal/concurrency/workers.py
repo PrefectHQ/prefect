@@ -1,3 +1,4 @@
+import abc
 import asyncio
 import atexit
 import concurrent.futures
@@ -72,6 +73,9 @@ class Call(Generic[T]):
 
         return None
 
+    def result(self):
+        return self.future.result()
+
     def _run_sync(self):
         try:
             result = self.context.run(self.fn, *self.args, **self.kwargs)
@@ -114,11 +118,11 @@ class Call(Generic[T]):
 
             async def run_and_return_result():
                 await coro
-                return self.future.result()
+                return self.result()
 
             return run_and_return_result()
         else:
-            return self.future.result()
+            return self.result()
 
     def __repr__(self) -> str:
         name = getattr(self.fn, "__name__", str(self.fn))
@@ -134,7 +138,37 @@ class Call(Generic[T]):
         return f"{name}({call_args})"
 
 
-class Worker:
+class Worker(abc.ABC):
+    """
+    A worker.
+
+    Allows submission of calls.
+    """
+
+    @abc.abstractmethod
+    def start(self):
+        """
+        Start the worker.
+        """
+
+    @abc.abstractmethod
+    def submit(self, call: Call) -> Call:
+        """
+        Submit a call to the worker.
+
+        The call's result can be retrieved with `call.result()`.
+
+        Returns the call.
+        """
+
+    @abc.abstractmethod
+    def shutdown(self) -> None:
+        """
+        Shutdown the worker.
+        """
+
+
+class WorkerThread(Worker):
     """
     A worker running on a thread.
 
@@ -164,7 +198,7 @@ class Worker:
         # Wait for the worker to be ready
         self._ready_future.result()
 
-    def submit(self, call: Call) -> None:
+    def submit(self, call: Call) -> Call:
         if self._submitted_count > 0 and self._run_once:
             raise RuntimeError(
                 "Worker configured to only run once. A call has already been submitted."
@@ -180,6 +214,8 @@ class Worker:
         self._submitted_count += 1
         if self._run_once:
             call.future.add_done_callback(lambda _: self.shutdown())
+
+        return call
 
     def shutdown(self) -> None:
         if not self._shutdown_event:
@@ -213,15 +249,15 @@ class Worker:
         await self._shutdown_event.wait()
 
 
-GLOBAL_WORKER: Optional[Worker] = None
+GLOBAL_WORKER: Optional[WorkerThread] = None
 
 
-def get_global_worker() -> Worker:
+def get_global_worker() -> WorkerThread:
     global GLOBAL_WORKER
 
     # Create a new worker on first call or if the existing worker is dead
     if GLOBAL_WORKER is None or not GLOBAL_WORKER.thread.is_alive():
-        GLOBAL_WORKER = Worker(daemon=True, name="GlobalWorkerThread")
+        GLOBAL_WORKER = WorkerThread(daemon=True, name="GlobalWorkerThread")
         GLOBAL_WORKER.start()
 
     return GLOBAL_WORKER

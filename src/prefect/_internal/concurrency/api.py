@@ -12,7 +12,7 @@ from prefect._internal.concurrency.supervisors import (
     SyncSupervisor,
     get_supervisor,
 )
-from prefect._internal.concurrency.workers import Worker, get_global_worker
+from prefect._internal.concurrency.workers import WorkerThread, get_global_worker
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -73,7 +73,7 @@ class from_async(_base):
     def supervise_call_in_new_worker(
         call: Call, timeout: Optional[float] = None
     ) -> AsyncSupervisor[T]:
-        worker = Worker(run_once=True)
+        worker = WorkerThread(run_once=True)
         supervisor = AsyncSupervisor(call=call, worker=worker, timeout=timeout)
         supervisor.start()
         return supervisor
@@ -84,8 +84,8 @@ class from_async(_base):
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_supervisor.send_call_to_supervisor(call)
-        return asyncio.wrap_future(future)
+        call = current_supervisor.submit(call)
+        return asyncio.wrap_future(call.future)
 
 
 class from_sync(_base):
@@ -113,5 +113,5 @@ class from_sync(_base):
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_supervisor.send_call_to_supervisor(call)
-        return future
+        call = current_supervisor.submit(call)
+        return call.future
