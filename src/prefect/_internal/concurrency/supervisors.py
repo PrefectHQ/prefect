@@ -151,6 +151,7 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
             # Enforce timeouts on asynchronous execution
             if inspect.isawaitable(retval):
 
+                @functools.wraps(fn)
                 async def _call_in_supervised_coro():
                     with cancel_async_at(deadline):
                         return await retval
