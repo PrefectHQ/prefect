@@ -118,6 +118,7 @@ Strict-Transport-Security = """
 #   'self' - all images from current origin are permitted
 #   data: - images embedded inline are permitted
 #   https://avatars.githubusercontent.com - embed user images from GitHub
+#   https://img.shields.io - embed badges from shields.io
 # media-src
 #   'none' - no audio or video files are permitted
 # object-src
@@ -158,6 +159,7 @@ Content-Security-Policy = """\
       img-src 'self' \
         data: \
         https://avatars.githubusercontent.com \
+        https://img.shields.io \
         ; \
       media-src \
       'none' \
