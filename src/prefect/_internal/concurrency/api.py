@@ -32,7 +32,7 @@ class _base(abc.ABC):
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
-        Schedule a coroutine function in the runtime thread.
+        Schedule a function in the global worker thread.
 
         Returns a supervisor.
         """
@@ -43,7 +43,7 @@ class _base(abc.ABC):
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
-        Schedule a function in a portal thread.
+        Schedule a function in a new worker thread.
 
         Returns a supervisor.
         """
@@ -54,8 +54,8 @@ class _base(abc.ABC):
         """
         Call a function in the supervising thread.
 
-        Must be used from a call scheduled by `call_soon_in_portal_thread` or
-        `call_soon_in_runtime_thread` or there will not be a supervisor.
+        Must be used from a call scheduled by `supervise_call_in...` or there will not
+        be a supervisor to submit the call to.
 
         Returns a future.
         """
