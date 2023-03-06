@@ -111,7 +111,8 @@
 </script>
 
 <style>
-.deployment__infra-overrides {
-  @apply px-4 py-3
+.deployment__infra-overrides { @apply
+  px-4
+  py-3
 }
 </style>
