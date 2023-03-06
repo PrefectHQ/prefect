@@ -157,7 +157,7 @@ def cancel_sync_after(timeout: Optional[float]):
             f"Entered cancel context on Windows; %.2f timeout will not be enforced.",
             timeout,
         )
-        yield ctx
+        yield CancelContext(timeout=None)
         return
 
     if threading.current_thread() is threading.main_thread():
