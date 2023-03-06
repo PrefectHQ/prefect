@@ -36,7 +36,7 @@
     { label: 'Details', hidden: media.xl },
     { label: 'Active Task Runs' },
   ])
-  const tabs = useTabs(computedTabs)
+  const { tabs } = useTabs(computedTabs)
 
   const subscriptionOptions = {
     interval: 300000,
