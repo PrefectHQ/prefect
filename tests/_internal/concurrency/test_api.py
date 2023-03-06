@@ -117,7 +117,7 @@ async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_co
         last_task_run = n
         print(f"Finished task {n}")
 
-    async def from_runtime():
+    async def from_worker():
         futures = []
         futures.append(
             from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 1))
@@ -131,7 +131,7 @@ async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_co
         await asyncio.gather(*futures)
         return last_task_run
 
-    supervisor = from_async.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_async.supervise_call_in_global_worker(create_call(from_worker))
     assert await supervisor.result() == 1
 
 
