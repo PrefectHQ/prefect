@@ -200,7 +200,7 @@ def prompt_select_from_list(
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
-            elif key == readchar.key.ENTER:
+            elif key == readchar.key.ENTER or key == readchar.key.CR:
                 selected_option = options[current_idx]
                 if isinstance(selected_option, tuple):
                     selected_option = selected_option[0]
