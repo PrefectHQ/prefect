@@ -5,7 +5,6 @@ from typing import Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect._internal.concurrency.runtime import get_runtime_thread
 from prefect._internal.concurrency.supervisors import (
     AsyncSupervisor,
     Call,
@@ -13,6 +12,7 @@ from prefect._internal.concurrency.supervisors import (
     SyncSupervisor,
     get_supervisor,
 )
+from prefect._internal.concurrency.workers import Worker, get_global_worker
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -25,7 +25,7 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
 
 class _base(abc.ABC):
     @abc.abstractstaticmethod
-    def supervise_call_in_runtime_thread(
+    def supervise_call_in_global_worker(
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
@@ -36,7 +36,7 @@ class _base(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def supervise_call_in_worker_thread(
+    def supervise_call_in_new_worker(
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
@@ -61,33 +61,21 @@ class _base(abc.ABC):
 
 class from_async(_base):
     @staticmethod
-    def supervise_call_in_runtime_thread(
+    def supervise_call_in_global_worker(
         call: Call[Awaitable[T]], timeout: Optional[float] = None
     ) -> AsyncSupervisor[Awaitable[T]]:
-        current_supervisor = get_supervisor()
-        runtime = get_runtime_thread()
-
-        if (
-            current_supervisor is None
-            or current_supervisor.owner_thread.ident != runtime.ident
-        ):
-            submit_fn = runtime.submit_to_loop
-        else:
-            submit_fn = current_supervisor.send_call_to_supervisor
-
-        supervisor = AsyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.submit()
+        worker = get_global_worker()
+        supervisor = AsyncSupervisor(call, worker=worker, timeout=timeout)
+        supervisor.start()
         return supervisor
 
     @staticmethod
-    def supervise_call_in_worker_thread(
+    def supervise_call_in_new_worker(
         call: Call, timeout: Optional[float] = None
     ) -> AsyncSupervisor[T]:
-        runtime = get_runtime_thread()
-        supervisor = AsyncSupervisor(
-            call, runtime.submit_to_worker_thread, timeout=timeout
-        )
-        supervisor.submit()
+        worker = Worker(run_once=True)
+        supervisor = AsyncSupervisor(call=call, worker=worker, timeout=timeout)
+        supervisor.start()
         return supervisor
 
     @staticmethod
@@ -102,33 +90,21 @@ class from_async(_base):
 
 class from_sync(_base):
     @staticmethod
-    def supervise_call_in_runtime_thread(
+    def supervise_call_in_global_worker(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        current_supervisor = get_supervisor()
-        runtime = get_runtime_thread()
-
-        if (
-            current_supervisor is None
-            or current_supervisor.owner_thread.ident != runtime.ident
-        ):
-            submit_fn = runtime.submit_to_loop
-        else:
-            submit_fn = current_supervisor.send_call_to_supervisor
-
-        supervisor = SyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.submit()
+        worker = get_global_worker()
+        supervisor = SyncSupervisor(call, worker=worker, timeout=timeout)
+        supervisor.start()
         return supervisor
 
     @staticmethod
-    def supervise_call_in_worker_thread(
+    def supervise_call_in_new_worker(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        runtime = get_runtime_thread()
-        supervisor = SyncSupervisor(
-            call, runtime.submit_to_worker_thread, timeout=timeout
-        )
-        supervisor.submit()
+        worker = get_global_worker()
+        supervisor = SyncSupervisor(call=call, worker=worker, timeout=timeout)
+        supervisor.start()
         return supervisor
 
     @staticmethod
