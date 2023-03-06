@@ -138,23 +138,21 @@ class Call(Generic[T]):
         return f"{name}({call_args})"
 
 
-class Worker(abc.ABC):
+class Portal(abc.ABC):
     """
-    A worker.
-
-    Allows submission of calls.
+    Allows submission of calls to execute elsewhere.
     """
 
     @abc.abstractmethod
     def start(self):
         """
-        Start the worker.
+        Start the portal.
         """
 
     @abc.abstractmethod
     def submit(self, call: Call) -> Call:
         """
-        Submit a call to the worker.
+        Submit a call to execute elsewhere.
 
         The call's result can be retrieved with `call.result()`.
 
@@ -164,15 +162,26 @@ class Worker(abc.ABC):
     @abc.abstractmethod
     def shutdown(self) -> None:
         """
-        Shutdown the worker.
+        Shutdown the portal.
         """
 
+    @abc.abstractproperty
+    def name(self) -> str:
+        """
+        Get the name of the portal.
+        """
 
-class WorkerThread(Worker):
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *_):
+        self.shutdown()
+
+
+class WorkerThreadPortal(Portal):
     """
-    A worker running on a thread.
-
-    Runs an event loop and allows submission of calls.
+    A portal to a worker running on a thread with an event loop.
     """
 
     def __init__(
@@ -192,7 +201,7 @@ class WorkerThread(Worker):
 
     def start(self):
         """
-        Start the worker; raises any exceptions encountered during startup.
+        Start the worker thread; raises any exceptions encountered during startup.
         """
         self.thread.start()
         # Wait for the worker to be ready
@@ -227,17 +236,21 @@ class WorkerThread(Worker):
         self._shutdown_event.set()
         # TODO: Consider blocking on `thread.join` here?
 
+    @property
+    def name(self) -> str:
+        return self.thread.name
+
     def _entrypoint(self):
         """
-        Entrypoint for the worker.
+        Entrypoint for the thread.
 
         Immediately create a new event loop and pass control to `run_until_shutdown`.
         """
         try:
             asyncio.run(self._run_until_shutdown())
         except BaseException:
-            # Log exceptions that crash the worker
-            logger.exception("Worker encountered exception")
+            # Log exceptions that crash the thread
+            logger.exception("%s encountered exception", self.name)
             raise
 
     async def _run_until_shutdown(self):
@@ -251,15 +264,15 @@ class WorkerThread(Worker):
         await self._shutdown_event.wait()
 
 
-GLOBAL_WORKER: Optional[WorkerThread] = None
+GLOBAL_WORKER: Optional[WorkerThreadPortal] = None
 
 
-def get_global_worker() -> WorkerThread:
+def get_global_thread_portal() -> WorkerThreadPortal:
     global GLOBAL_WORKER
 
     # Create a new worker on first call or if the existing worker is dead
     if GLOBAL_WORKER is None or not GLOBAL_WORKER.thread.is_alive():
-        GLOBAL_WORKER = WorkerThread(daemon=True, name="GlobalWorkerThread")
+        GLOBAL_WORKER = WorkerThreadPortal(daemon=True, name="GlobalWorkerThread")
         GLOBAL_WORKER.start()
 
     return GLOBAL_WORKER

@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable, Generic, Optional, TypeVar, Union
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.portals import Call, Portal
 from prefect._internal.concurrency.timeouts import (
     cancel_async_after,
     cancel_async_at,
@@ -24,7 +25,6 @@ from prefect._internal.concurrency.timeouts import (
     cancel_sync_at,
     get_deadline,
 )
-from prefect._internal.concurrency.workers import Call, Worker, WorkerThread
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -56,24 +56,25 @@ def set_supervisor(supervisor: "Supervisor"):
         current_supervisor.reset(token)
 
 
-class Supervisor(Worker, abc.ABC, Generic[T]):
+class Supervisor(Portal, abc.ABC, Generic[T]):
     """
-    A supervisor allows work to be sent back to the thread that owns the supervisor.
+    A supervisor monitors a call running on another thread and allows work to be sent
+    back to its own thread.
 
-    Work sent to the supervisor will be executed when the owner waits for the result.
+    Calls sent to the supervisor will be executed when waiting for the result.
     """
 
     def __init__(
         self,
         call: Call[T],
-        worker: WorkerThread,
+        portal: Portal,
         timeout: Optional[float] = None,
     ) -> None:
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
         self._call = self._wrap_supervised_call(call)
-        self._worker = worker
+        self._portal = portal
         self._owner_thread = threading.current_thread()
         self._timeout: Optional[float] = timeout
 
@@ -84,13 +85,13 @@ class Supervisor(Worker, abc.ABC, Generic[T]):
 
     def start(self):
         """
-        Start the supervisor by submitting the call to the worker thread.
+        Start the supervisor by submitting the call to the portal.
         """
-        self._worker.submit(self._call)
+        self._portal.submit(self._call)
 
     def submit(self, call: Call) -> Call:
         """
-        Submit a call to the supervisor work queue from a worker thread.
+        Submit a call to the supervisor work queue from another thread.
 
         Returns the call.
         """
@@ -112,8 +113,8 @@ class Supervisor(Worker, abc.ABC, Generic[T]):
         pass
 
     @property
-    def owner_thread(self):
-        return self._owner_thread
+    def name(self):
+        return self._owner_thread.name
 
     def _wrap_supervised_call(self, call: Call) -> Call:
         """
@@ -172,7 +173,7 @@ class Supervisor(Worker, abc.ABC, Generic[T]):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} call={self._call},"
-            f" worker={self._worker.thread.name!r},"
+            f" portal={self._portal.name!r},"
             f" owner={self._owner_thread.name!r}>"
         )
 
@@ -181,10 +182,10 @@ class SyncSupervisor(Supervisor[T]):
     def __init__(
         self,
         call: Call[T],
-        worker: Callable[..., concurrent.futures.Future],
+        portal: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(call=call, worker=worker, timeout=timeout)
+        super().__init__(call=call, portal=portal, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
 
     def _put_call_in_queue(self, callback: Call):
@@ -225,10 +226,10 @@ class AsyncSupervisor(Supervisor[T]):
     def __init__(
         self,
         call: Call[T],
-        worker: Callable[..., concurrent.futures.Future],
+        portal: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(call=call, worker=worker, timeout=timeout)
+        super().__init__(call=call, portal=portal, timeout=timeout)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
