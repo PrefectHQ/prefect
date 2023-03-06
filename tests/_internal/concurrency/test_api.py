@@ -55,12 +55,12 @@ def test_from_sync_supervise_call_in_new_worker(work):
     assert supervisor.result() == 1
 
 
-async def test_from_async_supervise_call_in_global_worker():
+async def test_from_async_supervise_call_in_global_thread():
     supervisor = from_async.supervise_call_in_global_thread(create_call(aidentity, 1))
     assert await supervisor.result() == 1
 
 
-def test_from_sync_supervise_call_in_global_worker():
+def test_from_sync_supervise_call_in_global_thread():
     supervisor = from_sync.supervise_call_in_global_thread(create_call(aidentity, 1))
     assert supervisor.result() == 1
 
@@ -131,7 +131,7 @@ async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_co
         await asyncio.gather(*futures)
         return last_task_run
 
-    supervisor = from_async.supervise_call_in_global_worker(create_call(from_worker))
+    supervisor = from_async.supervise_call_in_global_thread(create_call(from_worker))
     assert await supervisor.result() == 1
 
 
@@ -146,7 +146,7 @@ def test_from_sync_send_call_to_supervising_thread_from_global(work):
     assert supervisor.result() == 2
 
 
-async def test_from_async_supervise_call_in_global_worker_captures_context_variables():
+async def test_from_async_supervise_call_in_global_thread_captures_context_variables():
     with set_contextvar("test"):
         supervisor = from_async.supervise_call_in_global_thread(
             create_call(aget_contextvar)
@@ -154,7 +154,7 @@ async def test_from_async_supervise_call_in_global_worker_captures_context_varia
         assert await supervisor.result() == "test"
 
 
-def test_from_sync_supervise_call_in_global_worker_captures_context_variables():
+def test_from_sync_supervise_call_in_global_thread_captures_context_variables():
     with set_contextvar("test"):
         supervisor = from_sync.supervise_call_in_global_thread(
             create_call(aget_contextvar)
@@ -200,7 +200,7 @@ def test_from_sync_send_call_to_supervising_thread_captures_context_varaibles(ge
     supervisor.result()
 
 
-async def test_from_async_supervise_call_in_global_worker_timeout():
+async def test_from_async_supervise_call_in_global_thread_timeout():
     supervisor = from_async.supervise_call_in_global_thread(
         create_call(asyncio.sleep, 1),
         timeout=0.1,
@@ -209,7 +209,7 @@ async def test_from_async_supervise_call_in_global_worker_timeout():
         assert await supervisor.result() == 1
 
 
-def test_from_sync_supervise_call_in_global_worker_timeout():
+def test_from_sync_supervise_call_in_global_thread_timeout():
     supervisor = from_sync.supervise_call_in_global_thread(
         create_call(asyncio.sleep, 1),
         timeout=0.1,
