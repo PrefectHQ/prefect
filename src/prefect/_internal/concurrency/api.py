@@ -5,6 +5,10 @@ from typing import Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
+from prefect._internal.concurrency.portals import (
+    WorkerThreadPortal,
+    get_global_thread_portal,
+)
 from prefect._internal.concurrency.supervisors import (
     AsyncSupervisor,
     Call,
@@ -12,7 +16,6 @@ from prefect._internal.concurrency.supervisors import (
     SyncSupervisor,
     get_supervisor,
 )
-from prefect._internal.concurrency.workers import Worker, get_global_worker
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -25,22 +28,22 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
 
 class _base(abc.ABC):
     @abc.abstractstaticmethod
-    def supervise_call_in_global_worker(
+    def supervise_call_in_global_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
-        Schedule a coroutine function in the runtime thread.
+        Schedule a function in the global worker thread.
 
         Returns a supervisor.
         """
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def supervise_call_in_new_worker(
+    def supervise_call_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> Supervisor[T]:
         """
-        Schedule a function in a worker thread.
+        Schedule a function in a new worker thread.
 
         Returns a supervisor.
         """
@@ -51,8 +54,8 @@ class _base(abc.ABC):
         """
         Call a function in the supervising thread.
 
-        Must be used from a call scheduled by `call_soon_in_worker_thread` or
-        `call_soon_in_runtime_thread` or there will not be a supervisor.
+        Must be used from a call scheduled by `supervise_call_in...` or there will not
+        be a supervisor to submit the call to.
 
         Returns a future.
         """
@@ -61,20 +64,20 @@ class _base(abc.ABC):
 
 class from_async(_base):
     @staticmethod
-    def supervise_call_in_global_worker(
+    def supervise_call_in_global_thread(
         call: Call[Awaitable[T]], timeout: Optional[float] = None
     ) -> AsyncSupervisor[Awaitable[T]]:
-        worker = get_global_worker()
-        supervisor = AsyncSupervisor(call, worker=worker, timeout=timeout)
+        portal = get_global_thread_portal()
+        supervisor = AsyncSupervisor(call, portal=portal, timeout=timeout)
         supervisor.start()
         return supervisor
 
     @staticmethod
-    def supervise_call_in_new_worker(
+    def supervise_call_in_new_thread(
         call: Call, timeout: Optional[float] = None
     ) -> AsyncSupervisor[T]:
-        worker = Worker(run_once=True)
-        supervisor = AsyncSupervisor(call=call, worker=worker, timeout=timeout)
+        portal = WorkerThreadPortal(run_once=True)
+        supervisor = AsyncSupervisor(call=call, portal=portal, timeout=timeout)
         supervisor.start()
         return supervisor
 
@@ -84,26 +87,26 @@ class from_async(_base):
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_supervisor.send_call_to_supervisor(call)
-        return asyncio.wrap_future(future)
+        call = current_supervisor.submit(call)
+        return asyncio.wrap_future(call.future)
 
 
 class from_sync(_base):
     @staticmethod
-    def supervise_call_in_global_worker(
+    def supervise_call_in_global_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        worker = get_global_worker()
-        supervisor = SyncSupervisor(call, worker=worker, timeout=timeout)
+        portal = get_global_thread_portal()
+        supervisor = SyncSupervisor(call, portal=portal, timeout=timeout)
         supervisor.start()
         return supervisor
 
     @staticmethod
-    def supervise_call_in_new_worker(
+    def supervise_call_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
-        worker = get_global_worker()
-        supervisor = SyncSupervisor(call=call, worker=worker, timeout=timeout)
+        portal = get_global_thread_portal()
+        supervisor = SyncSupervisor(call=call, portal=portal, timeout=timeout)
         supervisor.start()
         return supervisor
 
@@ -113,5 +116,5 @@ class from_sync(_base):
         if current_supervisor is None:
             raise RuntimeError("No supervisor found.")
 
-        future = current_supervisor.send_call_to_supervisor(call)
-        return future
+        call = current_supervisor.submit(call)
+        return call.future
