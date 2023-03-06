@@ -55,9 +55,8 @@ def test_sync_supervisor_timeout_in_worker_thread():
     thread.
     """
     with WorkerThreadPortal(run_once=True) as portal:
-        supervisor = SyncSupervisor(
-            Call.new(sleep_repeatedly, 1), portal=portal, timeout=0.1
-        )
+        supervisor = SyncSupervisor(Call.new(sleep_repeatedly, 1), portal=portal)
+        supervisor._call.add_timeout(0.1)
         supervisor.start()
 
     t0 = time.time()
@@ -84,9 +83,8 @@ def test_sync_supervisor_timeout_in_main_thread():
             call = supervisor.submit(Call.new(time.sleep, 2))
             return call
 
-        supervisor = SyncSupervisor(
-            Call.new(on_worker_thread), portal=portal, timeout=0.1
-        )
+        supervisor = SyncSupervisor(Call.new(on_worker_thread), portal=portal)
+        supervisor._call.add_timeout(0.1)
         supervisor.start()
 
         t0 = time.time()
@@ -105,9 +103,8 @@ def test_sync_supervisor_timeout_in_main_thread():
 
 async def test_async_supervisor_timeout_in_worker_thread():
     with WorkerThreadPortal(run_once=True) as portal:
-        supervisor = AsyncSupervisor(
-            Call.new(sleep_repeatedly, 1), portal=portal, timeout=0.1
-        )
+        supervisor = AsyncSupervisor(Call.new(sleep_repeatedly, 1), portal=portal)
+        supervisor._call.add_timeout(0.1)
         supervisor.start()
 
         t0 = time.time()
@@ -130,9 +127,8 @@ async def test_async_supervisor_timeout_in_main_thread():
             future = supervisor.submit(Call.new(asyncio.sleep, 1))
             return future
 
-        supervisor = AsyncSupervisor(
-            Call.new(on_worker_thread), portal=portal, timeout=0.1
-        )
+        supervisor = AsyncSupervisor(Call.new(on_worker_thread), portal=portal)
+        supervisor._call.add_timeout(0.1)
         supervisor.start()
 
         t0 = time.time()
@@ -157,9 +153,8 @@ async def test_async_supervisor_timeout_in_worker_thread_mixed_sleeps():
         return asyncio.sleep(0.25)
 
     with WorkerThreadPortal(run_once=True) as portal:
-        supervisor = AsyncSupervisor(
-            Call.new(sync_then_async_sleep), portal=portal, timeout=0.3
-        )
+        supervisor = AsyncSupervisor(Call.new(sync_then_async_sleep), portal=portal)
+        supervisor._call.add_timeout(0.3)
         supervisor.start()
 
         t0 = time.time()

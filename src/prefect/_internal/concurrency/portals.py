@@ -12,6 +12,11 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
+from prefect._internal.concurrency.timeouts import (
+    cancel_async_at,
+    cancel_sync_at,
+    get_deadline,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -32,6 +37,7 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
+    deadline: Optional[float] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -42,6 +48,17 @@ class Call(Generic[T]):
             kwargs=kwargs,
             context=contextvars.copy_context(),
         )
+
+    def add_timeout(self, timeout: Optional[float] = None) -> None:
+        """
+        Add a timeout to the call.
+
+        The timeout begins immediately, not when the call starts.
+        """
+        if self.future.done() or self.future.running():
+            raise RuntimeError("Timeouts cannot be added when the call has started.")
+
+        self.deadline = get_deadline(timeout)
 
     def run(self) -> None:
         """
@@ -57,6 +74,7 @@ class Call(Generic[T]):
         logger.debug("Running call %r", self)
 
         coro = self._run_sync()
+
         if coro is not None:
             loop = get_running_loop()
             if loop:
@@ -78,7 +96,8 @@ class Call(Generic[T]):
 
     def _run_sync(self):
         try:
-            result = self.context.run(self.fn, *self.args, **self.kwargs)
+            with cancel_sync_at(self.deadline):
+                result = self.context.run(self.fn, *self.args, **self.kwargs)
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
@@ -95,7 +114,8 @@ class Call(Generic[T]):
 
     async def _run_async(self, coro):
         try:
-            result = await coro
+            with cancel_async_at(self.deadline):
+                result = await coro
         except BaseException as exc:
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)

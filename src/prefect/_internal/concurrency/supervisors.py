@@ -8,7 +8,6 @@ import asyncio
 import concurrent.futures
 import contextlib
 import contextvars
-import functools
 import inspect
 import queue
 import threading
@@ -18,12 +17,7 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.portals import Call, Portal
-from prefect._internal.concurrency.timeouts import (
-    cancel_async_at,
-    cancel_sync_after,
-    cancel_sync_at,
-    get_deadline,
-)
+from prefect._internal.concurrency.timeouts import cancel_async_at, cancel_sync_at
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -63,22 +57,13 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
     Calls sent to the supervisor will be executed when waiting for the result.
     """
 
-    def __init__(
-        self,
-        call: Call[T],
-        portal: Portal,
-        timeout: Optional[float] = None,
-    ) -> None:
+    def __init__(self, call: Call[T], portal: Portal) -> None:
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
         self._call = self._wrap_supervised_call(call)
         self._portal = portal
         self._owner_thread = threading.current_thread()
-        self._timeout: Optional[float] = timeout
-
-        # When the call starts, it will set a deadline
-        self._deadline_future = concurrent.futures.Future()
 
         logger.debug("Created supervisor %r", self)
 
@@ -127,40 +112,12 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
 
         return Call(
             future=call.future,
-            fn=self._add_supervision(call.fn),
+            fn=call.fn,
             args=call.args,
             kwargs=call.kwargs,
             context=call.context.run(get_updated_context),
+            deadline=call.deadline,
         )
-
-    def _add_supervision(self, fn: Fn) -> Fn:
-        """
-        Attach supervision to a callable.
-        """
-
-        @functools.wraps(fn)
-        def _call_in_supervised_thread(*args, **kwargs):
-            # Set the execution deadline
-            deadline = get_deadline(self._timeout)
-            self._deadline_future.set_result(deadline)
-
-            # Enforce timeouts on synchronous execution
-            with cancel_sync_after(self._timeout):
-                retval = fn(*args, **kwargs)
-
-            # Enforce timeouts on asynchronous execution
-            if inspect.isawaitable(retval):
-
-                @functools.wraps(fn)
-                async def _call_in_supervised_coro():
-                    with cancel_async_at(deadline):
-                        return await retval
-
-                return _call_in_supervised_coro()
-
-            return retval
-
-        return _call_in_supervised_thread
 
     @abc.abstractmethod
     def _put_call_in_queue(self, call: Call) -> None:
@@ -179,12 +136,9 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
 
 class SyncSupervisor(Supervisor[T]):
     def __init__(
-        self,
-        call: Call[T],
-        portal: Callable[..., concurrent.futures.Future],
-        timeout: Optional[float] = None,
+        self, call: Call[T], portal: Callable[..., concurrent.futures.Future]
     ) -> None:
-        super().__init__(call=call, portal=portal, timeout=timeout)
+        super().__init__(call=call, portal=portal)
         self._queue: queue.Queue = queue.Queue()
 
     def _put_call_in_queue(self, callback: Call):
@@ -205,9 +159,8 @@ class SyncSupervisor(Supervisor[T]):
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
 
         # Cancel work sent to the supervisor if the future exceeds its timeout
-        deadline = self._deadline_future.result()
         try:
-            with cancel_sync_at(deadline) as ctx:
+            with cancel_sync_at(self._call.deadline) as ctx:
                 self._watch_for_callbacks()
         except TimeoutError:
             # Timeouts will be generally be raised on future result retrieval but
@@ -225,10 +178,9 @@ class AsyncSupervisor(Supervisor[T]):
     def __init__(
         self,
         call: Call[T],
-        portal: Callable[..., concurrent.futures.Future],
-        timeout: Optional[float] = None,
+        portal: Portal,
     ) -> None:
-        super().__init__(call=call, portal=portal, timeout=timeout)
+        super().__init__(call=call, portal=portal)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
@@ -265,9 +217,8 @@ class AsyncSupervisor(Supervisor[T]):
         )
 
         # Cancel work sent to the supervisor if the future exceeds its timeout
-        deadline = await asyncio.wrap_future(self._deadline_future)
         try:
-            with cancel_async_at(deadline) as ctx:
+            with cancel_async_at(self._call.deadline) as ctx:
                 await self._watch_for_callbacks()
         except TimeoutError:
             # Timeouts will be re-raised on future result retrieval

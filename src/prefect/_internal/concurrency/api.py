@@ -68,7 +68,8 @@ class from_async(_base):
         call: Call[Awaitable[T]], timeout: Optional[float] = None
     ) -> AsyncSupervisor[Awaitable[T]]:
         portal = get_global_thread_portal()
-        supervisor = AsyncSupervisor(call, portal=portal, timeout=timeout)
+        call.add_timeout(timeout)
+        supervisor = AsyncSupervisor(call, portal=portal)
         supervisor.start()
         return supervisor
 
@@ -77,7 +78,8 @@ class from_async(_base):
         call: Call, timeout: Optional[float] = None
     ) -> AsyncSupervisor[T]:
         portal = WorkerThreadPortal(run_once=True)
-        supervisor = AsyncSupervisor(call=call, portal=portal, timeout=timeout)
+        call.add_timeout(timeout)
+        supervisor = AsyncSupervisor(call=call, portal=portal)
         supervisor.start()
         return supervisor
 
@@ -97,7 +99,8 @@ class from_sync(_base):
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
         portal = get_global_thread_portal()
-        supervisor = SyncSupervisor(call, portal=portal, timeout=timeout)
+        call.add_timeout(timeout)
+        supervisor = SyncSupervisor(call, portal=portal)
         supervisor.start()
         return supervisor
 
@@ -106,7 +109,8 @@ class from_sync(_base):
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncSupervisor[T]:
         portal = get_global_thread_portal()
-        supervisor = SyncSupervisor(call=call, portal=portal, timeout=timeout)
+        call.add_timeout(timeout)
+        supervisor = SyncSupervisor(call=call, portal=portal)
         supervisor.start()
         return supervisor
 
