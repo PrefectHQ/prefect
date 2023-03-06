@@ -50,7 +50,7 @@ async def work_pool(db):
         model = await models.workers.create_work_pool(
             session=session,
             work_pool=actions.WorkPoolCreate(
-                name="test-work-pool",
+                name="test-work-pool-run-history",
                 type="test-type",
                 base_job_template={
                     "job_configuration": {"command": "{{ command }}"},

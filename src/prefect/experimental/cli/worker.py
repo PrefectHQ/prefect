@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Optional
 
 import anyio
 import typer
@@ -6,6 +7,8 @@ import typer
 from prefect.cli._types import PrefectTyper, SettingsOption
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
+from prefect.client.orchestration import get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import BaseWorker
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
@@ -30,8 +33,8 @@ async def start(
     work_pool_name: str = typer.Option(
         ..., "-p", "--pool", help="The work pool the started worker should join."
     ),
-    worker_type: str = typer.Option(
-        "process", "-t", "--type", help="The type of worker to start."
+    worker_type: Optional[str] = typer.Option(
+        None, "-t", "--type", help="The type of worker to start."
     ),
     prefetch_seconds: int = SettingsOption(PREFECT_WORKER_PREFETCH_SECONDS),
     run_once: bool = typer.Option(False, help="Run worker loops only one time."),
@@ -43,14 +46,28 @@ async def start(
     ),
 ):
     try:
-        # TODO: Add ability to discover worker type from existing pool
-        Worker = lookup_type(BaseWorker, worker_type)
+        if worker_type is None:
+            async with get_client() as client:
+                work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
+            worker_type = work_pool.type
+            app.console.print(
+                f"Discovered worker type {worker_type!r} for work pool"
+                f" {work_pool.name!r}."
+            )
+        worker_cls = lookup_type(BaseWorker, worker_type)
     except KeyError:
+        # TODO: Use collection registry info to direct users on how to install the worker type
         exit_with_error(
-            f"Unable to start worker of type {worker_type}. "
+            f"Unable to start worker of type {worker_type!r}. "
             "Please ensure that you have installed this worker type on this machine."
         )
-    async with Worker(
+    except ObjectNotFound:
+        exit_with_error(
+            f"Work pool {work_pool_name!r} does not exist. To create a new work pool "
+            "on worker startup, include a worker type with the --type option."
+        )
+
+    async with worker_cls(
         name=worker_name,
         work_pool_name=work_pool_name,
         limit=limit,
