@@ -71,6 +71,7 @@ API_ROUTERS = (
     api.artifacts.router,
     api.block_schemas.router,
     api.block_capabilities.router,
+    api.collections.router,
     api.ui.flow_runs.router,
     api.admin.router,
     api.root.router,
