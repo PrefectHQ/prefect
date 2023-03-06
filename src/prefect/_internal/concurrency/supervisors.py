@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable, Generic, Optional, TypeVar, Union
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.portals import Call, Portal
 from prefect._internal.concurrency.timeouts import (
     cancel_async_after,
     cancel_async_at,
@@ -24,7 +25,6 @@ from prefect._internal.concurrency.timeouts import (
     cancel_sync_at,
     get_deadline,
 )
-from prefect._internal.concurrency.workers import Call, Worker
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -56,24 +56,25 @@ def set_supervisor(supervisor: "Supervisor"):
         current_supervisor.reset(token)
 
 
-class Supervisor(abc.ABC, Generic[T]):
+class Supervisor(Portal, abc.ABC, Generic[T]):
     """
-    A supervisor allows work to be sent back to the thread that owns the supervisor.
+    A supervisor monitors a call running on another thread and allows work to be sent
+    back to its own thread.
 
-    Work sent to the supervisor will be executed when the owner waits for the result.
+    Calls sent to the supervisor will be executed when waiting for the result.
     """
 
     def __init__(
         self,
         call: Call[T],
-        worker: Worker,
+        portal: Portal,
         timeout: Optional[float] = None,
     ) -> None:
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        self._call = self._wrap_call(call)
-        self._worker = worker
+        self._call = self._wrap_supervised_call(call)
+        self._portal = portal
         self._owner_thread = threading.current_thread()
         self._timeout: Optional[float] = timeout
 
@@ -84,11 +85,42 @@ class Supervisor(abc.ABC, Generic[T]):
 
     def start(self):
         """
-        Start the supervisor by submitting the call to the worker
+        Start the supervisor by submitting the call to the portal.
         """
-        self._worker.submit(self._call)
+        self._portal.submit(self._call)
 
-    def _wrap_call(self, call: Call) -> Call:
+    def submit(self, call: Call) -> Call:
+        """
+        Submit a call to the supervisor work queue from another thread.
+
+        Returns the call.
+        """
+        self._put_call_in_queue(call)
+        logger.debug("Sent call back to supervisor %r", self)
+        return call
+
+    @abc.abstractmethod
+    def result(self) -> Union[Awaitable[T], T]:
+        """
+        Retrieve the result of the supervised call.
+
+        Watch for and execute any work sent back.
+        """
+        raise NotImplementedError()
+
+    def shutdown(self):
+        # A supervisor does nothing on shutdown
+        pass
+
+    @property
+    def name(self):
+        return self._owner_thread.name
+
+    def _wrap_supervised_call(self, call: Call) -> Call:
+        """
+        Wrap a call with supervision.
+        """
+
         def get_updated_context():
             # Update the call context to include this supervisor
             with set_supervisor(self):
@@ -101,18 +133,6 @@ class Supervisor(abc.ABC, Generic[T]):
             kwargs=call.kwargs,
             context=call.context.run(get_updated_context),
         )
-
-    def send_call_to_supervisor(self, call: Call) -> concurrent.futures.Future:
-        """
-        Send a call to the supervisor thread from a worker thread.
-        """
-        self.put_call(call)
-        logger.debug("Sent call back to supervisor %r", self)
-        return call.future
-
-    @property
-    def owner_thread(self):
-        return self._owner_thread
 
     def _add_supervision(self, fn: Fn) -> Fn:
         """
@@ -144,25 +164,16 @@ class Supervisor(abc.ABC, Generic[T]):
         return _call_in_supervised_thread
 
     @abc.abstractmethod
-    def put_call(self, call: Call) -> None:
+    def _put_call_in_queue(self, call: Call) -> None:
         """
         Add a call to the supervisor. Used by `send_call`.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def result(self) -> Union[Awaitable[T], T]:
-        """
-        Retrieve the result of the supervised future.
-
-        Watch for and execute any work sent back.
         """
         raise NotImplementedError()
 
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__} call={self._call},"
-            f" worker={self._worker.thread.name!r},"
+            f" portal={self._portal.name!r},"
             f" owner={self._owner_thread.name!r}>"
         )
 
@@ -171,13 +182,13 @@ class SyncSupervisor(Supervisor[T]):
     def __init__(
         self,
         call: Call[T],
-        worker: Callable[..., concurrent.futures.Future],
+        portal: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(call=call, worker=worker, timeout=timeout)
+        super().__init__(call=call, portal=portal, timeout=timeout)
         self._queue: queue.Queue = queue.Queue()
 
-    def put_call(self, callback: Call):
+    def _put_call_in_queue(self, callback: Call):
         self._queue.put_nowait(callback)
 
     def _watch_for_callbacks(self):
@@ -215,14 +226,14 @@ class AsyncSupervisor(Supervisor[T]):
     def __init__(
         self,
         call: Call[T],
-        worker: Callable[..., concurrent.futures.Future],
+        portal: Callable[..., concurrent.futures.Future],
         timeout: Optional[float] = None,
     ) -> None:
-        super().__init__(call=call, worker=worker, timeout=timeout)
+        super().__init__(call=call, portal=portal, timeout=timeout)
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
-    def put_call(self, callback: Call):
+    def _put_call_in_queue(self, callback: Call):
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, callback)
 
