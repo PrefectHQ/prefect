@@ -42,12 +42,7 @@
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails
-        v-if="deployment"
-        :deployment="deployment"
-        alternate
-        @update="deploymentSubscription.refresh"
-      />
+      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate @update="deploymentSubscription.refresh" />
     </template>
   </p-layout-well>
 </template>
@@ -72,6 +67,9 @@
     interval: 300000,
   }
 
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deployment = computed(() => deploymentSubscription.response)
+
   const computedTabs = computed(() => [
     { label: 'Details', hidden: media.xl },
     { label: 'Runs' },
@@ -79,10 +77,7 @@
     { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
     { label: 'Description' },
   ])
-  const tabs = useTabs(computedTabs)
-
-  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
-  const deployment = computed(() => deploymentSubscription.response)
+  const { tabs } = useTabs(computedTabs)
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
@@ -116,8 +111,7 @@
 </script>
 
 <style>
-.deployment__infra-overrides { @apply
-  px-4
-  py-3
+.deployment__infra-overrides {
+  @apply px-4 py-3
 }
 </style>
