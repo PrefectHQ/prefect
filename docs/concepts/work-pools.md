@@ -154,6 +154,13 @@ Inspect the work pool:
 
 On success, the command returns the details of the newly created work pool, which can then be used to start agents that poll this pool for work or perform additional configuration of the pool.
 
+
+#### Base Job Configuration
+
+When work pools are created via the UI with a worker type, the base job configuration of the work pool can be modified. The base job configuration are attributes that are specific to a given worker type and allow customization of the default behavior of the worker when executing a flow run. These attributes can then be overridden on a deployment with the `infra_overrides` parameter.
+
+For example, the `ProcessWorker` has a 'Working Directory' field that allows customization of the directory in which flow runs are executed. If a work pool set the default working directory to `/tmp`, then all flow runs executed by the `ProcessWorker` would execute in `/tmp`. If a deployment wanted to override this behavior, it could set the `working_dir` attribute in the `infra_overrides` parameter to a different directory.
+
 ### Viewing work pools
 
 At any time, users can see and edit configured work pools in the Prefect UI.
@@ -262,3 +269,84 @@ Together work queue priority and concurrency enable precise control over work. F
 
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
+
+## Workers Overview
+
+Workers are lightweight polling services that retrieve scheduled work from a work pool and executed the corresponding flow runs. Workers are similar to agents but offer greater configurability and the ability to route work to specific execution environments.
+
+Workers each have a type that corresponds to the execution environment to which they will submit flow runs. Workers are only able to join work pools of the same type. As a result, when deployments are assigned to a work pool, you know exactly which execution environment scheduled flow runs for that deployment will be scheduled in.
+
+### Worker Options
+
+Workers are configured to pull work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. If a worker references a work pool that doesn't exist, it will automatically create the work pool as long as the type is provided. 
+
+Configuration parameters you can specify when starting an worker include:
+
+| Option | Description |
+| --- | --- |
+| `--name`, `-n` | The name to give to the started worker. If not provided, a unique name will be generated. |
+| `--pool`, `-p` | The work pool the started worker should join. |               
+| `--type`, `-t` | The type of worker to start. If not provided, the worker type will be inferred from the work pool. |   
+| <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_WORKER_PREFETCH_SECONDS`. |
+| `--run-once` | Only run worker polling once. By default, the worker runs forever. |
+| `--limit`, `-l` | The maximum number of flow runs to start simultaneously. |
+
+You must start a worker within an environment that can access or create the infrastructure needed to execute flow runs. Your worker will deploy flow runs to the infrastructure corresponding to the worker type. For example, if you start a worker with type `kubernetes`, the worker will deploy flow runs to a Kubernetes cluster.
+
+!!! tip "Prefect must be installed in execution environments"
+    Prefect must be installed in any environment in which you intend to run the worker or execute a flow run.
+
+!!! tip "`PREFECT_API_URL` setting for workers"
+    `PREFECT_API_URL` must be set for the environment in which your worker is running. 
+
+### Starting a Worker
+
+Use the `prefect worker start` CLI command to start an worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
+
+<div class="terminal">
+```bash
+$ prefect worker start -p [work pool name]
+```
+</div>
+
+For example:
+
+<div class="terminal">
+```bash
+$ prefect worker start -p "my-pool"
+Discovered worker type 'process' for work pool 'my-pool'.
+
+Worker 'ProcessWorker 65716280-96f8-420b-9300-7e94417f2673' started!
+```
+</div>
+
+In this case, Prefect automatically discovered the worker type from the work pool.
+
+To create a work pool and start a worker in one command, use the `--type` flag:
+
+<div class="terminal">
+```bash
+$ prefect worker start -p "my-pool" --type "process"
+
+Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
+06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
+```
+</div>
+
+In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag. 
+
+For example, to limit a worker to 5 concurrent flow runs:
+
+<div class="terminal">
+```bash
+$ prefect worker start --pool "my-pool" --limit 5
+```
+</div>
+
+### Deployment Auto-Registration
+
+Workers are able to automatically apply discovered deployments. To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory a defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. Workers will also poll their flow storage path at the internal defined by `PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS` (defaults to 30 seconds) for new deployments and apply them as they are discovered.
+
+### Configuring Prefetch
+
+By default, the worker begins submission of flow runs a short time (10 seconds) before they are scheduled to run. This allows time for the infrastructure to be created, so the flow run can start on time. In some cases, infrastructure will take longer than this to actually start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start exactly on time.
