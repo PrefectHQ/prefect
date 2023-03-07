@@ -42,9 +42,9 @@ class Waiter(Portal, abc.ABC, Generic[T]):
     @abc.abstractmethod
     def result(self) -> Union[Awaitable[T], T]:
         """
-        Retrieve the result of the supervised call.
+        Retrieve the result of the call.
 
-        Watch for and execute any work sent back.
+        Watch for and execute any callbacks.
         """
         raise NotImplementedError()
 
