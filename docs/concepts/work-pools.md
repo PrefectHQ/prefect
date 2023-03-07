@@ -288,7 +288,7 @@ Configuration parameters you can specify when starting a worker include:
 | Option | Description |
 | --- | --- |
 | `--name`, `-n` | The name to give to the started worker. If not provided, a unique name will be generated. |
-| `--pool`, `-p` | The work pool the started worker should join. |               
+| `--pool`, `-p` | The work pool the started worker should poll. |               
 | `--type`, `-t` | The type of worker to start. If not provided, the worker type will be inferred from the work pool. |   
 | <span class="no-wrap">`--prefetch-seconds`</span> | The amount of time before a flow run's scheduled start time to begin submission. Default is the value of `PREFECT_WORKER_PREFETCH_SECONDS`. |
 | `--run-once` | Only run worker polling once. By default, the worker runs forever. |

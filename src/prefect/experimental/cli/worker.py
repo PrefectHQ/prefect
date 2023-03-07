@@ -37,7 +37,7 @@ async def start(
         ),
     ),
     work_pool_name: str = typer.Option(
-        ..., "-p", "--pool", help="The work pool the started worker should join."
+        ..., "-p", "--pool", help="The work pool the started worker should poll."
     ),
     worker_type: Optional[str] = typer.Option(
         None,
