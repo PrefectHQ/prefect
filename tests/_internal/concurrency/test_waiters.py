@@ -74,7 +74,7 @@ def test_sync_waiter_timeout_in_main_thread():
     with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
-            callback = Call.new(time.sleep, 2)
+            callback = Call.new(time.sleep, 1)
             call.add_callback(callback)
             return callback
 
@@ -93,8 +93,7 @@ def test_sync_waiter_timeout_in_main_thread():
     with pytest.raises(TimeoutError):
         callback.result()
 
-    # main thread timeouts round up to the nearest second
-    assert t1 - t0 < 2
+    assert t1 - t0 < 1
 
     assert callback.cancelled()
     assert not call.cancelled()
