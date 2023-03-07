@@ -898,14 +898,14 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job}
 
     def mock_log_stream(*args, **kwargs):
-        sleep(0.25)
+        sleep(1)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=2
     ).run(MagicMock())
 
     assert result.status_code == 1
@@ -919,12 +919,11 @@ def test_watch_deadline_is_computed_before_log_streams(
                 timeout_seconds=mock.ANY,
             ),
             # Starts with the full timeout minus the amount we slept streaming logs
-            # Approximate comparisons are needed since executing code takes some time
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=1,  # ceil(1 - 0.25 - test execution time) should be 1
+                timeout_seconds=1,
             ),
         ]
     )
@@ -1055,14 +1054,14 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             job = MagicMock(spec=kubernetes.client.V1Job)
 
             # Sleep a little
-            sleep(0.6)
+            sleep(1)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
             yield {"object": job}
 
     mock_watch.stream.side_effect = mock_stream
-    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=2).run(
+    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=4).run(
         MagicMock()
     )
     assert result.status_code == -1
@@ -1076,12 +1075,17 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 timeout_seconds=mock.ANY,
             ),
             # Starts with the full timeout
-            # Approximate comparisons are needed since executing code takes some time
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=2,
+                timeout_seconds=4,
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=3,
             ),
             # Then, elapsed time removed on each call
             mock.call(
@@ -1089,12 +1093,6 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
                 timeout_seconds=2,
-            ),
-            mock.call(
-                func=mock_k8s_batch_client.list_namespaced_job,
-                field_selector=mock.ANY,
-                namespace=mock.ANY,
-                timeout_seconds=1,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
