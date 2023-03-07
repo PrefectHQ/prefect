@@ -9,15 +9,15 @@ import contextlib
 import contextvars
 import dataclasses
 import inspect
-from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.timeouts import (
+    CancelContext,
     cancel_async_at,
     cancel_sync_at,
-    get_deadline,
 )
 from prefect.logging import get_logger
 
@@ -56,7 +56,9 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
-    deadline: Optional[float] = None
+    cancel_context: CancelContext = dataclasses.field(
+        default_factory=lambda: CancelContext(timeout=None)
+    )
     portal: Optional["Portal"] = None
     callback_portal: Optional["Portal"] = None
 
@@ -79,7 +81,8 @@ class Call(Generic[T]):
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
-        self.deadline = get_deadline(timeout)
+        self.cancel_context = CancelContext(timeout=timeout)
+        logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
 
     def set_portal(self, portal: "Portal") -> None:
         """
@@ -111,7 +114,7 @@ class Call(Generic[T]):
 
         self.callback_portal.submit(call)
 
-    def run(self) -> None:
+    def run(self) -> Optional[Awaitable[T]]:
         """
         Execute the call and place the result on the future.
 
@@ -120,7 +123,7 @@ class Call(Generic[T]):
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
             logger.debug("Skipping execution of cancelled call %r", self)
-            return
+            return None
 
         logger.debug("Running call %r", self)
 
@@ -142,16 +145,35 @@ class Call(Generic[T]):
 
         return None
 
-    def result(self):
+    def result(self) -> T:
+        """
+        Wait for the result of the call.
+
+        Not safe for use from asynchronous contexts.
+        """
         return self.future.result()
 
     async def aresult(self):
+        """
+        Wait for the result of the call.
+
+        For use from asynchronous contexts.
+        """
         return await asyncio.wrap_future(self.future)
 
+    def cancelled(self) -> bool:
+        """
+        Check if the call was cancelled.
+        """
+        return self.cancel_context.cancelled() or self.future.cancelled()
+
     def _run_sync(self):
+        cancel_context = self.cancel_context
+
         try:
             with set_current_call(self):
-                with cancel_sync_at(self.deadline):
+                with cancel_sync_at(cancel_context.deadline) as ctx:
+                    ctx.chain(cancel_context)
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -159,25 +181,34 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
+            if not isinstance(exc, TimeoutError):
+                cancel_context.mark_completed()
             self.future.set_exception(exc)
             logger.debug("Encountered exception in call %r", self)
             # Prevent reference cycle in `exc`
             del self
         else:
+            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished call %r", self)
 
     async def _run_async(self, coro):
+        cancel_context = self.cancel_context
+
         try:
             with set_current_call(self):
-                with cancel_async_at(self.deadline):
+                with cancel_async_at(cancel_context.deadline) as ctx:
+                    ctx.chain(cancel_context)
                     result = await coro
         except BaseException as exc:
+            if not isinstance(exc, asyncio.CancelledError):
+                cancel_context.mark_completed()
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:
+            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished async call %r", self)
 
