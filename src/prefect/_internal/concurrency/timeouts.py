@@ -1,3 +1,7 @@
+"""
+Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
+"""
+
 import contextlib
 import ctypes
 import math

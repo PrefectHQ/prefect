@@ -2,7 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect._internal.concurrency.portals import Call, WorkerThreadPortal
+from prefect._internal.concurrency.calls import Call
+from prefect._internal.concurrency.threads import WorkerThread
 
 
 def identity(x):
@@ -14,7 +15,7 @@ async def aidentity(x):
 
 
 def test_worker_thread_with_failure_in_start():
-    worker_thread = WorkerThreadPortal()
+    worker_thread = WorkerThread()
 
     # Simulate a failure during loop thread start
     worker_thread._ready_future.set_result = MagicMock(side_effect=ValueError("test"))
@@ -26,14 +27,14 @@ def test_worker_thread_with_failure_in_start():
 
 @pytest.mark.parametrize("daemon", [True, False])
 def test_worker_thread_daemon(daemon):
-    worker_thread = WorkerThreadPortal(daemon=daemon)
+    worker_thread = WorkerThread(daemon=daemon)
     worker_thread.start()
     assert worker_thread.thread.daemon is daemon
     worker_thread.shutdown()
 
 
 def test_worker_thread_run_once():
-    worker_thread = WorkerThreadPortal(run_once=True)
+    worker_thread = WorkerThread(run_once=True)
     worker_thread.start()
 
     call = Call.new(identity, 1)
@@ -51,7 +52,7 @@ def test_worker_thread_run_once():
 
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_worker_thread_submit(work):
-    worker_thread = WorkerThreadPortal()
+    worker_thread = WorkerThread()
     call = worker_thread.submit(Call.new(work, 1))
     assert call.result() == 1
     worker_thread.shutdown()

@@ -1,5 +1,5 @@
 """
-Thread-safe async primitives.
+Thread-safe async synchronization primitives.
 """
 import asyncio
 import collections
