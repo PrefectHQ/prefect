@@ -4,7 +4,6 @@ Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
 
 import contextlib
 import ctypes
-import math
 import signal
 import sys
 import threading
@@ -228,12 +227,14 @@ def _alarm_based_timeout(timeout: float):
         )
         raise TimeoutError()
 
+    signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
+    # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
+    previous = signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
-        signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
-        signal.alarm(math.ceil(timeout))  # alarms do not support floats
         yield ctx
     finally:
-        signal.alarm(0)  # Clear the alarm when the context exits
+        # Clear the alarm when the context exits
+        signal.setitimer(signal.ITIMER_REAL, *previous)
 
 
 @contextlib.contextmanager
