@@ -80,7 +80,8 @@ class CancelContext:
                 self._chained.append(ctx)
 
     def __repr__(self) -> str:
-        return f"<CancelContext at {hex(id(self))} timeout={self._timeout}>"
+        timeout = f"{self._timeout:.2f}" if self._timeout else "None"
+        return f"<CancelContext at {hex(id(self))} timeout={timeout}>"
 
 
 @contextlib.contextmanager
@@ -100,9 +101,7 @@ def cancel_async_after(timeout: Optional[float]):
 
     try:
         with anyio.fail_after(timeout) as cancel_scope:
-            logger.debug(
-                f"Entered asynchronous cancel context with %.2f timeout", timeout
-            )
+            logger.debug(f"Entered asynchronous cancel context %r", ctx)
             yield ctx
     finally:
         if cancel_scope.cancel_called:
@@ -196,9 +195,9 @@ def cancel_sync_after(timeout: Optional[float]):
 
     with method(timeout) as ctx:
         logger.debug(
-            f"Entered synchronous cancel context with %.2f %s based timeout",
-            timeout,
+            f"Entered synchronous %s based cancel context %r",
             method_name,
+            ctx,
         )
         yield ctx
 
