@@ -658,7 +658,7 @@ async def orchestrate_flow_run(
                 isinstance(exc, TimeoutError)
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
-                # and flow_call.cancelled()
+                and flow_call.cancelled()
             ):
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
