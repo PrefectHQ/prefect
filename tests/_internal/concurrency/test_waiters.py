@@ -41,6 +41,12 @@ async def test_waiter_repr(cls):
     assert repr(waiter) == f"<{cls.__name__} call=fake_fn(1, 2), owner='MainThread'>"
 
 
+def test_async_waiter_created_outside_of_loop():
+    call = Call.new(identity, 1)
+    call.run()
+    assert asyncio.run(AsyncWaiter(call).result()) == 1
+
+
 def test_sync_waiter_timeout_in_worker_thread():
     """
     In this test, a timeout is raised due to a slow call that is occuring on the worker

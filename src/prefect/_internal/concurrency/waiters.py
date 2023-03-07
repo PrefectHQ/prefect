@@ -8,10 +8,10 @@ import asyncio
 import inspect
 import queue
 import threading
-from typing import Awaitable, Generic, TypeVar, Union
+from typing import Awaitable, Generic, Optional, TypeVar, Union
 
 from prefect._internal.concurrency.calls import Call, Portal
-from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
     cancel_async_at,
@@ -110,7 +110,7 @@ class AsyncWaiter(Waiter[T]):
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
         self._queue: asyncio.Queue = asyncio.Queue()
-        self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        self._loop: Optional[asyncio.AbstractEventLoop] = get_running_loop()
 
     def submit(self, call: Call):
         """
@@ -145,6 +145,10 @@ class AsyncWaiter(Waiter[T]):
         await asyncio.gather(*tasks)
 
     async def result(self) -> T:
+        # Assign the loop if it was not available at init
+        if not self._loop:
+            self._loop = asyncio.get_running_loop()
+
         # Wrap the future for a non-blocking wait
         future = asyncio.wrap_future(self._call.future)
 
