@@ -448,6 +448,19 @@ async def process_work_pool(session):
 
 
 @pytest.fixture
+async def prefect_agent_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type="prefect-agent",
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,

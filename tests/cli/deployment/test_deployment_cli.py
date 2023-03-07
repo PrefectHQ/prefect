@@ -54,6 +54,85 @@ class TestOutputMessages:
             ],
         )
 
+    def test_message_with_prefect_agent_work_pool(
+        self, patch_import, tmp_path, prefect_agent_work_pool
+    ):
+        Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_pool_name=prefect_agent_work_pool.name,
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start an agent that"
+                    f" pulls work from the {prefect_agent_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool(
+        self, patch_import, tmp_path, process_work_pool, enable_workers
+    ):
+        Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_pool_name=process_work_pool.name,
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start a worker "
+                    f"that pulls work from the {process_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect worker start -p {process_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool_without_workers_enabled(
+        self, patch_import, tmp_path, process_work_pool
+    ):
+        Deployment.build_from_flow(
+            flow=my_flow,
+            name="TEST",
+            flow_name="my_flow",
+            output=str(tmp_path / "test.yaml"),
+            work_pool_name=process_work_pool.name,
+        )
+        invoke_and_assert(
+            [
+                "deployment",
+                "apply",
+                str(tmp_path / "test.yaml"),
+            ],
+            expected_output_contains=[
+                (
+                    "\nTo execute flow runs from this deployment, please enable "
+                    "the workers CLI and start a worker that pulls work from the "
+                    f"{process_work_pool.name!r} work pool:"
+                ),
+                (
+                    "$ prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n"
+                    f"$ prefect worker start -p {process_work_pool.name!r}"
+                ),
+            ],
+        )
+
     def test_linking_to_deployment_in_ui(
         self,
         patch_import,
