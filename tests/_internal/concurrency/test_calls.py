@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import time
 
 import pytest
@@ -77,5 +78,14 @@ def test_call_timeout(fn):
     call.set_timeout(1)
     call.run()
     with pytest.raises(TimeoutError):
+        call.result()
+    assert call.cancelled()
+
+
+def test_call_future_cancelled():
+    call = Call.new(identity, 2)
+    call.future.cancel()
+    call.run()
+    with pytest.raises(concurrent.futures.CancelledError):
         call.result()
     assert call.cancelled()
