@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 import pytest
 
@@ -162,3 +163,28 @@ async def test_instrument_idempotent(
     time.sleep(0.1)
 
     assert len(asserting_events_worker._client.events) == 1
+
+
+async def test_skip_event_no_resources(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+
+    class AClass:
+        def _event_kind(self):
+            return "prefect.a-class"
+
+        def _event_method_called_resources(self) -> Optional[ResourceTuple]:
+            return None
+
+        def some_method(self):
+            pass
+
+    Instrumented = instrument_method_calls_on_class_instances(AClass)
+
+    instance = Instrumented()
+    instance.some_method()
+
+    time.sleep(0.1)
+
+    assert len(asserting_events_worker._client.events) == 0
