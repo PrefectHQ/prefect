@@ -1,3 +1,7 @@
+"""
+Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
+"""
+
 import contextlib
 import ctypes
 import math
@@ -5,7 +9,7 @@ import signal
 import sys
 import threading
 import time
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import anyio
 
@@ -25,6 +29,7 @@ class CancelContext:
     def __init__(self, timeout: Optional[float]) -> None:
         self._timeout = timeout
         self._cancelled: bool = False
+        self._chained: List["CancelContext"] = []
 
     @property
     def timeout(self) -> Optional[float]:
@@ -36,6 +41,21 @@ class CancelContext:
 
     def mark_cancelled(self):
         self._cancelled = True
+        for ctx in self._chained:
+            ctx.mark_cancelled()
+
+    def chain(self, ctx: "CancelContext") -> None:
+        """
+        When this context is marked as cancelled, mark the given context as cancelled
+        too.
+
+        If this context is already cancelled, the given context will be marked as
+        cancelled immediately.
+        """
+        if self._cancelled:
+            ctx.mark_cancelled()
+        else:
+            self._chained.append(ctx)
 
 
 @contextlib.contextmanager
@@ -92,14 +112,8 @@ def cancel_async_at(deadline: Optional[float]):
         return
 
     timeout = max(0, deadline - time.monotonic())
-
-    ctx = CancelContext(timeout=timeout)
-    try:
-        with cancel_async_after(timeout) as inner_ctx:
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with cancel_async_after(timeout) as ctx:
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -121,12 +135,9 @@ def cancel_sync_at(deadline: Optional[float]):
     timeout = max(0, deadline - time.monotonic())
 
     ctx = CancelContext(timeout=timeout)
-    try:
-        with cancel_sync_after(timeout) as inner_ctx:
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with cancel_sync_after(timeout) as inner_ctx:
+        inner_ctx.chain(ctx)
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -140,9 +151,8 @@ def cancel_sync_after(timeout: Optional[float]):
 
     Yields a `CancelContext`.
     """
-    ctx = CancelContext(timeout=timeout)
     if timeout is None:
-        yield ctx
+        yield CancelContext(timeout=timeout)
         return
 
     if sys.platform.startswith("win"):
@@ -151,7 +161,7 @@ def cancel_sync_after(timeout: Optional[float]):
             f"Entered cancel context on Windows; %.2f timeout will not be enforced.",
             timeout,
         )
-        yield ctx
+        yield CancelContext(timeout=None)
         return
 
     if threading.current_thread() is threading.main_thread():
@@ -161,17 +171,13 @@ def cancel_sync_after(timeout: Optional[float]):
         method = _watcher_thread_based_timeout
         method_name = "watcher"
 
-    try:
-        with method(timeout) as inner_ctx:
-            logger.debug(
-                f"Entered synchronous cancel context with %.2f %s based timeout",
-                timeout,
-                method_name,
-            )
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with method(timeout) as ctx:
+        logger.debug(
+            f"Entered synchronous cancel context with %.2f %s based timeout",
+            timeout,
+            method_name,
+        )
+        yield ctx
 
 
 @contextlib.contextmanager

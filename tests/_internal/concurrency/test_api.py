@@ -44,79 +44,67 @@ def set_contextvar(value):
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_call_soon_in_worker_thread(work):
-    supervisor = from_async.supervise_call_in_worker_thread(create_call(work, 1))
+async def test_from_async_supervise_call_in_new_worker(work):
+    supervisor = from_async.call_soon_in_new_thread(create_call(work, 1))
     assert await supervisor.result() == 1
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_call_soon_in_worker_thread(work):
-    supervisor = from_sync.supervise_call_in_worker_thread(create_call(work, 1))
+def test_from_sync_supervise_call_in_new_worker(work):
+    supervisor = from_sync.call_soon_in_new_thread(create_call(work, 1))
     assert supervisor.result() == 1
 
 
-async def test_from_async_supervise_call_in_runtime_thread():
-    supervisor = from_async.supervise_call_in_runtime_thread(create_call(aidentity, 1))
+async def test_from_async_supervise_call_in_global_thread():
+    supervisor = from_async.call_soon_in_global_thread(create_call(aidentity, 1))
     assert await supervisor.result() == 1
 
 
-def test_from_sync_supervise_call_in_runtime_thread():
-    supervisor = from_sync.supervise_call_in_runtime_thread(create_call(aidentity, 1))
+def test_from_sync_supervise_call_in_global_thread():
+    supervisor = from_sync.call_soon_in_global_thread(create_call(aidentity, 1))
     assert supervisor.result() == 1
-
-
-async def test_from_async_supervise_call_in_runtime_thread_must_be_coroutine_fn():
-    with pytest.raises(TypeError, match="coroutine"):
-        from_async.supervise_call_in_runtime_thread(create_call(identity, 1))
-
-
-def test_from_sync_supervise_call_in_runtime_thread_must_be_coroutine_fn():
-    with pytest.raises(TypeError, match="coroutine"):
-        from_sync.supervise_call_in_runtime_thread(create_call(identity, 1))
 
 
 @pytest.mark.parametrize("from_module", [from_async, from_sync])
-async def test_send_call_to_supervising_thread_no_supervisor(from_module):
-    with pytest.raises(RuntimeError, match="No supervisor"):
-        getattr(from_module, "send_call_to_supervising_thread")(
-            create_call(identity, 1)
-        )
+async def test_send_callback_no_call_context(from_module):
+    with pytest.raises(RuntimeError, match="No call found in context"):
+        getattr(from_module, "send_callback")(create_call(identity, 1))
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_send_call_to_supervising_thread_from_worker(work):
+async def test_from_async_send_callback_from_worker(work):
     async def worker():
-        future = from_async.send_call_to_supervising_thread(create_call(work, 1))
+        future = from_async.send_callback(create_call(work, 1))
         assert await future == 1
         return 2
 
-    supervisor = from_async.supervise_call_in_worker_thread(create_call(worker))
+    supervisor = from_async.call_soon_in_new_thread(create_call(worker))
     assert await supervisor.result() == 2
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_send_call_to_supervising_thread_from_worker(work):
+def test_from_sync_send_callback_from_worker(work):
     def worker():
-        future = from_sync.send_call_to_supervising_thread(create_call(work, 1))
+        future = from_sync.send_callback(create_call(work, 1))
         assert future.result() == 1
         return 2
 
-    supervisor = from_sync.supervise_call_in_worker_thread(create_call(worker))
+    supervisor = from_sync.call_soon_in_new_thread(create_call(worker))
     assert supervisor.result() == 2
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-async def test_from_async_send_call_to_supervising_thread_from_runtime(work):
-    async def from_runtime():
-        future = from_async.send_call_to_supervising_thread(create_call(work, 1))
+async def test_from_async_send_callback_from_global(work):
+    async def from_global():
+        future = from_async.send_callback(create_call(work, 1))
         assert await future == 1
         return 2
 
-    supervisor = from_async.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_async.call_soon_in_global_thread(create_call(from_global))
     assert await supervisor.result() == 2
 
 
-async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_concurrency():
+async def test_from_async_send_callback_from_worker_allows_concurrency():
     last_task_run = None
 
     async def sleep_then_set(n):
@@ -127,91 +115,81 @@ async def test_from_async_send_call_to_supervising_thread_from_runtime_allows_co
         last_task_run = n
         print(f"Finished task {n}")
 
-    async def from_runtime():
+    async def from_worker():
         futures = []
-        futures.append(
-            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 1))
-        )
-        futures.append(
-            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 2))
-        )
-        futures.append(
-            from_async.send_call_to_supervising_thread(create_call(sleep_then_set, 3))
-        )
+        futures.append(from_async.send_callback(create_call(sleep_then_set, 1)))
+        futures.append(from_async.send_callback(create_call(sleep_then_set, 2)))
+        futures.append(from_async.send_callback(create_call(sleep_then_set, 3)))
         await asyncio.gather(*futures)
         return last_task_run
 
-    supervisor = from_async.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_async.call_soon_in_global_thread(create_call(from_worker))
     assert await supervisor.result() == 1
 
 
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_from_sync_send_call_to_supervising_thread_from_runtime(work):
-    async def from_runtime():
-        future = from_async.send_call_to_supervising_thread(create_call(work, 1))
+def test_from_sync_send_callback_from_global(work):
+    async def from_global():
+        future = from_async.send_callback(create_call(work, 1))
         assert await future == 1
         return 2
 
-    supervisor = from_sync.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_sync.call_soon_in_global_thread(create_call(from_global))
     assert supervisor.result() == 2
 
 
-async def test_from_async_supervise_call_in_runtime_thread_captures_context_variables():
+async def test_from_async_supervise_call_in_global_thread_captures_context_variables():
     with set_contextvar("test"):
-        supervisor = from_async.supervise_call_in_runtime_thread(
-            create_call(aget_contextvar)
-        )
+        supervisor = from_async.call_soon_in_global_thread(create_call(aget_contextvar))
         assert await supervisor.result() == "test"
 
 
-def test_from_sync_supervise_call_in_runtime_thread_captures_context_variables():
+def test_from_sync_supervise_call_in_global_thread_captures_context_variables():
     with set_contextvar("test"):
-        supervisor = from_sync.supervise_call_in_runtime_thread(
-            create_call(aget_contextvar)
-        )
+        supervisor = from_sync.call_soon_in_global_thread(create_call(aget_contextvar))
         assert supervisor.result() == "test"
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-async def test_from_async_call_soon_in_worker_thread_captures_context_variables(get):
+async def test_from_async_supervise_call_in_new_worker_captures_context_variables(get):
     with set_contextvar("test"):
-        supervisor = from_async.supervise_call_in_worker_thread(create_call(get))
+        supervisor = from_async.call_soon_in_new_thread(create_call(get))
         assert await supervisor.result() == "test"
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-def test_from_sync_call_soon_in_worker_thread_captures_context_variables(get):
+def test_from_sync_supervise_call_in_new_worker_captures_context_variables(get):
     with set_contextvar("test"):
-        supervisor = from_sync.supervise_call_in_worker_thread(create_call(get))
+        supervisor = from_sync.call_soon_in_new_thread(create_call(get))
         assert supervisor.result() == "test"
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-async def test_from_async_send_call_to_supervising_thread_captures_context_varaibles(
+async def test_from_async_send_callback_captures_context_varaibles(
     get,
 ):
-    async def from_runtime():
+    async def from_global():
         with set_contextvar("test"):
-            future = from_async.send_call_to_supervising_thread(create_call(get))
+            future = from_async.send_callback(create_call(get))
         assert await future == "test"
 
-    supervisor = from_async.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_async.call_soon_in_global_thread(create_call(from_global))
     await supervisor.result()
 
 
 @pytest.mark.parametrize("get", [get_contextvar, aget_contextvar])
-def test_from_sync_send_call_to_supervising_thread_captures_context_varaibles(get):
-    async def from_runtime():
+def test_from_sync_send_callback_captures_context_varaibles(get):
+    async def from_global():
         with set_contextvar("test"):
-            future = from_async.send_call_to_supervising_thread(create_call(get))
+            future = from_async.send_callback(create_call(get))
         assert await future == "test"
 
-    supervisor = from_sync.supervise_call_in_runtime_thread(create_call(from_runtime))
+    supervisor = from_sync.call_soon_in_global_thread(create_call(from_global))
     supervisor.result()
 
 
-async def test_from_async_supervise_call_in_runtime_thread_timeout():
-    supervisor = from_async.supervise_call_in_runtime_thread(
+async def test_from_async_supervise_call_in_global_thread_timeout():
+    supervisor = from_async.call_soon_in_global_thread(
         create_call(asyncio.sleep, 1),
         timeout=0.1,
     )
@@ -219,8 +197,8 @@ async def test_from_async_supervise_call_in_runtime_thread_timeout():
         assert await supervisor.result() == 1
 
 
-def test_from_sync_supervise_call_in_runtime_thread_timeout():
-    supervisor = from_sync.supervise_call_in_runtime_thread(
+def test_from_sync_supervise_call_in_global_thread_timeout():
+    supervisor = from_sync.call_soon_in_global_thread(
         create_call(asyncio.sleep, 1),
         timeout=0.1,
     )
@@ -229,7 +207,7 @@ def test_from_sync_supervise_call_in_runtime_thread_timeout():
 
 
 async def test_from_async_supervise_call_in_worker_thread_timeout():
-    supervisor = from_async.supervise_call_in_worker_thread(
+    supervisor = from_async.call_soon_in_new_thread(
         create_call(sleep_repeatedly, 1),
         timeout=0.1,
     )
@@ -238,7 +216,7 @@ async def test_from_async_supervise_call_in_worker_thread_timeout():
 
 
 def test_from_sync_supervise_call_in_worker_thread_timeout():
-    supervisor = from_sync.supervise_call_in_worker_thread(
+    supervisor = from_sync.call_soon_in_new_thread(
         create_call(sleep_repeatedly, 1),
         timeout=0.1,
     )

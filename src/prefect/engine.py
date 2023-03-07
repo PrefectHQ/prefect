@@ -32,7 +32,6 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
-from prefect._internal.concurrency.supervisors import get_supervisor
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -165,9 +164,9 @@ def enter_flow_run_engine_from_flow_call(
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
-        return from_async.supervise_call_in_runtime_thread(begin_run).result()
+        return from_async.call_soon_in_global_thread(begin_run).result()
     else:
-        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
+        return from_sync.call_soon_in_global_thread(begin_run).result()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -583,6 +582,7 @@ async def orchestrate_flow_run(
     logger = flow_run_logger(flow_run, flow)
 
     flow_run_context = None
+    parent_flow_run_context = FlowRunContext.get()
 
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
@@ -632,19 +632,17 @@ async def orchestrate_flow_run(
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
-                parent_supervisor = get_supervisor()
-                supervisor = None
-
-                if parent_supervisor and parent_supervisor.is_async == flow.isasync:
-                    supervisor = from_async.supervise_call_in_supervising_thread(
-                        flow_call, timeout=flow.timeout_seconds
-                    )
+                if (
+                    parent_flow_run_context
+                    and parent_flow_run_context.flow.isasync == flow.isasync
+                ):
+                    from_async.send_callback(flow_call, timeout=flow.timeout_seconds)
                 else:
-                    supervisor = from_async.supervise_call_in_worker_thread(
+                    from_async.call_soon_in_new_thread(
                         flow_call, timeout=flow.timeout_seconds
                     )
 
-                result = await supervisor.result()
+                result = await flow_call.aresult()
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -660,8 +658,7 @@ async def orchestrate_flow_run(
                 isinstance(exc, TimeoutError)
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
-                # TODO: Add cancellation check again
-                # and supervisor.cancelled
+                # and flow_call.cancelled()
             ):
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
@@ -940,9 +937,9 @@ def enter_task_run_engine(
 
     if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
-        return from_async.supervise_call_in_runtime_thread(begin_run).result()
+        return from_async.call_soon_in_global_thread(begin_run).result()
     else:
-        return from_sync.supervise_call_in_runtime_thread(begin_run).result()
+        return from_sync.call_soon_in_global_thread(begin_run).result()
 
 
 async def begin_task_map(
@@ -1497,7 +1494,7 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    result = await from_async.supervise_call_in_worker_thread(
+                    result = await from_async.call_soon_in_new_thread(
                         create_call(task.fn, *args, **kwargs)
                     ).result()
 

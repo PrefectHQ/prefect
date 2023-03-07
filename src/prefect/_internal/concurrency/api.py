@@ -1,3 +1,6 @@
+"""
+Primary developer-facing API for concurrency management.
+"""
 import abc
 import asyncio
 import concurrent.futures
@@ -5,14 +8,9 @@ from typing import Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect._internal.concurrency.runtime import get_runtime_thread
-from prefect._internal.concurrency.supervisors import (
-    AsyncSupervisor,
-    Call,
-    Supervisor,
-    SyncSupervisor,
-    get_supervisor,
-)
+from prefect._internal.concurrency.calls import get_current_call
+from prefect._internal.concurrency.threads import WorkerThread, get_global_thread_portal
+from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter, Waiter
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -25,34 +23,33 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
 
 class _base(abc.ABC):
     @abc.abstractstaticmethod
-    def supervise_call_in_runtime_thread(
+    def call_soon_in_global_thread(
         call: Call[T], timeout: Optional[float] = None
-    ) -> Supervisor[T]:
+    ) -> Waiter[T]:
         """
-        Schedule a coroutine function in the runtime thread.
+        Schedule a function in the global worker thread.
 
-        Returns a supervisor.
+        Returns a waiter.
         """
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def supervise_call_in_worker_thread(
+    def call_soon_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
-    ) -> Supervisor[T]:
+    ) -> Waiter[T]:
         """
-        Schedule a function in a worker thread.
+        Schedule a function in a new worker thread.
 
-        Returns a supervisor.
+        Returns a waiter.
         """
         raise NotImplementedError()
 
     @abc.abstractstaticmethod
-    def send_call_to_supervising_thread(call: Call[T]) -> Future:
+    def send_callback(call: Call[T], timeout: Optional[float] = None) -> Future:
         """
-        Call a function in the supervising thread.
+        Add a callback for the current call.
 
-        Must be used from a call scheduled by `call_soon_in_worker_thread` or
-        `call_soon_in_runtime_thread` or there will not be a supervisor.
+        Typically schedules the callback for execution in a monitoring thread.
 
         Returns a future.
         """
@@ -61,99 +58,63 @@ class _base(abc.ABC):
 
 class from_async(_base):
     @staticmethod
-    def supervise_call_in_runtime_thread(
+    def call_soon_in_global_thread(
         call: Call[Awaitable[T]], timeout: Optional[float] = None
-    ) -> AsyncSupervisor[Awaitable[T]]:
-        current_supervisor = get_supervisor()
-        runtime = get_runtime_thread()
-        submit_fn = runtime.submit_to_loop
-
-        supervisor = AsyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.start()
-        return supervisor
+    ) -> AsyncWaiter[Awaitable[T]]:
+        portal = get_global_thread_portal()
+        call.set_timeout(timeout)
+        waiter = AsyncWaiter(call)
+        portal.submit(call)
+        return waiter
 
     @staticmethod
-    def supervise_call_in_worker_thread(
+    def call_soon_in_new_thread(
         call: Call, timeout: Optional[float] = None
-    ) -> AsyncSupervisor[T]:
-        runtime = get_runtime_thread()
-        supervisor = AsyncSupervisor(
-            call, runtime.submit_to_worker_thread, timeout=timeout
-        )
-        supervisor.start()
-        return supervisor
+    ) -> AsyncWaiter[T]:
+        portal = WorkerThread(run_once=True)
+        call.set_timeout(timeout)
+        waiter = AsyncWaiter(call=call)
+        portal.submit(call)
+        return waiter
 
     @staticmethod
-    def supervise_call_in_supervising_thread(
-        call: Call, timeout: Optional[float] = None
-    ) -> AsyncSupervisor:
-        current_supervisor = get_supervisor()
-        if current_supervisor is None:
-            raise RuntimeError("No supervisor found.")
+    def send_callback(call: Call, timeout: Optional[float] = None) -> Call:
+        current_call = get_current_call()
+        if current_call is None:
+            raise RuntimeError("No call found in context.")
 
-        supervisor = AsyncSupervisor(
-            call,
-            submit_fn=current_supervisor.submit_to_supervisor,
-            timeout=timeout,
-            allow_callbacks=False,
-        )
-        supervisor.start()
-        return supervisor
-
-    @staticmethod
-    def send_call_to_supervising_thread(call: Call) -> asyncio.Future:
-        current_supervisor = get_supervisor()
-        if current_supervisor is None:
-            raise RuntimeError("No supervisor found.")
-
-        future = current_supervisor.send_call_to_supervisor(call)
-        return asyncio.wrap_future(future)
+        call.set_timeout(timeout)
+        current_call.add_callback(call)
+        return call
 
 
 class from_sync(_base):
     @staticmethod
-    def supervise_call_in_runtime_thread(
+    def call_soon_in_global_thread(
         call: Call[T], timeout: Optional[float] = None
-    ) -> SyncSupervisor[T]:
-        current_supervisor = get_supervisor()
-        runtime = get_runtime_thread()
-        submit_fn = runtime.submit_to_loop
-
-        supervisor = SyncSupervisor(call, submit_fn=submit_fn, timeout=timeout)
-        supervisor.start()
-        return supervisor
+    ) -> SyncWaiter[T]:
+        portal = get_global_thread_portal()
+        call.set_timeout(timeout)
+        waiter = SyncWaiter(call)
+        portal.submit(call)
+        return waiter
 
     @staticmethod
-    def supervise_call_in_worker_thread(
+    def call_soon_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
-    ) -> SyncSupervisor[T]:
-        runtime = get_runtime_thread()
-        supervisor = SyncSupervisor(
-            call, runtime.submit_to_worker_thread, timeout=timeout
-        )
-        supervisor.start()
-        return supervisor
+    ) -> SyncWaiter[T]:
+        portal = get_global_thread_portal()
+        call.set_timeout(timeout)
+        waiter = SyncWaiter(call=call)
+        portal.submit(call)
+        return waiter
 
     @staticmethod
-    def send_call_to_supervising_thread(call: Call) -> concurrent.futures.Future:
-        current_supervisor = get_supervisor()
-        if current_supervisor is None:
-            raise RuntimeError("No supervisor found.")
+    def send_callback(call: Call, timeout: Optional[float] = None) -> Call:
+        current_call = get_current_call()
+        if current_call is None:
+            raise RuntimeError("No call found in context.")
 
-        future = current_supervisor.send_call_to_supervisor(call)
-        return future
-
-    @staticmethod
-    def send_call_to_runtime_thread(call: Call) -> concurrent.futures.Future:
-        current_supervisor = get_supervisor()
-        runtime = get_runtime_thread()
-
-        if (
-            current_supervisor is None
-            or current_supervisor.owner_thread.ident != runtime.ident
-        ):
-            submit_fn = runtime.submit_to_loop
-        else:
-            submit_fn = current_supervisor.submit_to_supervisor
-
-        return submit_fn(call.fn, *call.args, **call.kwargs)
+        call.set_timeout(timeout)
+        current_call.add_callback(call)
+        return call

@@ -220,18 +220,18 @@ def sync_compatible(async_fn: T) -> T:
         import threading
 
         from prefect._internal.concurrency.api import create_call, from_sync
-        from prefect._internal.concurrency.runtime import get_runtime_thread
-        from prefect._internal.concurrency.supervisors import get_supervisor
+        from prefect._internal.concurrency.calls import get_current_call
+        from prefect._internal.concurrency.threads import get_global_thread_portal
 
-        supervisor = get_supervisor()
-        runtime_thread = get_runtime_thread()
+        current_call = get_current_call()
+        global_thread_portal = get_global_thread_portal()
         current_thread = threading.current_thread()
-        if current_thread.ident == runtime_thread.ident:
+        if current_thread.ident == global_thread_portal.thread.ident:
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
-        elif supervisor and not is_async_fn(supervisor._call.fn):
+        elif current_call and not is_async_fn(current_call.fn):
             # In a supervised call that is not async; send the async call to the parent
-            return from_sync.send_call_to_supervising_thread(
+            return from_sync.send_callback(
                 create_call(async_fn, *args, **kwargs)
             ).result()
         elif in_async_main_thread():
