@@ -3,8 +3,9 @@ import time
 
 import pytest
 
-from prefect._internal.concurrency.portals import WorkerThreadPortal
-from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter
+from prefect._internal.concurrency.calls import Call
+from prefect._internal.concurrency.threads import WorkerThread
+from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
 
 
 def fake_fn(*args, **kwargs):
@@ -45,7 +46,7 @@ def test_sync_waiter_timeout_in_worker_thread():
     In this test, a timeout is raised due to a slow call that is occuring on the worker
     thread.
     """
-    with WorkerThreadPortal(run_once=True) as portal:
+    with WorkerThread(run_once=True) as portal:
         call = Call.new(sleep_repeatedly, 1)
         waiter = SyncWaiter(call)
         call.set_timeout(0.1)
@@ -68,7 +69,7 @@ def test_sync_waiter_timeout_in_main_thread():
     In this test, a timeout is raised due to a slow call that is sent back to the main
     thread by the worker thread.
     """
-    with WorkerThreadPortal(run_once=True) as portal:
+    with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
             # Send sleep to the main thread
@@ -96,7 +97,7 @@ def test_sync_waiter_timeout_in_main_thread():
 
 
 async def test_async_waiter_timeout_in_worker_thread():
-    with WorkerThreadPortal(run_once=True) as portal:
+    with WorkerThread(run_once=True) as portal:
         call = Call.new(sleep_repeatedly, 1)
         waiter = AsyncWaiter(call)
         call.set_timeout(0.1)
@@ -115,7 +116,7 @@ async def test_async_waiter_timeout_in_worker_thread():
 
 
 async def test_async_waiter_timeout_in_main_thread():
-    with WorkerThreadPortal(run_once=True) as portal:
+    with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
             # Send sleep to the main thread
@@ -150,7 +151,7 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
         time.sleep(0.1)
         return asyncio.sleep(0.25)
 
-    with WorkerThreadPortal(run_once=True) as portal:
+    with WorkerThread(run_once=True) as portal:
         call = Call.new(sync_then_async_sleep)
         waiter = AsyncWaiter(call)
         call.set_timeout(0.3)

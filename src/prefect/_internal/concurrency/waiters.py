@@ -1,6 +1,6 @@
 """
-Implementations of waiters for calls, which allow work to be sent back to the
-thread waiting for the result of the call.
+Implementations of waiters for calls, which allow work to be sent back to the thread
+waiting for the result of the call.
 """
 
 import abc
@@ -10,8 +10,8 @@ import queue
 import threading
 from typing import Awaitable, Generic, TypeVar, Union
 
+from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
-from prefect._internal.concurrency.portals import Call
 from prefect._internal.concurrency.timeouts import cancel_async_at, cancel_sync_at
 from prefect.logging import get_logger
 
@@ -21,7 +21,7 @@ T = TypeVar("T")
 logger = get_logger("prefect._internal.concurrency.waiters")
 
 
-class Waiter(abc.ABC, Generic[T]):
+class Waiter(Portal, abc.ABC, Generic[T]):
     """
     A waiter allows a waiting for the result of a call while routing callbacks to the
     the current thread.
@@ -33,9 +33,11 @@ class Waiter(abc.ABC, Generic[T]):
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        call.set_callback_handler(self._put_callback_in_queue)
+        call.set_callback_portal(self)
         self._call = call
         self._owner_thread = threading.current_thread()
+
+        super().__init__()
 
     @abc.abstractmethod
     def result(self) -> Union[Awaitable[T], T]:
@@ -43,13 +45,6 @@ class Waiter(abc.ABC, Generic[T]):
         Retrieve the result of the supervised call.
 
         Watch for and execute any work sent back.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def _put_callback_in_queue(self, call: Call) -> None:
-        """
-        Add a call to the waiter. Used by `send_call`.
         """
         raise NotImplementedError()
 
@@ -65,8 +60,13 @@ class SyncWaiter(Waiter[T]):
         super().__init__(call=call)
         self._queue: queue.Queue = queue.Queue()
 
-    def _put_callback_in_queue(self, callback: Call):
-        self._queue.put_nowait(callback)
+    def submit(self, call: Call):
+        """
+        Submit a callback to execute while waiting.
+        """
+        self._queue.put_nowait(call)
+        call.set_portal(self)
+        return call
 
     def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to waiter %r", self)
@@ -104,9 +104,14 @@ class AsyncWaiter(Waiter[T]):
         self._queue: asyncio.Queue = asyncio.Queue()
         self._loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
 
-    def _put_callback_in_queue(self, callback: Call):
+    def submit(self, call: Call):
+        """
+        Submit a callback to execute while waiting.
+        """
         # We must put items in the queue from the event loop that owns it
-        call_soon_in_loop(self._loop, self._queue.put_nowait, callback)
+        call_soon_in_loop(self._loop, self._queue.put_nowait, call)
+        call.set_portal(self)
+        return call
 
     async def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to %r", self)

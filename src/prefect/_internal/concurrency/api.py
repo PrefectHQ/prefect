@@ -5,11 +5,8 @@ from typing import Awaitable, Callable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
-from prefect._internal.concurrency.portals import (
-    WorkerThreadPortal,
-    get_current_call,
-    get_global_thread_portal,
-)
+from prefect._internal.concurrency.calls import get_current_call
+from prefect._internal.concurrency.threads import WorkerThread, get_global_thread_portal
 from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter, Waiter
 
 P = ParamSpec("P")
@@ -71,7 +68,7 @@ class from_async(_base):
     def call_soon_in_new_thread(
         call: Call, timeout: Optional[float] = None
     ) -> AsyncWaiter[T]:
-        portal = WorkerThreadPortal(run_once=True)
+        portal = WorkerThread(run_once=True)
         call.set_timeout(timeout)
         waiter = AsyncWaiter(call=call)
         portal.submit(call)
