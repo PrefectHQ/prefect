@@ -32,6 +32,7 @@ from typing_extensions import Literal
 import prefect
 import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.calls import get_current_call
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -632,9 +633,16 @@ async def orchestrate_flow_run(
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
-                if not parent_flow_run_context or (
-                    parent_flow_run_context
-                    and parent_flow_run_context.flow.isasync == flow.isasync
+                # This check for a parent call is only needed for test cases where
+                # this function is called directly instead of via our normal entrypoint
+                parent_call = get_current_call()
+
+                if parent_call and (
+                    not parent_flow_run_context
+                    or (
+                        parent_flow_run_context
+                        and parent_flow_run_context.flow.isasync == flow.isasync
+                    )
                 ):
                     from_async.send_callback(flow_call, timeout=flow.timeout_seconds)
                 else:
