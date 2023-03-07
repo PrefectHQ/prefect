@@ -8,7 +8,7 @@
       <template #header>
         <CodeBanner :command="codeBannerCliCommand" :title="codeBannerTitle" :subtitle="codeBannerSubtitle" />
       </template>
-      <p-tabs :tabs="tabs">
+      <p-tabs v-model:selected="tab" :tabs="tabs">
         <template #details>
           <WorkPoolDetails :work-pool="workPool" />
         </template>
@@ -35,7 +35,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useRecentFlowRunsFilter, WorkersTable, useCan } from '@prefecthq/prefect-ui-library'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useRecentFlowRunsFilter, useTabs, useCan, WorkersTable } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -44,26 +44,22 @@
   const workPoolName = useRouteParam('workPoolName')
   const can = useCan()
 
-  const tabs = computed(() => {
-    const values = ['Runs', 'Work Queues']
-
-    if (can.access.workers && !isAgentWorkPool.value) {
-      values.push('Workers')
-    }
-
-    if (!media.xl) {
-      values.unshift('Details')
-    }
-
-    return values
-  })
-
   const subscriptionOptions = {
     interval: 300000,
   }
   const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
   const workPool = computed(() => workPoolSubscription.response)
   const isAgentWorkPool = computed(() => workPool.value?.type === 'prefect-agent')
+
+  const computedTabs = computed(() => [
+    { label: 'Details', hidden: media.xl },
+    { label: 'Runs' },
+    { label: 'Work Queues' },
+    { label: "Workers", hidden: !can.access.workers || isAgentWorkPool.value }
+  ])
+
+  const { tab, tabs } = useTabs(computedTabs)
+
 
   const codeBannerTitle = computed(() => {
     if (!workPool.value) {
