@@ -611,11 +611,16 @@ class Block(BaseModel, ABC):
     def _event_kind(self) -> str:
         return f"prefect.block.{self.get_block_type_slug()}"
 
-    def _event_method_called_resources(self) -> ResourceTuple:
-        name = self._block_document_name if self._block_document_name else "anonymous"
+    def _event_method_called_resources(self) -> Optional[ResourceTuple]:
+        if not self._block_document_id:
+            return None
+
         return (
             {
-                "prefect.resource.id": f"prefect.block-document.{name}",
+                "prefect.resource.id": (
+                    f"prefect.block-document.{self._block_document_id}"
+                ),
+                "prefect.block-document.name": self._block_document_name,
             },
             [
                 {
