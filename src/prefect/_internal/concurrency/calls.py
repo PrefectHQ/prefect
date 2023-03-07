@@ -106,6 +106,9 @@ class Call(Generic[T]):
         if self.callback_portal is None:
             raise RuntimeError("No callback handler has been configured.")
 
+        if self.future.done():
+            raise RuntimeError("The call is already done.")
+
         self.callback_portal.submit(call)
 
     def run(self) -> None:
