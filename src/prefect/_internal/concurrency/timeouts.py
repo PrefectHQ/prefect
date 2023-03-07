@@ -23,26 +23,47 @@ class CancelContext:
     """
     Tracks if a cancel context manager was cancelled.
 
-    The `cancelled` property is threadsafe.
+    A context cannot be marked as cancelled after it is reported as completed.
     """
 
     def __init__(self, timeout: Optional[float]) -> None:
         self._timeout = timeout
+        self._deadline = get_deadline(timeout)
         self._cancelled: bool = False
         self._chained: List["CancelContext"] = []
+        self._lock = threading.Lock()
+        self._completed = False
 
     @property
     def timeout(self) -> Optional[float]:
         return self._timeout
 
     @property
+    def deadline(self) -> Optional[float]:
+        return self._deadline
+
     def cancelled(self):
-        return self._cancelled
+        with self._lock:
+            return self._cancelled
+
+    def completed(self):
+        with self._lock:
+            return self._completed
 
     def mark_cancelled(self):
-        self._cancelled = True
-        for ctx in self._chained:
-            ctx.mark_cancelled()
+        with self._lock:
+            if self._completed:
+                return  # Do not mark completed tasks as cancelled
+
+            logger.debug("Marked %r as cancelled", self)
+            self._cancelled = True
+            for ctx in self._chained:
+                ctx.mark_cancelled()
+
+    def mark_completed(self):
+        with self._lock:
+            logger.debug("Marked %r as completed", self)
+            self._completed = True
 
     def chain(self, ctx: "CancelContext") -> None:
         """
@@ -52,10 +73,14 @@ class CancelContext:
         If this context is already cancelled, the given context will be marked as
         cancelled immediately.
         """
-        if self._cancelled:
-            ctx.mark_cancelled()
-        else:
-            self._chained.append(ctx)
+        with self._lock:
+            if self._cancelled:
+                ctx.mark_cancelled()
+            else:
+                self._chained.append(ctx)
+
+    def __repr__(self) -> str:
+        return f"<CancelContext at {hex(id(self))} timeout={self._timeout}>"
 
 
 @contextlib.contextmanager
@@ -134,9 +159,7 @@ def cancel_sync_at(deadline: Optional[float]):
 
     timeout = max(0, deadline - time.monotonic())
 
-    ctx = CancelContext(timeout=timeout)
-    with cancel_sync_after(timeout) as inner_ctx:
-        inner_ctx.chain(ctx)
+    with cancel_sync_after(timeout) as ctx:
         yield ctx
 
 

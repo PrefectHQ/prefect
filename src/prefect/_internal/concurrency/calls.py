@@ -18,7 +18,6 @@ from prefect._internal.concurrency.timeouts import (
     CancelContext,
     cancel_async_at,
     cancel_sync_at,
-    get_deadline,
 )
 from prefect.logging import get_logger
 
@@ -57,8 +56,9 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
-    cancel_context: CancelContext
-    deadline: Optional[float] = None
+    cancel_context: CancelContext = dataclasses.field(
+        default_factory=lambda: CancelContext(timeout=None)
+    )
     portal: Optional["Portal"] = None
     callback_portal: Optional["Portal"] = None
 
@@ -70,7 +70,6 @@ class Call(Generic[T]):
             args=args,
             kwargs=kwargs,
             context=contextvars.copy_context(),
-            cancel_context=CancelContext(),
         )
 
     def set_timeout(self, timeout: Optional[float] = None) -> None:
@@ -82,7 +81,8 @@ class Call(Generic[T]):
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
-        self.deadline = get_deadline(timeout)
+        self.cancel_context = CancelContext(timeout=timeout)
+        logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
 
     def set_portal(self, portal: "Portal") -> None:
         """
@@ -146,13 +146,15 @@ class Call(Generic[T]):
         return self.future.result()
 
     def cancelled(self) -> bool:
-        return self.cancel_context.cancelled or self.future.cancelled()
+        return self.cancel_context.cancelled() or self.future.cancelled()
 
     def _run_sync(self):
+        cancel_context = self.cancel_context
+
         try:
             with set_current_call(self):
-                with cancel_sync_at(self.deadline) as ctx:
-                    ctx.chain(self.cancel_context)
+                with cancel_sync_at(cancel_context.deadline) as ctx:
+                    ctx.chain(cancel_context)
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -160,26 +162,34 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
+            if not isinstance(exc, TimeoutError):
+                cancel_context.mark_completed()
             self.future.set_exception(exc)
             logger.debug("Encountered exception in call %r", self)
             # Prevent reference cycle in `exc`
             del self
         else:
+            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished call %r", self)
 
     async def _run_async(self, coro):
+        cancel_context = self.cancel_context
+
         try:
             with set_current_call(self):
-                with cancel_async_at(self.deadline) as ctx:
-                    ctx.chain(self.cancel_context)
+                with cancel_async_at(cancel_context.deadline) as ctx:
+                    ctx.chain(cancel_context)
                     result = await coro
         except BaseException as exc:
+            if not isinstance(exc, asyncio.CancelledError):
+                cancel_context.mark_completed()
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:
+            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished async call %r", self)
 
