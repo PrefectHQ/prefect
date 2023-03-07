@@ -163,7 +163,7 @@ For example, the `ProcessWorker` has a 'Working Directory' field that allows cus
 
 ### Viewing work pools
 
-At any time, users can see and edit configured work pools in the Prefect UI.
+You can see and edit configured work pools in the Prefect UI.
 
 ![The UI displays a list of configured work pools](../img/ui/work-pool-list.png)
 
