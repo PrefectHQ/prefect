@@ -155,7 +155,7 @@ Inspect the work pool:
 On success, the command returns the details of the newly created work pool, which can then be used to start agents that poll this pool for work or perform additional configuration of the pool.
 
 
-#### Base Job Configuration
+#### Base Job Configuration <span class="beta"></span>
 
 When work pools are created via the UI with a worker type, the base job configuration of the work pool can be modified. The base job configuration are attributes that are specific to a given worker type and allow customization of the default behavior of the worker when executing a flow run. These attributes can then be overridden on a deployment with the `infra_overrides` parameter.
 
