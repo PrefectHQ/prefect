@@ -1,3 +1,7 @@
+"""
+Implementation of the `Call` data structure for transport of deferred function calls
+and low-level management of call execution.
+"""
 import abc
 import asyncio
 import concurrent.futures

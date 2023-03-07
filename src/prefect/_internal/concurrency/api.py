@@ -1,3 +1,6 @@
+"""
+Primary developer-facing API for concurrency management.
+"""
 import abc
 import asyncio
 import concurrent.futures

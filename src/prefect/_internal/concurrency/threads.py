@@ -1,18 +1,15 @@
+"""
+Utilities for managing worker threads.
+"""
 import asyncio
 import atexit
 import concurrent.futures
 import threading
-from typing import Optional, TypeVar
-
-from typing_extensions import ParamSpec
+from typing import Optional
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
-
-T = TypeVar("T")
-P = ParamSpec("P")
-
 
 logger = get_logger("prefect._internal.concurrency.calls")
 

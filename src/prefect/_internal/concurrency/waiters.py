@@ -1,6 +1,6 @@
 """
-Implementations of waiters for calls, which allow work to be sent back to the thread
-waiting for the result of the call.
+Implementations of `Waiter`s, which allow work to be sent back to a thread while it
+waits for the result of the call.
 """
 
 import abc
