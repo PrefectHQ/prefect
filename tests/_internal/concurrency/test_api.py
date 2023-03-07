@@ -74,8 +74,8 @@ async def test_send_callback_no_call_context(from_module):
 @pytest.mark.parametrize("work", [identity, aidentity])
 async def test_from_async_send_callback_from_worker(work):
     async def worker():
-        future = from_async.send_callback(create_call(work, 1))
-        assert await future == 1
+        call = from_async.send_callback(create_call(work, 1))
+        assert await call.aresult() == 1
         return 2
 
     supervisor = from_async.call_soon_in_new_thread(create_call(worker))
@@ -85,8 +85,8 @@ async def test_from_async_send_callback_from_worker(work):
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_from_sync_send_callback_from_worker(work):
     def worker():
-        future = from_sync.send_callback(create_call(work, 1))
-        assert future.result() == 1
+        call = from_sync.send_callback(create_call(work, 1))
+        assert call.result() == 1
         return 2
 
     supervisor = from_sync.call_soon_in_new_thread(create_call(worker))
@@ -96,8 +96,8 @@ def test_from_sync_send_callback_from_worker(work):
 @pytest.mark.parametrize("work", [identity, aidentity])
 async def test_from_async_send_callback_from_global(work):
     async def from_global():
-        future = from_async.send_callback(create_call(work, 1))
-        assert await future == 1
+        call = from_async.send_callback(create_call(work, 1))
+        assert await call.aresult() == 1
         return 2
 
     supervisor = from_async.call_soon_in_global_thread(create_call(from_global))
@@ -116,11 +116,11 @@ async def test_from_async_send_callback_from_worker_allows_concurrency():
         print(f"Finished task {n}")
 
     async def from_worker():
-        futures = []
-        futures.append(from_async.send_callback(create_call(sleep_then_set, 1)))
-        futures.append(from_async.send_callback(create_call(sleep_then_set, 2)))
-        futures.append(from_async.send_callback(create_call(sleep_then_set, 3)))
-        await asyncio.gather(*futures)
+        calls = []
+        calls.append(from_async.send_callback(create_call(sleep_then_set, 1)))
+        calls.append(from_async.send_callback(create_call(sleep_then_set, 2)))
+        calls.append(from_async.send_callback(create_call(sleep_then_set, 3)))
+        await asyncio.gather(*[call.aresult() for call in calls])
         return last_task_run
 
     supervisor = from_async.call_soon_in_global_thread(create_call(from_worker))
@@ -130,8 +130,8 @@ async def test_from_async_send_callback_from_worker_allows_concurrency():
 @pytest.mark.parametrize("work", [identity, aidentity])
 def test_from_sync_send_callback_from_global(work):
     async def from_global():
-        future = from_async.send_callback(create_call(work, 1))
-        assert await future == 1
+        call = from_async.send_callback(create_call(work, 1))
+        assert await call.aresult() == 1
         return 2
 
     supervisor = from_sync.call_soon_in_global_thread(create_call(from_global))
@@ -170,8 +170,8 @@ async def test_from_async_send_callback_captures_context_varaibles(
 ):
     async def from_global():
         with set_contextvar("test"):
-            future = from_async.send_callback(create_call(get))
-        assert await future == "test"
+            call = from_async.send_callback(create_call(get))
+        assert await call.aresult() == "test"
 
     supervisor = from_async.call_soon_in_global_thread(create_call(from_global))
     await supervisor.result()
@@ -181,8 +181,8 @@ async def test_from_async_send_callback_captures_context_varaibles(
 def test_from_sync_send_callback_captures_context_varaibles(get):
     async def from_global():
         with set_contextvar("test"):
-            future = from_async.send_callback(create_call(get))
-        assert await future == "test"
+            call = from_async.send_callback(create_call(get))
+        assert await call.aresult() == "test"
 
     supervisor = from_sync.call_soon_in_global_thread(create_call(from_global))
     supervisor.result()
