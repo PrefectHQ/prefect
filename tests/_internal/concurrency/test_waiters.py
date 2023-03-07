@@ -63,6 +63,8 @@ def test_sync_waiter_timeout_in_worker_thread():
 
     assert t1 - t0 < 1
 
+    assert call.cancelled()
+
 
 def test_sync_waiter_timeout_in_main_thread():
     """
@@ -72,7 +74,6 @@ def test_sync_waiter_timeout_in_main_thread():
     with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
-            # Send sleep to the main thread
             callback = Call.new(time.sleep, 2)
             call.add_callback(callback)
             return callback
@@ -83,17 +84,20 @@ def test_sync_waiter_timeout_in_main_thread():
         portal.submit(call)
 
         t0 = time.time()
-        call = waiter.result()
+        callback = waiter.result()
         t1 = time.time()
 
     # The timeout error is not raised by `waiter.result()` because the worker
     # does not check the result of the call; however, the work that was sent
     # to the main thread should have a timeout error
     with pytest.raises(TimeoutError):
-        call.result()
+        callback.result()
 
     # main thread timeouts round up to the nearest second
     assert t1 - t0 < 2
+
+    assert callback.cancelled()
+    assert not call.cancelled()
 
 
 async def test_async_waiter_timeout_in_worker_thread():
@@ -113,6 +117,8 @@ async def test_async_waiter_timeout_in_worker_thread():
     # The call has a timeout error too
     with pytest.raises(TimeoutError):
         call.result()
+
+    assert call.cancelled()
 
 
 async def test_async_waiter_timeout_in_main_thread():
@@ -142,6 +148,9 @@ async def test_async_waiter_timeout_in_main_thread():
     with pytest.raises(asyncio.CancelledError):
         callback.result()
 
+    assert not call.cancelled()
+    assert callback.cancelled()
+
 
 async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
     def sync_then_async_sleep():
@@ -167,6 +176,8 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
     # The call has a timeout error too
     with pytest.raises(TimeoutError):
         call.result()
+
+    assert call.cancelled()
 
 
 @pytest.mark.parametrize("fn", [identity, aidentity])
