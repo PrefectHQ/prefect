@@ -103,7 +103,7 @@ class from_sync(_base):
     def call_soon_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncWaiter[T]:
-        portal = get_global_thread_portal()
+        portal = WorkerThread(run_once=True)
         call.set_timeout(timeout)
         waiter = SyncWaiter(call=call)
         portal.submit(call)
