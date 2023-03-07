@@ -2,6 +2,7 @@ import abc
 import asyncio
 import atexit
 import concurrent.futures
+import contextlib
 import contextvars
 import dataclasses
 import inspect
@@ -23,7 +24,24 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-logger = get_logger("prefect._internal.concurrency.workers")
+logger = get_logger("prefect._internal.concurrency.portals")
+
+
+# Tracks the current call being executed
+current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
+
+
+def get_current_call() -> Optional["Call"]:
+    return current_call.get(None)
+
+
+@contextlib.contextmanager
+def set_current_call(call: "Call"):
+    token = current_call.set(call)
+    try:
+        yield
+    finally:
+        current_call.reset(token)
 
 
 @dataclasses.dataclass
@@ -38,6 +56,8 @@ class Call(Generic[T]):
     kwargs: Dict[str, Any]
     context: contextvars.Context
     deadline: Optional[float] = None
+    portal: Optional["Portal"] = None
+    callback_handler: Optional[Callable[["Call"], None]] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -49,16 +69,43 @@ class Call(Generic[T]):
             context=contextvars.copy_context(),
         )
 
-    def add_timeout(self, timeout: Optional[float] = None) -> None:
+    def set_timeout(self, timeout: Optional[float] = None) -> None:
         """
-        Add a timeout to the call.
+        Set the timeout for the call.
 
-        The timeout begins immediately, not when the call starts.
+        WARNING: The timeout begins immediately, not when the call starts.
         """
         if self.future.done() or self.future.running():
             raise RuntimeError("Timeouts cannot be added when the call has started.")
 
         self.deadline = get_deadline(timeout)
+
+    def set_portal(self, portal: "Portal") -> None:
+        """
+        Update the portal used to run manage this call.
+        """
+        if self.portal is not None:
+            raise RuntimeError("The portal is already set for this call.")
+
+        self.portal = portal
+
+    def set_callback_handler(self, handler: Callable[["Call"], None]) -> None:
+        """
+        Set the callback handler for this call.
+        """
+        if self.callback_handler is not None:
+            raise RuntimeError("A callback handler has already been set for this call.")
+
+        self.callback_handler = handler
+
+    def add_callback(self, call: "Call") -> None:
+        """
+        Send a callback to the callback handler.
+        """
+        if self.callback_handler is None:
+            raise RuntimeError("No callback handler has been configured.")
+
+        self.callback_handler(call)
 
     def run(self) -> None:
         """
@@ -73,7 +120,7 @@ class Call(Generic[T]):
 
         logger.debug("Running call %r", self)
 
-        coro = self._run_sync()
+        coro = self.context.run(self._run_sync)
 
         if coro is not None:
             loop = get_running_loop()
@@ -96,8 +143,9 @@ class Call(Generic[T]):
 
     def _run_sync(self):
         try:
-            with cancel_sync_at(self.deadline):
-                result = self.context.run(self.fn, *self.args, **self.kwargs)
+            with set_current_call(self):
+                with cancel_sync_at(self.deadline):
+                    result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
@@ -114,8 +162,9 @@ class Call(Generic[T]):
 
     async def _run_async(self, coro):
         try:
-            with cancel_async_at(self.deadline):
-                result = await coro
+            with set_current_call(self):
+                with cancel_async_at(self.deadline):
+                    result = await coro
         except BaseException as exc:
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)
@@ -170,7 +219,7 @@ class Portal(abc.ABC):
         """
 
     @abc.abstractmethod
-    def submit(self, call: Call) -> Call:
+    def submit(self, call: "Call") -> "Call":
         """
         Submit a call to execute elsewhere.
 
@@ -238,6 +287,9 @@ class WorkerThreadPortal(Portal):
 
         if self._shutdown_event.is_set():
             raise RuntimeError("Worker is shutdown.")
+
+        # Track the portal running the call
+        call.set_portal(self)
 
         self._loop.call_soon_threadsafe(call.run)
         self._submitted_count += 1
