@@ -218,15 +218,19 @@ def sync_compatible(async_fn: T) -> T:
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
         from prefect._internal.concurrency.api import create_call, from_sync
+        from prefect._internal.concurrency.calls import get_current_call
         from prefect._internal.concurrency.threads import get_global_thread_portal
 
         global_thread_portal = get_global_thread_portal()
         current_thread = threading.current_thread()
+        current_call = get_current_call()
 
         if current_thread.ident == global_thread_portal.thread.ident:
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
-        elif in_async_main_thread():
+        elif in_async_main_thread() and (
+            not current_call or (current_call and is_async_fn(current_call.fn))
+        ):
             # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
         elif in_async_worker_thread():
