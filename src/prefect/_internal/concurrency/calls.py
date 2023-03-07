@@ -132,7 +132,7 @@ class Call(Generic[T]):
                 # If an event loop is available, return a task to be awaited
                 # Note we must create a task for context variables to propagate
                 logger.debug(
-                    "Executing coroutine for call %r in running loop %r", self, loop
+                    "Scheduling coroutine for call %r in running loop %r", self, loop
                 )
                 return self.context.run(loop.create_task, self._run_async(coro))
             else:

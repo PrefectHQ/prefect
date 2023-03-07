@@ -217,23 +217,15 @@ def sync_compatible(async_fn: T) -> T:
 
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
-        import threading
-
         from prefect._internal.concurrency.api import create_call, from_sync
-        from prefect._internal.concurrency.calls import get_current_call
         from prefect._internal.concurrency.threads import get_global_thread_portal
 
-        current_call = get_current_call()
         global_thread_portal = get_global_thread_portal()
         current_thread = threading.current_thread()
+
         if current_thread.ident == global_thread_portal.thread.ident:
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
-        elif current_call and not is_async_fn(current_call.fn):
-            # In a supervised call that is not async; send the async call to the parent
-            return from_sync.send_callback(
-                create_call(async_fn, *args, **kwargs)
-            ).result()
         elif in_async_main_thread():
             # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
@@ -242,9 +234,10 @@ def sync_compatible(async_fn: T) -> T:
             # call to the parent
             return run_async_from_worker_thread(async_fn, *args, **kwargs)
         else:
-            # In a sync context and there is no event loop; just create an event loop
-            # to run the async code then tear it down
-            return run_async_in_new_loop(async_fn, *args, **kwargs)
+            # Just run the call in Prefect's event loop thread
+            return from_sync.call_soon_in_global_thread(
+                create_call(async_fn, *args, **kwargs)
+            ).result()
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
