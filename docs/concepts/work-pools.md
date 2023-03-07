@@ -10,9 +10,9 @@ tags:
     - concurrency limits
 ---
 
-# Agents, Workers Work Pools, & Work Queues
+# Work Pools, Workers, & Agents
 
-Agents and work pools bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
+Work pools and the processes poll them, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment polls its respective work pool for new runs to execute.
 
 Each work pool has a default queue that all work will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
 
@@ -157,9 +157,9 @@ On success, the command returns the details of the newly created work pool, whic
 
 #### Base Job Configuration <span class="badge beta"></span>
 
-When work pools are created via the UI with a worker type, the base job configuration of the work pool can be modified. The base job configuration are attributes that are specific to a given worker type and allow customization of the default behavior of the worker when executing a flow run. These attributes can then be overridden on a deployment with the `infra_overrides` parameter.
+When work pools are created with a worker type, the base job configuration of the work pool can be modified. The base job configuration attributes are specific to a given worker type and allow customization of the default behavior of the worker when executing a flow run. These attributes can then be overridden on a deployment with the `infra_overrides` parameter.
 
-For example, the `ProcessWorker` has a 'Working Directory' field that allows customization of the directory in which flow runs are executed. If a work pool set the default working directory to `/tmp`, then all flow runs executed by the `ProcessWorker` would execute in `/tmp`. If a deployment wanted to override this behavior, it could set the `working_dir` attribute in the `infra_overrides` parameter to a different directory.
+For example, the `ProcessWorker` has a 'Working Directory' field that allows customization of the directory in which flow runs are executed. If a work pool set the default working directory to `/tmp`, then all flow runs executed by the `ProcessWorker` would execute in `/tmp`. If you wanted to override this behavior in a deployment , set the `working_dir` attribute in the `infra_overrides` parameter to a different directory.
 
 ### Viewing work pools
 
@@ -275,7 +275,7 @@ As long as your deployment's infrastructure block supports it, you can use work 
 !!! warning "Workers are a beta feature"
     Workers are a beta feature and are subject to change in future releases.
 
-Workers are lightweight polling services that retrieve scheduled work from a work pool and execute the corresponding flow runs. Workers are similar to agents but offer greater configurability and the ability to route work to specific execution environments.
+Workers are lightweight polling services that retrieve scheduled work from a work pool and execute the corresponding flow runs. Workers are similar to agents, but offer greater configurability and the ability to route work to specific execution environments.
 
 Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools of the same type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will be scheduled.
 
@@ -294,7 +294,7 @@ Configuration parameters you can specify when starting a worker include:
 | `--run-once` | Only run worker polling once. By default, the worker runs forever. |
 | `--limit`, `-l` | The maximum number of flow runs to start simultaneously. |
 
-You must start a worker within an environment that can access or create the infrastructure needed to execute flow runs. Your worker will deploy flow runs to the infrastructure corresponding to the worker type. For example, if you start a worker with type `kubernetes`, the worker will deploy flow runs to a Kubernetes cluster.
+You must start a worker within an environment that can access or create the infrastructure needed to execute flow runs. The worker will deploy flow runs to the infrastructure corresponding to the worker type. For example, if you start a worker with type `kubernetes`, the worker will deploy flow runs to a Kubernetes cluster.
 
 !!! tip "Prefect must be installed in execution environments"
     Prefect must be installed in any environment where you intend to run the worker or execute a flow run.
@@ -316,7 +316,7 @@ For example:
 
 <div class="terminal">
 ```bash
-$ prefect worker start -p "my-pool"
+prefect worker start -p "my-pool"
 Discovered worker type 'process' for work pool 'my-pool'.
 
 Worker 'ProcessWorker 65716280-96f8-420b-9300-7e94417f2673' started!
@@ -329,7 +329,7 @@ To create a work pool and start a worker in one command, use the `--type` flag:
 
 <div class="terminal">
 ```bash
-$ prefect worker start -p "my-pool" --type "process"
+prefect worker start -p "my-pool" --type "process"
 
 Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 06:57:53.289 | INFO    | prefect.worker.process.processworker d24f3768-62a9-4141-9480-a056b9539a25 - Worker pool 'my-pool' created.
@@ -338,17 +338,17 @@ Worker 'ProcessWorker d24f3768-62a9-4141-9480-a056b9539a25' started!
 
 In addition, workers can limit the number of flow runs they will start simultaneously with the `--limit` flag. 
 
-For example, to limit a worker to 5 concurrent flow runs:
+For example, to limit a worker to five concurrent flow runs:
 
 <div class="terminal">
 ```bash
-$ prefect worker start --pool "my-pool" --limit 5
+prefect worker start --pool "my-pool" --limit 5
 ```
 </div>
 
 ### Deployment Auto-Registration
 
-Workers can automatically apply discovered deployments which can be useful for applying many deployments at once.
+Workers can automatically apply discovered deployments. This behavior is useful for applying many deployments at once.
 
 To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory as defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. 
 
@@ -358,6 +358,6 @@ Workers also poll their flow storage path at the interval defined by `PREFECT_WO
 
 By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. 
 
-In some cases, infrastructure will take longer to start the flow run. To accommodate infrastructure start up time, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. 
+In some cases, infrastructure will take longer than 10 seconds to start the flow run. To accommodate infrastructure startup time, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting.  
 
-If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start precisely on time.
+If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This behavior allows flow runs to start precisely on time.
