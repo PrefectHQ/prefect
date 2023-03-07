@@ -272,15 +272,15 @@ As long as your deployment's infrastructure block supports it, you can use work 
 
 ## Workers Overview
 
-Workers are lightweight polling services that retrieve scheduled work from a work pool and executed the corresponding flow runs. Workers are similar to agents but offer greater configurability and the ability to route work to specific execution environments.
+Workers are lightweight polling services that retrieve scheduled work from a work pool and execute the corresponding flow runs. Workers are similar to agents but offer greater configurability and the ability to route work to specific execution environments.
 
-Workers each have a type that corresponds to the execution environment to which they will submit flow runs. Workers are only able to join work pools of the same type. As a result, when deployments are assigned to a work pool, you know exactly which execution environment scheduled flow runs for that deployment will be scheduled in.
+Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools of the same type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will be scheduled.
 
 ### Worker Options
 
-Workers are configured to pull work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. If a worker references a work pool that doesn't exist, it will automatically create the work pool as long as the type is provided. 
+Workers are configured to pull work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. If a worker references a work pool that doesn't exist, it will automatically create it as long as the type is provided. 
 
-Configuration parameters you can specify when starting an worker include:
+Configuration parameters you can specify when starting a worker include:
 
 | Option | Description |
 | --- | --- |
@@ -294,14 +294,14 @@ Configuration parameters you can specify when starting an worker include:
 You must start a worker within an environment that can access or create the infrastructure needed to execute flow runs. Your worker will deploy flow runs to the infrastructure corresponding to the worker type. For example, if you start a worker with type `kubernetes`, the worker will deploy flow runs to a Kubernetes cluster.
 
 !!! tip "Prefect must be installed in execution environments"
-    Prefect must be installed in any environment in which you intend to run the worker or execute a flow run.
+    Prefect must be installed in any environment where you intend to run the worker or execute a flow run.
 
 !!! tip "`PREFECT_API_URL` setting for workers"
     `PREFECT_API_URL` must be set for the environment in which your worker is running. 
 
 ### Starting a Worker
 
-Use the `prefect worker start` CLI command to start an worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
+Use the `prefect worker start` CLI command to start a worker. You must pass at least the work pool name. If the work pool does not exist, it will be created if the `--type` flag is used.
 
 <div class="terminal">
 ```bash
@@ -345,8 +345,8 @@ $ prefect worker start --pool "my-pool" --limit 5
 
 ### Deployment Auto-Registration
 
-Workers are able to automatically apply discovered deployments. To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory a defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. Workers will also poll their flow storage path at the internal defined by `PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS` (defaults to 30 seconds) for new deployments and apply them as they are discovered.
+Workers can automatically apply discovered deployments. To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory as defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. Workers will also poll their flow storage path at the interval defined by `PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS` (defaults to 30 seconds) for new deployments and apply them as they are discovered.
 
 ### Configuring Prefetch
 
-By default, the worker begins submission of flow runs a short time (10 seconds) before they are scheduled to run. This allows time for the infrastructure to be created, so the flow run can start on time. In some cases, infrastructure will take longer than this to actually start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start exactly on time.
+By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. In some cases, infrastructure will take longer than this to start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start precisely on time.
