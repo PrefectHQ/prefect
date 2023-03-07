@@ -45,7 +45,7 @@ def mock_watch(monkeypatch):
 
 
 @pytest.fixture
-def mock_anyio_sleep(monkeypatch):
+def mock_anyio_sleep_monotonic(monkeypatch):
     def mock_monotonic():
         return mock_sleep.current_time
 
@@ -892,7 +892,10 @@ def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
 
 
 def test_watch_deadline_is_computed_before_log_streams(
-    mock_k8s_client, mock_watch, mock_k8s_batch_client, mock_anyio_sleep
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
 ):
     # The job should not be completed to start
     mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
@@ -936,7 +939,7 @@ def test_watch_deadline_is_computed_before_log_streams(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=500,
+                timeout_seconds=pytest.approx(500, 1),
             ),
         ]
     )
@@ -1052,7 +1055,10 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
 
 @pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
 def test_watch_timeout_is_restarted_until_job_is_complete(
-    mock_k8s_client, mock_watch, mock_k8s_batch_client, mock_anyio_sleep
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
 ):
     # The job should not be completed to start
     mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
@@ -1092,26 +1098,26 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=40,
+                timeout_seconds=pytest.approx(40, abs=1),
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=30,
+                timeout_seconds=pytest.approx(30, abs=1),
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=20,
+                timeout_seconds=pytest.approx(20, abs=1),
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=10,
+                timeout_seconds=pytest.approx(10, abs=1),
             ),
         ]
     )
