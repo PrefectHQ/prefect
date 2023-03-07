@@ -16,19 +16,19 @@ from prefect._internal.concurrency.timeouts import (
 
 async def test_cancel_context():
     ctx = CancelContext(timeout=1)
-    assert not ctx.cancelled
+    assert not ctx.cancelled()
     ctx.mark_cancelled()
-    assert ctx.cancelled
+    assert ctx.cancelled()
 
 
 async def test_cancel_context_chain():
     ctx1 = CancelContext(timeout=1)
     ctx2 = CancelContext(timeout=None)
     ctx1.chain(ctx2)
-    assert not ctx2.cancelled
+    assert not ctx2.cancelled()
     ctx1.mark_cancelled()
-    assert ctx1.cancelled
-    assert ctx2.cancelled
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
 
 
 async def test_cancel_context_chain_cancelled_first():
@@ -36,8 +36,18 @@ async def test_cancel_context_chain_cancelled_first():
     ctx2 = CancelContext(timeout=None)
     ctx1.mark_cancelled()
     ctx1.chain(ctx2)
-    assert ctx1.cancelled
-    assert ctx2.cancelled
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+
+
+async def test_cancel_context_chain_cancelled_after_completed():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2)
+    ctx2.mark_completed()
+    ctx1.mark_cancelled()
+    assert ctx1.cancelled()
+    assert not ctx2.cancelled()
 
 
 async def test_cancel_async_after():
@@ -47,7 +57,7 @@ async def test_cancel_async_after():
             await asyncio.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 1
 
 
@@ -60,7 +70,7 @@ def test_cancel_sync_after_in_main_thread():
             time.sleep(2)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 2
 
 
@@ -81,7 +91,7 @@ def test_cancel_sync_after_in_worker_thread():
         elapsed_time, ctx = future.result()
 
     assert elapsed_time < 1
-    assert ctx.cancelled
+    assert ctx.cancelled()
 
 
 async def test_cancel_async_at():
@@ -91,7 +101,7 @@ async def test_cancel_async_at():
             await asyncio.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 1
 
 
@@ -104,5 +114,5 @@ def test_cancel_sync_at():
             time.sleep(2)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 2

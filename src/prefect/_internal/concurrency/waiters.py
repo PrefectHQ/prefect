@@ -12,7 +12,11 @@ from typing import Awaitable, Generic, TypeVar, Union
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
-from prefect._internal.concurrency.timeouts import cancel_async_at, cancel_sync_at
+from prefect._internal.concurrency.timeouts import (
+    CancelContext,
+    cancel_async_at,
+    cancel_sync_at,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
@@ -68,13 +72,17 @@ class SyncWaiter(Waiter[T]):
         call.set_portal(self)
         return call
 
-    def _watch_for_callbacks(self):
+    def _watch_for_callbacks(self, cancel_context: CancelContext):
         logger.debug("Watching for work sent to waiter %r", self)
         while True:
             callback: Call = self._queue.get()
             if callback is None:
                 break
 
+            # We could set the deadline for the callback to match the call we are
+            # waiting for, but callbacks can have their own timeout and we don't want to
+            # override it
+            cancel_context.chain(callback.cancel_context)
             callback.run()
             del callback
 
@@ -84,12 +92,12 @@ class SyncWaiter(Waiter[T]):
 
         # Cancel work sent to the waiter if the future exceeds its timeout
         try:
-            with cancel_sync_at(self._call.deadline) as ctx:
-                self._watch_for_callbacks()
+            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
+                self._watch_for_callbacks(ctx)
         except TimeoutError:
             # Timeouts will be generally be raised on future result retrieval but
             # if its not our timeout it should be reraised
-            if not ctx.cancelled:
+            if not ctx.cancelled():
                 raise
 
         logger.debug(
@@ -113,7 +121,7 @@ class AsyncWaiter(Waiter[T]):
         call.set_portal(self)
         return call
 
-    async def _watch_for_callbacks(self):
+    async def _watch_for_callbacks(self, cancel_context: CancelContext):
         logger.debug("Watching for work sent to %r", self)
         tasks = []
 
@@ -122,6 +130,10 @@ class AsyncWaiter(Waiter[T]):
             if callback is None:
                 break
 
+            # We could set the deadline for the callback to match the call we are
+            # waiting for, but callbacks can have their own timeout and we don't want to
+            # override it
+            cancel_context.chain(callback.cancel_context)
             retval = callback.run()
             if inspect.isawaitable(retval):
                 tasks.append(retval)
@@ -143,11 +155,11 @@ class AsyncWaiter(Waiter[T]):
 
         # Cancel work sent to the waiter if the future exceeds its timeout
         try:
-            with cancel_async_at(self._call.deadline) as ctx:
-                await self._watch_for_callbacks()
+            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
+                await self._watch_for_callbacks(ctx)
         except TimeoutError:
             # Timeouts will be re-raised on future result retrieval
-            if not ctx.cancelled:
+            if not ctx.cancelled():
                 raise
 
         logger.debug("Waiter %r retrieving result of future %r", self, future)
