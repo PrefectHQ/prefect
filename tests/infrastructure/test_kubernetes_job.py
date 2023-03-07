@@ -892,7 +892,7 @@ def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
 
 
 def test_watch_deadline_is_computed_before_log_streams(
-    mock_k8s_client, mock_watch, mock_k8s_batch_client
+    mock_k8s_client, mock_watch, mock_k8s_batch_client, mock_anyio_sleep
 ):
     # The job should not be completed to start
     mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
@@ -911,14 +911,14 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job}
 
     def mock_log_stream(*args, **kwargs):
-        sleep(1)
+        anyio.sleep(500)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=2
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1000
     ).run(MagicMock())
 
     assert result.status_code == 1
@@ -936,7 +936,7 @@ def test_watch_deadline_is_computed_before_log_streams(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=1,
+                timeout_seconds=500,
             ),
         ]
     )
