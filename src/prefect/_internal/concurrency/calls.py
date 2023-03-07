@@ -9,7 +9,7 @@ import contextlib
 import contextvars
 import dataclasses
 import inspect
-from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -111,7 +111,7 @@ class Call(Generic[T]):
 
         self.callback_portal.submit(call)
 
-    def run(self) -> None:
+    def run(self) -> Optional[Awaitable[T]]:
         """
         Execute the call and place the result on the future.
 
@@ -120,7 +120,7 @@ class Call(Generic[T]):
         # Do not execute if the future is cancelled
         if not self.future.set_running_or_notify_cancel():
             logger.debug("Skipping execution of cancelled call %r", self)
-            return
+            return None
 
         logger.debug("Running call %r", self)
 
