@@ -19,7 +19,6 @@ from typing_extensions import ParamSpec
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.portals import Call, Portal
 from prefect._internal.concurrency.timeouts import (
-    cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
     cancel_sync_at,
@@ -142,7 +141,8 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
         @functools.wraps(fn)
         def _call_in_supervised_thread(*args, **kwargs):
             # Set the execution deadline
-            self._deadline_future.set_result(get_deadline(self._timeout))
+            deadline = get_deadline(self._timeout)
+            self._deadline_future.set_result(deadline)
 
             # Enforce timeouts on synchronous execution
             with cancel_sync_after(self._timeout):
@@ -151,10 +151,9 @@ class Supervisor(Portal, abc.ABC, Generic[T]):
             # Enforce timeouts on asynchronous execution
             if inspect.isawaitable(retval):
 
+                @functools.wraps(fn)
                 async def _call_in_supervised_coro():
-                    # TODO: Technnically, this should use the deadline but it is not
-                    #       clear how to mix sync/async deadlines yet
-                    with cancel_async_after(self._timeout):
+                    with cancel_async_at(deadline):
                         return await retval
 
                 return _call_in_supervised_coro()
@@ -239,30 +238,26 @@ class AsyncSupervisor(Supervisor[T]):
 
     async def _watch_for_callbacks(self):
         logger.debug("Watching for work sent to %r", self)
+        tasks = []
+
         while True:
             callback: Call = await self._queue.get()
             if callback is None:
                 break
 
-            # TODO: We could use `cancel_sync_after` to guard this call as a sync call
-            #       could block a timeout here
             retval = callback.run()
-
             if inspect.isawaitable(retval):
-                await retval
+                tasks.append(retval)
 
             del callback
 
-    async def result(self) -> T:
-        if not self._call.future:
-            raise ValueError("No future being supervised.")
+        # Tasks are collected and awaited as a group; if each task was awaited in the
+        # above loop, async work would not be executed concurrently
+        await asyncio.gather(*tasks)
 
-        future = (
-            # Convert to an asyncio future if necessary for non-blocking wait
-            asyncio.wrap_future(self._call.future)
-            if isinstance(self._call.future, concurrent.futures.Future)
-            else self._call.future
-        )
+    async def result(self) -> T:
+        # Wrap the future for a non-blocking wait
+        future = asyncio.wrap_future(self._call.future)
 
         # Stop watching for work once the future is done
         future.add_done_callback(
