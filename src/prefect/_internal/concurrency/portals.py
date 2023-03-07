@@ -264,15 +264,17 @@ class WorkerThreadPortal(Portal):
         await self._shutdown_event.wait()
 
 
-GLOBAL_WORKER: Optional[WorkerThreadPortal] = None
+GLOBAL_THREAD_PORTAL: Optional[WorkerThreadPortal] = None
 
 
 def get_global_thread_portal() -> WorkerThreadPortal:
-    global GLOBAL_WORKER
+    global GLOBAL_THREAD_PORTAL
 
     # Create a new worker on first call or if the existing worker is dead
-    if GLOBAL_WORKER is None or not GLOBAL_WORKER.thread.is_alive():
-        GLOBAL_WORKER = WorkerThreadPortal(daemon=True, name="GlobalWorkerThread")
-        GLOBAL_WORKER.start()
+    if GLOBAL_THREAD_PORTAL is None or not GLOBAL_THREAD_PORTAL.thread.is_alive():
+        GLOBAL_THREAD_PORTAL = WorkerThreadPortal(
+            daemon=True, name="GlobalWorkerThread"
+        )
+        GLOBAL_THREAD_PORTAL.start()
 
-    return GLOBAL_WORKER
+    return GLOBAL_THREAD_PORTAL
