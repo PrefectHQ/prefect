@@ -898,7 +898,7 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job}
 
     def mock_log_stream(*args, **kwargs):
-        sleep(0.5)
+        sleep(0.25)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
@@ -924,7 +924,7 @@ def test_watch_deadline_is_computed_before_log_streams(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.5, abs=0.02),
+                timeout_seconds=1,  # ceil(1 - 0.25 - test execution time) should be 1
             ),
         ]
     )
@@ -1055,14 +1055,14 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             job = MagicMock(spec=kubernetes.client.V1Job)
 
             # Sleep a little
-            sleep(0.25)
+            sleep(0.6)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
             yield {"object": job}
 
     mock_watch.stream.side_effect = mock_stream
-    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=1).run(
+    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=2).run(
         MagicMock()
     )
     assert result.status_code == -1
@@ -1081,26 +1081,26 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(1, abs=0.2),
+                timeout_seconds=2,
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.75, abs=0.2),
+                timeout_seconds=2,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.5, abs=0.2),
+                timeout_seconds=1,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.25, abs=0.2),
+                timeout_seconds=1,
             ),
         ]
     )
