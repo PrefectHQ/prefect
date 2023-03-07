@@ -632,7 +632,7 @@ async def orchestrate_flow_run(
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
-                if (
+                if not parent_flow_run_context or (
                     parent_flow_run_context
                     and parent_flow_run_context.flow.isasync == flow.isasync
                 ):
