@@ -348,8 +348,16 @@ $ prefect worker start --pool "my-pool" --limit 5
 
 ### Deployment Auto-Registration
 
-Workers can automatically apply discovered deployments. To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory as defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. Workers will also poll their flow storage path at the interval defined by `PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS` (defaults to 30 seconds) for new deployments and apply them as they are discovered.
+Workers can automatically apply discovered deployments which can be useful for applying many deployments at once.
+
+To submit a deployment to a worker, move the deployment manifest and accompanying flow code to the worker's flows directory as defined by `PREFECT_WORKER_WORKFLOW_STORAGE_PATH` (defaults to `$PREFECT_HOME/workflows`). The worker will automatically discover and apply deployments when started. 
+
+Workers also poll their flow storage path at the interval defined by `PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS` (defaults to 30 seconds) for new deployments and apply them as they are discovered.
 
 ### Configuring Prefetch
 
-By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. In some cases, infrastructure will take longer than this to start the flow run. In these cases, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start precisely on time.
+By default, the worker begins submitting flow runs a short time (10 seconds) before they are scheduled to run. This behavior allows time for the infrastructure to be created so that the flow run can start on time. 
+
+In some cases, infrastructure will take longer to start the flow run. To accommodate infrastructure start up time, the prefetch can be increased using the `--prefetch-seconds` option or the `PREFECT_WORKER_PREFETCH_SECONDS` setting. Submission can begin an arbitrary amount of time before the flow run is scheduled to start. 
+
+If this value is _larger_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its scheduled start time. This allows flow runs to start precisely on time.
