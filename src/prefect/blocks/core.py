@@ -612,7 +612,7 @@ class Block(BaseModel, ABC):
         return f"prefect.block.{self.get_block_type_slug()}"
 
     def _event_method_called_resources(self) -> Optional[ResourceTuple]:
-        if not self._block_document_id:
+        if not (self._block_document_id and self._block_document_name):
             return None
 
         return (
@@ -620,7 +620,7 @@ class Block(BaseModel, ABC):
                 "prefect.resource.id": (
                     f"prefect.block-document.{self._block_document_id}"
                 ),
-                "prefect.block-document.name": self._block_document_name,
+                "prefect.name": self._block_document_name,
             },
             [
                 {

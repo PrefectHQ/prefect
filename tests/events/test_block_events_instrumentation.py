@@ -26,21 +26,21 @@ async def test_async_blocks_instrumented(
     save_event = asserting_events_worker._client.events[0]
     assert save_event.event == "prefect.block.secret.save.called"
     assert save_event.resource.id == f"prefect.block-document.{document_id}"
-    assert save_event.resource["prefect.block-document.name"] == "top-secret"
+    assert save_event.resource["prefect.name"] == "top-secret"
     assert save_event.related[0].id == "prefect.block-type.secret"
     assert save_event.related[0].role == "block-type"
 
     load_event = asserting_events_worker._client.events[1]
     assert load_event.event == "prefect.block.secret.load.called"
     assert load_event.resource.id == f"prefect.block-document.{document_id}"
-    assert load_event.resource["prefect.block-document.name"] == "top-secret"
+    assert load_event.resource["prefect.name"] == "top-secret"
     assert load_event.related[0].id == "prefect.block-type.secret"
     assert load_event.related[0].role == "block-type"
 
     get_event = asserting_events_worker._client.events[2]
     assert get_event.event == "prefect.block.secret.get.called"
     assert get_event.resource.id == f"prefect.block-document.{document_id}"
-    assert get_event.resource["prefect.block-document.name"] == "top-secret"
+    assert get_event.resource["prefect.name"] == "top-secret"
     assert get_event.related[0].id == "prefect.block-type.secret"
     assert get_event.related[0].role == "block-type"
 
@@ -61,21 +61,21 @@ def test_sync_blocks_instrumented(
     save_event = asserting_events_worker._client.events[0]
     assert save_event.event == "prefect.block.secret.save.called"
     assert save_event.resource.id == f"prefect.block-document.{document_id}"
-    assert save_event.resource["prefect.block-document.name"] == "top-secret"
+    assert save_event.resource["prefect.name"] == "top-secret"
     assert save_event.related[0].id == "prefect.block-type.secret"
     assert save_event.related[0].role == "block-type"
 
     load_event = asserting_events_worker._client.events[1]
     assert load_event.event == "prefect.block.secret.load.called"
     assert load_event.resource.id == f"prefect.block-document.{document_id}"
-    assert load_event.resource["prefect.block-document.name"] == "top-secret"
+    assert load_event.resource["prefect.name"] == "top-secret"
     assert load_event.related[0].id == "prefect.block-type.secret"
     assert load_event.related[0].role == "block-type"
 
     get_event = asserting_events_worker._client.events[2]
     assert get_event.event == "prefect.block.secret.get.called"
     assert get_event.resource.id == f"prefect.block-document.{document_id}"
-    assert get_event.resource["prefect.block-document.name"] == "top-secret"
+    assert get_event.resource["prefect.name"] == "top-secret"
     assert get_event.related[0].id == "prefect.block-type.secret"
     assert get_event.related[0].role == "block-type"
 
@@ -103,23 +103,21 @@ def test_notifications_notify_instrumented_sync(
         save_event = asserting_events_worker._client.events[0]
         assert save_event.event == "prefect.block.pager-duty-webhook.save.called"
         assert save_event.resource.id == f"prefect.block-document.{document_id}"
-        assert save_event.resource["prefect.block-document.name"] == "pager-duty-events"
+        assert save_event.resource["prefect.name"] == "pager-duty-events"
         assert save_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert save_event.related[0].role == "block-type"
 
         load_event = asserting_events_worker._client.events[1]
         assert load_event.event == "prefect.block.pager-duty-webhook.load.called"
         assert load_event.resource.id == f"prefect.block-document.{document_id}"
-        assert load_event.resource["prefect.block-document.name"] == "pager-duty-events"
+        assert load_event.resource["prefect.name"] == "pager-duty-events"
         assert load_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert load_event.related[0].role == "block-type"
 
         notify_event = asserting_events_worker._client.events[2]
         assert notify_event.event == "prefect.block.pager-duty-webhook.notify.called"
         assert notify_event.resource.id == f"prefect.block-document.{document_id}"
-        assert (
-            notify_event.resource["prefect.block-document.name"] == "pager-duty-events"
-        )
+        assert notify_event.resource["prefect.name"] == "pager-duty-events"
         assert notify_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert notify_event.related[0].role == "block-type"
 
@@ -147,22 +145,20 @@ async def test_notifications_notify_instrumented_async(
         save_event = asserting_events_worker._client.events[0]
         assert save_event.event == "prefect.block.pager-duty-webhook.save.called"
         assert save_event.resource.id == f"prefect.block-document.{document_id}"
-        assert save_event.resource["prefect.block-document.name"] == "pager-duty-events"
+        assert save_event.resource["prefect.name"] == "pager-duty-events"
         assert save_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert save_event.related[0].role == "block-type"
 
         load_event = asserting_events_worker._client.events[1]
         assert load_event.event == "prefect.block.pager-duty-webhook.load.called"
         assert load_event.resource.id == f"prefect.block-document.{document_id}"
-        assert load_event.resource["prefect.block-document.name"] == "pager-duty-events"
+        assert load_event.resource["prefect.name"] == "pager-duty-events"
         assert load_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert load_event.related[0].role == "block-type"
 
         notify_event = asserting_events_worker._client.events[2]
         assert notify_event.event == "prefect.block.pager-duty-webhook.notify.called"
         assert notify_event.resource.id == f"prefect.block-document.{document_id}"
-        assert (
-            notify_event.resource["prefect.block-document.name"] == "pager-duty-events"
-        )
+        assert notify_event.resource["prefect.name"] == "pager-duty-events"
         assert notify_event.related[0].id == "prefect.block-type.pager-duty-webhook"
         assert notify_event.related[0].role == "block-type"
