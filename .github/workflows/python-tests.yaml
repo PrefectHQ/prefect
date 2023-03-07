@@ -47,7 +47,7 @@ jobs:
           - "postgres:14"
           - "sqlite"
         os:
-          - ubuntu-latest
+          - ubuntu-latest-8-cores
         python-version:
           - "3.7"
           - "3.8"
