@@ -6,7 +6,7 @@
 
     <p-layout-well class="work-pool-queue__body">
       <template #header>
-        <CodeBanner :command="workPoolQueueCliCommand" title="Work queue is ready to go!" subtitle="Work queues are scoped to a work pool to allow agents to pull from groups of queues with different priorities." />
+        <CodeBanner :command="codeBannerCliCommand" :title="codeBannerTitle" :subtitle="codeBannerSubtitle" />
       </template>
 
       <p-tabs :tabs="tabs">
@@ -49,7 +49,18 @@
   const workPoolQueuesSubscription = useSubscription(api.workPoolQueues.getWorkPoolQueueByName, [workPoolName.value, workPoolQueueName.value], subscriptionOptions)
   const workPoolQueue = computed(() => workPoolQueuesSubscription.response)
 
-  const workPoolQueueCliCommand = computed(() => `prefect agent start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
+  const workPoolSubscription = useSubscription(api.workPools.getWorkPoolByName, [workPoolName.value], subscriptionOptions)
+  const workPool = computed(() => workPoolSubscription.response)
+  const isAgentWorkPool = computed(() => workPool.value?.type === 'prefect-agent')
+
+  const codeBannerTitle = computed(() => {
+    if (!workPoolQueue.value) {
+      return 'Your work queue is ready to go!'
+    }
+    return `Your work pool ${workPoolQueue.value.name} is ready to go!`
+  })
+  const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
+  const codeBannerSubtitle = computed(() => `Work queues are scoped to a work pool to allow ${isAgentWorkPool.value ? 'agents' : 'workers'} to pull from groups of queues with different priorities.`)
 
   const { filter: flowRunFilter } = useRecentFlowRunsFilter({
     workPoolQueues: {
