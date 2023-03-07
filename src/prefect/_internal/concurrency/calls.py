@@ -15,6 +15,7 @@ from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.timeouts import (
+    CancelContext,
     cancel_async_at,
     cancel_sync_at,
     get_deadline,
@@ -56,6 +57,7 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
+    cancel_context: CancelContext
     deadline: Optional[float] = None
     portal: Optional["Portal"] = None
     callback_portal: Optional["Portal"] = None
@@ -68,6 +70,7 @@ class Call(Generic[T]):
             args=args,
             kwargs=kwargs,
             context=contextvars.copy_context(),
+            cancel_context=CancelContext(),
         )
 
     def set_timeout(self, timeout: Optional[float] = None) -> None:
@@ -139,13 +142,17 @@ class Call(Generic[T]):
 
         return None
 
-    def result(self):
+    def result(self) -> T:
         return self.future.result()
+
+    def cancelled(self) -> bool:
+        return self.cancel_context.cancelled or self.future.cancelled()
 
     def _run_sync(self):
         try:
             with set_current_call(self):
-                with cancel_sync_at(self.deadline):
+                with cancel_sync_at(self.deadline) as ctx:
+                    ctx.chain(self.cancel_context)
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -164,7 +171,8 @@ class Call(Generic[T]):
     async def _run_async(self, coro):
         try:
             with set_current_call(self):
-                with cancel_async_at(self.deadline):
+                with cancel_async_at(self.deadline) as ctx:
+                    ctx.chain(self.cancel_context)
                     result = await coro
         except BaseException as exc:
             logger.debug("Encountered exception %s in async call %r", exc, self)
