@@ -7,8 +7,6 @@ import prefect
 
 
 def test_sync_flow_timeout():
-    # note the timeout is rounded up to 1s because this flow is run on the main thread
-    # and a signal is used to interrupt the sleep call and it does not support floats
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
         time.sleep(3)
@@ -41,9 +39,7 @@ async def test_async_flow_timeout():
 
 
 def test_sync_flow_timeout_in_sync_flow():
-    # note the timeout is rounded up to 1s because this flow is run on the main thread
-    # and a signal is used to interrupt the sleep call and it does not support floats
-    @prefect.flow(timeout_seconds=1)
+    @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
         time.sleep(3)
 
@@ -63,8 +59,6 @@ def test_sync_flow_timeout_in_sync_flow():
 
 
 async def test_sync_flow_timeout_in_async_flow():
-    # note the timeout is rounded up to 1s because this flow is run on the main thread
-    # and a signal is used to interrupt the sleep call and it does not support floats
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
         time.sleep(3)
