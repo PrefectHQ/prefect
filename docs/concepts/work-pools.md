@@ -10,7 +10,7 @@ tags:
     - concurrency limits
 ---
 
-# Agents, Work Pools, & Work Queues
+# Agents, Workers Work Pools, & Work Queues
 
 Agents and work pools bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. Agents running in the execution environment poll their respective work pools for new runs to execute.
 
@@ -270,7 +270,10 @@ Together work queue priority and concurrency enable precise control over work. F
 ### Local debugging
 As long as your deployment's infrastructure block supports it, you can use work pools to temporarily send runs to an agent running on your local machine for debugging by running `prefect agent start -p my-local-machine` and updating the deployment's work pool to `my-local-machine`.
 
-## Workers Overview
+## Workers Overview <span class="badge beta"></span>
+
+!!! warning "Workers are a beta feature"
+    Workers are a beta feature and are subject to change in future releases.
 
 Workers are lightweight polling services that retrieve scheduled work from a work pool and execute the corresponding flow runs. Workers are similar to agents but offer greater configurability and the ability to route work to specific execution environments.
 
