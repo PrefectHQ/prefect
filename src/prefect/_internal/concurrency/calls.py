@@ -1,24 +1,48 @@
+"""
+Implementation of the `Call` data structure for transport of deferred function calls
+and low-level management of call execution.
+"""
 import abc
 import asyncio
-import atexit
 import concurrent.futures
+import contextlib
 import contextvars
 import dataclasses
 import inspect
-import threading
 from typing import Any, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.event_loop import get_running_loop
-from prefect._internal.concurrency.primitives import Event
+from prefect._internal.concurrency.timeouts import (
+    cancel_async_at,
+    cancel_sync_at,
+    get_deadline,
+)
 from prefect.logging import get_logger
 
 T = TypeVar("T")
 P = ParamSpec("P")
 
 
-logger = get_logger("prefect._internal.concurrency.workers")
+logger = get_logger("prefect._internal.concurrency.calls")
+
+
+# Tracks the current call being executed
+current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
+
+
+def get_current_call() -> Optional["Call"]:
+    return current_call.get(None)
+
+
+@contextlib.contextmanager
+def set_current_call(call: "Call"):
+    token = current_call.set(call)
+    try:
+        yield
+    finally:
+        current_call.reset(token)
 
 
 @dataclasses.dataclass
@@ -32,6 +56,9 @@ class Call(Generic[T]):
     args: Tuple
     kwargs: Dict[str, Any]
     context: contextvars.Context
+    deadline: Optional[float] = None
+    portal: Optional["Portal"] = None
+    callback_portal: Optional["Portal"] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -42,6 +69,44 @@ class Call(Generic[T]):
             kwargs=kwargs,
             context=contextvars.copy_context(),
         )
+
+    def set_timeout(self, timeout: Optional[float] = None) -> None:
+        """
+        Set the timeout for the call.
+
+        WARNING: The timeout begins immediately, not when the call starts.
+        """
+        if self.future.done() or self.future.running():
+            raise RuntimeError("Timeouts cannot be added when the call has started.")
+
+        self.deadline = get_deadline(timeout)
+
+    def set_portal(self, portal: "Portal") -> None:
+        """
+        Update the portal used to run manage this call.
+        """
+        if self.portal is not None:
+            raise RuntimeError("The portal is already set for this call.")
+
+        self.portal = portal
+
+    def set_callback_portal(self, portal: "Portal") -> None:
+        """
+        Set a portal to handle callbacks for this call.
+        """
+        if self.callback_portal is not None:
+            raise RuntimeError("A callback portal has already been set for this call.")
+
+        self.callback_portal = portal
+
+    def add_callback(self, call: "Call") -> None:
+        """
+        Send a callback to the callback handler.
+        """
+        if self.callback_portal is None:
+            raise RuntimeError("No callback handler has been configured.")
+
+        self.callback_portal.submit(call)
 
     def run(self) -> None:
         """
@@ -56,7 +121,8 @@ class Call(Generic[T]):
 
         logger.debug("Running call %r", self)
 
-        coro = self._run_sync()
+        coro = self.context.run(self._run_sync)
+
         if coro is not None:
             loop = get_running_loop()
             if loop:
@@ -78,7 +144,9 @@ class Call(Generic[T]):
 
     def _run_sync(self):
         try:
-            result = self.context.run(self.fn, *self.args, **self.kwargs)
+            with set_current_call(self):
+                with cancel_sync_at(self.deadline):
+                    result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
             if inspect.isawaitable(result):
@@ -95,7 +163,9 @@ class Call(Generic[T]):
 
     async def _run_async(self, coro):
         try:
-            result = await coro
+            with set_current_call(self):
+                with cancel_async_at(self.deadline):
+                    result = await coro
         except BaseException as exc:
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)
@@ -144,137 +214,11 @@ class Portal(abc.ABC):
     """
 
     @abc.abstractmethod
-    def start(self):
-        """
-        Start the portal.
-        """
-
-    @abc.abstractmethod
-    def submit(self, call: Call) -> Call:
+    def submit(self, call: "Call") -> "Call":
         """
         Submit a call to execute elsewhere.
 
         The call's result can be retrieved with `call.result()`.
 
-        Returns the call.
+        Returns the call for convenience.
         """
-
-    @abc.abstractmethod
-    def shutdown(self) -> None:
-        """
-        Shutdown the portal.
-        """
-
-    @abc.abstractproperty
-    def name(self) -> str:
-        """
-        Get the name of the portal.
-        """
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, *_):
-        self.shutdown()
-
-
-class WorkerThreadPortal(Portal):
-    """
-    A portal to a worker running on a thread with an event loop.
-    """
-
-    def __init__(
-        self, name: str = "WorkerThread", daemon: bool = False, run_once: bool = False
-    ):
-        self.thread = threading.Thread(
-            name=name, daemon=daemon, target=self._entrypoint
-        )
-        self._ready_future = concurrent.futures.Future()
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._shutdown_event: Event = Event()
-        self._run_once: bool = run_once
-        self._submitted_count: int = 0
-
-        if not daemon:
-            atexit.register(self.shutdown)
-
-    def start(self):
-        """
-        Start the worker thread; raises any exceptions encountered during startup.
-        """
-        self.thread.start()
-        # Wait for the worker to be ready
-        self._ready_future.result()
-
-    def submit(self, call: Call) -> Call:
-        if self._submitted_count > 0 and self._run_once:
-            raise RuntimeError(
-                "Worker configured to only run once. A call has already been submitted."
-            )
-
-        if self._loop is None:
-            self.start()
-
-        if self._shutdown_event.is_set():
-            raise RuntimeError("Worker is shutdown.")
-
-        self._loop.call_soon_threadsafe(call.run)
-        self._submitted_count += 1
-        if self._run_once:
-            call.future.add_done_callback(lambda _: self.shutdown())
-
-        return call
-
-    def shutdown(self) -> None:
-        """
-        Shutdown the worker thread. Does not wait for the thread to stop.
-        """
-        if not self._shutdown_event:
-            return
-
-        self._shutdown_event.set()
-        # TODO: Consider blocking on `thread.join` here?
-
-    @property
-    def name(self) -> str:
-        return self.thread.name
-
-    def _entrypoint(self):
-        """
-        Entrypoint for the thread.
-
-        Immediately create a new event loop and pass control to `run_until_shutdown`.
-        """
-        try:
-            asyncio.run(self._run_until_shutdown())
-        except BaseException:
-            # Log exceptions that crash the thread
-            logger.exception("%s encountered exception", self.name)
-            raise
-
-    async def _run_until_shutdown(self):
-        try:
-            self._loop = asyncio.get_running_loop()
-            self._ready_future.set_result(True)
-        except Exception as exc:
-            self._ready_future.set_exception(exc)
-            return
-
-        await self._shutdown_event.wait()
-
-
-GLOBAL_THREAD_PORTAL: Optional[WorkerThreadPortal] = None
-
-
-def get_global_thread_portal() -> WorkerThreadPortal:
-    global GLOBAL_THREAD_PORTAL
-
-    # Create a new worker on first call or if the existing worker is dead
-    if GLOBAL_THREAD_PORTAL is None or not GLOBAL_THREAD_PORTAL.thread.is_alive():
-        GLOBAL_THREAD_PORTAL = WorkerThreadPortal(
-            daemon=True, name="GlobalWorkerThread"
-        )
-        GLOBAL_THREAD_PORTAL.start()
-
-    return GLOBAL_THREAD_PORTAL
