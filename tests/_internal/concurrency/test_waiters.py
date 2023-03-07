@@ -180,37 +180,91 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
     assert call.cancelled()
 
 
-@pytest.mark.parametrize("fn", [identity, aidentity])
-def test_sync_call(fn):
-    call = Call.new(fn, 1)
-    assert call() == 1
+@pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
+)
+async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
+    with WorkerThread(run_once=True) as portal:
+        call = Call.new(raise_fn, exception_cls("test"))
+        waiter = AsyncWaiter(call)
+        portal.submit(call)
+
+        with pytest.raises(exception_cls, match="test"):
+            await waiter.result()
+
+    # The call has the error too
+    with pytest.raises(exception_cls, match="test"):
+        call.result()
 
 
-async def test_async_call_sync_function():
-    call = Call.new(identity, 1)
-    assert call() == 1
+@pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
+)
+async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
+    with WorkerThread(run_once=True) as portal:
+
+        def on_worker_thread():
+            # Send exception to the main thread
+            callback = Call.new(raise_fn, exception_cls("test"))
+            call.add_callback(callback)
+            return callback
+
+        call = Call.new(on_worker_thread)
+
+        waiter = AsyncWaiter(call)
+        portal.submit(call)
+
+        callback = await waiter.result()
+
+    # The base exception error is not raised by `waiter.result()` because the worker
+    # does not check the result of the future; however, the work that was sent
+    # to the main thread should have the error
+    with pytest.raises(exception_cls, match="test"):
+        callback.result()
 
 
-async def test_async_call_async_function():
-    call = Call.new(aidentity, 1)
-    assert await call() == 1
+@pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
+)
+def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
+    with WorkerThread(run_once=True) as portal:
+        call = Call.new(raise_fn, exception_cls("test"))
+        waiter = SyncWaiter(call)
+        portal.submit(call)
+
+        with pytest.raises(exception_cls, match="test"):
+            waiter.result()
+
+    # The call has the error too
+    with pytest.raises(exception_cls, match="test"):
+        call.result()
 
 
-@pytest.mark.parametrize("fn", [raises, araises])
-def test_sync_call_with_exception(fn):
-    call = Call.new(fn, ValueError("test"))
-    with pytest.raises(ValueError, match="test"):
-        call()
+@pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
+@pytest.mark.parametrize(
+    "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
+)
+def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
+    with WorkerThread(run_once=True) as portal:
 
+        def on_worker_thread():
+            # Send exception to the main thread
+            callback = Call.new(raise_fn, exception_cls("test"))
+            call.add_callback(callback)
+            return callback
 
-async def test_async_call_sync_function():
-    call = Call.new(raises, ValueError("test"))
-    with pytest.raises(ValueError, match="test"):
-        call()
+        call = Call.new(on_worker_thread)
 
+        waiter = SyncWaiter(call)
+        portal.submit(call)
 
-async def test_async_call_async_function():
-    call = Call.new(araises, ValueError("test"))
-    coro = call()  # should not raise
-    with pytest.raises(ValueError):
-        await coro
+        callback = waiter.result()
+
+    # The base exception error is not raised by `waiter.result()` because the worker
+    # does not check the result of the future; however, the work that was sent
+    # to the main thread should have the error
+    with pytest.raises(exception_cls, match="test"):
+        callback.result()
