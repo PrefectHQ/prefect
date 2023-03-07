@@ -1,6 +1,17 @@
 import functools
 import inspect
-from typing import Any, Callable, Dict, Generator, List, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 from prefect.events import Event
 from prefect.events.worker import get_events_worker
@@ -14,7 +25,11 @@ def emit_instance_method_called_event(
     successful: bool,
 ):
     kind = instance._event_kind()
-    resources: ResourceTuple = instance._event_method_called_resources()
+    resources: Optional[ResourceTuple] = instance._event_method_called_resources()
+
+    if not resources:
+        return
+
     resource, related = resources
     result = "called" if successful else "failed"
 
