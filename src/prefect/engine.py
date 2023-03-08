@@ -15,6 +15,7 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
+import concurrent.futures
 import logging
 import os
 import signal
@@ -661,6 +662,14 @@ async def orchestrate_flow_run(
             return paused_flow_run_state
         except Exception as exc:
             name = message = None
+            if (
+                isinstance(exc, concurrent.futures.CancelledError)
+                and flow_call.future.cancelled()
+            ):
+                # Re-raise cancelled futures as crashes; this is only raised on Python 3.7
+                # See https://github.com/PrefectHQ/prefect/actions/runs/4368742396/jobs/7641709257
+                raise
+
             if (
                 # Flow run timeouts
                 isinstance(exc, TimeoutError)
