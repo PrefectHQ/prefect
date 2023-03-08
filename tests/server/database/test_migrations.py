@@ -32,6 +32,7 @@ async def sample_db_data(
     """Adds sample data to the database for testing migrations"""
 
 
+@pytest.mark.service("database")
 @pytest.mark.flaky(max_runs=3)
 async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     """
