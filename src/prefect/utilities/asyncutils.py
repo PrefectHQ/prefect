@@ -231,10 +231,18 @@ def sync_compatible(async_fn: T) -> T:
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
         elif in_async_main_thread() and (
-            not current_call or (current_call and is_async_fn(current_call.fn))
+            not current_call or is_async_fn(current_call.fn)
         ):
             # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
+        elif (
+            current_call
+            and current_call.callback_portal
+            and not is_async_fn(current_call.fn)
+        ):
+            return from_sync.send_callback(
+                create_call(async_fn, *args, **kwargs)
+            ).result()
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
