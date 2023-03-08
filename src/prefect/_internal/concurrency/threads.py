@@ -122,7 +122,6 @@ class EventLoopThread(Portal):
         self._shutdown_event: Event = Event()
         self._run_once: bool = run_once
         self._submitted_count: int = 0
-        self._tasks = set()
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -198,8 +197,6 @@ class EventLoopThread(Portal):
     async def _run_call(self, call: Call) -> None:
         task = call.run()
         if task is not None:
-            self._tasks.add(task)
-            asyncio.ensure_future(task).add_done_callback(self._tasks.remove)
             await task
 
     def __enter__(self):
