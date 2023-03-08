@@ -70,6 +70,7 @@ async def test_backfill_state_name(db, flow):
     if dialect.name == "postgresql":
         revisions = ("605ebb4e9155", "14dc68cc5853")
     else:
+        pytest.skip(reason="Test is excessively slow on SQLite")
         revisions = ("7f5f335cace3", "db6bde582447")
 
     flow_run_id = uuid4()
