@@ -219,9 +219,9 @@ def sync_compatible(async_fn: T) -> T:
     def coroutine_wrapper(*args, **kwargs):
         from prefect._internal.concurrency.api import create_call, from_sync
         from prefect._internal.concurrency.calls import get_current_call
-        from prefect._internal.concurrency.threads import get_global_thread_portal
+        from prefect._internal.concurrency.threads import get_global_loop
 
-        global_thread_portal = get_global_thread_portal()
+        global_thread_portal = get_global_loop()
         current_thread = threading.current_thread()
         current_call = get_current_call()
 

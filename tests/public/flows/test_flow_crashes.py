@@ -14,7 +14,7 @@ import pytest
 import prefect
 import prefect.context
 import prefect.exceptions
-from prefect._internal.concurrency.threads import wait_for_global_thread
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.schemas import FlowRun
 
 
@@ -44,7 +44,7 @@ async def test_anyio_cancellation_crashes_flow(orion_client):
         flow_run_id = await started
         tg.cancel_scope.cancel()
 
-    wait_for_global_thread()
+    wait_for_global_loop_exit()
 
     flow_run = await orion_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
@@ -73,7 +73,7 @@ async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_cli
         flow_run_id = await started
         tg.cancel_scope.cancel()
 
-    wait_for_global_thread()
+    wait_for_global_loop_exit()
 
     flow_run = await orion_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
@@ -104,7 +104,7 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
         child_flow_run_id = await child_started
         tg.cancel_scope.cancel()
 
-    wait_for_global_thread()
+    wait_for_global_loop_exit()
 
     child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
@@ -119,7 +119,7 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
     )
 
 
-@pytest.skip(reason="The child cannot be reported as crashed due to client closure")
+@pytest.mark.xfail  # The child cannot be reported as crashed due to client closure
 async def test_anyio_cancellation_crashes_child_flow(orion_client):
     child_started = asyncio.Future()
     child_flow_run_id = parent_flow_run_id = None
@@ -142,7 +142,7 @@ async def test_anyio_cancellation_crashes_child_flow(orion_client):
 
     parent_flow_run_id, child_flow_run_id = await parent_flow()
 
-    wait_for_global_thread()
+    wait_for_global_loop_exit()
 
     child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
