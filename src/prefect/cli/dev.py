@@ -392,7 +392,7 @@ def build_image(
 
 
 @dev_app.command()
-def container(bg: bool = False, name="prefect-dev", api: bool = True):
+def container(bg: bool = False, name="prefect-dev", api: bool = True, tag: str = None):
     """
     Run a docker container with local code mounted and installed.
     """
@@ -411,7 +411,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         )
 
     blocking_cmd = "prefect dev api" if api else "sleep infinity"
-    tag = get_prefect_image_name()
+    tag = tag or get_prefect_image_name()
 
     container: Container = client.containers.create(
         image=tag,
