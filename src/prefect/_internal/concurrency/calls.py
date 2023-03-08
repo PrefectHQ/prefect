@@ -9,6 +9,7 @@ import contextlib
 import contextvars
 import dataclasses
 import inspect
+import threading
 from typing import Any, Awaitable, Callable, Dict, Generic, Optional, Tuple, TypeVar
 
 from typing_extensions import ParamSpec
@@ -128,7 +129,9 @@ class Call(Generic[T]):
             logger.debug("Skipping execution of cancelled call %r", self)
             return None
 
-        logger.debug("Running call %r", self)
+        logger.debug(
+            "Running call %r in thread %r", self, threading.current_thread().name
+        )
 
         coro = self.context.run(self._run_sync)
 
