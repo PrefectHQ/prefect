@@ -1,6 +1,7 @@
 import copy
 import enum
 import json
+import math
 import os
 import time
 from contextlib import contextmanager
@@ -651,7 +652,9 @@ class KubernetesJob(Infrastructure):
             completed = job.status.completion_time is not None
 
             while not completed:
-                remaining_time = deadline - time.monotonic() if deadline else None
+                remaining_time = (
+                    math.ceil(deadline - time.monotonic()) if deadline else None
+                )
                 if deadline and remaining_time <= 0:
                     self.logger.error(
                         f"Job {job_name!r}: Job did not complete within "
