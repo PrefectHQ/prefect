@@ -14,6 +14,7 @@ import pytest
 import prefect
 import prefect.context
 import prefect.exceptions
+from prefect._internal.concurrency.threads import wait_for_global_thread
 from prefect.client.schemas import FlowRun
 
 
@@ -43,6 +44,8 @@ async def test_anyio_cancellation_crashes_flow(orion_client):
         flow_run_id = await started
         tg.cancel_scope.cancel()
 
+    wait_for_global_thread()
+
     flow_run = await orion_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
         flow_run, expected_message="Execution was cancelled by the runtime environment"
@@ -69,6 +72,8 @@ async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_cli
         # Wait for the flow run to start, retrieve the flow run id
         flow_run_id = await started
         tg.cancel_scope.cancel()
+
+    wait_for_global_thread()
 
     flow_run = await orion_client.read_flow_run(flow_run_id)
     await assert_flow_run_crashed(
@@ -99,6 +104,8 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
         child_flow_run_id = await child_started
         tg.cancel_scope.cancel()
 
+    wait_for_global_thread()
+
     child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
     await assert_flow_run_crashed(
         child_flow_run,
@@ -110,6 +117,41 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
         parent_flow_run,
         expected_message="Execution was cancelled by the runtime environment",
     )
+
+
+@pytest.skip(reason="The child cannot be reported as crashed due to client closure")
+async def test_anyio_cancellation_crashes_child_flow(orion_client):
+    child_started = asyncio.Future()
+    child_flow_run_id = parent_flow_run_id = None
+
+    @prefect.flow
+    async def child_flow():
+        child_started.set_result(prefect.context.get_run_context().flow_run.id)
+        await anyio.sleep_forever()
+
+    @prefect.flow
+    async def parent_flow():
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(child_flow)
+
+            # Wait for the flow run to start, retrieve the flow run ids
+            child_flow_run_id = await child_started
+            tg.cancel_scope.cancel()
+
+        return prefect.context.get_run_context().flow_run.id, child_flow_run_id
+
+    parent_flow_run_id, child_flow_run_id = await parent_flow()
+
+    wait_for_global_thread()
+
+    child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+    await assert_flow_run_crashed(
+        child_flow_run,
+        expected_message="Execution was cancelled by the runtime environment",
+    )
+
+    parent_flow_run = await orion_client.read_flow_run(parent_flow_run_id)
+    assert parent_flow_run.state.is_completed()
 
 
 @pytest.mark.filterwarnings(
