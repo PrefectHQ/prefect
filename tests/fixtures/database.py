@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
+from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
@@ -426,6 +427,33 @@ async def work_pool(session):
                     "required": [],
                 },
             },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def process_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type=ProcessWorker.type,
+            base_job_template=ProcessWorker.get_default_base_job_template(),
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def prefect_agent_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type="prefect-agent",
         ),
     )
     await session.commit()

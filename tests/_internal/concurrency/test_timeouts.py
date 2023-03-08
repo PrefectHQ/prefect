@@ -5,12 +5,49 @@ import time
 import pytest
 
 from prefect._internal.concurrency.timeouts import (
+    CancelContext,
     cancel_async_after,
     cancel_async_at,
     cancel_sync_after,
     cancel_sync_at,
     get_deadline,
 )
+
+
+async def test_cancel_context():
+    ctx = CancelContext(timeout=1)
+    assert not ctx.cancelled()
+    ctx.mark_cancelled()
+    assert ctx.cancelled()
+
+
+async def test_cancel_context_chain():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2)
+    assert not ctx2.cancelled()
+    ctx1.mark_cancelled()
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+
+
+async def test_cancel_context_chain_cancelled_first():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.mark_cancelled()
+    ctx1.chain(ctx2)
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+
+
+async def test_cancel_context_chain_cancelled_after_completed():
+    ctx1 = CancelContext(timeout=1)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2)
+    ctx2.mark_completed()
+    ctx1.mark_cancelled()
+    assert ctx1.cancelled()
+    assert not ctx2.cancelled()
 
 
 async def test_cancel_async_after():
@@ -20,7 +57,7 @@ async def test_cancel_async_after():
             await asyncio.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 1
 
 
@@ -28,13 +65,11 @@ def test_cancel_sync_after_in_main_thread():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
         with cancel_sync_after(0.1) as ctx:
-            # floats are not suppported by alarm timeouts so this will actually timeout
-            # after 1s
-            time.sleep(2)
+            time.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
-    assert t1 - t0 < 2
+    assert ctx.cancelled()
+    assert t1 - t0 < 1
 
 
 def test_cancel_sync_after_in_worker_thread():
@@ -54,7 +89,7 @@ def test_cancel_sync_after_in_worker_thread():
         elapsed_time, ctx = future.result()
 
     assert elapsed_time < 1
-    assert ctx.cancelled
+    assert ctx.cancelled()
 
 
 async def test_cancel_async_at():
@@ -64,7 +99,7 @@ async def test_cancel_async_at():
             await asyncio.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
+    assert ctx.cancelled()
     assert t1 - t0 < 1
 
 
@@ -72,10 +107,8 @@ def test_cancel_sync_at():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
         with cancel_sync_at(get_deadline(timeout=0.1)) as ctx:
-            # floats are not suppported by alarm timeouts so this will actually timeout
-            # after 1s
-            time.sleep(2)
+            time.sleep(1)
     t1 = time.perf_counter()
 
-    assert ctx.cancelled
-    assert t1 - t0 < 2
+    assert ctx.cancelled()
+    assert t1 - t0 < 1

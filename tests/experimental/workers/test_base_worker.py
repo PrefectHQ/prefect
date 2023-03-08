@@ -862,7 +862,7 @@ class TestWorkerProperties:
         assert WorkerImplNoCustomization.get_logo_url() == ""
         assert WorkerImplNoCustomization.get_documentation_url() == ""
         assert WorkerImplNoCustomization.get_description() == ""
-        assert WorkerImplNoCustomization.get_default_base_job_configuration() == {
+        assert WorkerImplNoCustomization.get_default_base_job_template() == {
             "job_configuration": {"command": "{{ command }}"},
             "variables": {
                 "properties": {
@@ -950,7 +950,7 @@ class TestWorkerProperties:
             async def verify_submitted_deployment(self, deployment):
                 pass
 
-        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_configuration() == {
+        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_template() == {
             "job_configuration": {
                 "command": "{{ command }}",
                 "var1": "{{ var1 }}",

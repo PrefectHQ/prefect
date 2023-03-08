@@ -1,11 +1,14 @@
+"""
+Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
+"""
+
 import contextlib
 import ctypes
-import math
 import signal
 import sys
 import threading
 import time
-from typing import Optional, Type
+from typing import List, Optional, Type
 
 import anyio
 
@@ -19,23 +22,65 @@ class CancelContext:
     """
     Tracks if a cancel context manager was cancelled.
 
-    The `cancelled` property is threadsafe.
+    A context cannot be marked as cancelled after it is reported as completed.
     """
 
     def __init__(self, timeout: Optional[float]) -> None:
         self._timeout = timeout
+        self._deadline = get_deadline(timeout)
         self._cancelled: bool = False
+        self._chained: List["CancelContext"] = []
+        self._lock = threading.Lock()
+        self._completed = False
 
     @property
     def timeout(self) -> Optional[float]:
         return self._timeout
 
     @property
+    def deadline(self) -> Optional[float]:
+        return self._deadline
+
     def cancelled(self):
-        return self._cancelled
+        with self._lock:
+            return self._cancelled
+
+    def completed(self):
+        with self._lock:
+            return self._completed
 
     def mark_cancelled(self):
-        self._cancelled = True
+        with self._lock:
+            if self._completed:
+                return  # Do not mark completed tasks as cancelled
+
+            logger.debug("Marked %r as cancelled", self)
+            self._cancelled = True
+            for ctx in self._chained:
+                ctx.mark_cancelled()
+
+    def mark_completed(self):
+        with self._lock:
+            logger.debug("Marked %r as completed", self)
+            self._completed = True
+
+    def chain(self, ctx: "CancelContext") -> None:
+        """
+        When this context is marked as cancelled, mark the given context as cancelled
+        too.
+
+        If this context is already cancelled, the given context will be marked as
+        cancelled immediately.
+        """
+        with self._lock:
+            if self._cancelled:
+                ctx.mark_cancelled()
+            else:
+                self._chained.append(ctx)
+
+    def __repr__(self) -> str:
+        timeout = f"{self._timeout:.2f}" if self._timeout else "None"
+        return f"<CancelContext at {hex(id(self))} timeout={timeout}>"
 
 
 @contextlib.contextmanager
@@ -55,9 +100,7 @@ def cancel_async_after(timeout: Optional[float]):
 
     try:
         with anyio.fail_after(timeout) as cancel_scope:
-            logger.debug(
-                f"Entered asynchronous cancel context with %.2f timeout", timeout
-            )
+            logger.debug(f"Entered asynchronous cancel context %r", ctx)
             yield ctx
     finally:
         if cancel_scope.cancel_called:
@@ -92,14 +135,8 @@ def cancel_async_at(deadline: Optional[float]):
         return
 
     timeout = max(0, deadline - time.monotonic())
-
-    ctx = CancelContext(timeout=timeout)
-    try:
-        with cancel_async_after(timeout) as inner_ctx:
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with cancel_async_after(timeout) as ctx:
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -120,13 +157,8 @@ def cancel_sync_at(deadline: Optional[float]):
 
     timeout = max(0, deadline - time.monotonic())
 
-    ctx = CancelContext(timeout=timeout)
-    try:
-        with cancel_sync_after(timeout) as inner_ctx:
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with cancel_sync_after(timeout) as ctx:
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -140,9 +172,8 @@ def cancel_sync_after(timeout: Optional[float]):
 
     Yields a `CancelContext`.
     """
-    ctx = CancelContext(timeout=timeout)
     if timeout is None:
-        yield ctx
+        yield CancelContext(timeout=timeout)
         return
 
     if sys.platform.startswith("win"):
@@ -151,7 +182,7 @@ def cancel_sync_after(timeout: Optional[float]):
             f"Entered cancel context on Windows; %.2f timeout will not be enforced.",
             timeout,
         )
-        yield ctx
+        yield CancelContext(timeout=None)
         return
 
     if threading.current_thread() is threading.main_thread():
@@ -161,17 +192,13 @@ def cancel_sync_after(timeout: Optional[float]):
         method = _watcher_thread_based_timeout
         method_name = "watcher"
 
-    try:
-        with method(timeout) as inner_ctx:
-            logger.debug(
-                f"Entered synchronous cancel context with %.2f %s based timeout",
-                timeout,
-                method_name,
-            )
-            yield ctx
-    finally:
-        if inner_ctx.cancelled:
-            ctx.mark_cancelled()
+    with method(timeout) as ctx:
+        logger.debug(
+            f"Entered synchronous %s based cancel context %r",
+            method_name,
+            ctx,
+        )
+        yield ctx
 
 
 @contextlib.contextmanager
@@ -200,12 +227,14 @@ def _alarm_based_timeout(timeout: float):
         )
         raise TimeoutError()
 
+    signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
+    # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
+    previous = signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
-        signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
-        signal.alarm(math.ceil(timeout))  # alarms do not support floats
         yield ctx
     finally:
-        signal.alarm(0)  # Clear the alarm when the context exits
+        # Clear the alarm when the context exits
+        signal.setitimer(signal.ITIMER_REAL, *previous)
 
 
 @contextlib.contextmanager
