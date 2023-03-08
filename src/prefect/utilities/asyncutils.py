@@ -218,7 +218,7 @@ def sync_compatible(async_fn: T) -> T:
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
         from prefect._internal.concurrency.api import create_call, from_sync
-        from prefect._internal.concurrency.calls import get_current_call
+        from prefect._internal.concurrency.calls import get_current_call, logger
         from prefect._internal.concurrency.event_loop import get_running_loop
         from prefect._internal.concurrency.threads import get_global_loop
 
@@ -227,29 +227,22 @@ def sync_compatible(async_fn: T) -> T:
         current_call = get_current_call()
         current_loop = get_running_loop()
 
-        print(
-            async_fn,
-            current_call,
-            current_loop,
-            is_async_fn(current_call.fn) if current_call else None,
-        )
-
         if current_thread.ident == global_thread_portal.thread.ident:
-            print("--> return coroutine for internal await")
+            logger.debug(f"{async_fn} --> return coroutine for internal await")
             # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
         elif in_async_main_thread() and (
             not current_call or is_async_fn(current_call.fn)
         ):
             # In the main async context; return the coro for them to await
-            print("--> return coroutine for user await")
+            logger.debug(f"{async_fn} --> return coroutine for user await")
             return async_fn(*args, **kwargs)
         elif (
             current_call
             and current_call.callback_portal
             and not is_async_fn(current_call.fn)
         ):
-            print("--> run async in callback portal")
+            logger.debug(f"{async_fn} --> run async in callback portal")
             return from_sync.send_callback(
                 create_call(async_fn, *args, **kwargs)
             ).result()
@@ -258,14 +251,14 @@ def sync_compatible(async_fn: T) -> T:
             # call to the parent
             return run_async_from_worker_thread(async_fn, *args, **kwargs)
         elif current_loop is not None:
-            print("--> run async in global loop portal")
+            logger.debug(f"{async_fn} --> run async in global loop portal")
             # An event loop is already present but we are in a sync context, run the
             # call in Prefect's event loop thread
             return from_sync.call_soon_in_global_thread(
                 create_call(async_fn, *args, **kwargs)
             ).result()
         else:
-            print("--> run async in new loop")
+            logger.debug(f"{async_fn} --> run async in new loop")
             # Run in a new event loop, but use a `Call` for nested context detection
             call = create_call(async_fn, *args, **kwargs)
             return call()
