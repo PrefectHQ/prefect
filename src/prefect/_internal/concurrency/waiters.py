@@ -149,11 +149,8 @@ class AsyncWaiter(Waiter[T]):
         if not self._loop:
             self._loop = asyncio.get_running_loop()
 
-        # Wrap the future for a non-blocking wait
-        future = asyncio.wrap_future(self._call.future)
-
         # Stop watching for work once the future is done
-        future.add_done_callback(
+        self._call.future.add_done_callback(
             lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
         )
 
@@ -161,10 +158,11 @@ class AsyncWaiter(Waiter[T]):
         try:
             with cancel_async_at(self._call.cancel_context.deadline) as ctx:
                 await self._watch_for_callbacks(ctx)
-        except TimeoutError:
+        except (TimeoutError, asyncio.CancelledError):
             # Timeouts will be re-raised on future result retrieval
             if not ctx.cancelled():
                 raise
 
-        logger.debug("Waiter %r retrieving result of future %r", self, future)
-        return await future
+        logger.debug("Waiter %r retrieving result")
+        # Wrap the future for a non-blocking wait
+        return await asyncio.wrap_future(self._call.future)
