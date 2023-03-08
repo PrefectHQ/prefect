@@ -61,7 +61,10 @@ def test_sync_flow_timeout_in_sync_flow():
 async def test_sync_flow_timeout_in_async_flow():
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
-        time.sleep(3)
+        # Sleep for 3 seconds in 0.1 second intervals; the sync flow runs in a worker
+        # thread which does not interrupt long-running sleep calls
+        for _ in range(30):
+            time.sleep(0.1)
 
     @prefect.flow
     async def parent_flow():
