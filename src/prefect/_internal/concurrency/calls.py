@@ -31,6 +31,9 @@ logger = get_logger("prefect._internal.concurrency.calls")
 # Tracks the current call being executed
 current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
 
+# Create a strong reference to tasks to prevent destruction during execution errors
+TASK_REFS = set()
+
 
 def get_current_call() -> Optional["Call"]:
     return current_call.get(None)
@@ -137,7 +140,17 @@ class Call(Generic[T]):
                 logger.debug(
                     "Scheduling coroutine for call %r in running loop %r", self, loop
                 )
-                return self.context.run(loop.create_task, self._run_async(coro))
+                task = self.context.run(loop.create_task, self._run_async(coro))
+
+                # Prevent tasks from being garbage collected before completion
+                # See https://docs.python.org/3.10/library/asyncio-task.html#asyncio.create_task
+                TASK_REFS.add(task)
+                asyncio.ensure_future(task).add_done_callback(
+                    lambda _: TASK_REFS.remove(task)
+                )
+
+                return task
+
             else:
                 # Otherwise, execute the function here
                 logger.debug("Executing coroutine for call %r in new loop", self)
