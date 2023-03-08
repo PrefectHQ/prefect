@@ -57,7 +57,9 @@ class WorkerThread(Portal):
         # Track the portal running the call
         call.set_portal(self)
 
-        self._loop.call_soon_threadsafe(call.run)
+        # Submit the call to the event loop
+        asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
+
         self._submitted_count += 1
         if self._run_once:
             call.future.add_done_callback(lambda _: self.shutdown())
@@ -101,6 +103,11 @@ class WorkerThread(Portal):
 
         await self._shutdown_event.wait()
 
+    async def _run_call(self, call: Call) -> None:
+        task = call.run()
+        if task is not None:
+            await task
+
     def __enter__(self):
         self.start()
         return self
@@ -117,7 +124,17 @@ def get_global_thread_portal() -> WorkerThread:
 
     # Create a new worker on first call or if the existing worker is dead
     if GLOBAL_THREAD_PORTAL is None or not GLOBAL_THREAD_PORTAL.thread.is_alive():
-        GLOBAL_THREAD_PORTAL = WorkerThread(daemon=True, name="GlobalWorkerThread")
+        GLOBAL_THREAD_PORTAL = WorkerThread(name="GlobalWorkerThread")
         GLOBAL_THREAD_PORTAL.start()
 
     return GLOBAL_THREAD_PORTAL
+
+
+def wait_for_global_thread() -> None:
+    portal = get_global_thread_portal()
+    portal.shutdown()
+
+    if threading.get_ident() == portal.thread.ident:
+        raise RuntimeError("Cannot wait for the global thread from inside itself.")
+
+    portal.thread.join()
