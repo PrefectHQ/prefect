@@ -219,11 +219,13 @@ def sync_compatible(async_fn: T) -> T:
     def coroutine_wrapper(*args, **kwargs):
         from prefect._internal.concurrency.api import create_call, from_sync
         from prefect._internal.concurrency.calls import get_current_call
+        from prefect._internal.concurrency.event_loop import get_running_loop
         from prefect._internal.concurrency.threads import get_global_loop
 
         global_thread_portal = get_global_loop()
         current_thread = threading.current_thread()
         current_call = get_current_call()
+        current_loop = get_running_loop()
 
         if current_thread.ident == global_thread_portal.thread.ident:
             # In the prefect async context; return the coro for us to await
@@ -237,11 +239,17 @@ def sync_compatible(async_fn: T) -> T:
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
             return run_async_from_worker_thread(async_fn, *args, **kwargs)
-        else:
-            # Just run the call in Prefect's event loop thread
+        elif current_loop is not None:
+            # An event loop is already present but we are in a sync context, run the
+            # call in Prefect's event loop thread
             return from_sync.call_soon_in_global_thread(
                 create_call(async_fn, *args, **kwargs)
             ).result()
+        else:
+            # Run in a new event loop
+            coro = async_fn(*args, **kwargs)
+            if coro:  # TODO: Why is this `None` sometimes?
+                return asyncio.run(coro)
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
