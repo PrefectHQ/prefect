@@ -32,7 +32,7 @@ logger = get_logger("prefect._internal.concurrency.calls")
 current_call: contextvars.ContextVar["Call"] = contextvars.ContextVar("current_call")
 
 # Create a strong reference to tasks to prevent destruction during execution errors
-TASK_REFS = set()
+_ASYNC_TASK_REFS = set()
 
 
 def get_current_call() -> Optional["Call"]:
@@ -144,9 +144,9 @@ class Call(Generic[T]):
 
                 # Prevent tasks from being garbage collected before completion
                 # See https://docs.python.org/3.10/library/asyncio-task.html#asyncio.create_task
-                TASK_REFS.add(task)
+                _ASYNC_TASK_REFS.add(task)
                 asyncio.ensure_future(task).add_done_callback(
-                    lambda _: TASK_REFS.remove(task)
+                    lambda _: _ASYNC_TASK_REFS.remove(task)
                 )
 
                 return task
