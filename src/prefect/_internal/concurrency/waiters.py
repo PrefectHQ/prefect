@@ -8,10 +8,10 @@ import asyncio
 import inspect
 import queue
 import threading
-from typing import Awaitable, Generic, Optional, TypeVar, Union
+from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 from prefect._internal.concurrency.calls import Call, Portal
-from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
     cancel_async_at,
@@ -109,17 +109,31 @@ class SyncWaiter(Waiter[T]):
 class AsyncWaiter(Waiter[T]):
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
-        self._queue: asyncio.Queue = asyncio.Queue()
-        self._loop: Optional[asyncio.AbstractEventLoop] = get_running_loop()
+
+        # Delay instantiating loop and queue as there may not be a loop present yet
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._queue: Optional[asyncio.Queue] = None
+        self._early_submissions: List[Call] = []
 
     def submit(self, call: Call):
         """
         Submit a callback to execute while waiting.
         """
+        if not self._loop:
+            # If the loop is not yet available, just push the call to a stack
+            self._early_submissions.append(call)
+            return call
+
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
         call.set_portal(self)
         return call
+
+    def _resubmit_early_submissions(self):
+        assert self._loop
+        for call in self._early_submissions:
+            self.submit(call)
+        self._early_submissions = []
 
     async def _watch_for_callbacks(self, cancel_context: CancelContext):
         logger.debug("Watching for work sent to %r", self)
@@ -145,9 +159,10 @@ class AsyncWaiter(Waiter[T]):
         await asyncio.gather(*tasks)
 
     async def result(self) -> T:
-        # Assign the loop if it was not available at init
-        if not self._loop:
-            self._loop = asyncio.get_running_loop()
+        # Assign the loop
+        self._loop = asyncio.get_running_loop()
+        self._queue = asyncio.Queue()
+        self._resubmit_early_submissions()
 
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(

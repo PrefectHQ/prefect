@@ -47,6 +47,20 @@ def test_async_waiter_created_outside_of_loop():
     assert asyncio.run(AsyncWaiter(call).result()) == 1
 
 
+def test_async_waiter_early_submission():
+    call = Call.new(identity, 1)
+    waiter = AsyncWaiter(call)
+
+    # Calls can be submitted before the waiter has a bound event loop
+    callback = waiter.submit(Call.new(identity, 2))
+    call.run()
+
+    assert asyncio.run(waiter.result()) == 1
+
+    # The call should be executed
+    assert callback.result() == 2
+
+
 def test_sync_waiter_timeout_in_worker_thread():
     """
     In this test, a timeout is raised due to a slow call that is occuring on the worker
