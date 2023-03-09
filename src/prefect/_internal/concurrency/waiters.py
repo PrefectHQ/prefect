@@ -91,14 +91,8 @@ class SyncWaiter(Waiter[T]):
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
 
         # Cancel work sent to the waiter if the future exceeds its timeout
-        try:
-            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
-                self._watch_for_callbacks(ctx)
-        except TimeoutError:
-            # Timeouts will be generally be raised on future result retrieval but
-            # if its not our timeout it should be reraised
-            if not ctx.cancelled():
-                raise
+        with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
+            self._watch_for_callbacks(ctx)
 
         logger.debug(
             "Waiter %r retrieving result of future %r", self, self._call.future
@@ -173,10 +167,13 @@ class AsyncWaiter(Waiter[T]):
         try:
             with cancel_async_at(self._call.cancel_context.deadline) as ctx:
                 await self._watch_for_callbacks(ctx)
-        except (TimeoutError, asyncio.CancelledError):
-            # Timeouts will be re-raised on future result retrieval
-            if not ctx.cancelled():
-                raise
+        except asyncio.CancelledError as exc:
+            # Pass cancellation errors to the future; this helps with futures stuck in
+            # a running state. The reason this is necessary is not yet clear and it
+            # would be nice to avoid setting a result on a watched call due to behavior
+            # in the watcher.
+            if not self._call.future.done():
+                self._call.future.set_exception(exc)
 
         logger.debug("Waiter %r retrieving result", self)
         # Wrap the future for a non-blocking wait

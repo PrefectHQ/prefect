@@ -142,12 +142,13 @@ async def test_async_waiter_timeout_in_worker_thread():
 
 async def test_async_waiter_timeout_in_main_thread():
     with WorkerThread(run_once=True) as portal:
+        callback = None
 
         def on_worker_thread():
+            nonlocal callback
             # Send sleep to the main thread
             callback = Call.new(asyncio.sleep, 1)
             call.add_callback(callback)
-            return callback
 
         call = Call.new(on_worker_thread)
 
@@ -156,17 +157,11 @@ async def test_async_waiter_timeout_in_main_thread():
         portal.submit(call)
 
         t0 = time.time()
-        callback = await waiter.result()
+        with pytest.raises(TimeoutError):
+            await waiter.result()
         t1 = time.time()
 
     assert t1 - t0 < 1
-
-    # The timeout error is not raised by `waiter.result()` because the worker
-    # does not check the result of the future; however, the work that was sent
-    # to the main thread should have a timeout error
-    with pytest.raises(asyncio.CancelledError):
-        callback.result()
-
     assert not call.cancelled()
     assert callback.cancelled()
 
