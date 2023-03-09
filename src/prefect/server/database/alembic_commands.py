@@ -2,7 +2,10 @@ from functools import wraps
 from pathlib import Path
 from threading import Lock
 
+import locket
+
 import prefect
+from prefect.settings import PREFECT_HOME
 
 ALEMBIC_LOCK = Lock()
 
@@ -20,7 +23,8 @@ def with_alembic_lock(fn):
 
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        with ALEMBIC_LOCK:
+        # Multiprocessing lock
+        with locket.lock_file(PREFECT_HOME.value() / "database-migration.lock"):
             return fn(*args, **kwargs)
 
     return wrapper
