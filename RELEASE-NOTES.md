@@ -24,7 +24,6 @@
 - Fix bugs in supervisors implementation — https://github.com/PrefectHQ/prefect/pull/8718
 - Refactor concurrency module and add documentation — https://github.com/PrefectHQ/prefect/pull/8724
 - Update block event resource IDs to use block-document id instead of name. — https://github.com/PrefectHQ/prefect/pull/8730
-- UI updates for workers beta — https://github.com/PrefectHQ/prefect/pull/8732
 - Add cancellation reporting to calls and waiters — https://github.com/PrefectHQ/prefect/pull/8731
 - Add worker command output when applying deployments with a work pool — https://github.com/PrefectHQ/prefect/pull/8725
 - Add support for float timeouts using alarms — https://github.com/PrefectHQ/prefect/pull/8737
