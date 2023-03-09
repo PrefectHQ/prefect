@@ -41,6 +41,7 @@ async def agent_process():
         for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
             await anyio.sleep(POLL_INTERVAL)
             if out.tell() > 200:
+                await anyio.sleep(0.5)
                 break
 
         assert out.tell() > 200, "The agent did not start up in time"
@@ -58,6 +59,8 @@ async def agent_process():
 
 
 class TestAgentSignalForwarding:
+    # run these tests sequentially in the same xdist worker to fix flakiness
+    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -78,6 +81,7 @@ class TestAgentSignalForwarding:
             f" Output:\n{out}"
         )
 
+    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -98,6 +102,7 @@ class TestAgentSignalForwarding:
             f" Output:\n{out}"
         )
 
+    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -122,6 +127,7 @@ class TestAgentSignalForwarding:
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
+    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -146,6 +152,7 @@ class TestAgentSignalForwarding:
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
+    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
