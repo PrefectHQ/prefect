@@ -7,13 +7,13 @@
 - Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Fixes
-- Add carriage return to `prompt_select_from_list` — https://github.com/PrefectHQ/prefect/pull/8705
-- Fix Kubernetes job watch timeout request error by rounding — https://github.com/PrefectHQ/prefect/pull/8733
-- Ignore fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
+- Fix `prefect cloud login` detection of "ENTER" on some machines — https://github.com/PrefectHQ/prefect/pull/8705
+- Fix Kubernetes job watch timeout request error by rounding floats — https://github.com/PrefectHQ/prefect/pull/8733
+- Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
 - Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
 - Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
-
+- Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Experimental
 - Refactor supervisor API to allow configuration — https://github.com/PrefectHQ/prefect/pull/8695
@@ -24,7 +24,6 @@
 - Fix bugs in supervisors implementation — https://github.com/PrefectHQ/prefect/pull/8718
 - Refactor concurrency module and add documentation — https://github.com/PrefectHQ/prefect/pull/8724
 - Update block event resource IDs to use block-document id instead of name. — https://github.com/PrefectHQ/prefect/pull/8730
-- UI updates for workers beta — https://github.com/PrefectHQ/prefect/pull/8732
 - Add cancellation reporting to calls and waiters — https://github.com/PrefectHQ/prefect/pull/8731
 - Add worker command output when applying deployments with a work pool — https://github.com/PrefectHQ/prefect/pull/8725
 - Add support for float timeouts using alarms — https://github.com/PrefectHQ/prefect/pull/8737
