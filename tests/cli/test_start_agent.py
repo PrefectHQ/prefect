@@ -2,7 +2,6 @@ import os
 import signal
 import sys
 import tempfile
-from asyncio import Semaphore
 
 import anyio
 import pytest
@@ -13,7 +12,6 @@ from prefect.utilities.processutils import open_process
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
 SHUTDOWN_TIMEOUT = 20
-SEMAPHORE = Semaphore(1)
 
 
 @pytest.fixture(scope="function")
@@ -23,41 +21,40 @@ async def agent_process():
     Yields:
         The anyio.Process.
     """
-    async with SEMAPHORE:
-        out = tempfile.TemporaryFile()  # capture output for test assertions
+    out = tempfile.TemporaryFile()  # capture output for test assertions
 
-        # Will connect to the same database as normal test clients
-        async with open_process(
-            command=[
-                "prefect",
-                "agent",
-                "start",
-                "--match=nonexist",
-                "--api=",  # ephemeral API
-            ],
-            stdout=out,
-            stderr=out,
-            env={**os.environ, **get_current_settings().to_environment_variables()},
-        ) as process:
-            process.out = out
+    # Will connect to the same database as normal test clients
+    async with open_process(
+        command=[
+            "prefect",
+            "agent",
+            "start",
+            "--match=nonexist",
+            "--api=",  # ephemeral API
+        ],
+        stdout=out,
+        stderr=out,
+        env={**os.environ, **get_current_settings().to_environment_variables()},
+    ) as process:
+        process.out = out
 
-            for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
-                await anyio.sleep(POLL_INTERVAL)
-                if out.tell() > 200:
-                    break
+        for _ in range(int(STARTUP_TIMEOUT / POLL_INTERVAL)):
+            await anyio.sleep(POLL_INTERVAL)
+            if out.tell() > 200:
+                break
 
-            assert out.tell() > 200, "The agent did not start up in time"
-            assert process.returncode is None, "The agent failed to start up"
+        assert out.tell() > 200, "The agent did not start up in time"
+        assert process.returncode is None, "The agent failed to start up"
 
-            # Yield to the consuming tests
-            yield process
+        # Yield to the consuming tests
+        yield process
 
-            # Then shutdown the process
-            try:
-                process.terminate()
-            except ProcessLookupError:
-                pass
-            out.close()
+        # Then shutdown the process
+        try:
+            process.terminate()
+        except ProcessLookupError:
+            pass
+        out.close()
 
 
 class TestAgentSignalForwarding:
