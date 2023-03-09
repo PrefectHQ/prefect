@@ -184,6 +184,7 @@ class Task(Generic[P, R]):
             List[float],
             Callable[[int], List[float]],
         ] = 0,
+        allow_restarts: Optional[bool] = False,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -247,6 +248,7 @@ class Task(Generic[P, R]):
             raise ValueError("`retry_jitter_factor` must be >= 0.")
 
         self.retry_jitter_factor = retry_jitter_factor
+        self.allow_restarts = allow_restarts
 
         self.persist_result = persist_result
         self.result_storage = result_storage
@@ -295,6 +297,7 @@ class Task(Generic[P, R]):
             Callable[[int], List[float]],
         ] = NotSet,
         retry_jitter_factor: Optional[float] = NotSet,
+        allow_restarts: Optional[bool] = NotSet,
         persist_result: Optional[bool] = NotSet,
         result_storage: Optional[ResultStorage] = NotSet,
         result_serializer: Optional[ResultSerializer] = NotSet,
@@ -392,6 +395,9 @@ class Task(Generic[P, R]):
                 retry_jitter_factor
                 if retry_jitter_factor is not NotSet
                 else self.retry_jitter_factor
+            ),
+            allow_restarts=(
+                allow_restarts if allow_restarts is not NotSet else self.allow_restarts
             ),
             persist_result=(
                 persist_result if persist_result is not NotSet else self.persist_result
@@ -866,6 +872,7 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
+    allow_restarts: Optional[bool] = False,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -897,6 +904,7 @@ def task(
         Callable[[int], List[float]],
     ] = 0,
     retry_jitter_factor: Optional[float] = None,
+    allow_restarts: Optional[bool] = False,
     persist_result: Optional[bool] = None,
     result_storage: Optional[ResultStorage] = None,
     result_serializer: Optional[ResultSerializer] = None,
@@ -1022,6 +1030,7 @@ def task(
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
+                allow_restarts=allow_restarts,
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,
@@ -1048,6 +1057,7 @@ def task(
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
+                allow_restarts=allow_restarts,
                 persist_result=persist_result,
                 result_storage=result_storage,
                 result_serializer=result_serializer,

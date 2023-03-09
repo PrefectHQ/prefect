@@ -1799,6 +1799,7 @@ class PrefectClient:
                 retries=task.retries,
                 retry_delay=task.retry_delay_seconds,
                 retry_jitter_factor=task.retry_jitter_factor,
+                allow_restarts=task.allow_restarts,
             ),
             state=state.to_state_create(),
             task_inputs=task_inputs or {},

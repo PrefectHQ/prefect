@@ -339,6 +339,13 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_jitter_factor: Optional[float] = Field(
         default=None, description="Determines the amount a retry should jitter"
     )
+    allow_restarts: bool = Field(
+        default=False,
+        description=(
+            "Determines whether retries are allowed after the task has"
+            "reached the RUNNING state."
+        ),
+    )
 
     @root_validator
     def populate_deprecated_fields(cls, values):
