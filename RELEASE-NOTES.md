@@ -10,14 +10,13 @@
 - Fix `prefect cloud login` detection of "ENTER" on some machines — https://github.com/PrefectHQ/prefect/pull/8705
 - Fix Kubernetes job watch timeout request error by rounding floats — https://github.com/PrefectHQ/prefect/pull/8733
 - Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
-- Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
 - Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
-- Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Experimental
 - Refactor supervisor API to allow configuration — https://github.com/PrefectHQ/prefect/pull/8695
 - Consolidate `WorkItem` and `Call` classes — https://github.com/PrefectHQ/prefect/pull/8697
+- Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Refactor supervisors to interact directly with "Worker" threads — https://github.com/PrefectHQ/prefect/pull/8714
 - Add chaining to cancel contexts — https://github.com/PrefectHQ/prefect/pull/8719
 - Add portal abstract base for worker threads and supervisors — https://github.com/PrefectHQ/prefect/pull/8717
