@@ -23,7 +23,7 @@ async def agent_process():
     Yields:
         The anyio.Process.
     """
-    async with SEMAPHORE():
+    async with SEMAPHORE:
         out = tempfile.TemporaryFile()  # capture output for test assertions
 
         # Will connect to the same database as normal test clients
