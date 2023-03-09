@@ -7,6 +7,7 @@ be reraised to prevent Prefect from swallowing important signals like keyboard
 interrupts.
 """
 import asyncio
+import sys
 
 import anyio
 import pytest
@@ -28,6 +29,12 @@ async def assert_flow_run_crashed(flow_run: FlowRun, expected_message: str):
         await flow_run.state.result()
 
 
+@pytest.mark.skipif(
+    # Python 3.7 has raises a `CancelledError` that is captured by our typical failure
+    # handling which is probably better than a crash anyway
+    sys.version_info < (3, 8),
+    reason="The flow is reported as FAILED on Python 3.7",
+)
 async def test_anyio_cancellation_crashes_flow(orion_client):
     started = asyncio.Future()
     flow_run_id = None
@@ -52,6 +59,11 @@ async def test_anyio_cancellation_crashes_flow(orion_client):
     )
 
 
+@pytest.mark.skipif(
+    # See `test_anyio_cancellation_crashes_flow`
+    sys.version_info < (3, 8),
+    reason="The flow is reported as FAILED on Python 3.7",
+)
 async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_client):
     """
     Our timeout cancellation mechanisms for async flows can overlap with AnyIO
@@ -81,6 +93,11 @@ async def test_anyio_cancellation_crashes_flow_with_timeout_configured(orion_cli
     )
 
 
+@pytest.mark.skipif(
+    # See `test_anyio_cancellation_crashes_flow`
+    sys.version_info < (3, 8),
+    reason="The flow is reported as FAILED on Python 3.7",
+)
 async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
     child_started = asyncio.Future()
     parent_started = asyncio.Future()
@@ -119,6 +136,11 @@ async def test_anyio_cancellation_crashes_parent_and_child_flow(orion_client):
     )
 
 
+@pytest.mark.skipif(
+    # See `test_anyio_cancellation_crashes_flow`
+    sys.version_info < (3, 8),
+    reason="The flow is reported as FAILED on Python 3.7",
+)
 @pytest.mark.xfail  # The child cannot be reported as crashed due to client closure
 async def test_anyio_cancellation_crashes_child_flow(orion_client):
     child_started = asyncio.Future()
