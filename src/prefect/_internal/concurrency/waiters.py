@@ -178,6 +178,6 @@ class AsyncWaiter(Waiter[T]):
             if not ctx.cancelled():
                 raise
 
-        logger.debug("Waiter %r retrieving result")
+        logger.debug("Waiter %r retrieving result", self)
         # Wrap the future for a non-blocking wait
         return await asyncio.wrap_future(self._call.future)
