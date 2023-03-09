@@ -1,5 +1,43 @@
 # Prefect Release Notes
 
+## Release 2.8.5
+
+### Enhancements
+- Add an endpoint to retrieve data from the collection registry — https://github.com/PrefectHQ/prefect/pull/8685
+- Remove deployment flow run foreign key to speed up deployment deletion — https://github.com/PrefectHQ/prefect/pull/8684
+
+### Fixes
+- Fix `prefect cloud login` detection of "ENTER" on some machines — https://github.com/PrefectHQ/prefect/pull/8705
+- Fix Kubernetes job watch timeout request error by rounding floats — https://github.com/PrefectHQ/prefect/pull/8733
+- Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
+- Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
+- Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
+
+### Experimental
+- Refactor supervisor API to allow configuration — https://github.com/PrefectHQ/prefect/pull/8695
+- Consolidate `WorkItem` and `Call` classes — https://github.com/PrefectHQ/prefect/pull/8697
+- Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
+- Refactor supervisors to interact directly with "Worker" threads — https://github.com/PrefectHQ/prefect/pull/8714
+- Add chaining to cancel contexts — https://github.com/PrefectHQ/prefect/pull/8719
+- Add portal abstract base for worker threads and supervisors — https://github.com/PrefectHQ/prefect/pull/8717
+- Fix bugs in supervisors implementation — https://github.com/PrefectHQ/prefect/pull/8718
+- Refactor concurrency module and add documentation — https://github.com/PrefectHQ/prefect/pull/8724
+- Update block event resource IDs to use block-document id instead of name. — https://github.com/PrefectHQ/prefect/pull/8730
+- Add cancellation reporting to calls and waiters — https://github.com/PrefectHQ/prefect/pull/8731
+- Add worker command output when applying deployments with a work pool — https://github.com/PrefectHQ/prefect/pull/8725
+- Add support for float timeouts using alarms — https://github.com/PrefectHQ/prefect/pull/8737
+- Add the ability to discover type from work pool when starting a worker — https://github.com/PrefectHQ/prefect/pull/8711
+- Add basic event instrumentation to blocks — https://github.com/PrefectHQ/prefect/pull/8686
+
+### Documentation
+- Corrected typo in Storage.md — https://github.com/PrefectHQ/prefect/pull/8692
+- Fix `prefect flow-run cancel` help — https://github.com/PrefectHQ/prefect/pull/8755
+
+### New Contributors
+* @Zesky665 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8692
+* @predatorprasad made their first contribution in https://github.com/PrefectHQ/prefect/pull/8755
+
+
 ## Release 2.8.4
 
 ### Enhancements
