@@ -18,6 +18,7 @@ import cloudpickle
 import pydantic
 from typing_extensions import Protocol
 
+from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect.server.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ def lookup_serializer(encoding: str) -> Serializer:
         raise ValueError(f"Unregistered encoding {encoding!r}")
 
 
+@deprecated_callable(start_date="Sep 2022")
 class DataDocument(PrefectBaseModel, Generic[D]):
     """
     A data document includes an encoding string and a blob of encoded data
