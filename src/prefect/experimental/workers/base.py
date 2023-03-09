@@ -124,7 +124,7 @@ class BaseJobConfiguration(BaseModel):
         """
         variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
         applied_config = {}
-        for key, value in job_config.items():
+        for key, value in (job_config or {}).items():
             used_variables = variable_capture_regex.findall(value)
             if not used_variables:
                 # If there are no variables, we can just use the value
