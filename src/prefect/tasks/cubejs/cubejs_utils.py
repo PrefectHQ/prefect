@@ -43,7 +43,6 @@ class CubeJSClient:
         self.security_context = security_context
         self.secret = secret
         self.cube_base_url = self._get_cube_base_url()
-        self.cube_system_url = self._get_cube_system_url()
         self.api_token = self.get_api_token()
         self.query_api_url = self._get_query_api_url()
         self.generated_sql_api_url = self._get_generated_sql_api_url()
@@ -85,6 +84,15 @@ class CubeJSClient:
         """
 
         return f"{self.cube_base_url}/v1/sql"
+
+    def _get_pre_aggregations_jobs_api_url(self) -> str:
+        """
+        Get Cube Pre-Aggregations Jobs API URL.
+
+        Returns:
+            - Cube Pre-Aggregations Jobs API URL.
+        """
+        return f"{self.cube_base_url}/v1/pre-aggregations/jobs"
 
     def get_api_token(self) -> str:
         """
@@ -177,31 +185,6 @@ class CubeJSClient:
             )["sql"]
 
         return data
-
-    def _get_cube_system_url(self) -> str:
-        """
-        Get Cube system API base URL.
-
-        Returns:
-            - Cube system API base url.
-        """
-        cube_base_url = self.__CUBEJS_CLOUD_BASE_URL
-        if self.subdomain:
-            cube_base_url = (
-                f"{cube_base_url.format(subdomain=self.subdomain)}/cubejs-system"
-            )
-        else:
-            cube_base_url = self.url
-        return cube_base_url
-
-    def _get_pre_aggregations_jobs_api_url(self) -> str:
-        """
-        Get Cube Pre-Aggregations Jobs API URL.
-
-        Returns:
-            - Cube Pre-Aggregations Jobs API URL.
-        """
-        return f"{self.cube_system_url}/v1/pre-aggregations/jobs"
 
     def pre_aggregations_jobs(
         self,
