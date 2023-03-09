@@ -33,6 +33,7 @@ import prefect
 import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -159,6 +160,11 @@ def enter_flow_run_engine_from_flow_call(
         return_type=return_type,
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
+
+    if not is_subflow_run:
+        # On completion of root flows, wait for the global thread to ensure that the
+        # any work there is complete
+        begin_run.future.add_done_callback(lambda _: wait_for_global_loop_exit())
 
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
