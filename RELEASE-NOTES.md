@@ -4,7 +4,7 @@
 
 ### Enhancements
 - Add an endpoint to retrieve data from the collection registry — https://github.com/PrefectHQ/prefect/pull/8685
-- Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
+- Remove deployment flow run foreign key to speed up deployment deletion — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Fixes
 - Fix `prefect cloud login` detection of "ENTER" on some machines — https://github.com/PrefectHQ/prefect/pull/8705
