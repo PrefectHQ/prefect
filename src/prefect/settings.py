@@ -594,6 +594,16 @@ The default setting for persisting results when not otherwise specified. If enab
 flow and task results will be persisted unless they opt out.
 """
 
+PREFECT_PARAMETERS_TRAVERSE_PYDANTIC_MODELS = Setting(
+    bool,
+    default=True,
+)
+"""
+Determines if Pydantic models should be traversed in order to resolve Prefect futures
+and states into results.
+"""
+
+
 PREFECT_TASKS_REFRESH_CACHE = Setting(
     bool,
     default=False,

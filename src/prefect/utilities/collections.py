@@ -29,6 +29,8 @@ from unittest.mock import Mock
 
 import pydantic
 
+from prefect.settings import PREFECT_PARAMETERS_TRAVERSE_PYDANTIC_MODELS
+
 # Quote moved to `prefect.utilities.annotations` but preserved here for compatibility
 from prefect.utilities.annotations import BaseAnnotation, Quote, quote  # noqa
 
@@ -336,7 +338,10 @@ def visit_collection(
         items = {field.name: value for field, value in zip(fields(expr), values)}
         result = typ(**items) if return_data else None
 
-    elif isinstance(expr, pydantic.BaseModel):
+    elif (
+        isinstance(expr, pydantic.BaseModel)
+        and PREFECT_PARAMETERS_TRAVERSE_PYDANTIC_MODELS
+    ):
         # NOTE: This implementation *does not* traverse private attributes
         # Pydantic does not expose extras in `__fields__` so we use `__fields_set__`
         # as well to get all of the relevant attributes
