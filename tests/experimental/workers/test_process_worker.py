@@ -99,7 +99,7 @@ def patch_read_deployment(monkeypatch, overrides: dict = None):
 
 @pytest.fixture
 def work_pool():
-    job_template = ProcessWorker.get_default_base_job_configuration()
+    job_template = ProcessWorker.get_default_base_job_template()
 
     work_pool = MagicMock(spec=WorkPool)
     work_pool.name = "test-worker-pool"
@@ -109,7 +109,7 @@ def work_pool():
 
 @pytest.fixture
 def work_pool_with_default_env():
-    job_template = ProcessWorker.get_default_base_job_configuration()
+    job_template = ProcessWorker.get_default_base_job_template()
     job_template["variables"]["properties"]["env"]["default"] = {
         "CONFIG_ENV_VAR": "from_job_configuration"
     }
