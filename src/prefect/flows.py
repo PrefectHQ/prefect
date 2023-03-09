@@ -41,8 +41,8 @@ from prefect.exceptions import (
 )
 from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
-from prefect.orion.schemas.core import raise_on_invalid_name
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -83,6 +83,8 @@ class Flow(Generic[P, R]):
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+            as a string template with the flow's parameters as variables.
         task_runner: An optional task runner to use for task execution within the flow;
             if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
@@ -112,6 +114,8 @@ class Flow(Generic[P, R]):
             in this flow. If not provided, the value of `PREFECT_RESULTS_DEFAULT_SERIALIZER`
             will be used unless called as a subflow, at which point the default will be
             loaded from the parent flow.
+        on_failure: An optional list of callables to run when the flow enters a failed state.
+        on_completion: An optional list of callables to run when the flow enters a completed state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -121,6 +125,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: Optional[str] = None,
         version: Optional[str] = None,
+        flow_run_name: Optional[str] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
@@ -132,6 +137,8 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = None,
         cache_result_in_memory: bool = True,
         log_prints: Optional[bool] = None,
+        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -141,6 +148,7 @@ class Flow(Generic[P, R]):
             raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
+        self.flow_run_name = flow_run_name
         task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner
@@ -209,6 +217,8 @@ class Flow(Generic[P, R]):
                 "parameter in the flow definition:\n\n "
                 "`@flow(name='my_unique_name', ...)`"
             )
+        self.on_completion = on_completion
+        self.on_failure = on_failure
 
     def with_options(
         self,
@@ -218,6 +228,7 @@ class Flow(Generic[P, R]):
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         description: str = None,
+        flow_run_name: str = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
@@ -226,6 +237,8 @@ class Flow(Generic[P, R]):
         result_serializer: Optional[ResultSerializer] = NotSet,
         cache_result_in_memory: bool = None,
         log_prints: Optional[bool] = NotSet,
+        on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
     ):
         """
         Create a new flow from the current object, updating provided options.
@@ -234,6 +247,8 @@ class Flow(Generic[P, R]):
             name: A new name for the flow.
             version: A new version for the flow.
             description: A new description for the flow.
+            flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+                as a string template with the flow's parameters as variables.
             task_runner: A new task runner for the flow.
             timeout_seconds: A new number of seconds to fail the flow after if still
                 running.
@@ -247,6 +262,8 @@ class Flow(Generic[P, R]):
             result_serializer: A new serializer to use for results.
             cache_result_in_memory: A new value indicating if the flow's result should
                 be cached in memory.
+            on_failure: A new list of callables to run when the flow enters a failed state.
+            on_completion: A new list of callables to run when the flow enters a completed state.
 
         Returns:
             A new `Flow` instance.
@@ -278,6 +295,7 @@ class Flow(Generic[P, R]):
             fn=self.fn,
             name=name or self.name,
             description=description or self.description,
+            flow_run_name=flow_run_name,
             version=version or self.version,
             task_runner=task_runner or self.task_runner,
             retries=retries or self.retries,
@@ -307,6 +325,8 @@ class Flow(Generic[P, R]):
                 else self.cache_result_in_memory
             ),
             log_prints=log_prints if log_prints is not NotSet else self.log_prints,
+            on_completion=on_completion or self.on_completion,
+            on_failure=on_failure or self.on_failure,
         )
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
@@ -508,6 +528,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
+    flow_run_name: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -519,6 +540,8 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
+    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -528,6 +551,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
+    flow_run_name: Optional[str] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -539,6 +563,8 @@ def flow(
     result_serializer: Optional[ResultSerializer] = None,
     cache_result_in_memory: bool = True,
     log_prints: Optional[bool] = None,
+    on_completion: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[[Flow, FlowRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -553,6 +579,8 @@ def flow(
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
+            as a string template with the flow's parameters as variables.
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
@@ -632,6 +660,7 @@ def flow(
                 fn=__fn,
                 name=name,
                 version=version,
+                flow_run_name=flow_run_name,
                 task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,
@@ -643,6 +672,8 @@ def flow(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
     else:
@@ -652,6 +683,7 @@ def flow(
                 flow,
                 name=name,
                 version=version,
+                flow_run_name=flow_run_name,
                 task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,
@@ -663,6 +695,8 @@ def flow(
                 result_serializer=result_serializer,
                 cache_result_in_memory=cache_result_in_memory,
                 log_prints=log_prints,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
 
@@ -698,8 +732,11 @@ def select_flow(
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
-            "Specify a flow name to select a flow.",
+            (
+                f"Found {len(flows)} flows{from_message}:"
+                f" {listrepr(sorted(flows.keys()))}. Specify a flow name to select a"
+                " flow."
+            ),
         )
 
     if flow_name:

@@ -24,9 +24,10 @@ M = TypeVar("M", bound=pydantic.BaseModel)
 
 
 EXPERIMENTAL_WARNING = (
-    "{feature} is experimental. {help}"
-    "The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes. "
-    "To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}."
+    "{feature} is experimental. {help}The interface or behavior may change without"
+    " warning, we recommend pinning versions to prevent unexpected changes. To disable"
+    " warnings for this group of experiments, disable"
+    " PREFECT_EXPERIMENTAL_WARN_{group}."
 )
 
 EXPERIMENTAL_ERROR = (
@@ -229,6 +230,10 @@ def experimental_field(
             # Perform warning check
             if name in data.keys() and when(data[name]):
                 experimental_check()
+            field = __pydantic_self__.__fields__.get(name)
+            if field is not None:
+                field.field_info.extra["experimental"] = True
+                field.field_info.extra["experimental-group"] = group
 
         # Patch the model's init method
         model_cls.__init__ = __init__

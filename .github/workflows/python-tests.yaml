@@ -1,4 +1,4 @@
-name: Python tests
+name: Unit tests
 
 # Note: Conda support for 3.11 is pending. See https://github.com/ContinuumIO/anaconda-issues/issues/13082
 
@@ -37,11 +37,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  run-tests-sqlite:
-    name: Test with SQLite
+  run-tests:
+    name: python:${{ matrix.python-version }}, ${{ matrix.database }}, ${{ matrix.pytest-options }}
 
     strategy:
       matrix:
+        database:
+          - "postgres:13"
+          - "postgres:14"
+          - "sqlite"
         os:
           - ubuntu-latest
         python-version:
@@ -63,6 +67,16 @@ jobs:
           # suite from building images automaticlly in fixtures
           - pytest-options: "--only-services"
             build-docker-images: true
+
+        exclude:
+          # Do not run service tests with postgres
+          - database: "postgres:13"
+            pytest-options: "--only-services"
+
+          # Do not run service tests with postgres
+          - database: "postgres:14"
+            pytest-options: "--only-services"
+
 
       fail-fast: false
 
@@ -100,7 +114,7 @@ jobs:
 
       - name: Build test image
         if: ${{ matrix.build-docker-images }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           # TODO: We do not need the UI in these tests and we may want to add a build-arg to disable building it
@@ -122,7 +136,7 @@ jobs:
       - name: Build Conda flavored test image
         # Not yet supported for 3.11, see note at top
         if: ${{ matrix.build-docker-images && matrix.python-version != '3.11' }}
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           build-args: |
@@ -149,76 +163,43 @@ jobs:
           # If using not using lower bounds, upgrade eagerly to get the latest versions despite caching
           pip install ${{ ! matrix.lower-bound-requirements && '--upgrade --upgrade-strategy eager' || ''}} -e .[dev]
 
+      - name: Start database container
+        if: ${{ startsWith(matrix.database, 'postgres') }}
+        run: >
+          docker run
+          --name "postgres"
+          --detach
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --publish 5432:5432
+          --tmpfs /var/lib/postgresql/data
+          --env POSTGRES_USER="prefect"
+          --env POSTGRES_PASSWORD="prefect"
+          --env POSTGRES_DB="prefect"
+          --env LANG="C.UTF-8"
+          --env LANGUAGE="C.UTF-8"
+          --env LC_ALL="C.UTF-8"
+          --env LC_COLLATE="C.UTF-8"
+          --env LC_CTYPE="C.UTF-8"
+          ${{ matrix.database }}
+
+          ./scripts/wait-for-healthy-container.sh postgres 30
+
+          echo "PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
       - name: Run tests
-        # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
-        env: 
-          SQLALCHEMY_SILENCE_UBER_WARNING: 1
         run: |
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
           pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
 
-  run-tests-postgres:
-    name: Test with Postgres
-
-    strategy:
-      matrix:
-        python-version:
-          - "3.7"
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
-        pytest-options:
-          - "--exclude-services"
-
-      fail-fast: false
-
-    runs-on: ubuntu-latest
-
-    # TODO: Consider moving this from a service into a normal docker command
-    #       so we can include it in the sqlite python test matrix instead of
-    #       maintaining a separate workflow
-    services:
-      postgres:
-        image: postgres:13
-        env:
-          POSTGRES_USER: prefect
-          POSTGRES_PASSWORD: prefect
-          POSTGRES_DB: orion
-          LANG: 'C.UTF-8'
-          LANGUAGE: 'C.UTF-8'
-          LC_ALL: 'C.UTF-8'
-          LC_COLLATE: 'C.UTF-8'
-          LC_CTYPE: 'C.UTF-8'
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
-
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "requirements*.txt"
-
-      - name: Install packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade --upgrade-strategy eager -e .[dev]
-
-      - name: Run tests
-        env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "postgresql+asyncpg://prefect:prefect@localhost/orion"
-          # Turns off SQLAlchemy 2.0 deprecation warnings. We can remove this once we upgrade to 2.0 
-          SQLALCHEMY_SILENCE_UBER_WARNING: 1
-        run: |
-          pytest tests --numprocesses auto --dist loadscope ${{ matrix.pytest-options }}
+      - name: Check database container
+        # Only applicable for Postgres, but we want this to run even when tests fail
+        if: always()
+        run: >
+          docker container inspect postgres
+          && docker container logs postgres
+          || echo "Ignoring bad exit code"

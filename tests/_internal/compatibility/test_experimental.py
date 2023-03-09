@@ -12,6 +12,7 @@ from prefect._internal.compatibility.experimental import (
     experimental_field,
     experimental_parameter,
 )
+from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_WARN,
     SETTING_VARIABLES,
@@ -247,6 +248,32 @@ def test_experimental_field_warning_no_warning_when_not_provided():
     assert Foo().value == 1
 
 
+def test_experimental_fields_excluded_from_dict_by_default():
+    @experimental_field(
+        "value",
+        group="test",
+        help="This is just a test, don't worry.",
+    )
+    class Foo(PrefectBaseModel):
+        value: int = 1
+
+    assert Foo().dict() == {}
+
+
+def test_experimental_fields_included_in_dict_when_opted_in(
+    enable_prefect_experimental_test_opt_in_setting,
+):
+    @experimental_field(
+        "value",
+        group="test",
+        help="This is just a test, don't worry.",
+    )
+    class Foo(PrefectBaseModel):
+        value: int = 1
+
+    assert Foo().dict() == {"value": 1}
+
+
 def test_experimental_field_warning_when():
     @experimental_field(
         "value",
@@ -432,8 +459,8 @@ def test_experimental_marker_cannot_be_used_without_opt_in_setting_if_required()
 
 @pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
 def test_enabled_experiments_with_opt_in():
-    assert enabled_experiments() == {"test"}
+    assert enabled_experiments() == {"test", "work_pools"}
 
 
 def test_enabled_experiments_without_opt_in():
-    assert enabled_experiments() == set()
+    assert enabled_experiments() == set(["work_pools"])

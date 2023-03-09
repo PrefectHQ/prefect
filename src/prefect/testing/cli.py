@@ -99,23 +99,30 @@ def invoke_and_assert(
         result = runner.invoke(app, command, catch_exceptions=False, input=user_input)
 
     if echo:
-        print("------ CLI output ------")
+        print("\n------ CLI output ------")
         print(result.stdout)
 
     if expected_code is not None:
-        assert (
-            result.exit_code == expected_code
-        ), f"Actual exit code: {result.exit_code!r}"
+        assertion_error_message = (
+            f"Expected code {expected_code} but got {result.exit_code}\n"
+            "Output from CLI command:\n"
+            "-----------------------\n"
+            f"{result.stdout}"
+        )
+        assert result.exit_code == expected_code, assertion_error_message
 
     if expected_output is not None:
         output = result.stdout.strip()
         expected_output = textwrap.dedent(expected_output).strip()
 
-        print("------ expected ------")
-        print(expected_output)
-        print()
-
-        assert output == expected_output
+        compare_string = (
+            "------ expected ------\n"
+            f"{expected_output}\n"
+            "------ actual ------\n"
+            f"{output}\n"
+            "------ end ------\n"
+        )
+        assert output == expected_output, compare_string
 
     if expected_output_contains is not None:
         if isinstance(expected_output_contains, str):
@@ -135,9 +142,10 @@ def invoke_and_assert(
 
     if expected_line_count is not None:
         line_count = len(result.stdout.splitlines())
-        assert (
-            expected_line_count == line_count
-        ), f"Expected {expected_line_count} lines of CLI output, only {line_count} lines present"
+        assert expected_line_count == line_count, (
+            f"Expected {expected_line_count} lines of CLI output, only"
+            f" {line_count} lines present"
+        )
 
     return result
 

@@ -4,7 +4,7 @@ import sys
 import urllib.parse
 import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
 import anyio.abc
 import packaging.version
@@ -13,7 +13,11 @@ from typing_extensions import Literal
 
 import prefect
 from prefect.blocks.core import Block, SecretStr
-from prefect.docker import get_prefect_image_name, parse_image_tag
+from prefect.docker import (
+    format_outlier_version_name,
+    get_prefect_image_name,
+    parse_image_tag,
+)
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure, InfrastructureResult
 from prefect.settings import PREFECT_API_URL
@@ -76,7 +80,6 @@ class BaseDockerLogin(Block, ABC):
     @staticmethod
     def _get_docker_client():
         try:
-
             with warnings.catch_warnings():
                 # Silence warnings due to use of deprecated methods within dockerpy
                 # See https://github.com/docker/docker-py/pull/2931
@@ -111,6 +114,8 @@ class DockerRegistry(BaseDockerLogin):
     """
 
     _block_type_name = "Docker Registry"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.docker.DockerRegistry"
+
     username: str = Field(
         default=..., description="The username to log into the registry with."
     )
@@ -119,7 +124,9 @@ class DockerRegistry(BaseDockerLogin):
     )
     registry_url: str = Field(
         default=...,
-        description='The URL to the registry. Generally, "http" or "https" can be omitted.',
+        description=(
+            'The URL to the registry. Generally, "http" or "https" can be omitted.'
+        ),
     )
     reauth: bool = Field(
         default=True,
@@ -129,7 +136,10 @@ class DockerRegistry(BaseDockerLogin):
     @sync_compatible
     async def login(self) -> "DockerClient":
         warnings.warn(
-            "`login` is deprecated. Instead, use `get_docker_client` to obtain an authenticated `DockerClient`.",
+            (
+                "`login` is deprecated. Instead, use `get_docker_client` to obtain an"
+                " authenticated `DockerClient`."
+            ),
             category=DeprecationWarning,
             stacklevel=3,
         )
@@ -159,6 +169,8 @@ class DockerContainer(Infrastructure):
     Requires a Docker Engine to be connectable. Docker settings will be retrieved from
     the environment.
 
+    Click [here](https://docs.prefect.io/tutorials/docker/) to see a tutorial.
+
     Attributes:
         auto_remove: If set, the container will be removed on completion. Otherwise,
             the container will remain after exit for inspection.
@@ -181,6 +193,15 @@ class DockerContainer(Infrastructure):
         stream_output: If set, stream output from the container to local standard output.
         volumes: An optional list of volume mount strings in the format of
             "local_path:container_path".
+        memswap_limit: Total memory (memory + swap), -1 to disable swap. Should only be
+            set if `mem_limit` is also set. If `mem_limit` is set, this defaults to
+            allowing the container to use as much swap as memory. For example, if
+            `mem_limit` is 300m and `memswap_limit` is not set, the container can use
+            600m in total of memory and swap.
+        mem_limit: Memory limit of the created container. Accepts float values to enforce
+            a limit in bytes or a string with a unit e.g. 100000b, 1000k, 128m, 1g.
+            If a string is given without a unit, bytes are assumed.
+        privileged: Give extended privileges to this container.
 
     ## Connecting to a locally hosted Prefect API
 
@@ -208,11 +229,16 @@ class DockerContainer(Infrastructure):
     image_registry: Optional[DockerRegistry] = None
     networks: List[str] = Field(
         default_factory=list,
-        description="A list of strings specifying Docker networks to connect the container to.",
+        description=(
+            "A list of strings specifying Docker networks to connect the container to."
+        ),
     )
     network_mode: Optional[str] = Field(
         default=None,
-        description="The network mode for the created container (e.g. host, bridge). If 'networks' is set, this cannot be set.",
+        description=(
+            "The network mode for the created container (e.g. host, bridge). If"
+            " 'networks' is set, this cannot be set."
+        ),
     )
     auto_remove: bool = Field(
         default=False,
@@ -220,15 +246,44 @@ class DockerContainer(Infrastructure):
     )
     volumes: List[str] = Field(
         default_factory=list,
-        description='A list of volume mount strings in the format of "local_path:container_path".',
+        description=(
+            "A list of volume mount strings in the format of"
+            ' "local_path:container_path".'
+        ),
     )
     stream_output: bool = Field(
         default=True,
-        description="If set, the output will be streamed from the container to local standard output.",
+        description=(
+            "If set, the output will be streamed from the container to local standard"
+            " output."
+        ),
+    )
+    memswap_limit: Union[int, str] = Field(
+        default=None,
+        description=(
+            "Total memory (memory + swap), -1 to disable swap. Should only be "
+            "set if `mem_limit` is also set. If `mem_limit` is set, this defaults to"
+            "allowing the container to use as much swap as memory. For example, if "
+            "`mem_limit` is 300m and `memswap_limit` is not set, the container can use "
+            "600m in total of memory and swap."
+        ),
+    )
+    mem_limit: Union[float, str] = Field(
+        default=None,
+        description=(
+            "Memory limit of the created container. Accepts float values to enforce "
+            "a limit in bytes or a string with a unit e.g. 100000b, 1000k, 128m, 1g. "
+            "If a string is given without a unit, bytes are assumed."
+        ),
+    )
+    privileged: bool = Field(
+        default=False,
+        description="Give extended privileges to this container.",
     )
 
     _block_type_name = "Docker Container"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/2IfXXfMq66mrzJBDFFCHTp/6d8f320d9e4fc4393f045673d61ab612/Moby-logo.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/infrastructure/#prefect.infrastructure.DockerContainer"
 
     @validator("labels")
     def convert_labels_to_docker_format(cls, labels: Dict[str, str]):
@@ -290,8 +345,14 @@ class DockerContainer(Infrastructure):
             raise InfrastructureNotAvailable(
                 "".join(
                     [
-                        f"Unable to stop container {container_id!r}: the current Docker API ",
-                        f"URL {docker_client.api.base_url!r} does not match the expected ",
+                        (
+                            f"Unable to stop container {container_id!r}: the current"
+                            " Docker API "
+                        ),
+                        (
+                            f"URL {docker_client.api.base_url!r} does not match the"
+                            " expected "
+                        ),
                         f"API base URL {base_url}.",
                     ]
                 )
@@ -300,7 +361,8 @@ class DockerContainer(Infrastructure):
             container = docker_client.containers.get(container_id=container_id)
         except docker.errors.NotFound:
             raise InfrastructureNotFound(
-                f"Unable to stop container {container_id!r}: The container was not found."
+                f"Unable to stop container {container_id!r}: The container was not"
+                " found."
             )
 
         try:
@@ -348,6 +410,9 @@ class DockerContainer(Infrastructure):
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(),
             volumes=self.volumes,
+            mem_limit=self.mem_limit,
+            memswap_limit=self.memswap_limit,
+            privileged=self.privileged,
         )
 
     def _create_and_start_container(self) -> "Container":
@@ -547,8 +612,9 @@ class DockerContainer(Infrastructure):
             except docker.errors.APIError as exc:
                 if "marked for removal" in str(exc):
                     self.logger.warning(
-                        f"Docker container {container.name} was marked for removal before "
-                        "logs could be retrieved. Output will not be streamed. "
+                        f"Docker container {container.name} was marked for removal"
+                        " before logs could be retrieved. Output will not be"
+                        " streamed. "
                     )
                 else:
                     self.logger.exception(
@@ -559,7 +625,8 @@ class DockerContainer(Infrastructure):
             container.reload()
             if container.status != status:
                 self.logger.info(
-                    f"Docker container {container.name!r} has status {container.status!r}"
+                    f"Docker container {container.name!r} has status"
+                    f" {container.status!r}"
                 )
             yield container
 
@@ -571,7 +638,6 @@ class DockerContainer(Infrastructure):
 
     def _get_client(self):
         try:
-
             with warnings.catch_warnings():
                 # Silence warnings due to use of deprecated methods within dockerpy
                 # See https://github.com/docker/docker-py/pull/2931
@@ -630,15 +696,17 @@ class DockerContainer(Infrastructure):
                 self.env["PREFECT_API_URL"],
             )
         ):
-            user_version = packaging.version.parse(docker_client.version()["Version"])
+            user_version = packaging.version.parse(
+                format_outlier_version_name(docker_client.version()["Version"])
+            )
             required_version = packaging.version.parse("20.10.0")
 
             if user_version < required_version:
                 warnings.warn(
-                    "`host.docker.internal` could not be automatically resolved to your "
-                    "local ip address. This feature is not supported on Docker Engine "
-                    f"v{user_version}, upgrade to v{required_version}+ if you "
-                    "encounter issues."
+                    "`host.docker.internal` could not be automatically resolved to"
+                    " your local ip address. This feature is not supported on Docker"
+                    f" Engine v{user_version}, upgrade to v{required_version}+ if you"
+                    " encounter issues."
                 )
                 return {}
             else:

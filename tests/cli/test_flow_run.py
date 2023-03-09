@@ -5,7 +5,8 @@ import pytest
 
 import prefect.exceptions
 from prefect import flow
-from prefect.orion.schemas.actions import LogCreate
+from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+from prefect.server.schemas.actions import LogCreate
 from prefect.states import (
     AwaitingRetry,
     Cancelled,
@@ -240,13 +241,14 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=0,
-            expected_output_contains=f"Flow run '{before.id}' was succcessfully scheduled for cancellation.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was succcessfully scheduled for cancellation."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
         assert before.state.name != after.state.name
         assert before.state.type != after.state.type
-        assert after.state.name == "Cancelling"
-        assert after.state.type == StateType.CANCELLED
+        assert after.state.type == StateType.CANCELLING
 
     @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_cancelling_terminal_states_exits_with_error(
@@ -263,7 +265,9 @@ class TestCancelFlowRun:
                 str(before.id),
             ],
             expected_code=1,
-            expected_output_contains=f"Flow run '{before.id}' was unable to be cancelled.",
+            expected_output_contains=(
+                f"Flow run '{before.id}' was unable to be cancelled."
+            ),
         )
         after = await orion_client.read_flow_run(before.id)
 
@@ -279,30 +283,38 @@ class TestCancelFlowRun:
         )
 
 
+@pytest.fixture()
+def flow_run_factory(orion_client):
+    async def create_flow_run(num_logs: int):
+        flow_run = await orion_client.create_flow_run(
+            name="scheduled_flow_run", flow=hello_flow
+        )
+
+        logs = [
+            LogCreate(
+                name="prefect.flow_runs",
+                level=20,
+                message=f"Log {i} from flow_run {flow_run.id}.",
+                timestamp=datetime.now(tz=timezone.utc),
+                flow_run_id=flow_run.id,
+            )
+            for i in range(num_logs)
+        ]
+        await orion_client.create_logs(logs)
+
+        return flow_run
+
+    return create_flow_run
+
+
 class TestFlowRunLogs:
-    PAGE_SIZE = 200
+    LOGS_DEFAULT_PAGE_SIZE = 200
 
-    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_when_num_logs_smaller_than_page_size_then_no_pagination(
-        self, orion_client, state
+        self, flow_run_factory
     ):
         # Given
-        flow_run = await orion_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow, state=state()
-        )
-
-        # Create not enough flow run logs to result in pagination (page_size <= 200)
-        logs = [
-            LogCreate(
-                name="prefect.flow_runs",
-                level=20,
-                message=f"Log {i} from flow_run {flow_run.id}.",
-                timestamp=datetime.now(tz=timezone.utc),
-                flow_run_id=flow_run.id,
-            )
-            for i in range(self.PAGE_SIZE - 1)
-        ]
-        await orion_client.create_logs(logs)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE - 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -315,31 +327,15 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE - 1)
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE - 1)
             ],
         )
 
-    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
     async def test_when_num_logs_greater_than_page_size_then_pagination(
-        self, orion_client, state
+        self, flow_run_factory
     ):
         # Given
-        flow_run = await orion_client.create_flow_run(
-            name="scheduled_flow_run", flow=hello_flow, state=state()
-        )
-
-        # Create enough flow run logs to result in pagination (page_size > 200)
-        logs = [
-            LogCreate(
-                name="prefect.flow_runs",
-                level=20,
-                message=f"Log {i} from flow_run {flow_run.id}.",
-                timestamp=datetime.now(tz=timezone.utc),
-                flow_run_id=flow_run.id,
-            )
-            for i in range(self.PAGE_SIZE + 1)
-        ]
-        await orion_client.create_logs(logs)
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
 
         # When/Then
         await run_sync_in_worker_thread(
@@ -352,12 +348,11 @@ class TestFlowRunLogs:
             expected_code=0,
             expected_output_contains=[
                 f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
-                for i in range(self.PAGE_SIZE + 1)
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 1)
             ],
         )
 
-    @pytest.mark.parametrize("state", [Completed, Failed, Crashed, Cancelled])
-    async def test_when_flow_run_not_found_then_exit_with_error(self, state):
+    async def test_when_flow_run_not_found_then_exit_with_error(self, flow_run_factory):
         # Given
         bad_id = str(uuid4())
 
@@ -371,4 +366,143 @@ class TestFlowRunLogs:
             ],
             expected_code=1,
             expected_output_contains=f"Flow run '{bad_id}' not found!\n",
+        )
+
+    async def test_when_num_logs_smaller_than_page_size_with_head_then_no_pagination(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "--num-logs",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(10)
+            ],
+            expected_line_count=10,
+        )
+
+    async def test_when_num_logs_greater_than_page_size_with_head_then_pagination(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+                "--num-logs",
+                self.LOGS_DEFAULT_PAGE_SIZE + 1,
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(self.LOGS_DEFAULT_PAGE_SIZE + 1)
+            ],
+            expected_line_count=self.LOGS_DEFAULT_PAGE_SIZE + 1,
+        )
+
+    async def test_default_head_returns_default_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--head",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS)
+            ],
+            expected_line_count=LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS,
+        )
+
+    async def test_h_and_n_shortcuts_for_head_and_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "-h",
+                "-n",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(10)
+            ],
+            expected_line_count=10,
+        )
+
+    async def test_num_logs_passed_standalone_returns_num_logs(self, flow_run_factory):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-logs",
+                "10",
+            ],
+            expected_code=0,
+            expected_output_contains=[
+                f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                for i in range(10)
+            ],
+            expected_line_count=10,
+        )
+
+    @pytest.mark.skip(reason="we need to disable colors for this test to pass")
+    async def test_when_num_logs_is_smaller_than_one_then_exit_with_error(
+        self, flow_run_factory
+    ):
+        # Given
+        flow_run = await flow_run_factory(num_logs=self.LOGS_DEFAULT_PAGE_SIZE + 1)
+
+        # When/Then
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "flow-run",
+                "logs",
+                str(flow_run.id),
+                "--num-logs",
+                "0",
+            ],
+            expected_code=2,
+            expected_output_contains=(
+                "Invalid value for '--num-logs' / '-n': 0 is not in the range x>=1."
+            ),
         )

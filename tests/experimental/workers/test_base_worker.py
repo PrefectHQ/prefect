@@ -6,7 +6,8 @@ import pydantic
 import pytest
 from pydantic import Field
 
-from prefect.client.orion import OrionClient, get_client
+import prefect.server.schemas as schemas
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import (
@@ -15,8 +16,7 @@ from prefect.experimental.workers.base import (
     BaseWorker,
 )
 from prefect.flows import flow
-from prefect.orion import models
-from prefect.orion.schemas.core import WorkPool
+from prefect.server import models
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -24,6 +24,7 @@ from prefect.settings import (
 )
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.callables import parameter_schema
 
 
 class WorkerTestImpl(BaseWorker):
@@ -45,6 +46,55 @@ def auto_enable_workers(enable_workers):
     assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
+
+
+@pytest.fixture
+async def worker_deployment(
+    session,
+    flow,
+    flow_function,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            work_queue_name="wq",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
 async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
     await WorkerTestImpl(
         name="test",
@@ -55,7 +105,7 @@ async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     with pytest.raises(ObjectNotFound):
         await orion_client.read_work_pool("test-work-pool")
@@ -73,7 +123,7 @@ async def test_worker_creates_work_pool_by_default_during_sync(
 
 
 async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     with pytest.raises(ObjectNotFound):
         await orion_client.read_work_pool("test-work-pool")
@@ -106,7 +156,7 @@ async def test_worker_respects_settings(setting, attr):
 
 
 async def test_worker_sends_heartbeat_messages(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
 ):
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
@@ -128,7 +178,7 @@ async def test_worker_sends_heartbeat_messages(
 
 
 async def test_worker_applies_discovered_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path
+    orion_client: PrefectClient, flow_function, tmp_path: Path
 ):
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
@@ -141,7 +191,6 @@ async def test_worker_applies_discovered_deployments(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
     read_deployment = await orion_client.read_deployment_by_name(
@@ -151,7 +200,7 @@ async def test_worker_applies_discovered_deployments(
 
 
 async def test_worker_applies_updates_to_deployments(
-    orion_client: OrionClient, flow_function, tmp_path: Path, work_pool
+    orion_client: PrefectClient, flow_function, tmp_path: Path, work_pool
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
@@ -165,7 +214,6 @@ async def test_worker_applies_updates_to_deployments(
         work_pool_name=work_pool.name,
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -188,7 +236,7 @@ async def test_worker_applies_updates_to_deployments(
 
 
 async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
-    orion_client: OrionClient, flow_function, tmp_path: Path
+    orion_client: PrefectClient, flow_function, tmp_path: Path
 ):
     # create initial deployment manifest
     workflows_path = tmp_path / "workflows"
@@ -202,7 +250,6 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         read_deployment = await orion_client.read_deployment_by_name(
@@ -224,7 +271,7 @@ async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
 
 
 async def test_worker_does_not_raise_on_malformed_manifests(
-    orion_client: OrionClient, tmp_path: Path
+    orion_client: PrefectClient, tmp_path: Path
 ):
     workflows_path = tmp_path / "workflows"
     workflows_path.mkdir()
@@ -237,14 +284,13 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         work_pool_name="test-work-pool",
         workflow_storage_path=workflows_path,
     ) as worker:
-
         await worker.scan_storage_for_deployments()
 
         assert len(await orion_client.read_deployments()) == 0
 
 
-async def test_worker_with_work_pool_queue(
-    orion_client: OrionClient, deployment, work_pool
+async def test_worker_with_work_queue(
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -252,7 +298,7 @@ async def test_worker_with_work_pool_queue(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -283,8 +329,8 @@ async def test_worker_with_work_pool_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
 
 
-async def test_worker_with_work_pool_queue_and_limit(
-    orion_client: OrionClient, deployment, work_pool
+async def test_worker_with_work_queue_and_limit(
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     @flow
     def test_flow():
@@ -292,7 +338,7 @@ async def test_worker_with_work_pool_queue_and_limit(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -337,7 +383,7 @@ async def test_worker_with_work_pool_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: OrionClient, deployment, work_pool
+    orion_client: PrefectClient, worker_deployment, work_pool
 ):
     run_mock = AsyncMock()
 
@@ -347,7 +393,7 @@ async def test_worker_calls_run_with_expected_arguments(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            deployment.id, state=state
+            worker_deployment.id, state=state
         )
     )
     flow_runs = [
@@ -380,6 +426,39 @@ async def test_worker_calls_run_with_expected_arguments(
     }
 
 
+async def test_worker_warns_when_running_a_flow_run_with_a_storage_block(
+    orion_client: PrefectClient, deployment, work_pool, caplog
+):
+    @flow
+    def test_flow():
+        pass
+
+    create_run_with_deployment = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            deployment.id, state=state
+        )
+    )
+
+    flow_run = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+        worker._work_pool = work_pool
+        await worker.get_and_submit_flow_runs()
+
+    assert (
+        f"Flow run {flow_run.id!r} was created from deployment"
+        f" {deployment.name!r} which is configured with a storage block. Workers"
+        " currently only support local storage. Please use an agent to execute this"
+        " flow run."
+        in caplog.text
+    )
+
+    flow_run = await orion_client.read_flow_run(flow_run.id)
+    assert flow_run.state_name == "Scheduled"
+
+
 async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with_just_job_config(
     session, client
 ):
@@ -398,9 +477,13 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         "variables": {
             "properties": {
                 "command": {
-                    "type": "array",
+                    "type": "string",
                     "title": "Command",
-                    "items": {"type": "string"},
+                    "description": (
+                        "The command to run when starting a flow run. "
+                        "In most cases, this should be left blank and the command "
+                        "will be automatically generated by the worker."
+                    ),
                 },
                 "other": {"type": "string", "title": "Other"},
             },
@@ -412,9 +495,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+        "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -452,9 +535,13 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         "variables": {
             "properties": {
                 "command": {
-                    "type": "array",
+                    "type": "string",
                     "title": "Command",
-                    "items": {"type": "string"},
+                    "description": (
+                        "The command to run when starting a flow run. "
+                        "In most cases, this should be left blank and the command "
+                        "will be automatically generated by the worker."
+                    ),
                 },
                 "other": {"type": "string", "title": "Other", "default": "woof"},
             },
@@ -466,9 +553,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
 
     # Create a new worker pool
     response = await client.post(
-        "/experimental/work_pools/", json=dict(name=pool_name, type="test-type")
+        "/work_pools/", json=dict(name=pool_name, type="test-type")
     )
-    result = pydantic.parse_obj_as(WorkPool, response.json())
+    result = pydantic.parse_obj_as(schemas.core.WorkPool, response.json())
     model = await models.workers.read_work_pool(session=session, work_pool_id=result.id)
     assert model.name == pool_name
 
@@ -495,10 +582,9 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                 "variables": {
                     "properties": {
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
-                            "default": ["echo", "hello"],
+                            "default": "echo hello",
                         }
                     },
                     "required": [],
@@ -506,7 +592,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
             },
             {},  # No overrides
             {  # Expected result
-                "command": ["echo", "hello"],
+                "command": "echo hello",
             },
         ),
     ],
@@ -606,10 +692,9 @@ def test_base_job_configuration_from_template_and_overrides(
                             "default": 42,
                         },
                         "command": {
-                            "type": "array",
+                            "type": "string",
                             "title": "Command",
-                            "items": {"type": "string"},
-                            "default": ["echo", "hello"],
+                            "default": "echo hello",
                         },
                     },
                     "required": [],
@@ -617,7 +702,7 @@ def test_base_job_configuration_from_template_and_overrides(
             },
             {},  # No overrides
             {  # Expected result
-                "command": ["echo", "hello"],
+                "command": "echo hello",
                 "var1": "hello",
                 "var2": 42,
             },
@@ -698,7 +783,7 @@ def test_job_configuration_from_template_and_overrides(template, overrides, expe
     "falsey_value",
     [
         None,
-        [],
+        "",
     ],
 )
 def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
@@ -711,9 +796,8 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
             "variables": {
                 "properties": {
                     "command": {
-                        "type": "array",
+                        "type": "string",
                         "title": "Command",
-                        "items": {"type": "string"},
                     },
                 },
                 "required": [],
@@ -762,3 +846,130 @@ def test_job_configuration_produces_correct_json_template(
 
     template = ArbitraryJobConfiguration.json_template()
     assert template == expected_final_template
+
+
+class TestWorkerProperties:
+    def test_defaults(self):
+        class WorkerImplNoCustomization(BaseWorker):
+            type = "test-no-customization"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplNoCustomization.get_logo_url() == ""
+        assert WorkerImplNoCustomization.get_documentation_url() == ""
+        assert WorkerImplNoCustomization.get_description() == ""
+        assert WorkerImplNoCustomization.get_default_base_job_template() == {
+            "job_configuration": {"command": "{{ command }}"},
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "title": "Command",
+                        "description": (
+                            "The command to run when starting a flow run. "
+                            "In most cases, this should be left blank and the command "
+                            "will be automatically generated by the worker."
+                        ),
+                    }
+                },
+                "required": [],
+            },
+        }
+
+    def test_custom_logo_url(self):
+        class WorkerImplWithLogoUrl(BaseWorker):
+            type = "test-with-logo-url"
+            job_configuration = BaseJobConfiguration
+
+            _logo_url = "https://example.com/logo.png"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithLogoUrl.get_logo_url() == "https://example.com/logo.png"
+
+    def test_custom_documentation_url(self):
+        class WorkerImplWithDocumentationUrl(BaseWorker):
+            type = "test-with-documentation-url"
+            job_configuration = BaseJobConfiguration
+
+            _documentation_url = "https://example.com/docs"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert (
+            WorkerImplWithDocumentationUrl.get_documentation_url()
+            == "https://example.com/docs"
+        )
+
+    def test_custom_description(self):
+        class WorkerImplWithDescription(BaseWorker):
+            type = "test-with-description"
+            job_configuration = BaseJobConfiguration
+
+            _description = "Custom Worker Description"
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert (
+            WorkerImplWithDescription.get_description() == "Custom Worker Description"
+        )
+
+    def test_custom_base_job_configuration(self):
+        class CustomBaseJobConfiguration(BaseJobConfiguration):
+            var1: str = Field(template="{{ var1 }}")
+            var2: int = Field(template="{{ var2 }}")
+
+        class CustomBaseVariables(BaseVariables):
+            var1: str = Field(default=...)
+            var2: int = Field(default=1)
+
+        class WorkerImplWithCustomBaseJobConfiguration(BaseWorker):
+            type = "test-with-base-job-configuration"
+            job_configuration = CustomBaseJobConfiguration
+            job_configuration_variables = CustomBaseVariables
+
+            async def run(self):
+                pass
+
+            async def verify_submitted_deployment(self, deployment):
+                pass
+
+        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_template() == {
+            "job_configuration": {
+                "command": "{{ command }}",
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "title": "Command",
+                        "type": "string",
+                        "description": (
+                            "The command to run when starting a flow run. "
+                            "In most cases, this should be left blank and the command "
+                            "will be automatically generated by the worker."
+                        ),
+                    },
+                    "var1": {"title": "Var1", "type": "string"},
+                    "var2": {"title": "Var2", "type": "integer", "default": 1},
+                },
+                "required": ["var1"],
+            },
+        }

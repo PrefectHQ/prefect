@@ -57,7 +57,8 @@ def test_highlight_state(state):
 
 def test_highlight_console():
     text = Text(
-        f"10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state Completed()"
+        f"10:21:34.114 | INFO    | Flow run 'polite-jackal' - Finished in state"
+        f" Completed()"
     )
     highlighter = PrefectConsoleHighlighter()
     highlighter.highlight(text)

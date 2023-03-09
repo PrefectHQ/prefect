@@ -5,12 +5,12 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import anyio
 import anyio.abc
 import sniffio
-from pydantic import Field
+from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
 from prefect.deployments import Deployment
@@ -20,6 +20,7 @@ from prefect.experimental.workers.base import (
     BaseWorker,
     BaseWorkerResult,
 )
+from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
 
 if sys.platform == "win32":
@@ -48,12 +49,33 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
 
 class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(template="{{ stream_output }}")
-    working_dir: Optional[Union[str, Path]] = Field(template="{{ working_dir }}")
+    working_dir: Optional[Path] = Field(template="{{ working_dir }}")
+
+    @validator("working_dir")
+    def validate_command(cls, v):
+        """Make sure that the working directory is formatted for the current platform."""
+        if v:
+            return relative_path_to_current_platform(v)
+        return v
 
 
 class ProcessVariables(BaseVariables):
-    stream_output: bool = True
-    working_dir: Optional[Union[str, Path]] = None
+    stream_output: bool = Field(
+        default=True,
+        description=(
+            "If enabled, workers will stream output from flow run processes to "
+            "local standard output."
+        ),
+    )
+    working_dir: Optional[Path] = Field(
+        default=None,
+        title="Working Directory",
+        description=(
+            "If provided, workers will open flow run processes within the "
+            "specified path as the working directory. Otherwise, a temporary"
+            "directory will be created."
+        ),
+    )
 
 
 class ProcessWorkerResult(BaseWorkerResult):
@@ -64,6 +86,9 @@ class ProcessWorker(BaseWorker):
     type = "process"
     job_configuration = ProcessJobConfiguration
     job_configuration_variables = ProcessVariables
+
+    _description = "Worker that executes flow runs within processes."
+    _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
 
     async def verify_submitted_deployment(self, deployment: Deployment):
         # TODO: Implement deployment verification for `ProcessWorker`
@@ -78,7 +103,7 @@ class ProcessWorker(BaseWorker):
     ):
         command = configuration.command
         if not command:
-            command = [sys.executable, "-m", "prefect.engine"]
+            command = f"{sys.executable} -m prefect.engine"
 
         # We must add creationflags to a dict so it is only passed as a function
         # parameter on Windows, because the presence of creationflags causes
@@ -96,16 +121,14 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
-            self._logger.debug(
-                f"Process running command: {' '.join(command)} in {working_dir}"
-            )
+            self._logger.debug(f"Process running command: {command} in {working_dir}")
             process = await run_process(
-                command,
+                command.split(" "),
                 stream_output=configuration.stream_output,
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
-                env={"PREFECT__FLOW_RUN_ID": flow_run.id.hex},
                 cwd=working_dir,
+                env=self._base_flow_run_environment(flow_run=flow_run),
                 **kwargs,
             )
 
@@ -140,8 +163,8 @@ class ProcessWorker(BaseWorker):
                 )
 
             self._logger.error(
-                f"Process{display_name} exited with status code: "
-                f"{process.returncode}" + (f"; {help_message}" if help_message else "")
+                f"Process{display_name} exited with status code: {process.returncode}"
+                + (f"; {help_message}" if help_message else "")
             )
         else:
             self._logger.info(f"Process{display_name} exited cleanly.")

@@ -28,8 +28,14 @@ import prefect
 import prefect.exceptions
 from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
+from prefect.events.instrument import (
+    ResourceTuple,
+    emit_instance_method_called_event,
+    instrument_instance_method_call,
+    instrument_method_calls_on_class_instances,
+)
 from prefect.logging.loggers import disable_logger
-from prefect.orion.schemas.core import (
+from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
     BlockSchema,
@@ -43,7 +49,7 @@ from prefect.utilities.importtools import to_qualified_name
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:
-    from prefect.client.orion import OrionClient
+    from prefect.client.orchestration import PrefectClient
 
 R = TypeVar("R")
 P = ParamSpec("P")
@@ -100,22 +106,60 @@ def _get_non_block_reference_definitions(object_definition: Dict, definitions: D
     return non_block_definitions
 
 
+def _is_subclass(cls, parent_cls) -> bool:
+    """
+    Checks if a given class is a subclass of another class. Unlike issubclass,
+    this will not throw an exception if cls is an instance instead of a type.
+    """
+    return inspect.isclass(cls) and issubclass(cls, parent_cls)
+
+
+def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
+    """
+    Recursively collects all secret fields from a given type and adds them to the
+    secrets list, supporting nested Union / BaseModel fields. Also, note, this function
+    mutates the input secrets list, thus does not return anything.
+    """
+    if get_origin(type_) is Union:
+        for union_type in get_args(type_):
+            _collect_secret_fields(name, union_type, secrets)
+        return
+    elif _is_subclass(type_, BaseModel):
+        for field in type_.__fields__.values():
+            _collect_secret_fields(f"{name}.{field.name}", field.type_, secrets)
+        return
+
+    if type_ in (SecretStr, SecretBytes):
+        secrets.append(name)
+    elif type_ == SecretDict:
+        # Append .* to field name to signify that all values under this
+        # field are secret and should be obfuscated.
+        secrets.append(f"{name}.*")
+    elif Block.is_block_class(type_):
+        secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
 @register_base_type
+@instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
     """
-    A base class for implementing a block that wraps an external service.
+        A base class for implementing a block that wraps an external service.
 
-    This class can be defined with an arbitrary set of fields and methods, and
-    couples business logic with data contained in an block document.
-    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    `_block_type_id` are reserved by Orion as Block metadata fields, but
-    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
-    without populating these metadata fields, but can only be used interactively,
-    not with the Orion API.
+        This class can be defined with an arbitrary set of fields and methods, and
+        couples business logic with data contained in an block document.
+        `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    <<<<<<< HEAD
+        `_block_type_id` are reserved by the Prefect API as Block metadata fields, but
+    =======
+        `_block_type_id` are reserved by Prefect as Block metadata fields, but
+    >>>>>>> ddff0f7939 (update docstrings and messages)
+        otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+        without populating these metadata fields, but can only be used interactively,
+        not with the Prefect API.
 
-    Instead of the __init__ method, a block implementation allows the
-    definition of a `block_initialization` method that is called after
-    initialization.
+        Instead of the __init__ method, a block implementation allows the
+        definition of a `block_initialization` method that is called after
+        initialization.
     """
 
     class Config:
@@ -145,17 +189,7 @@ class Block(BaseModel, ABC):
             # nested under the "child" key are all secret. There is no limit to nesting.
             secrets = schema["secret_fields"] = []
             for field in model.__fields__.values():
-                if field.type_ in [SecretStr, SecretBytes]:
-                    secrets.append(field.name)
-                elif field.type_ == SecretDict:
-                    # Append .* to field name to signify that all values under this
-                    # field are secret and should be obfuscated.
-                    secrets.append(f"{field.name}.*")
-                elif Block.is_block_class(field.type_):
-                    secrets.extend(
-                        f"{field.name}.{s}"
-                        for s in field.type_.schema()["secret_fields"]
-                    )
+                _collect_secret_fields(field.name, field.type_, secrets)
 
             # create block schema references
             refs = schema["block_schema_references"] = {}
@@ -175,9 +209,9 @@ class Block(BaseModel, ABC):
                                     type_._to_block_schema_reference_dict(),
                                 ]
                             else:
-                                refs[
-                                    field.name
-                                ] = type_._to_block_schema_reference_dict()
+                                refs[field.name] = (
+                                    type_._to_block_schema_reference_dict()
+                                )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -200,13 +234,13 @@ class Block(BaseModel, ABC):
     # set by the class itself
 
     # Attribute to customize the name of the block type created
-    # when the block is registered with Orion. If not set, block
+    # when the block is registered with the API. If not set, block
     # type name will default to the class name.
     _block_type_name: Optional[str] = None
     _block_type_slug: Optional[str] = None
 
     # Attributes used to set properties on a block type when registered
-    # with Orion.
+    # with the API.
     _logo_url: Optional[HttpUrl] = None
     _documentation_url: Optional[HttpUrl] = None
     _description: Optional[str] = None
@@ -221,6 +255,10 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
+    # decorated directly.
+    _events_excluded_methods = ["block_initialization", "save", "dict"]
 
     @classmethod
     def __dispatch_key__(cls):
@@ -548,6 +586,8 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
+        block_cls = instrument_method_calls_on_class_instances(block_cls)
+
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -558,7 +598,39 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
+        # Due to the way blocks are loaded we can't directly instrument the
+        # `load` method and have the data be about the block document. Instead
+        # this will emit a proxy event for the load method so that block
+        # document data can be included instead of the event being about an
+        # 'anonymous' block.
+
+        emit_instance_method_called_event(block, "load", successful=True)
+
         return block
+
+    def _event_kind(self) -> str:
+        return f"prefect.block.{self.get_block_type_slug()}"
+
+    def _event_method_called_resources(self) -> Optional[ResourceTuple]:
+        if not (self._block_document_id and self._block_document_name):
+            return None
+
+        return (
+            {
+                "prefect.resource.id": (
+                    f"prefect.block-document.{self._block_document_id}"
+                ),
+                "prefect.name": self._block_document_name,
+            },
+            [
+                {
+                    "prefect.resource.id": (
+                        f"prefect.block-type.{self.get_block_type_slug()}"
+                    ),
+                    "prefect.resource.role": "block-type",
+                }
+            ],
+        )
 
     @classmethod
     def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
@@ -602,7 +674,7 @@ class Block(BaseModel, ABC):
         cls,
         name: str,
         validate: bool = True,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Retrieves data from the block document with the given name for the block type
@@ -689,7 +761,8 @@ class Block(BaseModel, ABC):
             )
         except prefect.exceptions.ObjectNotFound as e:
             raise ValueError(
-                f"Unable to find block document named {block_document_name} for block type {block_type_slug}"
+                f"Unable to find block document named {block_document_name} for block"
+                f" type {block_type_slug}"
             ) from e
 
         try:
@@ -699,35 +772,38 @@ class Block(BaseModel, ABC):
                 missing_fields = tuple(err["loc"][0] for err in e.errors())
                 missing_block_data = {field: None for field in missing_fields}
                 warnings.warn(
-                    f"Could not fully load {block_document_name!r} of block type {cls._block_type_slug!r} - "
-                    "this is likely because one or more required fields were added to the schema "
-                    f"for {cls.__name__!r} that did not exist on the class when this block was last saved. "
-                    f"Please specify values for new field(s): {listrepr(missing_fields)}, then "
-                    f'run `{cls.__name__}.save("{block_document_name}", overwrite=True)`, and '
-                    "load this block again before attempting to use it."
+                    f"Could not fully load {block_document_name!r} of block type"
+                    f" {cls._block_type_slug!r} - this is likely because one or more"
+                    " required fields were added to the schema for"
+                    f" {cls.__name__!r} that did not exist on the class when this block"
+                    " was last saved. Please specify values for new field(s):"
+                    f" {listrepr(missing_fields)}, then run"
+                    f' `{cls.__name__}.save("{block_document_name}", overwrite=True)`,'
+                    " and load this block again before attempting to use it."
                 )
                 return cls.construct(**block_document.data, **missing_block_data)
             raise RuntimeError(
-                f"Unable to load {block_document_name!r} of block type {cls._block_type_slug!r} "
-                "due to failed validation. To load without validation, try loading again "
-                "with `validate=False`."
+                f"Unable to load {block_document_name!r} of block type"
+                f" {cls._block_type_slug!r} due to failed validation. To load without"
+                " validation, try loading again with `validate=False`."
             ) from e
 
     @staticmethod
     def is_block_class(block) -> bool:
-        return inspect.isclass(block) and issubclass(block, Block)
+        return _is_subclass(block, Block)
 
     @classmethod
     @sync_compatible
     @inject_client
-    async def register_type_and_schema(cls, client: "OrionClient" = None):
+    async def register_type_and_schema(cls, client: "PrefectClient" = None):
         """
-        Makes block available for configuration with current Orion server.
+        Makes block available for configuration with current Prefect API.
         Recursively registers all nested blocks. Registration is idempotent.
 
         Args:
-            client: Optional Orion client to use for registering type and schema with
-                Orion. A new client will be created and used if one is not provided.
+            client: Optional client to use for registering type and schema with the
+                Prefect API. A new client will be created and used if one is not
+                provided.
         """
         if cls.__name__ == "Block":
             raise InvalidBlockRegistration(
@@ -778,7 +854,7 @@ class Block(BaseModel, ABC):
         name: Optional[str] = None,
         is_anonymous: bool = False,
         overwrite: bool = False,
-        client: "OrionClient" = None,
+        client: "PrefectClient" = None,
     ):
         """
         Saves the values of a block as a block document with an option to save as an
@@ -830,9 +906,9 @@ class Block(BaseModel, ABC):
                 )
             else:
                 raise ValueError(
-                    "You are attempting to save values with a name that is already in "
-                    "use for this block type. If you would like to overwrite the values that are saved, "
-                    "then save with `overwrite=True`."
+                    "You are attempting to save values with a name that is already in"
+                    " use for this block type. If you would like to overwrite the"
+                    " values that are saved, then save with `overwrite=True`."
                 ) from err
 
         # Update metadata on block instance for later use.
@@ -841,8 +917,9 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
+    @instrument_instance_method_call()
     async def save(
-        self, name: str, overwrite: bool = False, client: "OrionClient" = None
+        self, name: str, overwrite: bool = False, client: "PrefectClient" = None
     ):
         """
         Saves the values of a block as a block document.

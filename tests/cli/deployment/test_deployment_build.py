@@ -7,12 +7,15 @@ from unittest.mock import Mock
 import pendulum
 import pytest
 
+import prefect.server.models as models
+import prefect.server.schemas as schemas
 from prefect import flow
 from prefect.deployments import Deployment
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import Process
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import AsyncMock
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 
 @pytest.fixture
@@ -131,6 +134,25 @@ def mock_build_from_flow(monkeypatch):
     return mock_build_from_flow
 
 
+@pytest.fixture(autouse=True)
+async def ensure_default_agent_pool_exists(session):
+    # The default agent work pool is created by a migration, but is cleared on
+    # consecutive test runs. This fixture ensures that the default agent work
+    # pool exists before each test.
+    default_work_pool = await models.workers.read_work_pool_by_name(
+        session=session, work_pool_name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME
+    )
+    if default_work_pool is None:
+        default_work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name=models.workers.DEFAULT_AGENT_WORK_POOL_NAME, type="prefect-agent"
+            ),
+        )
+        await session.commit()
+    assert default_work_pool is not None
+
+
 class TestSchedules:
     def test_passing_cron_schedules_to_build(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -168,7 +190,7 @@ class TestSchedules:
                 "--interval",
                 "42",
                 "--anchor-date",
-                "2018-02-02",
+                "2040-02-02",
                 "--timezone",
                 "America/New_York",
             ],
@@ -178,7 +200,7 @@ class TestSchedules:
 
         deployment = Deployment.load_from_yaml(tmp_path / "test.yaml")
         assert deployment.schedule.interval == timedelta(seconds=42)
-        assert deployment.schedule.anchor_date == pendulum.parse("2018-02-02")
+        assert deployment.schedule.anchor_date == pendulum.parse("2040-02-02")
         assert deployment.schedule.timezone == "America/New_York"
 
     def test_passing_anchor_without_interval_exits(self, patch_import, tmp_path):
@@ -196,7 +218,9 @@ class TestSchedules:
             ],
             expected_code=1,
             temp_dir=tmp_path,
-            expected_output_contains="An anchor date can only be provided with an interval schedule",
+            expected_output_contains=(
+                "An anchor date can only be provided with an interval schedule"
+            ),
         )
 
     def test_parsing_rrule_schedule_string_literal(self, patch_import, tmp_path):
@@ -233,7 +257,11 @@ class TestSchedules:
                 "-o",
                 str(tmp_path / "test.yaml"),
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
             ],
             expected_code=0,
             temp_dir=tmp_path,
@@ -259,7 +287,11 @@ class TestSchedules:
                 "-o",
                 str(tmp_path / "test.yaml"),
                 "--rrule",
-                '{"rrule": "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17", "timezone": "America/New_York"}',
+                (
+                    '{"rrule":'
+                    ' "DTSTART:20220910T110000\\nRRULE:FREQ=HOURLY;BYDAY=MO,TU,WE,TH,FR,SA;BYHOUR=9,10,11,12,13,14,15,16,17",'
+                    ' "timezone": "America/New_York"}'
+                ),
                 "--timezone",
                 "Europe/Berlin",
             ],
@@ -286,7 +318,6 @@ class TestSchedules:
     def test_providing_multiple_schedules_exits_with_error(
         self, patch_import, tmp_path, schedules
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -395,7 +426,6 @@ class TestFlowName:
     def test_flow_name_called_correctly(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -418,7 +448,6 @@ class TestFlowName:
         assert build_kwargs["name"] == name
 
     def test_not_providing_name_exits_with_error(self, patch_import, tmp_path):
-
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
         cmd = [
@@ -432,7 +461,9 @@ class TestFlowName:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="A name for this deployment must be provided with the '--name' flag.\n",
+            expected_output=(
+                "A name for this deployment must be provided with the '--name' flag.\n"
+            ),
         )
 
     def test_name_must_be_provided_by_default(self, dep_path):
@@ -441,6 +472,35 @@ class TestFlowName:
             expected_output_contains=["A name for this deployment must be provided"],
             expected_code=1,
         )
+
+
+class TestDescription:
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_description_set_correctly(
+        self, patch_import, tmp_path, mock_build_from_flow
+    ):
+        deployment_description = "TEST DEPLOYMENT"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            "TEST",
+            "--description",
+            deployment_description,
+            "-o",
+            output_path,
+        ]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["description"] == deployment_description
 
 
 class TestEntrypoint:
@@ -465,7 +525,6 @@ class TestEntrypoint:
     def test_poorly_formed_entrypoint_raises_correct_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
@@ -476,7 +535,10 @@ class TestEntrypoint:
         invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Your flow entrypoint must include the name of the function that is the entrypoint to your flow.\nTry {entrypoint}:<flow_name>",
+            expected_output_contains=(
+                "Your flow entrypoint must include the name of the function that is"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            ),
         )
 
     def test_entrypoint_that_does_not_point_to_flow_raises_error(self, tmp_path):
@@ -495,7 +557,10 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Function with name 'fn' is not a flow. Make sure that it is decorated with '@flow'",
+            expected_output_contains=(
+                f"Function with name 'fn' is not a flow. Make sure that it is decorated"
+                f" with '@flow'"
+            ),
         )
 
     def test_entrypoint_that_points_to_wrong_flow_raises_error(self, tmp_path):
@@ -517,7 +582,9 @@ class TestEntrypoint:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output_contains=f"Flow function with name 'fn' not found in {str(fpath)!r}",
+            expected_output_contains=(
+                f"Flow function with name 'fn' not found in {str(fpath)!r}"
+            ),
         )
 
     def test_entrypoint_that_does_not_point_to_python_file_raises_error(self, tmp_path):
@@ -633,6 +700,44 @@ class TestWorkQueue:
         )
 
 
+class TestWorkPool:
+    async def test_creates_work_queue_in_work_pool(
+        self,
+        patch_import,
+        tmp_path,
+        work_pool,
+        session,
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-p",
+                work_pool.name,
+                "-q",
+                "new-queue",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "--apply",
+            ],
+            expected_code=0,
+            temp_dir=tmp_path,
+        )
+
+        deployment = await Deployment.load_from_yaml(tmp_path / "test.yaml")
+        assert deployment.work_pool_name == work_pool.name
+        assert deployment.work_queue_name == "new-queue"
+
+        work_queue = await models.workers.read_work_queue_by_name(
+            session=session, work_pool_name=work_pool.name, work_queue_name="new-queue"
+        )
+        assert work_queue is not None
+
+
 class TestAutoApply:
     def test_auto_apply_flag(self, patch_import, tmp_path):
         d = Deployment(
@@ -654,9 +759,121 @@ class TestAutoApply:
             ],
             expected_code=0,
             expected_output_contains=[
-                f"Deployment '{d.flow_name}/{d.name}' successfully created with id '{deployment_id}'."
+                f"Deployment '{d.flow_name}/{d.name}' successfully created with id"
+                f" '{deployment_id}'."
             ],
             temp_dir=tmp_path,
+        )
+
+    def test_auto_apply_work_pool_does_not_exist(
+        self,
+        patch_import,
+        tmp_path,
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                "gibberish",
+                "--apply",
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                [
+                    (
+                        "This deployment specifies a work pool name of 'gibberish', but"
+                        " no such work pool exists."
+                    ),
+                    "To create a work pool via the CLI:",
+                    "$ prefect work-pool create 'gibberish'",
+                ]
+            ),
+            temp_dir=tmp_path,
+        )
+
+    def test_message_with_prefect_agent_work_pool(
+        self, patch_import, tmp_path, prefect_agent_work_pool
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                prefect_agent_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start an agent that"
+                    f" pulls work from the {prefect_agent_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool(
+        self, patch_import, tmp_path, process_work_pool, enable_workers
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                process_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start a worker "
+                    f"that pulls work from the {process_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect worker start -p {process_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool_without_workers_enabled(
+        self, patch_import, tmp_path, process_work_pool
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                process_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "\nTo execute flow runs from this deployment, please enable "
+                    "the workers CLI and start a worker that pulls work from the "
+                    f"{process_work_pool.name!r} work pool:"
+                ),
+                (
+                    "$ prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n"
+                    f"$ prefect worker start -p {process_work_pool.name!r}"
+                ),
+            ],
         )
 
 
@@ -781,7 +998,6 @@ class TestInfraAndInfraBlock:
     def test_providing_infra_block_and_infra_type_exits_with_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -799,14 +1015,16 @@ class TestInfraAndInfraBlock:
         res = invoke_and_assert(
             cmd,
             expected_code=1,
-            expected_output="Only one of `infra` or `infra_block` can be provided, please choose one.",
+            expected_output=(
+                "Only one of `infra` or `infra_block` can be provided, please choose"
+                " one."
+            ),
         )
 
     @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
     def test_infra_block_called_correctly(
         self, patch_import, tmp_path, infra_block, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -833,7 +1051,6 @@ class TestInfraAndInfraBlock:
     def test_infra_type_specifies_infra_block_on_deployment(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -863,7 +1080,6 @@ class TestInfraOverrides:
     def test_overrides_called_correctly(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -891,7 +1107,6 @@ class TestInfraOverrides:
     def test_overrides_default_is_empty(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -918,7 +1133,6 @@ class TestStorageBlock:
     def test_storage_block_called_correctly(
         self, patch_import, tmp_path, storage_block, mock_build_from_flow
     ):
-
         name = "TEST"
         output_path = str(tmp_path / "test.yaml")
         entrypoint = "fake-path.py:fn"
@@ -946,7 +1160,6 @@ class TestOutputFlag:
     def test_output_file_with_wrong_suffix_exits_with_error(
         self, patch_import, tmp_path
     ):
-
         name = "TEST"
         file_name = "test.not_yaml"
         output_path = str(tmp_path / file_name)
@@ -968,7 +1181,6 @@ class TestOutputFlag:
     def test_yaml_appended_to_out_file_without_suffix(
         self, monkeypatch, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)
@@ -996,7 +1208,6 @@ class TestOtherStuff:
     def test_correct_flow_passed_to_deployment_object(
         self, patch_import, tmp_path, mock_build_from_flow
     ):
-
         name = "TEST"
         file_name = "test_no_suffix"
         output_path = str(tmp_path / file_name)

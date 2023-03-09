@@ -4,20 +4,32 @@ from unittest.mock import call
 import anyio
 import pytest
 
-from prefect.agent import OrionAgent
+from prefect.agent import PrefectAgent
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.base import Infrastructure
-from prefect.orion.database.orm_models import ORMDeployment
-from prefect.orion.schemas.core import Deployment
-from prefect.states import Cancelled, Completed, Pending, Running, Scheduled
+from prefect.server.database.orm_models import ORMDeployment
+from prefect.server.schemas.core import Deployment
+from prefect.states import (
+    Cancelled,
+    Cancelling,
+    Completed,
+    Pending,
+    Running,
+    Scheduled,
+    StateType,
+)
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import get_registry_for_type
 
 
+def legacy_named_cancelling_state(**kwargs):
+    return Cancelled(name="Cancelling", **kwargs)
+
+
 async def _create_test_deployment_from_orm(
-    orion_client: OrionClient, orm_deployment: ORMDeployment, **kwargs
+    orion_client: PrefectClient, orm_deployment: ORMDeployment, **kwargs
 ) -> Deployment:
     api_deployment = Deployment.from_orm(orm_deployment)
     updated_deployment = api_deployment.copy(update=kwargs)
@@ -29,7 +41,7 @@ async def _create_test_deployment_from_orm(
                     "is_schedule_active",
                     "created_by",
                     "updated_by",
-                    "work_pool_queue_id",
+                    "work_queue_id",
                 }
             )
         )
@@ -42,15 +54,18 @@ async def _create_test_deployment_from_orm(
 # Test cancellation is called for the correct flow runs  -------------------------------
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_called_for_cancelling_run(
-    orion_client: OrionClient, deployment: ORMDeployment
+    orion_client: PrefectClient, deployment: ORMDeployment, cancelling_constructor
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -73,14 +88,14 @@ async def test_agent_cancel_run_called_for_cancelling_run(
     ],
 )
 async def test_agent_cancel_run_not_called_for_other_states(
-    orion_client: OrionClient, deployment: ORMDeployment, state
+    orion_client: PrefectClient, deployment: ORMDeployment, state
 ):
     await orion_client.create_flow_run_from_deployment(
         deployment.id,
         state=state,
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -89,26 +104,36 @@ async def test_agent_cancel_run_not_called_for_other_states(
     agent.cancel_run.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_called_for_cancelling_run_with_multiple_work_queues(
-    orion_client: OrionClient, deployment: ORMDeployment
+    orion_client: PrefectClient,
+    deployment: ORMDeployment,
+    cancelling_constructor,
 ):
     deployment.work_queue_name = "foo"
     await orion_client.update_deployment(deployment)
 
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
     agent.cancel_run.assert_awaited_once_with(flow_run)
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_queues(
-    orion_client: OrionClient, deployment: ORMDeployment
+    orion_client: PrefectClient,
+    deployment: ORMDeployment,
+    cancelling_constructor,
 ):
     deployment_foo = await _create_test_deployment_from_orm(
         orion_client, deployment, work_queue_name="foo"
@@ -119,14 +144,14 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_
 
     flow_run_foo = await orion_client.create_flow_run_from_deployment(
         deployment_foo.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
     flow_run_bar = await orion_client.create_flow_run_from_deployment(
         deployment_bar.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo", "bar"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -135,8 +160,11 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_multiple_work_
     )
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_called_for_each_cancelling_run_in_a_work_queue(
-    orion_client: OrionClient, deployment: ORMDeployment
+    orion_client: PrefectClient, deployment: ORMDeployment, cancelling_constructor
 ):
     deployment_foo = await _create_test_deployment_from_orm(
         orion_client, deployment, work_queue_name="foo"
@@ -144,18 +172,18 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_a_work_queue(
 
     flow_run_1 = await orion_client.create_flow_run_from_deployment(
         deployment_foo.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
     flow_run_2 = await orion_client.create_flow_run_from_deployment(
         deployment_foo.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
     flow_run_3 = await orion_client.create_flow_run_from_deployment(
         deployment_foo.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(work_queues=["foo"], prefetch_seconds=10) as agent:
+    async with PrefectAgent(work_queues=["foo"], prefetch_seconds=10) as agent:
         agent.cancel_run = AsyncMock()
         await agent.check_for_cancelled_flow_runs()
 
@@ -164,15 +192,18 @@ async def test_agent_cancel_run_called_for_each_cancelling_run_in_a_work_queue(
     )
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_not_called_for_other_work_queues(
-    orion_client: OrionClient, deployment
+    orion_client: PrefectClient, deployment, cancelling_constructor
 ):
     await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[f"not-{deployment.work_queue_name}"], prefetch_seconds=10
     ) as agent:
         agent.cancel_run = AsyncMock()
@@ -201,19 +232,23 @@ def mock_infrastructure_kill(monkeypatch) -> Generator[AsyncMock, None, None]:
     yield mock
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_kills_run_with_infrastructure_pid(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
     mock_infrastructure_kill: AsyncMock,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -221,18 +256,22 @@ async def test_agent_cancel_run_kills_run_with_infrastructure_pid(
     mock_infrastructure_kill.assert_awaited_once_with("test")
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_with_missing_infrastructure_pid(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
     mock_infrastructure_kill: AsyncMock,
     caplog,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -245,48 +284,57 @@ async def test_agent_cancel_run_with_missing_infrastructure_pid(
 
     # Information broadcasted to user in logs and state message
     assert (
-        "does not have an infrastructure pid attached. Cancellation cannot be guaranteed."
+        "does not have an infrastructure pid attached. Cancellation cannot be"
+        " guaranteed."
         in caplog.text
     )
     assert "missing infrastructure tracking information" in post_flow_run.state.message
 
 
 @pytest.mark.usefixtures("mock_infrastructure_kill")
-async def test_agent_cancel_run_updates_state_name(
-    orion_client: OrionClient,
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
+async def test_agent_cancel_run_updates_state_type(
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
 
     post_flow_run = await orion_client.read_flow_run(flow_run.id)
-    assert post_flow_run.state.name == "Cancelled"
+    assert post_flow_run.state.type == StateType.CANCELLED
 
 
 @pytest.mark.usefixtures("mock_infrastructure_kill")
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_preserves_other_state_properties(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
+    cancelling_constructor,
 ):
-    expected_changed_fields = {"name", "timestamp", "id"}
+    expected_changed_fields = {"type", "name", "timestamp", "id"}
 
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling", message="test"),
+        state=cancelling_constructor(message="test"),
     )
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -297,21 +345,25 @@ async def test_agent_cancel_run_preserves_other_state_properties(
     ) == flow_run.state.dict(exclude=expected_changed_fields)
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_with_infrastructure_not_available_during_kill(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
     mock_infrastructure_kill: AsyncMock,
     caplog,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = InfrastructureNotAvailable("Test!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -333,21 +385,25 @@ async def test_agent_cancel_run_with_infrastructure_not_available_during_kill(
     assert post_flow_run.state.message is None
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
     mock_infrastructure_kill: AsyncMock,
     caplog,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
 
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = InfrastructureNotFound("Test!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -368,20 +424,24 @@ async def test_agent_cancel_run_with_infrastructure_not_found_during_kill(
     assert post_flow_run.state.message is None
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_with_unknown_error_during_kill(
-    orion_client: OrionClient,
+    orion_client: PrefectClient,
     deployment: ORMDeployment,
     mock_infrastructure_kill: AsyncMock,
     caplog,
+    cancelling_constructor,
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
     mock_infrastructure_kill.side_effect = ValueError("Oh no!")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()
@@ -402,10 +462,16 @@ async def test_agent_cancel_run_with_unknown_error_during_kill(
     assert "Traceback" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "cancelling_constructor", [legacy_named_cancelling_state, Cancelling]
+)
 async def test_agent_cancel_run_without_infrastructure_support_for_kill(
-    orion_client: OrionClient, deployment: ORMDeployment, caplog, monkeypatch
+    orion_client: PrefectClient,
+    deployment: ORMDeployment,
+    caplog,
+    monkeypatch,
+    cancelling_constructor,
 ):
-
     # Patch all infrastructure types
     types = get_registry_for_type(Block)
     for t in types.values():
@@ -415,11 +481,11 @@ async def test_agent_cancel_run_without_infrastructure_support_for_kill(
 
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
-        state=Cancelled(name="Cancelling"),
+        state=cancelling_constructor(),
     )
     await orion_client.update_flow_run(flow_run.id, infrastructure_pid="test")
 
-    async with OrionAgent(
+    async with PrefectAgent(
         work_queues=[deployment.work_queue_name], prefetch_seconds=10
     ) as agent:
         await agent.check_for_cancelled_flow_runs()

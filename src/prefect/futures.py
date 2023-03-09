@@ -22,7 +22,7 @@ from uuid import UUID
 
 import anyio
 
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
 from prefect.utilities.asyncutils import (
@@ -238,17 +238,17 @@ class PrefectFuture(Generic[R, A]):
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Async]", client: OrionClient = None
+        self: "PrefectFuture[R, Async]", client: PrefectClient = None
     ) -> Awaitable[State[R]]:
         ...
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Sync]", client: OrionClient = None
+        self: "PrefectFuture[R, Sync]", client: PrefectClient = None
     ) -> State[R]:
         ...
 
-    def get_state(self, client: OrionClient = None):
+    def get_state(self, client: PrefectClient = None):
         """
         Get the current state of the task run.
         """
@@ -258,7 +258,7 @@ class PrefectFuture(Generic[R, A]):
             return cast(State[R], sync(self._get_state, client=client))
 
     @inject_client
-    async def _get_state(self, client: OrionClient = None) -> State[R]:
+    async def _get_state(self, client: PrefectClient = None) -> State[R]:
         assert client is not None  # always injected
 
         # We must wait for the task run id to be populated
@@ -293,9 +293,11 @@ class PrefectFuture(Generic[R, A]):
 
     def __bool__(self) -> bool:
         warnings.warn(
-            "A 'PrefectFuture' from a task call was cast to a boolean; "
-            "did you mean to check the result of the task instead? "
-            "e.g. `if my_task().result(): ...`",
+            (
+                "A 'PrefectFuture' from a task call was cast to a boolean; "
+                "did you mean to check the result of the task instead? "
+                "e.g. `if my_task().result(): ...`"
+            ),
             stacklevel=2,
         )
         return True

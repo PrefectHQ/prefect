@@ -29,6 +29,7 @@ from typing import (
 
 from typing_extensions import Literal, ParamSpec
 
+from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
@@ -128,6 +129,8 @@ class Task(Generic[P, R]):
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
+        task_run_name: An optional name to distinguish runs of this task; this name can be provided
+            as a string template with the task's keyword arguments as variables.
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -156,6 +159,8 @@ class Task(Generic[P, R]):
         refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
+        on_failure: An optional list of callables to run when the task enters a failed state.
+        on_completion: An optional list of callables to run when the task enters a completed state.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -171,6 +176,7 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
+        task_run_name: str = None,
         retries: int = 0,
         retry_delay_seconds: Union[
             float,
@@ -186,6 +192,8 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = False,
         refresh_cache: Optional[bool] = None,
+        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -203,6 +211,7 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
+        self.task_run_name = task_run_name
         self.version = version
         self.log_prints = log_prints
 
@@ -264,6 +273,8 @@ class Task(Generic[P, R]):
                 "parameter in the task definition:\n\n "
                 "`@task(name='my_unique_name', ...)`"
             )
+        self.on_completion = on_completion
+        self.on_failure = on_failure
 
     def with_options(
         self,
@@ -274,6 +285,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
+        task_run_name: str = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[
@@ -290,6 +302,8 @@ class Task(Generic[P, R]):
         timeout_seconds: Union[int, float] = None,
         log_prints: Optional[bool] = NotSet,
         refresh_cache: Optional[bool] = NotSet,
+        on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+        on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
     ):
         """
         Create a new task from the current object, updating provided options.
@@ -301,6 +315,8 @@ class Task(Generic[P, R]):
                 not merged.
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
+            task_run_name: An optional name to distinguish runs of this task; this name can be provided
+                as a string template with the task's keyword arguments as variables.
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -318,6 +334,8 @@ class Task(Generic[P, R]):
             timeout_seconds: A new maximum time for the task to complete in seconds.
             log_prints: A new option for enabling or disabling redirection of `print` statements.
             refresh_cache: A new option for enabling or disabling cache refresh.
+            on_completion: A new list of callables to run when the task enters a completed state.
+            on_failure: A new list of callables to run when the task enters a failed state.
 
         Returns:
             A new `Task` instance.
@@ -363,6 +381,7 @@ class Task(Generic[P, R]):
             tags=tags or copy(self.tags),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
             cache_expiration=cache_expiration or self.cache_expiration,
+            task_run_name=task_run_name,
             retries=retries if retries is not NotSet else self.retries,
             retry_delay_seconds=(
                 retry_delay_seconds
@@ -397,6 +416,8 @@ class Task(Generic[P, R]):
             refresh_cache=(
                 refresh_cache if refresh_cache is not NotSet else self.refresh_cache
             ),
+            on_completion=on_completion or self.on_completion,
+            on_failure=on_failure or self.on_failure,
         )
 
     @overload
@@ -666,7 +687,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> List[Awaitable[PrefectFuture[T, Async]]]:
+    ) -> Awaitable[List[PrefectFuture[T, Async]]]:
         ...
 
     @overload
@@ -692,7 +713,7 @@ class Task(Generic[P, R]):
         return_state: bool = False,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
-    ) -> List[Union[PrefectFuture, Awaitable[PrefectFuture]]]:
+    ) -> Any:
         """
         Submit a mapped run of the task to a worker.
 
@@ -836,6 +857,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
+    task_run_name: str = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -851,6 +873,8 @@ def task(
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
+    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
 ) -> Callable[[Callable[P, R]], Task[P, R]]:
     ...
 
@@ -864,6 +888,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
+    task_run_name: str = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -879,6 +904,8 @@ def task(
     timeout_seconds: Union[int, float] = None,
     log_prints: Optional[bool] = None,
     refresh_cache: Optional[bool] = None,
+    on_completion: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
+    on_failure: Optional[List[Callable[["Task", TaskRun, State], None]]] = None,
 ):
     """
     Decorator to designate a function as a task in a Prefect workflow.
@@ -899,6 +926,8 @@ def task(
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
+        task_run_name: An optional name to distinguish runs of this task; this name can be provided
+            as a string template with the task's keyword arguments as variables.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -927,6 +956,8 @@ def task(
         refresh_cache: If set, cached results for the cache key are not used.
             Defaults to `None`, which indicates that a cached result from a previous
             execution with matching cache key is used.
+        on_failure: An optional list of callables to run when the task enters a failed state.
+        on_completion: An optional list of callables to run when the task enters a completed state.
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
@@ -987,6 +1018,7 @@ def task(
                 version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
+                task_run_name=task_run_name,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
@@ -997,6 +1029,8 @@ def task(
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
                 refresh_cache=refresh_cache,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )
     else:
@@ -1010,6 +1044,7 @@ def task(
                 version=version,
                 cache_key_fn=cache_key_fn,
                 cache_expiration=cache_expiration,
+                task_run_name=task_run_name,
                 retries=retries,
                 retry_delay_seconds=retry_delay_seconds,
                 retry_jitter_factor=retry_jitter_factor,
@@ -1020,5 +1055,7 @@ def task(
                 timeout_seconds=timeout_seconds,
                 log_prints=log_prints,
                 refresh_cache=refresh_cache,
+                on_completion=on_completion,
+                on_failure=on_failure,
             ),
         )

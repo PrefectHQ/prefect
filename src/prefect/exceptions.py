@@ -199,7 +199,10 @@ class SignatureMismatchError(PrefectException, TypeError):
 
     @classmethod
     def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
-        msg = f"Function expects parameters {expected_params} but was provided with parameters {provided_params}"
+        msg = (
+            f"Function expects parameters {expected_params} but was provided with"
+            f" parameters {provided_params}"
+        )
         return cls(msg)
 
 
@@ -274,6 +277,21 @@ class Pause(PrefectSignal):
     """
     Raised when a flow run is PAUSED and needs to exit for resubmission.
     """
+
+
+class ExternalSignal(BaseException):
+    """
+    Base type for external signal-like exceptions that should never be caught by users.
+    """
+
+
+class TerminationSignal(ExternalSignal):
+    """
+    Raised when a flow run receives a termination signal.
+    """
+
+    def __init__(self, signal: int):
+        self.signal = signal
 
 
 class PrefectHTTPStatusError(HTTPStatusError):

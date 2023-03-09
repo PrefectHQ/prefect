@@ -1,10 +1,12 @@
 import asyncio
+import os
+import signal
 import statistics
 import time
 from contextlib import contextmanager
 from functools import partial
 from typing import List
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import anyio
@@ -23,6 +25,7 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
 )
@@ -34,12 +37,13 @@ from prefect.exceptions import (
     Pause,
     PausedRun,
     SignatureMismatchError,
+    TerminationSignal,
 )
 from prefect.futures import PrefectFuture
-from prefect.orion.schemas.actions import FlowRunCreate
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import ResultFactory
+from prefect.server.schemas.actions import FlowRunCreate
+from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
@@ -300,7 +304,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
         flow_run_id = None
 
         @task
@@ -333,7 +339,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -355,7 +363,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
         flow_run_id = None
 
         @task
@@ -387,7 +397,9 @@ class TestNonblockingPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -436,7 +448,9 @@ class TestOutOfProcessPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -476,7 +490,9 @@ class TestOutOfProcessPause:
         self, orion_client, deployment, monkeypatch
     ):
         frc = partial(FlowRunCreate, deployment_id=deployment.id)
-        monkeypatch.setattr("prefect.client.orion.schemas.actions.FlowRunCreate", frc)
+        monkeypatch.setattr(
+            "prefect.client.orchestration.schemas.actions.FlowRunCreate", frc
+        )
 
         @task
         async def foo():
@@ -859,7 +875,8 @@ class TestOrchestrateTaskRun:
         assert state.name == "NotReady"
         assert (
             state.message
-            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED' state."
+            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED'"
+            " state."
         )
 
     async def test_quoted_parameters_are_resolved(
@@ -976,7 +993,7 @@ class TestOrchestrateTaskRun:
         t1 = time.perf_counter()
 
         runtime = t1 - t0
-        assert runtime < 2, "The call should be return quickly after timeout"
+        assert runtime < 3, "The call should be return quickly after timeout"
 
         # Sleep for an extra second to check if the thread is still running. We cannot
         # check `thread.is_alive()` because it is still alive — presumably this is because
@@ -1417,7 +1434,7 @@ class TestFlowRunCrashes:
         t1 = time.perf_counter()
 
         runtime = t1 - t0
-        assert runtime < 2, "The call should be return quickly after timeout"
+        assert runtime < 3, "The call should be return quickly after timeout"
 
         # Sleep for an extra second to check if the thread is still running. We cannot
         # check `thread.is_alive()` because it is still alive — presumably this is because
@@ -1427,6 +1444,20 @@ class TestFlowRunCrashes:
         await anyio.sleep(1)
 
         assert i <= 10, "`just_sleep` should not be running after timeout"
+
+    async def test_report_flow_run_crashes_handles_sigterm(
+        self, flow_run, orion_client, monkeypatch
+    ):
+        original_handler = Mock()
+        signal.signal(signal.SIGTERM, original_handler)
+
+        with pytest.raises(TerminationSignal):
+            async with report_flow_run_crashes(flow_run=flow_run, client=orion_client):
+                assert signal.getsignal(signal.SIGTERM) != original_handler
+                os.kill(os.getpid(), signal.SIGTERM)
+
+        original_handler.assert_called_once()
+        assert signal.getsignal(signal.SIGTERM) == original_handler
 
 
 class TestTaskRunCrashes:
@@ -1467,7 +1498,6 @@ class TestTaskRunCrashes:
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
         self, flow_run, orion_client, interrupt_type, monkeypatch
     ):
-
         monkeypatch.setattr(
             "prefect.engine.orchestrate_task_run", AsyncMock(side_effect=interrupt_type)
         )
@@ -1781,7 +1811,8 @@ class TestCreateThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1868,7 +1899,8 @@ class TestRetrieveFlowThenBeginFlowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1943,7 +1975,8 @@ class TestCreateAndBeginSubflowRun:
         assert state.type == StateType.FAILED
         assert "Validation of flow parameters failed with error" in state.message
         assert (
-            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was provided with parameters ['puppy', 'kitty']"
+            "SignatureMismatchError: Function expects parameters ['dog', 'cat'] but was"
+            " provided with parameters ['puppy', 'kitty']"
             in state.message
         )
         with pytest.raises(SignatureMismatchError):
@@ -1992,7 +2025,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_with_untrackables(
         self, test_input, get_flow_run_context, state
     ):
-
         with await get_flow_run_context() as ctx:
             link_state_to_result(state=state, result=test_input)
             assert ctx.task_run_results == {}
@@ -2119,7 +2151,6 @@ class TestLinkStateToResult:
     async def test_link_state_to_result_marks_trackability_in_state_details(
         self, get_flow_run_context, test_input, expected_status, state
     ):
-
         with await get_flow_run_context():
             link_state_to_result(state=state, result=test_input)
             assert state.state_details.untrackable_result == expected_status

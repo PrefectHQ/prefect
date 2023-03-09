@@ -3,10 +3,14 @@ import asyncio
 import pytest
 
 from prefect.blocks import system
-from prefect.client import OrionClient
+from prefect.client import PrefectClient
 from prefect.exceptions import ObjectNotFound
-from prefect.orion import models
-from prefect.settings import PREFECT_ORION_BLOCKS_REGISTER_ON_START, temporary_settings
+from prefect.server import models
+from prefect.settings import (
+    PREFECT_API_BLOCKS_REGISTER_ON_START,
+    PREFECT_UI_URL,
+    temporary_settings,
+)
 from prefect.testing.cli import invoke_and_assert
 
 TEST_BLOCK_CODE = """\
@@ -30,16 +34,31 @@ async def install_system_block_types(session):
     )
 
 
-def test_register_blocks_from_module():
-    invoke_and_assert(
-        ["block", "register", "-m", "prefect.blocks.core"],
-        expected_code=0,
-        expected_output_contains=[
-            "Successfully registered",
-            "blocks",
-            "blocks/catalog",
-        ],
-    )
+def test_register_blocks_from_module_with_ui_url():
+    with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.core"],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered",
+                "blocks",
+                "Prefect UI: https://app.prefect.cloud/blocks/catalog",
+            ],
+        )
+
+
+def test_register_blocks_from_module_without_ui_url():
+    with temporary_settings(set_defaults={PREFECT_UI_URL: None}):
+        invoke_and_assert(
+            ["block", "register", "-m", "prefect.blocks.core"],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered",
+                "blocks",
+                "Prefect UI.",
+            ],
+            expected_output_does_not_contain=["Prefect UI: https://"],
+        )
 
 
 def test_register_blocks_from_nonexistent_module():
@@ -64,17 +83,21 @@ def test_register_blocks_from_invalid_module():
     )
 
 
-def test_register_blocks_from_file(tmp_path, orion_client: OrionClient):
+def test_register_blocks_from_file(tmp_path, orion_client: PrefectClient):
     test_file_path = tmp_path / "test.py"
 
     with open(test_file_path, "w") as f:
         f.write(TEST_BLOCK_CODE)
 
-    invoke_and_assert(
-        ["block", "register", "-f", str(test_file_path)],
-        expected_code=0,
-        expected_output_contains=["Successfully registered 1 block", "blocks/catalog"],
-    )
+    with temporary_settings(set_defaults={PREFECT_UI_URL: "https://app.prefect.cloud"}):
+        invoke_and_assert(
+            ["block", "register", "-f", str(test_file_path)],
+            expected_code=0,
+            expected_output_contains=[
+                "Successfully registered 1 block",
+                "blocks/catalog",
+            ],
+        )
 
     block_type = asyncio.run(
         orion_client.read_block_type_by_slug(slug="testforfileregister")
@@ -105,7 +128,7 @@ def test_register_blocks_from_txt_file(tmp_path):
         expected_code=1,
         expected_output_contains=(
             f"test.txt is not a .py file. Please specify a "
-            ".py that contains blocks to be registered."
+            f".py that contains blocks to be registered."
         ),
     )
 
@@ -131,7 +154,10 @@ def test_register_fails_on_no_options():
     invoke_and_assert(
         ["block", "register"],
         expected_code=1,
-        expected_output_contains="Please specify either a module or a file containing blocks to be registered, but not both.",
+        expected_output_contains=(
+            "Please specify either a module or a file containing blocks to be"
+            " registered, but not both."
+        ),
     )
 
 
@@ -139,21 +165,22 @@ def test_register_fails_on_multiple_options():
     invoke_and_assert(
         ["block", "register", "-m", "prefect.blocks.blorp", "-f", "fake_file.py"],
         expected_code=1,
-        expected_output_contains="Please specify either a module or a file containing blocks to be registered, but not both.",
+        expected_output_contains=(
+            "Please specify either a module or a file containing blocks to be"
+            " registered, but not both."
+        ),
     )
 
 
 def test_listing_blocks_when_none_are_registered():
     invoke_and_assert(
         ["block", "ls"],
-        expected_output_contains=(
-            f"""                           
+        expected_output_contains=f"""                           
            ┏━━━━┳━━━━━━┳━━━━━━┳━━━━━━┓
            ┃ ID ┃ Type ┃ Name ┃ Slug ┃
            ┡━━━━╇━━━━━━╇━━━━━━╇━━━━━━┩
            └────┴──────┴──────┴──────┘
-            """
-        ),
+            """,
     )
 
 
@@ -162,20 +189,18 @@ def test_listing_blocks_after_saving_a_block():
 
     invoke_and_assert(
         ["block", "ls"],
-        expected_output_contains=(
-            f"""                           
+        expected_output_contains=f"""                           
             ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓
             ┃ ID                                   ┃ Type ┃ Name      ┃ Slug           ┃
             ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━┩
             │ {block_id} │ JSON │ wildblock │ json/wildblock │
             └──────────────────────────────────────┴──────┴───────────┴────────────────┘  
-            """
-        ),
+            """,
     )
 
 
 def test_listing_system_block_types():
-    with temporary_settings({PREFECT_ORION_BLOCKS_REGISTER_ON_START: True}):
+    with temporary_settings({PREFECT_API_BLOCKS_REGISTER_ON_START: True}):
         expected_output = (
             "Block Types",
             "Slug",

@@ -1,7 +1,7 @@
 import pytest
 
 import prefect
-from prefect.client.orion import OrionClient
+from prefect.client.orchestration import PrefectClient
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -32,6 +32,8 @@ def test_start_worker_run_once_with_name():
             "test-work-pool",
             "-n",
             "test-worker",
+            "-t",
+            "process",
         ],
         expected_code=0,
         expected_output_contains=[
@@ -41,10 +43,18 @@ def test_start_worker_run_once_with_name():
     )
 
 
-async def test_start_worker_creates_work_pool(orion_client: OrionClient):
+async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            "not-yet-created-pool",
+            "-t",
+            "process",
+        ],
         expected_code=0,
         expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
     )
@@ -69,6 +79,8 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
             "-p",
             "test",
             "--run-once",
+            "-t",
+            "process",
         ],
         expected_code=0,
     )
@@ -93,6 +105,8 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
                 "-p",
                 "test",
                 "--run-once",
+                "-t",
+                "process",
             ],
             expected_code=0,
         )
@@ -118,6 +132,8 @@ def test_start_worker_with_limit(monkeypatch):
             "-p",
             "test",
             "--run-once",
+            "-t",
+            "process",
         ],
         expected_code=0,
     )
@@ -129,7 +145,7 @@ def test_start_worker_with_limit(monkeypatch):
     )
 
 
-async def test_worker_joins_existing_pool(work_pool, orion_client: OrionClient):
+async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
         command=[
@@ -140,6 +156,8 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: OrionClient):
             work_pool.name,
             "-n",
             "test-worker",
+            "-t",
+            "process",
         ],
         expected_code=0,
         expected_output_contains=[
@@ -152,3 +170,54 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: OrionClient):
         work_pool_name=work_pool.name
     )
     assert workers[0].name == "test-worker"
+
+
+async def test_worker_discovers_work_pool_type(
+    process_work_pool, orion_client: PrefectClient
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            process_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            (
+                f"Discovered worker type {process_work_pool.type!r} for work pool"
+                f" {process_work_pool.name!r}."
+            ),
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await orion_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert workers[0].name == "test-worker"
+
+
+async def test_worker_errors_if_no_type_and_non_existent_work_pool():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            "not-here",
+            "-n",
+            "test-worker",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Work pool 'not-here' does not exist. To create a new work pool "
+            "on worker startup, include a worker type with the --type option."
+        ],
+    )

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect.client import OrionClient
+from prefect.client import PrefectClient
 from prefect.deprecated.data_documents import DataDocument
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
@@ -12,7 +12,7 @@ from prefect.states import Completed
 from prefect.tasks import task
 from prefect.testing.utilities import assert_does_not_warn
 
-mock_client = MagicMock(spec=OrionClient)()
+mock_client = MagicMock(spec=PrefectClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]
 
 

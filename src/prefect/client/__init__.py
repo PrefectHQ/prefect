@@ -1,5 +1,5 @@
 """
-Asynchronous client implementation for communicating with the [Orion REST API](/api-ref/rest-api/).
+Asynchronous client implementation for communicating with the [Prefect REST API](/api-ref/rest-api/).
 
 Explore the client by communicating with an in-memory webserver - no setup required:
 
@@ -7,7 +7,7 @@ Explore the client by communicating with an in-memory webserver - no setup requi
 ```
 $ # start python REPL with native await functionality
 $ python -m asyncio
->>> from prefect.client.orion import get_client
+>>> from prefect.client.orchestration import get_client
 >>> async with get_client() as client:
 ...     response = await client.hello()
 ...     print(response.json())

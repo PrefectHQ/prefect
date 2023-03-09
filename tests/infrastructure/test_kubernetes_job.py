@@ -1,6 +1,7 @@
 import json
 from contextlib import contextmanager
 from pathlib import Path
+from time import monotonic, sleep
 from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
@@ -41,6 +42,19 @@ def mock_watch(monkeypatch):
 
     monkeypatch.setattr("kubernetes.watch.Watch", MagicMock(return_value=mock))
     return mock
+
+
+@pytest.fixture
+def mock_anyio_sleep_monotonic(monkeypatch):
+    def mock_monotonic():
+        return mock_sleep.current_time
+
+    def mock_sleep(duration):
+        mock_sleep.current_time += duration
+
+    mock_sleep.current_time = monotonic()
+    monkeypatch.setattr("time.monotonic", mock_monotonic)
+    monkeypatch.setattr("anyio.sleep", mock_sleep)
 
 
 @pytest.fixture
@@ -217,7 +231,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -238,7 +251,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
             grace_seconds=0,
@@ -256,7 +268,6 @@ class TestKill:
     async def test_kill_uses_correct_grace_seconds(
         self, mock_k8s_batch_client, mock_k8s_client, mock_watch, monkeypatch
     ):
-
         GRACE_SECONDS = 42
         await KubernetesJob(command=["echo", "hello"], name="test").kill(
             infrastructure_pid=f"{MOCK_CLUSTER_UID}:default:mock-k8s-v1-job",
@@ -277,10 +288,15 @@ class TestKill:
         BAD_NAMESPACE = "dog"
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"The job is running in namespace {BAD_NAMESPACE!r} but this block is configured to use 'default'",
+            match=(
+                f"The job is running in namespace {BAD_NAMESPACE!r} but this block is"
+                " configured to use 'default'"
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
-                infrastructure_pid=f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job",
+                infrastructure_pid=(
+                    f"{MOCK_CLUSTER_UID}:{BAD_NAMESPACE}:mock-k8s-v1-job"
+                ),
                 grace_seconds=0,
             )
 
@@ -291,8 +307,10 @@ class TestKill:
 
         with pytest.raises(
             InfrastructureNotAvailable,
-            match=f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
-            "cluster.",
+            match=(
+                f"Unable to kill job 'mock-k8s-v1-job': The job is running on another "
+                f"cluster."
+            ),
         ):
             await KubernetesJob(command=["echo", "hello"], name="test").kill(
                 infrastructure_pid=f"{BAD_CLUSTER}:default:mock-k8s-v1-job",
@@ -306,7 +324,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=404)
         ]
@@ -327,7 +344,6 @@ class TestKill:
         mock_watch,
         monkeypatch,
     ):
-
         mock_k8s_batch_client.delete_namespaced_job.side_effect = [
             ApiException(status=400)
         ]
@@ -427,7 +443,6 @@ async def test_sets_environment_variables(
     mock_watch,
     mock_k8s_batch_client,
 ):
-
     await KubernetesJob(
         command=["echo", "hello"], env={"foo": "FOO", "bar": "BAR"}
     ).run()
@@ -713,7 +728,7 @@ def test_uses_cluster_config_if_not_in_cluster(
     mock_cluster_config.load_kube_config.assert_called_once()
 
 
-@pytest.mark.parametrize("job_timeout", [24, None])
+@pytest.mark.parametrize("job_timeout", [24, 100])
 def test_allows_configurable_timeouts_for_pod_and_job_watches(
     mock_k8s_client,
     mock_watch,
@@ -723,13 +738,23 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
     mock_watch.stream = mock.Mock(
         side_effect=_mock_pods_stream_that_returns_running_pod
     )
+
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
     k8s_job_args = dict(
         command=["echo", "hello"],
         pod_watch_timeout_seconds=42,
     )
+    expected_job_call_kwargs = dict(
+        func=mock_k8s_batch_client.list_namespaced_job,
+        namespace=mock.ANY,
+        field_selector=mock.ANY,
+    )
 
     if job_timeout is not None:
         k8s_job_args["job_watch_timeout_seconds"] = job_timeout
+        expected_job_call_kwargs["timeout_seconds"] = pytest.approx(job_timeout, abs=1)
 
     KubernetesJob(**k8s_job_args).run(MagicMock())
 
@@ -741,11 +766,44 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
                 label_selector=mock.ANY,
                 timeout_seconds=42,
             ),
+            mock.call(**expected_job_call_kwargs),
+        ]
+    )
+
+
+@pytest.mark.parametrize("job_timeout", [None])
+def test_excludes_timeout_from_job_watches_when_null(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    job_timeout,
+):
+    mock_watch.stream = mock.Mock(
+        side_effect=_mock_pods_stream_that_returns_running_pod
+    )
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    k8s_job_args = dict(
+        command=["echo", "hello"],
+        job_watch_timeout_seconds=job_timeout,
+    )
+
+    KubernetesJob(**k8s_job_args).run(MagicMock())
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 namespace=mock.ANY,
                 field_selector=mock.ANY,
-                timeout_seconds=job_timeout,
+                # Note: timeout_seconds is excluded here
             ),
         ]
     )
@@ -759,6 +817,8 @@ def test_watches_the_right_namespace(
     mock_watch.stream = mock.Mock(
         side_effect=_mock_pods_stream_that_returns_running_pod
     )
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
 
     KubernetesJob(command=["echo", "hello"], namespace="my-awesome-flows").run(
         MagicMock()
@@ -770,13 +830,294 @@ def test_watches_the_right_namespace(
                 func=mock_k8s_client.list_namespaced_pod,
                 namespace="my-awesome-flows",
                 label_selector=mock.ANY,
-                timeout_seconds=mock.ANY,
+                timeout_seconds=60,
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 namespace="my-awesome-flows",
                 field_selector=mock.ANY,
+            ),
+        ]
+    )
+
+
+def test_streaming_pod_logs_timeout_warns(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    caplog,
+):
+    mock_watch.stream = _mock_pods_stream_that_returns_running_pod
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    mock_logs = MagicMock()
+    mock_logs.stream = MagicMock(side_effect=RuntimeError("something went wrong"))
+
+    mock_k8s_client.read_namespaced_pod_log = MagicMock(return_value=mock_logs)
+
+    with caplog.at_level("WARNING"):
+        result = KubernetesJob(command=["echo", "hello"]).run(MagicMock())
+
+    assert result.status_code == 1
+    assert "Error occurred while streaming logs - " in caplog.text
+
+
+def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+            job.status.completion_time = None
+            yield {"object": job}
+            sleep(0.5)
+            yield {"object": job}
+
+    mock_watch.stream.side_effect = mock_stream
+    k8s_job_args = dict(
+        command=["echo", "hello"],
+        pod_watch_timeout_seconds=42,
+        job_watch_timeout_seconds=0,
+    )
+
+    result = KubernetesJob(**k8s_job_args).run(MagicMock())
+    assert result.status_code == -1
+
+
+def test_watch_deadline_is_computed_before_log_streams(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the completed job
+            job.status.completion_time = True
+            yield {"object": job}
+
+    def mock_log_stream(*args, **kwargs):
+        anyio.sleep(500)
+        return MagicMock()
+
+    mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
+    mock_watch.stream.side_effect = mock_stream
+
+    result = KubernetesJob(
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1000
+    ).run(MagicMock())
+
+    assert result.status_code == 1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
                 timeout_seconds=mock.ANY,
+            ),
+            # Starts with the full timeout minus the amount we slept streaming logs
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(500, 1),
+            ),
+        ]
+    )
+
+
+def test_timeout_is_checked_during_log_streams(
+    mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Yield the job then return exiting the stream
+            # After restarting the watch a few times, we'll report completion
+            job.status.completion_time = (
+                None if mock_watch.stream.call_count < 3 else True
+            )
+            yield {"object": job}
+
+    def mock_log_stream(*args, **kwargs):
+        for i in range(10):
+            sleep(0.25)
+            yield f"test {i}".encode()
+
+    mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
+    mock_watch.stream.side_effect = mock_stream
+
+    result = KubernetesJob(
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+    ).run(MagicMock())
+
+    # The job should timeout
+    assert result.status_code == -1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # No watch call is made because the deadline is exceeded beforehand
+        ]
+    )
+
+    # Check for logs
+    stdout, _ = capsys.readouterr()
+
+    # Before the deadline, logs should be displayed
+    for i in range(4):
+        assert f"test {i}" in stdout
+    for i in range(4, 10):
+        assert f"test {i}" not in stdout
+
+
+def test_timeout_during_log_stream_does_not_fail_completed_job(
+    mock_k8s_client, mock_watch, mock_k8s_batch_client, capsys
+):
+    # Pretend the job is completed immediately
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = True
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+    def mock_log_stream(*args, **kwargs):
+        for i in range(10):
+            sleep(0.25)
+            yield f"test {i}".encode()
+
+    mock_k8s_client.read_namespaced_pod_log.return_value.stream = mock_log_stream
+    mock_watch.stream.side_effect = mock_stream
+
+    result = KubernetesJob(
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+    ).run(MagicMock())
+
+    # The job should not timeout
+    assert result.status_code == 1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # No watch call is made because the job is completed already
+        ]
+    )
+
+    # Check for logs
+    stdout, _ = capsys.readouterr()
+
+    # Before the deadline, logs should be displayed
+    for i in range(4):
+        assert f"test {i}" in stdout
+    for i in range(4, 10):
+        assert f"test {i}" not in stdout
+
+
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
+def test_watch_timeout_is_restarted_until_job_is_complete(
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
+):
+    # The job should not be completed to start
+    mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
+
+    def mock_stream(*args, **kwargs):
+        if kwargs["func"] == mock_k8s_client.list_namespaced_pod:
+            job_pod = MagicMock(spec=kubernetes.client.V1Pod)
+            job_pod.status.phase = "Running"
+            yield {"object": job_pod}
+
+        if kwargs["func"] == mock_k8s_batch_client.list_namespaced_job:
+            job = MagicMock(spec=kubernetes.client.V1Job)
+
+            # Sleep a little
+            anyio.sleep(10)
+
+            # Yield the job then return exiting the stream
+            job.status.completion_time = None
+            yield {"object": job}
+
+    mock_watch.stream.side_effect = mock_stream
+    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=40).run(
+        MagicMock()
+    )
+    assert result.status_code == -1
+
+    mock_watch.stream.assert_has_calls(
+        [
+            mock.call(
+                func=mock_k8s_client.list_namespaced_pod,
+                namespace=mock.ANY,
+                label_selector=mock.ANY,
+                timeout_seconds=mock.ANY,
+            ),
+            # Starts with the full timeout
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(40, abs=1),
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(30, abs=1),
+            ),
+            # Then, elapsed time removed on each call
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(20, abs=1),
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(10, abs=1),
             ),
         ]
     )
@@ -997,6 +1338,35 @@ class TestCustomizingJob:
                 }
             },
         }
+
+    def test_providing_a_string_customization(self):
+        KubernetesJob(
+            command=["echo", "hello"],
+            customizations=(
+                '[{"op": "add", "path":'
+                ' "/spec/template/spec/containers/0/env/-","value": {"name":'
+                ' "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name":'
+                ' "the-secret-name", "key": "api-token"}}}}]'
+            ),
+        )
+
+    def test_providing_an_illformatted_string_customization_raises(self):
+        with pytest.raises(
+            ValueError,
+            match=(
+                f"Unable to parse customizations as JSON: .* Please make sure that the"
+                f" provided value is a valid JSON string."
+            ),
+        ):
+            KubernetesJob(
+                command=["echo", "hello"],
+                customizations=(
+                    '[{"op": ""add", "path":'
+                    ' "/spec/template/spec/containers/0/env/-","value": {"name":'
+                    ' "MY_API_TOKEN", "valueFrom": {"secretKeyRef": {"name":'
+                    ' "the-secret-name", "key": "api-token"}}}}]'
+                ),
+            )
 
     def test_setting_pod_resource_requests(self):
         manifest = KubernetesJob(

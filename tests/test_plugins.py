@@ -1,9 +1,11 @@
 import importlib
 import pathlib
 import textwrap
+from unittest.mock import Mock
 
 import pytest
 
+import prefect
 from prefect.plugins import load_extra_entrypoints
 from prefect.settings import PREFECT_EXTRA_ENTRYPOINTS, temporary_settings
 from prefect.testing.utilities import exceptions_equal
@@ -12,7 +14,7 @@ from prefect.testing.utilities import exceptions_equal
 @pytest.fixture
 def module_fixture(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.syspath_prepend(tmp_path)
-    (tmp_path / ("test_module_name.py")).write_text(
+    (tmp_path / "test_module_name.py").write_text(
         textwrap.dedent(
             """
             import os
@@ -49,7 +51,7 @@ def module_fixture(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture
 def raising_module_fixture(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.syspath_prepend(tmp_path)
-    (tmp_path / ("raising_module_name.py")).write_text(
+    (tmp_path / "raising_module_name.py").write_text(
         textwrap.dedent(
             """
             raise RuntimeError("test")
@@ -94,7 +96,8 @@ def test_load_extra_entrypoints_unparsable_entrypoint(capsys):
     assert (
         "Warning! Failed to load extra entrypoint 'foo$bar': "
         "AttributeError: 'NoneType' object has no attribute 'group'"
-    ) in stderr
+        in stderr
+    )
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -112,7 +115,9 @@ def test_load_extra_entrypoints_callable():
 def test_load_extra_entrypoints_multiple_entrypoints():
     with temporary_settings(
         {
-            PREFECT_EXTRA_ENTRYPOINTS: "test_module_name:returns_foo,test_module_name:returns_bar"
+            PREFECT_EXTRA_ENTRYPOINTS: (
+                "test_module_name:returns_foo,test_module_name:returns_bar"
+            )
         }
     ):
         result = load_extra_entrypoints()
@@ -150,7 +155,8 @@ def test_load_extra_entrypoints_callable_that_raises(capsys):
     assert (
         "Warning! Failed to run callable entrypoint "
         "'test_module_name:raises_value_error': ValueError: test"
-    ) in stderr
+        in stderr
+    )
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -174,7 +180,8 @@ def test_load_extra_entrypoints_error_on_import(capsys):
     assert (
         "Warning! Failed to load extra entrypoint 'raising_module_name': "
         "RuntimeError: test"
-    ) in stderr
+        in stderr
+    )
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -192,7 +199,8 @@ def test_load_extra_entrypoints_missing_module(capsys):
     assert (
         "Warning! Failed to load extra entrypoint 'nonexistant_module': "
         "ModuleNotFoundError"
-    ) in stderr
+        in stderr
+    )
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -215,7 +223,8 @@ def test_load_extra_entrypoints_missing_submodule(capsys):
     assert (
         "Warning! Failed to load extra entrypoint 'test_module_name.missing_module': "
         "ModuleNotFoundError"
-    ) in stderr
+        in stderr
+    )
 
 
 @pytest.mark.usefixtures("module_fixture")
@@ -235,4 +244,22 @@ def test_load_extra_entrypoints_missing_attribute(capsys):
     assert (
         "Warning! Failed to load extra entrypoint 'test_module_name:missing_attr': "
         "AttributeError"
-    ) in stderr
+        in stderr
+    )
+
+
+def test_plugins_load_on_prefect_package_init(monkeypatch):
+    mock_load_prefect_collections = Mock()
+    mock_load_extra_entrypoints = Mock()
+
+    monkeypatch.setattr(
+        prefect.plugins, "load_prefect_collections", mock_load_prefect_collections
+    )
+    monkeypatch.setattr(
+        prefect.plugins, "load_extra_entrypoints", mock_load_extra_entrypoints
+    )
+
+    importlib.reload(prefect)
+
+    mock_load_prefect_collections.assert_called_once()
+    mock_load_extra_entrypoints.assert_called_once()
