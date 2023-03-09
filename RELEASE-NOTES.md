@@ -7,7 +7,7 @@
 - Add an endpoint to retrieve data from the collection registry — https://github.com/PrefectHQ/prefect/pull/8685
 
 ### Fixes
-- Add carriage return to `prompt_select_from_list` — https://github.com/PrefectHQ/prefect/pull/8705
+- Fix `prefect cloud login` detection of "ENTER" on some machines — https://github.com/PrefectHQ/prefect/pull/8705
 - Fix Kubernetes job watch timeout request error by rounding — https://github.com/PrefectHQ/prefect/pull/8733
 - Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
 - Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
