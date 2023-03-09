@@ -12,7 +12,6 @@
 - Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
 - Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
-- Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
 - Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Experimental
