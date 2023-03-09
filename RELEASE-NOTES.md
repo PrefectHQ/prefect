@@ -9,7 +9,7 @@
 ### Fixes
 - Add carriage return to `prompt_select_from_list` — https://github.com/PrefectHQ/prefect/pull/8705
 - Fix Kubernetes job watch timeout request error by rounding — https://github.com/PrefectHQ/prefect/pull/8733
-- Ignore fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
+- Fix flow load errors by excluding fsspec `2023.3.0` during requirements installation — https://github.com/PrefectHQ/prefect/pull/8757
 - Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
 - Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
