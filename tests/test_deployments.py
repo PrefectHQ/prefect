@@ -756,15 +756,31 @@ class TestRunDeployment:
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
 
-    async def test_run_deployment_with_deployment_id(
+    async def test_run_deployment_with_deployment_id_str(
         self,
         test_deployment,
         orion_client,
     ):
-        d, deployment_id = test_deployment
+        _, deployment_id = test_deployment
 
         flow_run = await run_deployment(
             f"{deployment_id}",
+            timeout=0,
+            poll_interval=0,
+            client=orion_client,
+        )
+        assert flow_run.deployment_id == deployment_id
+        assert flow_run.state
+
+    async def test_run_deployment_with_deployment_id_uuid(
+        self,
+        test_deployment,
+        orion_client,
+    ):
+        _, deployment_id = test_deployment
+
+        flow_run = await run_deployment(
+            deployment_id,
             timeout=0,
             poll_interval=0,
             client=orion_client,

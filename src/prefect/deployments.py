@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -45,7 +45,7 @@ from prefect.utilities.slugify import slugify
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name: str,
+    name: Union[str, UUID],
     client: Optional[PrefectClient] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
@@ -87,10 +87,14 @@ async def run_deployment(
     parameters = parameters or {}
 
     deployment_id = None
-    try:
-        deployment_id = UUID(name)
-    except ValueError:
-        pass
+
+    if isinstance(name, UUID):
+        deployment_id = name
+    else:
+        try:
+            deployment_id = UUID(name)
+        except ValueError:
+            pass
 
     if deployment_id:
         deployment = await client.read_deployment(deployment_id=deployment_id)
