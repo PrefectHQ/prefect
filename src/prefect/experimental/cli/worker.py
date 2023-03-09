@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Optional
+from typing import List, Optional
 
 import anyio
 import typer
@@ -32,6 +32,18 @@ async def start(
     ),
     work_pool_name: str = typer.Option(
         ..., "-p", "--pool", help="The work pool the started worker should join."
+    ),
+    work_queues: List[str] = typer.Option(
+        None,
+        "-q",
+        "--work-queue",
+        help="One or more work queue names for the worker to poll.",
+    ),
+    work_queue_prefix: List[str] = typer.Option(
+        None,
+        "-m",
+        "--match",
+        help="Prefixes of work queues for worker should match when polling.",
     ),
     worker_type: Optional[str] = typer.Option(
         None, "-t", "--type", help="The type of worker to start."
@@ -70,6 +82,8 @@ async def start(
     async with worker_cls(
         name=worker_name,
         work_pool_name=work_pool_name,
+        work_queues=work_queues,
+        work_queue_prefix=work_queue_prefix,
         limit=limit,
         prefetch_seconds=prefetch_seconds,
     ) as worker:

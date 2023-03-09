@@ -1,7 +1,7 @@
 import abc
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -194,6 +194,8 @@ class BaseWorker(abc.ABC):
     def __init__(
         self,
         work_pool_name: str,
+        work_queues: Optional[List[str]] = None,
+        work_queue_prefix: Optional[List[str]] = None,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
@@ -228,6 +230,8 @@ class BaseWorker(abc.ABC):
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
         self._work_pool_name = work_pool_name
+        self._work_queues: Set[str] = set(work_queues) if work_queues else set()
+        self._work_queue_prefix = work_queue_prefix
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -454,6 +458,35 @@ class BaseWorker(abc.ABC):
                 " deployment."
             )
 
+    async def _update_matched_work_queues(self):
+        if self.work_queue_prefix:
+            if self.work_pool_name:
+                matched_queues = await self.client.read_work_queues(
+                    work_pool_name=self.work_pool_name,
+                    work_queue_filter=schemas.filters.WorkQueueFilter(
+                        name=schemas.filters.WorkQueueFilterName(
+                            startswith_=self.work_queue_prefix
+                        )
+                    ),
+                )
+            else:
+                matched_queues = await self.client.match_work_queues(
+                    self.work_queue_prefix
+                )
+            matched_queues = set(q.name for q in matched_queues)
+            if matched_queues != self.work_queues:
+                new_queues = matched_queues - self.work_queues
+                removed_queues = self.work_queues - matched_queues
+                if new_queues:
+                    self.logger.info(
+                        f"Matched new work queues: {', '.join(new_queues)}"
+                    )
+                if removed_queues:
+                    self.logger.info(
+                        f"Work queues no longer matched: {', '.join(removed_queues)}"
+                    )
+            self.work_queues = matched_queues
+
     async def _get_scheduled_flow_runs(
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
@@ -469,6 +502,7 @@ class BaseWorker(abc.ABC):
                 await self._client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
+                    work_queue_names=list(self._work_queues),
                 )
             )
             self._logger.debug(
