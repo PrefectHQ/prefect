@@ -32,6 +32,7 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
     "flow_run_state_name",
     "flow_run_state_timestamp",
     "flow_run_state_message",
+    "deployment_name",
 ]
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"

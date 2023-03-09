@@ -807,6 +807,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 db.FlowRunState.name.label("flow_run_state_name"),
                 db.FlowRunState.timestamp.label("flow_run_state_timestamp"),
                 db.FlowRunState.message.label("flow_run_state_message"),
+                db.Deployment.name.label("deployment_name"),
             )
             .select_from(db.FlowRunNotificationQueue)
             .join(
@@ -825,6 +826,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .join(
                 db.Flow,
                 db.FlowRun.flow_id == db.Flow.id,
+            )
+            .outerjoin(
+                db.Deployment,
+                db.FlowRun.deployment_id == db.Deployment.id,
             )
             .order_by(db.FlowRunNotificationQueue.updated)
             .limit(limit)

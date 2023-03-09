@@ -20,6 +20,7 @@ DEFAULT_MESSAGE_TEMPLATE = textwrap.dedent(
     Flow ID: {flow_id}
     Flow run ID: {flow_run_id}
     Flow run URL: {flow_run_url}
+    Deployment: {deployment_name}
     State message: {flow_run_state_message}
     """
 )

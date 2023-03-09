@@ -231,7 +231,7 @@ def test_get_ui_url_for_flow_run_id_with_ui_url(
 
 
 async def test_service_uses_message_template(
-    session, db, flow, flow_run, completed_policy, capsys
+    session, db, flow, flow_run, deployment, completed_policy, capsys
 ):
     # modify the template
     await models.flow_run_notification_policies.update_flow_run_notification_policy(
@@ -239,7 +239,8 @@ async def test_service_uses_message_template(
         flow_run_notification_policy_id=completed_policy.id,
         flow_run_notification_policy=schemas.actions.FlowRunNotificationPolicyUpdate(
             message_template=(
-                "Hi there {flow_run_name}! Also the url works: {flow_run_url}"
+                "Hi there {flow_run_name}! Also the url works: {flow_run_url}! Wow,"
+                " deployment is {deployment_name}!"
             )
         ),
     )
@@ -258,6 +259,7 @@ async def test_service_uses_message_template(
     captured = capsys.readouterr()
     assert f"Hi there {flow_run.name}" in captured.out
     assert f"Also the url works: {expected_url}" in captured.out
+    assert f"Wow, deployment is {deployment.name}!" in captured.out
 
 
 async def test_service_sends_multiple_notifications(
