@@ -3,8 +3,8 @@
 ## Release 2.8.5
 
 ### Enhancements
-- Add basic event instrumentation to blocks — https://github.com/PrefectHQ/prefect/pull/8686
 - Add an endpoint to retrieve data from the collection registry — https://github.com/PrefectHQ/prefect/pull/8685
+- Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
 
 ### Fixes
 - Add carriage return to `prompt_select_from_list` — https://github.com/PrefectHQ/prefect/pull/8705
@@ -13,7 +13,7 @@
 - Use `PREFECT_API_URL` when initializing the events client — https://github.com/PrefectHQ/prefect/pull/8704
 - Fix Deployment and Concurrency Limit pages tabs — https://github.com/PrefectHQ/prefect/pull/8716
 - Add tests for base exceptions and calls — https://github.com/PrefectHQ/prefect/pull/8734
-- Remove deployment flow run foreign key — https://github.com/PrefectHQ/prefect/pull/8684
+
 
 ### Experimental
 - Refactor supervisor API to allow configuration — https://github.com/PrefectHQ/prefect/pull/8695
@@ -29,6 +29,7 @@
 - Add worker command output when applying deployments with a work pool — https://github.com/PrefectHQ/prefect/pull/8725
 - Add support for float timeouts using alarms — https://github.com/PrefectHQ/prefect/pull/8737
 - Add the ability to discover type from work pool when starting a worker — https://github.com/PrefectHQ/prefect/pull/8711
+- Add basic event instrumentation to blocks — https://github.com/PrefectHQ/prefect/pull/8686
 
 ### Documentation
 - Corrected typo in Storage.md — https://github.com/PrefectHQ/prefect/pull/8692
