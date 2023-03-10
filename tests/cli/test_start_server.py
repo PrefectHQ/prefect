@@ -90,6 +90,7 @@ async def server_process():
         out.close()
 
 
+@pytest.mark.service("process")
 class TestUvicornSignalForwarding:
     @pytest.mark.skipif(
         sys.platform == "win32",
