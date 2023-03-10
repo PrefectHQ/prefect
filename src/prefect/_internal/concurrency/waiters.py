@@ -164,16 +164,8 @@ class AsyncWaiter(Waiter[T]):
         )
 
         # Cancel work sent to the waiter if the future exceeds its timeout
-        try:
-            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
-                await self._watch_for_callbacks(ctx)
-        except asyncio.CancelledError as exc:
-            # Pass cancellation errors to the future; this helps with futures stuck in
-            # a running state. The reason this is necessary is not yet clear and it
-            # would be nice to avoid setting a result on a watched call due to behavior
-            # in the watcher.
-            if not self._call.future.done():
-                self._call.future.set_exception(exc)
+        with cancel_async_at(self._call.cancel_context.deadline) as ctx:
+            await self._watch_for_callbacks(ctx)
 
         logger.debug("Waiter %r retrieving result", self)
         # Wrap the future for a non-blocking wait
