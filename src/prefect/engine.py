@@ -161,19 +161,21 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    if not is_subflow_run:
-        # On completion of root flows, wait for the global thread to ensure that the
-        # any work there is complete
-        begin_run.future.add_done_callback(lambda _: wait_for_global_loop_exit())
-
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
-        return from_async.call_soon_in_global_thread(begin_run).result()
+        waiter = from_async.call_soon_in_global_thread(begin_run)
     else:
-        return from_sync.call_soon_in_global_thread(begin_run).result()
+        waiter = from_sync.call_soon_in_global_thread(begin_run)
+
+    if not is_subflow_run:
+        # On completion of root flows, wait for the global thread to ensure that the
+        # any work there is complete
+        waiter.add_done_callback(lambda _: wait_for_global_loop_exit())
+
+    return waiter.result()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:

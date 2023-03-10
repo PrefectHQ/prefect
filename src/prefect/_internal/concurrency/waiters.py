@@ -12,6 +12,7 @@ from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
     cancel_async_at,
@@ -63,6 +64,8 @@ class SyncWaiter(Waiter[T]):
     def __init__(self, call: Call[T]) -> None:
         super().__init__(call=call)
         self._queue: queue.Queue = queue.Queue()
+        self._done_callbacks = []
+        self._done_event = threading.Event()
 
     def submit(self, call: Call):
         """
@@ -86,6 +89,12 @@ class SyncWaiter(Waiter[T]):
             callback.run()
             del callback
 
+    def add_done_callback(self, callback: Call):
+        if self._done_event.is_set():
+            raise RuntimeError("Cannot add done callbacks to done waiters.")
+        else:
+            self._done_callbacks.append(callback)
+
     def result(self) -> T:
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
@@ -97,6 +106,17 @@ class SyncWaiter(Waiter[T]):
         logger.debug(
             "Waiter %r retrieving result of future %r", self, self._call.future
         )
+
+        # Wait for the future to be done
+        self._call.future.add_done_callback(lambda _: self._done_event.set())
+        self._done_event.wait()
+
+        # Call done callbacks
+        while self._done_callbacks:
+            callback = self._done_callbacks.pop()
+            if callback:
+                callback.run()
+
         return self._call.future.result()
 
 
@@ -108,6 +128,8 @@ class AsyncWaiter(Waiter[T]):
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._queue: Optional[asyncio.Queue] = None
         self._early_submissions: List[Call] = []
+        self._done_callbacks = []
+        self._done_event = Event()
 
     def submit(self, call: Call):
         """
@@ -152,6 +174,17 @@ class AsyncWaiter(Waiter[T]):
         # above loop, async work would not be executed concurrently
         await asyncio.gather(*tasks)
 
+    async def _run_done_callback(self, callback: Call):
+        coro = callback.run()
+        if coro:
+            await coro
+
+    def add_done_callback(self, callback: Call):
+        if self._done_event.is_set():
+            raise RuntimeError("Cannot add done callbacks to done waiters.")
+        else:
+            self._done_callbacks.append(callback)
+
     async def result(self) -> T:
         # Assign the loop
         self._loop = asyncio.get_running_loop()
@@ -168,5 +201,15 @@ class AsyncWaiter(Waiter[T]):
             await self._watch_for_callbacks(ctx)
 
         logger.debug("Waiter %r retrieving result", self)
-        # Wrap the future for a non-blocking wait
-        return await asyncio.wrap_future(self._call.future)
+
+        # Wait for the future to be done
+        self._call.future.add_done_callback(lambda _: self._done_event.set())
+        await self._done_event.wait()
+
+        # Call done callbacks
+        while self._done_callbacks:
+            callback = self._done_callbacks.pop()
+            if callback:
+                await self._run_done_callback(callback)
+
+        return self._call.future.result()
