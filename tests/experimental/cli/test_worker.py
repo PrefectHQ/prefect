@@ -90,36 +90,6 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         name=None,
         work_pool_name=process_work_pool.name,
         work_queues=["a", "b"],
-        work_queue_prefixes=[],
-        prefetch_seconds=ANY,
-        limit=None,
-    )
-
-
-def test_start_worker_with_work_queue_prefixes(monkeypatch, process_work_pool):
-    mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
-    invoke_and_assert(
-        command=[
-            "worker",
-            "start",
-            "-p",
-            process_work_pool.name,
-            "--match",
-            "a",
-            "-m",
-            "b",
-            "--run-once",
-        ],
-        expected_code=0,
-    )
-    mock_worker.assert_called_once_with(
-        name=None,
-        work_pool_name=process_work_pool.name,
-        work_queues=[],
-        work_queue_prefixes=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
     )
@@ -148,7 +118,6 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
         name=None,
         work_pool_name="test",
         work_queues=[],
-        work_queue_prefixes=[],
         prefetch_seconds=30,
         limit=None,
     )
@@ -176,7 +145,6 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
         name=None,
         work_pool_name="test",
         work_queues=[],
-        work_queue_prefixes=[],
         prefetch_seconds=100,
         limit=None,
     )
@@ -205,7 +173,6 @@ def test_start_worker_with_limit(monkeypatch):
         name=None,
         work_pool_name="test",
         work_queues=[],
-        work_queue_prefixes=[],
         prefetch_seconds=10,
         limit=5,
     )
@@ -285,28 +252,5 @@ async def test_worker_errors_if_no_type_and_non_existent_work_pool():
         expected_output_contains=[
             "Work pool 'not-here' does not exist. To create a new work pool "
             "on worker startup, include a worker type with the --type option."
-        ],
-    )
-
-
-async def test_errors_if_work_queues_and_match_used_together():
-    await run_sync_in_worker_thread(
-        invoke_and_assert,
-        command=[
-            "worker",
-            "start",
-            "--run-once",
-            "-p",
-            "not-here",
-            "-q",
-            "wq-1",
-            "-m",
-            "wq",
-            "-n",
-            "test-worker",
-        ],
-        expected_code=1,
-        expected_output_contains=[
-            "`work_queues` and `match` options cannot be used together.",
         ],
     )

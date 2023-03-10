@@ -39,12 +39,6 @@ async def start(
         "--work-queue",
         help="One or more work queue names for the worker to poll.",
     ),
-    work_queue_prefixes: List[str] = typer.Option(
-        None,
-        "-m",
-        "--match",
-        help="Prefixes of work queues for worker to poll.",
-    ),
     worker_type: Optional[str] = typer.Option(
         None, "-t", "--type", help="The type of worker to start."
     ),
@@ -63,11 +57,6 @@ async def start(
     """
     Start a worker process to poll a work pool for flow runs.
     """
-    if work_queues and work_queue_prefixes:
-        exit_with_error(
-            "`work_queues` and `match` options cannot be used together.",
-            style="red",
-        )
     try:
         if worker_type is None:
             async with get_client() as client:
@@ -94,7 +83,6 @@ async def start(
         name=worker_name,
         work_pool_name=work_pool_name,
         work_queues=work_queues,
-        work_queue_prefixes=work_queue_prefixes,
         limit=limit,
         prefetch_seconds=prefetch_seconds,
     ) as worker:

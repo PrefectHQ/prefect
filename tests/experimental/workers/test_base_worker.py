@@ -133,16 +133,6 @@ async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
     assert (tmp_path / "workflows").exists()
 
 
-async def test_raises_when_work_queues_and_prefixes_are_both_provided():
-    with pytest.raises(ValueError):
-        WorkerTestImpl(
-            name="test",
-            work_pool_name="test-work-pool",
-            work_queues=["wq-1", "wq-2"],
-            work_queue_prefixes=["wq"],
-        )
-
-
 async def test_worker_creates_work_pool_by_default_during_sync(
     orion_client: PrefectClient,
 ):
@@ -415,122 +405,6 @@ async def test_worker_with_work_pool_and_work_queue(
         submitted_flow_runs = await worker.get_and_submit_flow_runs()
 
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
-
-
-async def test_worker_with_work_pool_and_work_queue_prefix(
-    orion_client: PrefectClient,
-    worker_deployment_wq1,
-    worker_deployment_wq_2,
-    work_pool,
-):
-    @flow
-    def test_flow():
-        pass
-
-    create_run_with_deployment_1 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id, state=state
-        )
-    )
-    create_run_with_deployment_2 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment_wq_2.id, state=state
-        )
-    )
-    flow_runs = [
-        await create_run_with_deployment_1(Pending()),
-        await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-        ),
-        await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        ),
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        ),
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
-        ),
-        await create_run_with_deployment_1(Running()),
-        await create_run_with_deployment_1(Completed()),
-        await orion_client.create_flow_run(test_flow, state=Scheduled()),
-    ]
-    flow_run_ids = [run.id for run in flow_runs]
-
-    async with WorkerTestImpl(
-        work_pool_name=work_pool.name, work_queue_prefixes=["wq"]
-    ) as worker:
-        submitted_flow_runs = await worker.get_and_submit_flow_runs()
-
-    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
-
-
-async def test_worker_with_work_pool_and_changing_work_queue_prefix(
-    orion_client: PrefectClient,
-    worker_deployment_wq1,
-    worker_deployment_wq_2,
-    work_pool,
-    work_queue_1,
-    work_queue_2,
-    caplog,
-    add_prefect_loggers_to_caplog,
-):
-    @flow
-    def test_flow():
-        pass
-
-    create_run_with_deployment_1 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment_wq1.id, state=state
-        )
-    )
-    create_run_with_deployment_2 = (
-        lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment_wq_2.id, state=state
-        )
-    )
-    flow_runs = [
-        await create_run_with_deployment_1(Pending()),
-        await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-        ),
-        await create_run_with_deployment_1(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        ),
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        ),
-        await create_run_with_deployment_2(
-            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
-        ),
-        await create_run_with_deployment_1(Running()),
-        await create_run_with_deployment_1(Completed()),
-        await orion_client.create_flow_run(test_flow, state=Scheduled()),
-    ]
-    flow_run_ids = [run.id for run in flow_runs]
-
-    async with WorkerTestImpl(
-        work_pool_name=work_pool.name, work_queue_prefixes=["wq"]
-    ) as worker:
-        submitted_flow_runs = await worker.get_and_submit_flow_runs()
-
-        assert {flow_run.id for flow_run in submitted_flow_runs} == set(
-            flow_run_ids[1:4]
-        )
-
-        await orion_client.update_work_queue(work_queue_1.id, name="a-different-name")
-
-        submitted_flow_runs = await worker.get_and_submit_flow_runs()
-
-        assert {flow_run.id for flow_run in submitted_flow_runs} == set(
-            [flow_run_ids[3]]
-        )
-
-    assert (
-        f"Matched new work queues: {work_queue_1.name}, {work_queue_2.name}"
-        in caplog.text
-    )
-    assert f"Work queues no longer matched: {work_queue_1.name}" in caplog.text
 
 
 async def test_worker_with_work_pool_and_limit(
