@@ -99,32 +99,19 @@ def patch_read_deployment(monkeypatch, overrides: dict = None):
 
 @pytest.fixture
 def work_pool():
-    job_template = {
-        "job_configuration": {
-            "command": "{{ command }}",
-            "working_dir": "{{ working_dir }}",
-            "stream_output": "{{ stream_output }}",
-        },
-        "variables": {
-            "properties": {
-                "command": {
-                    "type": "array",
-                    "title": "Command",
-                    "items": {"type": "string"},
-                },
-                "working_dir": {
-                    "type": "string",
-                    "title": "Working Directory",
-                    "default": None,
-                },
-                "stream_output": {
-                    "type": "boolean",
-                    "title": "Stream Output",
-                    "default": True,
-                },
-            },
-            "required": [],
-        },
+    job_template = ProcessWorker.get_default_base_job_template()
+
+    work_pool = MagicMock(spec=WorkPool)
+    work_pool.name = "test-worker-pool"
+    work_pool.base_job_template = job_template
+    return work_pool
+
+
+@pytest.fixture
+def work_pool_with_default_env():
+    job_template = ProcessWorker.get_default_base_job_template()
+    job_template["variables"]["properties"]["env"]["default"] = {
+        "CONFIG_ENV_VAR": "from_job_configuration"
     }
 
     work_pool = MagicMock(spec=WorkPool)
@@ -159,7 +146,75 @@ async def test_worker_process_run_flow_run(
                 "prefect.engine",
             ],
         )
-        assert mock.call_args.kwargs["env"] == {"PREFECT__FLOW_RUN_ID": flow_run.id.hex}
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+
+
+async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
+    flow_run, patch_run_process, work_pool_with_default_env, monkeypatch
+):
+    monkeypatch.setenv("EXISTING_ENV_VAR", "from_os")
+    mock: AsyncMock = patch_run_process()
+    read_deployment_mock = patch_read_deployment(monkeypatch)
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        result = await worker.run(
+            flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+
+        mock.assert_awaited_once
+        assert mock.call_args.args == (
+            [
+                sys.executable,
+                "-m",
+                "prefect.engine",
+            ],
+        )
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
+        assert (
+            mock.call_args.kwargs["env"]["CONFIG_ENV_VAR"] == "from_job_configuration"
+        )
+
+
+async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
+    flow_run, patch_run_process, work_pool_with_default_env, monkeypatch
+):
+    monkeypatch.setenv("EXISTING_ENV_VAR", "from_os")
+    mock: AsyncMock = patch_run_process()
+    read_deployment_mock = patch_read_deployment(
+        monkeypatch, overrides={"env": {"NEW_ENV_VAR": "from_deployment"}}
+    )
+
+    async with ProcessWorker(
+        work_pool_name=work_pool_with_default_env.name,
+    ) as worker:
+        worker._work_pool = work_pool_with_default_env
+        result = await worker.run(
+            flow_run,
+            configuration=await worker._get_configuration(flow_run),
+        )
+
+        assert isinstance(result, ProcessWorkerResult)
+        assert result.status_code == 0
+
+        mock.assert_awaited_once
+        assert mock.call_args.args == (
+            [
+                sys.executable,
+                "-m",
+                "prefect.engine",
+            ],
+        )
+        assert mock.call_args.kwargs["env"]["PREFECT__FLOW_RUN_ID"] == flow_run.id.hex
+        assert mock.call_args.kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
+        assert mock.call_args.kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
 
 
 async def test_process_created_then_marked_as_started(
