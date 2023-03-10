@@ -915,7 +915,7 @@ async def test_agent_displays_message_on_work_queue_pause(
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
-        assert f"Work queue 'wq' ({work_queue.id}) is paused." in prefect_caplog.text
+        assert f"Work queue 'wq-1' ({work_queue.id}) is paused." in prefect_caplog.text
 
 
 async def test_agent_with_work_queue_and_work_pool(
