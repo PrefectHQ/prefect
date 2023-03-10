@@ -78,7 +78,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
             "start",
             "-p",
             process_work_pool.name,
-            "-q",
+            "--work-queue",
             "a",
             "-q",
             "b",
@@ -91,6 +91,35 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
         work_pool_name=process_work_pool.name,
         work_queues=["a", "b"],
         work_queue_prefixes=[],
+        prefetch_seconds=ANY,
+        limit=None,
+    )
+
+
+def test_start_worker_with_work_queue_prefixes(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(
+        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
+    )
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "--match",
+            "a",
+            "-m",
+            "b",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=[],
+        work_queue_prefixes=["a", "b"],
         prefetch_seconds=ANY,
         limit=None,
     )
