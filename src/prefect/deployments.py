@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -45,7 +45,7 @@ from prefect.utilities.slugify import slugify
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name: str,
+    name: Union[str, UUID],
     client: Optional[PrefectClient] = None,
     parameters: Optional[dict] = None,
     scheduled_time: Optional[datetime] = None,
@@ -64,7 +64,7 @@ async def run_deployment(
     checking the state of the flow run if completion is important moving forward.
 
     Args:
-        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        name: The deployment id or deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
             defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
@@ -86,7 +86,20 @@ async def run_deployment(
 
     parameters = parameters or {}
 
-    deployment = await client.read_deployment_by_name(name)
+    deployment_id = None
+
+    if isinstance(name, UUID):
+        deployment_id = name
+    else:
+        try:
+            deployment_id = UUID(name)
+        except ValueError:
+            pass
+
+    if deployment_id:
+        deployment = await client.read_deployment(deployment_id=deployment_id)
+    else:
+        deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
@@ -101,14 +114,20 @@ async def run_deployment(
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
 
+        if deployment_id:
+            flow = await client.read_flow(deployment.flow_id)
+            deployment_name = f"{flow.name}/{deployment.name}"
+        else:
+            deployment_name = name
+
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
-            name=name,
+            name=deployment_name,
             fn=lambda: None,
             version=deployment.version,
         )
         # Override the default task key to include the deployment name
-        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(name)}"
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=flow_run_ctx.flow_run.id,
