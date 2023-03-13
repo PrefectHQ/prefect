@@ -54,7 +54,8 @@ class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
 
-    Click [here](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/) to see a tutorial.
+    For a guided tutorial, see [How to use Kubernetes with Prefect](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/).
+    For more information, including examples for customizing the resulting manifest, see [`KubernetesJob` infrastructure concepts](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob).
 
     Attributes:
         cluster_config: An optional Kubernetes cluster config to use for this job.
