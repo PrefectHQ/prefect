@@ -47,7 +47,7 @@ The following built-in roles have permissions within a given workspace in Prefec
 | Role | Abilities |
 | --- | --- |
 | Viewer | &bull; View flow runs within a workspace. <br> &bull; View deployments within a workspace. <br> &bull; View all work pools within a workspace. <br> &bull; View all blocks within a workspace. <br> &bull; View all automations within a workspace. <br> &bull; View workspace handle and description. |
-| Runner | All Viewer abilities, _plus_: <br> &bull; View and run deployments within a workspace. |
+| Runner | All Viewer abilities, _plus_: <br> &bull; Run deployments within a workspace. |
 | Developer | All Runner abilities, _plus_: <br> &bull; Run flows within a workspace. <br> &bull; Delete flow runs within a workspace. <br> &bull; Create, edit, and delete deployments within a workspace. <br> &bull; Create, edit, and delete work pools within a workspace. <br> &bull; Create, edit, and delete all blocks and their secrets within a workspace. <br> &bull; Create, edit, and delete automations within a workspace. <br> &bull; View all workspace settings. |
 | Owner | All Developer abilities, _plus_: <br> &bull; Add and remove organization members, and set their role within a workspace. <br> &bull; Set the workspace’s default workspace role for all users in the organization. <br> &bull; Set, view, edit workspace settings. |
 
