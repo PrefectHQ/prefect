@@ -88,21 +88,21 @@ class Call(Generic[T]):
         self.cancel_context = CancelContext(timeout=timeout)
         logger.debug("Set cancel context %r for call %r", self.cancel_context, self)
 
-    def set_portal(self, portal: "Portal") -> None:
+    def set_runner(self, portal: "Portal") -> None:
         """
-        Update the portal used to run manage this call.
+        Update the portal used to run this call.
         """
         if self.runner is not None:
             raise RuntimeError("The portal is already set for this call.")
 
         self.runner = portal
 
-    def set_callback_portal(self, portal: "Portal") -> None:
+    def set_waiter(self, portal: "Portal") -> None:
         """
-        Set a portal to handle callbacks for this call.
+        Set a portal to run callbacks while waiting for this call.
         """
         if self.waiter is not None:
-            raise RuntimeError("A callback portal has already been set for this call.")
+            raise RuntimeError("A waiter has already been set for this call.")
 
         self.waiter = portal
 
@@ -184,12 +184,10 @@ class Call(Generic[T]):
         return self.cancel_context.cancelled() or self.future.cancelled()
 
     def _run_sync(self):
-        cancel_context = self.cancel_context
-
         try:
             with set_current_call(self):
-                with cancel_sync_at(cancel_context.deadline) as ctx:
-                    ctx.chain(cancel_context)
+                with cancel_sync_at(self.cancel_context.deadline) as ctx:
+                    ctx.chain(self.cancel_context)
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -197,34 +195,26 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
-            if not isinstance(exc, TimeoutError):
-                cancel_context.mark_completed()
             self.future.set_exception(exc)
             logger.debug("Encountered exception in call %r", self)
             # Prevent reference cycle in `exc`
             del self
         else:
-            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished call %r", self)
 
     async def _run_async(self, coro):
-        cancel_context = self.cancel_context
-
         try:
             with set_current_call(self):
-                with cancel_async_at(cancel_context.deadline) as ctx:
-                    ctx.chain(cancel_context)
+                with cancel_async_at(self.cancel_context.deadline) as ctx:
+                    ctx.chain(self.cancel_context)
                     result = await coro
         except BaseException as exc:
-            if not isinstance(exc, asyncio.CancelledError):
-                cancel_context.mark_completed()
             logger.debug("Encountered exception %s in async call %r", exc, self)
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self
         else:
-            cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished async call %r", self)
 

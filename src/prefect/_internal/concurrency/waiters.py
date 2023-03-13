@@ -5,6 +5,7 @@ waits for the result of the call.
 
 import abc
 import asyncio
+import contextlib
 import inspect
 import queue
 import threading
@@ -15,6 +16,7 @@ from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
+    CancelledError,
     cancel_async_at,
     cancel_sync_at,
 )
@@ -38,7 +40,7 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         if not isinstance(call, Call):  # Guard against common mistake
             raise TypeError(f"Expected call of type `Call`; got {call!r}.")
 
-        call.set_callback_portal(self)
+        call.set_waiter(self)
         self._call = call
         self._owner_thread = threading.current_thread()
 
@@ -72,10 +74,10 @@ class SyncWaiter(Waiter[T]):
         Submit a callback to execute while waiting.
         """
         self._queue.put_nowait(call)
-        call.set_portal(self)
+        call.set_runner(self)
         return call
 
-    def _watch_for_callbacks(self, cancel_context: CancelContext):
+    def _handle_waiting_callbacks(self, cancel_context: CancelContext):
         logger.debug("Watching for work sent to waiter %r", self)
         while True:
             callback: Call = self._queue.get()
@@ -89,6 +91,20 @@ class SyncWaiter(Waiter[T]):
             callback.run()
             del callback
 
+    @contextlib.contextmanager
+    def _handle_done_callbacks(self):
+        try:
+            yield
+        except CancelledError:
+            # If the waiter is cancelled, we'll also cancel the call
+            self._call.cancel_context.cancel()
+        finally:
+            # Call done callbacks
+            while self._done_callbacks:
+                callback = self._done_callbacks.pop()
+                if callback:
+                    callback.run()
+
     def add_done_callback(self, callback: Call):
         if self._done_event.is_set():
             raise RuntimeError("Cannot add done callbacks to done waiters.")
@@ -99,23 +115,18 @@ class SyncWaiter(Waiter[T]):
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
 
-        # Cancel work sent to the waiter if the future exceeds its timeout
-        with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
-            self._watch_for_callbacks(ctx)
+        with self._handle_done_callbacks():
+            # Cancel work sent to the waiter if the future exceeds its timeout
+            with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
+                self._handle_waiting_callbacks(ctx)
 
-        logger.debug(
-            "Waiter %r retrieving result of future %r", self, self._call.future
-        )
+            logger.debug(
+                "Waiter %r retrieving result of future %r", self, self._call.future
+            )
 
-        # Wait for the future to be done
-        self._call.future.add_done_callback(lambda _: self._done_event.set())
-        self._done_event.wait()
-
-        # Call done callbacks
-        while self._done_callbacks:
-            callback = self._done_callbacks.pop()
-            if callback:
-                callback.run()
+            # Wait for the future to be done
+            self._call.future.add_done_callback(lambda _: self._done_event.set())
+            self._done_event.wait()
 
         return self._call.future.result()
 
@@ -142,7 +153,7 @@ class AsyncWaiter(Waiter[T]):
 
         # We must put items in the queue from the event loop that owns it
         call_soon_in_loop(self._loop, self._queue.put_nowait, call)
-        call.set_portal(self)
+        call.set_runner(self)
         return call
 
     def _resubmit_early_submissions(self):
@@ -151,7 +162,7 @@ class AsyncWaiter(Waiter[T]):
             self.submit(call)
         self._early_submissions = []
 
-    async def _watch_for_callbacks(self, cancel_context: CancelContext):
+    async def _handle_waiting_callbacks(self, cancel_context: CancelContext):
         logger.debug("Watching for work sent to %r", self)
         tasks = []
 
@@ -173,6 +184,20 @@ class AsyncWaiter(Waiter[T]):
         # Tasks are collected and awaited as a group; if each task was awaited in the
         # above loop, async work would not be executed concurrently
         await asyncio.gather(*tasks)
+
+    @contextlib.asynccontextmanager
+    async def _handle_done_callbacks(self):
+        try:
+            yield
+        except asyncio.CancelledError:
+            # If the waiter is cancelled, we'll also cancel the call
+            self._call.cancel_context.cancel()
+        finally:
+            # Call done callbacks
+            while self._done_callbacks:
+                callback = self._done_callbacks.pop()
+                if callback:
+                    await self._run_done_callback(callback)
 
     async def _run_done_callback(self, callback: Call):
         coro = callback.run()
@@ -196,20 +221,15 @@ class AsyncWaiter(Waiter[T]):
             lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
         )
 
-        # Cancel work sent to the waiter if the future exceeds its timeout
-        with cancel_async_at(self._call.cancel_context.deadline) as ctx:
-            await self._watch_for_callbacks(ctx)
+        async with self._handle_done_callbacks():
+            # Cancel work sent to the waiter if the future exceeds its timeout
+            with cancel_async_at(self._call.cancel_context.deadline) as ctx:
+                await self._handle_waiting_callbacks(ctx)
 
-        logger.debug("Waiter %r retrieving result", self)
+            logger.debug("Waiter %r retrieving result", self)
 
-        # Wait for the future to be done
-        self._call.future.add_done_callback(lambda _: self._done_event.set())
-        await self._done_event.wait()
-
-        # Call done callbacks
-        while self._done_callbacks:
-            callback = self._done_callbacks.pop()
-            if callback:
-                await self._run_done_callback(callback)
+            # Wait for the future to be done
+            self._call.future.add_done_callback(lambda _: self._done_event.set())
+            await self._done_event.wait()
 
         return self._call.future.result()

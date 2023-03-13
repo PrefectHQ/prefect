@@ -235,39 +235,53 @@ def _alarm_based_timeout(timeout: Optional[float]):
     if not current_thread is threading.main_thread():
         raise ValueError("Alarm based timeouts can only be used in the main thread.")
 
-    deadline = get_deadline(timeout)
-
-    def raise_alarm_as_timeout(*_):
-        logger.debug(
-            "Cancel fired for alarm based timeout of thread %r", current_thread.name
-        )
-        ctx.mark_cancelled()
-        raise (
-            TimeoutError()
-            if timeout is not None and time.monotonic() >= deadline
-            else CancelledError()
-        )
-
     # Create a context that raises an alarm signal on cancellation
     ctx = CancelContext(
         timeout=timeout, cancel=lambda: signal.raise_signal(signal.SIGALRM)
     )
 
+    chains = []
+
+    def sigalarm_to_error(*args):
+        logger.debug("Cancel fired for alarm based cancel context %r", ctx)
+
+        # There are nested
+        for chain in chains:
+            chain(*args)
+
+        # Cancel this context
+        if ctx.mark_cancelled():
+            raise (
+                TimeoutError()
+                if timeout is not None and time.monotonic() >= ctx._deadline
+                else CancelledError()
+            )
+
     # Capture alarm signals and raise a timeout
-    signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
+    previous_signal_handler = signal.signal(signal.SIGALRM, sigalarm_to_error)
+
+    if (
+        getattr(previous_signal_handler, "__qualname__", None)
+        == "_alarm_based_timeout.<locals>.sigalarm_to_error"
+    ):
+        chains.append(previous_signal_handler)
 
     # Set a timer to raise an alarm signal
     if timeout is not None:
         # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
-        previous = signal.setitimer(signal.ITIMER_REAL, timeout)
+        previous_timer = signal.setitimer(signal.ITIMER_REAL, timeout)
 
     try:
         yield ctx
     finally:
         if timeout is not None:
-            # Clear the alarm when the context exits
-            signal.setitimer(signal.ITIMER_REAL, *previous)
+            # Restore the previous timer
+            signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+
         ctx.mark_completed()
+
+        # Restore the previous signal handler
+        signal.signal(signal.SIGALRM, previous_signal_handler)
 
 
 @contextlib.contextmanager
@@ -289,11 +303,12 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
         time.sleep(timeout)
         if not event.is_set():
             logger.debug(
-                "Cancel fired for watcher based timeout of thread %r",
+                "Cancel fired for watcher based timeout for thread %r and context %r",
                 supervised_thread.name,
+                ctx,
             )
-            ctx.mark_cancelled()
-            _send_exception_to_thread(supervised_thread, TimeoutError)
+            if ctx.mark_cancelled():
+                _send_exception_to_thread(supervised_thread, TimeoutError)
 
     if timeout is not None:
         enforcer = threading.Thread(target=timeout_enforcer, daemon=True)

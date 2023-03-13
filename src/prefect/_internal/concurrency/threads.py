@@ -51,7 +51,7 @@ class WorkerThread(Portal):
             self.start()
 
         # Track the portal running the call
-        call.set_portal(self)
+        call.set_runner(self)
 
         # Put the call in the queue
         self._queue.put_nowait(call)
@@ -147,7 +147,7 @@ class EventLoopThread(Portal):
             raise RuntimeError("Worker is shutdown.")
 
         # Track the portal running the call
-        call.set_portal(self)
+        call.set_runner(self)
 
         # Submit the call to the event loop
         asyncio.run_coroutine_threadsafe(self._run_call(call), self._loop)
