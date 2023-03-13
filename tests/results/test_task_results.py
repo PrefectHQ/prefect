@@ -94,6 +94,27 @@ async def test_task_with_uncached_and_unpersisted_result(orion_client):
         await api_state.result()
 
 
+async def test_task_with_uncached_and_unpersisted_null_result(orion_client):
+    @flow
+    def foo():
+        return bar(return_state=True)
+
+    @task(persist_result=False, cache_result_in_memory=False)
+    def bar():
+        return None
+
+    flow_state = foo(return_state=True)
+    task_state = await flow_state.result()
+    # Nulls do not consume memory and are still available
+    assert await task_state.result() is None
+
+    api_state = (
+        await orion_client.read_task_run(task_state.state_details.task_run_id)
+    ).state
+    with pytest.raises(MissingResult):
+        await api_state.result()
+
+
 async def test_task_with_uncached_but_persisted_result(orion_client):
     @flow
     def foo():
@@ -227,7 +248,7 @@ async def test_task_result_storage(orion_client, source):
     await assert_uses_result_storage(api_state, storage)
 
 
-async def test_task_result_not_missing_with_null_return(orion_client):
+async def test_task_result_missing_with_null_return(orion_client):
     @flow
     def foo():
         return bar(return_state=True)
@@ -243,7 +264,8 @@ async def test_task_result_not_missing_with_null_return(orion_client):
     api_state = (
         await orion_client.read_task_run(task_state.state_details.task_run_id)
     ).state
-    assert await api_state.result() is None
+    with pytest.raises(MissingResult):
+        await api_state.result()
 
 
 @pytest.mark.parametrize("value", [True, False, None])

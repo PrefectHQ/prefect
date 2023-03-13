@@ -239,6 +239,10 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
     ):
         state = retval
 
+        # Do not modify states with data documents attached; backwards compatibility
+        if isinstance(state.data, DataDocument):
+            return state
+
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
