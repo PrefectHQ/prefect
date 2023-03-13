@@ -8,7 +8,7 @@ import docker
 import pytest
 
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
-from prefect.infrastructure.docker import (
+from prefect.infrastructure.container import (
     CONTAINER_LABELS,
     DockerContainer,
     DockerRegistry,

@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 import prefect
 from prefect.cli.dev import dev_app
-from prefect.infrastructure.docker import CONTAINER_LABELS
+from prefect.infrastructure.container import CONTAINER_LABELS
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     docker_client,
