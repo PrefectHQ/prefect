@@ -24,7 +24,7 @@
     "@playwright/test": "1.31.2",
     "@prefecthq/eslint-config": "1.0.23",
     "@vitejs/plugin-vue": "4.0.0",
-    "autoprefixer": "10.4.13",
+    "autoprefixer": "10.4.14",
     "dotenv": "16.0.3",
     "eslint": "^8.35.0",
     "ts-node": "10.9.1",
