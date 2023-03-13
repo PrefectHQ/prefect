@@ -84,7 +84,7 @@ class from_async(_base):
             raise RuntimeError("No call found in context.")
 
         call.set_timeout(timeout)
-        current_call.add_callback(call)
+        current_call.add_waiting_callback(call)
         return call
 
 
@@ -116,5 +116,5 @@ class from_sync(_base):
             raise RuntimeError("No call found in context.")
 
         call.set_timeout(timeout)
-        current_call.add_callback(call)
+        current_call.add_waiting_callback(call)
         return call

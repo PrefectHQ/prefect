@@ -95,7 +95,7 @@ def test_sync_waiter_timeout_in_main_thread():
 
         def on_worker_thread():
             callback = Call.new(time.sleep, 1)
-            call.add_callback(callback)
+            call.add_waiting_callback(callback)
             return callback
 
         call = Call.new(on_worker_thread)
@@ -148,7 +148,7 @@ async def test_async_waiter_timeout_in_main_thread():
             nonlocal callback
             # Send sleep to the main thread
             callback = Call.new(asyncio.sleep, 1)
-            call.add_callback(callback)
+            call.add_waiting_callback(callback)
 
         call = Call.new(on_worker_thread)
 
@@ -222,7 +222,7 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
         def on_worker_thread():
             # Send exception to the main thread
             callback = Call.new(raise_fn, exception_cls("test"))
-            call.add_callback(callback)
+            call.add_waiting_callback(callback)
             return callback
 
         call = Call.new(on_worker_thread)
@@ -267,7 +267,7 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
         def on_worker_thread():
             # Send exception to the main thread
             callback = Call.new(raise_fn, exception_cls("test"))
-            call.add_callback(callback)
+            call.add_waiting_callback(callback)
             return callback
 
         call = Call.new(on_worker_thread)

@@ -237,11 +237,7 @@ def sync_compatible(async_fn: T) -> T:
             # In the main async context; return the coro for them to await
             logger.debug(f"{async_fn} --> return coroutine for user await")
             return async_fn(*args, **kwargs)
-        elif (
-            current_call
-            and current_call.callback_portal
-            and not is_async_fn(current_call.fn)
-        ):
+        elif current_call and current_call.waiter and not is_async_fn(current_call.fn):
             logger.debug(f"{async_fn} --> run async in callback portal")
             return from_sync.send_callback(
                 create_call(async_fn, *args, **kwargs)

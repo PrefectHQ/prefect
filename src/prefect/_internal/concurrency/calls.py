@@ -63,8 +63,8 @@ class Call(Generic[T]):
     cancel_context: CancelContext = dataclasses.field(
         default_factory=lambda: CancelContext(timeout=None)
     )
-    portal: Optional["Portal"] = None
-    callback_portal: Optional["Portal"] = None
+    runner: Optional["Portal"] = None
+    waiter: Optional["Portal"] = None
 
     @classmethod
     def new(cls, __fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> "Call[T]":
@@ -92,31 +92,31 @@ class Call(Generic[T]):
         """
         Update the portal used to run manage this call.
         """
-        if self.portal is not None:
+        if self.runner is not None:
             raise RuntimeError("The portal is already set for this call.")
 
-        self.portal = portal
+        self.runner = portal
 
     def set_callback_portal(self, portal: "Portal") -> None:
         """
         Set a portal to handle callbacks for this call.
         """
-        if self.callback_portal is not None:
+        if self.waiter is not None:
             raise RuntimeError("A callback portal has already been set for this call.")
 
-        self.callback_portal = portal
+        self.waiter = portal
 
-    def add_callback(self, call: "Call") -> None:
+    def add_waiting_callback(self, call: "Call") -> None:
         """
-        Send a callback to the callback handler.
+        Send a callback to the waiter.
         """
-        if self.callback_portal is None:
-            raise RuntimeError("No callback handler has been configured.")
+        if self.waiter is None:
+            raise RuntimeError("No waiter has been configured.")
 
         if self.future.done():
             raise RuntimeError("The call is already done.")
 
-        self.callback_portal.submit(call)
+        self.waiter.submit(call)
 
     def run(self) -> Optional[Awaitable[T]]:
         """
