@@ -4,9 +4,11 @@ Access attributes of the current deployment run dynamically.
 Available attributes:
     - id: the deployment's unique ID
     - flow_run_id: the current flow run ID for this deployment
-    - parameters: the parameters that were passed to this run
+    - parameters: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values passed from the API
 """
 import os
+import warnings
 from typing import Any, List
 
 from prefect.client.orchestration import get_client
@@ -35,14 +37,36 @@ def __dir__() -> List[str]:
 
 def get_id():
     flow_run = FlowRunContext.get()
-    if flow_run is None:
-        return os.getenv("PREFECT__FLOW_RUN_ID")
+    deployment_id = getattr(flow_run, "deployment_id", None)
+    if deployment_id is None:
+        run_id = os.getenv("PREFECT__FLOW_RUN_ID")
+        if run_id is None:
+            return
+        client = get_client()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            flow_run = sync(client.read_flow_run, run_id)
+        return flow_run.deployment_id
     else:
-        return flow_run.flow_run.id
+        return deployment_id
+
+
+def get_parameters():
+    run_id = os.getenv("PREFECT__FLOW_RUN_ID")
+    if run_id is None:
+        return
+
+    client = get_client()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        flow_run = sync(client.read_flow_run, run_id)
+    return flow_run.parameters or {}
 
 
 def get_flow_run_id():
     return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
-FIELDS = {"id": get_id, "flow_run_id": get_flow_run_id}
+FIELDS = {"id": get_id, "flow_run_id": get_flow_run_id, "parameters": get_parameters}
