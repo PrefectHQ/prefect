@@ -773,6 +773,78 @@ def test_job_configuration_from_template_and_overrides(template, overrides, expe
     assert config.dict() == expected
 
 
+def test_job_configuration_from_template_and_overrides_with_nested_variables():
+    template = {
+        "job_configuration": {
+            "config": {
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            }
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                    "title": "Var1",
+                },
+                "var2": {
+                    "type": "integer",
+                    "title": "Var2",
+                    "default": 42,
+                },
+            },
+        },
+        "required": ["var1"],
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
+
+    config = ArbitraryJobConfiguration.from_template_and_overrides(
+        base_job_template=template, deployment_overrides={"var1": "woof!"}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": {
+            "var1": "woof!",
+            "var2": 42,
+        },
+    }
+
+
+def test_job_configuration_from_template_and_overrides_with_variables_in_a_list():
+    template = {
+        "job_configuration": {"config": ["{{ var1 }}", "{{ var2 }}"]},
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                    "title": "Var1",
+                },
+                "var2": {
+                    "type": "integer",
+                    "title": "Var2",
+                    "default": 42,
+                },
+            },
+        },
+        "required": ["var1"],
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: list = Field(template=["{{ var1 }}", "{{ var2 }}"])
+
+    config = ArbitraryJobConfiguration.from_template_and_overrides(
+        base_job_template=template, deployment_overrides={"var1": "woof!"}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": ["woof!", 42],
+    }
+
+
 @pytest.mark.parametrize(
     "falsey_value",
     [

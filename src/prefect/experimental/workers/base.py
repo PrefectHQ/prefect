@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Any, Dict, List, Optional, Set, Type, Union
+from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
 from uuid import uuid4
 
 import anyio
@@ -20,6 +20,17 @@ from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+
+
+class Unset:
+    def __bool__(self) -> bool:
+        return False
+
+
+UNSET: Unset = Unset()
+
+
+T = TypeVar("T")
 
 
 class BaseJobConfiguration(BaseModel):
@@ -63,11 +74,9 @@ class BaseJobConfiguration(BaseModel):
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config = base_job_template["job_configuration"]
+        job_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-        variables = cls._base_variables_from_variable_properties(
-            variables_schema["properties"]
-        )
+        variables = cls._get_base_config_defaults(variables_schema["properties"])
         variables.update(deployment_overrides)
 
         populated_configuration = cls._apply_variables(job_config, variables)
@@ -96,57 +105,68 @@ class BaseJobConfiguration(BaseModel):
 
         return configuration
 
-    @staticmethod
-    def _apply_variables(job_config: Dict[str, str], variables: Dict[str, Any]):
+    @classmethod
+    def _apply_variables(cls, object: T, variables: Dict[str, Any]) -> Union[T, Unset]:
         """
-        Apply variables to a job configuration template by interpolating variables into the placeholders in the
-        template.
+        Apply variables to a job configuration template by recursively walking an object
+        and interpolating variables into any placeholders found.
 
-        If a value in the job configuration contains only a single placeholder, the value will be fully replaced
-        with the value.
+        If a value in the job configuration contains only a single placeholder, the
+        value will be fully replaced with the value.
 
-        If a value in the job configuration contains text before and after a placeholder or there are multiple
-        placeholders, the placeholders will be replaced with the corresponding variable values.
+        If a value in the job configuration contains text before and after a
+        placeholder or there are multiple placeholders, the placeholders will
+        be replaced with the corresponding variable values.
+
+        This method will return an UNSET value if the object contains a placeholder
+        that does not have a corresponding variable value.
 
         Args:
-            job_config: The job configuration portion of a base job template to apply variables to
+            object: Object to discover and replace variables in
             variables: The variables to apply to the job configuration
 
         Returns:
             The job configuration with variables applied
         """
         variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
-        applied_config = {}
-        for key, value in (job_config or {}).items():
-            used_variables = variable_capture_regex.findall(value)
+
+        if isinstance(object, str):
+            used_variables = variable_capture_regex.findall(object)
             if not used_variables:
                 # If there are no variables, we can just use the value
-                applied_config[key] = value
-            elif (
-                len(used_variables) == 1
-                and used_variables[0][0] == value
-                and variables[used_variables[0][1]] is not None
-            ):
-                # If there is only one variable with no surrounding text, we can just replace it
-                applied_config[key] = variables[key]
+                return object
+            elif len(used_variables) == 1 and used_variables[0][0] == object:
+                # If there is only one variable with no surrounding text,
+                # we can replace it. If there is no variable value, we
+                # return UNSET to indicate that the value should not be included.
+                return variables.get(used_variables[0][1], UNSET)
             else:
                 for full_match, variable_name in used_variables:
                     if (
                         variable_name in variables
                         and variables[variable_name] is not None
                     ):
-                        applied_config[key] = value.replace(
-                            full_match, variables[variable_name]
+                        object = object.replace(
+                            full_match, variables.get(variable_name, "")
                         )
-        return applied_config
+                return object
+        elif isinstance(object, dict):
+            updated_object = {}
+            for key, value in object.items():
+                updated_value = cls._apply_variables(value, variables)
+                if updated_value is not UNSET:
+                    updated_object[key] = updated_value
 
-    @classmethod
-    def _base_variables_from_variable_properties(cls, variable_properties):
-        """Get base template variables."""
-        default_variables = cls._get_base_config_defaults(variable_properties)
-        variables = {key: None for key in variable_properties.keys()}
-        variables.update(default_variables)
-        return variables
+            return updated_object
+        elif isinstance(object, list):
+            updated_list = []
+            for value in object:
+                updated_value = cls._apply_variables(value, variables)
+                if updated_value is not UNSET:
+                    updated_list.append(updated_value)
+            return updated_list
+        else:
+            raise ValueError(f"Unexpected type: {type(object)}")
 
 
 class BaseVariables(BaseModel):
