@@ -146,7 +146,7 @@ class AsyncWaiter(Waiter[T]):
         """
         Submit a callback to execute while waiting.
         """
-        if not self._loop:
+        if not self._queue:
             # If the loop is not yet available, just push the call to a stack
             self._early_submissions.append(call)
             return call
@@ -157,7 +157,7 @@ class AsyncWaiter(Waiter[T]):
         return call
 
     def _resubmit_early_submissions(self):
-        assert self._loop
+        assert self._queue
         for call in self._early_submissions:
             self.submit(call)
         self._early_submissions = []
