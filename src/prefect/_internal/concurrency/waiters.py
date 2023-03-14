@@ -141,6 +141,7 @@ class AsyncWaiter(Waiter[T]):
         self._early_submissions: List[Call] = []
         self._done_callbacks = []
         self._done_event = Event()
+        self._done_waiting = False
 
     def submit(self, call: Call):
         """
@@ -170,24 +171,27 @@ class AsyncWaiter(Waiter[T]):
         )
         tasks = []
 
-        while True:
-            callback: Call = await self._queue.get()
-            if callback is None:
-                break
+        try:
+            while True:
+                callback: Call = await self._queue.get()
+                if callback is None:
+                    break
 
-            # We could set the deadline for the callback to match the call we are
-            # waiting for, but callbacks can have their own timeout and we don't want to
-            # override it
-            cancel_context.chain(callback.cancel_context)
-            retval = callback.run()
-            if inspect.isawaitable(retval):
-                tasks.append(retval)
+                # We could set the deadline for the callback to match the call we are
+                # waiting for, but callbacks can have their own timeout and we don't want to
+                # override it
+                cancel_context.chain(callback.cancel_context)
+                retval = callback.run()
+                if inspect.isawaitable(retval):
+                    tasks.append(retval)
 
-            del callback
+                del callback
 
-        # Tasks are collected and awaited as a group; if each task was awaited in the
-        # above loop, async work would not be executed concurrently
-        await asyncio.gather(*tasks)
+            # Tasks are collected and awaited as a group; if each task was awaited in the
+            # above loop, async work would not be executed concurrently
+            await asyncio.gather(*tasks)
+        finally:
+            self._done_waiting = True
 
     @contextlib.asynccontextmanager
     async def _handle_done_callbacks(self):
@@ -214,6 +218,12 @@ class AsyncWaiter(Waiter[T]):
         else:
             self._done_callbacks.append(callback)
 
+    def _signal_stop_waiting(self):
+        # Only send a `None` to the queue if the waiter is still blocked reading from
+        # the queue. Otherwise, it's possible that the event loop is stopped.
+        if not self._done_waiting:
+            call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+
     async def result(self) -> T:
         # Assign the loop
         self._loop = asyncio.get_running_loop()
@@ -221,9 +231,7 @@ class AsyncWaiter(Waiter[T]):
         self._resubmit_early_submissions()
 
         # Stop watching for work once the future is done
-        self._call.future.add_done_callback(
-            lambda _: call_soon_in_loop(self._loop, self._queue.put_nowait, None)
-        )
+        self._call.future.add_done_callback(lambda _: self._signal_stop_waiting())
 
         async with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
