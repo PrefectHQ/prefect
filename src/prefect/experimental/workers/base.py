@@ -213,8 +213,6 @@ class BaseWorker(abc.ABC):
             work_pool_name: The name of the work pool to poll.
             work_queues: A list of work queues to poll. If not provided, all
                 work queue in the work pool will be polled.
-            work_queue_prefixes: A list of prefixes of work queues to poll. May not
-                be used with `work_queues`.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             workflow_storage_path: The filesystem path to workflow storage for
                 this worker.
