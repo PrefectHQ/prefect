@@ -235,7 +235,7 @@ class BaseWorker(abc.ABC):
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
-        self._workflow_storage_path: Path = (
+        self._workflow_storage_path: anyio.Path = anyio.Path(
             workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
@@ -321,7 +321,7 @@ class BaseWorker(abc.ABC):
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
         # Setup workflows directory
-        self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
+        await self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
         self.is_setup = True
 
@@ -400,12 +400,13 @@ class BaseWorker(abc.ABC):
         to apply the deployments defined in the discovered manifests.
         """
         self._logger.debug("Scanning %s for deployments", self._workflow_storage_path)
-        possible_deployment_files = self._workflow_storage_path.glob("*.yaml")
-        for possible_deployment_file in possible_deployment_files:
-            if possible_deployment_file.is_file:
+        async for possible_deployment_file in self._workflow_storage_path.glob(
+            "*.yaml"
+        ):
+            if await possible_deployment_file.is_file():
                 await self._attempt_to_apply_deployment(possible_deployment_file)
 
-    async def _attempt_to_apply_deployment(self, deployment_manifest_path: Path):
+    async def _attempt_to_apply_deployment(self, deployment_manifest_path: anyio.Path):
         """
         Attempts to apply a deployment from a discovered .yaml file. Will not apply
         if validation fails when loading the deployment from the discovered .yaml file.
