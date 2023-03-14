@@ -1225,7 +1225,7 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["infrastructure_document_id"] == str(
             deployment.infrastructure_document_id
         )
-        assert response.json()["work_queue_name"] == "wq"
+        assert response.json()["work_queue_name"] == deployment.work_queue_name
 
     async def test_create_flow_run_from_deployment_uses_work_queue_name(
         self, deployment, client, session
