@@ -813,6 +813,25 @@ def test_job_configuration_from_template_and_overrides_with_nested_variables():
     }
 
 
+def test_job_configuration_from_template_and_overrides_with_hard_coded_primitives():
+    template = {
+        "job_configuration": {"config": {"var1": 1, "var2": 1.1, "var3": True}},
+        "variables": {},
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
+
+    config = ArbitraryJobConfiguration.from_template_and_overrides(
+        base_job_template=template, deployment_overrides={}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": {"var1": 1, "var2": 1.1, "var3": True},
+    }
+
+
 def test_job_configuration_from_template_and_overrides_with_variables_in_a_list():
     template = {
         "job_configuration": {"config": ["{{ var1 }}", "{{ var2 }}"]},

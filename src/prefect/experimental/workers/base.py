@@ -76,7 +76,9 @@ class BaseJobConfiguration(BaseModel):
         """
         job_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-        variables = cls._get_base_config_defaults(variables_schema["properties"])
+        variables = cls._get_base_config_defaults(
+            variables_schema.get("properties", {})
+        )
         variables.update(deployment_overrides)
 
         populated_configuration = cls._apply_variables(job_config, variables)
@@ -130,6 +132,8 @@ class BaseJobConfiguration(BaseModel):
         """
         variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
 
+        if isinstance(object, (int, float, bool)):
+            return object
         if isinstance(object, str):
             used_variables = variable_capture_regex.findall(object)
             if not used_variables:
