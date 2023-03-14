@@ -152,12 +152,7 @@ class DeploymentCreate(ActionBaseModel):
         """
         variables_schema = base_job_template.get("variables")
         if variables_schema is not None:
-            schema = {
-                "type": "object",
-                "properties": variables_schema["properties"],
-                "required": variables_schema["required"],
-            }
-            jsonschema.validate(self.infra_overrides, schema)
+            jsonschema.validate(self.infra_overrides, variables_schema)
 
 
 @experimental_field(
@@ -229,12 +224,7 @@ class DeploymentUpdate(ActionBaseModel):
         """
         variables_schema = base_job_template.get("variables")
         if variables_schema is not None:
-            schema = {
-                "type": "object",
-                "properties": variables_schema["properties"],
-                "required": variables_schema["required"],
-            }
-            jsonschema.validate(self.infra_overrides, schema)
+            jsonschema.validate(self.infra_overrides, variables_schema)
 
 
 @copy_model_fields

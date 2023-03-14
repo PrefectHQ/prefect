@@ -1,6 +1,7 @@
 import copy
 import enum
 import json
+import math
 import os
 import time
 from contextlib import contextmanager
@@ -53,7 +54,8 @@ class KubernetesJob(Infrastructure):
     """
     Runs a command as a Kubernetes Job.
 
-    Click [here](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/) to see a tutorial.
+    For a guided tutorial, see [How to use Kubernetes with Prefect](https://medium.com/the-prefect-blog/how-to-use-kubernetes-with-prefect-419b2e8b8cb2/).
+    For more information, including examples for customizing the resulting manifest, see [`KubernetesJob` infrastructure concepts](https://docs.prefect.io/concepts/infrastructure/#kubernetesjob).
 
     Attributes:
         cluster_config: An optional Kubernetes cluster config to use for this job.
@@ -651,7 +653,9 @@ class KubernetesJob(Infrastructure):
             completed = job.status.completion_time is not None
 
             while not completed:
-                remaining_time = deadline - time.monotonic() if deadline else None
+                remaining_time = (
+                    math.ceil(deadline - time.monotonic()) if deadline else None
+                )
                 if deadline and remaining_time <= 0:
                     self.logger.error(
                         f"Job {job_name!r}: Job did not complete within "

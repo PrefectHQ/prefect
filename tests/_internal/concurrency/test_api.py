@@ -110,7 +110,7 @@ async def test_from_async_send_callback_from_worker_allows_concurrency():
     async def sleep_then_set(n):
         # Sleep for an inverse amount so later tasks sleep less
         print(f"Starting task {n}")
-        await asyncio.sleep(1 / (n * 100))
+        await asyncio.sleep(1 / (n * 10))
         nonlocal last_task_run
         last_task_run = n
         print(f"Finished task {n}")
