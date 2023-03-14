@@ -1,10 +1,11 @@
 """
 Command line interface for working with projects.
 """
+import json
 import os
-import pathlib
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 import typer
@@ -17,7 +18,9 @@ from prefect.cli.deployment import _print_deployment_work_pool_instructions
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.deployments import Deployment
+from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import set_default_ignore_file
 
 project_app = PrefectTyper(
@@ -31,12 +34,26 @@ def set_default_deployment_yaml(path: str) -> bool:
     Creates default deployment.yaml file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
     """
-    path = pathlib.Path(path)
+    path = Path(path)
     if (path / "deployment.yaml").exists():
         return False
-    default_file = pathlib.Path(__file__).parent / "templates" / "deployment.yaml"
+    default_file = Path(__file__).parent / "templates" / "deployment.yaml"
     with open(path / "deployment.yaml", "w") as f:
         f.write(default_file.read_text())
+    return True
+
+
+def set_prefect_hidden_dir() -> bool:
+    """
+    Creates default .prefect directory if one does not already exist.
+    Returns boolean specifying whether a directory was created.
+    """
+    path = Path(".") / ".prefect"
+
+    # use exists so that we dont accidentally overwrite a file
+    if path.exists():
+        return False
+    path.mkdir()
     return True
 
 
@@ -47,10 +64,10 @@ def set_default_project_yaml(
     Creates default project.yaml file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
     """
-    path = pathlib.Path(path)
+    path = Path(path)
     if (path / "project.yaml").exists():
         return False
-    default_file = pathlib.Path(__file__).parent / "templates" / "project.yaml"
+    default_file = Path(__file__).parent / "templates" / "project.yaml"
     with open(default_file, "r") as df:
         contents = yaml.safe_load(df)
     contents["prefect-version"] = prefect.__version__
@@ -135,6 +152,8 @@ async def init(name: str = None):
         files.append("[green]deployment.yaml[/green]")
     if set_default_project_yaml(".", name=name, pull_step=pull_step):
         files.append("[green]project.yaml[/green]")
+    if set_prefect_hidden_dir():
+        files.append("[green].prefect/[/green]")
 
     files = "\n".join(files)
     empty_msg = f"Created project [green]{name!r}[/green]; no new files created."
@@ -150,6 +169,67 @@ async def clone():
     """
     Clone an existing project.
     """
+
+
+@project_app.command()
+async def register(
+    entrypoint: str = typer.Argument(
+        ...,
+        help=(
+            "The path to a flow entrypoint, in the form of"
+            " `./path/to/file.py:flow_func_name`"
+        ),
+    )
+):
+    """
+    Register a flow with this project.
+    """
+    try:
+        fpath, obj_name = entrypoint.rsplit(":", 1)
+    except ValueError as exc:
+        if str(exc) == "not enough values to unpack (expected 2, got 1)":
+            missing_flow_name_msg = (
+                "Your flow entrypoint must include the name of the function that is"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            )
+            exit_with_error(missing_flow_name_msg)
+        else:
+            raise exc
+    try:
+        flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+    except Exception as exc:
+        exit_with_error(exc)
+
+    fpath = Path(fpath).absolute()
+    path = Path(".").resolve()
+    parent = path.parent.resolve()
+    while path != parent:
+        prefect_dir = path.joinpath(".prefect")
+        if prefect_dir.is_dir():
+            if (prefect_dir / "flows.json").exists():
+                with open(prefect_dir / "flows.json", "r") as f:
+                    flows = json.load(f)
+            else:
+                flows = {}
+            flows[flow.name] = str(fpath.relative_to(path)) + f":{obj_name}"
+            with open(prefect_dir / "flows.json", "w") as f:
+                json.dump(flows, f, sort_keys=True, indent=2)
+            app.console.print(
+                (
+                    f"Registered flow {flow.name!r} in"
+                    f" {(prefect_dir/'flows.json').resolve()!s}"
+                ),
+                style="green",
+            )
+            return
+
+        fpath = Path("..") / fpath
+        path = parent.resolve()
+        parent = path.parent.resolve()
+    exit_with_error(
+        "No .prefect directory could be found - run [yellow]`prefect project"
+        " init`[/yellow] to create one."
+    )
 
 
 @project_app.command()
@@ -249,7 +329,7 @@ async def deploy(
     ),
 ):
     """
-    Deploy this project using the steps defined in `project.yaml` and create a deployment from `deployment.yaml` and the provided CLI overrides.
+    Deploy this project and create a deployment.
     """
     with open("deployment.yaml", "r") as f:
         base_deploy = yaml.safe_load(f)
