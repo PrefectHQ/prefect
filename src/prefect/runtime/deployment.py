@@ -20,12 +20,12 @@ Available attributes:
         object or those directly provided via API for this run
 """
 import os
-import warnings
 from typing import Any, List, Optional
 
-from prefect.client.orchestration import get_client
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.context import FlowRunContext
-from prefect.utilities.asyncutils import sync
+
+from .flow_run import _get_flow_run
 
 __all__ = ["id", "flow_run_id", "parameters"]
 
@@ -54,11 +54,9 @@ def get_id() -> Optional[str]:
         run_id = get_flow_run_id()
         if run_id is None:
             return None
-        client = get_client()
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            flow_run = sync(client.read_flow_run, run_id)
+        flow_run = from_sync.call_soon_in_new_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
         if flow_run.deployment_id:
             return str(flow_run.deployment_id)
         else:
@@ -72,11 +70,9 @@ def get_parameters() -> dict:
     if run_id is None:
         return {}
 
-    client = get_client()
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        flow_run = sync(client.read_flow_run, run_id)
+    flow_run = from_sync.call_soon_in_new_thread(
+        create_call(_get_flow_run, run_id)
+    ).result()
     return flow_run.parameters or {}
 
 

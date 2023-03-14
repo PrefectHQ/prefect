@@ -8,12 +8,11 @@ Available attributes:
     - `tags`: the flow run's set of tags
 """
 import os
-import warnings
 from typing import Any, List
 
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
-from prefect.utilities.asyncutils import sync
 
 __all__ = ["id", "tags"]
 
@@ -35,6 +34,11 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
+async def _get_flow_run(flow_run_id):
+    async with get_client() as client:
+        return await client.read_flow_run(flow_run_id)
+
+
 def get_id() -> str:
     flow_run = FlowRunContext.get()
     if flow_run is None:
@@ -49,11 +53,9 @@ def get_tags():
     if flow_run is None and run_id is None:
         return []
     elif flow_run is None:
-        client = get_client()
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            flow_run = sync(client.read_flow_run, run_id)
+        flow_run = from_sync.call_soon_in_new_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
 
         return flow_run.tags
     else:
