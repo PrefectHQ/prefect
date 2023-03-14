@@ -5,6 +5,7 @@ Utilities for enforcement of timeouts in synchronous and asynchronous contexts.
 import asyncio
 import contextlib
 import ctypes
+import math
 import signal
 import sys
 import threading
