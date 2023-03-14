@@ -46,6 +46,8 @@ class TestID:
         def flow_with_new_id():
             return flow_run.id
 
+        new_id = flow_with_new_id()
+        assert isinstance(new_id, str)
         assert flow_with_new_id() != "foo"
         assert flow_run.id == "foo"
 

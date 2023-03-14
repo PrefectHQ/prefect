@@ -13,6 +13,7 @@ from typing import Any, List
 
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
+from prefect.utilities.asyncutils import sync
 
 
 __all__ = ["id", "flow_run_id"]
@@ -47,9 +48,9 @@ def get_id():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             flow_run = sync(client.read_flow_run, run_id)
-        return flow_run.deployment_id
+        return str(flow_run.deployment_id)
     else:
-        return deployment_id
+        return str(deployment_id)
 
 
 def get_parameters():

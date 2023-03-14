@@ -34,12 +34,12 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-def get_id():
+def get_id() -> str:
     flow_run = FlowRunContext.get()
     if flow_run is None:
         return os.getenv("PREFECT__FLOW_RUN_ID")
     else:
-        return flow_run.flow_run.id
+        return str(flow_run.flow_run.id)
 
 
 def get_tags():

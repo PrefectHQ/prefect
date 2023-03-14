@@ -3,6 +3,18 @@ import pytest
 from prefect.runtime import deployment
 
 
+@pytest.fixture
+async def deployment_id(flow, orion_client):
+    response = await orion_client.create_deployment(
+        name="My Deployment",
+        version="gold",
+        flow_id=flow.id,
+        tags=["foo"],
+        parameters={"foo": "bar"},
+    )
+    return response
+
+
 class TestAttributeAccessPatterns:
     async def test_access_unknown_attribute_fails(self):
         with pytest.raises(AttributeError, match="beep"):
@@ -29,6 +41,16 @@ class TestID:
 
     async def test_id_is_none_when_not_set(self):
         assert deployment.id is None
+
+    async def test_id_is_loaded_when_run_id_known(
+        self, deployment_id, monkeypatch, orion_client
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
+
+        assert deployment.id is None
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.id == str(deployment_id)
 
 
 class TestFlowRunId:
