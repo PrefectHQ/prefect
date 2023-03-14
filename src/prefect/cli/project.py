@@ -29,6 +29,21 @@ project_app = PrefectTyper(
 app.add_typer(project_app, aliases=["projects"])
 
 
+def find_prefect_directory() -> Optional[Path]:
+    """
+    Recurses upward looking for .prefect/ directories.  If found is never found, `None` is returned.
+    """
+    path = Path(".").resolve()
+    parent = path.parent.resolve()
+    while path != parent:
+        prefect_dir = path.joinpath(".prefect")
+        if prefect_dir.is_dir():
+            return prefect_dir
+
+        path = parent.resolve()
+        parent = path.parent.resolve()
+
+
 def set_default_deployment_yaml(path: str) -> bool:
     """
     Creates default deployment.yaml file in the provided path if one does not already exist;
@@ -201,34 +216,29 @@ async def register(
         exit_with_error(exc)
 
     fpath = Path(fpath).absolute()
-    path = Path(".").resolve()
-    parent = path.parent.resolve()
-    while path != parent:
-        prefect_dir = path.joinpath(".prefect")
-        if prefect_dir.is_dir():
-            if (prefect_dir / "flows.json").exists():
-                with open(prefect_dir / "flows.json", "r") as f:
-                    flows = json.load(f)
-            else:
-                flows = {}
-            flows[flow.name] = str(fpath.relative_to(path)) + f":{obj_name}"
-            with open(prefect_dir / "flows.json", "w") as f:
-                json.dump(flows, f, sort_keys=True, indent=2)
-            app.console.print(
-                (
-                    f"Registered flow {flow.name!r} in"
-                    f" {(prefect_dir/'flows.json').resolve()!s}"
-                ),
-                style="green",
-            )
-            return
+    prefect_dir = find_prefect_directory()
+    if not prefect_dir:
+        exit_with_error(
+            "No .prefect directory could be found - run [yellow]`prefect project"
+            " init`[/yellow] to create one."
+        )
 
-        fpath = Path("..") / fpath
-        path = parent.resolve()
-        parent = path.parent.resolve()
-    exit_with_error(
-        "No .prefect directory could be found - run [yellow]`prefect project"
-        " init`[/yellow] to create one."
+    entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
+
+    if (prefect_dir / "flows.json").exists():
+        with open(prefect_dir / "flows.json", "r") as f:
+            flows = json.load(f)
+    else:
+        flows = {}
+
+    flows[flow.name] = entrypoint
+
+    with open(prefect_dir / "flows.json", "w") as f:
+        json.dump(flows, f, sort_keys=True, indent=2)
+
+    app.console.print(
+        f"Registered flow {flow.name!r} in {(prefect_dir/'flows.json').resolve()!s}",
+        style="green",
     )
 
 
