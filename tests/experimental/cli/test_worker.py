@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 
 import prefect
@@ -65,6 +67,34 @@ async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
     assert work_pool.default_queue_id is not None
 
 
+def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(
+        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
+    )
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "--work-queue",
+            "a",
+            "-q",
+            "b",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=["a", "b"],
+        prefetch_seconds=ANY,
+        limit=None,
+    )
+
+
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
     monkeypatch.setattr(
@@ -87,6 +117,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=30,
         limit=None,
     )
@@ -113,6 +144,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=100,
         limit=None,
     )
@@ -140,6 +172,7 @@ def test_start_worker_with_limit(monkeypatch):
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=10,
         limit=5,
     )

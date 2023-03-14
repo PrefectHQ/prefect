@@ -1,7 +1,7 @@
 import abc
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -194,6 +194,7 @@ class BaseWorker(abc.ABC):
     def __init__(
         self,
         work_pool_name: str,
+        work_queues: Optional[List[str]] = None,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
         workflow_storage_path: Optional[Path] = None,
@@ -209,8 +210,9 @@ class BaseWorker(abc.ABC):
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            work_pool_name: The name of the work pool to use. If not
-                provided, the default will be used.
+            work_pool_name: The name of the work pool to poll.
+            work_queues: A list of work queues to poll. If not provided, all
+                work queue in the work pool will be polled.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
             workflow_storage_path: The filesystem path to workflow storage for
                 this worker.
@@ -228,6 +230,7 @@ class BaseWorker(abc.ABC):
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
         self._work_pool_name = work_pool_name
+        self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -469,6 +472,7 @@ class BaseWorker(abc.ABC):
                 await self._client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
+                    work_queue_names=list(self._work_queues),
                 )
             )
             self._logger.debug(

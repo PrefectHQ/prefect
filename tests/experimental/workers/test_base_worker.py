@@ -65,7 +65,7 @@ async def ensure_default_agent_pool_exists(session):
 
 
 @pytest.fixture
-async def worker_deployment(
+async def worker_deployment_wq1(
     session,
     flow,
     flow_function,
@@ -77,7 +77,7 @@ async def worker_deployment(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name="My Deployment 1",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -86,9 +86,38 @@ async def worker_deployment(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def worker_deployment_wq_2(
+    session,
+    flow,
+    flow_function,
+    work_queue_2,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 2",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_2.id,
         ),
     )
     await session.commit()
@@ -289,8 +318,8 @@ async def test_worker_does_not_raise_on_malformed_manifests(
         assert len(await orion_client.read_deployments()) == 0
 
 
-async def test_worker_with_work_queue(
-    orion_client: PrefectClient, worker_deployment, work_pool
+async def test_worker_with_work_pool(
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     @flow
     def test_flow():
@@ -298,7 +327,7 @@ async def test_worker_with_work_queue(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [
@@ -329,8 +358,57 @@ async def test_worker_with_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
 
 
-async def test_worker_with_work_queue_and_limit(
-    orion_client: PrefectClient, worker_deployment, work_pool
+async def test_worker_with_work_pool_and_work_queue(
+    orion_client: PrefectClient,
+    worker_deployment_wq1,
+    worker_deployment_wq_2,
+    work_queue_1,
+    work_pool,
+):
+    @flow
+    def test_flow():
+        pass
+
+    create_run_with_deployment_1 = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+    )
+    create_run_with_deployment_2 = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq_2.id, state=state
+        )
+    )
+    flow_runs = [
+        await create_run_with_deployment_1(Pending()),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment_1(Running()),
+        await create_run_with_deployment_1(Completed()),
+        await orion_client.create_flow_run(test_flow, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    async with WorkerTestImpl(
+        work_pool_name=work_pool.name, work_queues=[work_queue_1.name]
+    ) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
+
+
+async def test_worker_with_work_pool_and_limit(
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     @flow
     def test_flow():
@@ -338,7 +416,7 @@ async def test_worker_with_work_queue_and_limit(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [
@@ -383,7 +461,7 @@ async def test_worker_with_work_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: PrefectClient, worker_deployment, work_pool
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     run_mock = AsyncMock()
 
@@ -393,7 +471,7 @@ async def test_worker_calls_run_with_expected_arguments(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [

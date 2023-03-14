@@ -904,7 +904,8 @@ async def test_agent_displays_message_on_work_queue_pause(
         await agent.get_and_submit_flow_runs()
 
         assert (
-            f"Work queue 'wq' ({work_queue.id}) is paused." not in prefect_caplog.text
+            f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
+            not in prefect_caplog.text
         ), "Message should not be displayed before pausing"
 
         await orion_client.update_work_queue(work_queue.id, is_paused=True)
@@ -915,7 +916,10 @@ async def test_agent_displays_message_on_work_queue_pause(
         # Should emit the paused message
         await agent.get_and_submit_flow_runs()
 
-        assert f"Work queue 'wq' ({work_queue.id}) is paused." in prefect_caplog.text
+        assert (
+            f"Work queue {work_queue.name!r} ({work_queue.id}) is paused."
+            in prefect_caplog.text
+        )
 
 
 async def test_agent_with_work_queue_and_work_pool(
