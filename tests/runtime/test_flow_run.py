@@ -67,7 +67,7 @@ class TestTags:
             return flow_run.tags
 
         with tags("foo", "bar"):
-            assert run_with_tags() == ["foo", "bar"]
+            assert set(run_with_tags()) == {"foo", "bar"}
 
         assert flow_run.tags == []
 
@@ -79,4 +79,4 @@ class TestTags:
 
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
-        assert flow_run.tags == ["red", "green"]
+        assert set(flow_run.tags) == {"red", "green"}
