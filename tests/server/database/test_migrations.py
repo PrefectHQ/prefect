@@ -33,15 +33,15 @@ async def sample_db_data(
 
 
 @pytest.mark.service("database")
-@pytest.mark.flaky(max_runs=3)
-def test_orion_full_migration_works_with_data_in_db(sample_db_data):
+@pytest.mark.timeout(120)
+async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     """
     Tests that downgrade migrations work when the database has data in it.
     """
     try:
-        alembic_downgrade()
+        await run_sync_in_worker_thread(alembic_downgrade)
     finally:
-        alembic_upgrade()
+        await run_sync_in_worker_thread(alembic_upgrade)
 
 
 @pytest.mark.parametrize(
