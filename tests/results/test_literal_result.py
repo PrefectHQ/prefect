@@ -39,7 +39,10 @@ async def test_result_literal_json_roundtrip(value):
 async def test_result_literal_populates_default_artifact_metadata(value):
     result = await LiteralResult.create(value)
     assert result.artifact_type == "result"
-    assert result.artifact_description == f"Literal: `{value}`"
+    assert (
+        result.artifact_description
+        == f"Result with value `{value}` persisted to Prefect."
+    )
 
 
 async def test_result_literal_does_not_allow_unsupported_types():
