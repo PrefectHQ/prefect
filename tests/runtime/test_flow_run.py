@@ -11,7 +11,7 @@ class TestAttributeAccessPatterns:
 
     async def test_import_unknown_attribute_fails(self):
         with pytest.raises(ImportError, match="boop"):
-            from prefect.runtime.flow_run import boop
+            from prefect.runtime.flow_run import boop  # noqa
 
     async def test_known_attributes_autocomplete(self):
         assert "id" in dir(flow_run)
