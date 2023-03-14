@@ -9,14 +9,14 @@ Available attributes:
 """
 import os
 import warnings
-from typing import Any, List
+from typing import Any, List, Optional
 
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
 from prefect.utilities.asyncutils import sync
 
 
-__all__ = ["id", "flow_run_id"]
+__all__ = ["id", "flow_run_id", "parameters"]
 
 
 def __getattr__(name: str) -> Any:
@@ -36,7 +36,7 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-def get_id():
+def get_id() -> Optional[str]:
     flow_run = FlowRunContext.get()
     deployment_id = getattr(flow_run, "deployment_id", None)
     if deployment_id is None:
@@ -53,10 +53,10 @@ def get_id():
         return str(deployment_id)
 
 
-def get_parameters():
+def get_parameters() -> dict:
     run_id = os.getenv("PREFECT__FLOW_RUN_ID")
     if run_id is None:
-        return
+        return {}
 
     client = get_client()
 
@@ -66,7 +66,7 @@ def get_parameters():
     return flow_run.parameters or {}
 
 
-def get_flow_run_id():
+def get_flow_run_id() -> Optional[str]:
     return os.getenv("PREFECT__FLOW_RUN_ID")
 
 

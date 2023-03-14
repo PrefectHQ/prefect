@@ -54,6 +54,37 @@ class TestID:
 
 
 class TestFlowRunId:
-    async def test_id_uses_env_var_when_set(self, monkeypatch):
+    async def test_run_id_is_attribute(self):
+        assert "flow_run_id" in dir(deployment)
+
+    async def test_run_id_is_none_when_not_set(self):
+        assert deployment.flow_run_id is None
+
+    async def test_run_id_uses_env_var_when_set(self, monkeypatch):
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value="foo")
         assert deployment.flow_run_id == "foo"
+
+
+class TestParameters:
+    async def test_parameters_is_attribute(self):
+        assert "parameters" in dir(deployment)
+
+    async def test_parameters_is_empty_when_not_set(self):
+        assert deployment.parameters == {}
+
+    async def test_parameters_are_loaded_when_run_id_known(
+        self, deployment_id, monkeypatch, orion_client
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
+
+        assert deployment.parameters == {}
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.parameters == {"foo": "bar"}  # see fixture at top of file
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"foo": 42}
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.parameters == {"foo": 42}
