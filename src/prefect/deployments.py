@@ -21,7 +21,7 @@ from prefect.blocks.core import Block
 from prefect.blocks.fields import SecretDict
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.utilities import inject_client
-from prefect.context import FlowRunContext, PrefectObjectRegistry
+from prefect.context import FlowRunContext, PrefectObjectRegistry, TaskRunContext
 from prefect.exceptions import (
     BlockMissingCapabilities,
     ObjectAlreadyExists,
@@ -102,6 +102,7 @@ async def run_deployment(
         deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
+    task_run_ctx = TaskRunContext.get()
     if flow_run_ctx:
         # This was called from a flow. Link the flow run as a subflow.
         from prefect.engine import (
@@ -113,6 +114,14 @@ async def run_deployment(
         task_inputs = {
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
+
+        # Link the subflow to the parent task run for an improved DAG when called from a
+        # task
+        if task_run_ctx is not None:
+            task_inputs.setdefault(
+                "prefect__parent_task_run",
+                schemas.core.TaskRunResult(id=task_run_ctx.task_run.id),
+            )
 
         if deployment_id:
             flow = await client.read_flow(deployment.flow_id)
