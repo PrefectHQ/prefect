@@ -1,9 +1,11 @@
 """
 Access attributes of the current flow run dynamically.
 
+Note that if a flow run cannot be discovered, all attributes will return empty values.
+
 Available attributes:
-    - id: the flow run's unique ID
-    - tags: the flow run's set of tags
+    - `id`: the flow run's unique ID
+    - `tags`: the flow run's set of tags
 """
 import os
 import warnings

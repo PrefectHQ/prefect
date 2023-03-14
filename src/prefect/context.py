@@ -2,6 +2,8 @@
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
+
+For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
 import os
 import sys
@@ -127,9 +129,9 @@ class PrefectObjectRegistry(ContextModel):
     )
 
     # Failures will be a tuple of (exception, instance, args, kwargs)
-    _instance_init_failures: Dict[Type[T], List[Tuple[Exception, T, Tuple, Dict]]] = (
-        PrivateAttr(default_factory=lambda: defaultdict(list))
-    )
+    _instance_init_failures: Dict[
+        Type[T], List[Tuple[Exception, T, Tuple, Dict]]
+    ] = PrivateAttr(default_factory=lambda: defaultdict(list))
 
     block_code_execution: bool = False
     capture_failures: bool = False

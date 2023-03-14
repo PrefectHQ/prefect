@@ -1,11 +1,14 @@
 """
 Access attributes of the current deployment run dynamically.
 
+Note that if a deployment is not currently being run, all attributes will return empty values.
+
 Available attributes:
-    - id: the deployment's unique ID
-    - flow_run_id: the current flow run ID for this deployment
-    - parameters: the parameters that were passed to this run; note that these do not necessarily
-        include default values set on the flow function, only the parameter values passed from the API
+    - `id`: the deployment's unique ID
+    - `flow_run_id`: the current flow run ID for this deployment
+    - `parameters`: the parameters that were passed to this run; note that these do not necessarily
+        include default values set on the flow function, only the parameter values set on the deployment
+        object or those directly provided via API for this run
 """
 import os
 import warnings
