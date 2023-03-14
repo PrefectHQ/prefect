@@ -309,9 +309,6 @@ def _alarm_based_timeout(timeout: Optional[float]):
         # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
         previous_timer = signal.setitimer(signal.ITIMER_REAL, timeout)
 
-    signal.signal(signal.SIGALRM, raise_alarm_as_timeout)
-    # Use `setitimer` instead of `signal.alarm` for float support; raises a SIGALRM
-    previous = signal.setitimer(signal.ITIMER_REAL, timeout)
     try:
         yield ctx
     finally:
