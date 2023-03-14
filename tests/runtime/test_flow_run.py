@@ -1,5 +1,6 @@
 import pytest
-from prefect import flow
+
+from prefect import flow, tags
 from prefect.runtime import flow_run
 
 
@@ -47,3 +48,23 @@ class TestID:
 
         assert flow_with_new_id() != "foo"
         assert flow_run.id == "foo"
+
+
+class TestTags:
+    async def test_tags_is_attribute(self):
+        assert "tags" in dir(flow_run)
+
+    async def test_tags_is_empty_when_not_set(self):
+        assert flow_run.tags == []
+
+    async def test_tags_returns_tags_when_present_dynamically(self):
+        assert flow_run.tags == []
+
+        @flow
+        def run_with_tags():
+            return flow_run.tags
+
+        with tags("foo", "bar"):
+            assert run_with_tags() == ["foo", "bar"]
+
+        assert flow_run.tags == []

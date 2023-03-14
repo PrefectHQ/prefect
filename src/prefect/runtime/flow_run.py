@@ -3,6 +3,7 @@ Access attributes of the current flow run dynamically.
 
 Available attributes:
     - id: the flow run's unique ID
+    - tags: the flow run's set of tags
 """
 import os
 from typing import Any, List
@@ -11,7 +12,7 @@ from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
 
 
-__all__ = ["id"]
+__all__ = ["id", "tags"]
 
 
 def __getattr__(name: str) -> Any:
@@ -39,4 +40,13 @@ def get_id():
         return flow_run.flow_run.id
 
 
-FIELDS = {"id": get_id}
+def get_tags():
+    flow_run = FlowRunContext.get()
+    if flow_run is None:
+        # TODO: query the API
+        return []
+    else:
+        return flow_run.flow_run.tags
+
+
+FIELDS = {"id": get_id, "tags": get_tags}
