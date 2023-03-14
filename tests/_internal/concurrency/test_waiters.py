@@ -5,6 +5,7 @@ import pytest
 
 from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.threads import WorkerThread
+from prefect._internal.concurrency.timeouts import CancelledError
 from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
 
 
@@ -107,10 +108,10 @@ def test_sync_waiter_timeout_in_main_thread():
         callback = waiter.result()
         t1 = time.time()
 
-    # The timeout error is not raised by `waiter.result()` because the worker
+    # The cancelled error is not raised by `waiter.result()` because the worker
     # does not check the result of the call; however, the work that was sent
-    # to the main thread should have a timeout error
-    with pytest.raises(TimeoutError):
+    # to the main thread should have a cancelled error
+    with pytest.raises(CancelledError):
         callback.result()
 
     assert t1 - t0 < 1

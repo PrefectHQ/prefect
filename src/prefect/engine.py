@@ -173,7 +173,7 @@ def enter_flow_run_engine_from_flow_call(
     if not is_subflow_run:
         # On completion of root flows, wait for the global thread to ensure that the
         # any work there is complete
-        waiter.add_done_callback(lambda _: wait_for_global_loop_exit())
+        waiter.add_done_callback(create_call(wait_for_global_loop_exit))
 
     return waiter.result()
 

@@ -19,7 +19,7 @@ from prefect._internal.concurrency.timeouts import (
 async def test_cancel_context():
     ctx = CancelContext(timeout=1)
     assert not ctx.cancelled()
-    ctx.mark_cancelled()
+    ctx.cancel()
     assert ctx.cancelled()
 
 
@@ -28,7 +28,7 @@ async def test_cancel_context_chain():
     ctx2 = CancelContext(timeout=None)
     ctx1.chain(ctx2)
     assert not ctx2.cancelled()
-    ctx1.mark_cancelled()
+    ctx1.cancel()
     assert ctx1.cancelled()
     assert ctx2.cancelled()
 
@@ -36,7 +36,7 @@ async def test_cancel_context_chain():
 async def test_cancel_context_chain_cancelled_first():
     ctx1 = CancelContext(timeout=1)
     ctx2 = CancelContext(timeout=None)
-    ctx1.mark_cancelled()
+    ctx1.cancel()
     ctx1.chain(ctx2)
     assert ctx1.cancelled()
     assert ctx2.cancelled()
@@ -47,7 +47,7 @@ async def test_cancel_context_chain_cancelled_after_completed():
     ctx2 = CancelContext(timeout=None)
     ctx1.chain(ctx2)
     ctx2.mark_completed()
-    ctx1.mark_cancelled()
+    ctx1.cancel()
     assert ctx1.cancelled()
     assert not ctx2.cancelled()
 
@@ -185,7 +185,6 @@ def test_cancel_sync_manually_in_main_thread():
                     time.sleep(0.1)
 
     t1 = time.perf_counter()
-
     assert ctx.cancelled()
     assert t1 - t0 < 1
 

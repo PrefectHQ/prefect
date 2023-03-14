@@ -130,7 +130,10 @@ class Call(Generic[T]):
             return None
 
         logger.debug(
-            "Running call %r in thread %r", self, threading.current_thread().name
+            "Running call %r in thread %r with cancel context %r",
+            self,
+            threading.current_thread().name,
+            self.cancel_context,
         )
 
         coro = self.context.run(self._run_sync)
@@ -187,7 +190,7 @@ class Call(Generic[T]):
         try:
             with set_current_call(self):
                 with cancel_sync_at(self.cancel_context.deadline) as ctx:
-                    ctx.chain(self.cancel_context)
+                    ctx.chain(self.cancel_context, bidirectional=True)
                     result = self.fn(*self.args, **self.kwargs)
 
             # Return the coroutine for async execution
@@ -195,22 +198,26 @@ class Call(Generic[T]):
                 return result
 
         except BaseException as exc:
+            self.cancel_context.mark_completed()
             self.future.set_exception(exc)
             logger.debug("Encountered exception in call %r", self)
             # Prevent reference cycle in `exc`
             del self
         else:
+            self.cancel_context.mark_completed()
             self.future.set_result(result)
             logger.debug("Finished call %r", self)
 
     async def _run_async(self, coro):
         try:
             with set_current_call(self):
-                with cancel_async_at(self.cancel_context.deadline) as ctx:
-                    ctx.chain(self.cancel_context)
-                    result = await coro
+                with self.cancel_context:
+                    with cancel_async_at(self.cancel_context.deadline) as ctx:
+                        logger.debug("%r using async cancel scope %r", self, ctx)
+                        ctx.chain(self.cancel_context, bidirectional=True)
+                        result = await coro
         except BaseException as exc:
-            logger.debug("Encountered exception %s in async call %r", exc, self)
+            logger.debug("Encountered exception in async call %r", self, exc_info=True)
             self.future.set_exception(exc)
             # Prevent reference cycle in `exc`
             del self

@@ -16,7 +16,6 @@ from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
 from prefect._internal.concurrency.timeouts import (
     CancelContext,
-    CancelledError,
     cancel_async_at,
     cancel_sync_at,
 )
@@ -78,7 +77,11 @@ class SyncWaiter(Waiter[T]):
         return call
 
     def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug("Watching for work sent to waiter %r", self)
+        logger.debug(
+            "Waiter %r watching for callbacks with cancel context %r",
+            self,
+            cancel_context,
+        )
         while True:
             callback: Call = self._queue.get()
             if callback is None:
@@ -95,9 +98,6 @@ class SyncWaiter(Waiter[T]):
     def _handle_done_callbacks(self):
         try:
             yield
-        except CancelledError:
-            # If the waiter is cancelled, we'll also cancel the call
-            self._call.cancel_context.cancel()
         finally:
             # Call done callbacks
             while self._done_callbacks:
@@ -163,7 +163,11 @@ class AsyncWaiter(Waiter[T]):
         self._early_submissions = []
 
     async def _handle_waiting_callbacks(self, cancel_context: CancelContext):
-        logger.debug("Watching for work sent to %r", self)
+        logger.debug(
+            "Waiter %r watching for callbacks with cancel context %r",
+            self,
+            cancel_context,
+        )
         tasks = []
 
         while True:
@@ -189,15 +193,15 @@ class AsyncWaiter(Waiter[T]):
     async def _handle_done_callbacks(self):
         try:
             yield
-        except asyncio.CancelledError:
-            # If the waiter is cancelled, we'll also cancel the call
-            self._call.cancel_context.cancel()
         finally:
             # Call done callbacks
             while self._done_callbacks:
                 callback = self._done_callbacks.pop()
                 if callback:
-                    await self._run_done_callback(callback)
+                    import anyio
+
+                    with anyio.CancelScope(shield=True):
+                        await self._run_done_callback(callback)
 
     async def _run_done_callback(self, callback: Call):
         coro = callback.run()

@@ -72,7 +72,7 @@ async def test_async_call_result_base_exception_with_event_loop(exception_cls):
         call.result()
 
 
-@pytest.mark.parametrize("fn", [time.sleep, asyncio.sleep])
+@pytest.mark.parametrize("fn", [time.sleep, asyncio.sleep], ids=["sync", "async"])
 def test_call_timeout(fn):
     call = Call.new(fn, 2)
     call.set_timeout(1)
