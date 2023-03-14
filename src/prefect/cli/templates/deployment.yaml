@@ -1,17 +1,17 @@
 # base metadata
 name: null
 version: null
-tags: null
+tags: []
 description: null
 schedule: null
 
 # flow-specific fields
 flow_name: null
 path: null
-parameters: null
+parameters: {}
 parameter_openapi_schema: null
 
 # infra-specific fields
-work_pool: null
-work_queue: null
-infra_overrides: null
+work_pool_name: null
+work_queue_name: null
+infra_overrides: []

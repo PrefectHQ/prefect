@@ -503,7 +503,7 @@ class Deployment(BaseModel):
             data = yaml.safe_load(f)
 
             # load blocks from server to ensure secret values are properly hydrated
-            if data["storage"]:
+            if data.get("storage"):
                 block_doc_name = data["storage"].get("_block_document_name")
                 # if no doc name, this block is not stored on the server
                 if block_doc_name:
@@ -511,7 +511,7 @@ class Deployment(BaseModel):
                     block = await Block.load(f"{block_slug}/{block_doc_name}")
                     data["storage"] = block
 
-            if data["infrastructure"]:
+            if data.get("infrastructure"):
                 block_doc_name = data["infrastructure"].get("_block_document_name")
                 # if no doc name, this block is not stored on the server
                 if block_doc_name:

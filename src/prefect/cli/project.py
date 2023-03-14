@@ -5,13 +5,18 @@ import os
 import pathlib
 import subprocess
 import sys
-import textwrap
+from typing import List, Optional
+
+import typer
 import yaml
 
 import prefect
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli.deployment import _print_deployment_work_pool_instructions
 from prefect.cli.root import app
+from prefect.client.orchestration import get_client
+from prefect.deployments import Deployment
+from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.filesystem import set_default_ignore_file
 
 project_app = PrefectTyper(
@@ -63,21 +68,24 @@ def set_default_project_yaml(
 
         # build
         f.write(
-            "# build section allows you to manage docker images and produce infrastructure configuration\n"
+            "# build section allows you to manage docker images and produce"
+            " infrastructure configuration\n"
         )
         yaml.dump({"build": contents["build"]}, f, sort_keys=False)
         f.write("\n")
 
         # push
         f.write(
-            "# push section allows you to manage how this project is uploaded to remote locations\n"
+            "# push section allows you to manage how this project is uploaded to remote"
+            " locations\n"
         )
         yaml.dump({"push": contents["push"]}, f, sort_keys=False)
         f.write("\n")
 
         # pull
         f.write(
-            "# pull section allows you to provide instructions for cloning this project in new locations.\n"
+            "# pull section allows you to provide instructions for cloning this project"
+            " in new locations.\n"
         )
         yaml.dump({"pull": pull_step or contents["pull"]}, f, sort_keys=False)
     return True
@@ -136,3 +144,156 @@ async def init(name: str = None):
         f"Created project [green]{name!r} with the following new files:\n {files}"
     )
     app.console.print(file_msg if files else empty_msg)
+
+
+@project_app.command()
+async def clone():
+    """
+    Clone an existing project.
+    """
+
+
+@project_app.command()
+async def deploy(
+    entrypoint: str = typer.Option(
+        None,
+        help=(
+            "The path to a flow entrypoint, in the form of"
+            " `./path/to/file.py:flow_func_name`"
+        ),
+    ),
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give the deployment."
+    ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        "-d",
+        help=(
+            "The description to give the deployment. If not provided, the description"
+            " will be populated from the flow's description."
+        ),
+    ),
+    version: str = typer.Option(
+        None, "--version", "-v", help="A version to give the deployment."
+    ),
+    tags: List[str] = typer.Option(
+        None,
+        "-t",
+        "--tag",
+        help=(
+            "One or more optional tags to apply to the deployment. Note: tags are used"
+            " only for organizational purposes. For delegating work to agents, use the"
+            " --work-queue flag."
+        ),
+    ),
+    work_pool_name: str = typer.Option(
+        None,
+        "-p",
+        "--pool",
+        help="The work pool that will handle this deployment's runs.",
+    ),
+    work_queue_name: str = typer.Option(
+        None,
+        "-q",
+        "--work-queue",
+        help=(
+            "The work queue that will handle this deployment's runs. "
+            "It will be created if it doesn't already exist. Defaults to `None`. "
+            "Note that if a work queue is not set, work will not be scheduled."
+        ),
+    ),
+    overrides: List[str] = typer.Option(
+        None,
+        "--override",
+        help=(
+            "One or more optional infrastructure overrides provided as a dot delimited"
+            " path, e.g., `env.env_key=env_value`"
+        ),
+    ),
+    cron: str = typer.Option(
+        None,
+        "--cron",
+        help="A cron string that will be used to set a CronSchedule on the deployment.",
+    ),
+    interval: int = typer.Option(
+        None,
+        "--interval",
+        help=(
+            "An integer specifying an interval (in seconds) that will be used to set an"
+            " IntervalSchedule on the deployment."
+        ),
+    ),
+    interval_anchor: Optional[str] = typer.Option(
+        None, "--anchor-date", help="The anchor date for an interval schedule"
+    ),
+    rrule: str = typer.Option(
+        None,
+        "--rrule",
+        help="An RRule that will be used to set an RRuleSchedule on the deployment.",
+    ),
+    timezone: str = typer.Option(
+        None,
+        "--timezone",
+        help="Deployment schedule timezone string e.g. 'America/New_York'",
+    ),
+    param: List[str] = typer.Option(
+        None,
+        "--param",
+        help=(
+            "An optional parameter override, values are parsed as JSON strings e.g."
+            " --param question=ultimate --param answer=42"
+        ),
+    ),
+    params: str = typer.Option(
+        None,
+        "--params",
+        help=(
+            "An optional parameter override in a JSON string format e.g."
+            ' --params=\'{"question": "ultimate", "answer": 42}\''
+        ),
+    ),
+):
+    """
+    Deploy this project using the steps defined in `project.yaml` and create a deployment from `deployment.yaml` and the provided CLI overrides.
+    """
+    deployment = await Deployment.load_from_yaml("deployment.yaml")
+    async with get_client() as client:
+        deployment_id = await deployment.apply()
+        app.console.print(
+            (
+                f"Deployment '{deployment.flow_name}/{deployment.name}'"
+                f" successfully created with id '{deployment_id}'."
+            ),
+            style="green",
+        )
+
+        if PREFECT_UI_URL:
+            app.console.print(
+                "View Deployment in UI:"
+                f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+            )
+
+        if deployment.work_pool_name is not None:
+            await _print_deployment_work_pool_instructions(
+                work_pool_name=deployment.work_pool_name, client=client
+            )
+        elif deployment.work_queue_name is not None:
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start an agent that"
+                f" pulls work from the {deployment.work_queue_name!r} work queue:"
+            )
+            app.console.print(
+                f"$ prefect agent start -q {deployment.work_queue_name!r}",
+                style="blue",
+            )
+        else:
+            app.console.print(
+                (
+                    "\nThis deployment does not specify a work queue name, which"
+                    " means agents will not be able to pick up its runs. To add a"
+                    " work queue, edit the deployment spec and re-run this command,"
+                    " or visit the deployment in the UI."
+                ),
+                style="red",
+            )
