@@ -8,9 +8,9 @@
 /ui                            @pleek91
 
 # documentation
-/docs                                @cicdw
-mkdocs.yml                           @cicdw
-mkdocs.insiders.yml                  @cicdw
+/docs                                @PrefectHQ/docs
+mkdocs.yml                           @PrefectHQ/docs
+mkdocs.insiders.yml                  @PrefectHQ/docs
 
 # orchestration rules / policies
 /src/prefect/server/orchestration     @PrefectHQ/open-source 
