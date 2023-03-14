@@ -3,6 +3,15 @@ Access attributes of the current deployment run dynamically.
 
 Note that if a deployment is not currently being run, all attributes will return empty values.
 
+Example usage:
+    ```python
+    from prefect.runtime import deployment
+
+    def get_task_runner():
+        task_runner_config = deployment.parameters.get("runner_config", "default config here")
+        return DummyTaskRunner(task_runner_specs=task_runner_config)
+    ```
+
 Available attributes:
     - `id`: the deployment's unique ID
     - `flow_run_id`: the current flow run ID for this deployment
