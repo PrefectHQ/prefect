@@ -155,15 +155,15 @@ async def clone():
 
 @project_app.command()
 async def deploy(
+    name: str = typer.Option(
+        None, "--name", "-n", help="The name to give the deployment."
+    ),
     entrypoint: str = typer.Option(
         None,
         help=(
             "The path to a flow entrypoint, in the form of"
             " `./path/to/file.py:flow_func_name`"
         ),
-    ),
-    name: str = typer.Option(
-        None, "--name", "-n", help="The name to give the deployment."
     ),
     description: str = typer.Option(
         None,
@@ -199,8 +199,7 @@ async def deploy(
         "--work-queue",
         help=(
             "The work queue that will handle this deployment's runs. "
-            "It will be created if it doesn't already exist. Defaults to `None`. "
-            "Note that if a work queue is not set, work will not be scheduled."
+            "It will be created if it doesn't already exist. Defaults to `None`."
         ),
     ),
     overrides: List[str] = typer.Option(
@@ -257,7 +256,26 @@ async def deploy(
     """
     Deploy this project using the steps defined in `project.yaml` and create a deployment from `deployment.yaml` and the provided CLI overrides.
     """
-    deployment = await Deployment.load_from_yaml("deployment.yaml")
+    with open("deployment.yaml", "r") as f:
+        base_deploy = yaml.safe_load(f)
+
+    # set provided CLI flags
+    if name:
+        base_deploy["name"] = name
+    if tags:
+        base_deploy["tags"] = tags
+    if version:
+        base_deploy["version"] = version
+    if description:
+        base_deploy["description"] = description
+
+    if work_pool_name:
+        base_deploy["work_pool_name"] = work_pool_name
+    if work_queue_name:
+        base_deploy["work_queue_name"] = work_queue_name
+
+    deployment = Deployment(**base_deploy)
+
     async with get_client() as client:
         deployment_id = await deployment.apply()
         app.console.print(
