@@ -51,7 +51,7 @@ def get_id() -> Optional[str]:
     flow_run = FlowRunContext.get()
     deployment_id = getattr(flow_run, "deployment_id", None)
     if deployment_id is None:
-        run_id = os.getenv("PREFECT__FLOW_RUN_ID")
+        run_id = get_flow_run_id()
         if run_id is None:
             return
         client = get_client()
@@ -65,7 +65,7 @@ def get_id() -> Optional[str]:
 
 
 def get_parameters() -> dict:
-    run_id = os.getenv("PREFECT__FLOW_RUN_ID")
+    run_id = get_flow_run_id()
     if run_id is None:
         return {}
 
