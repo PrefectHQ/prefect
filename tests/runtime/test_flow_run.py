@@ -68,3 +68,13 @@ class TestTags:
             assert run_with_tags() == ["foo", "bar"]
 
         assert flow_run.tags == []
+
+    async def test_tags_pulls_from_api_when_needed(self, monkeypatch, orion_client):
+        run = await orion_client.create_flow_run(
+            flow=flow(lambda: None, name="test"), tags=["red", "green"]
+        )
+        assert flow_run.tags == []
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert flow_run.tags == ["red", "green"]
