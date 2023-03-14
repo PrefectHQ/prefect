@@ -53,13 +53,16 @@ def get_id() -> Optional[str]:
     if deployment_id is None:
         run_id = get_flow_run_id()
         if run_id is None:
-            return
+            return None
         client = get_client()
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             flow_run = sync(client.read_flow_run, run_id)
-        return str(flow_run.deployment_id)
+        if flow_run.deployment_id:
+            return str(flow_run.deployment_id)
+        else:
+            return None
     else:
         return str(deployment_id)
 

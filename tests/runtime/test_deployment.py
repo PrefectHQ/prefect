@@ -1,5 +1,6 @@
 import pytest
 
+from prefect import flow
 from prefect.runtime import deployment
 
 
@@ -39,7 +40,12 @@ class TestID:
     async def test_id_is_attribute(self):
         assert "id" in dir(deployment)
 
-    async def test_id_is_none_when_not_set(self):
+    async def test_id_is_none_when_not_set(self, monkeypatch, orion_client):
+        assert deployment.id is None
+
+        run = await orion_client.create_flow_run(flow=flow(lambda: None, name="test"))
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
         assert deployment.id is None
 
     async def test_id_is_loaded_when_run_id_known(
