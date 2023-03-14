@@ -350,6 +350,32 @@ async def deploy(
     if not name and not base_deploy["name"]:
         exit_with_error("A deployment name must be provided with the '--name' flag.")
 
+    # flow-name logic
+    if flow_name:
+        prefect_dir = find_prefect_directory()
+        if not prefect_dir:
+            exit_with_error(
+                "No .prefect directory could be found - run [yellow]`prefect project"
+                " init`[/yellow] to create one."
+            )
+        if not (prefect_dir / "flows.json").exists():
+            exit_with_error(
+                f"Flow {flow_name!r} cannot be found; run\n"
+                f"    [yellow]prefect project register ./path/to/file.py:{flow_name}[/yellow]\n"
+                "to register its location."
+            )
+        with open(prefect_dir / "flows.json", "r") as f:
+            flows = json.load(f)
+
+        if flow_name not in flows:
+            exit_with_error(
+                f"Flow {flow_name!r} cannot be found; run\n"
+                f"    [yellow]prefect project register ./path/to/file.py:{flow_name}[/yellow]\n"
+                "to register its location."
+            )
+        base_deploy["flow_name"] = flow_name
+        base_deploy["entrypoint"] = flows[flow_name]
+
     # set provided CLI flags
     if name:
         base_deploy["name"] = name
