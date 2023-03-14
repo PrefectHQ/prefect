@@ -193,6 +193,7 @@ nav:
                 - 'prefect.blocks.kubernetes': api-ref/prefect/blocks/kubernetes.md
                 - 'prefect.blocks.notifications': api-ref/prefect/blocks/notifications.md
                 - 'prefect.blocks.system': api-ref/prefect/blocks/system.md
+                - 'prefect.blocks.webhook': api-ref/prefect/blocks/webhook.md
             - 'Client':
                 - 'prefect.client.base': api-ref/prefect/client/base.md
                 - 'prefect.client.cloud': api-ref/prefect/client/cloud.md
