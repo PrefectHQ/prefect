@@ -1,6 +1,5 @@
 # Originally generated from `alembic init`
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
-from logging.config import fileConfig
 
 import sqlalchemy
 from alembic import context
@@ -12,7 +11,6 @@ from prefect.utilities.asyncutils import sync_compatible
 
 db_interface = provide_database_interface()
 config = context.config
-fileConfig(config.config_file_name, disable_existing_loggers=False)
 target_metadata = db_interface.Base.metadata
 dialect = get_dialect(db_interface.database_config.connection_url)
 
