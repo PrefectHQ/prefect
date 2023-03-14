@@ -12,6 +12,7 @@ import yaml
 
 import prefect
 from prefect.cli._types import PrefectTyper
+from prefect.cli._utilities import exit_with_error
 from prefect.cli.deployment import _print_deployment_work_pool_instructions
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
@@ -67,17 +68,14 @@ def set_default_project_yaml(
         f.write("\n")
 
         # build
-        f.write(
-            "# build section allows you to manage docker images and produce"
-            " infrastructure configuration\n"
-        )
+        f.write("# build section allows you to manage and build docker images\n")
         yaml.dump({"build": contents["build"]}, f, sort_keys=False)
         f.write("\n")
 
         # push
         f.write(
-            "# push section allows you to manage how this project is uploaded to remote"
-            " locations\n"
+            "# push section allows you to manage if and how this project is uploaded to"
+            " remote locations\n"
         )
         yaml.dump({"push": contents["push"]}, f, sort_keys=False)
         f.write("\n")
@@ -85,7 +83,7 @@ def set_default_project_yaml(
         # pull
         f.write(
             "# pull section allows you to provide instructions for cloning this project"
-            " in new locations.\n"
+            " in remote locations\n"
         )
         yaml.dump({"pull": pull_step or contents["pull"]}, f, sort_keys=False)
     return True
@@ -141,7 +139,8 @@ async def init(name: str = None):
     files = "\n".join(files)
     empty_msg = f"Created project [green]{name!r}[/green]; no new files created."
     file_msg = (
-        f"Created project [green]{name!r} with the following new files:\n {files}"
+        f"Created project [green]{name!r}[/green] with the following new files:\n"
+        f" {files}"
     )
     app.console.print(file_msg if files else empty_msg)
 
@@ -155,15 +154,11 @@ async def clone():
 
 @project_app.command()
 async def deploy(
+    flow_name: str = typer.Option(
+        None, "--flow", "-f", help="The name of the flow to create a deployment for."
+    ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
-    ),
-    entrypoint: str = typer.Option(
-        None,
-        help=(
-            "The path to a flow entrypoint, in the form of"
-            " `./path/to/file.py:flow_func_name`"
-        ),
     ),
     description: str = typer.Option(
         None,
@@ -258,6 +253,12 @@ async def deploy(
     """
     with open("deployment.yaml", "r") as f:
         base_deploy = yaml.safe_load(f)
+
+    if not flow_name and not base_deploy["flow_name"]:
+        exit_with_error("A flow name must be provided with the '--flow' flag.")
+
+    if not name and not base_deploy["name"]:
+        exit_with_error("A deployment name must be provided with the '--name' flag.")
 
     # set provided CLI flags
     if name:
