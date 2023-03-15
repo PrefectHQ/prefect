@@ -349,11 +349,11 @@ class TestSetTaskRunState:
     async def test_setting_task_run_state_twice_works(
         self, task_run, client, session, proposed_state
     ):
-        # Task runners may choose to kill and restart tasks with no way for Prefect
-        # to know it has happened. This test checks that a task can re-transition
-        # to its current state to ensure restarts occur without error.
+        # Task runner infrastructure may kill and restart tasks without informing
+        # Prefect. This test checks that a task can re-transition  its current state
+        # to ensure restarts occur without error.
 
-        # first ensure the parent flow run is in a running state
+        # first, ensure the parent flow run is in a running state
         await client.post(
             f"/flow_runs/{task_run.flow_run_id}/set_state",
             json=dict(state=dict(type="RUNNING")),
