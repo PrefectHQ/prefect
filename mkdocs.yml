@@ -46,6 +46,8 @@ theme:
         - navigation.tabs.sticky
         - search.suggest
         - search.highlight
+        - navigation.path
+
     font:
         text: Inter
         code: Source Code Pro
