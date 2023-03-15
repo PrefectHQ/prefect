@@ -440,7 +440,6 @@ async def deploy(
     async with get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
-        breakpoint()
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=base_deploy["name"],
