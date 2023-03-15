@@ -17,7 +17,6 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.deployment import _print_deployment_work_pool_instructions
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
-from prefect.deployments import Deployment
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -434,13 +433,27 @@ async def deploy(
     if work_queue_name:
         base_deploy["work_queue_name"] = work_queue_name
 
-    deployment = Deployment(**base_deploy)
-
     async with get_client() as client:
-        deployment_id = await deployment.apply()
+        flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
+
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=base_deploy["name"],
+            work_queue_name=base_deploy["work_queue_name"],
+            work_pool_name=base_deploy["work_pool_name"],
+            version=base_deploy["version"],
+            schedule=base_deploy["schedule"],
+            parameters=base_deploy["parameters"],
+            description=base_deploy["description"],
+            tags=base_deploy["tags"],
+            path=base_deploy["path"],
+            entrypoint=base_deploy["entrypoint"],
+            parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
+        )
+
         app.console.print(
             (
-                f"Deployment '{deployment.flow_name}/{deployment.name}'"
+                f"Deployment '{base_deploy['flow_name']}/{base_deploy['name']}'"
                 f" successfully created with id '{deployment_id}'."
             ),
             style="green",
@@ -452,17 +465,17 @@ async def deploy(
                 f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
             )
 
-        if deployment.work_pool_name is not None:
+        if base_deploy["work_pool_name"] is not None:
             await _print_deployment_work_pool_instructions(
-                work_pool_name=deployment.work_pool_name, client=client
+                work_pool_name=base_deploy["work_pool_name"], client=client
             )
-        elif deployment.work_queue_name is not None:
+        elif base_deploy["work_queue_name"] is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start an agent that"
-                f" pulls work from the {deployment.work_queue_name!r} work queue:"
+                f" pulls work from the {base_deploy['work_queue_name']!r} work queue:"
             )
             app.console.print(
-                f"$ prefect agent start -q {deployment.work_queue_name!r}",
+                f"$ prefect agent start -q {base_deploy['work_queue_name']!r}",
                 style="blue",
             )
         else:
