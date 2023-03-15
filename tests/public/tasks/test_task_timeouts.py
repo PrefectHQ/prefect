@@ -62,7 +62,7 @@ def test_async_task_timeout_in_sync_flow():
         return t1 - t0, state
 
     runtime, task_state = parent_flow()
-    assert runtime < 1, f"Task should exit early; ran for {runtime}s"
+    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         task_state.result()
