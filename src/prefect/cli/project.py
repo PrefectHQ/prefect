@@ -131,7 +131,7 @@ async def init(name: str = None):
 
     # determine if in git repo or use directory name as a default
     is_git_based = False
-    repo_name = None
+    repository = None
     pull_step = None
     try:
         p = subprocess.check_output(
@@ -139,9 +139,9 @@ async def init(name: str = None):
             shell=sys.platform == "win32",
             stderr=subprocess.DEVNULL,
         )
-        repo_name = "/".join(p.decode().strip().split("/")[-2:]).replace(".git", "")
+        repository = p.decode().strip()
         is_git_based = True
-        name = name or repo_name
+        name = name or "/".join(p.decode().strip().split("/")[-2:]).replace(".git", "")
     except subprocess.CalledProcessError:
         dir_name = os.path.basename(os.getcwd())
         name = name or dir_name
@@ -161,7 +161,7 @@ async def init(name: str = None):
         pull_step = [
             {
                 "prefect.projects.steps.git_clone_project": {
-                    "repo": repo_name,
+                    "repository": repository,
                     "branch": branch,
                 }
             }
@@ -228,10 +228,11 @@ async def clone(
     if not deployment.pull_steps:
         exit_with_error("No pull steps found, exiting early.")
 
+    # TODO: allow for passing values between steps / stacking them
     for step in deployment.pull_steps:
-        run_step(step)
+        output = run_step(step)
 
-    app.console.out("hello-projects/flows")
+    app.console.out(output["directory"])
 
 
 @project_app.command()

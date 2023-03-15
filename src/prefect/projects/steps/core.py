@@ -1,6 +1,9 @@
 """
 Core set of steps for managing Prefect projects.
 """
+import subprocess
+import sys
+
 from prefect.utilities.importtools import import_object
 
 
@@ -25,8 +28,17 @@ def set_working_directory():
     pass
 
 
-def git_clone_project(repo: str, branch: str = None, repo_url: str = None) -> dict:
+def git_clone_project(repository: str, branch: str = None) -> dict:
     """
     Just a repo name will be assumed GitHub, otherwise provide a full repo_url.
     """
-    print(f"I am a step that received repo={repo!r} and branch={branch!r} as inputs.")
+    cmd = ["git", "clone", repository]
+    if branch:
+        cmd += ["-b", branch]
+
+    # Limit git history
+    cmd += ["--depth", "1"]
+
+    p = subprocess.check_output(cmd, shell=sys.platform == "win32")
+    directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
+    return {"directory": directory}
