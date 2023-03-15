@@ -24,6 +24,7 @@ def auto_enable_workers(enable_workers):
     import prefect.experimental.cli.worker  # noqa
 
 
+@pytest.mark.usefixture("use_hosted_orion")
 def test_start_worker_run_once_with_name():
     invoke_and_assert(
         command=[

@@ -33,6 +33,7 @@ def test_loop_wait_for_many_tasks():
     run(500)
 
 
+@pytest.mark.usefixture("use_hosted_orion")
 def test_sleep_wait_for():
     @flow
     def run(sleep_time: float, n: int):
