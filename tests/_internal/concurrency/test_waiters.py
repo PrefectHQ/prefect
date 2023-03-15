@@ -62,14 +62,48 @@ def test_async_waiter_early_submission():
     assert callback.result() == 2
 
 
+def test_async_waiter_done_callback():
+    call = Call.new(identity, 1)
+    waiter = AsyncWaiter(call)
+
+    callback = Call.new(identity, 2)
+    assert not callback.future.done()
+
+    waiter.add_done_callback(callback)
+    call.run()
+    assert asyncio.run(waiter.result()) == 1
+
+    # The call should be executed
+    assert callback.result() == 2
+
+
+def test_async_waiter_done_callbacks():
+    call = Call.new(identity, 1)
+    waiter = AsyncWaiter(call)
+
+    callbacks = [Call.new(identity, i) for i in range(10)]
+    for callback in callbacks:
+        waiter.add_done_callback(callback)
+
+    call.run()
+    assert asyncio.run(waiter.result()) == 1
+
+    # The call should be executed
+    for i, callback in enumerate(callbacks):
+        assert callback.result() == i
+
+
 def test_sync_waiter_timeout_in_worker_thread():
     """
     In this test, a timeout is raised due to a slow call that is occuring on the worker
     thread.
     """
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
         call = Call.new(sleep_repeatedly, 1)
         waiter = SyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
         portal.submit(call)
 
@@ -85,6 +119,9 @@ def test_sync_waiter_timeout_in_worker_thread():
     assert t1 - t0 < 1
 
     assert call.cancelled()
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on cancel"
 
 
 def test_sync_waiter_timeout_in_main_thread():
@@ -92,6 +129,8 @@ def test_sync_waiter_timeout_in_main_thread():
     In this test, a timeout is raised due to a slow call that is sent back to the main
     thread by the worker thread.
     """
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
@@ -101,6 +140,7 @@ def test_sync_waiter_timeout_in_main_thread():
 
         call = Call.new(on_worker_thread)
         waiter = SyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
         portal.submit(call)
 
@@ -115,15 +155,20 @@ def test_sync_waiter_timeout_in_main_thread():
         callback.result()
 
     assert t1 - t0 < 1
-
     assert callback.cancelled()
     assert not call.cancelled()
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on cancel"
 
 
 async def test_async_waiter_timeout_in_worker_thread():
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
         call = Call.new(sleep_repeatedly, 1)
         waiter = AsyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
         portal.submit(call)
 
@@ -139,9 +184,14 @@ async def test_async_waiter_timeout_in_worker_thread():
         call.result()
 
     assert call.cancelled()
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on cancel"
 
 
 async def test_async_waiter_timeout_in_main_thread():
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
         callback = None
 
@@ -154,6 +204,7 @@ async def test_async_waiter_timeout_in_main_thread():
         call = Call.new(on_worker_thread)
 
         waiter = AsyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         call.set_timeout(0.1)
         portal.submit(call)
 
@@ -165,6 +216,9 @@ async def test_async_waiter_timeout_in_main_thread():
     assert t1 - t0 < 1
     assert not call.cancelled()
     assert callback.cancelled()
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on cancel"
 
 
 async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
@@ -200,9 +254,12 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
     "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
 )
 async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
         call = Call.new(raise_fn, exception_cls("test"))
         waiter = AsyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         portal.submit(call)
 
         with pytest.raises(exception_cls, match="test"):
@@ -212,12 +269,18 @@ async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise
     with pytest.raises(exception_cls, match="test"):
         call.result()
 
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on exception"
+
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
 @pytest.mark.parametrize(
     "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
 )
 async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
@@ -229,6 +292,7 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
         call = Call.new(on_worker_thread)
 
         waiter = AsyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         portal.submit(call)
 
         callback = await waiter.result()
@@ -239,15 +303,22 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
     with pytest.raises(exception_cls, match="test"):
         callback.result()
 
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on exception"
+
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
 @pytest.mark.parametrize(
     "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
 )
 def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
         call = Call.new(raise_fn, exception_cls("test"))
         waiter = SyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         portal.submit(call)
 
         with pytest.raises(exception_cls, match="test"):
@@ -257,12 +328,18 @@ def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
     with pytest.raises(exception_cls, match="test"):
         call.result()
 
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on exception"
+
 
 @pytest.mark.parametrize("raise_fn", [raises, araises], ids=["sync", "async"])
 @pytest.mark.parametrize(
     "exception_cls", [BaseException, KeyboardInterrupt, SystemExit]
 )
 def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
+    done_callback = Call.new(identity, 1)
+
     with WorkerThread(run_once=True) as portal:
 
         def on_worker_thread():
@@ -274,6 +351,7 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
         call = Call.new(on_worker_thread)
 
         waiter = SyncWaiter(call)
+        waiter.add_done_callback(done_callback)
         portal.submit(call)
 
         callback = waiter.result()
@@ -283,3 +361,6 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
     # to the main thread should have the error
     with pytest.raises(exception_cls, match="test"):
         callback.result()
+    assert (
+        done_callback.result(timeout=0) == 1
+    ), "The done callback should still be called on exception"

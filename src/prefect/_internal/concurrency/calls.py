@@ -164,13 +164,13 @@ class Call(Generic[T]):
 
         return None
 
-    def result(self) -> T:
+    def result(self, timeout: Optional[float] = None) -> T:
         """
         Wait for the result of the call.
 
         Not safe for use from asynchronous contexts.
         """
-        return self.future.result()
+        return self.future.result(timeout=timeout)
 
     async def aresult(self):
         """

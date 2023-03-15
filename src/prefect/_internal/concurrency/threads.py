@@ -28,8 +28,8 @@ class WorkerThread(Portal):
         )
         self._queue = queue.Queue()
         self._run_once: bool = run_once
-        self._started = False
-        self._submitted_count = 0
+        self._started: bool = False
+        self._submitted_count: int = 0
 
         if not daemon:
             atexit.register(self.shutdown)
