@@ -1,3 +1,4 @@
+import os
 import time
 
 import anyio
@@ -5,13 +6,15 @@ import pytest
 
 import prefect
 
+# GitHub Actions sets the CI environment variable — the runners are much slower there
+# so the sleep time needs to be larger to account for overhead
+SLEEP_TIME = 3 if os.environ.get("CI") else 1
+
 
 def test_sync_task_timeout_in_sync_flow():
-    # note the timeout is rounded up to 1s because this task is run on the main thread
-    # and a signal is used to interrupt the sleep call and it does not support floats
     @prefect.task(timeout_seconds=0.1)
     def sleep_task():
-        time.sleep(3)
+        time.sleep(SLEEP_TIME)
 
     @prefect.flow
     def parent_flow():
@@ -21,18 +24,16 @@ def test_sync_task_timeout_in_sync_flow():
         return t1 - t0, state
 
     runtime, task_state = parent_flow()
-    assert runtime < 3, f"Task should exit early; ran for {runtime}s"
+    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         task_state.result()
 
 
 async def test_sync_task_timeout_in_async_flow():
-    # note the timeout is rounded up to 1s because this task is run on the main thread
-    # and a signal is used to interrupt the sleep call and it does not support floats
     @prefect.task(timeout_seconds=0.1)
     def sleep_task():
-        time.sleep(3)
+        time.sleep(SLEEP_TIME)
 
     @prefect.flow
     async def parent_flow():
@@ -42,7 +43,7 @@ async def test_sync_task_timeout_in_async_flow():
         return t1 - t0, state
 
     runtime, task_state = await parent_flow()
-    assert runtime < 3, f"Task should exit early; ran for {runtime}s"
+    assert runtime < SLEEP_TIME, f"Task should exit early; ran for {runtime}s"
     assert task_state.is_failed()
     with pytest.raises(TimeoutError):
         await task_state.result()
@@ -51,7 +52,7 @@ async def test_sync_task_timeout_in_async_flow():
 def test_async_task_timeout_in_sync_flow():
     @prefect.task(timeout_seconds=0.1)
     async def sleep_task():
-        await anyio.sleep(1)
+        await anyio.sleep(SLEEP_TIME)
 
     @prefect.flow
     def parent_flow():
@@ -70,7 +71,7 @@ def test_async_task_timeout_in_sync_flow():
 async def test_async_task_timeout_in_async_flow():
     @prefect.task(timeout_seconds=0.1)
     async def sleep_task():
-        await anyio.sleep(1)
+        await anyio.sleep(SLEEP_TIME)
 
     @prefect.flow
     async def parent_flow():
