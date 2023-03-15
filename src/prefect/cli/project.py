@@ -21,6 +21,7 @@ from prefect.deployments import Deployment
 from prefect.flows import load_flow_from_entrypoint
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
 
 project_app = PrefectTyper(
@@ -346,7 +347,6 @@ async def deploy(
 
     if not flow_name and not base_deploy["flow_name"]:
         exit_with_error("A flow name must be provided with the '--flow' flag.")
-
     if not name and not base_deploy["name"]:
         exit_with_error("A deployment name must be provided with the '--name' flag.")
 
@@ -360,18 +360,18 @@ async def deploy(
             )
         if not (prefect_dir / "flows.json").exists():
             exit_with_error(
-                f"Flow {flow_name!r} cannot be found; run\n"
-                f"    [yellow]prefect project register ./path/to/file.py:{flow_name}[/yellow]\n"
-                "to register its location."
+                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
+                " location."
             )
         with open(prefect_dir / "flows.json", "r") as f:
             flows = json.load(f)
 
         if flow_name not in flows:
             exit_with_error(
-                f"Flow {flow_name!r} cannot be found; run\n"
-                f"    [yellow]prefect project register ./path/to/file.py:{flow_name}[/yellow]\n"
-                "to register its location."
+                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
+                " location."
             )
         base_deploy["flow_name"] = flow_name
         base_deploy["entrypoint"] = flows[flow_name]
@@ -379,15 +379,55 @@ async def deploy(
     ## TODO: HARDCODING THIS, ONLY CORRECT FOR FULLY LOCAL PROJECTS
     base_deploy["path"] = str(Path(".").absolute())
 
-    # set provided CLI flags
+    if not base_deploy["entrypoint"]:
+        exit_with_error(
+            "No entrypoint for the flow provided; either register your flow with"
+            " `prefect project register` or set one manually in `deployment.yaml`."
+        )
+
+    ## parse parameters
+    try:
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint, base_deploy["entrypoint"]
+        )
+    except Exception as exc:
+        exit_with_error(exc)
+
+    base_deploy["parameter_openapi_schema"] = parameter_schema(flow)
+
+    if param and (params is not None):
+        exit_with_error("Can only pass one of `param` or `params` options")
+
+    parameters = dict()
+
+    if param:
+        for p in param or []:
+            k, unparsed_value = p.split("=", 1)
+            try:
+                v = json.loads(unparsed_value)
+                app.console.print(
+                    f"The parameter value {unparsed_value} is parsed as a JSON string"
+                )
+            except json.JSONDecodeError:
+                v = unparsed_value
+            parameters[k] = v
+
+    if params is not None:
+        parameters = json.loads(params)
+
+    base_deploy["parameters"] = parameters
+
+    # set other CLI flags
     if name:
         base_deploy["name"] = name
-    if tags:
-        base_deploy["tags"] = tags
     if version:
         base_deploy["version"] = version
+    if tags:
+        base_deploy["tags"] = tags
     if description:
         base_deploy["description"] = description
+
+    # TODO: add schedule
 
     if work_pool_name:
         base_deploy["work_pool_name"] = work_pool_name
