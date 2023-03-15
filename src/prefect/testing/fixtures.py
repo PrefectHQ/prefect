@@ -37,7 +37,7 @@ def is_port_in_use(port: int) -> bool:
 
 
 @pytest.fixture(scope="session")
-async def hosted_api_server(unused_tcp_port: int):
+async def hosted_api_server(unused_tcp_port_factory):
     """
     Runs an instance of the Prefect API server in a subprocess instead of the using the
     ephemeral application.
@@ -47,6 +47,7 @@ async def hosted_api_server(unused_tcp_port: int):
     Yields:
         The API URL
     """
+    port = unused_tcp_port_factory()
 
     # Will connect to the same database as normal test clients
     async with open_process(
@@ -57,7 +58,7 @@ async def hosted_api_server(unused_tcp_port: int):
             "--host",
             "127.0.0.1",
             "--port",
-            str(unused_tcp_port),
+            str(port),
             "--log-level",
             "info",
         ],
@@ -65,7 +66,7 @@ async def hosted_api_server(unused_tcp_port: int):
         stderr=sys.stderr,
         env={**os.environ, **get_current_settings().to_environment_variables()},
     ) as process:
-        api_url = f"http://localhost:{unused_tcp_port}/api"
+        api_url = f"http://localhost:{port}/api"
 
         # Wait for the server to be ready
         async with httpx.AsyncClient() as client:
