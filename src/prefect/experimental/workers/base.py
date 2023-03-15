@@ -1,30 +1,23 @@
 import abc
 import re
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
-import httpx
 import pendulum
-from pydantic import BaseModel, Field, ValidationError, validator
+from pydantic import BaseModel, Field, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.server import schemas
 from prefect.server.schemas.actions import WorkPoolUpdate
 from prefect.server.schemas.responses import WorkerFlowRunResponse
-from prefect.settings import (
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
-    get_current_settings,
-)
+from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
 
@@ -194,9 +187,9 @@ class BaseWorker(abc.ABC):
     def __init__(
         self,
         work_pool_name: str,
+        work_queues: Optional[List[str]] = None,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
-        workflow_storage_path: Optional[Path] = None,
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
     ):
@@ -209,11 +202,10 @@ class BaseWorker(abc.ABC):
                 The name is used to identify the worker in the UI; if two
                 processes have the same name, they will be treated as the same
                 worker.
-            work_pool_name: The name of the work pool to use. If not
-                provided, the default will be used.
+            work_pool_name: The name of the work pool to poll.
+            work_queues: A list of work queues to poll. If not provided, all
+                work queue in the work pool will be polled.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            workflow_storage_path: The filesystem path to workflow storage for
-                this worker.
             create_pool_if_not_found: Whether to create the work pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
                 ensure that work pools are not created accidentally.
@@ -228,12 +220,10 @@ class BaseWorker(abc.ABC):
         self.is_setup = False
         self._create_pool_if_not_found = create_pool_if_not_found
         self._work_pool_name = work_pool_name
+        self._work_queues: Set[str] = set(work_queues) if work_queues else set()
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
-        )
-        self._workflow_storage_path: Path = (
-            workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
         self._work_pool: Optional[schemas.core.WorkPool] = None
@@ -287,20 +277,6 @@ class BaseWorker(abc.ABC):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    @abc.abstractmethod
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        """
-        Checks that scheduled flow runs for a submitted deployment can be run by the
-        current worker.
-
-        Should be implemented by `BaseWorker` implementations. Implementation of this
-        method should raise if any of the checks performed by the worker fail. If all
-        checks pass, then this method does not need to return anything.
-        """
-        raise NotImplementedError(
-            "Workers must implement a method for verifying submitted deployments"
-        )
-
     @classmethod
     def __dispatch_key__(cls):
         if cls.__name__ == "BaseWorker":
@@ -317,8 +293,6 @@ class BaseWorker(abc.ABC):
         self._client = get_client()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
-        # Setup workflows directory
-        self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
         self.is_setup = True
 
@@ -390,70 +364,6 @@ class BaseWorker(abc.ABC):
 
         self._logger.debug("Worker synchronized with the Prefect API server.")
 
-    async def scan_storage_for_deployments(self):
-        """
-        Performs a scan of the worker's configured workflow storage location. If any
-        .yaml files are found in the workflow storage location, the worker will attempt
-        to apply the deployments defined in the discovered manifests.
-        """
-        self._logger.debug("Scanning %s for deployments", self._workflow_storage_path)
-        possible_deployment_files = self._workflow_storage_path.glob("*.yaml")
-        for possible_deployment_file in possible_deployment_files:
-            if possible_deployment_file.is_file:
-                await self._attempt_to_apply_deployment(possible_deployment_file)
-
-    async def _attempt_to_apply_deployment(self, deployment_manifest_path: Path):
-        """
-        Attempts to apply a deployment from a discovered .yaml file. Will not apply
-        if validation fails when loading the deployment from the discovered .yaml file.
-        """
-        try:
-            deployment = await Deployment.load_from_yaml(str(deployment_manifest_path))
-            # Update path to match worker's file system instead of submitters so that
-            # deployment will run successfully when scheduled
-            # TODO: Revisit once deployment experience is created
-            deployment.path = str(deployment_manifest_path.parent)
-
-            await self.verify_submitted_deployment(deployment)
-            try:
-                api_deployment = await self._client.read_deployment_by_name(
-                    f"{deployment.flow_name}/{deployment.name}"
-                )
-                updated = api_deployment.updated
-            except ObjectNotFound:
-                updated = None
-            if updated is None:
-                await deployment.apply()
-                self._logger.info(
-                    "Created new deployment %s/%s",
-                    deployment.flow_name,
-                    deployment.name,
-                )
-            elif deployment.timestamp > updated:
-                await deployment.apply()
-                self._logger.info(
-                    "Applied update to deployment %s/%s",
-                    deployment.flow_name,
-                    deployment.name,
-                )
-        except ValidationError:
-            self._logger.exception(
-                "Validation of deployment manifest %s failed.",
-                deployment_manifest_path,
-            )
-        except httpx.HTTPStatusError as exc:
-            self._logger.exception(
-                "Failed to apply deployment %s/%s: %s",
-                deployment.flow_name,
-                deployment.name,
-                exc.response.json().get("detail"),
-            )
-        except Exception as exc:
-            self._logger.exception(
-                "Unexpected error occurred while attempting to register discovered"
-                " deployment."
-            )
-
     async def _get_scheduled_flow_runs(
         self,
     ) -> List[schemas.responses.WorkerFlowRunResponse]:
@@ -469,6 +379,7 @@ class BaseWorker(abc.ABC):
                 await self._client.get_scheduled_flow_runs_for_work_pool(
                     work_pool_name=self._work_pool_name,
                     scheduled_before=scheduled_before,
+                    work_queue_names=list(self._work_queues),
                 )
             )
             self._logger.debug(
@@ -644,7 +555,6 @@ class BaseWorker(abc.ABC):
             ),
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
-                "workflow_storage_path": self._workflow_storage_path,
             },
         }
 
