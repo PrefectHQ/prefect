@@ -692,7 +692,7 @@ def test_no_raise_on_submission_with_hosted_api(
     mock_cluster_config,
     mock_k8s_batch_client,
     mock_k8s_client,
-    use_hosted_orion,
+    use_hosted_api_server,
 ):
     KubernetesJob(command=["echo", "hello"]).run(MagicMock())
 
