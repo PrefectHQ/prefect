@@ -376,6 +376,9 @@ async def deploy(
         base_deploy["flow_name"] = flow_name
         base_deploy["entrypoint"] = flows[flow_name]
 
+    ## TODO: HARDCODING THIS, ONLY CORRECT FOR FULLY LOCAL PROJECTS
+    base_deploy["path"] = str(Path(".").absolute())
+
     # set provided CLI flags
     if name:
         base_deploy["name"] = name
