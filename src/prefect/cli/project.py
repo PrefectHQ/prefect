@@ -405,6 +405,14 @@ async def deploy(
     with open("project.yaml", "r") as f:
         project = yaml.safe_load(f)
 
+    # sanitize
+    if project["build"] is None:
+        project["build"] = []
+    if project["push"] is None:
+        project["push"] = []
+    if project["pull"] is None:
+        project["pull"] = []
+
     if not flow_name and not base_deploy["flow_name"]:
         exit_with_error("A flow name must be provided.")
     if not name and not base_deploy["name"]:
@@ -477,6 +485,10 @@ async def deploy(
         parameters = json.loads(params)
 
     base_deploy["parameters"] = parameters
+
+    # TODO: allow for passing values between steps / stacking them
+    for step in project["build"] + project["push"]:
+        output = run_step(step)
 
     # set other CLI flags
     if name:
