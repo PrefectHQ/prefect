@@ -17,7 +17,9 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.deployment import _print_deployment_work_pool_instructions
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
+from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
+from prefect.projects.steps import run_step
 from prefect.settings import PREFECT_UI_URL
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
@@ -157,7 +159,12 @@ async def init(name: str = None):
             branch = "main"
 
         pull_step = [
-            {"prefect_github.clone_project": {"repo": repo_name, "branch": branch}}
+            {
+                "prefect.projects.steps.git_clone_project": {
+                    "repo": repo_name,
+                    "branch": branch,
+                }
+            }
         ]
 
     files = []
@@ -201,6 +208,28 @@ async def clone(
         exit_with_error(
             "Can only pass one of deployment name or deployment ID options."
         )
+
+    if not deployment_name and not deployment_id:
+        exit_with_error("Must pass either a deployment name or deployment ID.")
+
+    if deployment_name:
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment_by_name(deployment_name)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+    else:
+        async with get_client() as client:
+            try:
+                deployment = await client.read_deployment(deployment_id)
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {deployment_id!r} not found!")
+
+    if not deployment.pull_steps:
+        exit_with_error("No pull steps found, exiting early.")
+
+    for step in deployment.pull_steps:
+        run_step(step)
 
     app.console.out("hello-projects/flows")
 
