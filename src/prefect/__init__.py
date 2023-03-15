@@ -30,7 +30,7 @@ from prefect.context import tags
 from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
-from prefect.engine import pause_flow_run, resume_flow_run, checkpoint
+from prefect.engine import pause_flow_run, resume_flow_run, check_if_running
 from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
 import prefect.variables
@@ -133,7 +133,7 @@ if not hasattr(sys, "frozen"):
 # Declare API for type-checkers
 __all__ = [
     "allow_failure",
-    "checkpoint",
+    "check_if_running",
     "flow",
     "Flow",
     "get_client",
