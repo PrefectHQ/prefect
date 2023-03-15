@@ -41,12 +41,13 @@ theme:
     favicon: img/favicon.png
     features:
         - announce.dismiss
-        - toc.integrate
+        # - toc.integrate # have to make index pages for sections if want emoji for them
         # - navigation.tabs
         - navigation.tabs.sticky
         - search.suggest
         - search.highlight
         - navigation.path
+        - navigation.indexes
 
     font:
         text: Inter
@@ -109,6 +110,7 @@ nav:
         - Installation: getting-started/installation.md
         - Tutorials:
             - Prefect Fundamentals:
+                - tutorials/index.md
                 - tutorials/first-steps.md
                 - tutorials/flow-task-config.md
                 - tutorials/execution.md
@@ -125,8 +127,8 @@ nav:
         - Prefect Recipes: 
             - Recipes Catalog: recipes/recipes.md
             - Contributing Recipes: recipes/contribute-recipes.md
-    - Concepts:
-        - Overview: concepts/overview.md
+    - Concepts: 
+        - concepts/index.md
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - Results: concepts/results.md

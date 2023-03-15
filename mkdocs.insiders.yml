@@ -5,5 +5,5 @@ plugins:
         cards: !ENV [DOC_PROD, True]
         cards_color:
             fill: "#115AF4"
-        
+    typeset:
 
