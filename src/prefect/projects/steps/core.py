@@ -24,8 +24,8 @@ def run_step(step: dict) -> dict:
     return step_func(**inputs)
 
 
-def set_working_directory():
-    pass
+def set_working_directory(directory: str):
+    return dict(directory=directory)
 
 
 def git_clone_project(repository: str, branch: str = None) -> dict:
