@@ -135,6 +135,8 @@ class ProcessWorker(BaseWorker):
                 ),
                 **kwargs,
             )
+            ### TODO: check if directory exists, etc.
+            ### this can be a place to detect for backwards compatibility issues as well
             if process.returncode != 0:
                 err_stream.seek(0)
                 self._logger.error(f"Failed to clone project:\n {err_stream.read()}")
