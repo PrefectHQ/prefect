@@ -43,9 +43,9 @@ jobs:
     strategy:
       matrix:
         database:
-          # - "postgres:13"
+           - "postgres:13"
            - "postgres:14"
-          # - "sqlite"
+           - "sqlite"
         os:
           - ubuntu-latest
         python-version:
