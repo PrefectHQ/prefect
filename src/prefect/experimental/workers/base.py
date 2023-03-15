@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field, validator
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
@@ -276,20 +275,6 @@ class BaseWorker(abc.ABC):
         """
         raise NotImplementedError(
             "Workers must implement a method for running submitted flow runs"
-        )
-
-    @abc.abstractmethod
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        """
-        Checks that scheduled flow runs for a submitted deployment can be run by the
-        current worker.
-
-        Should be implemented by `BaseWorker` implementations. Implementation of this
-        method should raise if any of the checks performed by the worker fail. If all
-        checks pass, then this method does not need to return anything.
-        """
-        raise NotImplementedError(
-            "Workers must implement a method for verifying submitted deployments"
         )
 
     @classmethod
