@@ -180,10 +180,29 @@ async def init(name: str = None):
 
 
 @project_app.command()
-async def clone():
+async def clone(
+    deployment_name: str = typer.Option(
+        None,
+        "--deployment",
+        "-d",
+        help="The name of the deployment to clone a project for.",
+    ),
+    deployment_id: str = typer.Option(
+        None,
+        "--id",
+        "-i",
+        help="The id of the deployment to clone a project for.",
+    ),
+):
     """
-    Clone an existing project.
+    Clone an existing project for a given deployment.
     """
+    if deployment_name and deployment_id:
+        exit_with_error(
+            "Can only pass one of deployment name or deployment ID options."
+        )
+
+    app.console.out("hello-projects/flows")
 
 
 @project_app.command()
@@ -244,8 +263,8 @@ async def register(
 
 @project_app.command()
 async def deploy(
-    flow_name: str = typer.Option(
-        None, "--flow", "-f", help="The name of the flow to create a deployment for."
+    flow_name: str = typer.Argument(
+        None, help="The name of the flow to create a deployment for."
     ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
@@ -349,7 +368,7 @@ async def deploy(
         project = yaml.safe_load(f)
 
     if not flow_name and not base_deploy["flow_name"]:
-        exit_with_error("A flow name must be provided with the '--flow' flag.")
+        exit_with_error("A flow name must be provided.")
     if not name and not base_deploy["name"]:
         exit_with_error("A deployment name must be provided with the '--name' flag.")
 
