@@ -499,25 +499,24 @@ class Deployment(BaseModel):
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
-        with open(str(path), "r") as f:
-            data = yaml.safe_load(f)
+        data = yaml.safe_load(await anyio.Path(path).read_bytes())
 
-            # load blocks from server to ensure secret values are properly hydrated
-            if data["storage"]:
-                block_doc_name = data["storage"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["storage"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["storage"] = block
+        # load blocks from server to ensure secret values are properly hydrated
+        if data["storage"]:
+            block_doc_name = data["storage"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["storage"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["storage"] = block
 
-            if data["infrastructure"]:
-                block_doc_name = data["infrastructure"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["infrastructure"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["infrastructure"] = block
+        if data["infrastructure"]:
+            block_doc_name = data["infrastructure"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["infrastructure"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["infrastructure"] = block
 
             return cls(**data)
 

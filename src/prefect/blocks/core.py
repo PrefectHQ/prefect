@@ -143,23 +143,19 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 @instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
     """
-        A base class for implementing a block that wraps an external service.
+    A base class for implementing a block that wraps an external service.
 
-        This class can be defined with an arbitrary set of fields and methods, and
-        couples business logic with data contained in an block document.
-        `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    <<<<<<< HEAD
-        `_block_type_id` are reserved by the Prefect API as Block metadata fields, but
-    =======
-        `_block_type_id` are reserved by Prefect as Block metadata fields, but
-    >>>>>>> ddff0f7939 (update docstrings and messages)
-        otherwise a Block can implement arbitrary logic. Blocks can be instantiated
-        without populating these metadata fields, but can only be used interactively,
-        not with the Prefect API.
+    This class can be defined with an arbitrary set of fields and methods, and
+    couples business logic with data contained in an block document.
+    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    `_block_type_id` are reserved by Prefect as Block metadata fields, but
+    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+    without populating these metadata fields, but can only be used interactively,
+    not with the Prefect API.
 
-        Instead of the __init__ method, a block implementation allows the
-        definition of a `block_initialization` method that is called after
-        initialization.
+    Instead of the __init__ method, a block implementation allows the
+    definition of a `block_initialization` method that is called after
+    initialization.
     """
 
     class Config:

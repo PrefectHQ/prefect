@@ -1125,22 +1125,6 @@ The number of seconds into the future a worker should query for scheduled flow r
 Can be used to compensate for infrastructure start up time for a worker.
 """
 
-PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
-"""
-The number of seconds a worker should wait between scanning its workflow storage
-location for submitted deployments.
-"""
-
-PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "workflows",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""
-The location where workers will scan for newly submitted deployments and store
-flow code for submitted deployments.
-"""
-
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)
 """
 Whether or not to enable experimental Prefect artifacts.
