@@ -67,6 +67,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sigint_sends_sigterm(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
+        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -88,6 +89,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sigterm_sends_sigterm_directly(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
+        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -111,6 +113,7 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGINT)
+        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -136,6 +139,7 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGTERM)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGTERM)
+        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -159,6 +163,7 @@ class TestAgentSignalForwarding:
     )
     async def test_sends_ctrl_break_win32(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
+        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
