@@ -144,8 +144,11 @@ class ProcessWorker(BaseWorker):
                     status_code=process.returncode, identifier=str(process.pid)
                 )
             else:
+                # some steps may output a relative directory so we joinpath to be sure
                 out_stream.seek(0)
-                working_dir = out_stream.read().strip()
+                working_dir = str(
+                    Path(working_dir).joinpath(out_stream.read().strip()).resolve()
+                )
 
             self._logger.debug(f"Process running command: {command} in {working_dir}")
             process = await run_process(
