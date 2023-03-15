@@ -14,7 +14,6 @@ from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
     PREFECT_WORKER_QUERY_SECONDS,
-    PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS,
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
@@ -108,16 +107,6 @@ async def start(
                     critical_service_loop,
                     workload=worker.sync_with_backend,
                     interval=PREFECT_WORKER_HEARTBEAT_SECONDS.value(),
-                    run_once=run_once,
-                    printer=app.console.print,
-                )
-            )
-            # schedule the storage scan loop
-            tg.start_soon(
-                partial(
-                    critical_service_loop,
-                    workload=worker.scan_storage_for_deployments,
-                    interval=PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS.value(),
                     run_once=run_once,
                     printer=app.console.print,
                 )
