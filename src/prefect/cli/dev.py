@@ -182,7 +182,9 @@ async def ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
+            await run_process(
+                ["npm", "install"], shell=sys.platform == "win32", stream_output=True
+            )
 
             app.console.print("Starting UI development server...")
             await run_process(command=["npm", "run", "serve"], stream_output=True)
