@@ -166,6 +166,14 @@ async def init(name: str = None):
                 }
             }
         ]
+    else:
+        pull_step = [
+            {
+                "prefect.projects.steps.set_working_directory": {
+                    "directory": str(Path(".").absolute().resolve()),
+                }
+            }
+        ]
 
     files = []
     if set_default_ignore_file("."):
@@ -217,7 +225,7 @@ async def clone(
             try:
                 deployment = await client.read_deployment_by_name(deployment_name)
             except ObjectNotFound:
-                exit_with_error(f"Deployment {name!r} not found!")
+                exit_with_error(f"Deployment {deployment_name!r} not found!")
     else:
         async with get_client() as client:
             try:
@@ -429,7 +437,8 @@ async def deploy(
         base_deploy["entrypoint"] = flows[flow_name]
 
     ## TODO: HARDCODING THIS, ONLY CORRECT FOR FULLY LOCAL PROJECTS
-    base_deploy["path"] = str(Path(".").absolute())
+    ## set working directory takes the place of this
+    # base_deploy["path"] = str(Path(".").absolute())
 
     if not base_deploy["entrypoint"]:
         exit_with_error(
