@@ -55,7 +55,7 @@ class CancelContext:
     def cancel(self):
         if self.mark_cancelled():
             if self._cancel is not None:
-                logger.debug("Cancelling %r with %r", self, self._cancel.__qualname__)
+                logger.debug("Cancelling %r with %r", self, self._cancel)
                 self._cancel()
 
     def cancelled(self):

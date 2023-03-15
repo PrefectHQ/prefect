@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import time
+from unittest.mock import MagicMock
 
 import anyio
 import pytest
@@ -17,68 +18,94 @@ from prefect._internal.concurrency.timeouts import (
 
 
 async def test_cancel_context():
-    ctx = CancelContext(timeout=1)
+    cancel = MagicMock()
+    ctx = CancelContext(timeout=1, cancel=cancel)
     assert not ctx.cancelled()
     ctx.cancel()
     assert ctx.cancelled()
+    cancel.assert_called_once_with()
 
 
 async def test_cancel_context_chain():
-    ctx1 = CancelContext(timeout=1)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.chain(ctx2)
     assert not ctx2.cancelled()
     ctx1.cancel()
     assert ctx1.cancelled()
     assert ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_called_once_with()
 
 
 async def test_cancel_context_chain_cancelled_first():
-    ctx1 = CancelContext(timeout=1)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.cancel()
     ctx1.chain(ctx2)
     assert ctx1.cancelled()
     assert ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_called_once_with()
 
 
 async def test_cancel_context_chain_cancelled_after_completed():
-    ctx1 = CancelContext(timeout=1)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.chain(ctx2)
     ctx2.mark_completed()
     ctx1.cancel()
     assert ctx1.cancelled()
     assert not ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_not_called()
 
 
 async def test_cancel_context_chain_bidirectional():
-    ctx1 = CancelContext(timeout=None)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.chain(ctx2, bidirectional=True)
     ctx2.cancel()
     assert ctx1.cancelled()
     assert ctx2.cancelled()
+    cancel1.assert_called_once_with()
+    cancel2.assert_called_once_with()
 
 
 async def test_cancel_context_chain_bidirectional_after_first_completed():
-    ctx1 = CancelContext(timeout=None)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.chain(ctx2, bidirectional=True)
     ctx1.mark_completed()
     ctx2.cancel()
     assert not ctx1.cancelled()
     assert ctx2.cancelled()
+    cancel1.assert_not_called()
+    cancel2.assert_called_once_with()
 
 
 async def test_cancel_context_chain_bidirectional_after_second_completed():
-    ctx1 = CancelContext(timeout=None)
-    ctx2 = CancelContext(timeout=None)
+    cancel1 = MagicMock()
+    cancel2 = MagicMock()
+    ctx1 = CancelContext(timeout=1, cancel=cancel1)
+    ctx2 = CancelContext(timeout=None, cancel=cancel2)
     ctx1.chain(ctx2, bidirectional=True)
     ctx2.mark_completed()
     ctx2.cancel()
     assert not ctx1.cancelled()
     assert not ctx2.cancelled()
+    cancel1.assert_not_called()
+    cancel2.assert_not_called()
 
 
 async def test_cancel_async_after():
