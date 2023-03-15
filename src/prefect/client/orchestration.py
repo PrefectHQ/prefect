@@ -1350,7 +1350,7 @@ class PrefectClient:
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
-        pull_steps: Optional[dict] = None,
+        pull_steps: Optional[List[dict]] = None,
     ) -> UUID:
         """
         Create a deployment.

@@ -5,10 +5,9 @@ Revises: f3df94dca3cc
 Create Date: 2023-03-14 18:07:13.733969
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import sqlite
-
 
 # revision identifiers, used by Alembic.
 revision = "340f457b315f"

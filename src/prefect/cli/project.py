@@ -344,6 +344,10 @@ async def deploy(
     with open("deployment.yaml", "r") as f:
         base_deploy = yaml.safe_load(f)
 
+    # TODO: add all build / push project mechanics
+    with open("project.yaml", "r") as f:
+        project = yaml.safe_load(f)
+
     if not flow_name and not base_deploy["flow_name"]:
         exit_with_error("A flow name must be provided with the '--flow' flag.")
     if not name and not base_deploy["name"]:
@@ -436,6 +440,7 @@ async def deploy(
     async with get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
+        breakpoint()
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=base_deploy["name"],
@@ -449,6 +454,7 @@ async def deploy(
             path=base_deploy["path"],
             entrypoint=base_deploy["entrypoint"],
             parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
+            pull_steps=project["pull"],
         )
 
         app.console.print(
