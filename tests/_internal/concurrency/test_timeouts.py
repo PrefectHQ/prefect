@@ -52,6 +52,35 @@ async def test_cancel_context_chain_cancelled_after_completed():
     assert not ctx2.cancelled()
 
 
+async def test_cancel_context_chain_bidirectional():
+    ctx1 = CancelContext(timeout=None)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2, bidirectional=True)
+    ctx2.cancel()
+    assert ctx1.cancelled()
+    assert ctx2.cancelled()
+
+
+async def test_cancel_context_chain_bidirectional_after_first_completed():
+    ctx1 = CancelContext(timeout=None)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2, bidirectional=True)
+    ctx1.mark_completed()
+    ctx2.cancel()
+    assert not ctx1.cancelled()
+    assert ctx2.cancelled()
+
+
+async def test_cancel_context_chain_bidirectional_after_second_completed():
+    ctx1 = CancelContext(timeout=None)
+    ctx2 = CancelContext(timeout=None)
+    ctx1.chain(ctx2, bidirectional=True)
+    ctx2.mark_completed()
+    ctx2.cancel()
+    assert not ctx1.cancelled()
+    assert not ctx2.cancelled()
+
+
 async def test_cancel_async_after():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
