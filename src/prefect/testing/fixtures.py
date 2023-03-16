@@ -104,6 +104,16 @@ async def hosted_orion_api():
         # Then shutdown the process
         try:
             process.terminate()
+
+            # Give the process a 10 second grace period to shutdown
+            for _ in range(10):
+                if process.returncode is not None:
+                    break
+                await anyio.sleep(1)
+            else:
+                # Kill the process if it is not shutdown in time
+                process.kill()
+
         except ProcessLookupError:
             pass
 
