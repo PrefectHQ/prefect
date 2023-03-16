@@ -13,6 +13,7 @@ parameters: {}
 parameter_openapi_schema: null
 
 # infra-specific fields
-work_pool_name: null
-work_queue_name: null
-infra_overrides: []
+work_pool:
+  name: null
+  work_queue_name: null
+  job_variables: {}

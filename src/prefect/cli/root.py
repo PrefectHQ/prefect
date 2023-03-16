@@ -19,9 +19,11 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, with_cli_exception_handling
 from prefect.client.orchestration import ServerType
+from prefect.experimental.workers.base import BaseJobConfiguration
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.configuration import setup_logging
 from prefect.projects import find_prefect_directory
+from prefect.projects.steps import run_step
 from prefect.settings import (
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
@@ -360,9 +362,10 @@ async def deploy(
 
     base_deploy["parameters"] = parameters
 
-    output = {}
+    ## RUN BUILD AND PUSH STEPS
+    step_outputs = {}
     for step in project["build"] + project["push"]:
-        output.update(run_step(step))
+        step_outputs.update(run_step(step))
 
     # set other CLI flags
     if name:
@@ -377,9 +380,14 @@ async def deploy(
     # TODO: add schedule
 
     if work_pool_name:
-        base_deploy["work_pool_name"] = work_pool_name
+        base_deploy["work_pool"]["name"] = work_pool_name
     if work_queue_name:
-        base_deploy["work_queue_name"] = work_queue_name
+        base_deploy["work_pool"]["work_queue_name"] = work_queue_name
+
+    ## apply templating from build and push steps to the final deployment spec
+    base_deploy["work_pool"]["job_variables"] = BaseJobConfiguration._apply_variables(
+        base_deploy["work_pool"]["job_variables"], step_outputs
+    )
 
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
@@ -387,8 +395,8 @@ async def deploy(
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=base_deploy["name"],
-            work_queue_name=base_deploy["work_queue_name"],
-            work_pool_name=base_deploy["work_pool_name"],
+            work_queue_name=base_deploy["work_pool"]["work_queue_name"],
+            work_pool_name=base_deploy["work_pool"]["name"],
             version=base_deploy["version"],
             schedule=base_deploy["schedule"],
             parameters=base_deploy["parameters"],
@@ -398,6 +406,7 @@ async def deploy(
             entrypoint=base_deploy["entrypoint"],
             parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
             pull_steps=project["pull"],
+            infra_overrides=base_deploy["work_pool"]["job_variables"],
         )
 
         app.console.print(
@@ -414,15 +423,16 @@ async def deploy(
                 f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
             )
 
-        if base_deploy["work_pool_name"] is not None:
+        if base_deploy["work_pool"]["name"] is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start a worker that"
-                f" pulls work from the {base_deploy['work_pool_name']!r} work pool"
+                f" pulls work from the {base_deploy['work_pool']['name']!r} work pool"
             )
-        elif base_deploy["work_queue_name"] is not None:
+        elif base_deploy["work_pool"]["work_queue_name"] is not None:
             app.console.print(
                 "\nTo execute flow runs from this deployment, start a worker that"
-                f" pulls work from the {base_deploy['work_queue_name']!r} work queue"
+                " pulls work from the"
+                f" {base_deploy['work_pool']['work_queue_name']!r} work queue"
             )
         else:
             app.console.print(
