@@ -41,7 +41,6 @@ def test_controls_client_and_thread_lifecycle(worker: EventsWorker):
     assert not worker._thread.is_alive()
     assert not hasattr(worker, "_client")
     worker.start()
-    worker.emit(None)
 
     assert worker._thread.is_alive()
     assert isinstance(worker._client, AssertingEventsClient)
