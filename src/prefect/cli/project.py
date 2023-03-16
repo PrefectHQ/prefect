@@ -421,27 +421,36 @@ async def deploy(
 
     # flow-name logic
     if flow_name:
-        prefect_dir = find_prefect_directory()
-        if not prefect_dir:
-            exit_with_error(
-                "No .prefect directory could be found - run [yellow]`prefect project"
-                " init`[/yellow] to create one."
-            )
-        if not (prefect_dir / "flows.json").exists():
-            exit_with_error(
-                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
-                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
-                " location."
-            )
-        with open(prefect_dir / "flows.json", "r") as f:
-            flows = json.load(f)
+        #        prefect_dir = find_prefect_directory()
+        #        if not prefect_dir:
+        #            exit_with_error(
+        #                "No .prefect directory could be found - run [yellow]`prefect project"
+        #                " init`[/yellow] to create one."
+        #            )
+        #        if not (prefect_dir / "flows.json").exists():
+        #            exit_with_error(
+        #                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+        #                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
+        #                " location."
+        #            )
+        #        with open(prefect_dir / "flows.json", "r") as f:
+        #            flows = json.load(f)
 
+        flows = {}
         if flow_name not in flows:
-            exit_with_error(
-                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
-                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
-                " location."
-            )
+            try:
+                flow = await run_sync_in_worker_thread(
+                    load_flow_from_entrypoint, flow_name
+                )
+            except Exception as exc:
+                exit_with_error(exc)
+            flows[flow.name] = flow_name
+            flow_name = flow.name
+        #            exit_with_error(
+        #                f"Flow {flow_name!r} cannot be found; run\n    [yellow]prefect project"
+        #                f" register ./path/to/file.py:{flow_name}[/yellow]\nto register its"
+        #                " location."
+        #            )
         base_deploy["flow_name"] = flow_name
         base_deploy["entrypoint"] = flows[flow_name]
 
