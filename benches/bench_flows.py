@@ -43,7 +43,7 @@ def bench_flow_with_submitted_tasks(benchmark: BenchmarkFixture, num_tasks: int)
         benchmark.pedantic(benchmark_flow)
 
 
-@pytest.mark.parametrize("num_tasks", [10, 50, 100, 500])
+@pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
 def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(noop_function)
 
@@ -58,7 +58,7 @@ def bench_flow_with_called_tasks(benchmark: BenchmarkFixture, num_tasks: int):
         benchmark.pedantic(benchmark_flow)
 
 
-@pytest.mark.parametrize("num_tasks", [10, 50, 100, 500])
+@pytest.mark.parametrize("num_tasks", [10, 50, 100, 250])
 def bench_async_flow_with_async_tasks(benchmark: BenchmarkFixture, num_tasks: int):
     test_task = task(anoop_function)
 
