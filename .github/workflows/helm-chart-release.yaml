@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Get today's formatted date
         id: get_date
-        run: echo "value=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        run: echo "value=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
       - name: Create prefect-helm release
         run: |
           gh release create ${{ steps.get_date.outputs.value }} \
