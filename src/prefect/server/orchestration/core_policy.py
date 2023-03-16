@@ -61,7 +61,6 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             CacheRetrieval,
             HandleTaskTerminalStateTransitions,
             PreventRunningTasksFromStoppedFlows,
-            PreventRedundantTransitions,
             SecureTaskConcurrencySlots,  # retrieve cached states even if slots are full
             CopyScheduledTime,
             WaitForScheduledTime,
