@@ -105,6 +105,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["timeout"] = self.connection_timeout
 
             if connect_args:
+                connect_args["server_settings"] = {"jit": "off"}
                 kwargs["connect_args"] = connect_args
 
             engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
