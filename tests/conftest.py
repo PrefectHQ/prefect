@@ -71,6 +71,7 @@ from ._fixtures.api import *
 from ._fixtures.client import *
 from ._fixtures.database import *
 from ._fixtures.docker import *
+from ._fixtures.experimental import *
 from ._fixtures.logging import *
 from ._fixtures.storage import *
 
