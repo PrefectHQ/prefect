@@ -369,7 +369,7 @@ class UnpersistedResult(BaseResult):
         obj: R,
         cache_object: bool = True,
     ) -> "UnpersistedResult[R]":
-        description = f"Unpersisted result of type `{type(obj).__name__!s}`"
+        description = f"Unpersisted result of type `{type(obj).__name__}`"
         result = cls(
             artifact_type="result",
             artifact_description=description,
@@ -493,12 +493,12 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
-        description = f"Result of type {type(obj).__name__!r}"
+        description = f"Result of type `{type(obj).__name__}`"
         uri = cls._infer_path(storage_block, key)
         if uri:
-            description += f" persisted to {uri}."
+            description += f" persisted to [{uri}]({uri})."
         else:
-            description += f" persisted with storage block '{storage_block_id}'."
+            description += f" persisted with storage block `{storage_block_id}`."
 
         result = cls(
             serializer_type=serializer.type,
