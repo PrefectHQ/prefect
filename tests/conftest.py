@@ -292,6 +292,7 @@ def pytest_sessionstart(session):
             PREFECT_ASYNC_FETCH_STATE_RESULT: True,
             # Enable debug logging
             PREFECT_LOGGING_LEVEL: "DEBUG",
+            PREFECT_LOGGING_INTERNAL_LEVEL: "DEBUG",
             # Disable shipping logs to the API;
             # can be enabled by the `enable_api_log_handler` mark
             PREFECT_LOGGING_TO_API_ENABLED: False,
