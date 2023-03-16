@@ -33,7 +33,11 @@ import prefect
 import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import wait_for_global_loop_exit
+from prefect._internal.concurrency.threads import (
+    get_global_loop,
+    wait_for_global_loop_exit,
+)
+from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -166,16 +170,19 @@ def enter_flow_run_engine_from_flow_call(
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
-        waiter = from_async.call_soon_in_global_thread(begin_run)
+        waiter = AsyncWaiter(begin_run)
     else:
-        waiter = from_sync.call_soon_in_global_thread(begin_run)
+        waiter = SyncWaiter(begin_run)
 
     if not is_subflow_run:
         # On completion of root flows, wait for the global thread to ensure that the
         # any work there is complete
         waiter.add_done_callback(create_call(wait_for_global_loop_exit))
 
-    return waiter.result()
+    # Run the call in a global event loop thread
+    get_global_loop().submit(begin_run)
+
+    return waiter.wait()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -641,8 +648,8 @@ async def orchestrate_flow_run(
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
-                # This check for a parent call is only needed for test cases where
-                # this function is called directly instead of via our normal entrypoint
+                # This check for a parent call is needed for cases where the engine
+                # was entered directly; such as during testing _or_ deployment runs
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -652,7 +659,9 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.send_callback(flow_call, timeout=flow.timeout_seconds)
+                    from_async.call_soon_in_waiter_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
                 else:
                     from_async.call_soon_in_new_thread(
                         flow_call, timeout=flow.timeout_seconds
@@ -953,9 +962,9 @@ def enter_task_run_engine(
 
     if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
-        return from_async.call_soon_in_global_thread(begin_run).result()
+        return from_async.wait_for_call_in_loop_thread(begin_run).result()
     else:
-        return from_sync.call_soon_in_global_thread(begin_run).result()
+        return from_sync.wait_for_call_in_loop_thread(begin_run).result()
 
 
 async def begin_task_map(
@@ -1510,9 +1519,9 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    result = await from_async.call_soon_in_new_thread(
+                    result = await from_async.wait_for_call_in_new_thread(
                         create_call(task.fn, *args, **kwargs)
-                    ).result()
+                    )
 
         except Exception as exc:
             name = message = None

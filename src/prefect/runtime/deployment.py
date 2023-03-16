@@ -54,7 +54,7 @@ def get_id() -> Optional[str]:
         run_id = get_flow_run_id()
         if run_id is None:
             return None
-        flow_run = from_sync.call_soon_in_new_thread(
+        flow_run = from_sync.wait_for_call_in_new_thread(
             create_call(_get_flow_run, run_id)
         ).result()
         if flow_run.deployment_id:
@@ -70,7 +70,7 @@ def get_parameters() -> dict:
     if run_id is None:
         return {}
 
-    flow_run = from_sync.call_soon_in_new_thread(
+    flow_run = from_sync.wait_for_call_in_new_thread(
         create_call(_get_flow_run, run_id)
     ).result()
     return flow_run.parameters or {}

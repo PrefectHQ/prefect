@@ -207,25 +207,37 @@ class EventLoopThread(Portal):
         self.shutdown()
 
 
-GLOBAL_LOOP_PORTAL: Optional[EventLoopThread] = None
+GLOBAL_LOOP: Optional[EventLoopThread] = None
 
 
 def get_global_loop() -> EventLoopThread:
-    global GLOBAL_LOOP_PORTAL
+    """
+    Get the global loop thread.
+
+    Creates a new one if there is not one available.
+    """
+    global GLOBAL_LOOP
 
     # Create a new worker on first call or if the existing worker is dead
-    if GLOBAL_LOOP_PORTAL is None or not GLOBAL_LOOP_PORTAL.thread.is_alive():
-        GLOBAL_LOOP_PORTAL = EventLoopThread(daemon=True, name="GlobalEventLoopThread")
-        GLOBAL_LOOP_PORTAL.start()
+    if (
+        GLOBAL_LOOP is None
+        or not GLOBAL_LOOP.thread.is_alive()
+        or GLOBAL_LOOP._shutdown_event.is_set()
+    ):
+        GLOBAL_LOOP = EventLoopThread(daemon=True, name="GlobalEventLoopThread")
+        GLOBAL_LOOP.start()
 
-    return GLOBAL_LOOP_PORTAL
+    return GLOBAL_LOOP
 
 
 def wait_for_global_loop_exit() -> None:
-    portal = get_global_loop()
-    portal.shutdown()
+    """
+    Shutdown the global loop and wait for it to exit.
+    """
+    loop_thread = get_global_loop()
+    loop_thread.shutdown()
 
-    if threading.get_ident() == portal.thread.ident:
-        raise RuntimeError("Cannot wait for the global thread from inside itself.")
+    if threading.get_ident() == loop_thread.thread.ident:
+        raise RuntimeError("Cannot wait for the loop thread from inside itself.")
 
-    portal.thread.join()
+    loop_thread.thread.join()
