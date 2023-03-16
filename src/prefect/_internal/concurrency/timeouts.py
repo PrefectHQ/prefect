@@ -333,7 +333,12 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
     """
     event = threading.Event()
     supervised_thread = threading.current_thread()
-    cancel = lambda: _send_exception_to_thread(supervised_thread, CancelledError)
+
+    def _send_exception(exc):
+        if supervised_thread.is_alive():
+            _send_exception_to_thread(supervised_thread, exc)
+
+    cancel = lambda: _send_exception(CancelledError)
     ctx = CancelContext(timeout=timeout, cancel=cancel)
 
     def timeout_enforcer():
@@ -345,7 +350,7 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
                 ctx,
             )
             if ctx.mark_cancelled():
-                _send_exception_to_thread(supervised_thread, TimeoutError)
+                _send_exception(TimeoutError)
 
     if timeout is not None:
         enforcer = threading.Thread(target=timeout_enforcer, daemon=True)
