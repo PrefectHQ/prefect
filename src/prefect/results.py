@@ -369,9 +369,10 @@ class UnpersistedResult(BaseResult):
         obj: R,
         cache_object: bool = True,
     ) -> "UnpersistedResult[R]":
+        description = f"Unpersisted result of type `{type(obj).__name__!s}`"
         result = cls(
             artifact_type="result",
-            artifact_description=f"Unpersisted result of type {type(obj).__name__!r}",
+            artifact_description=description,
         )
         # Only store the object in local memory, it will not be sent to the API
         if cache_object:
