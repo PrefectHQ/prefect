@@ -161,7 +161,7 @@ async def test_cancel_async_after_no_timeout():
     assert t1 - t0 > 0.1
 
 
-def test_cancel_sync_after_in_main_thread():
+def test_cancel_sync_after_not_cancelled_in_main_thread():
     t0 = time.perf_counter()
     with cancel_sync_after(None) as ctx:
         time.sleep(0.1)
@@ -172,7 +172,7 @@ def test_cancel_sync_after_in_main_thread():
     assert t1 - t0 > 0.1
 
 
-def test_cancel_sync_after_in_worker_thread():
+def test_cancel_sync_after_not_cancelled_in_worker_thread():
     def on_worker_thread():
         t0 = time.perf_counter()
         with cancel_sync_after(None) as ctx:
