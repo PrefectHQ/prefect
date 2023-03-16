@@ -47,5 +47,5 @@ async def test_unpersisted_result_populates_default_artifact_metadata(value):
     assert result.artifact_type == "result"
     assert (
         result.artifact_description
-        == f"Unpersisted result of type {type(value).__name__!r}"
+        == f"Unpersisted result of type `{type(value).__name__}`"
     )
