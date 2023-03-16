@@ -1530,6 +1530,56 @@ class TestTaskConcurrencyLimits:
         assert duplicate_ctx.response_status == SetStateStatus.ACCEPT
         assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
 
+    async def test_task_restart_does_not_consume_multiple_slots(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "a generous limit", 10)
+
+        concurrency_policy = [
+            SecureTaskConcurrencySlots,
+        ]
+        # we should have no consumed slots yet
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 0
+
+        start_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx = await initialize_orchestration(
+            session, "task", *start_transition, run_tags=["a generous limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *start_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+        # PENDING -> RUNNING should consume a slot
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
+        running_transition = (states.StateType.RUNNING, states.StateType.RUNNING)
+        restart_ctx = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=ctx.run,
+            run_tags=["a generous limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                restart_ctx = await stack.enter_async_context(
+                    rule(restart_ctx, *running_transition)
+                )
+            await restart_ctx.validate_proposed_state()
+
+        # RUNNING -> RUNNING should not consume another slot
+        assert restart_ctx.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
     async def test_concurrency_race_condition_new_tags_arent_double_counted(
         self,
         session,
