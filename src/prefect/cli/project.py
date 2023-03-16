@@ -486,9 +486,9 @@ async def deploy(
 
     base_deploy["parameters"] = parameters
 
-    # TODO: allow for passing values between steps / stacking them
+    output = {}
     for step in project["build"] + project["push"]:
-        output = run_step(step)
+        output.update(run_step(step))
 
     # set other CLI flags
     if name:
