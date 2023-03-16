@@ -1,5 +1,5 @@
 """
-Core set of steps for managing Prefect projects.
+Core primitives for managing Prefect projects.
 """
 from prefect.utilities.importtools import import_object
 
