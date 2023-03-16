@@ -229,16 +229,24 @@ async def test_cancel_async_manually():
 
 def test_cancel_sync_manually_in_main_thread():
     t0 = time.perf_counter()
+    event = threading.Event()
+
     with pytest.raises(CancelledError):
         with cancel_sync_at(None) as ctx:
+
+            def cancel_when_sleeping():
+                event.wait()
+                ctx.cancel()
+
             # Start cancellation in another thread
-            thread = threading.Thread(target=ctx.cancel, daemon=True)
+            thread = threading.Thread(target=cancel_when_sleeping, daemon=True)
             thread.start()
 
             # Sleep in the main thread; note unlike the timer based alarm this
             # test requires intermittent sleeps to allow the signal to raise in
             # a timely fashion
             for _ in range(20):
+                event.set()  # Mark this as cancelling
                 time.sleep(0.1)
 
     t1 = time.perf_counter()
