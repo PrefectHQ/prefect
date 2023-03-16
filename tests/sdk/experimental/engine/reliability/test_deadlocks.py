@@ -1,7 +1,7 @@
 import pytest
 
 from prefect import flow
-from tests.generic_tasks import (
+from tests._assets.generic_tasks import (
     add_one,
     async_multiply_by_two,
     noop,

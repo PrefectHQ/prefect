@@ -1,7 +1,7 @@
 import pytest
 
 from prefect import flow
-from tests import generic_tasks
+from tests._assets import generic_tasks
 
 
 @pytest.mark.xfail

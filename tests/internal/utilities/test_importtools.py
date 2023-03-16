@@ -19,7 +19,7 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-TEST_PROJECTS_DIR = __root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = __root_path__ / "tests" / "_assets" / "test-projects"
 
 
 def my_fn():

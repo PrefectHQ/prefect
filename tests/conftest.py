@@ -67,12 +67,12 @@ from prefect.utilities.dispatch import get_registry_for_type
 from prefect.testing.cli import *
 from prefect.testing.fixtures import *
 
-from .fixtures.api import *
-from .fixtures.client import *
-from .fixtures.database import *
-from .fixtures.docker import *
-from .fixtures.logging import *
-from .fixtures.storage import *
+from ._fixtures.api import *
+from ._fixtures.client import *
+from ._fixtures.database import *
+from ._fixtures.docker import *
+from ._fixtures.logging import *
+from ._fixtures.storage import *
 
 
 def pytest_addoption(parser):
