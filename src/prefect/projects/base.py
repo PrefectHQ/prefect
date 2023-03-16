@@ -4,12 +4,27 @@ Core primitives for managing Prefect projects.
 import os
 import subprocess
 import sys
+from pathlib import Path
+from typing import List, Optional
+
 import yaml
 
-from pathlib import Path
-from typing import List
-
 from prefect.utilities.filesystem import set_default_ignore_file
+
+
+def find_prefect_directory() -> Optional[Path]:
+    """
+    Recurses upward looking for .prefect/ directories.  If found is never found, `None` is returned.
+    """
+    path = Path(".").resolve()
+    parent = path.parent.resolve()
+    while path != parent:
+        prefect_dir = path.joinpath(".prefect")
+        if prefect_dir.is_dir():
+            return prefect_dir
+
+        path = parent.resolve()
+        parent = path.parent.resolve()
 
 
 def set_default_deployment_yaml(path: str) -> bool:
