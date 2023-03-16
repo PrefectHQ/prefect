@@ -26,7 +26,7 @@ See https://github.com/PrefectHQ/prefect/pull/8790 for details
 
 ### Fixes
 - Fix blocking file read in async method `Deployment.load_from_yaml` — https://github.com/PrefectHQ/prefect/pull/8798
-- Allow tasks and flows to make redudant transitions such as `RUNNING` -> `RUNNING` — https://github.com/PrefectHQ/prefect/pull/8802
+- Allow tasks and flows to make redundant transitions such as `RUNNING` -> `RUNNING` — https://github.com/PrefectHQ/prefect/pull/8802
 
 ### Experimental
 - Enable setting environment variables for worker submitted flow runs — https://github.com/PrefectHQ/prefect/pull/8706
