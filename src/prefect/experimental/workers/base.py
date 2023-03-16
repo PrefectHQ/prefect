@@ -1,6 +1,6 @@
 import abc
 import re
-from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, TypeVar, Union
 from uuid import uuid4
 
 import anyio
@@ -8,18 +8,25 @@ import anyio.abc
 import pendulum
 from pydantic import BaseModel, Field, validator
 
+import prefect
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.server import schemas
 from prefect.server.schemas.actions import WorkPoolUpdate
-from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+
+if TYPE_CHECKING:
+    from prefect.client.schemas import FlowRun
+    from prefect.server.schemas.core import Flow
+    from prefect.server.schemas.responses import (
+        DeploymentResponse,
+        WorkerFlowRunResponse,
+    )
 
 
 class Unset:
@@ -46,9 +53,23 @@ class BaseJobConfiguration(BaseModel):
         title="Environment Variables",
         description="Environment variables to set when starting a flow run.",
     )
+    labels: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Labels applied to infrastructure created by the worker using "
+            "this job configuration."
+        ),
+    )
+    name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Name given to infrastructure created by the worker using this "
+            "job configuration."
+        ),
+    )
 
     @validator("command")
-    def validate_command(cls, v):
+    def _coerce_command(cls, v):
         """Make sure that empty strings are treated as None"""
         if not v:
             return None
@@ -172,20 +193,112 @@ class BaseJobConfiguration(BaseModel):
         else:
             raise ValueError(f"Unexpected type: {type(object)}")
 
+    def prepare_for_flow_run(
+        self,
+        flow_run: "FlowRun",
+        deployment: Optional["DeploymentResponse"] = None,
+        flow: Optional["Flow"] = None,
+    ):
+        if deployment is not None:
+            deployment_labels = self._base_deployment_labels(deployment)
+        else:
+            deployment_labels = {}
+
+        if flow is not None:
+            flow_labels = self._base_flow_labels(flow)
+        else:
+            flow_labels = {}
+
+        env = {
+            **self._base_environment(),
+            **self._base_flow_run_environment(flow_run),
+            **self.env,
+        }
+        self.env = {key: value for key, value in env.items() if value is not None}
+        self.labels = {
+            **self._base_flow_run_labels(flow_run),
+            **deployment_labels,
+            **flow_labels,
+            **self.labels,
+        }
+        self.name = self.name or flow_run.name
+        self.command = self.command or self._base_flow_run_command()
+
+    @staticmethod
+    def _base_flow_run_command() -> str:
+        """
+        Generate a command for a flow run job.
+        """
+        return "python -m prefect.engine"
+
+    @staticmethod
+    def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
+        """
+        Generate a dictionary of labels for a flow run job.
+        """
+        return {
+            "prefect.io/flow-run-id": str(flow_run.id),
+            "prefect.io/flow-run-name": flow_run.name,
+            "prefect.io/version": prefect.__version__,
+        }
+
+    @classmethod
+    def _base_environment(cls) -> Dict[str, str]:
+        """
+        Environment variables that should be passed to all created infrastructure.
+
+        These values should be overridable with the `env` field.
+        """
+        return get_current_settings().to_environment_variables(exclude_unset=True)
+
+    @staticmethod
+    def _base_flow_run_environment(flow_run: "FlowRun") -> Dict[str, str]:
+        """
+        Generate a dictionary of environment variables for a flow run job.
+        """
+        environment = {}
+        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
+        return environment
+
+    @staticmethod
+    def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:
+        labels = {
+            "prefect.io/deployment-name": deployment.name,
+        }
+        if deployment.updated is not None:
+            labels["prefect.io/deployment-updated"] = deployment.updated.in_timezone(
+                "utc"
+            ).to_iso8601_string()
+        return labels
+
+    @staticmethod
+    def _base_flow_labels(flow: "Flow") -> Dict[str, str]:
+        return {
+            "prefect.io/flow-name": flow.name,
+        }
+
 
 class BaseVariables(BaseModel):
-    command: Optional[str] = Field(
+    name: Optional[str] = Field(
         default=None,
-        description=(
-            "The command to run when starting a flow run. "
-            "In most cases, this should be left blank and the command "
-            "will be automatically generated by the worker."
-        ),
+        description="Name given to infrastructure created by a worker.",
     )
     env: Dict[str, Optional[str]] = Field(
         default_factory=dict,
         title="Environment Variables",
         description="Environment variables to set when starting a flow run.",
+    )
+    labels: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Labels applied to infrastructure created by a worker.",
+    )
+    command: Optional[str] = Field(
+        default=None,
+        description=(
+            "The command to use when starting a flow run. "
+            "In most cases, this should be left blank and the command "
+            "will be automatically generated by the worker."
+        ),
     )
 
 
@@ -290,7 +403,7 @@ class BaseWorker(abc.ABC):
     @abc.abstractmethod
     async def run(
         self,
-        flow_run: FlowRun,
+        flow_run: "FlowRun",
         configuration: BaseJobConfiguration,
         task_status: Optional[anyio.abc.TaskStatus] = None,
     ) -> BaseWorkerResult:
@@ -390,7 +503,7 @@ class BaseWorker(abc.ABC):
 
     async def _get_scheduled_flow_runs(
         self,
-    ) -> List[schemas.responses.WorkerFlowRunResponse]:
+    ) -> List["WorkerFlowRunResponse"]:
         """
         Retrieve scheduled flow runs from the work pool's queues.
         """
@@ -416,8 +529,8 @@ class BaseWorker(abc.ABC):
             return []
 
     async def _submit_scheduled_flow_runs(
-        self, flow_run_response: List[WorkerFlowRunResponse]
-    ) -> List[FlowRun]:
+        self, flow_run_response: List["WorkerFlowRunResponse"]
+    ) -> List["FlowRun"]:
         """
         Takes a list of WorkerFlowRunResponses and submits the referenced flow runs
         for execution by the worker.
@@ -452,7 +565,7 @@ class BaseWorker(abc.ABC):
             )
         )
 
-    async def _check_flow_run(self, flow_run: FlowRun) -> None:
+    async def _check_flow_run(self, flow_run: "FlowRun") -> None:
         """
         Performs a check on a submitted flow run to warn the user if the flow run
         was created from a deployment with a storage block.
@@ -467,7 +580,7 @@ class BaseWorker(abc.ABC):
                     " agent to execute this flow run."
                 )
 
-    async def _submit_run(self, flow_run: FlowRun) -> None:
+    async def _submit_run(self, flow_run: "FlowRun") -> None:
         """
         Submits a given flow run for execution by the worker.
         """
@@ -514,7 +627,7 @@ class BaseWorker(abc.ABC):
         self._submitting_flow_run_ids.remove(flow_run.id)
 
     async def _submit_run_and_capture_errors(
-        self, flow_run: FlowRun, task_status: anyio.abc.TaskStatus = None
+        self, flow_run: "FlowRun", task_status: anyio.abc.TaskStatus = None
     ) -> Union[BaseWorkerResult, Exception]:
         try:
             # TODO: Add functionality to handle base job configuration and
@@ -582,15 +695,22 @@ class BaseWorker(abc.ABC):
             },
         }
 
-    async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
+    async def _get_configuration(
+        self,
+        flow_run: "FlowRun",
+    ) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
+        flow = await self._client.read_flow(flow_run.flow_id)
         configuration = self.job_configuration.from_template_and_overrides(
             base_job_template=self._work_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
+        configuration.prepare_for_flow_run(
+            flow_run=flow_run, deployment=deployment, flow=flow
+        )
         return configuration
 
-    async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
+    async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         state = flow_run.state
         try:
             state = await propose_state(
@@ -621,7 +741,7 @@ class BaseWorker(abc.ABC):
 
         return True
 
-    async def _propose_failed_state(self, flow_run: FlowRun, exc: Exception) -> None:
+    async def _propose_failed_state(self, flow_run: "FlowRun", exc: Exception) -> None:
         try:
             await propose_state(
                 self._client,
@@ -638,7 +758,7 @@ class BaseWorker(abc.ABC):
                 exc_info=True,
             )
 
-    async def _propose_crashed_state(self, flow_run: FlowRun, message: str) -> None:
+    async def _propose_crashed_state(self, flow_run: "FlowRun", message: str) -> None:
         try:
             state = await propose_state(
                 self._client,
@@ -666,24 +786,6 @@ class BaseWorker(abc.ABC):
                 base_job_template=job_template,
             ),
         )
-
-    @classmethod
-    def _base_environment(cls) -> Dict[str, str]:
-        """
-        Environment variables that should be passed to all created infrastructure.
-
-        These values should be overridable with the `env` field.
-        """
-        return get_current_settings().to_environment_variables(exclude_unset=True)
-
-    @staticmethod
-    def _base_flow_run_environment(flow_run: FlowRun) -> Dict[str, str]:
-        """
-        Generate a dictionary of environment variables for a flow run.
-        """
-        environment: Dict[str, Any] = {}
-        environment["PREFECT__FLOW_RUN_ID"] = flow_run.id.hex
-        return environment
 
     async def __aenter__(self):
         self._logger.debug("Entering worker context...")
