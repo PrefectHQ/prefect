@@ -194,7 +194,7 @@ jobs:
           # Parallelize tests by scope to reduce expensive service fixture duplication
           # Do not allow the test suite to build images, as we want the prebuilt images to be tested
           # Do not run Kubernetes service tests, we do not have a cluster available
-          pytest tests --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
+          pytest tests -vvv --numprocesses auto --dist loadscope --disable-docker-image-builds --exclude-service kubernetes --durations=25 ${{ matrix.pytest-options }}
 
       - name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
