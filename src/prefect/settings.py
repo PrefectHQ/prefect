@@ -637,6 +637,17 @@ The default logging level for Prefect loggers. Defaults to
 "INFO" during normal operation. Is forced to "DEBUG" during debug mode.
 """
 
+
+PREFECT_LOGGING_INTERNAL_LEVEL = Setting(
+    str,
+    default="ERROR",
+    value_callback=debug_mode_log_level,
+)
+"""
+The default logging level for Prefect's internal machinery loggers. Defaults to
+"ERROR" during normal operation. Is forced to "DEBUG" during debug mode.
+"""
+
 PREFECT_LOGGING_SERVER_LEVEL = Setting(
     str,
     default="WARNING",

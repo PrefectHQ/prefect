@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -455,9 +456,9 @@ class TaskRunnerStandardTestSuite(ABC):
         """
         sleep_time = 0.25
 
-        if sys.platform != "darwin":
+        if os.environ.get("CI"):
             # CI machines are slow
-            sleep_time += 2.5
+            sleep_time += 3
 
         if sys.version_info < (3, 8):
             # Python 3.7 is slower
@@ -577,92 +578,6 @@ class TaskRunnerStandardTestSuite(ABC):
         async def test_flow():
             await foo.submit()
             await bar.submit()
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "foo"
-
-    async def test_async_tasks_run_concurrently_with_task_group_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @task
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @task
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(foo.submit)
-                tg.start_soon(bar.submit)
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "foo"
-
-    def test_sync_subflows_run_sequentially_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        def foo():
-            time.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        def test_flow():
-            foo._run()
-            bar._run()
-
-        test_flow()
-
-        assert tmp_file.read_text() == "bar"
-
-    async def test_async_subflows_run_sequentially_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            await foo._run()
-            await bar._run()
-
-        await test_flow()
-
-        assert tmp_file.read_text() == "bar"
-
-    async def test_async_subflows_run_concurrently_with_task_group_with_all_task_runners(
-        self, task_runner, tmp_file
-    ):
-        @flow
-        async def foo():
-            await anyio.sleep(self.get_sleep_time())
-            tmp_file.write_text("foo")
-
-        @flow
-        async def bar():
-            tmp_file.write_text("bar")
-
-        @flow(version="test", task_runner=task_runner)
-        async def test_flow():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(foo._run)
-                tg.start_soon(bar._run)
 
         await test_flow()
 

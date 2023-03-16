@@ -967,14 +967,14 @@ class TestRunDeployment:
         d, deployment_id = test_deployment
 
         @flow
-        def foo():
-            return run_deployment(
+        async def foo():
+            return await run_deployment(
                 f"{d.flow_name}/{d.name}",
                 timeout=0,
                 poll_interval=0,
             )
 
-        parent_state = foo(return_state=True)
+        parent_state = await foo(return_state=True)
         child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
@@ -991,10 +991,10 @@ class TestRunDeployment:
             return "hello-world!!"
 
         @flow
-        def foo():
+        async def foo():
             upstream_task_state = bar(return_state=True)
-            upstream_result = upstream_task_state.result()
-            child_flow_run = run_deployment(
+            upstream_result = await upstream_task_state.result()
+            child_flow_run = await run_deployment(
                 f"{d.flow_name}/{d.name}",
                 timeout=0,
                 poll_interval=0,
@@ -1002,7 +1002,7 @@ class TestRunDeployment:
             )
             return upstream_task_state, child_flow_run
 
-        parent_state = foo(return_state=True)
+        parent_state = await foo(return_state=True)
         upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)

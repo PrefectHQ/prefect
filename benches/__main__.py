@@ -23,6 +23,7 @@ process = subprocess.run(
         "--benchmark-group-by=func",
         "--benchmark-columns=mean,stddev,min,max,rounds",
         "--benchmark-sort=mean",
+        "--benchmark-min-rounds=1",
     ]
     + (targets or [default_target])
     + options,

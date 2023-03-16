@@ -20,6 +20,7 @@ pytest-asyncio >= 0.18.2
 pytest-cov
 pytest-benchmark
 pytest-env
+pytest-flakefinder
 pytest-timeout
 pytest-xdist
 pytkdocs >= 0.14.2
