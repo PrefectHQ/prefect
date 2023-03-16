@@ -1,5 +1,6 @@
 ---
 description: Gain overall visibility and coordination of your workflows with Prefect UI and Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard

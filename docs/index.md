@@ -1,10 +1,5 @@
 ---
 icon: fontawesome/solid/shuttle-space
-# fontawesome/regular/face-laugh-wink
-# material/emoticon-happy 
----
-
----
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 tags:
     - getting started

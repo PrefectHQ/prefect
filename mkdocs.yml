@@ -105,6 +105,7 @@ watch:
 nav:
     - Getting Started: index.md  
     - Tutorials: 
+        - tutorials/index.md
         - tutorials/first-steps.md
         - tutorials/flow-task-config.md
         - tutorials/execution.md
@@ -112,7 +113,7 @@ nav:
         - tutorials/deployments.md
         - tutorials/storage.md
         - tutorials/docker.md
-        - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+        - Cloud Quickstart: ui/cloud-quickstart.md
         - Cloud Agent Quickstart: tutorials/cloud-agent.md
         - tutorials/testing.md
         - tutorials/dask-ray-task-runners.md
@@ -133,11 +134,12 @@ nav:
         - Logging: concepts/logs.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
-    - Prefect UI & Prefect Cloud:
-        - Prefect UI Overview: ui/overview.md
-        - Prefect Cloud Overview: ui/cloud.md
-        - Prefect Cloud Quickstart: ui/cloud-quickstart.md
-        - Prefect Cloud Concepts: 
+    - UI & Cloud:
+        - ui/index.md
+        - UI Overview: ui/overview.md
+        - Cloud Overview: ui/cloud.md
+        - Cloud Quickstart: ui/cloud-quickstart.md
+        - Cloud Concepts: 
             - Manage API keys: ui/cloud-api-keys.md
             - Configure Local Environments: ui/cloud-local-environment.md
         - ui/flow-runs.md
@@ -157,15 +159,18 @@ nav:
         - Troubleshooting: ui/troubleshooting.md
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
+        - guides/index.md
         - Migration Guide: migration-guide.md
         - Prefect Recipes: 
             - Recipes Catalog: recipes/recipes.md
             - Contributing Recipes: recipes/contribute-recipes.md
     - Integrations:
+        - integrations/index.md
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
         - Contributing Collections: collections/contribute.md
     - Reference: 
+        - reference/index.md
         - Overview: api-ref/overview.md
         - Python SDK:
             - 'prefect.agent': api-ref/prefect/agent.md
@@ -265,8 +270,8 @@ nav:
             - Prefect REST API Overview: api-ref/rest-api.md
             - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Community: 
-        #- Contributing
-        - Overview: contributing/overview.md
+        - communty/index.md
+        - Contributing: contributing/overview.md
         - Style: contributing/style.md
         - Versioning: contributing/versioning.md
         - Troubleshooting: contributing/common-mistakes.md
