@@ -18,7 +18,7 @@ def test_version_ephemeral_server_type():
     )
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_version_server_server_type():
     invoke_and_assert(
         ["version"], expected_output_contains="Server type:         server"
@@ -96,7 +96,7 @@ Server:
     )
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_correct_output_non_ephemeral_server_type():
     version_info = prefect.__version_info__
     built = pendulum.parse(prefect.__version_info__["date"])

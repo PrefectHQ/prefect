@@ -547,14 +547,14 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
 
 
 async def test_client_does_not_run_migrations_for_hosted_app(
-    hosted_orion_api, monkeypatch
+    hosted_api_server, monkeypatch
 ):
     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
-        async with PrefectClient(hosted_orion_api):
+        async with PrefectClient(hosted_api_server):
             pass
 
     mock.assert_not_awaited()
@@ -1495,8 +1495,8 @@ def test_server_type_ephemeral(orion_client):
     assert orion_client.server_type == ServerType.EPHEMERAL
 
 
-async def test_server_type_server(hosted_orion_api):
-    async with PrefectClient(hosted_orion_api) as orion_client:
+async def test_server_type_server(hosted_api_server):
+    async with PrefectClient(hosted_api_server) as orion_client:
         assert orion_client.server_type == ServerType.SERVER
 
 

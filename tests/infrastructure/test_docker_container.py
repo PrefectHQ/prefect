@@ -456,9 +456,9 @@ def test_network_mode_defaults_to_none_if_api_url_cannot_be_parsed(
     assert network_mode is None
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
-    mock_docker_client, hosted_orion_api
+    mock_docker_client, hosted_api_server
 ):
     DockerContainer(
         command=["echo", "hello"],
@@ -467,15 +467,15 @@ def test_replaces_localhost_api_with_dockerhost_when_not_using_host_network(
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
-    assert call_env["PREFECT_API_URL"] == hosted_orion_api.replace(
+    assert call_env["PREFECT_API_URL"] == hosted_api_server.replace(
         "localhost", "host.docker.internal"
     )
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_does_not_replace_localhost_api_when_using_host_network(
     mock_docker_client,
-    hosted_orion_api,
+    hosted_api_server,
     monkeypatch,
 ):
     # We will warn if setting 'host' network mode on non-linux platforms
@@ -488,10 +488,10 @@ def test_does_not_replace_localhost_api_when_using_host_network(
     mock_docker_client.containers.create.assert_called_once()
     call_env = mock_docker_client.containers.create.call_args[1].get("environment")
     assert "PREFECT_API_URL" in call_env
-    assert call_env["PREFECT_API_URL"] == hosted_orion_api
+    assert call_env["PREFECT_API_URL"] == hosted_api_server
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_warns_at_runtime_when_using_host_network_mode_on_non_linux_platform(
     mock_docker_client,
     monkeypatch,
@@ -660,7 +660,7 @@ def test_does_not_add_docker_host_gateway_on_other_platforms(
         "http://host.docker.internal:10/foo/api",
     ],
 )
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
     mock_docker_client,
     explicit_api_url,
@@ -725,7 +725,7 @@ def test_task_status_receives_result_identifier(mock_docker_client):
     fake_status.started.assert_called_once_with(result.identifier)
 
 
-@pytest.mark.usefixtures("use_hosted_orion")
+@pytest.mark.usefixtures("use_hosted_api_server")
 @pytest.mark.parametrize("platform", ["win32", "darwin"])
 def test_does_not_warn_about_gateway_if_not_using_linux(
     mock_docker_client,
