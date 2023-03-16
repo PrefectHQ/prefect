@@ -246,22 +246,31 @@ def test_cancel_sync_manually_in_main_thread():
 
 
 def test_cancel_sync_manually_in_worker_thread():
+    context_future = concurrent.futures.Future()
+
     def on_worker_thread():
         t0 = time.perf_counter()
         with pytest.raises(CancelledError):
             with cancel_sync_at(None) as ctx:
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    executor.submit(ctx.cancel)
+                # send the context back to the parent so it can cancel it
+                context_future.set_result(ctx)
+
                 # this cancel method does not interrupt sleep calls, the timeout is
                 # raised on the next instruction
-                for _ in range(10):
+                for _ in range(30):
                     time.sleep(0.1)
+
         t1 = time.perf_counter()
         return t1 - t0, ctx
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(on_worker_thread)
-        elapsed_time, ctx = future.result()
+        worker_future = executor.submit(on_worker_thread)
+
+        # Wait for the cancel context to be entered
+        context: CancelContext = context_future.result()
+        context.cancel()
+
+        elapsed_time, ctx = worker_future.result()
 
     assert elapsed_time < 1
     assert ctx.cancelled()
