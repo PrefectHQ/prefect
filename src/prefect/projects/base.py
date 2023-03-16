@@ -175,9 +175,11 @@ def initialize_project(name: str = None) -> List[str]:
     return files
 
 
-async def register_flow(entrypoint: str):
+async def register_flow(entrypoint: str, force: bool = False):
     """
     Register a flow with this project from an entrypoint.
+
+    Raises a ValueError if registration will overwrite an existing known flow.
     """
     try:
         fpath, obj_name = entrypoint.rsplit(":", 1)
@@ -209,6 +211,13 @@ async def register_flow(entrypoint: str):
     else:
         flows = {}
 
+    ## quality control
+    if flows.get(flow.name) != entrypoint:
+        if not force:
+            raise ValueError(
+                "Conflicting entry found for flow with name"
+                f" {flow.name!r}:\n{flow.name}: {flows[flow.name]}"
+            )
     flows[flow.name] = entrypoint
 
     with open(prefect_dir / "flows.json", "w") as f:

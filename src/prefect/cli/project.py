@@ -97,13 +97,22 @@ async def register_flow(
             "The path to a flow entrypoint, in the form of"
             " `./path/to/file.py:flow_func_name`"
         ),
-    )
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help=(
+            "An optional flag to force register this flow and overwrite any existing"
+            " entry"
+        ),
+    ),
 ):
     """
     Register a flow with this project.
     """
     try:
-        flow = await register(entrypoint)
+        flow = await register(entrypoint, force=force)
     except Exception as exc:
         exit_with_error(exc)
 
