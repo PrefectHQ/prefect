@@ -589,8 +589,8 @@ async def test_base_job_configuration_from_template_and_overrides(
     template, overrides, expected
 ):
     """Test that the job configuration is correctly built from the template and overrides"""
-    config = await BaseJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides=overrides
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=template, values=overrides
     )
     assert config.dict() == expected
 
@@ -770,8 +770,8 @@ async def test_job_configuration_from_template_and_overrides(
         var1: str = Field(template="{{ var1 }}")
         var2: int = Field(template="{{ var2 }}")
 
-    config = await ArbitraryJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides=overrides
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values=overrides
     )
     assert config.dict() == expected
 
@@ -803,8 +803,8 @@ async def test_job_configuration_from_template_and_overrides_with_nested_variabl
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
 
-    config = await ArbitraryJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides={"var1": "woof!"}
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={"var1": "woof!"}
     )
     assert config.dict() == {
         "command": None,
@@ -825,8 +825,8 @@ async def test_job_configuration_from_template_and_overrides_with_hard_coded_pri
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
 
-    config = await ArbitraryJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides={}
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={}
     )
     assert config.dict() == {
         "command": None,
@@ -882,9 +882,9 @@ async def test_job_configuration_from_template_overrides_with_block():
 
     block_id = await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
 
-    config = await ArbitraryJobConfiguration.from_template_and_overrides(
+    config = await ArbitraryJobConfiguration.from_template_and_values(
         base_job_template=template,
-        deployment_overrides={
+        values={
             "var1": "woof!",
             "arbitrary_block": {"$ref": {"block_document_id": block_id}},
         },
@@ -921,8 +921,8 @@ async def test_job_configuration_from_template_and_overrides_with_variables_in_a
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: list = Field(template=["{{ var1 }}", "{{ var2 }}"])
 
-    config = await ArbitraryJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides={"var1": "woof!"}
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={"var1": "woof!"}
     )
     assert config.dict() == {
         "command": None,
@@ -940,7 +940,7 @@ async def test_job_configuration_from_template_and_overrides_with_variables_in_a
 )
 async def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
     """Test that valid falsey values are converted to None for `command`"""
-    template = await BaseJobConfiguration.from_template_and_overrides(
+    template = await BaseJobConfiguration.from_template_and_values(
         base_job_template={
             "job_configuration": {
                 "command": "{{ command }}",
@@ -955,7 +955,7 @@ async def test_base_job_configuration_converts_falsey_values_to_none(falsey_valu
                 "required": [],
             },
         },
-        deployment_overrides={"command": falsey_value},
+        values={"command": falsey_value},
     )
     assert template.command is None
 

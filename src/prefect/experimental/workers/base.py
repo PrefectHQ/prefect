@@ -66,9 +66,7 @@ class BaseJobConfiguration(BaseModel):
         return defaults
 
     @classmethod
-    async def from_template_and_overrides(
-        cls, base_job_template: dict, deployment_overrides: dict
-    ):
+    async def from_template_and_values(cls, base_job_template: dict, values: dict):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
 
@@ -80,7 +78,7 @@ class BaseJobConfiguration(BaseModel):
         variables = cls._get_base_config_defaults(
             variables_schema.get("properties", {})
         )
-        variables.update(deployment_overrides)
+        variables.update(values)
         variables = await resolve_block_document_references(variables)
 
         populated_configuration = apply_values(job_config, variables)
@@ -586,9 +584,9 @@ class BaseWorker(abc.ABC):
 
     async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = await self.job_configuration.from_template_and_overrides(
+        configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            deployment_overrides=deployment.infra_overrides,
+            values=deployment.infra_overrides,
         )
         return configuration
 
