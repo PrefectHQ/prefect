@@ -37,27 +37,17 @@ def is_port_in_use(port: int) -> bool:
 
 
 @pytest.fixture(scope="session")
-async def hosted_orion_api():
+async def hosted_api_server(unused_tcp_port_factory):
     """
-    Runs an instance of the Prefect API at a dedicated URL instead of the ephemeral
-    application. Requires a port from 2222-2227 to be available.
+    Runs an instance of the Prefect API server in a subprocess instead of the using the
+    ephemeral application.
 
     Uses the same database as the rest of the tests.
 
     Yields:
-        The connection string
+        The API URL
     """
-
-    ports = [2222 + i for i in range(5)]
-
-    while True:
-        try:
-            port = ports.pop()
-        except IndexError as exc:
-            raise RuntimeError("No ports available to run test API.") from exc
-
-        if not is_port_in_use(port):
-            break
+    port = unused_tcp_port_factory()
 
     # Will connect to the same database as normal test clients
     async with open_process(
@@ -119,12 +109,12 @@ async def hosted_orion_api():
 
 
 @pytest.fixture
-def use_hosted_orion(hosted_orion_api):
+def use_hosted_api_server(hosted_api_server):
     """
     Sets `PREFECT_API_URL` to the test session's hosted API endpoint.
     """
-    with temporary_settings({PREFECT_API_URL: hosted_orion_api}):
-        yield hosted_orion_api
+    with temporary_settings({PREFECT_API_URL: hosted_api_server}):
+        yield hosted_api_server
 
 
 @pytest.fixture

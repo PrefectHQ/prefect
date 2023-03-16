@@ -51,7 +51,7 @@ async def test_async_task_as_dependency():
     await run()
 
 
-async def test_sync_task_after_async_in_async_flow(use_hosted_orion):
+async def test_sync_task_after_async_in_async_flow(use_hosted_api_server):
     @flow
     async def run():
         await async_multiply_by_two(42)
