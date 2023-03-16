@@ -16,7 +16,7 @@ def my_flow():
     ...
 ```
 
-This will create a dask client whose name mirrors the flow run ID. Similarly, you can use `prefect.runtime` to access parameters that were passed to this deployment run via `prefect.runtime.deployment.parameters`. Note that all of this attributes will be empty if they are not available.
+This will create a Dask client whose name mirrors the flow run ID. Similarly, you can use `prefect.runtime` to access parameters that were passed to this deployment run via `prefect.runtime.deployment.parameters`. Note that all of these attributes will be empty if they are not available.
 
 See https://github.com/PrefectHQ/prefect/pull/8790 for details
 
