@@ -48,11 +48,9 @@ jobs:
           - "sqlite"
         os:
           - ubuntu-latest
-
         python-version:
           - "3.10"
           - "3.11"
-
         pytest-options:
           - "--exclude-services"
           - "--only-services"
