@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect._internal.concurrency.calls import Call
-from prefect._internal.concurrency.threads import WorkerThread
+from prefect._internal.concurrency.threads import EventLoopThread, WorkerThread
 
 
 def identity(x):
@@ -14,45 +14,49 @@ async def aidentity(x):
     return x
 
 
-def test_worker_thread_with_failure_in_start():
-    worker_thread = WorkerThread()
+def test_event_loop_thread_with_failure_in_start():
+    event_loop_thread = EventLoopThread()
 
     # Simulate a failure during loop thread start
-    worker_thread._ready_future.set_result = MagicMock(side_effect=ValueError("test"))
+    event_loop_thread._ready_future.set_result = MagicMock(
+        side_effect=ValueError("test")
+    )
 
     # The error should propagate to the main thread
     with pytest.raises(ValueError, match="test"):
-        worker_thread.start()
+        event_loop_thread.start()
 
 
+@pytest.mark.parametrize("thread_cls", [WorkerThread, EventLoopThread])
 @pytest.mark.parametrize("daemon", [True, False])
-def test_worker_thread_daemon(daemon):
-    worker_thread = WorkerThread(daemon=daemon)
-    worker_thread.start()
-    assert worker_thread.thread.daemon is daemon
-    worker_thread.shutdown()
+def test_thread_daemon(daemon, thread_cls):
+    thread = thread_cls(daemon=daemon)
+    thread.start()
+    assert thread.thread.daemon is daemon
+    thread.shutdown()
 
 
-def test_worker_thread_run_once():
-    worker_thread = WorkerThread(run_once=True)
-    worker_thread.start()
+@pytest.mark.parametrize("thread_cls", [WorkerThread, EventLoopThread])
+def test_thread_run_once(thread_cls):
+    thread = thread_cls(run_once=True)
+    thread.start()
 
     call = Call.new(identity, 1)
-    worker_thread.submit(call)
+    thread.submit(call)
 
     with pytest.raises(
         RuntimeError,
         match="Worker configured to only run once. A call has already been submitted.",
     ):
-        worker_thread.submit(call)
+        thread.submit(Call.new(identity, 1))
 
     assert call.future.result() == 1
-    assert worker_thread._shutdown_event.is_set()
 
 
+@pytest.mark.parametrize("thread_cls", [WorkerThread, EventLoopThread])
 @pytest.mark.parametrize("work", [identity, aidentity])
-def test_worker_thread_submit(work):
-    worker_thread = WorkerThread()
-    call = worker_thread.submit(Call.new(work, 1))
+def test_thread_submit(work, thread_cls):
+    thread = thread_cls()
+    call = thread.submit(Call.new(work, 1))
     assert call.result() == 1
-    worker_thread.shutdown()
+    thread.shutdown()

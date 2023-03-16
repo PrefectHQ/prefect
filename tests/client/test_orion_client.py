@@ -188,25 +188,25 @@ class TestInjectClient:
         assert client is orion_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
 
-    async def test_use_existing_client_from_flow_run_ctx(self, orion_client):
+    async def test_does_not_use_existing_client_from_flow_run_ctx(self, orion_client):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func()
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
-    async def test_use_existing_client_from_task_run_ctx(self, orion_client):
+    async def test_does_not_use_existing_client_from_task_run_ctx(self, orion_client):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func()
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
-    async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
+    async def test_does_not_use_existing_client_from_flow_run_ctx_with_null_kwarg(
         self, orion_client
     ):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func(client=None)
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
 
 def not_enough_open_files() -> bool:

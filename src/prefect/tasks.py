@@ -265,8 +265,13 @@ class Task(Generic[P, R]):
             for other in registry.get_instances(Task)
             if other.name == self.name and id(other.fn) != id(self.fn)
         ):
-            file = inspect.getsourcefile(self.fn)
-            line_number = inspect.getsourcelines(self.fn)[1]
+            try:
+                file = inspect.getsourcefile(self.fn)
+                line_number = inspect.getsourcelines(self.fn)[1]
+            except TypeError:
+                file = "unknown"
+                line_number = "unknown"
+
             warnings.warn(
                 f"A task named {self.name!r} and defined at '{file}:{line_number}' "
                 "conflicts with another task. Consider specifying a unique `name` "

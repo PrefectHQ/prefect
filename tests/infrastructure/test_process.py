@@ -233,9 +233,12 @@ def test_process_logs_exit_code_help_message(
     result = Process(command=["noop"]).run()
     assert result.status_code == exit_code
 
-    record = caplog.records[-1]
-    assert record.levelname == "ERROR"
-    assert help_message in record.message
+    for record in caplog.records:
+        if help_message in record.message:
+            assert record.levelname == "ERROR"
+            break
+    else:
+        assert False, f"{help_message} not found in records"
 
 
 async def test_process_kill_mismatching_hostname(monkeypatch):

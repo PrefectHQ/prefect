@@ -9,7 +9,7 @@ from typing import Awaitable, Callable, Optional, TypeVar, Union
 from typing_extensions import ParamSpec
 
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import WorkerThread, get_global_thread_portal
+from prefect._internal.concurrency.threads import WorkerThread, get_global_loop
 from prefect._internal.concurrency.waiters import AsyncWaiter, Call, SyncWaiter, Waiter
 
 P = ParamSpec("P")
@@ -61,7 +61,7 @@ class from_async(_base):
     def call_soon_in_global_thread(
         call: Call[Awaitable[T]], timeout: Optional[float] = None
     ) -> AsyncWaiter[Awaitable[T]]:
-        portal = get_global_thread_portal()
+        portal = get_global_loop()
         call.set_timeout(timeout)
         waiter = AsyncWaiter(call)
         portal.submit(call)
@@ -78,14 +78,14 @@ class from_async(_base):
         return waiter
 
     @staticmethod
-    def send_callback(call: Call, timeout: Optional[float] = None) -> asyncio.Future:
+    def send_callback(call: Call, timeout: Optional[float] = None) -> Call:
         current_call = get_current_call()
         if current_call is None:
             raise RuntimeError("No call found in context.")
 
         call.set_timeout(timeout)
-        current_call.add_callback(call)
-        return asyncio.wrap_future(call.future)
+        current_call.add_waiting_callback(call)
+        return call
 
 
 class from_sync(_base):
@@ -93,7 +93,7 @@ class from_sync(_base):
     def call_soon_in_global_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncWaiter[T]:
-        portal = get_global_thread_portal()
+        portal = get_global_loop()
         call.set_timeout(timeout)
         waiter = SyncWaiter(call)
         portal.submit(call)
@@ -103,20 +103,18 @@ class from_sync(_base):
     def call_soon_in_new_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> SyncWaiter[T]:
-        portal = get_global_thread_portal()
+        portal = WorkerThread(run_once=True)
         call.set_timeout(timeout)
         waiter = SyncWaiter(call=call)
         portal.submit(call)
         return waiter
 
     @staticmethod
-    def send_callback(
-        call: Call, timeout: Optional[float] = None
-    ) -> concurrent.futures.Future:
+    def send_callback(call: Call, timeout: Optional[float] = None) -> Call:
         current_call = get_current_call()
         if current_call is None:
             raise RuntimeError("No call found in context.")
 
         call.set_timeout(timeout)
-        current_call.add_callback(call)
-        return call.future
+        current_call.add_waiting_callback(call)
+        return call

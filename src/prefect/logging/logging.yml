@@ -85,6 +85,9 @@ loggers:
     prefect.infrastructure:
         level: "${PREFECT_LOGGING_LEVEL}"
 
+    prefect._internal:
+        level: "${PREFECT_LOGGING_INTERNAL_LEVEL}"
+
     uvicorn:
         level: "${PREFECT_LOGGING_SERVER_LEVEL}"
 
