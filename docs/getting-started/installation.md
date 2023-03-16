@@ -179,19 +179,19 @@ $ sqlite3 --version
 ```
 </div>
 
-Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version.
+Or use the Prefect CLI command `prefect version`, which prints version and environment details to your console, including the server database and version. For example:
 
 <div class="terminal">
 ```
 $ prefect version
 Version:             2.7.5
+Version:             2.8.4
 API version:         0.8.4
-Python version:      3.11.0
-Git commit:          d0f14f17
-Built:               Tue, Jan 3, 2023 
-8:46 AM
+Python version:      3.10.8
+Git commit:          f09ccc32
+Built:               Thu, Mar 2, 2023 12:34 PM
 OS/Arch:             darwin/arm64
-Profile:             default
+Profile:              default
 Server type:         ephemeral
 Server:
   Database:          sqlite
