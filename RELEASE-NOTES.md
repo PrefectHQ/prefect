@@ -1,5 +1,41 @@
 # Prefect Release Notes
 
+## Release 2.8.6
+
+### `prefect.runtime` for context access
+
+
+See https://github.com/PrefectHQ/prefect/pull/8790 for details
+
+### Enhancements
+- Add deployment id support to `run_deployment` — https://github.com/PrefectHQ/prefect/pull/7958
+- Disable Postgres JIT for performance improvements — https://github.com/PrefectHQ/prefect/pull/8804
+
+### Fixes
+- Fix blocking file read in async method `Deployment.load_from_yaml` — https://github.com/PrefectHQ/prefect/pull/8798
+- Allow tasks and flows to make redudant transitions such as `RUNNING` -> `RUNNING` — https://github.com/PrefectHQ/prefect/pull/8802
+
+### Experimental
+- Enable setting environment variables for worker submitted flow runs — https://github.com/PrefectHQ/prefect/pull/8706
+- Add `--work-queue` option to worker CLI — https://github.com/PrefectHQ/prefect/pull/8771
+- Add artifact description column — https://github.com/PrefectHQ/prefect/pull/8805
+- Format types in result descriptions as code — https://github.com/PrefectHQ/prefect/pull/8808
+- Add artifacts for unpersisted results — https://github.com/PrefectHQ/prefect/pull/8759
+- Update default result descriptions — https://github.com/PrefectHQ/prefect/pull/8772
+
+### Documentation
+- Update workspace roles table to emphasize differences between roles — https://github.com/PrefectHQ/prefect/pull/8787
+- Add webhook block docs — https://github.com/PrefectHQ/prefect/pull/8773
+- Update info on Ray's support for hardware and software — https://github.com/PrefectHQ/prefect/pull/8811
+
+### Helm chart
+- Helm charts are now automatically published on each Prefect release — https://github.com/PrefectHQ/prefect/pull/8776
+
+### Contributors
+- @devanshdoshi9
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.8.5...2.8.6
+
 ## Release 2.8.5
 
 ### Enhancements
