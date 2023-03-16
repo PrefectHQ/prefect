@@ -50,6 +50,7 @@ jobs:
           - ubuntu-latest
         python-version:
           - "3.11"
+
         pytest-options:
           - "--exclude-services"
           - "--only-services"
