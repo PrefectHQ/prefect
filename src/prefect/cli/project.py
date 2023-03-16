@@ -25,10 +25,11 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
 from prefect.utilities.filesystem import set_default_ignore_file
 
-project_app = PrefectTyper(
-    name="project", help="Commands for interacting with your Prefect project."
-)
-app.add_typer(project_app, aliases=["projects"])
+# project_app = PrefectTyper(
+#    name="project", help="Commands for interacting with your Prefect project."
+# )
+# app.add_typer(project_app, aliases=["projects"])
+project_app = app
 
 
 def find_prefect_directory() -> Optional[Path]:
@@ -78,19 +79,19 @@ def set_default_project_yaml(
     path: str, name: str = None, pull_step: dict = None
 ) -> bool:
     """
-    Creates default project.yaml file in the provided path if one does not already exist;
+    Creates default prefect.yaml file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
     """
     path = Path(path)
-    if (path / "project.yaml").exists():
+    if (path / "prefect.yaml").exists():
         return False
-    default_file = Path(__file__).parent / "templates" / "project.yaml"
+    default_file = Path(__file__).parent / "templates" / "prefect.yaml"
     with open(default_file, "r") as df:
         contents = yaml.safe_load(df)
     contents["prefect-version"] = prefect.__version__
     contents["name"] = name
 
-    with open(path / "project.yaml", "w") as f:
+    with open(path / "prefect.yaml", "w") as f:
         # write header
         f.write(
             "# File for configuring project / deployment build, push and pull steps\n\n"
@@ -181,7 +182,7 @@ async def init(name: str = None):
     if set_default_deployment_yaml("."):
         files.append("[green]deployment.yaml[/green]")
     if set_default_project_yaml(".", name=name, pull_step=pull_step):
-        files.append("[green]project.yaml[/green]")
+        files.append("[green]prefect.yaml[/green]")
     if set_prefect_hidden_dir():
         files.append("[green].prefect/[/green]")
 
@@ -402,7 +403,7 @@ async def deploy(
         base_deploy = yaml.safe_load(f)
 
     # TODO: add all build / push project mechanics
-    with open("project.yaml", "r") as f:
+    with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
 
     # sanitize

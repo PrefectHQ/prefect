@@ -13,6 +13,7 @@ from prefect.utilities.slugify import slugify
 def build_docker_image(
     image_name: str, dockerfile: str = None, tag: str = None, push: bool = True
 ) -> dict:
+    # freeze flag?
     image_id = build_image(
         context=Path("."),
         dockerfile=dockerfile,
