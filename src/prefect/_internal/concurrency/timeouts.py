@@ -89,10 +89,10 @@ class CancelContext:
                 return False  # Do not mark cancelled tasks as completed
 
             if self._completed:
-                logger.debug("%r already completed", self, stacklevel=3)
+                logger.debug("%r already completed", self)
                 return False  # Already marked as completed
 
-            logger.debug("Marked %r as completed", self, stacklevel=3)
+            logger.debug("Marked %r as completed", self)
             self._completed = True
             return True
 
