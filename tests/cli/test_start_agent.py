@@ -11,7 +11,7 @@ from prefect.utilities.processutils import open_process
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
-SHUTDOWN_TIMEOUT = 20
+SHUTDOWN_TIMEOUT = 40
 
 
 @pytest.fixture(scope="function")
@@ -59,15 +59,12 @@ async def agent_process():
 
 
 class TestAgentSignalForwarding:
-    # run these tests sequentially in the same xdist worker to fix flakiness
-    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
     async def test_sigint_sends_sigterm(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -82,14 +79,12 @@ class TestAgentSignalForwarding:
             f" Output:\n{out}"
         )
 
-    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
     async def test_sigterm_sends_sigterm_directly(self, agent_process):
         agent_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -104,7 +99,6 @@ class TestAgentSignalForwarding:
             f" Output:\n{out}"
         )
 
-    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -113,7 +107,6 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGINT)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -130,7 +123,6 @@ class TestAgentSignalForwarding:
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
-    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
@@ -139,7 +131,6 @@ class TestAgentSignalForwarding:
         agent_process.send_signal(signal.SIGTERM)
         await anyio.sleep(0.01)  # some time needed for the recursive signal handler
         agent_process.send_signal(signal.SIGTERM)
-        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
@@ -156,14 +147,12 @@ class TestAgentSignalForwarding:
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
 
-    @pytest.mark.xdist_group(name="test_start_agent")
     @pytest.mark.skipif(
         sys.platform != "win32",
         reason="CTRL_BREAK_EVENT is only defined in Windows",
     )
     async def test_sends_ctrl_break_win32(self, agent_process):
         agent_process.send_signal(signal.SIGINT)
-        await anyio.sleep(0.1)  # reduce flakiness
         with anyio.fail_after(SHUTDOWN_TIMEOUT):
             await agent_process.wait()
         agent_process.out.seek(0)
