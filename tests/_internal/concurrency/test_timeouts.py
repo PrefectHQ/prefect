@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import threading
 import time
 from unittest.mock import MagicMock
 
@@ -229,16 +230,16 @@ async def test_cancel_async_manually():
 def test_cancel_sync_manually_in_main_thread():
     t0 = time.perf_counter()
     with pytest.raises(CancelledError):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            with cancel_sync_at(None) as ctx:
-                # Start cancellation in the other thread
-                executor.submit(ctx.cancel)
+        with cancel_sync_at(None) as ctx:
+            # Start cancellation in another thread
+            thread = threading.Thread(target=ctx.cancel, daemon=True)
+            thread.start()
 
-                # Sleep in the main thread; note unlike the timer based alarm this
-                # test requires intermittent sleeps to allow the signal to raise in
-                # a timely fashion
-                for _ in range(20):
-                    time.sleep(0.1)
+            # Sleep in the main thread; note unlike the timer based alarm this
+            # test requires intermittent sleeps to allow the signal to raise in
+            # a timely fashion
+            for _ in range(20):
+                time.sleep(0.1)
 
     t1 = time.perf_counter()
     assert ctx.cancelled()
