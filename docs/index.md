@@ -9,21 +9,20 @@ hide:
   - toc
 ---
 
-# Welcome to Prefect
-
-## The easiest way to orchestrate and observe your data pipelines
+# Welcome to Prefect: The easiest way to orchestrate and observe your data pipelines
 
 "Everything fails all the time" - AWS CTO, Werner Vogels 
 
 If you move data, these failures can be costly in terms of time, money, and frustration. Prefect makes it better with:
 
-- [scheduling](/concepts/schedules/)
-- [retries](/concepts/tasks/#task-arguments)
-- [logging](/concepts/logs/)
-- [caching](/concepts/tasks/#caching)
-- [notifications](/ui/notifications/)
-- [observability](/ui/overview/)
-- [async and parallelism]()
+<ul class="ul-line-height-compress">
+    <li> <a href="/concepts/schedules"> scheduling </a> </li>
+    <li> <a href="/concepts/tasks/#task-arguments"> retries </a> </li>
+    <li> <a href="/concepts/logs/"> logging </a> </li>
+    <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
+    <li> <a href="/ui/notifications/"> notifications</a> </li>
+    <li> <a href="/ui/overview/"> observability</a> </li>
+</ul>
 
 Trying to implement these features for your workflows on your own is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code. That's why Prefect offers all this functionality and more! 
 
@@ -50,11 +49,12 @@ def my_favorite_function():
 print(my_favorite_function())
 ```
 
-Run your code. Here's the output:
+Run the code and you should see output like this:
 
 
 <div class="terminal">
 ```bash
+$ python hello_prefect.py
 15:27:42.543 | INFO    | prefect.engine - Created flow run 'olive-poodle' for flow 'my-favorite-function'
 15:27:42.543 | INFO    | Flow run 'olive-poodle' - Using task runner 'ConcurrentTaskRunner'
 What is your favorite number?
