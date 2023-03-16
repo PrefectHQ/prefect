@@ -4,6 +4,19 @@
 
 ### `prefect.runtime` for context access
 
+Many users of Prefect run their flows in highly dynamic environments; because of this it can be incredibly useful to access information about the current flow run or deployment run outside of a flow function for configuration purposes. For example, if we are running a Prefect deployment within a larger dask cluster, we might want to use each flow run id as the Dask client name for easier searching of the scheduler logs. Prefect now offers a user-friendly way of accessing this information through the `prefect.runtime` namespace:
+
+```python
+from prefect.runtime import flow_run
+from prefect import flow
+from prefect_dask.task_runners import DaskTaskRunner
+
+@flow(task_runner=DaskTaskRunner(client_kwargs = {"name": flow_run.id}))
+def my_flow():
+    ...
+```
+
+This will create a dask client whose name mirrors the flow run ID. Similarly, you can use `prefect.runtime` to access parameters that were passed to this deployment run via `prefect.runtime.deployment.parameters`. Note that all of this attributes will be empty if they are not available.
 
 See https://github.com/PrefectHQ/prefect/pull/8790 for details
 
