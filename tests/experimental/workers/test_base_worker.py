@@ -6,6 +6,7 @@ import pytest
 from pydantic import Field
 
 import prefect.server.schemas as schemas
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import (
@@ -584,11 +585,11 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         ),
     ],
 )
-def test_base_job_configuration_from_template_and_overrides(
+async def test_base_job_configuration_from_template_and_overrides(
     template, overrides, expected
 ):
     """Test that the job configuration is correctly built from the template and overrides"""
-    config = BaseJobConfiguration.from_template_and_overrides(
+    config = await BaseJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides=overrides
     )
     assert config.dict() == expected
@@ -760,20 +761,22 @@ def test_base_job_configuration_from_template_and_overrides(
         ),
     ],
 )
-def test_job_configuration_from_template_and_overrides(template, overrides, expected):
+async def test_job_configuration_from_template_and_overrides(
+    template, overrides, expected
+):
     """Test that the job configuration is correctly built from the template and overrides"""
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str = Field(template="{{ var1 }}")
         var2: int = Field(template="{{ var2 }}")
 
-    config = ArbitraryJobConfiguration.from_template_and_overrides(
+    config = await ArbitraryJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides=overrides
     )
     assert config.dict() == expected
 
 
-def test_job_configuration_from_template_and_overrides_with_nested_variables():
+async def test_job_configuration_from_template_and_overrides_with_nested_variables():
     template = {
         "job_configuration": {
             "config": {
@@ -800,7 +803,7 @@ def test_job_configuration_from_template_and_overrides_with_nested_variables():
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
 
-    config = ArbitraryJobConfiguration.from_template_and_overrides(
+    config = await ArbitraryJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides={"var1": "woof!"}
     )
     assert config.dict() == {
@@ -813,7 +816,7 @@ def test_job_configuration_from_template_and_overrides_with_nested_variables():
     }
 
 
-def test_job_configuration_from_template_and_overrides_with_hard_coded_primitives():
+async def test_job_configuration_from_template_and_overrides_with_hard_coded_primitives():
     template = {
         "job_configuration": {"config": {"var1": 1, "var2": 1.1, "var3": True}},
         "variables": {},
@@ -822,7 +825,7 @@ def test_job_configuration_from_template_and_overrides_with_hard_coded_primitive
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
 
-    config = ArbitraryJobConfiguration.from_template_and_overrides(
+    config = await ArbitraryJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides={}
     )
     assert config.dict() == {
@@ -832,7 +835,71 @@ def test_job_configuration_from_template_and_overrides_with_hard_coded_primitive
     }
 
 
-def test_job_configuration_from_template_and_overrides_with_variables_in_a_list():
+async def test_job_configuration_from_template_overrides_with_block():
+    class ArbitraryBlock(Block):
+        a: int
+        b: str
+
+    template = {
+        "job_configuration": {
+            "var1": "{{ var1 }}",
+            "arbitrary_block": "{{ arbitrary_block }}",
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                },
+                "arbitrary_block": {},
+            },
+            "definitions": {
+                "ArbitraryBlock": {
+                    "title": "ArbitraryBlock",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "number",
+                        },
+                        "b": {
+                            "title": "B",
+                            "type": "string",
+                        },
+                    },
+                    "required": ["a", "b"],
+                    "block_type_slug": "arbitrary_block",
+                    "secret_fields": [],
+                    "block_schema_references": {},
+                },
+            },
+            "required": ["var1", "arbitrary_block"],
+        },
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+        arbitrary_block: ArbitraryBlock
+
+    block_id = await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
+
+    config = await ArbitraryJobConfiguration.from_template_and_overrides(
+        base_job_template=template,
+        deployment_overrides={
+            "var1": "woof!",
+            "arbitrary_block": {"$ref": {"block_document_id": block_id}},
+        },
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "var1": "woof!",
+        # block_type_slug is added by Block.dict()
+        "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
+    }
+
+
+async def test_job_configuration_from_template_and_overrides_with_variables_in_a_list():
     template = {
         "job_configuration": {"config": ["{{ var1 }}", "{{ var2 }}"]},
         "variables": {
@@ -854,7 +921,7 @@ def test_job_configuration_from_template_and_overrides_with_variables_in_a_list(
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         config: list = Field(template=["{{ var1 }}", "{{ var2 }}"])
 
-    config = ArbitraryJobConfiguration.from_template_and_overrides(
+    config = await ArbitraryJobConfiguration.from_template_and_overrides(
         base_job_template=template, deployment_overrides={"var1": "woof!"}
     )
     assert config.dict() == {
@@ -871,9 +938,9 @@ def test_job_configuration_from_template_and_overrides_with_variables_in_a_list(
         "",
     ],
 )
-def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
+async def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
     """Test that valid falsey values are converted to None for `command`"""
-    template = BaseJobConfiguration.from_template_and_overrides(
+    template = await BaseJobConfiguration.from_template_and_overrides(
         base_job_template={
             "job_configuration": {
                 "command": "{{ command }}",

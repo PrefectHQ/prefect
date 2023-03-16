@@ -20,6 +20,7 @@ from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.templating import apply_values, resolve_block_document_references
 
 
 class Unset:
@@ -65,7 +66,7 @@ class BaseJobConfiguration(BaseModel):
         return defaults
 
     @classmethod
-    def from_template_and_overrides(
+    async def from_template_and_overrides(
         cls, base_job_template: dict, deployment_overrides: dict
     ):
         """Creates a valid worker configuration object from the provided base
@@ -80,8 +81,9 @@ class BaseJobConfiguration(BaseModel):
             variables_schema.get("properties", {})
         )
         variables.update(deployment_overrides)
+        variables = await resolve_block_document_references(variables)
 
-        populated_configuration = cls._apply_variables(job_config, variables)
+        populated_configuration = apply_values(job_config, variables)
         return cls(**populated_configuration)
 
     @classmethod
@@ -584,7 +586,7 @@ class BaseWorker(abc.ABC):
 
     async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = self.job_configuration.from_template_and_overrides(
+        configuration = await self.job_configuration.from_template_and_overrides(
             base_job_template=self._work_pool.base_job_template,
             deployment_overrides=deployment.infra_overrides,
         )
