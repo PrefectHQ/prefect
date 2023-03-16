@@ -1,7 +1,6 @@
 """
 Command line interface for working with projects.
 """
-import json
 from pathlib import Path
 
 import typer
@@ -11,10 +10,9 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.flows import load_flow_from_entrypoint
 from prefect.projects import find_prefect_directory, initialize_project
+from prefect.projects import register_flow as register
 from prefect.projects.steps import run_step
-from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 project_app = PrefectTyper(
     name="project", help="Commands for interacting with your Prefect project."
@@ -105,43 +103,14 @@ async def register_flow(
     Register a flow with this project.
     """
     try:
-        fpath, obj_name = entrypoint.rsplit(":", 1)
-    except ValueError as exc:
-        if str(exc) == "not enough values to unpack (expected 2, got 1)":
-            missing_flow_name_msg = (
-                "Your flow entrypoint must include the name of the function that is"
-                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
-            )
-            exit_with_error(missing_flow_name_msg)
-        else:
-            raise exc
-    try:
-        flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+        flow = await register(entrypoint)
     except Exception as exc:
         exit_with_error(exc)
 
-    fpath = Path(fpath).absolute()
-    prefect_dir = find_prefect_directory()
-    if not prefect_dir:
-        exit_with_error(
-            "No .prefect directory could be found - run [yellow]`prefect project"
-            " init`[/yellow] to create one."
-        )
-
-    entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
-
-    if (prefect_dir / "flows.json").exists():
-        with open(prefect_dir / "flows.json", "r") as f:
-            flows = json.load(f)
-    else:
-        flows = {}
-
-    flows[flow.name] = entrypoint
-
-    with open(prefect_dir / "flows.json", "w") as f:
-        json.dump(flows, f, sort_keys=True, indent=2)
-
     app.console.print(
-        f"Registered flow {flow.name!r} in {(prefect_dir/'flows.json').resolve()!s}",
+        (
+            f"Registered flow {flow.name!r} in"
+            f" {(find_prefect_directory()/'flows.json').resolve()!s}"
+        ),
         style="green",
     )

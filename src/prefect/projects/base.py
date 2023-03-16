@@ -1,6 +1,7 @@
 """
 Core primitives for managing Prefect projects.
 """
+import json
 import os
 import subprocess
 import sys
@@ -9,6 +10,8 @@ from typing import List, Optional
 
 import yaml
 
+from prefect.flows import load_flow_from_entrypoint
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import set_default_ignore_file
 
 
@@ -170,3 +173,45 @@ def initialize_project(name: str = None) -> List[str]:
         files.append(".prefect/")
 
     return files
+
+
+async def register_flow(entrypoint: str):
+    """
+    Register a flow with this project from an entrypoint.
+    """
+    try:
+        fpath, obj_name = entrypoint.rsplit(":", 1)
+    except ValueError as exc:
+        if str(exc) == "not enough values to unpack (expected 2, got 1)":
+            missing_flow_name_msg = (
+                "Your flow entrypoint must include the name of the function that is"
+                f" the entrypoint to your flow.\nTry {entrypoint}:<flow_name>"
+            )
+            raise ValueError(missing_flow_name_msg)
+        else:
+            raise exc
+
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, entrypoint)
+
+    fpath = Path(fpath).absolute()
+    prefect_dir = find_prefect_directory()
+    if not prefect_dir:
+        raise FileNotFoundError(
+            "No .prefect directory could be found - run `prefect project"
+            " init` to create one."
+        )
+
+    entrypoint = f"{fpath.relative_to(prefect_dir.parent)!s}:{obj_name}"
+
+    if (prefect_dir / "flows.json").exists():
+        with open(prefect_dir / "flows.json", "r") as f:
+            flows = json.load(f)
+    else:
+        flows = {}
+
+    flows[flow.name] = entrypoint
+
+    with open(prefect_dir / "flows.json", "w") as f:
+        json.dump(flows, f, sort_keys=True, indent=2)
+
+    return flow

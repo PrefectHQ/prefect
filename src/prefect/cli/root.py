@@ -22,7 +22,7 @@ from prefect.client.orchestration import ServerType
 from prefect.experimental.workers.base import BaseJobConfiguration
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.configuration import setup_logging
-from prefect.projects import find_prefect_directory
+from prefect.projects import find_prefect_directory, register_flow
 from prefect.projects.steps import run_step
 from prefect.settings import (
     PREFECT_CLI_COLORS,
@@ -290,7 +290,10 @@ async def deploy(
 
     # flow-name and entrypoint logic
     flow = None
-    if flow_name:
+    if entrypoint:
+        flow = await register_flow(entrypoint)
+        flow_name = flow.name
+    elif flow_name:
         prefect_dir = find_prefect_directory()
         if not prefect_dir:
             exit_with_error(
@@ -315,15 +318,6 @@ async def deploy(
 
         # set entrypoint from prior registration
         entrypoint = flows[flow_name]
-    else:
-        try:
-            flow = await run_sync_in_worker_thread(
-                load_flow_from_entrypoint, entrypoint
-            )
-        except Exception as exc:
-            exit_with_error(exc)
-
-        flow_name = flow.name
 
     base_deploy["flow_name"] = flow_name
     base_deploy["entrypoint"] = entrypoint
