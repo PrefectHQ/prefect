@@ -2,6 +2,7 @@
 Base `prefect` command-line application
 """
 import asyncio
+import json
 import platform
 import sys
 from typing import List, Optional
@@ -414,17 +415,14 @@ async def deploy(
             )
 
         if base_deploy["work_pool_name"] is not None:
-            await _print_deployment_work_pool_instructions(
-                work_pool_name=base_deploy["work_pool_name"], client=client
+            app.console.print(
+                "\nTo execute flow runs from this deployment, start a worker that"
+                f" pulls work from the {base_deploy['work_pool_name']!r} work pool"
             )
         elif base_deploy["work_queue_name"] is not None:
             app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent that"
-                f" pulls work from the {base_deploy['work_queue_name']!r} work queue:"
-            )
-            app.console.print(
-                f"$ prefect agent start -q {base_deploy['work_queue_name']!r}",
-                style="blue",
+                "\nTo execute flow runs from this deployment, start a worker that"
+                f" pulls work from the {base_deploy['work_queue_name']!r} work queue"
             )
         else:
             app.console.print(
