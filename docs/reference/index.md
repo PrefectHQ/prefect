@@ -1,5 +1,6 @@
 ---
 description: Prefect APIs enable you to interact programmatically with flows, deployments, the REST API, and Prefect Cloud.
+icon: octicons/book-16
 tags:
     - API
     - Prefect API
