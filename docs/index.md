@@ -5,19 +5,11 @@ tags:
     - overview
 ---
 
-# Welcome to Prefect 2
+# Welcome to Prefect
 
-!!! tip "Changing 'Orion' nomenclature"
-    With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
+## The easiest way to orchestrate and observe your data pipelines
 
-!!! help "Looking for Prefect 1 Core and Server?"
-    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
-
-    [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/) is available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
-
-## Prefect coordinates your dataflow
-
-Prefect is [air traffic control for the modern data stack](https://www.prefect.io/guide/blog/the-global-coordination-plane#ATCfortheMDS). Monitor, coordinate, and orchestrate dataflows between and across your applications. Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
+Prefect . Build pipelines, deploy them anywhere, and configure them remotely. You might just love your workflows again.
 
 <div class="video-wrapper">
   <iframe width="100%" height="500" src="https://www.youtube.com/embed/ZK1s8OfVSpY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -222,3 +214,11 @@ Follow the [Getting Started docs](getting-started/overview/) and start building!
 While you're at it [give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) and join the thousands of community members in [our Slack community](https://www.prefect.io/slack). 
 
 Thank you for joining us in our mission to coordinate the world's dataflow and, of course, **happy engineering!**
+
+!!! tip "Changing 'Orion' nomenclature"
+    With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
+
+!!! help "Looking for Prefect 1 Core and Server?"
+    Prefect 2 is now available for general use. See our [Migration Guide](/migration-guide/) to move your flows from Prefect 1 to Prefect 2.
+
+    [Prefect 1 Core and Server documentation](http://docs-v1.prefect.io/) is available at [http://docs-v1.prefect.io/](http://docs-v1.prefect.io/).
