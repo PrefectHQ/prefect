@@ -649,7 +649,7 @@ class TestRunDeployment:
     def test_running_a_deployment_blocks_until_termination(
         self,
         test_deployment,
-        use_hosted_orion,
+        use_hosted_api_server,
         terminal_state,
     ):
         d, deployment_id = test_deployment
@@ -696,7 +696,7 @@ class TestRunDeployment:
     async def test_running_a_deployment_blocks_until_termination_async(
         self,
         test_deployment,
-        use_hosted_orion,
+        use_hosted_api_server,
         terminal_state,
     ):
         d, deployment_id = test_deployment
@@ -756,10 +756,42 @@ class TestRunDeployment:
         assert flow_run.deployment_id == deployment_id
         assert flow_run.state
 
+    async def test_run_deployment_with_deployment_id_str(
+        self,
+        test_deployment,
+        orion_client,
+    ):
+        _, deployment_id = test_deployment
+
+        flow_run = await run_deployment(
+            f"{deployment_id}",
+            timeout=0,
+            poll_interval=0,
+            client=orion_client,
+        )
+        assert flow_run.deployment_id == deployment_id
+        assert flow_run.state
+
+    async def test_run_deployment_with_deployment_id_uuid(
+        self,
+        test_deployment,
+        orion_client,
+    ):
+        _, deployment_id = test_deployment
+
+        flow_run = await run_deployment(
+            deployment_id,
+            timeout=0,
+            poll_interval=0,
+            client=orion_client,
+        )
+        assert flow_run.deployment_id == deployment_id
+        assert flow_run.state
+
     def test_returns_flow_run_on_timeout(
         self,
         test_deployment,
-        use_hosted_orion,
+        use_hosted_api_server,
     ):
         d, deployment_id = test_deployment
 
@@ -790,7 +822,7 @@ class TestRunDeployment:
     def test_returns_flow_run_immediately_when_timeout_is_zero(
         self,
         test_deployment,
-        use_hosted_orion,
+        use_hosted_api_server,
     ):
         d, deployment_id = test_deployment
 
@@ -823,7 +855,7 @@ class TestRunDeployment:
     def test_polls_indefinitely(
         self,
         test_deployment,
-        use_hosted_orion,
+        use_hosted_api_server,
     ):
         d, deployment_id = test_deployment
 
@@ -857,7 +889,9 @@ class TestRunDeployment:
             run_deployment(f"{d.flow_name}/{d.name}", timeout=None, poll_interval=0)
             assert len(flow_polls.calls) == 100
 
-    def test_schedules_immediately_by_default(self, test_deployment, use_hosted_orion):
+    def test_schedules_immediately_by_default(
+        self, test_deployment, use_hosted_api_server
+    ):
         d, deployment_id = test_deployment
 
         scheduled_time = pendulum.now()
@@ -869,7 +903,9 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_accepts_custom_scheduled_time(self, test_deployment, use_hosted_orion):
+    def test_accepts_custom_scheduled_time(
+        self, test_deployment, use_hosted_api_server
+    ):
         d, deployment_id = test_deployment
 
         scheduled_time = pendulum.now() + pendulum.Duration(minutes=5)
@@ -882,7 +918,7 @@ class TestRunDeployment:
 
         assert (flow_run.expected_start_time - scheduled_time).total_seconds() < 1
 
-    def test_custom_flow_run_names(self, test_deployment, use_hosted_orion):
+    def test_custom_flow_run_names(self, test_deployment, use_hosted_api_server):
         d, deployment_id = test_deployment
 
         flow_run = run_deployment(
@@ -926,19 +962,19 @@ class TestRunDeployment:
         assert flow_run_a.id == flow_run_b.id
 
     async def test_links_to_parent_flow_run_when_used_in_flow(
-        self, test_deployment, use_hosted_orion, orion_client: PrefectClient
+        self, test_deployment, use_hosted_api_server, orion_client: PrefectClient
     ):
         d, deployment_id = test_deployment
 
         @flow
-        def foo():
-            return run_deployment(
+        async def foo():
+            return await run_deployment(
                 f"{d.flow_name}/{d.name}",
                 timeout=0,
                 poll_interval=0,
             )
 
-        parent_state = foo(return_state=True)
+        parent_state = await foo(return_state=True)
         child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)
@@ -946,7 +982,7 @@ class TestRunDeployment:
         assert slugify(f"{d.flow_name}/{d.name}") in task_run.task_key
 
     async def test_tracks_dependencies_when_used_in_flow(
-        self, test_deployment, use_hosted_orion, orion_client
+        self, test_deployment, use_hosted_api_server, orion_client
     ):
         d, deployment_id = test_deployment
 
@@ -955,10 +991,10 @@ class TestRunDeployment:
             return "hello-world!!"
 
         @flow
-        def foo():
+        async def foo():
             upstream_task_state = bar(return_state=True)
-            upstream_result = upstream_task_state.result()
-            child_flow_run = run_deployment(
+            upstream_result = await upstream_task_state.result()
+            child_flow_run = await run_deployment(
                 f"{d.flow_name}/{d.name}",
                 timeout=0,
                 poll_interval=0,
@@ -966,7 +1002,7 @@ class TestRunDeployment:
             )
             return upstream_task_state, child_flow_run
 
-        parent_state = foo(return_state=True)
+        parent_state = await foo(return_state=True)
         upstream_task_state, child_flow_run = await parent_state.result()
         assert child_flow_run.parent_task_run_id is not None
         task_run = await orion_client.read_task_run(child_flow_run.parent_task_run_id)

@@ -8,7 +8,7 @@ from typing_extensions import Self
 import prefect
 from prefect.blocks.core import Block
 from prefect.client.utilities import inject_client
-from prefect.exceptions import MissingContextError
+from prefect.exceptions import MissingContextError, MissingResult
 from prefect.filesystems import LocalFileSystem, ReadableFileSystem, WritableFileSystem
 from prefect.logging import get_logger
 from prefect.serializers import Serializer
@@ -291,25 +291,18 @@ class ResultFactory(pydantic.BaseModel):
         """
         Create a result type for the given object.
 
-        If persistence is disabled, the object is returned unaltered.
+        If persistence is disabled, the object is wrapped in an `UnpersistedResult` and
+        returned.
 
-        Literal types are converted into `LiteralResult`.
-
-        Other types are serialized, persisted to storage, and a reference is returned.
+        If persistence is enabled:
+        - Bool and null types are converted into `LiteralResult`.
+        - Other types are serialized, persisted to storage, and a reference is returned.
         """
-        if obj is None:
-            # Always write nulls as result types to distinguish from unpersisted results
-            return await LiteralResult.create(None)
+        # Null objects are "cached" in memory at no cost
+        should_cache_object = self.cache_result_in_memory or obj is None
 
         if not self.persist_result:
-            # Attach the object directly if persistence is disabled; it will be dropped
-            # when sent to the API
-            if self.cache_result_in_memory:
-                return obj
-            # Unless in-memory caching has been disabled, then this result will not be
-            # available downstream
-            else:
-                return None
+            return await UnpersistedResult.create(obj, cache_object=should_cache_object)
 
         if type(obj) in LITERAL_TYPES:
             return await LiteralResult.create(obj)
@@ -319,7 +312,7 @@ class ResultFactory(pydantic.BaseModel):
             storage_block=self.storage_block,
             storage_block_id=self.storage_block_id,
             serializer=self.serializer,
-            cache_object=self.cache_result_in_memory,
+            cache_object=should_cache_object,
         )
 
 
@@ -355,6 +348,38 @@ class BaseResult(pydantic.BaseModel, abc.ABC, Generic[R]):
         extra = "forbid"
 
 
+class UnpersistedResult(BaseResult):
+    """
+    Result type for results that are not persisted outside of local memory.
+    """
+
+    type = "unpersisted"
+
+    @sync_compatible
+    async def get(self) -> R:
+        if self.has_cached_object():
+            return self._cache
+
+        raise MissingResult("The result was not persisted and is no longer available.")
+
+    @classmethod
+    @sync_compatible
+    async def create(
+        cls: "Type[UnpersistedResult]",
+        obj: R,
+        cache_object: bool = True,
+    ) -> "UnpersistedResult[R]":
+        description = f"Unpersisted result of type `{type(obj).__name__}`"
+        result = cls(
+            artifact_type="result",
+            artifact_description=description,
+        )
+        # Only store the object in local memory, it will not be sent to the API
+        if cache_object:
+            result._cache_object(obj)
+        return result
+
+
 class LiteralResult(BaseResult):
     """
     Result type for literal values like `None`, `True`, `False`.
@@ -386,7 +411,7 @@ class LiteralResult(BaseResult):
                 f" one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        description = f"Literal: `{obj}`"
+        description = f"Result with value `{obj}` persisted to Prefect."
         return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
@@ -434,8 +459,8 @@ class PersistedResult(BaseResult):
         blob = PersistedResultBlob.parse_raw(content)
         return blob
 
-    @classmethod
-    def _infer_path(cls, storage_block, key) -> str:
+    @staticmethod
+    def _infer_path(storage_block, key) -> str:
         """
         Attempts to infer a path associated with a storage block key, this method will
         defer to the block in the future
@@ -445,18 +470,6 @@ class PersistedResult(BaseResult):
             return storage_block._resolve_path(key)
         if hasattr(storage_block, "_remote_file_system"):
             return storage_block._remote_file_system._resolve_path(key)
-
-    @classmethod
-    def _infer_description(cls, obj, storage_block, key) -> str:
-        uri = cls._infer_path(storage_block, key)
-        if uri is not None:
-            return f"<{uri}>"
-
-        description = repr(obj)
-        max_description_length = 500
-        if len(description) > max_description_length:
-            return description[:max_description_length] + "..."
-        return f"```\n{description}\n```"
 
     @classmethod
     @sync_compatible
@@ -480,7 +493,12 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
-        description = cls._infer_description(obj, storage_block, key)
+        description = f"Result of type `{type(obj).__name__}`"
+        uri = cls._infer_path(storage_block, key)
+        if uri:
+            description += f" persisted to [{uri}]({uri})."
+        else:
+            description += f" persisted with storage block `{storage_block_id}`."
 
         result = cls(
             serializer_type=serializer.type,

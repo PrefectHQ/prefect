@@ -124,7 +124,7 @@ async def delete(id: UUID):
 
 @flow_run_app.command()
 async def cancel(id: UUID):
-    """Cancel a flow fun by ID."""
+    """Cancel a flow run by ID."""
     async with get_client() as client:
         cancelling_state = State(type=StateType.CANCELLING)
         try:

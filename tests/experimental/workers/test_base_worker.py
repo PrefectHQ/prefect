@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 import pendulum
@@ -8,7 +7,6 @@ from pydantic import Field
 
 import prefect.server.schemas as schemas
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import (
     BaseJobConfiguration,
@@ -20,7 +18,6 @@ from prefect.server import models
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
 )
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
@@ -65,7 +62,7 @@ async def ensure_default_agent_pool_exists(session):
 
 
 @pytest.fixture
-async def worker_deployment(
+async def worker_deployment_wq1(
     session,
     flow,
     flow_function,
@@ -77,7 +74,7 @@ async def worker_deployment(
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment",
+            name="My Deployment 1",
             tags=["test"],
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
@@ -86,7 +83,6 @@ async def worker_deployment(
             ),
             path="./subdir",
             entrypoint="/file.py:flow",
-            work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
         ),
@@ -95,13 +91,34 @@ async def worker_deployment(
     return deployment
 
 
-async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
-    await WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=tmp_path / "workflows",
-    ).setup()
-    assert (tmp_path / "workflows").exists()
+@pytest.fixture
+async def worker_deployment_wq_2(
+    session,
+    flow,
+    flow_function,
+    work_queue_2,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment 2",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=pendulum.duration(days=1).as_timedelta(),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_2.id,
+        ),
+    )
+    await session.commit()
+    return deployment
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(
@@ -143,7 +160,6 @@ async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
     "setting,attr",
     [
         (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
-        (PREFECT_WORKER_WORKFLOW_STORAGE_PATH, "workflow_storage_path"),
     ],
 )
 async def test_worker_respects_settings(setting, attr):
@@ -177,120 +193,8 @@ async def test_worker_sends_heartbeat_messages(
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_applies_discovered_deployments(
-    orion_client: PrefectClient, flow_function, tmp_path: Path
-):
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-    read_deployment = await orion_client.read_deployment_by_name(
-        "client-test-flow/test-deployment"
-    )
-    assert read_deployment is not None
-
-
-async def test_worker_applies_updates_to_deployments(
-    orion_client: PrefectClient, flow_function, tmp_path: Path, work_pool
-):
-    # create initial deployment manifest
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function, work_pool_name=work_pool.name
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name=work_pool.name,
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-
-        # update deployment
-        deployment.tags = ["new-tag"]
-        deployment.timestamp = pendulum.now("UTC")
-        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-        assert read_deployment.tags == ["new-tag"]
-
-
-async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
-    orion_client: PrefectClient, flow_function, tmp_path: Path
-):
-    # create initial deployment manifest
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-
-        # update deployment don't update timestamp
-        deployment.tags = ["new-tag"]
-        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-        assert read_deployment.tags == []
-
-
-async def test_worker_does_not_raise_on_malformed_manifests(
-    orion_client: PrefectClient, tmp_path: Path
-):
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    (workflows_path / "test-deployment.yaml").write_text(
-        "Ceci n'est pas un déploiement"
-    )
-
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        assert len(await orion_client.read_deployments()) == 0
-
-
-async def test_worker_with_work_queue(
-    orion_client: PrefectClient, worker_deployment, work_pool
+async def test_worker_with_work_pool(
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     @flow
     def test_flow():
@@ -298,7 +202,7 @@ async def test_worker_with_work_queue(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [
@@ -329,8 +233,57 @@ async def test_worker_with_work_queue(
     assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:4])
 
 
-async def test_worker_with_work_queue_and_limit(
-    orion_client: PrefectClient, worker_deployment, work_pool
+async def test_worker_with_work_pool_and_work_queue(
+    orion_client: PrefectClient,
+    worker_deployment_wq1,
+    worker_deployment_wq_2,
+    work_queue_1,
+    work_pool,
+):
+    @flow
+    def test_flow():
+        pass
+
+    create_run_with_deployment_1 = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id, state=state
+        )
+    )
+    create_run_with_deployment_2 = (
+        lambda state: orion_client.create_flow_run_from_deployment(
+            worker_deployment_wq_2.id, state=state
+        )
+    )
+    flow_runs = [
+        await create_run_with_deployment_1(Pending()),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
+        ),
+        await create_run_with_deployment_1(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+        ),
+        await create_run_with_deployment_2(
+            Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
+        ),
+        await create_run_with_deployment_1(Running()),
+        await create_run_with_deployment_1(Completed()),
+        await orion_client.create_flow_run(test_flow, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
+
+    async with WorkerTestImpl(
+        work_pool_name=work_pool.name, work_queues=[work_queue_1.name]
+    ) as worker:
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+
+    assert {flow_run.id for flow_run in submitted_flow_runs} == set(flow_run_ids[1:3])
+
+
+async def test_worker_with_work_pool_and_limit(
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     @flow
     def test_flow():
@@ -338,7 +291,7 @@ async def test_worker_with_work_queue_and_limit(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [
@@ -383,7 +336,7 @@ async def test_worker_with_work_queue_and_limit(
 
 
 async def test_worker_calls_run_with_expected_arguments(
-    orion_client: PrefectClient, worker_deployment, work_pool
+    orion_client: PrefectClient, worker_deployment_wq1, work_pool
 ):
     run_mock = AsyncMock()
 
@@ -393,7 +346,7 @@ async def test_worker_calls_run_with_expected_arguments(
 
     create_run_with_deployment = (
         lambda state: orion_client.create_flow_run_from_deployment(
-            worker_deployment.id, state=state
+            worker_deployment_wq1.id, state=state
         )
     )
     flow_runs = [
@@ -473,7 +426,11 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     WorkerTestImpl.job_configuration = WorkerJobConfig
 
     expected_job_template = {
-        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
+        "job_configuration": {
+            "command": "{{ command }}",
+            "env": "{{ env }}",
+            "other": "{{ other }}",
+        },
         "variables": {
             "properties": {
                 "command": {
@@ -485,9 +442,17 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                         "will be automatically generated by the worker."
                     ),
                 },
+                "env": {
+                    "title": "Environment Variables",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "description": (
+                        "Environment variables to set when starting a flow run."
+                    ),
+                },
                 "other": {"type": "string", "title": "Other"},
             },
-            "required": [],
+            "type": "object",
         },
     }
 
@@ -531,7 +496,11 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
     WorkerTestImpl.job_configuration_variables = WorkerVariables
 
     worker_job_template = {
-        "job_configuration": {"command": "{{ command }}", "other": "{{ other }}"},
+        "job_configuration": {
+            "command": "{{ command }}",
+            "env": "{{ env }}",
+            "other": "{{ other }}",
+        },
         "variables": {
             "properties": {
                 "command": {
@@ -543,9 +512,17 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                         "will be automatically generated by the worker."
                     ),
                 },
+                "env": {
+                    "title": "Environment Variables",
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "description": (
+                        "Environment variables to set when starting a flow run."
+                    ),
+                },
                 "other": {"type": "string", "title": "Other", "default": "woof"},
             },
-            "required": [],
+            "type": "object",
         },
     }
 
@@ -578,6 +555,7 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
             {  # Base template with no overrides
                 "job_configuration": {
                     "command": "{{ command }}",
+                    "env": "{{ env }}",
                 },
                 "variables": {
                     "properties": {
@@ -585,14 +563,23 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                             "type": "string",
                             "title": "Command",
                             "default": "echo hello",
-                        }
+                        },
+                        "env": {
+                            "title": "Environment Variables",
+                            "type": "object",
+                            "additionalProperties": {"type": "string"},
+                            "description": (
+                                "Environment variables to set when starting a flow run."
+                            ),
+                        },
                     },
-                    "required": [],
+                    "type": "object",
                 },
             },
             {},  # No overrides
             {  # Expected result
                 "command": "echo hello",
+                "env": {},
             },
         ),
     ],
@@ -635,6 +622,7 @@ def test_base_job_configuration_from_template_and_overrides(
             {},  # No overrides
             {  # Expected result
                 "command": None,
+                "env": {},
                 "var1": "hello",
                 "var2": 42,
             },
@@ -669,6 +657,7 @@ def test_base_job_configuration_from_template_and_overrides(
             {},  # No overrides
             {  # Expected result
                 "command": None,
+                "env": {},
                 "var1": "hello",
                 "var2": 42,
             },
@@ -702,7 +691,10 @@ def test_base_job_configuration_from_template_and_overrides(
             },
             {},  # No overrides
             {  # Expected result
-                "command": "echo hello",
+                "command": (
+                    None
+                ),  # command variable is not used in the job configuration
+                "env": {},
                 "var1": "hello",
                 "var2": 42,
             },
@@ -732,6 +724,7 @@ def test_base_job_configuration_from_template_and_overrides(
             {"var1": "woof!"},  # var1 overridden
             {  # Expected result
                 "command": None,
+                "env": {},
                 "var1": "woof!",
                 "var2": 42,
             },
@@ -760,6 +753,7 @@ def test_base_job_configuration_from_template_and_overrides(
             {"var1": "woof!"},  # var1 overridden
             {  # Expected result
                 "command": None,
+                "env": {},
                 "var1": "woof!",
                 "var2": 42,
             },
@@ -815,6 +809,7 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
             "{{ var1 }}",
             {
                 "command": "{{ command }}",
+                "env": "{{ env }}",
                 "var1": "{{ var1 }}",
                 "var2": "{{ var2 }}",
             },
@@ -823,6 +818,7 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
             None,
             {
                 "command": "{{ command }}",
+                "env": "{{ env }}",
                 "var1": "{{ var1 }}",
                 "var2": "{{ var2 }}",
             },
@@ -831,6 +827,7 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
             "{{ dog }}",
             {
                 "command": "{{ command }}",
+                "env": "{{ env }}",
                 "var1": "{{ dog }}",
                 "var2": "{{ var2 }}",
             },
@@ -862,8 +859,8 @@ class TestWorkerProperties:
         assert WorkerImplNoCustomization.get_logo_url() == ""
         assert WorkerImplNoCustomization.get_documentation_url() == ""
         assert WorkerImplNoCustomization.get_description() == ""
-        assert WorkerImplNoCustomization.get_default_base_job_configuration() == {
-            "job_configuration": {"command": "{{ command }}"},
+        assert WorkerImplNoCustomization.get_default_base_job_template() == {
+            "job_configuration": {"command": "{{ command }}", "env": "{{ env }}"},
             "variables": {
                 "properties": {
                     "command": {
@@ -874,9 +871,17 @@ class TestWorkerProperties:
                             "In most cases, this should be left blank and the command "
                             "will be automatically generated by the worker."
                         ),
-                    }
+                    },
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                        "description": (
+                            "Environment variables to set when starting a flow run."
+                        ),
+                    },
                 },
-                "required": [],
+                "type": "object",
             },
         }
 
@@ -950,9 +955,10 @@ class TestWorkerProperties:
             async def verify_submitted_deployment(self, deployment):
                 pass
 
-        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_configuration() == {
+        assert WorkerImplWithCustomBaseJobConfiguration.get_default_base_job_template() == {
             "job_configuration": {
                 "command": "{{ command }}",
+                "env": "{{ env }}",
                 "var1": "{{ var1 }}",
                 "var2": "{{ var2 }}",
             },
@@ -967,9 +973,18 @@ class TestWorkerProperties:
                             "will be automatically generated by the worker."
                         ),
                     },
+                    "env": {
+                        "title": "Environment Variables",
+                        "type": "object",
+                        "additionalProperties": {"type": "string"},
+                        "description": (
+                            "Environment variables to set when starting a flow run."
+                        ),
+                    },
                     "var1": {"title": "Var1", "type": "string"},
                     "var2": {"title": "Var2", "type": "integer", "default": 1},
                 },
                 "required": ["var1"],
+                "type": "object",
             },
         }
