@@ -1,10 +1,12 @@
 ---
-icon: fontawesome/solid/shuttle-space
+icon: material/star-shooting-outline
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
 tags:
     - getting started
     - quick start
     - overview
+hide:
+  - toc
 ---
 
 # Welcome to Prefect

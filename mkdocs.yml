@@ -270,7 +270,7 @@ nav:
             - Prefect REST API Overview: api-ref/rest-api.md
             - Prefect REST API Reference: api-ref/rest-api-reference.md
     - Community: 
-        - communty/index.md
+        - community/index.md
         - Contributing: contributing/overview.md
         - Style: contributing/style.md
         - Versioning: contributing/versioning.md
