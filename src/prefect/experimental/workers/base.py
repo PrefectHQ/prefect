@@ -1,5 +1,4 @@
 import abc
-import re
 from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
@@ -20,6 +19,7 @@ from prefect.server.schemas.responses import WorkerFlowRunResponse
 from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.templating import apply_values, resolve_block_document_references
 
 
 class BaseJobConfiguration(BaseModel):
@@ -54,23 +54,22 @@ class BaseJobConfiguration(BaseModel):
         return defaults
 
     @classmethod
-    def from_template_and_overrides(
-        cls, base_job_template: dict, deployment_overrides: dict
-    ):
+    async def from_template_and_values(cls, base_job_template: dict, values: dict):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
 
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config = base_job_template["job_configuration"]
+        job_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-        variables = cls._base_variables_from_variable_properties(
-            variables_schema["properties"]
+        variables = cls._get_base_config_defaults(
+            variables_schema.get("properties", {})
         )
-        variables.update(deployment_overrides)
+        variables.update(values)
+        variables = await resolve_block_document_references(variables)
 
-        populated_configuration = cls._apply_variables(job_config, variables)
+        populated_configuration = apply_values(job_config, variables)
         return cls(**populated_configuration)
 
     @classmethod
@@ -95,58 +94,6 @@ class BaseJobConfiguration(BaseModel):
             configuration[k] = template
 
         return configuration
-
-    @staticmethod
-    def _apply_variables(job_config: Dict[str, str], variables: Dict[str, Any]):
-        """
-        Apply variables to a job configuration template by interpolating variables into the placeholders in the
-        template.
-
-        If a value in the job configuration contains only a single placeholder, the value will be fully replaced
-        with the value.
-
-        If a value in the job configuration contains text before and after a placeholder or there are multiple
-        placeholders, the placeholders will be replaced with the corresponding variable values.
-
-        Args:
-            job_config: The job configuration portion of a base job template to apply variables to
-            variables: The variables to apply to the job configuration
-
-        Returns:
-            The job configuration with variables applied
-        """
-        variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
-        applied_config = {}
-        for key, value in (job_config or {}).items():
-            used_variables = variable_capture_regex.findall(value)
-            if not used_variables:
-                # If there are no variables, we can just use the value
-                applied_config[key] = value
-            elif (
-                len(used_variables) == 1
-                and used_variables[0][0] == value
-                and variables[used_variables[0][1]] is not None
-            ):
-                # If there is only one variable with no surrounding text, we can just replace it
-                applied_config[key] = variables[used_variables[0][1]]
-            else:
-                for full_match, variable_name in used_variables:
-                    if (
-                        variable_name in variables
-                        and variables[variable_name] is not None
-                    ):
-                        applied_config[key] = value.replace(
-                            full_match, variables[variable_name]
-                        )
-        return applied_config
-
-    @classmethod
-    def _base_variables_from_variable_properties(cls, variable_properties):
-        """Get base template variables."""
-        default_variables = cls._get_base_config_defaults(variable_properties)
-        variables = {key: None for key in variable_properties.keys()}
-        variables.update(default_variables)
-        return variables
 
 
 class BaseVariables(BaseModel):
@@ -560,9 +507,9 @@ class BaseWorker(abc.ABC):
 
     async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = self.job_configuration.from_template_and_overrides(
+        configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            deployment_overrides=deployment.infra_overrides,
+            values=deployment.infra_overrides or {},
         )
         return configuration
 
