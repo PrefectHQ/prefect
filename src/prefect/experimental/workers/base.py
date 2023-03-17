@@ -1,5 +1,5 @@
 import abc
-from typing import Any, Dict, List, Optional, Set, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
@@ -20,17 +20,6 @@ from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settin
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
 from prefect.utilities.templating import apply_values, resolve_block_document_references
-
-
-class Unset:
-    def __bool__(self) -> bool:
-        return False
-
-
-UNSET: Unset = Unset()
-
-
-T = TypeVar("T")
 
 
 class BaseJobConfiguration(BaseModel):
@@ -520,7 +509,7 @@ class BaseWorker(abc.ABC):
         deployment = await self._client.read_deployment(flow_run.deployment_id)
         configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            values=deployment.infra_overrides,
+            values=deployment.infra_overrides or {},
         )
         return configuration
 

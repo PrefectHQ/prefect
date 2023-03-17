@@ -1,9 +1,11 @@
 import re
 from copy import copy
-from typing import Any, Dict, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, TypeVar, Union
 
-from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
+
+if TYPE_CHECKING:
+    from prefect.client.orchestration import PrefectClient
 
 
 class Unset:
@@ -15,6 +17,38 @@ UNSET: Unset = Unset()
 
 
 T = TypeVar("T", str, int, float, bool, dict, list)
+
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*(\w+)\s*}})")
+
+
+class Placeholder(NamedTuple):
+    full_match: str
+    name: str
+
+
+def find_placeholders(template: T) -> Set[Placeholder]:
+    """
+    Finds all placeholders in a template.
+
+    Args:
+        template: template to discover placeholders in
+
+    Returns:
+        A set of all placeholders in the template
+    """
+    if isinstance(template, (int, float, bool)):
+        return set()
+    if isinstance(template, str):
+        result = PLACEHOLDER_CAPTURE_REGEX.findall(template)
+        return {Placeholder(*match) for match in result}
+    elif isinstance(template, dict):
+        return set().union(
+            *[find_placeholders(value) for key, value in template.items()]
+        )
+    elif isinstance(template, list):
+        return set().union(*[find_placeholders(item) for item in template])
+    else:
+        raise ValueError(f"Unexpected type: {type(template)}")
 
 
 def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
@@ -44,26 +78,22 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     Returns:
         The template with the values applied
     """
-    variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
-
     if isinstance(template, (int, float, bool, Unset)):
         return template
     if isinstance(template, str):
-        used_values = variable_capture_regex.findall(template)
-        if not used_values:
-            # If there are no variables, we can just use the value
+        placeholders = find_placeholders(template)
+        if not placeholders:
+            # If there are no values, we can just use the template
             return template
-        elif len(used_values) == 1 and used_values[0][0] == template:
+        elif len(placeholders) == 1 and list(placeholders)[0].full_match == template:
             # If there is only one variable with no surrounding text,
             # we can replace it. If there is no variable value, we
             # return UNSET to indicate that the value should not be included.
-            return values.get(used_values[0][1], UNSET)
+            return values.get(list(placeholders)[0].name, UNSET)
         else:
-            for full_match, variable_name in used_values:
-                if variable_name in values and values[variable_name] is not None:
-                    template = template.replace(
-                        full_match, values.get(variable_name, "")
-                    )
+            for full_match, name in placeholders:
+                if name in values and values[name] is not None:
+                    template = template.replace(full_match, values.get(name, ""))
             return template
     elif isinstance(template, dict):
         updated_template = {}
@@ -86,7 +116,7 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
 
 @inject_client
 async def resolve_block_document_references(
-    template: T, client: PrefectClient = None
+    template: T, client: "PrefectClient" = None
 ) -> T:
     """
     Resolve block document references in a template by replacing each reference with

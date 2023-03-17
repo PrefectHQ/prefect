@@ -3,7 +3,6 @@ Full schemas of Prefect REST API objects.
 """
 import datetime
 import json
-import re
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -18,6 +17,7 @@ from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBa
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+from prefect.utilities.templating import find_placeholders
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -1109,8 +1109,8 @@ class WorkPool(ORMBaseModel):
             # find any variables inside of double curly braces, minus any whitespace
             # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
             # convert to json string to handle nested objects and lists
-            found_variables = re.findall(r"{{\s*(.*?)\s*}}", json.dumps(template))
-            template_variables.update(found_variables)
+            found_variables = find_placeholders(json.dumps(template))
+            template_variables = {placeholder.name for placeholder in found_variables}
 
         provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):

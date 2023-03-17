@@ -4,8 +4,68 @@ from prefect.blocks.core import Block
 from prefect.utilities.templating import (
     UNSET,
     apply_values,
+    find_placeholders,
     resolve_block_document_references,
 )
+
+
+class TestFindPlaceholders:
+    def test_empty_template(self):
+        template = ""
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 0
+
+    def test_single_placeholder(self):
+        template = "Hello {{name}}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 1
+        assert placeholders.pop().name == "name"
+
+    def test_multiple_placeholders(self):
+        template = "Hello {{first_name}} {{last_name}}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"first_name", "last_name"}
+
+    def test_nested_placeholders(self):
+        template = {"greeting": "Hello {{name}}!", "message": "{{greeting}}"}
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"name", "greeting"}
+
+    def test_mixed_template(self):
+        template = "Hello {{name}}! Your balance is ${{balance}}."
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"name", "balance"}
+
+    def test_invalid_template(self):
+        template = ("{{name}}!",)
+        with pytest.raises(ValueError):
+            find_placeholders(template)
+
+    def test_nested_templates(self):
+        template = {"greeting": "Hello {{name}}!", "message": {"text": "{{greeting}}"}}
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"name", "greeting"}
+
+    def test_template_with_duplicates(self):
+        template = "{{x}}{{x}}"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 1
+        assert placeholders.pop().name == "x"
+
+    def test_template_with_unconventional_spacing(self):
+        template = "Hello {{    first_name }} {{ last_name }}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 2
+        names = set(p.name for p in placeholders)
+        assert names == {"first_name", "last_name"}
 
 
 class TestApplyValues:
