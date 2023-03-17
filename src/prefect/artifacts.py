@@ -15,7 +15,6 @@ from prefect.utilities.asyncutils import sync_compatible
 
 
 @inject_client
-@sync_compatible
 async def _create_artifact(
     type: str,
     key: Optional[str] = None,
@@ -149,7 +148,6 @@ async def create_table(
 
 
 @inject_client
-@sync_compatible
 async def _read_artifact(
     artifact_id: Union[str, UUID],
     client: Optional[PrefectClient] = None,
