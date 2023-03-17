@@ -1852,7 +1852,9 @@ async def propose_state(
 
         link_state_to_result(state, result)
 
-    async def set_state_and_wait(set_state_func) -> OrchestrationResult:
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
         response = await set_state_func()
         while response.status == SetStateStatus.WAIT:
             engine_logger.debug(
@@ -1866,10 +1868,10 @@ async def propose_state(
     # Attempt to set the state
     if task_run_id:
         set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
-        response = await set_state_and_wait(set_state)
+        response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
         set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-        response = await set_state_and_wait(set_state)
+        response = await set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
