@@ -141,7 +141,7 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
         secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
 
 
-def should_update_block_type(
+def _should_update_block_type(
     local_block_type: BlockType, server_block_type: BlockType
 ) -> bool:
     """
@@ -862,7 +862,7 @@ class Block(BaseModel, ABC):
             )
             cls._block_type_id = block_type.id
             local_block_type = cls._to_block_type()
-            if should_update_block_type(
+            if _should_update_block_type(
                 local_block_type=local_block_type, server_block_type=block_type
             ):
                 await client.update_block_type(
