@@ -120,6 +120,7 @@ class TestCreateArtifacts:
         Test that we can create a markdown artifact using map.
         """
 
+        # An ode to prefect issue #5309.
         @task
         def add_ten(x):
             create_link(
@@ -222,7 +223,6 @@ class TestCreateArtifacts:
     async def test_create_markdown_artifact_using_map_succeeds(self, orion_client):
         """
         Test that we can create a markdown artifact using map.
-        An ode to prefect issue #5309.
         """
 
         @task
