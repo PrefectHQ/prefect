@@ -124,6 +124,20 @@ async def resolve_block_document_references(
 
     Recursively searches for block document references in dictionaries and lists.
 
+    Identifies block document references by the as dictionary with the following
+    structure:
+    ```
+    {
+        "$ref": {
+            "block_document_id": <block_document_id>
+        }
+    }
+    ```
+    where `<block_document_id>` is the ID of the block document to resolve.
+
+    Once the block document is retrieved from the API, the data of the block document
+    is used to replace the reference.
+
     Args:
         template: The template to resolve block documents in
 
