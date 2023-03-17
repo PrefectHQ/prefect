@@ -200,7 +200,7 @@ class Call(Generic[T]):
         except BaseException as exc:
             self.cancel_context.mark_completed()
             self.future.set_exception(exc)
-            logger.debug("Encountered exception in call %r", self)
+            logger.debug("Encountered exception in call %r", self, exc_info=True)
             # Prevent reference cycle in `exc`
             del self
         else:
