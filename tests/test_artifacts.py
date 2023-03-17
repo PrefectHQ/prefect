@@ -43,7 +43,21 @@ class TestCreateArtifacts:
         )
 
         result = await read_link(artifact_id)
-        assert result.data == my_link
+        assert result.data == f"[{my_link}]({my_link})"
+
+    async def test_create_and_read_link_artifact_with_linktext_succeeds(self, artifact):
+        my_link = "prefect.io"
+        link_text = "Prefect"
+        artifact_id = await create_link(
+            name=artifact.key,
+            link=my_link,
+            link_text=link_text,
+            description=artifact.description,
+            metadata=artifact.metadata_,
+        )
+
+        result = await read_link(artifact_id)
+        assert result.data == f"[{link_text}]({my_link})"
 
     async def test_create_link_artifact_in_task_succeeds(self, orion_client):
         @task

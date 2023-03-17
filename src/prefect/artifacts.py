@@ -65,6 +65,7 @@ async def _create_artifact(
 @sync_compatible
 async def create_link(
     link: str,
+    link_text: Optional[str] = None,
     name: Optional[str] = None,
     description: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
@@ -78,8 +79,13 @@ async def create_link(
     Returns:
         - The table artifact ID.
     """
+    formatted_link = f"[{link_text}]({link})" if link_text else f"[{link}]({link})"
     artifact = await _create_artifact(
-        key=name, type="link", description=description, data=link, metadata=metadata
+        key=name,
+        type="markdown",
+        description=description,
+        data=formatted_link,
+        metadata=metadata,
     )
 
     return artifact.id
@@ -128,7 +134,7 @@ async def create_table(
     Returns:
         - The table artifact ID.
     """
-    # TODO: validate table, support other formats
+    # TODO: support other formats
     artifact = await _create_artifact(
         key=name,
         type="table",
