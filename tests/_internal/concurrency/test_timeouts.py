@@ -301,7 +301,7 @@ def test_cancel_sync_manually_in_worker_thread():
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
-def test_cancel_sync_nested_inner_cancelled():
+def test_cancel_sync_nested_alarm_and_watcher_inner_cancelled():
     t0 = time.perf_counter()
     with cancel_sync_after(1) as outer_ctx:
         with pytest.raises(TimeoutError):
@@ -318,7 +318,7 @@ def test_cancel_sync_nested_inner_cancelled():
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
-def test_cancel_sync_nested_outer_cancelled():
+def test_cancel_sync_nested_alarm_and_watcher_outer_cancelled():
     t0 = time.perf_counter()
 
     with pytest.raises(TimeoutError):
@@ -330,6 +330,43 @@ def test_cancel_sync_nested_outer_cancelled():
     assert not inner_ctx.cancelled()
     assert outer_ctx.cancelled()
     assert t1 - t0 < 1
+
+
+def test_cancel_sync_nested_watchers_inner_cancelled(mock_alarm_signal_handler):
+    t0 = time.perf_counter()
+    with cancel_sync_after(1) as outer_ctx:
+        with pytest.raises(TimeoutError):
+            with cancel_sync_after(0.1) as inner_ctx:
+                # this cancel method does not interrupt sleep calls, the timeout is
+                # raised on the next instruction
+                for _ in range(10):
+                    time.sleep(0.1)
+    t1 = time.perf_counter()
+
+    assert not outer_ctx.cancelled()
+    assert inner_ctx.cancelled()
+    assert t1 - t0 < 1
+
+    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
+
+
+def test_cancel_sync_nested_watchers_outer_cancelled(mock_alarm_signal_handler):
+    t0 = time.perf_counter()
+
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as outer_ctx:
+            with cancel_sync_after(2) as inner_ctx:
+                # this cancel method does not interrupt sleep calls, the timeout is
+                # raised on the next instruction
+                for _ in range(10):
+                    time.sleep(0.1)
+    t1 = time.perf_counter()
+
+    assert not inner_ctx.cancelled()
+    assert outer_ctx.cancelled()
+    assert t1 - t0 < 1
+
+    mock_alarm_signal_handler.assert_not_called(), "Alarm based handler should not be used"
 
 
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
