@@ -826,6 +826,7 @@ class ORMDeployment:
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
+    pull_steps = sa.Column(JSON, default=list, nullable=True)
     parameter_openapi_schema = sa.Column(JSON, default=dict, nullable=True)
     created_by = sa.Column(
         Pydantic(schemas.core.CreatedBy),

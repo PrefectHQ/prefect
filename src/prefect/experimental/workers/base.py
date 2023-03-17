@@ -128,7 +128,7 @@ class BaseJobConfiguration(BaseModel):
                 and variables[used_variables[0][1]] is not None
             ):
                 # If there is only one variable with no surrounding text, we can just replace it
-                applied_config[key] = variables[key]
+                applied_config[key] = variables[used_variables[0][1]]
             else:
                 for full_match, variable_name in used_variables:
                     if (

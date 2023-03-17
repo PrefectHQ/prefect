@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import io
 import os
 import socket
 import subprocess
@@ -116,6 +117,33 @@ class ProcessWorker(BaseWorker):
             else contextlib.nullcontext(configuration.working_dir)
         )
         with working_dir_ctx as working_dir:
+            ## first clone the project
+            err_stream = io.StringIO()
+            out_stream = io.StringIO()
+            process = await run_process(
+                ["prefect", "project", "clone", "-i", str(flow_run.deployment_id)],
+                stream_output=(out_stream, err_stream),
+                cwd=working_dir,
+                env=self._get_environment_variables(
+                    configuration=configuration, flow_run=flow_run
+                ),
+                **kwargs,
+            )
+            ### TODO: check if directory exists, etc.
+            ### this can be a place to detect for backwards compatibility issues as well
+            if process.returncode != 0:
+                err_stream.seek(0)
+                self._logger.error(f"Failed to clone project:\n {err_stream.read()}")
+                return ProcessWorkerResult(
+                    status_code=process.returncode, identifier=str(process.pid)
+                )
+            else:
+                # some steps may output a relative directory so we joinpath to be sure
+                out_stream.seek(0)
+                working_dir = str(
+                    Path(working_dir).joinpath(out_stream.read().strip()).resolve()
+                )
+
             self._logger.debug(f"Process running command: {command} in {working_dir}")
             process = await run_process(
                 command.split(" "),

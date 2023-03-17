@@ -179,19 +179,18 @@ async def load_flow_from_flow_run(
     logger = flow_run_logger(flow_run)
 
     if not ignore_storage:
+        sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
                 deployment.storage_document_id
             )
             storage_block = Block._from_block_document(storage_document)
-        else:
+        elif deployment.path or deployment.manifest_path:
             basepath = deployment.path or Path(deployment.manifest_path).parent
             storage_block = LocalFileSystem(basepath=basepath)
 
-        sys.path.insert(0, ".")
-
-        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
-        await storage_block.get_directory(from_path=deployment.path, local_path=".")
+            logger.info(f"Downloading flow code from storage at {deployment.path!r}")
+            await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     logger.debug(f"Importing flow code from '{import_path}'")
@@ -502,7 +501,7 @@ class Deployment(BaseModel):
         data = yaml.safe_load(await anyio.Path(path).read_bytes())
 
         # load blocks from server to ensure secret values are properly hydrated
-        if data["storage"]:
+        if data.get("storage"):
             block_doc_name = data["storage"].get("_block_document_name")
             # if no doc name, this block is not stored on the server
             if block_doc_name:
@@ -510,7 +509,7 @@ class Deployment(BaseModel):
                 block = await Block.load(f"{block_slug}/{block_doc_name}")
                 data["storage"] = block
 
-        if data["infrastructure"]:
+        if data.get("infrastructure"):
             block_doc_name = data["infrastructure"].get("_block_document_name")
             # if no doc name, this block is not stored on the server
             if block_doc_name:
