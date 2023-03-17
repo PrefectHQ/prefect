@@ -4,7 +4,7 @@ Primary developer-facing API for concurrency management.
 import abc
 import asyncio
 import concurrent.futures
-from typing import Awaitable, Callable, Optional, TypeVar, Union
+from typing import Awaitable, Callable, Iterable, Optional, TypeVar, Union
 
 from typing_extensions import ParamSpec
 
@@ -24,7 +24,9 @@ def create_call(__fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> Call
 class _base(abc.ABC):
     @abc.abstractstaticmethod
     def wait_for_call_in_loop_thread(
-        call: Call[T], timeout: Optional[float] = None
+        call: Call[T],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
     ) -> Call[T]:
         """
         Schedule a function in the global worker thread.
@@ -35,7 +37,9 @@ class _base(abc.ABC):
 
     @abc.abstractstaticmethod
     def wait_for_call_in_new_thread(
-        call: Call[T], timeout: Optional[float] = None
+        call: Call[T],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
     ) -> Call[T]:
         """
         Schedule a function in a new worker thread.
@@ -92,35 +96,55 @@ class _base(abc.ABC):
 
 class from_async(_base):
     @staticmethod
-    def wait_for_call_in_loop_thread(
-        call: Call[Awaitable[T]], timeout: Optional[float] = None
-    ) -> Awaitable[Call[T]]:
+    async def wait_for_call_in_loop_thread(
+        call: Call[Awaitable[T]],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
+    ) -> Call[T]:
         waiter = AsyncWaiter(call)
+        for callback in done_callbacks or []:
+            waiter.add_done_callback(callback)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
-        return waiter.wait()
+        await waiter.wait()
+        return call.result()
 
     @staticmethod
-    def wait_for_call_in_new_thread(
-        call: Call[T], timeout: Optional[float] = None
-    ) -> Awaitable[Call[T]]:
+    async def wait_for_call_in_new_thread(
+        call: Call[T],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
+    ) -> Call[T]:
         waiter = AsyncWaiter(call=call)
+        for callback in done_callbacks or []:
+            waiter.add_done_callback(callback)
         _base.call_soon_in_new_thread(call, timeout=timeout)
-        return waiter.wait()
+        await waiter.wait()
+        return call.result()
 
 
 class from_sync(_base):
     @staticmethod
     def wait_for_call_in_loop_thread(
-        call: Call[Awaitable[T]], timeout: Optional[float] = None
+        call: Call[Awaitable[T]],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
     ) -> Call[T]:
         waiter = SyncWaiter(call)
         _base.call_soon_in_loop_thread(call, timeout=timeout)
-        return waiter.wait()
+        for callback in done_callbacks or []:
+            waiter.add_done_callback(callback)
+        waiter.wait()
+        return call.result()
 
     @staticmethod
     def wait_for_call_in_new_thread(
-        call: Call[T], timeout: Optional[float] = None
+        call: Call[T],
+        timeout: Optional[float] = None,
+        done_callbacks: Optional[Iterable[Call]] = None,
     ) -> Call[T]:
         waiter = SyncWaiter(call=call)
+        for callback in done_callbacks or []:
+            waiter.add_done_callback(callback)
         _base.call_soon_in_new_thread(call, timeout=timeout)
-        return waiter.wait()
+        waiter.wait()
+        return call.result()

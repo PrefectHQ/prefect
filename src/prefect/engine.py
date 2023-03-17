@@ -33,11 +33,7 @@ import prefect
 import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
-from prefect._internal.concurrency.threads import (
-    get_global_loop,
-    wait_for_global_loop_exit,
-)
-from prefect._internal.concurrency.waiters import AsyncWaiter, SyncWaiter
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.utilities import inject_client
@@ -165,33 +161,27 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
+    # On completion of root flows, wait for the global thread to ensure that the
+    # any work there is complete
+    done_callbacks = (
+        [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
+    )
+
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
-        waiter = AsyncWaiter(begin_run)
-
-        async def wait_and_retrieve_result():
-            await waiter.wait()
-            return begin_run.result()
+        retval = from_async.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
 
     else:
-        waiter = SyncWaiter(begin_run)
+        retval = from_sync.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
 
-        def wait_and_retrieve_result():
-            waiter.wait()
-            return begin_run.result()
-
-    if not is_subflow_run:
-        # On completion of root flows, wait for the global thread to ensure that the
-        # any work there is complete
-        waiter.add_done_callback(create_call(wait_for_global_loop_exit))
-
-    # Run the call in a global event loop thread
-    get_global_loop().submit(begin_run)
-
-    return wait_and_retrieve_result()
+    return retval
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -971,9 +961,9 @@ def enter_task_run_engine(
 
     if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
-        return from_async.wait_for_call_in_loop_thread(begin_run).result()
+        return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
-        return from_sync.wait_for_call_in_loop_thread(begin_run).result()
+        return from_sync.wait_for_call_in_loop_thread(begin_run)
 
 
 async def begin_task_map(
