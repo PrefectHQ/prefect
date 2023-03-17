@@ -2001,7 +2001,11 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
     async def read_logs(
-        self, log_filter: LogFilter = None, limit: int = None, offset: int = None
+        self,
+        log_filter: LogFilter = None,
+        limit: int = None,
+        offset: int = None,
+        sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
     ) -> None:
         """
         Read flow and task run logs.
@@ -2010,6 +2014,7 @@ class PrefectClient:
             "logs": log_filter.dict(json_compatible=True) if log_filter else None,
             "limit": limit,
             "offset": offset,
+            "sort": sort,
         }
 
         response = await self._client.post(f"/logs/filter", json=body)
