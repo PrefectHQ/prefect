@@ -30,6 +30,7 @@ class WorkerThread(Portal):
         self._run_once: bool = run_once
         self._started: bool = False
         self._submitted_count: int = 0
+        self._lock = threading.Lock()
 
         if not daemon:
             atexit.register(self.shutdown)
@@ -38,7 +39,9 @@ class WorkerThread(Portal):
         """
         Start the worker thread.
         """
-        self.thread.start()
+        with self._lock:
+            if not self._started:
+                self.thread.start()
 
     def submit(self, call: Call) -> Call:
         if self._submitted_count > 0 and self._run_once:
@@ -46,7 +49,7 @@ class WorkerThread(Portal):
                 "Worker configured to only run once. A call has already been submitted."
             )
 
-        # Start on first submission
+        # Start on first submission if not started
         if not self._started:
             self.start()
 
