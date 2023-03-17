@@ -79,7 +79,15 @@ class CancelContext:
 
         for ctx in self._chained:
             logger.debug("%r cancelling chained context %r", self, ctx)
-            ctx.cancel()
+            try:
+                ctx.cancel()
+            except Exception:
+                logger.warning(
+                    "%r encountered exception cancelling chained context %r",
+                    self,
+                    ctx,
+                    exc_info=True,
+                )
 
         return True
 
