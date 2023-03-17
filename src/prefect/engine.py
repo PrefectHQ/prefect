@@ -1528,9 +1528,10 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    result = await from_async.wait_for_call_in_new_thread(
+                    call = from_async.call_soon_in_new_thread(
                         create_call(task.fn, *args, **kwargs)
                     )
+                    result = await call.aresult()
 
         except Exception as exc:
             name = message = None
