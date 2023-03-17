@@ -171,8 +171,17 @@ def enter_flow_run_engine_from_flow_call(
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
         waiter = AsyncWaiter(begin_run)
+
+        async def wait_and_retrieve_result():
+            await waiter.wait()
+            return begin_run.result()
+
     else:
         waiter = SyncWaiter(begin_run)
+
+        def wait_and_retrieve_result():
+            waiter.wait()
+            return begin_run.result()
 
     if not is_subflow_run:
         # On completion of root flows, wait for the global thread to ensure that the
@@ -182,7 +191,7 @@ def enter_flow_run_engine_from_flow_call(
     # Run the call in a global event loop thread
     get_global_loop().submit(begin_run)
 
-    return waiter.wait()
+    return wait_and_retrieve_result()
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
