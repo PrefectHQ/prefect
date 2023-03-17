@@ -1,5 +1,5 @@
 """
-Objects for creating and reading artifacts.
+Interface for creating and reading artifacts.
 """
 
 import json
