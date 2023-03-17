@@ -2,7 +2,8 @@
 Objects for creating and reading artifacts.
 """
 
-from typing import Any, Dict, Optional, Union
+import json
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 from prefect.client.orchestration import PrefectClient
@@ -120,7 +121,7 @@ async def create_markdown(
 
 @sync_compatible
 async def create_table(
-    table: Optional[Dict[str, Any]],
+    table: Union[Dict[str, List[Any]], List[Dict[str, Any]]],
     name: Optional[str] = None,
     description: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
@@ -134,12 +135,13 @@ async def create_table(
     Returns:
         - The table artifact ID.
     """
-    # TODO: support other formats
+    formatted_table = json.dumps(table) if isinstance(table, list) else table
+
     artifact = await _create_artifact(
         key=name,
         type="table",
         description=description,
-        data=table,
+        data=formatted_table,
         metadata=metadata,
     )
 
@@ -180,6 +182,16 @@ async def read_table(
     Read a table artifact.
     """
     artifact = await _read_artifact(artifact_id=artifact_id)
+    if artifact:
+        if artifact.data is not None and isinstance(artifact.data, str):
+            try:
+                artifact.data = json.loads(artifact.data)
+            except json.JSONDecodeError:
+                print(
+                    f"The data in table artifact with id '{artifact_id}' was in a JSON"
+                    " format and could not be formatted back into a valid table. It"
+                    " will be returned as a string."
+                )
     return artifact
 
 

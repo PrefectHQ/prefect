@@ -257,8 +257,21 @@ class TestCreateArtifacts:
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
 
-    async def test_create_and_read_table_artifact_succeeds(self, artifact):
+    async def test_create_and_read_dict_of_list_table_artifact_succeeds(self, artifact):
         my_table = {"a": [1, 3], "b": [2, 4]}
+
+        artifact_id = await create_table(
+            name=artifact.key,
+            table=my_table,
+            description=artifact.description,
+            metadata=artifact.metadata_,
+        )
+
+        result = await read_table(artifact_id)
+        assert result.data == my_table
+
+    async def test_create_and_read_list_of_dict_table_artifact_succeeds(self, artifact):
+        my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
         artifact_id = await create_table(
             name=artifact.key,
