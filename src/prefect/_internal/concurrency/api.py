@@ -72,6 +72,7 @@ class _base(abc.ABC):
         runner.submit(call)
         return call
 
+    @staticmethod
     def call_soon_in_waiter_thread(
         call: Call[T], timeout: Optional[float] = None
     ) -> Call[T]:
