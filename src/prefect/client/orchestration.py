@@ -27,6 +27,7 @@ from prefect.server.schemas.actions import (
     WorkQueueUpdate,
 )
 from prefect.server.schemas.core import (
+    Artifact,
     BlockDocument,
     BlockSchema,
     BlockType,
@@ -2267,6 +2268,36 @@ class PrefectClient:
         )
 
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
+
+    async def create_artifact(
+        self,
+        artifact: schemas.actions.ArtifactCreate,
+    ) -> schemas.core.Artifact:
+        """
+        Creates an artifact with the provided configuration.
+        Args:
+            artifact: Desired configuration for the new artifact.
+        Returns:
+            Information about the newly created artifact.
+        """
+
+        response = await self._client.post(
+            "/experimental/artifacts/",
+            json=artifact.dict(json_compatible=True, exclude_unset=True),
+        )
+
+        return pydantic.parse_obj_as(Artifact, response.json())
+
+    async def read_artifact(self, artifact_id: UUID) -> schemas.core.Artifact:
+        """
+        Reads an artifact.
+        Args:
+            artifact_id: The ID of the artifact to read.
+        Returns:
+            The artifact.
+        """
+        response = await self._client.get(f"/experimental/artifacts/{artifact_id}")
+        return pydantic.parse_obj_as(schemas.core.Artifact, response.json())
 
     async def __aenter__(self):
         """

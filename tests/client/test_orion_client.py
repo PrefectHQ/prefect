@@ -25,7 +25,7 @@ from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.server import schemas
 from prefect.server.api.server import SERVER_API_VERSION, create_app
-from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.server.schemas.actions import ArtifactCreate, LogCreate, WorkPoolCreate
 from prefect.server.schemas.core import FlowRunNotificationPolicy
 from prefect.server.schemas.filters import (
     FlowRunNotificationPolicyFilter,
@@ -40,6 +40,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1592,3 +1593,31 @@ class TestWorkPools:
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)
+
+
+class TestArtifacts:
+    @pytest.fixture(autouse=True)
+    def auto_enable_artifacts(self, enable_artifacts):
+        """
+        Enable artifacts for testing
+        """
+        assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value() is True
+
+    @pytest.fixture
+    async def artifact(self):
+        yield ArtifactCreate(
+            key="voltaic",
+            data=1,
+            description="# This is a markdown description title",
+            metadata_={"data": "opens many doors"},
+        )
+
+    async def test_create_then_read_artifact(self, orion_client, artifact):
+        result = await orion_client.create_artifact(artifact=artifact)
+        assert result.key == artifact.key
+        assert result.description == artifact.description
+
+        result = await orion_client.read_artifact(artifact_id=result.id)
+
+        assert result.key == artifact.key
+        assert result.description == artifact.description
