@@ -19,7 +19,6 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, with_cli_exception_handling
 from prefect.client.orchestration import ServerType
-from prefect.experimental.workers.base import BaseJobConfiguration
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.configuration import setup_logging
 from prefect.projects import find_prefect_directory, register_flow
@@ -32,6 +31,7 @@ from prefect.settings import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.callables import parameter_schema
+from prefect.utilities.templating import apply_values
 
 app = PrefectTyper(add_completion=False, no_args_is_help=True)
 
@@ -379,7 +379,7 @@ async def deploy(
         base_deploy["work_pool"]["work_queue_name"] = work_queue_name
 
     ## apply templating from build and push steps to the final deployment spec
-    base_deploy["work_pool"]["job_variables"] = BaseJobConfiguration._apply_variables(
+    base_deploy["work_pool"]["job_variables"] = apply_values(
         base_deploy["work_pool"]["job_variables"], step_outputs
     )
 
