@@ -182,16 +182,15 @@ async def read_table(
     Read a table artifact.
     """
     artifact = await _read_artifact(artifact_id=artifact_id)
-    if artifact:
-        if artifact.data is not None and isinstance(artifact.data, str):
-            try:
-                artifact.data = json.loads(artifact.data)
-            except json.JSONDecodeError:
-                print(
-                    f"The data in table artifact with id '{artifact_id}' was in a JSON"
-                    " format and could not be formatted back into a valid table. It"
-                    " will be returned as a string."
-                )
+    if artifact and artifact.data is not None and isinstance(artifact.data, str):
+        try:
+            artifact.data = json.loads(artifact.data)
+        except json.JSONDecodeError:
+            print(
+                f"The data in table artifact with id '{artifact_id}' was in a JSON"
+                " format and could not be formatted back into a valid table. It"
+                " will be returned as a string."
+            )
     return artifact
 
 
