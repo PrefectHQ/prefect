@@ -821,13 +821,18 @@ class Block(BaseModel, ABC):
                         await type_.register_type_and_schema(client=client)
 
         try:
-            block_type = await client.read_block_type_by_slug(
+            server_block_type = await client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
             )
-            cls._block_type_id = block_type.id
-            await client.update_block_type(
-                block_type_id=block_type.id, block_type=cls._to_block_type()
-            )
+            cls._block_type_id = server_block_type.id
+            local_block_type = cls._to_block_type()
+            # Only update the block type on the server if values are different.
+            # This comparison only includes fields defined on BlockType, as
+            # fields like id, etc. are removed via PrefectBaseModel._reset_fields
+            if server_block_type != local_block_type:
+                await client.update_block_type(
+                    block_type_id=server_block_type.id, block_type=local_block_type
+                )
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
             cls._block_type_id = block_type.id
