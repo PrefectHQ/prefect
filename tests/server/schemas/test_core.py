@@ -340,8 +340,8 @@ class TestWorkPool:
         with pytest.raises(
             ValueError,
             match=(
-                ".*Your job expects the following variables: {'expected_variable'}, but"
-                " your template provides: {'wrong_variable'}"
+                r"Your job configuration uses the following undeclared variable\(s\):"
+                r" expected_variable"
             ),
         ):
             wp = schemas.core.WorkPool(
