@@ -182,7 +182,9 @@ async def ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "ui"):
             app.console.print("Installing npm packages...")
-            subprocess.check_output(["npm", "install"], shell=sys.platform == "win32")
+            await run_process(
+                ["npm", "install"], shell=sys.platform == "win32", stream_output=True
+            )
 
             app.console.print("Starting UI development server...")
             await run_process(command=["npm", "run", "serve"], stream_output=True)
@@ -392,7 +394,7 @@ def build_image(
 
 
 @dev_app.command()
-def container(bg: bool = False, name="prefect-dev", api: bool = True):
+def container(bg: bool = False, name="prefect-dev", api: bool = True, tag: str = None):
     """
     Run a docker container with local code mounted and installed.
     """
@@ -411,7 +413,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True):
         )
 
     blocking_cmd = "prefect dev api" if api else "sleep infinity"
-    tag = get_prefect_image_name()
+    tag = tag or get_prefect_image_name()
 
     container: Container = client.containers.create(
         image=tag,
