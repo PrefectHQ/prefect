@@ -138,9 +138,44 @@ class TestCreateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The variables specified in the job configuration template must be present"
-            " as attributes in the variables class. Your job expects the following"
-            " variables: {'other_variable'}, but your template provides: {'command'}"
+            "The variables specified in the job configuration template must be "
+            "present as properties in the variables schema. "
+            "Your job configuration uses the following undeclared "
+            "variable(s): other_variable."
+            in response.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_create_work_pool_template_validation_missing_nested_variables(
+        self, client
+    ):
+        missing_variable_template = {
+            "job_configuration": {
+                "config": {
+                    "command": "{{ missing_variable }}",
+                }
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
+            },
+        }
+        response = await client.post(
+            "/work_pools/",
+            json=dict(name="Pool 1", base_job_template=missing_variable_template),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The variables specified in the job configuration template must be "
+            "present as properties in the variables schema. "
+            "Your job configuration uses the following undeclared "
+            "variable(s): missing_variable."
             in response.json()["exception_detail"][0]["msg"]
         )
 
@@ -301,7 +336,7 @@ class TestUpdateWorkPool:
             in response.json()["exception_detail"][0]["msg"]
         )
 
-    async def test_create_work_pool_template_validation_missing_variables(
+    async def test_update_work_pool_template_validation_missing_variables(
         self, client, session
     ):
         name = "Pool 1"
@@ -335,9 +370,54 @@ class TestUpdateWorkPool:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert (
-            "The variables specified in the job configuration template must be present"
-            " as attributes in the variables class. Your job expects the following"
-            " variables: {'other_variable'}, but your template provides: {'command'}"
+            "The variables specified in the job configuration template must be "
+            "present as properties in the variables schema. "
+            "Your job configuration uses the following undeclared "
+            "variable(s): other_variable."
+            in response.json()["exception_detail"][0]["msg"]
+        )
+
+    async def test_update_work_pool_template_validation_missing_nested_variables(
+        self, client, session
+    ):
+        name = "Pool 1"
+        missing_variable_template = {
+            "job_configuration": {
+                "config": {
+                    "command": "{{ missing_variable }}",
+                }
+            },
+            "variables": {
+                "properties": {
+                    "command": {
+                        "type": "array",
+                        "title": "Command",
+                        "items": {"type": "string"},
+                        "default": ["echo", "hello"],
+                    },
+                },
+                "required": [],
+            },
+        }
+
+        pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=WorkPoolCreate(name=name),
+        )
+        await session.commit()
+
+        session.expunge_all()
+
+        response = await client.patch(
+            f"/work_pools/{name}",
+            json=dict(name="Pool 1", base_job_template=missing_variable_template),
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert (
+            "The variables specified in the job configuration template must be "
+            "present as properties in the variables schema. "
+            "Your job configuration uses the following undeclared "
+            "variable(s): missing_variable."
             in response.json()["exception_detail"][0]["msg"]
         )
 

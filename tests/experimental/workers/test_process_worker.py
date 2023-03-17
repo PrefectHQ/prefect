@@ -419,7 +419,7 @@ async def test_process_worker_command_override(
     flow_run, patch_run_process, work_pool, monkeypatch
 ):
     mock: AsyncMock = patch_run_process()
-    override_command = f"echo hello world"
+    override_command = "echo hello world"
     override = {"command": override_command}
     read_deployment_mock = patch_read_deployment(monkeypatch, overrides=override)
 
