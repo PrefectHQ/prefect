@@ -12,6 +12,7 @@ from fastapi import status
 from rich.pretty import Pretty
 from rich.table import Table
 
+import prefect.server.schemas as schemas
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -164,6 +165,12 @@ async def logs(
         ),
         min=1,
     ),
+    reverse: bool = typer.Option(
+        False,
+        "--reverse",
+        "-r",
+        help="Reverse the logs order to print the most recent logs first",
+    ),
 ):
     """
     View logs for a flow run.
@@ -197,7 +204,14 @@ async def logs(
 
             # Get the next page of logs
             page_logs = await client.read_logs(
-                log_filter=log_filter, limit=num_logs_to_return_from_page, offset=offset
+                log_filter=log_filter,
+                limit=num_logs_to_return_from_page,
+                offset=offset,
+                sort=(
+                    schemas.sorting.LogSort.TIMESTAMP_DESC
+                    if reverse
+                    else schemas.sorting.LogSort.TIMESTAMP_ASC
+                ),
             )
 
             # Print the logs
