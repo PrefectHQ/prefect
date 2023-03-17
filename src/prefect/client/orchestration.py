@@ -2275,6 +2275,7 @@ class PrefectClient:
     ) -> schemas.core.Artifact:
         """
         Creates an artifact with the provided configuration.
+
         Args:
             artifact: Desired configuration for the new artifact.
         Returns:
@@ -2291,6 +2292,7 @@ class PrefectClient:
     async def read_artifact(self, artifact_id: UUID) -> schemas.core.Artifact:
         """
         Reads an artifact.
+
         Args:
             artifact_id: The ID of the artifact to read.
         Returns:
