@@ -9,11 +9,11 @@ hide:
   - toc
 ---
 
-# Welcome to Prefect: The easiest way to orchestrate and observe your data pipelines
+# **Welcome to Prefect:** The easiest way to orchestrate and observe your data pipelines
 
-"Everything fails all the time" - AWS CTO, Werner Vogels 
+*"Everything fails all the time"* - AWS CTO, Werner Vogels 
 
-If you move data, these failures can be costly in terms of time, money, and frustration. Prefect makes it better with:
+If you move data, these failures cost time, money, and frustration. Prefect makes it better with:
 
 <ul class="ul-line-height-compress">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
