@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import ctypes
 import math
+import os
 import signal
 import sys
 import threading
@@ -16,7 +17,6 @@ import anyio
 import anyio._backends._asyncio
 
 from prefect.logging import get_logger
-from prefect.utilities.compat import raise_signal
 
 # TODO: We should update the format for this logger to include the current thread
 logger = get_logger("prefect._internal.concurrency.timeouts")
@@ -296,7 +296,9 @@ def _alarm_based_timeout(timeout: Optional[float]):
         raise ValueError("Alarm based timeouts can only be used in the main thread.")
 
     # Create a context that raises an alarm signal on cancellation
-    ctx = CancelContext(timeout=timeout, cancel=lambda: raise_signal(signal.SIGALRM))
+    ctx = CancelContext(
+        timeout=timeout, cancel=lambda: os.kill(os.getpid(), signal.SIGALRM)
+    )
 
     previous_alarm_handler = signal.getsignal(signal.SIGALRM)
 
