@@ -1,4 +1,5 @@
 import hashlib
+import html
 import inspect
 import sys
 import warnings
@@ -138,6 +139,40 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
         secrets.append(f"{name}.*")
     elif Block.is_block_class(type_):
         secrets.extend(f"{name}.{s}" for s in type_.schema()["secret_fields"])
+
+
+def should_update_block_type(
+    local_block_type: BlockType, server_block_type: BlockType
+) -> bool:
+    """
+    Compares the fields of `local_block_type` and `server_block_type`.
+    Only compare the possible updatable fields as defined by `BlockTypeUpdate.updatable_fields`
+    Returns True if they are different, otherwise False.
+    """
+    fields = BlockTypeUpdate.updatable_fields()
+
+    local_block_fields = local_block_type.dict(include=fields, exclude_unset=True)
+    server_block_fields = server_block_type.dict(include=fields, exclude_unset=True)
+
+    if local_block_fields.get("description") is not None:
+        local_block_fields["description"] = html.unescape(
+            local_block_fields["description"]
+        )
+    if local_block_fields.get("code_example") is not None:
+        local_block_fields["code_example"] = html.unescape(
+            local_block_fields["code_example"]
+        )
+
+    if server_block_fields.get("description") is not None:
+        server_block_fields["description"] = html.unescape(
+            server_block_fields["description"]
+        )
+    if server_block_fields.get("code_example") is not None:
+        server_block_fields["code_example"] = html.unescape(
+            server_block_fields["code_example"]
+        )
+
+    return server_block_fields != local_block_fields
 
 
 @register_base_type
@@ -822,19 +857,16 @@ class Block(BaseModel, ABC):
                         await type_.register_type_and_schema(client=client)
 
         try:
-            server_block_type = await client.read_block_type_by_slug(
+            block_type = await client.read_block_type_by_slug(
                 slug=cls.get_block_type_slug()
             )
-            cls._block_type_id = server_block_type.id
+            cls._block_type_id = block_type.id
             local_block_type = cls._to_block_type()
-            # Only update the block type on the server if
-            # any of the updatable fields are different
-            fields = BlockTypeUpdate.updatable_fields()
-            if server_block_type.dict(
-                include=fields, exclude_unset=True
-            ) != local_block_type.dict(include=fields, exclude_unset=True):
+            if should_update_block_type(
+                local_block_type=local_block_type, server_block_type=block_type
+            ):
                 await client.update_block_type(
-                    block_type_id=server_block_type.id, block_type=local_block_type
+                    block_type_id=block_type.id, block_type=local_block_type
                 )
         except prefect.exceptions.ObjectNotFound:
             block_type = await client.create_block_type(block_type=cls._to_block_type())
