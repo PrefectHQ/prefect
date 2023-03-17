@@ -20,7 +20,6 @@ async def _create_artifact(
     key: Optional[str] = None,
     description: Optional[str] = None,
     data: Optional[Union[Dict[str, Any], Any]] = None,
-    metadata: Optional[Dict[str, Any]] = None,
     client: Optional[PrefectClient] = None,
 ) -> UUID:
     """
@@ -31,7 +30,6 @@ async def _create_artifact(
         - key: User-specified name of the artifact.
         - description: User-specified description of the artifact.
         - data: User-specified information of the artifact.
-        - metadata: User-specified metadata of the artifact.
 
     Returns:
         - The table artifact ID.
@@ -54,8 +52,6 @@ async def _create_artifact(
         artifact_args["description"] = description
     if data is not None:
         artifact_args["data"] = data
-    if metadata is not None:
-        artifact_args["metadata_"] = metadata
 
     artifact = ArtifactCreate(**artifact_args)
 
@@ -63,12 +59,11 @@ async def _create_artifact(
 
 
 @sync_compatible
-async def create_link(
+async def create_link_artifact(
     link: str,
     link_text: Optional[str] = None,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
 ) -> UUID:
     """
     Create a link artifact.
@@ -85,18 +80,16 @@ async def create_link(
         type="markdown",
         description=description,
         data=formatted_link,
-        metadata=metadata,
     )
 
     return artifact.id
 
 
 @sync_compatible
-async def create_markdown(
+async def create_markdown_artifact(
     markdown: str,
     name: Optional[str] = None,
     description: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
 ) -> UUID:
     """
     Create a markdown artifact.
@@ -112,18 +105,16 @@ async def create_markdown(
         type="markdown",
         description=description,
         data=markdown,
-        metadata=metadata,
     )
 
     return artifact.id
 
 
 @sync_compatible
-async def create_table(
+async def create_table_artifact(
     table: Union[Dict[str, List[Any]], List[Dict[str, Any]]],
     name: Optional[str] = None,
     description: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None,
 ) -> UUID:
     """
     Create a table artifact.
@@ -141,7 +132,6 @@ async def create_table(
         type="table",
         description=description,
         data=formatted_table,
-        metadata=metadata,
     )
 
     return artifact.id
@@ -162,7 +152,7 @@ async def _read_artifact(
 
 
 @sync_compatible
-async def read_markdown(
+async def read_markdown_artifact(
     artifact_id: Union[str, UUID],
 ) -> Artifact:
     """
@@ -173,7 +163,7 @@ async def read_markdown(
 
 
 @sync_compatible
-async def read_table(
+async def read_table_artifact(
     artifact_id: Union[str, UUID],
 ) -> Artifact:
     """
@@ -193,7 +183,7 @@ async def read_table(
 
 
 @sync_compatible
-async def read_link(artifact_id: Union[str, UUID]) -> Artifact:
+async def read_link_artifact(artifact_id: Union[str, UUID]) -> Artifact:
     """
     Read a link artifact.
     """

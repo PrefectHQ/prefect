@@ -4,12 +4,12 @@ import pytest
 
 from prefect import flow, task
 from prefect.artifacts import (
-    create_link,
-    create_markdown,
-    create_table,
-    read_link,
-    read_markdown,
-    read_table,
+    create_link_artifact,
+    create_markdown_artifact,
+    create_table_artifact,
+    read_link_artifact,
+    read_markdown_artifact,
+    read_table_artifact,
 )
 from prefect.context import get_run_context
 from prefect.server.schemas.actions import ArtifactCreate
@@ -30,40 +30,37 @@ class TestCreateArtifacts:
             key="voltaic",
             data=1,
             description="# This is a markdown description title",
-            metadata_={"data": "opens many doors"},
         )
 
     async def test_create_and_read_link_artifact_succeeds(self, artifact):
         my_link = "prefect.io"
-        artifact_id = await create_link(
+        artifact_id = await create_link_artifact(
             name=artifact.key,
             link=my_link,
             description=artifact.description,
-            metadata=artifact.metadata_,
         )
 
-        result = await read_link(artifact_id)
+        result = await read_link_artifact(artifact_id)
         assert result.data == f"[{my_link}]({my_link})"
 
     async def test_create_and_read_link_artifact_with_linktext_succeeds(self, artifact):
         my_link = "prefect.io"
         link_text = "Prefect"
-        artifact_id = await create_link(
+        artifact_id = await create_link_artifact(
             name=artifact.key,
             link=my_link,
             link_text=link_text,
             description=artifact.description,
-            metadata=artifact.metadata_,
         )
 
-        result = await read_link(artifact_id)
+        result = await read_link_artifact(artifact_id)
         assert result.data == f"[{link_text}]({my_link})"
 
     async def test_create_link_artifact_in_task_succeeds(self, orion_client):
         @task
         def my_special_task():
             task_run_id = get_run_context().task_run.id
-            artifact_id = create_link(
+            artifact_id = create_link_artifact(
                 name="task-link-artifact-3",
                 link="google.com",
                 description="my-artifact-description",
@@ -79,7 +76,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_link_artifact = await read_link(my_artifact_id)
+        my_link_artifact = await read_link_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id == task_run_id
@@ -89,7 +86,7 @@ class TestCreateArtifacts:
         def my_flow():
             flow_run_id = get_run_context().flow_run.id
 
-            artifact_id = create_link(
+            artifact_id = create_link_artifact(
                 name="task-link-artifact-4",
                 link="google.com",
                 description="my-artifact-description",
@@ -99,7 +96,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await read_link(my_artifact_id)
+        my_link_artifact = await read_link_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -108,7 +105,7 @@ class TestCreateArtifacts:
         @flow
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
-            artifact_id = create_link(
+            artifact_id = create_link_artifact(
                 name="task-link-artifact-5",
                 link="google.com",
                 description="my-artifact-description",
@@ -124,7 +121,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await read_link(my_artifact_id)
+        my_link_artifact = await read_link_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -137,7 +134,7 @@ class TestCreateArtifacts:
         # An ode to prefect issue #5309.
         @task
         def add_ten(x):
-            create_link(
+            create_link_artifact(
                 # TODO: uncomment this out once unique constraint is dropped on artifact name
                 # name="new-markdown-artifact",
                 link="s3://my-bucket/my-file",
@@ -155,21 +152,20 @@ class TestCreateArtifacts:
 
     async def test_create_and_read_markdown_artifact_succeeds(self, artifact):
         my_markdown = "# This is a markdown description title"
-        artifact_id = await create_markdown(
+        artifact_id = await create_markdown_artifact(
             name=artifact.key,
             markdown=my_markdown,
             description=artifact.description,
-            metadata=artifact.metadata_,
         )
 
-        result = await read_markdown(artifact_id)
+        result = await read_markdown_artifact(artifact_id)
         assert result.data == my_markdown
 
     async def test_create_markdown_artifact_in_task_succeeds(self, orion_client):
         @task
         def my_special_task():
             task_run_id = get_run_context().task_run.id
-            artifact_id = create_markdown(
+            artifact_id = create_markdown_artifact(
                 name="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
@@ -185,7 +181,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown(my_artifact_id)
+        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id == task_run_id
@@ -195,7 +191,7 @@ class TestCreateArtifacts:
         def my_flow():
             flow_run_id = get_run_context().flow_run.id
 
-            artifact_id = create_markdown(
+            artifact_id = create_markdown_artifact(
                 name="task-link-artifact-4",
                 markdown="my markdown",
                 description="my-artifact-description",
@@ -205,7 +201,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown(my_artifact_id)
+        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -214,7 +210,7 @@ class TestCreateArtifacts:
         @flow
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
-            artifact_id = create_markdown(
+            artifact_id = create_markdown_artifact(
                 name="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
@@ -229,7 +225,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown(my_artifact_id)
+        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -241,7 +237,7 @@ class TestCreateArtifacts:
 
         @task
         def add_ten(x):
-            create_markdown(
+            create_markdown_artifact(
                 # TODO: uncomment this out once unique constraint is dropped on artifact name
                 # name="new-markdown-artifact",
                 markdown="my markdown",
@@ -260,27 +256,25 @@ class TestCreateArtifacts:
     async def test_create_and_read_dict_of_list_table_artifact_succeeds(self, artifact):
         my_table = {"a": [1, 3], "b": [2, 4]}
 
-        artifact_id = await create_table(
+        artifact_id = await create_table_artifact(
             name=artifact.key,
             table=my_table,
             description=artifact.description,
-            metadata=artifact.metadata_,
         )
 
-        result = await read_table(artifact_id)
+        result = await read_table_artifact(artifact_id)
         assert result.data == my_table
 
     async def test_create_and_read_list_of_dict_table_artifact_succeeds(self, artifact):
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
-        artifact_id = await create_table(
+        artifact_id = await create_table_artifact(
             name=artifact.key,
             table=my_table,
             description=artifact.description,
-            metadata=artifact.metadata_,
         )
 
-        result = await read_table(artifact_id)
+        result = await read_table_artifact(artifact_id)
         assert result.data == my_table
 
     async def test_create_table_artifact_in_task_succeeds(self, orion_client):
@@ -288,7 +282,7 @@ class TestCreateArtifacts:
         def my_special_task():
             my_table = {"a": [1, 3], "b": [2, 4]}
             task_run_id = get_run_context().task_run.id
-            artifact_id = create_table(
+            artifact_id = create_table_artifact(
                 name="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
@@ -304,7 +298,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_table_artifact = await read_table(my_artifact_id)
+        my_table_artifact = await read_table_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id == task_run_id
@@ -316,7 +310,7 @@ class TestCreateArtifacts:
             my_table = {"a": [1, 3], "b": [2, 4]}
             flow_run_id = get_run_context().flow_run.id
 
-            artifact_id = create_table(
+            artifact_id = create_table_artifact(
                 name="task-link-artifact-4",
                 table=my_table,
                 description="my-artifact-description",
@@ -326,7 +320,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await read_table(my_artifact_id)
+        my_table_artifact = await read_table_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id is None
@@ -337,7 +331,7 @@ class TestCreateArtifacts:
         def my_subflow():
             my_table = {"a": [1, 3], "b": [2, 4]}
             flow_run_id = get_run_context().flow_run.id
-            artifact_id = create_table(
+            artifact_id = create_table_artifact(
                 name="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
@@ -352,7 +346,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await read_table(my_artifact_id)
+        my_table_artifact = await read_table_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
@@ -367,7 +361,7 @@ class TestCreateArtifacts:
         @task
         def add_ten(x):
             my_table = {"a": [1, 3], "b": [2, 4]}
-            create_table(
+            create_table_artifact(
                 # TODO: uncomment this out once unique constraint is dropped on artifact name
                 # name="task-link-artifact-3",
                 table=my_table,
