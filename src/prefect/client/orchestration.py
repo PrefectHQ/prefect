@@ -1164,12 +1164,7 @@ class PrefectClient:
                 json=block_type.dict(
                     json_compatible=True,
                     exclude_unset=True,
-                    include={
-                        "logo_url",
-                        "documentation_url",
-                        "description",
-                        "code_example",
-                    },
+                    include=schemas.actions.BlockTypeUpdate.updatable_fields(),
                     include_secrets=True,
                 ),
             )

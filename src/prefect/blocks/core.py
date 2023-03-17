@@ -35,6 +35,7 @@ from prefect.events.instrument import (
     instrument_method_calls_on_class_instances,
 )
 from prefect.logging.loggers import disable_logger
+from prefect.server.schemas.actions import BlockTypeUpdate
 from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
     BlockDocument,
@@ -826,10 +827,12 @@ class Block(BaseModel, ABC):
             )
             cls._block_type_id = server_block_type.id
             local_block_type = cls._to_block_type()
-            # Only update the block type on the server if values are different.
-            # This comparison only includes fields defined on BlockType, as
-            # fields like id, etc. are removed via PrefectBaseModel._reset_fields
-            if server_block_type != local_block_type:
+            # Only update the block type on the server if
+            # any of the updatable fields are different
+            fields = BlockTypeUpdate.updatable_fields()
+            if server_block_type.dict(
+                include=fields, exclude_unset=True
+            ) != local_block_type.dict(include=fields, exclude_unset=True):
                 await client.update_block_type(
                     block_type_id=server_block_type.id, block_type=local_block_type
                 )
