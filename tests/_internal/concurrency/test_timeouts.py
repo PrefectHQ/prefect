@@ -1,5 +1,6 @@
 import asyncio
 import concurrent.futures
+import signal
 import threading
 import time
 from unittest.mock import MagicMock
@@ -16,6 +17,16 @@ from prefect._internal.concurrency.timeouts import (
     cancel_sync_at,
     get_deadline,
 )
+
+
+@pytest.fixture
+def mock_alarm_signal_handler():
+    mock = MagicMock()
+    _previous_alarm_handler = signal.signal(signal.SIGALRM, mock)
+    try:
+        yield mock
+    finally:
+        signal.signal(signal.SIGALRM, _previous_alarm_handler)
 
 
 async def test_cancel_context():
@@ -120,6 +131,7 @@ async def test_cancel_async_after():
     assert t1 - t0 < 1
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_in_main_thread():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
@@ -162,6 +174,7 @@ async def test_cancel_async_after_no_timeout():
     assert t1 - t0 > 0.1
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_after_not_cancelled_in_main_thread():
     t0 = time.perf_counter()
     with cancel_sync_after(None) as ctx:
@@ -202,6 +215,7 @@ async def test_cancel_async_at():
     assert t1 - t0 < 1
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_at():
     t0 = time.perf_counter()
     with pytest.raises(TimeoutError):
@@ -227,6 +241,7 @@ async def test_cancel_async_manually():
     assert t1 - t0 < 1
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_cancel_sync_manually_in_main_thread():
     t0 = time.perf_counter()
     event = threading.Event()
@@ -283,3 +298,52 @@ def test_cancel_sync_manually_in_worker_thread():
 
     assert elapsed_time < 1
     assert ctx.cancelled()
+
+
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+def test_cancel_sync_nested_inner_cancelled():
+    t0 = time.perf_counter()
+    with cancel_sync_after(1) as outer_ctx:
+        with pytest.raises(TimeoutError):
+            with cancel_sync_after(0.1) as inner_ctx:
+                # this cancel method does not interrupt sleep calls, the timeout is
+                # raised on the next instruction
+                for _ in range(10):
+                    time.sleep(0.1)
+    t1 = time.perf_counter()
+
+    assert not outer_ctx.cancelled()
+    assert inner_ctx.cancelled()
+    assert t1 - t0 < 1
+
+
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+def test_cancel_sync_nested_outer_cancelled():
+    t0 = time.perf_counter()
+
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as outer_ctx:
+            with cancel_sync_after(2) as inner_ctx:
+                time.sleep(1)
+    t1 = time.perf_counter()
+
+    assert not inner_ctx.cancelled()
+    assert outer_ctx.cancelled()
+    assert t1 - t0 < 1
+
+
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
+def test_cancel_sync_with_existing_alarm_handler(mock_alarm_signal_handler):
+    t0 = time.perf_counter()
+
+    with pytest.raises(TimeoutError):
+        with cancel_sync_after(0.1) as ctx:
+            # this cancel method does not interrupt sleep calls, the timeout is
+            # raised on the next instruction
+            for _ in range(10):
+                time.sleep(0.1)
+    t1 = time.perf_counter()
+
+    assert ctx.cancelled()
+    assert t1 - t0 < 1
+    mock_alarm_signal_handler.assert_not_called()

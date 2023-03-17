@@ -255,7 +255,14 @@ def cancel_sync_after(timeout: Optional[float]):
         yield CancelContext(timeout=None, cancel=lambda: None)
         return
 
-    if threading.current_thread() is threading.main_thread():
+    existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
+
+    if (
+        threading.current_thread() is threading.main_thread()
+        # Avoid nested alarm handlers; it's hard to follow and they will interfere with
+        # each other
+        and not existing_alarm_handler
+    ):
         method = _alarm_based_timeout
         method_name = "alarm"
     else:
@@ -306,7 +313,7 @@ def _alarm_based_timeout(timeout: Optional[float]):
             else CancelledError()
         )
 
-    if previous_alarm_handler:
+    if previous_alarm_handler != signal.SIG_DFL:
         logger.warning(f"Overriding existing alarm handler {previous_alarm_handler}")
 
     # Capture alarm signals and raise a timeout
