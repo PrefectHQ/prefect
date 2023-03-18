@@ -166,9 +166,8 @@ nav:
             - Contributing Recipes: recipes/contribute-recipes.md
     - Integrations:
         - integrations/index.md
-        - Collections Catalog: collections/catalog.md
-        - Using Collections: collections/usage.md
-        - Contributing Collections: collections/contribute.md
+        - Using Collections: integrations/usage.md
+        - Contributing Collections: integrations/contribute.md
     - API References: 
         - api-ref/index.md
         - Python SDK API:
