@@ -5,7 +5,7 @@ tags:
     - tasks
     - flows
     - blocks
-    - integrations
+    - collections
     - task library
     - integrations
 {% for tag in tags %}

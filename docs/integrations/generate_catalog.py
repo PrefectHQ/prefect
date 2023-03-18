@@ -6,7 +6,7 @@ import mkdocs_gen_files
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-with mkdocs_gen_files.open("integrations/catalog.md", "w") as markdown_file:
+with mkdocs_gen_files.open("integrations/index.md", "w") as markdown_file:
     # Get file paths for all integrations files
     collection_files = [
         file
@@ -34,7 +34,7 @@ with mkdocs_gen_files.open("integrations/catalog.md", "w") as markdown_file:
     )
     template = env.get_template("index.md")
 
-    # Render jinja2 template and write to catalog.md
+    # Render jinja2 template and write to catalog.md - now index.md - maybe rendering specially
     markdown_file.write(
         template.render(collections=sorted_collection_configs, tags=tags)
     )
