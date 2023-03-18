@@ -13,7 +13,7 @@ extra_css:
 extra_javascript:
     - js/termynal.js
     - js/custom.js
-markdown_extensions:
+markdown_extensions:    
     - admonition
     - attr_list
     - codehilite
@@ -169,10 +169,9 @@ nav:
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md
         - Contributing Collections: collections/contribute.md
-    - Reference: 
-        - reference/index.md
-        - Overview: api-ref/overview.md
-        - Python SDK:
+    - API References: 
+        - api-ref/index.md
+        - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md
             # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
