@@ -13,8 +13,7 @@ hide:
 
 ### Prefect gives your Python code superpowers!
 
-
-With Prefect you get free:
+With Prefect you get easy:
 
 <ul class="ul-line-height-compress">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
@@ -25,9 +24,12 @@ With Prefect you get free:
     <li> <a href="/ui/overview/"> observability</a> </li>
 </ul>
 
+<figure markdown>
 ![screenshot of Cloud UI timeline view with menu](/img/ui_timeline_placeholder.png)
+<figcaption>Prefect UI</figcaption>
+</figure>
 
-Trying to implement these features for your workflows from scratch is a huge pain that takes lots of time, headaches, and money. That's why Prefect offers all this functionality and more! 
+Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
 
 Prefect makes it easy for you to bring your Python code, sprinkle in a few decorators, and go!
 
@@ -35,7 +37,7 @@ Prefect makes it easy for you to bring your Python code, sprinkle in a few decor
 
 ## Quick Start: Hello Prefect
 
-In your Python virtual environment, [Install Prefect](/getting-started/installation/) with `pip install prefect`. 
+In your Python virtual environment, install Prefect with `pip install -U prefect`. See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
 
 ## Run a basic flow
 
@@ -54,7 +56,6 @@ print(my_favorite_function())
 
 Run the code and you should see output like this:
 
-
 <div class="terminal">
 ```bash
 $ python hello_prefect.py
@@ -66,13 +67,13 @@ What is your favorite number?
 ```
 </div>
 
-The Prefect orchestration engine observes the flow run state and saves it for you in a database. TK link to db By adding a single decorator, you got observation capabilities. There's much more you can do with Prefect, so keep rolling!
+The Prefect orchestration engine observes the flow run state and saves it for you in a database. By adding a single decorator, you now have observation capabilities. There's much more you can do with Prefect, so keep rolling to learn how to add easy parallelization, notifications, scheduling and more!
 
 ---
 
 ## Next Steps
 
-If you're learning Prefect we encourage your to work through the tutorial. Or jump into Prefec concepts or find explore our guides for common use cases. TK link
+If you're learning Prefect we encourage your to work through the [tutorial](/tutorial/index/) where you'll create a Prefect Project. Jump into Prefect [concepts](/concepts/index/). Or explore the [guides](guides/index/) for common use cases. 
 
 [Tutorial](/tutorial/index/){ .md-button .md-button--primary }    [Concepts](/concepts/index/){ .md-button }  [Guides](guides/index/){ .md-button }
 
@@ -82,7 +83,7 @@ If you're learning Prefect we encourage your to work through the tutorial. Or ju
 
 - Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
-- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) TK display social proof with count of github stars - mabye use badges.io
+- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) TK display social proof with count of github stars - mabye use badges.io?
 
 ---
 
