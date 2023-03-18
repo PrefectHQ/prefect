@@ -43,7 +43,7 @@ In your Python virtual environment, install Prefect with `pip install -U prefect
 
 Import `flow` and decorate your Python function using the [`@flow`][prefect.flows.flow] decorator.
 
-```python
+```python hl_lines="1 3"
 from prefect import flow
 
 @flow
@@ -73,9 +73,10 @@ The Prefect orchestration engine observes the flow run state and saves it for yo
 
 ## Next Steps
 
-If you're learning Prefect we encourage your to work through the [tutorial](/tutorial/index/) where you'll create a Prefect Project. Jump into Prefect [concepts](/concepts/index/). Or explore the [guides](guides/index/) for common use cases. 
+If you're learning Prefect we encourage your to work through the [tutorial](/tutorial/index/) where you'll create a Prefect Project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. 
 
-[Tutorial](/tutorial/index/){ .md-button .md-button--primary }    [Concepts](/concepts/index/){ .md-button }  [Guides](guides/index/){ .md-button }
+
+[Tutorial](/tutorial/index/){ .md-button .md-button--primary .full}  [Concepts](/concepts/index/){ .md-button .full }  [Guides](guides/index/){ .md-button .full }
 
 ---
 

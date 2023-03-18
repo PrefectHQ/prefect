@@ -107,7 +107,7 @@ nav:
         - index.md  
         - Installation: getting-started/installation.md
         - Cloud Quickstart: ui/cloud-quickstart.md
-    - Tutorials: 
+    - Tutorial: 
         - tutorials/index.md
         - tutorials/first-steps.md
         - tutorials/flow-task-config.md
