@@ -1,10 +1,5 @@
 import abc
-<<<<<<< HEAD
-from typing import Any, Dict, List, Optional, Set, Type, Union
-=======
-import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Type, Union
->>>>>>> d53510e04 (Adds preparation step for job configuration)
 from uuid import uuid4
 
 import anyio
@@ -626,12 +621,8 @@ class BaseWorker(abc.ABC):
         flow_run: "FlowRun",
     ) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-<<<<<<< HEAD
-        configuration = await self.job_configuration.from_template_and_values(
-=======
         flow = await self._client.read_flow(flow_run.flow_id)
-        configuration = self.job_configuration.from_template_and_overrides(
->>>>>>> d53510e04 (Adds preparation step for job configuration)
+        configuration = self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
             values=deployment.infra_overrides or {},
         )

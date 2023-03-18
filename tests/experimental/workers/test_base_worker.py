@@ -557,6 +557,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
                 "job_configuration": {
                     "command": "{{ command }}",
                     "env": "{{ env }}",
+                    "labels": "{{ labels }}",
+                    "name": "{{ name }}",
                 },
                 "variables": {
                     "properties": {
@@ -581,6 +583,8 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
             {  # Expected result
                 "command": "echo hello",
                 "env": {},
+                "labels": {},
+                "name": None,
             },
         ),
     ],
