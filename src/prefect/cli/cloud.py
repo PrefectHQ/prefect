@@ -5,6 +5,7 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
+from contextlib import asynccontextmanager
 from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
@@ -55,7 +56,16 @@ def set_login_api_ready_event():
     login_api.extra["ready-event"].set()
 
 
-login_api = FastAPI(on_startup=[set_login_api_ready_event])
+@asynccontextmanager
+async def lifespan():
+    try:
+        set_login_api_ready_event()
+        yield
+    finally:
+        pass
+
+
+login_api = FastAPI(lifespan=lifespan)
 """
 This small API server is used for data transmission for browser-based log in.
 """
