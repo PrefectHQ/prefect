@@ -6,11 +6,11 @@ import mkdocs_gen_files
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-with mkdocs_gen_files.open("collections/catalog.md", "w") as markdown_file:
+with mkdocs_gen_files.open("integrations/catalog.md", "w") as markdown_file:
     # Get file paths for all collections files
     collection_files = [
         file
-        for file in glob.glob("./docs/collections/catalog/*.yaml")
+        for file in glob.glob("./docs/integrations/catalog/*.yaml")
         # Ignore the template file
         if Path(file).name != "TEMPLATE.yaml"
     ]
@@ -29,10 +29,10 @@ with mkdocs_gen_files.open("collections/catalog.md", "w") as markdown_file:
     tags = [config["tag"] for config in sorted_collection_configs]
 
     env = Environment(
-        loader=FileSystemLoader("./docs/collections/"),
+        loader=FileSystemLoader("./docs/integrations/"),
         autoescape=select_autoescape(enabled_extensions="html"),
     )
-    template = env.get_template("catalog.md")
+    template = env.get_template("index.md")
 
     # Render jinja2 template and write to catalog.md
     markdown_file.write(

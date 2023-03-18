@@ -96,7 +96,7 @@ plugins:
     search: {}
     gen-files:
         scripts:
-            - docs/collections/generate_catalog.py
+            - docs/integrations/generate_catalog.py
             - docs/recipes/generate_catalog.py
 watch:
     - mkdocs.yml
