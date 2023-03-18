@@ -24,14 +24,14 @@ With Prefect you get easy:
     <li> <a href="/ui/overview/"> observability</a> </li>
 </ul>
 
+Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
+
+Prefect makes it easy for you to bring your Python code, sprinkle in a few decorators, and go!
+
 <figure markdown>
 ![screenshot of Cloud UI timeline view with menu](/img/ui_timeline_placeholder.png)
 <figcaption>Prefect UI</figcaption>
 </figure>
-
-Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
-
-Prefect makes it easy for you to bring your Python code, sprinkle in a few decorators, and go!
 
 ---
 
