@@ -103,7 +103,10 @@ watch:
     - mkdocs.insiders.yml
     - src/prefect/
 nav:
-    - Getting Started: index.md  
+    - Getting Started: 
+        - index.md  
+        - Installation: getting-started/installation.md
+        - Cloud Quickstart: ui/cloud-quickstart.md
     - Tutorials: 
         - tutorials/index.md
         - tutorials/first-steps.md
@@ -113,7 +116,6 @@ nav:
         - tutorials/deployments.md
         - tutorials/storage.md
         - tutorials/docker.md
-        - Cloud Quickstart: ui/cloud-quickstart.md
         - Cloud Agent Quickstart: tutorials/cloud-agent.md
         - tutorials/testing.md
         - tutorials/dask-ray-task-runners.md
