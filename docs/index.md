@@ -9,11 +9,12 @@ hide:
   - toc
 ---
 
-# **Welcome to Prefect:** The easiest way to orchestrate and observe your data pipelines
+# **Welcome to Prefect:** The easiest way to orchestrate and observe your Python code
 
-*"Everything fails all the time"* - AWS CTO, Werner Vogels 
+### Prefect gives your Python code superpowers!
 
-If you move data, these failures cost time, money, and frustration. Prefect makes it better with:
+
+With Prefect you get free:
 
 <ul class="ul-line-height-compress">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
@@ -24,7 +25,9 @@ If you move data, these failures cost time, money, and frustration. Prefect make
     <li> <a href="/ui/overview/"> observability</a> </li>
 </ul>
 
-Trying to implement these features for your workflows on your own is a huge pain that takes a lot of time &mdash; time that could be better used writing domain-specific code. That's why Prefect offers all this functionality and more! 
+![screenshot of Cloud UI timeline view with menu](/img/ui_timeline_placeholder.png)
+
+Trying to implement these features for your workflows from scratch is a huge pain that takes lots of time, headaches, and money. That's why Prefect offers all this functionality and more! 
 
 Prefect makes it easy for you to bring your Python code, sprinkle in a few decorators, and go!
 
@@ -69,8 +72,9 @@ The Prefect orchestration engine observes the flow run state and saves it for yo
 
 ## Next Steps
 
-3 buttons next to each other -mobile responsive - can I use bootstrap type classes? TK
-[Tutorial](/tutorial/index/)    [Concepts](/concepts/index/)  [Guides](guides/index/)
+If you're learning Prefect we encourage your to work through the tutorial. Or jump into Prefec concepts or find explore our guides for common use cases. TK link
+
+[Tutorial](/tutorial/index/){ .md-button .md-button--primary }    [Concepts](/concepts/index/){ .md-button }  [Guides](guides/index/){ .md-button }
 
 ---
 
