@@ -57,7 +57,7 @@ def set_login_api_ready_event():
 
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(app):
     try:
         set_login_api_ready_event()
         yield
