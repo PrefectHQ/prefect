@@ -441,6 +441,11 @@ The following data types will be stored by the API without persistence to storag
 If `persist_result` is set to `False`, these values will never be stored.
 
 
+## Tracking results
+
+The Prefect API tracks metadata about your results for display in the UI. As previously mentioned, the value of your result is only stored in specific cases. Otherwise, Prefect tracks the name of the type of your result to help understand how data flows through your tasks.
+
+
 ## Caching of results in memory
 
 When running your workflows, Prefect will keep the results of all tasks and flows in memory so they can be passed downstream. In some cases, it is desirable to override this behavior. For example, if you are returning a large amount of data from a task it can be costly to keep it memory for the entire duration of the flow run.
