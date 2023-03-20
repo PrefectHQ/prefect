@@ -269,7 +269,14 @@ class TestPrefectHttpxClient:
             request=Request("a test request", "fake.url/fake/route"),
         )
 
-        base_client_send.side_effect = [retry_response, RESPONSE_200]
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            retry_response,
+            retry_response,
+            RESPONSE_200,
+        ]
 
         response = await client.post(
             url="fake.url/fake/route", data={"evenmorefake": "data"}
