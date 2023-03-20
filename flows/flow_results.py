@@ -25,7 +25,7 @@ async def get_state_from_api(flow_run_id):
 
 if __name__ == "__main__":
     state = hello(return_state=True)
-    assert state.result() == "Hello!"
+    assert state.result() == "Hello!", f"Got state {state}"
 
     api_state = anyio.run(get_state_from_api, state.state_details.flow_run_id)
 
