@@ -161,7 +161,7 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    # On completion of root flows, wait for the global thread to ensure that the
+    # On completion of root flows, wait for the global thread to ensure that
     # any work there is complete
     done_callbacks = (
         [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
