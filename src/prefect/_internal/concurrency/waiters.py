@@ -11,6 +11,8 @@ import queue
 import threading
 from typing import Awaitable, Generic, List, Optional, TypeVar, Union
 
+import anyio
+
 from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect._internal.concurrency.primitives import Event
@@ -29,7 +31,7 @@ logger = get_logger("prefect._internal.concurrency.waiters")
 
 class Waiter(Portal, abc.ABC, Generic[T]):
     """
-    A waiter allows a waiting for the result of a call while routing callbacks to the
+    A waiter allows a waiting for a call while routing callbacks to the
     the current thread.
 
     Calls sent back to the waiter will be executed when waiting for the result.
@@ -46,11 +48,11 @@ class Waiter(Portal, abc.ABC, Generic[T]):
         super().__init__()
 
     @abc.abstractmethod
-    def result(self) -> Union[Awaitable[T], T]:
+    def wait(self) -> Union[Awaitable[None], None]:
         """
-        Retrieve the result of the call.
+        Wait for the call to finish.
 
-        Watch for and execute any callbacks.
+        Watch for and execute any waiting callbacks.
         """
         raise NotImplementedError()
 
@@ -111,24 +113,20 @@ class SyncWaiter(Waiter[T]):
         else:
             self._done_callbacks.append(callback)
 
-    def result(self) -> T:
+    def wait(self) -> T:
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(lambda _: self._queue.put_nowait(None))
+        self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
             with cancel_sync_at(self._call.cancel_context.deadline) as ctx:
                 self._handle_waiting_callbacks(ctx)
 
-            logger.debug(
-                "Waiter %r retrieving result of future %r", self, self._call.future
-            )
-
             # Wait for the future to be done
-            self._call.future.add_done_callback(lambda _: self._done_event.set())
             self._done_event.wait()
 
-        return self._call.future.result()
+        return self._call
 
 
 class AsyncWaiter(Waiter[T]):
@@ -202,8 +200,7 @@ class AsyncWaiter(Waiter[T]):
             while self._done_callbacks:
                 callback = self._done_callbacks.pop()
                 if callback:
-                    import anyio
-
+                    # We shield against cancellation so we can run the callback
                     with anyio.CancelScope(shield=True):
                         await self._run_done_callback(callback)
 
@@ -224,7 +221,7 @@ class AsyncWaiter(Waiter[T]):
         if not self._done_waiting:
             call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
-    async def result(self) -> T:
+    async def wait(self) -> Call[T]:
         # Assign the loop
         self._loop = asyncio.get_running_loop()
         self._queue = asyncio.Queue()
@@ -232,16 +229,14 @@ class AsyncWaiter(Waiter[T]):
 
         # Stop watching for work once the future is done
         self._call.future.add_done_callback(lambda _: self._signal_stop_waiting())
+        self._call.future.add_done_callback(lambda _: self._done_event.set())
 
         async with self._handle_done_callbacks():
             # Cancel work sent to the waiter if the future exceeds its timeout
             with cancel_async_at(self._call.cancel_context.deadline) as ctx:
                 await self._handle_waiting_callbacks(ctx)
 
-            logger.debug("Waiter %r retrieving result", self)
-
             # Wait for the future to be done
-            self._call.future.add_done_callback(lambda _: self._done_event.set())
             await self._done_event.wait()
 
-        return self._call.future.result()
+        return self._call

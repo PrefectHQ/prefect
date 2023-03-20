@@ -53,7 +53,7 @@ def get_tags():
     if flow_run is None and run_id is None:
         return []
     elif flow_run is None:
-        flow_run = from_sync.call_soon_in_new_thread(
+        flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
