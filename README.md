@@ -51,7 +51,7 @@ After running some flows, fire up the Prefect UI to see what happened:
 prefect server start
 ```
 
-![](/docs/img/ui/prefect-dashboard.png)
+![](/docs/img/ui/flow-run-page.png)
 
 From here, you can continue to use Prefect interactively or [deploy your flows](https://docs.prefect.io/concepts/deployments) to remote envirnments, running on a scheduled or event-driven basis.
 
