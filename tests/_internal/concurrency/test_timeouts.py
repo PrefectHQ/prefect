@@ -257,12 +257,9 @@ def test_cancel_sync_manually_in_main_thread():
             thread = threading.Thread(target=cancel_when_sleeping, daemon=True)
             thread.start()
 
-            # Sleep in the main thread; note unlike the timer based alarm this
-            # test requires intermittent sleeps to allow the signal to raise in
-            # a timely fashion
-            for _ in range(20):
-                event.set()  # Mark this as cancelling
-                time.sleep(0.1)
+            # Sleep in the main thread
+            event.set()
+            time.sleep(2)
 
     t1 = time.perf_counter()
     assert ctx.cancelled()
