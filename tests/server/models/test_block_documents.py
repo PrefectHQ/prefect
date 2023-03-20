@@ -1565,8 +1565,12 @@ class TestSecretBlockDocuments:
         assert blocks[0].data["y"] == Y
         assert blocks[0].data["z"] == Z
 
+    @pytest.mark.parametrize(
+        "merge_existing_data",
+        [True, False],
+    )
     async def test_updating_secret_block_document_with_obfuscated_result_is_ignored(
-        self, session, secret_block_document
+        self, session, secret_block_document, merge_existing_data
     ):
         block = await models.block_documents.read_block_document_by_id(
             session=session,
@@ -1581,7 +1585,8 @@ class TestSecretBlockDocuments:
             session=session,
             block_document_id=secret_block_document.id,
             block_document=schemas.actions.BlockDocumentUpdate(
-                data=dict(x=obfuscate_string(X))
+                data=dict(x=obfuscate_string(X)),
+                merge_existing_data=merge_existing_data,
             ),
         )
 
