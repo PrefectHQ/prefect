@@ -319,6 +319,26 @@ class ORMArtifact:
         )
 
 
+class ORMArtifactCollection:
+    key = sa.Column(
+        sa.String,
+        nullable=False,
+    )
+
+    latest_id = sa.Column(UUID(), nullable=False)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.UniqueConstraint("key"),
+            sa.Index(
+                "ix_artifact_collection__key_latest_id",
+                "key",
+                "latest_id",
+            ),
+        )
+
+
 class ORMTaskRunStateCache:
     """
     SQLAlchemy model of a task run state cache.
@@ -1297,6 +1317,7 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1347,6 +1368,7 @@ class BaseORMConfiguration(ABC):
             task_run_mixin=task_run_mixin,
             task_run_state_mixin=task_run_state_mixin,
             artifact_mixin=artifact_mixin,
+            artifact_collection_mixin=artifact_collection_mixin,
             task_run_state_cache_mixin=task_run_state_cache_mixin,
             deployment_mixin=deployment_mixin,
             saved_search_mixin=saved_search_mixin,
@@ -1391,6 +1413,7 @@ class BaseORMConfiguration(ABC):
         task_run_mixin=ORMTaskRun,
         task_run_state_mixin=ORMTaskRunState,
         artifact_mixin=ORMArtifact,
+        artifact_collection_mixin=ORMArtifactCollection,
         task_run_state_cache_mixin=ORMTaskRunStateCache,
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
@@ -1424,6 +1447,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Artifact(artifact_mixin, self.Base):
+            pass
+
+        class ArtifactCollection(artifact_collection_mixin, self.Base):
             pass
 
         class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
@@ -1487,6 +1513,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
         self.Artifact = Artifact
+        self.ArtifactCollection = ArtifactCollection
         self.TaskRunStateCache = TaskRunStateCache
         self.FlowRun = FlowRun
         self.TaskRun = TaskRun
