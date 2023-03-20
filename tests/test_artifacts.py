@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 import pytest
@@ -7,9 +8,6 @@ from prefect.artifacts import (
     create_link_artifact,
     create_markdown_artifact,
     create_table_artifact,
-    read_link_artifact,
-    read_markdown_artifact,
-    read_table_artifact,
 )
 from prefect.context import get_run_context
 from prefect.server.schemas.actions import ArtifactCreate
@@ -32,7 +30,7 @@ class TestCreateArtifacts:
             description="# This is a markdown description title",
         )
 
-    async def test_create_and_read_link_artifact_succeeds(self, artifact):
+    async def test_create_and_read_link_artifact_succeeds(self, artifact, orion_client):
         my_link = "prefect.io"
         artifact_id = await create_link_artifact(
             name=artifact.key,
@@ -40,10 +38,12 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await read_link_artifact(artifact_id)
+        result = await orion_client.read_artifact(artifact_id)
         assert result.data == f"[{my_link}]({my_link})"
 
-    async def test_create_and_read_link_artifact_with_linktext_succeeds(self, artifact):
+    async def test_create_and_read_link_artifact_with_linktext_succeeds(
+        self, artifact, orion_client
+    ):
         my_link = "prefect.io"
         link_text = "Prefect"
         artifact_id = await create_link_artifact(
@@ -53,7 +53,7 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await read_link_artifact(artifact_id)
+        result = await orion_client.read_artifact(artifact_id)
         assert result.data == f"[{link_text}]({my_link})"
 
     async def test_create_link_artifact_in_task_succeeds(self, orion_client):
@@ -76,7 +76,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_link_artifact = await read_link_artifact(my_artifact_id)
+        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id == task_run_id
@@ -96,7 +96,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await read_link_artifact(my_artifact_id)
+        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -121,12 +121,12 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await read_link_artifact(my_artifact_id)
+        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
 
-    async def test_create_link_artifact_using_map_succeeds(self, orion_client):
+    async def test_create_link_artifact_using_map_succeeds(self):
         """
         Test that we can create a markdown artifact using map.
         """
@@ -150,7 +150,9 @@ class TestCreateArtifacts:
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
 
-    async def test_create_and_read_markdown_artifact_succeeds(self, artifact):
+    async def test_create_and_read_markdown_artifact_succeeds(
+        self, artifact, orion_client
+    ):
         my_markdown = "# This is a markdown description title"
         artifact_id = await create_markdown_artifact(
             name=artifact.key,
@@ -158,7 +160,7 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await read_markdown_artifact(artifact_id)
+        result = await orion_client.read_artifact(artifact_id)
         assert result.data == my_markdown
 
     async def test_create_markdown_artifact_in_task_succeeds(self, orion_client):
@@ -181,7 +183,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
+        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id == task_run_id
@@ -201,7 +203,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
+        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -225,7 +227,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await read_markdown_artifact(my_artifact_id)
+        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
@@ -253,7 +255,9 @@ class TestCreateArtifacts:
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
 
-    async def test_create_and_read_dict_of_list_table_artifact_succeeds(self, artifact):
+    async def test_create_and_read_dict_of_list_table_artifact_succeeds(
+        self, artifact, orion_client
+    ):
         my_table = {"a": [1, 3], "b": [2, 4]}
 
         artifact_id = await create_table_artifact(
@@ -262,10 +266,12 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await read_table_artifact(artifact_id)
+        result = await orion_client.read_artifact(artifact_id)
         assert result.data == my_table
 
-    async def test_create_and_read_list_of_dict_table_artifact_succeeds(self, artifact):
+    async def test_create_and_read_list_of_dict_table_artifact_succeeds(
+        self, artifact, orion_client
+    ):
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
         artifact_id = await create_table_artifact(
@@ -274,8 +280,9 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await read_table_artifact(artifact_id)
-        assert result.data == my_table
+        result = await orion_client.read_artifact(artifact_id)
+        result_data = json.loads(result.data)
+        assert result_data == my_table
 
     async def test_create_table_artifact_in_task_succeeds(self, orion_client):
         @task
@@ -298,7 +305,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_table_artifact = await read_table_artifact(my_artifact_id)
+        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id == task_run_id
@@ -320,7 +327,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await read_table_artifact(my_artifact_id)
+        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id is None
@@ -346,7 +353,7 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await read_table_artifact(my_artifact_id)
+        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}

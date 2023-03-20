@@ -10,7 +10,6 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.server.schemas.actions import ArtifactCreate
-from prefect.server.schemas.core import Artifact
 from prefect.utilities.asyncutils import sync_compatible
 
 
@@ -135,57 +134,3 @@ async def create_table_artifact(
     )
 
     return artifact.id
-
-
-@inject_client
-async def _read_artifact(
-    artifact_id: Union[str, UUID],
-    client: Optional[PrefectClient] = None,
-) -> Artifact:
-    """
-    Helper function to read an artifact.
-    """
-    if isinstance(artifact_id, str):
-        artifact_id = UUID(artifact_id)
-
-    return await client.read_artifact(artifact_id=artifact_id)
-
-
-@sync_compatible
-async def read_markdown_artifact(
-    artifact_id: Union[str, UUID],
-) -> Artifact:
-    """
-    Read a markdown artifact.
-    """
-    artifact = await _read_artifact(artifact_id=artifact_id)
-    return artifact
-
-
-@sync_compatible
-async def read_table_artifact(
-    artifact_id: Union[str, UUID],
-) -> Artifact:
-    """
-    Read a table artifact.
-    """
-    artifact = await _read_artifact(artifact_id=artifact_id)
-    if artifact and artifact.data is not None and isinstance(artifact.data, str):
-        try:
-            artifact.data = json.loads(artifact.data)
-        except json.JSONDecodeError:
-            print(
-                f"The data in table artifact with id '{artifact_id}' was in a JSON"
-                " format and could not be formatted back into a valid table. It"
-                " will be returned as a string."
-            )
-    return artifact
-
-
-@sync_compatible
-async def read_link_artifact(artifact_id: Union[str, UUID]) -> Artifact:
-    """
-    Read a link artifact.
-    """
-    artifact = await _read_artifact(artifact_id=artifact_id)
-    return artifact
