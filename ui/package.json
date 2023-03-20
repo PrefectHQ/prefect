@@ -10,7 +10,7 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "1.4.3",
+    "@prefecthq/prefect-design": "1.4.4",
     "@prefecthq/prefect-ui-library": "1.1.18",
     "@prefecthq/vue-compositions": "1.3.6",
     "@types/lodash.debounce": "4.0.7",
