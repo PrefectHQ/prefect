@@ -1,0 +1,7 @@
+aiosqlite >= 0.17.0
+alembic >= 1.7.5
+asgi-lifespan >= 1.0
+asyncpg >= 0.23
+fastapi >= 0.70
+sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 2.0
+uvicorn >= 0.14.0

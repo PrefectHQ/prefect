@@ -1,8 +1,11 @@
+import os
+
 from setuptools import find_packages, setup
 
 import versioneer
 
 install_requires = open("requirements.txt").read().strip().split("\n")
+server_requires = open("requirements-server.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
 setup(
@@ -36,7 +39,11 @@ setup(
     },
     # Requirements
     python_requires=">=3.7",
-    install_requires=install_requires,
+    install_requires=(
+        install_requires
+        # Allow opt-out of server requirements
+        + ([] if os.getenv("PREFECT_INSTALL_NO_SERVER") else server_requires)
+    ),
     extras_require={"dev": dev_requires},
     classifiers=[
         "Natural Language :: English",
