@@ -544,7 +544,6 @@ def root_settings_context():
         # Override environment variables if the profile was set by the CLI
         override_environment_variables=profile_source == "by command line argument",
     ) as settings_context:
-        prefect.logging.get_logger("context").debug("Using profile {active_name!r}")
         return settings_context
 
     # Note the above context is exited and the global settings context is used by
