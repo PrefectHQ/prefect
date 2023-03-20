@@ -16,6 +16,7 @@ from typing import Callable, List, Optional, Type
 import anyio
 import anyio._backends._asyncio
 
+from prefect._internal.concurrency.event_loop import call_soon_in_loop
 from prefect.logging import get_logger
 
 # TODO: We should update the format for this logger to include the current thread
@@ -174,10 +175,12 @@ class _AsyncCanceller(anyio._backends._asyncio.CancelScope):
         super().__init__(deadline=deadline)
         timeout = max(0, deadline - time.monotonic()) if deadline else None
         self.context = CancelContext(timeout=timeout, cancel=self.cancel)
+        self._loop = asyncio.get_running_loop()
 
     def cancel(self):
         self.context.mark_cancelled()
-        return super().cancel()
+        # Cancellation must be called from the event loop that owns the scope
+        return call_soon_in_loop(self._loop, super().cancel).result()
 
     def __exit__(self, *exc_info) -> Optional[bool]:
         self.context.mark_completed()
@@ -381,7 +384,11 @@ def _watcher_thread_based_timeout(timeout: Optional[float]):
                 _send_exception(TimeoutError)
 
     if timeout is not None:
-        enforcer = threading.Thread(target=timeout_enforcer, daemon=True)
+        enforcer = threading.Thread(
+            target=timeout_enforcer,
+            daemon=True,
+            name=f"TimeoutWatcher-{timeout:.2f}",
+        )
         enforcer.start()
 
     try:
