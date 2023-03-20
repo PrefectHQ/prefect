@@ -71,6 +71,11 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         super().prepare_for_flow_run(flow_run, deployment, flow)
 
         self.env = {**os.environ, **self.env}
+        self.command = (
+            f"{sys.executable} -m prefect.engine"
+            if self.command == self._base_flow_run_command()
+            else self.command
+        )
 
 
 class ProcessVariables(BaseVariables):
