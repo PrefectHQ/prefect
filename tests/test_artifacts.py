@@ -1,6 +1,7 @@
 import json
 from typing import List
 
+import pydantic
 import pytest
 
 from prefect import flow, task
@@ -10,6 +11,7 @@ from prefect.artifacts import (
     create_table_artifact,
 )
 from prefect.context import get_run_context
+from prefect.server import schemas
 from prefect.server.schemas.actions import ArtifactCreate
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
@@ -30,7 +32,7 @@ class TestCreateArtifacts:
             description="# This is a markdown description title",
         )
 
-    async def test_create_and_read_link_artifact_succeeds(self, artifact, orion_client):
+    async def test_create_and_read_link_artifact_succeeds(self, artifact, client):
         my_link = "prefect.io"
         artifact_id = await create_link_artifact(
             name=artifact.key,
@@ -38,11 +40,12 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await orion_client.read_artifact(artifact_id)
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
         assert result.data == f"[{my_link}]({my_link})"
 
     async def test_create_and_read_link_artifact_with_linktext_succeeds(
-        self, artifact, orion_client
+        self, artifact, client
     ):
         my_link = "prefect.io"
         link_text = "Prefect"
@@ -53,10 +56,11 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await orion_client.read_artifact(artifact_id)
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
         assert result.data == f"[{link_text}]({my_link})"
 
-    async def test_create_link_artifact_in_task_succeeds(self, orion_client):
+    async def test_create_link_artifact_in_task_succeeds(self, client):
         @task
         def my_special_task():
             task_run_id = get_run_context().task_run.id
@@ -76,12 +80,13 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id == task_run_id
 
-    async def test_create_link_artifact_in_flow_succeeds(self, orion_client):
+    async def test_create_link_artifact_in_flow_succeeds(self, client):
         @flow
         def my_flow():
             flow_run_id = get_run_context().flow_run.id
@@ -96,12 +101,13 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
 
-    async def test_create_link_artifact_in_subflow_succeeds(self, orion_client):
+    async def test_create_link_artifact_in_subflow_succeeds(self, client):
         @flow
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
@@ -121,7 +127,8 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_link_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_link_artifact = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
 
         assert my_link_artifact.flow_run_id == flow_run_id
         assert my_link_artifact.task_run_id is None
@@ -150,9 +157,7 @@ class TestCreateArtifacts:
         my_big_nums = simple_map([1, 2, 3])
         assert my_big_nums == [11, 12, 13]
 
-    async def test_create_and_read_markdown_artifact_succeeds(
-        self, artifact, orion_client
-    ):
+    async def test_create_and_read_markdown_artifact_succeeds(self, artifact, client):
         my_markdown = "# This is a markdown description title"
         artifact_id = await create_markdown_artifact(
             name=artifact.key,
@@ -160,10 +165,11 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await orion_client.read_artifact(artifact_id)
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
         assert result.data == my_markdown
 
-    async def test_create_markdown_artifact_in_task_succeeds(self, orion_client):
+    async def test_create_markdown_artifact_in_task_succeeds(self, client):
         @task
         def my_special_task():
             task_run_id = get_run_context().task_run.id
@@ -183,12 +189,15 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_markdown_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id == task_run_id
 
-    async def test_create_markdown_artifact_in_flow_succeeds(self, orion_client):
+    async def test_create_markdown_artifact_in_flow_succeeds(self, client):
         @flow
         def my_flow():
             flow_run_id = get_run_context().flow_run.id
@@ -203,12 +212,15 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_markdown_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
 
-    async def test_create_markdown_artifact_in_subflow_succeeds(self, orion_client):
+    async def test_create_markdown_artifact_in_subflow_succeeds(self, client):
         @flow
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
@@ -227,12 +239,15 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_markdown_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_markdown_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_markdown_artifact.flow_run_id == flow_run_id
         assert my_markdown_artifact.task_run_id is None
 
-    async def test_create_markdown_artifact_using_map_succeeds(self, orion_client):
+    async def test_create_markdown_artifact_using_map_succeeds(self):
         """
         Test that we can create a markdown artifact using map.
         """
@@ -256,7 +271,7 @@ class TestCreateArtifacts:
         assert my_big_nums == [11, 12, 13]
 
     async def test_create_and_read_dict_of_list_table_artifact_succeeds(
-        self, artifact, orion_client
+        self, artifact, client
     ):
         my_table = {"a": [1, 3], "b": [2, 4]}
 
@@ -266,11 +281,13 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await orion_client.read_artifact(artifact_id)
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+
         assert result.data == my_table
 
     async def test_create_and_read_list_of_dict_table_artifact_succeeds(
-        self, artifact, orion_client
+        self, artifact, client
     ):
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
@@ -280,11 +297,13 @@ class TestCreateArtifacts:
             description=artifact.description,
         )
 
-        result = await orion_client.read_artifact(artifact_id)
+        response = await client.get(f"/experimental/artifacts/{artifact_id}")
+        result = pydantic.parse_obj_as(schemas.core.Artifact, response.json())
+
         result_data = json.loads(result.data)
         assert result_data == my_table
 
-    async def test_create_table_artifact_in_task_succeeds(self, orion_client):
+    async def test_create_table_artifact_in_task_succeeds(self, client):
         @task
         def my_special_task():
             my_table = {"a": [1, 3], "b": [2, 4]}
@@ -305,13 +324,16 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id, task_run_id = my_flow()
 
-        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_table_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id == task_run_id
         assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
 
-    async def test_create_table_artifact_in_flow_succeeds(self, orion_client):
+    async def test_create_table_artifact_in_flow_succeeds(self, client):
         @flow
         def my_flow():
             my_table = {"a": [1, 3], "b": [2, 4]}
@@ -327,13 +349,16 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_table_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.task_run_id is None
         assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
 
-    async def test_create_table_artifact_in_subflow_succeeds(self, orion_client):
+    async def test_create_table_artifact_in_subflow_succeeds(self, client):
         @flow
         def my_subflow():
             my_table = {"a": [1, 3], "b": [2, 4]}
@@ -353,13 +378,16 @@ class TestCreateArtifacts:
 
         my_artifact_id, flow_run_id = my_flow()
 
-        my_table_artifact = await orion_client.read_artifact(my_artifact_id)
+        response = await client.get(f"/experimental/artifacts/{my_artifact_id}")
+        my_table_artifact = pydantic.parse_obj_as(
+            schemas.core.Artifact, response.json()
+        )
 
         assert my_table_artifact.flow_run_id == flow_run_id
         assert my_table_artifact.data == {"a": [1, 3], "b": [2, 4]}
         assert my_table_artifact.task_run_id is None
 
-    async def test_create_table_artifact_using_map_succeeds(self, orion_client):
+    async def test_create_table_artifact_using_map_succeeds(self):
         """
         Test that we can create a table artifact using map.
         An ode to prefect issue

@@ -2289,18 +2289,6 @@ class PrefectClient:
 
         return pydantic.parse_obj_as(Artifact, response.json())
 
-    async def read_artifact(self, artifact_id: UUID) -> schemas.core.Artifact:
-        """
-        Reads an artifact.
-
-        Args:
-            artifact_id: The ID of the artifact to read.
-        Returns:
-            The artifact.
-        """
-        response = await self._client.get(f"/experimental/artifacts/{artifact_id}")
-        return pydantic.parse_obj_as(schemas.core.Artifact, response.json())
-
     async def __aenter__(self):
         """
         Start the client.
