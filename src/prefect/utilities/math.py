@@ -66,7 +66,7 @@ def bounded_poisson_interval(lower_bound, upper_bound):
     midpoint. This allows Poisson intervals to be used in cases where a lower bound
     must be enforced.
     """
-    average = (float(lower_bound) + float(upper_bound)) / 2
-    upper_rv = exponential_cdf(upper_bound, lower_bound)
-    lower_rv = exponential_cdf(lower_bound, upper_bound)
+    average = (float(lower_bound) + float(upper_bound)) / 2.0
+    upper_rv = exponential_cdf(upper_bound, average)
+    lower_rv = exponential_cdf(lower_bound, average)
     return poisson_interval(average, lower_rv, upper_rv)

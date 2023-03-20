@@ -206,7 +206,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
             # Add jitter
             jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
-            if jitter_factor > 0:
+            if retry_seconds > 0 and jitter_factor > 0:
                 if response is not None and "Retry-After" in response.headers:
                     # Always wait for _at least_ retry seconds if requested by the API
                     retry_seconds = bounded_poisson_interval(
