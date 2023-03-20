@@ -1612,12 +1612,12 @@ class TestArtifacts:
             metadata_={"data": "opens many doors"},
         )
 
-    async def test_create_then_read_artifact(self, orion_client, artifact):
+    async def test_create_then_read_artifact(self, orion_client, client, artifact):
         result = await orion_client.create_artifact(artifact=artifact)
         assert result.key == artifact.key
         assert result.description == artifact.description
 
-        result = await orion_client.read_artifact(artifact_id=result.id)
-
-        assert result.key == artifact.key
-        assert result.description == artifact.description
+        response = await client.get(f"/experimental/artifacts/{result.id}")
+        assert response.status_code == 200
+        assert response.json()["key"] == artifact.key
+        assert response.json()["description"] == artifact.description
