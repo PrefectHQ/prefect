@@ -149,6 +149,18 @@ class TestReadArtifact:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestReadLatestArtifact:
+    async def test_read_latest_artifact(self, artifact, client):
+        response = await client.get(f"/experimental/artifacts/latest/{artifact['key']}")
+        artifact_result = response.json()
+        assert response.status_code == status.HTTP_200_OK
+        assert artifact_result["key"] == artifact["key"]
+        assert artifact_result["data"] == artifact["data"]
+        assert artifact_result["description"] == artifact["description"]
+        assert artifact_result["metadata_"] == artifact["metadata_"]
+        assert artifact_result["flow_run_id"] == artifact["flow_run_id"]
+
+
 class TestReadArtifacts:
     async def test_read_artifacts(self, artifacts, client):
         response = await client.post("/experimental/artifacts/filter")

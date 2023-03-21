@@ -37,11 +37,20 @@ async def create_artifact(
     artifact = core.Artifact(**artifact.dict())
 
     now = pendulum.now("UTC")
+    artifact_key = artifact.key
 
     async with db.session_context(begin_transaction=True) as session:
-        model = await models.artifacts.create_artifact(
-            session=session,
-            artifact=artifact,
+        model = (
+            await models.artifacts.create_artifact(
+                key=artifact_key,
+                session=session,
+                artifact=artifact,
+            )
+            if artifact_key is not None
+            else await models.artifacts.create_artifact(
+                session=session,
+                artifact=artifact,
+            )
         )
 
     if model.created >= now:
@@ -63,6 +72,25 @@ async def read_artifact(
         artifact = await models.artifacts.read_artifact(
             session=session, artifact_id=artifact_id
         )
+
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    return artifact
+
+
+@router.get("/latest/{key}")
+async def read_latest_artifact(
+    key: str = Path(
+        ...,
+        description="The key of the artifact to retrieve.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> core.Artifact:
+    """
+    Retrieve the latest artifact from the database.
+    """
+    async with db.session_context() as session:
+        artifact = await models.artifacts.read_latest_artifact(session=session, key=key)
 
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found.")
