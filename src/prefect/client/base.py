@@ -15,6 +15,8 @@ from typing_extensions import Self
 
 from prefect.exceptions import PrefectHTTPStatusError
 from prefect.logging import get_logger
+from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR
+from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app identities.
 APP_LIFESPANS: Dict[Tuple[int, int], LifespanManager] = {}
@@ -201,6 +203,20 @@ class PrefectHttpxClient(httpx.AsyncClient):
             # Use an exponential back-off if not set in a header
             if retry_seconds is None:
                 retry_seconds = 2**try_count
+
+            # Add jitter
+            jitter_factor = PREFECT_CLIENT_RETRY_JITTER_FACTOR.value()
+            if retry_seconds > 0 and jitter_factor > 0:
+                if response is not None and "Retry-After" in response.headers:
+                    # Always wait for _at least_ retry seconds if requested by the API
+                    retry_seconds = bounded_poisson_interval(
+                        retry_seconds, retry_seconds * (1 + jitter_factor)
+                    )
+                else:
+                    # Otherwise, use a symmetrical jitter
+                    retry_seconds = clamped_poisson_interval(
+                        retry_seconds, jitter_factor
+                    )
 
             logger.debug(
                 (
