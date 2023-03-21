@@ -134,7 +134,6 @@ nav:
         - Settings: concepts/settings.md
     - UI & Cloud:
         - ui/index.md
-        - UI Overview: ui/overview.md
         - Cloud Overview: ui/cloud.md
         - Cloud Quickstart: ui/cloud-quickstart.md
         - Cloud Concepts: 

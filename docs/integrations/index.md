@@ -13,7 +13,7 @@ tags:
 {% endfor %}
 ---
 
-# Integrations Catalog
+# Integrations
 
 Prefect integrations are organized into collections of pre-built [tasks](/concepts/tasks/), [flows](/concepts/flows/), [blocks](/concepts/blocks/) and more that are installable as PyPI packages. 
 
