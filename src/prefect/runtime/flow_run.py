@@ -9,8 +9,9 @@ Available attributes:
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
 """
 import os
-import pendulum
 from typing import Any, List
+
+import pendulum
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client

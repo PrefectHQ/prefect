@@ -1,8 +1,9 @@
 import datetime
+
 import pendulum
 import pytest
 
-from prefect import flow, tags, states
+from prefect import flow, states, tags
 from prefect.runtime import flow_run
 
 
