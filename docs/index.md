@@ -30,7 +30,7 @@ With Prefect you gain easy:
 Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
 
 <figure markdown>
-![screenshot of Cloud UI timeline view with menu](/img/ui_timeline_placeholder.png)
+![screenshot of Cloud UI timeline view with menu](img/ui/flow-run-page.png)
 <figcaption>Prefect UI</figcaption>
 </figure>
 
