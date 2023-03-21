@@ -622,6 +622,32 @@ async def test_create_then_read_flow_with_description(orion_client):
     assert lookup.description == foo.description
 
 
+@pytest.mark.parametrize(
+    "init_desc, updated_desc",
+    [
+        (None, "new description"),
+        ("initial description", "updated description"),
+        ("remove description", None),
+    ],
+)
+async def test_update_flow_description(init_desc, updated_desc, orion_client):
+    @flow(name="foo", description=init_desc)
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+
+    initial_lookup = await orion_client.read_flow(flow_id)
+    assert initial_lookup.name == foo.name
+    assert initial_lookup.description == foo.description
+
+    await orion_client.update_flow(initial_lookup.id, description=updated_desc)
+
+    second_lookup = await orion_client.read_flow(flow_id)
+    assert second_lookup.name == foo.name
+    assert second_lookup.description == updated_desc
+
+
 async def test_create_then_read_deployment(
     orion_client, infrastructure_document_id, storage_document_id
 ):

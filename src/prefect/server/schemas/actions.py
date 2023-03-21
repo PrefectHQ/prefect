@@ -43,6 +43,14 @@ def validate_block_document_name(value):
     return value
 
 
+def validate_description_length(cls, description):
+    if description is not None and len(description) > MAX_FLOW_DESCRIPTION_LENGTH:
+        raise ValueError(
+            f"Description is over the maximum length of {MAX_FLOW_DESCRIPTION_LENGTH}."
+        )
+    return description
+
+
 class ActionBaseModel(PrefectBaseModel):
     class Config:
         extra = "forbid"
@@ -72,14 +80,9 @@ class FlowCreate(ActionBaseModel):
     description: Optional[str] = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
 
-    @validator("description")
-    def validate_description_length(cls, description):
-        if description is not None and len(description) > MAX_FLOW_DESCRIPTION_LENGTH:
-            raise ValueError(
-                "Description is over the maximum length of"
-                f" {MAX_FLOW_DESCRIPTION_LENGTH}."
-            )
-        return description
+    _validate_description_length = validator("description", allow_reuse=True)(
+        validate_description_length
+    )
 
 
 @copy_model_fields
@@ -88,6 +91,10 @@ class FlowUpdate(ActionBaseModel):
 
     description: Optional[str] = FieldFrom(schemas.core.Flow)
     tags: List[str] = FieldFrom(schemas.core.Flow)
+
+    _validate_description_length = validator("description", allow_reuse=True)(
+        validate_description_length
+    )
 
 
 @experimental_field(

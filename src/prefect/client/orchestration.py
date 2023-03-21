@@ -315,6 +315,26 @@ class PrefectClient:
         # Return the id of the created flow
         return UUID(flow_id)
 
+    async def update_flow(self, flow_id: UUID, description: Optional[str] = None):
+        """
+        Update a flow.
+
+        Args:
+            flow_id: the id of the flow to update
+            description: the new description of the flow
+
+        Returns:
+            a [Flow model][prefect.orion.schemas.core.Flow] representation of the updated flow
+        """
+        params = {"description": description}
+
+        flow_data = schemas.actions.FlowUpdate(**params)
+
+        return await self._client.patch(
+            f"/flows/{flow_id}",
+            json=flow_data.dict(json_compatible=True, exclude_unset=True),
+        )
+
     async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
         """
         Query the Prefect API for a flow by id.
