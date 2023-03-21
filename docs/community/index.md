@@ -1,5 +1,11 @@
 ---
 icon: octicons/people-16
+description: Join the Prefect community.
+tags:
+    - community
+    - Slack
+    - Discourse
+---
 ---
 
 # Community
