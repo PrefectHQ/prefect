@@ -161,10 +161,8 @@ nav:
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
         - guides/index.md
-        - Migration Guide: migration-guide.md
-        - Prefect Recipes: 
-            - Recipes Catalog: recipes/recipes.md
-            - Contributing Recipes: recipes/contribute-recipes.md
+        - Recipes: recipes/recipes.md
+        - Migration Guide: guides/migration-guide.md
     - Integrations:
         - integrations/index.md
         - Using Integrations: integrations/usage.md
