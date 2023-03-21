@@ -87,7 +87,7 @@ async def read_latest_artifact(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Artifact:
     """
-    Retrieve the latest artifact from the database.
+    Retrieve the latest artifact from the artifact table.
     """
     async with db.session_context() as session:
         artifact = await models.artifacts.read_latest_artifact(session=session, key=key)
