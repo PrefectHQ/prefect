@@ -340,8 +340,8 @@ class TestWorkPool:
         with pytest.raises(
             ValueError,
             match=(
-                ".*Your job expects the following variables: {'expected_variable'}, but"
-                " your template provides: {'wrong_variable'}"
+                r"Your job configuration uses the following undeclared variable\(s\):"
+                r" expected_variable"
             ),
         ):
             wp = schemas.core.WorkPool(
@@ -380,7 +380,7 @@ class TestArtifacts:
         assert len(artifact.metadata_["a very long key"]) < 5000
         assert len(artifact.metadata_["a very long key"]) == 503  # max length + "..."
 
-    async def test_from_result_populates_type_key_and_metadata(self):
+    async def test_from_result_populates_type_key_and_description(self):
         # TODO: results received from the API should conform to a schema
         result = dict(
             some_string="abcdefghijklmnopqrstuvwxyz",
@@ -392,7 +392,7 @@ class TestArtifacts:
         assert artifact.key == "the secret pa55word"
         assert artifact.data["some_string"] == "abcdefghijklmnopqrstuvwxyz"
         assert artifact.type == "a test result"
-        assert artifact.metadata_["description"] == "the most remarkable word"
+        assert artifact.description == "the most remarkable word"
 
     async def test_from_result_compatible_with_older_result_payloads(self):
         result = dict(
@@ -408,6 +408,7 @@ class TestArtifacts:
         artifact = schemas.core.Artifact.from_result(result)
         assert artifact.data == result
         assert artifact.type is None
+        assert artifact.description is None
         assert artifact.metadata_ is None
 
     async def test_from_result_can_contain_arbitrary_fields(self):
