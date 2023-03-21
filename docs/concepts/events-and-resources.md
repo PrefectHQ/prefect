@@ -63,7 +63,7 @@ This event now appears in the [event feed](/ui/events/) where you can visualize 
 
 ## Resources
 
-Every event has a primary resource, which describes what object emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are consutrcted as dot-delimited strings such as
+Every event has a primary resource, which describes what object emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are consutrcted as dot-delimited strings such as:
 
 ```
 prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3.action.0
@@ -71,7 +71,7 @@ acme.user.kiki.elt_script_1
 prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6
 ```
 
-Resources can optionally have additional arbitrary labels, such as:
+Resources can optionally have additional arbitrary labels which can be used in different event aggregatino queries, such as:
 
 ```json
 "resource": {
