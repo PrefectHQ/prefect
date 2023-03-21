@@ -5,6 +5,7 @@ Defines the Prefect REST API FastAPI app.
 import asyncio
 import mimetypes
 import os
+from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
 from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
@@ -426,6 +427,16 @@ def create_app(
                 # `on_service_exit` should handle logging exceptions on exit
                 pass
 
+    @asynccontextmanager
+    async def lifespan(app):
+        try:
+            await run_migrations()
+            await add_block_types()
+            await start_services()
+            yield
+        finally:
+            await stop_services()
+
     def on_service_exit(service, task):
         """
         Added as a callback for completion of services to log exit
@@ -441,12 +452,7 @@ def create_app(
     app = FastAPI(
         title=TITLE,
         version=API_VERSION,
-        on_startup=[
-            run_migrations,
-            add_block_types,
-            start_services,
-        ],
-        on_shutdown=[stop_services],
+        lifespan=lifespan,
     )
     api_app = create_orion_api(
         fast_api_app_kwargs={
