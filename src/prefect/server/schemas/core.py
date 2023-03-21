@@ -80,6 +80,9 @@ class Flow(ORMBaseModel):
     name: str = Field(
         default=..., description="The name of the flow", example="my-flow"
     )
+    description: Optional[str] = Field(
+        default=None, description="The description of the flow."
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of flow tags",

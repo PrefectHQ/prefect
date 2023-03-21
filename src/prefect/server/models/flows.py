@@ -2,7 +2,6 @@
 Functions for interacting with flow ORM objects.
 Intended for internal use by the Prefect REST API.
 """
-
 from uuid import UUID
 
 import sqlalchemy as sa

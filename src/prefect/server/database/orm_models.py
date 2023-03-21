@@ -89,6 +89,7 @@ class ORMFlow:
     """SQLAlchemy mixin of a flow."""
 
     name = sa.Column(sa.String, nullable=False)
+    description = sa.Column(sa.Text(), nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr

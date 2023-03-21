@@ -608,6 +608,20 @@ async def test_create_then_read_flow(orion_client):
     assert lookup.name == foo.name
 
 
+async def test_create_then_read_flow_with_description(orion_client):
+    @flow(name="foo", description="foo description.")
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    assert isinstance(flow_id, UUID)
+
+    lookup = await orion_client.read_flow(flow_id)
+    assert isinstance(lookup, schemas.core.Flow)
+    assert lookup.name == foo.name
+    assert lookup.description == foo.description
+
+
 async def test_create_then_read_deployment(
     orion_client, infrastructure_document_id, storage_document_id
 ):

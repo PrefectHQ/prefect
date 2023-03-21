@@ -8,9 +8,11 @@ from prefect.server import models, schemas
 class TestCreateFlow:
     async def test_create_flow_succeeds(self, session):
         flow = await models.flows.create_flow(
-            session=session, flow=schemas.core.Flow(name="my-flow")
+            session=session,
+            flow=schemas.core.Flow(name="my-flow", description="my-flow-description"),
         )
         assert flow.name == "my-flow"
+        assert flow.description == "my-flow-description"
         assert flow.id
 
     async def test_create_flow_does_not_upsert(self, session):
@@ -39,12 +41,15 @@ class TestUpdateFlow:
         update_result = await models.flows.update_flow(
             session=session,
             flow_id=flow_id,
-            flow=schemas.actions.FlowUpdate(tags=["TB12"]),
+            flow=schemas.actions.FlowUpdate(
+                tags=["TB12"], description="Updated description."
+            ),
         )
         assert update_result
 
         updated_flow = await models.flows.read_flow(session=session, flow_id=flow_id)
         assert updated_flow.tags == ["TB12"]
+        assert updated_flow.description == "Updated description."
         assert flow_id == flow.id == updated_flow.id
 
     async def test_update_flow_does_not_update_if_nothing_set(self, session):

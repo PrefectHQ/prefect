@@ -20,6 +20,17 @@ class TestCreateFlow:
         flow = await models.flows.read_flow(session=session, flow_id=flow_id)
         assert str(flow.id) == flow_id
 
+    async def test_create_flow_with_description(self, session, client):
+        flow_data = {"name": "my-flow", "description": "my-flow description."}
+        response = await client.post("/flows/", json=flow_data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "my-flow"
+        assert response.json()["description"] == "my-flow description."
+        flow_id = response.json()["id"]
+
+        flow = await models.flows.read_flow(session=session, flow_id=flow_id)
+        assert str(flow.id) == flow_id
+
     async def test_create_flow_populates_and_returned_created(self, client):
         now = pendulum.now(tz="UTC")
         flow_data = {"name": "my-flow"}
@@ -122,6 +133,19 @@ class TestReadFlow:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == flow_id
         assert response.json()["name"] == "my-flow"
+
+    async def test_read_flow_with_description(self, client):
+        # first create a flow to read
+        flow_data = {"name": "my-flow", "description": "my-flow description."}
+        response = await client.post("/flows/", json=flow_data)
+        flow_id = response.json()["id"]
+
+        # make sure we we can read the flow correctly
+        response = await client.get(f"/flows/{flow_id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["id"] == flow_id
+        assert response.json()["name"] == "my-flow"
+        assert response.json()["description"] == "my-flow description."
 
     async def test_read_flow_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/flows/{uuid4()}")
