@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add Artifact Collection table
+SQLite: `b9aafc3ab936`
+Postgres: `d20618ce678e`
+
 # Remove Flow Run foreign keys
 SQLite: `f3df94dca3cc`
 Postgres: `7d918a392297`
