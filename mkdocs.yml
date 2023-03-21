@@ -109,12 +109,12 @@ nav:
         - Cloud Quickstart: ui/cloud-quickstart.md
     - Tutorial: 
         - tutorials/index.md
-        - tutorials/first-steps.md
-        - tutorials/flow-task-config.md
-        - tutorials/execution.md
-        - tutorials/orchestration.md
-        - tutorials/deployments.md
-        - tutorials/storage.md
+        - Flows & Tasks: tutorials/first-steps.md
+        - Configuration: tutorials/flow-task-config.md
+        - Execution: tutorials/execution.md
+        - Orchestration: tutorials/orchestration.md
+        - Deployments: tutorials/deployments.md
+        - Storage & Infrastructure: tutorials/storage.md
         - tutorials/docker.md
         - Cloud Agent Quickstart: tutorials/cloud-agent.md
         - tutorials/testing.md
