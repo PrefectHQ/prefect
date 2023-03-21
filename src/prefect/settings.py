@@ -516,6 +516,15 @@ If the API does not support HTTP/2, this will have no effect and connections wil
 made via HTTP/1.1.
 """
 
+PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
+"""
+A value greater than or equal to zero to control the amount of jitter added to retried
+client requests. Higher values introduce larger amounts of jitter.
+
+Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
+can affect retry lengths.
+"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",

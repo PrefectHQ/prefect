@@ -55,3 +55,18 @@ def clamped_poisson_interval(average_interval, clamping_factor=0.3):
     upper_rv = exponential_cdf(upper_bound, average_interval)
     lower_rv = exponential_cdf(lower_bound, average_interval)
     return poisson_interval(average_interval, lower_rv, upper_rv)
+
+
+def bounded_poisson_interval(lower_bound, upper_bound):
+    """
+    Bounds Poisson "inter-arrival times" to a range.
+
+    Unlike `clamped_poisson_interval` this does not take a target average interval.
+    Instead, the interval is predetermined and the average is calculated as their
+    midpoint. This allows Poisson intervals to be used in cases where a lower bound
+    must be enforced.
+    """
+    average = (float(lower_bound) + float(upper_bound)) / 2.0
+    upper_rv = exponential_cdf(upper_bound, average)
+    lower_rv = exponential_cdf(lower_bound, average)
+    return poisson_interval(average, lower_rv, upper_rv)
