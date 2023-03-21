@@ -163,6 +163,26 @@ class TestUpdateArtifacts:
         assert updated_artifact.data == 1
 
 
+class TestReadLatestArtifact:
+    async def test_reading_artifact_by_key(self, session):
+        artifact_schema = schemas.core.Artifact(
+            key="voltaic", data=1, description="opens many doors"
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session, artifact=artifact_schema, key=artifact_schema.key
+        )
+
+        assert artifact.key == "voltaic"
+
+        tutored_artifact = await models.artifacts.read_latest_artifact(
+            session=session, key=artifact.key
+        )
+
+        assert tutored_artifact.key == "voltaic"
+        assert tutored_artifact.data == 1
+        assert tutored_artifact.description == "opens many doors"
+
+
 class TestReadingSingleArtifacts:
     async def test_reading_artifacts_by_id(self, session):
         artifact_schema = schemas.core.Artifact(
