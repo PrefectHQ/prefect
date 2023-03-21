@@ -64,6 +64,9 @@ class Process(Infrastructure):
         labels: Labels for the process. Labels are for metadata purposes only and
             cannot be attached to the process itself.
         name: A name for the process. For display purposes only.
+        stream_output: Whether to stream output to local stdout.
+        working_dir: Working directory where the process should be opened. If not set,
+            a tmp directory will be used.
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
