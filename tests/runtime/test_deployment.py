@@ -59,6 +59,53 @@ class TestID:
         assert deployment.id == str(deployment_id)
 
 
+class TestName:
+    async def test_name_is_attribute(self):
+        assert "name" in dir(deployment)
+
+    async def test_name_is_none_when_not_set(self, monkeypatch, orion_client):
+        assert deployment.name is None
+
+        run = await orion_client.create_flow_run(flow=flow(lambda: None, name="test"))
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert deployment.name is None
+
+    async def test_name_is_loaded_when_run_name_known(
+        self, deployment_id, monkeypatch, orion_client
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
+
+        assert deployment.name is None
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.name == "My Deployment"
+
+
+class TestVersion:
+    async def test_version_is_attribute(self):
+        assert "version" in dir(deployment)
+
+    async def test_version_is_none_when_not_set(self, monkeypatch, orion_client):
+        assert deployment.version is None
+
+        run = await orion_client.create_flow_run(flow=flow(lambda: None, name="test"))
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert deployment.version is None
+
+    async def test_version_is_loaded_when_run_version_known(
+        self, deployment_id, monkeypatch, orion_client
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
+
+        assert deployment.version is None
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(flow_run.id))
+        assert deployment.version == "gold"
+
+
 class TestFlowRunId:
     async def test_run_id_is_attribute(self):
         assert "flow_run_id" in dir(deployment)
