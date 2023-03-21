@@ -20,7 +20,7 @@ def upgrade():
     op.execute(
         """
         CREATE INDEX IF NOT EXISTS
-        ix_artifact_collection__key_created_desc
+        ix_artifact__key_created_desc
         ON artifact_collection (key, created DESC)
         """
     )
@@ -33,7 +33,7 @@ def downgrade():
     op.execute(
         """
         DROP INDEX IF EXISTS
-        ix_artifact_collection__key_created_desc
+        ix_artifact__key_created_desc
         """
     )
 
