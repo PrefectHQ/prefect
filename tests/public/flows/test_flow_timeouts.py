@@ -11,6 +11,7 @@ import prefect
 SLEEP_TIME = 3 if os.environ.get("CI") else 1
 
 
+@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_sync_flow_timeout():
     @prefect.flow(timeout_seconds=0.1)
     def sleep_flow():
@@ -87,7 +88,6 @@ async def test_sync_flow_timeout_in_async_flow():
         await flow_state.result()
 
 
-@pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
 def test_async_flow_timeout_in_sync_flow():
     @prefect.flow(timeout_seconds=0.1)
     async def sleep_flow():

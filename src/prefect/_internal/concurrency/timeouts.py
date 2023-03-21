@@ -276,6 +276,8 @@ def cancel_sync_after(timeout: Optional[float]):
         # Avoid nested alarm handlers; it's hard to follow and they will interfere with
         # each other
         and not existing_alarm_handler
+        # Avoid using an alarm when there is no timeout; it's better saved for that case
+        and timeout is not None
     ):
         method = _alarm_based_timeout
         method_name = "alarm"

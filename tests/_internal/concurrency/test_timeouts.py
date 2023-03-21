@@ -247,7 +247,8 @@ def test_cancel_sync_manually_in_main_thread():
     event = threading.Event()
 
     with pytest.raises(CancelledError):
-        with cancel_sync_at(None) as ctx:
+        # Set a timeout or we'll use a watcher thread instead of an alarm
+        with cancel_sync_after(timeout=10) as ctx:
 
             def cancel_when_sleeping():
                 event.wait()

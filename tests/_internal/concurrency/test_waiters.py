@@ -134,7 +134,7 @@ def test_sync_waiter_timeout_in_main_thread():
     thread by the worker thread.
     """
     done_callback = Call.new(identity, 1)
-    waiting_callback = Call.new(time.sleep, 2)
+    waiting_callback = Call.new(sleep_repeatedly, 2)
 
     with WorkerThread(run_once=True) as runner:
 
