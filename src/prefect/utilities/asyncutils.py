@@ -239,7 +239,7 @@ def sync_compatible(async_fn: T) -> T:
             return async_fn(*args, **kwargs)
         elif current_call and current_call.waiter and not is_async_fn(current_call.fn):
             logger.debug(f"{async_fn} --> run async in callback portal")
-            return from_sync.send_callback(
+            return from_sync.call_soon_in_waiter_thread(
                 create_call(async_fn, *args, **kwargs)
             ).result()
         elif in_async_worker_thread():
@@ -250,7 +250,7 @@ def sync_compatible(async_fn: T) -> T:
             logger.debug(f"{async_fn} --> run async in global loop portal")
             # An event loop is already present but we are in a sync context, run the
             # call in Prefect's event loop thread
-            return from_sync.call_soon_in_global_thread(
+            return from_sync.call_soon_in_loop_thread(
                 create_call(async_fn, *args, **kwargs)
             ).result()
         else:
