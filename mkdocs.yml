@@ -109,7 +109,6 @@ nav:
         - Cloud Quickstart: ui/cloud-quickstart.md
     - Tutorial: 
         - tutorials/index.md
-        - tutorials/first-steps.md
         - tutorials/flow-task-config.md
         - tutorials/execution.md
         - tutorials/orchestration.md
