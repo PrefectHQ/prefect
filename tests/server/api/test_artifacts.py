@@ -131,6 +131,18 @@ class TestCreateArtifact:
 
         assert response.status_code == 409
 
+    async def test_create_camel_case_artifact_key_raises(
+        self,
+    ):
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="key must only contain lowercase letters, numbers, and dashes",
+        ):
+            schemas.actions.ArtifactCreate(
+                key="camelCase_Key",
+                data=1,
+            ).dict(json_compatible=True)
+
 
 class TestReadArtifact:
     async def test_read_artifact(self, artifact, client):
