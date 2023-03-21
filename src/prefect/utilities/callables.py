@@ -132,7 +132,8 @@ def collapse_variadic_parameters(
         )
 
     new_parameters = parameters.copy()
-    new_parameters[variadic_key] = {}
+    if variadic_key:
+        new_parameters[variadic_key] = {}
 
     for key in missing_parameters:
         new_parameters[variadic_key][key] = new_parameters.pop(key)
