@@ -4,6 +4,7 @@ Objects for specifying deployments and utilities for loading flows from deployme
 
 import importlib
 import json
+import os
 import sys
 from datetime import datetime
 from functools import partial
@@ -31,6 +32,7 @@ from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
+from prefect.projects.steps import run_step
 from prefect.server import schemas
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
@@ -178,7 +180,7 @@ async def load_flow_from_flow_run(
     deployment = await client.read_deployment(flow_run.deployment_id)
     logger = flow_run_logger(flow_run)
 
-    if not ignore_storage:
+    if not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
@@ -191,6 +193,16 @@ async def load_flow_from_flow_run(
 
             logger.info(f"Downloading flow code from storage at {deployment.path!r}")
             await storage_block.get_directory(from_path=deployment.path, local_path=".")
+
+    if deployment.pull_steps:
+        logger.debug(f"Running {len(deployment.pull_steps)} deployment pull steps")
+        # TODO: allow for passing values between steps / stacking them
+        output = {}
+        for step in deployment.pull_steps:
+            output.update(run_step(step))
+        if output.get("directory"):
+            logger.debug(f"Changing working directory to {output['directory']!r}")
+            os.chdir(output["directory"])
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     logger.debug(f"Importing flow code from '{import_path}'")
