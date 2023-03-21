@@ -115,10 +115,6 @@ nav:
         - Orchestration: tutorials/orchestration.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
-        - tutorials/docker.md
-        - Cloud Agent Quickstart: tutorials/cloud-agent.md
-        - tutorials/testing.md
-        - tutorials/dask-ray-task-runners.md
     - Concepts: 
         - concepts/index.md
         - Flows: concepts/flows.md
@@ -162,6 +158,11 @@ nav:
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
         - guides/index.md
+        - Testing: guides/testing.md
+        - Dask & Ray: guides/dask-ray-task-runners.md
+        - Deployment:
+            - Docker: guides/deployment/docker.md
+            - Azure Container Instance: guides/deployment/cloud-agent.md
         - Migration Guide: migration-guide.md
         - Prefect Recipes: 
             - Recipes Catalog: recipes/recipes.md
