@@ -29,7 +29,9 @@ from prefect.context import FlowRunContext
 
 from .flow_run import _get_flow_run
 
-__all__ = ["id", "flow_run_id", "name", "parameters"]
+__all__ = ["id", "flow_run_id", "name", "parameters", "version"]
+
+CACHED_DEPLOYMENT = {}
 
 
 def __getattr__(name: str) -> Any:
@@ -50,8 +52,12 @@ def __dir__() -> List[str]:
 
 
 async def _get_deployment(deployment_id):
+    # deployments won't change between calls so let's avoid the lifecycle of a client
+    if CACHED_DEPLOYMENT.get(deployment_id):
+        return CACHED_DEPLOYMENT[deployment_id]
     async with get_client() as client:
-        return await client.read_deployment(deployment_id)
+        CACHED_DEPLOYMENT[deployment_id] = await client.read_deployment(deployment_id)
+        return CACHED_DEPLOYMENT[deployment_id]
 
 
 def get_id() -> Optional[str]:
@@ -95,6 +101,18 @@ def get_name() -> dict:
     return deployment.name
 
 
+def get_version() -> dict:
+    dep_id = get_id()
+
+    if dep_id is None:
+        return None
+
+    deployment = from_sync.call_soon_in_loop_thread(
+        create_call(_get_deployment, dep_id)
+    ).result()
+    return deployment.version
+
+
 def get_flow_run_id() -> Optional[str]:
     return os.getenv("PREFECT__FLOW_RUN_ID")
 
@@ -104,4 +122,5 @@ FIELDS = {
     "flow_run_id": get_flow_run_id,
     "parameters": get_parameters,
     "name": get_name,
+    "version": get_version,
 }
