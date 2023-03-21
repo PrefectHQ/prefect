@@ -128,6 +128,28 @@ from = "/recipes/contribute-recipes/"
 to = "/guides/recipes/"
 status = 301
 
+[[redirects]]
+from = "/tutorials/docker/"
+to = "/guides/deployment/docker/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/cloud-agent/"
+to = "/guides/deployment/cloud-agent/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/testing/"
+to = "/guides/testing/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/dask-ray-task-runners/"
+to = "/guides/dask-ray-task-runners/"
+status = 301
+
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"

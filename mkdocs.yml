@@ -107,17 +107,14 @@ nav:
         - index.md  
         - Installation: getting-started/installation.md
         - Cloud Quickstart: ui/cloud-quickstart.md
-    - Tutorial: 
+    - Tutorials: 
         - tutorials/index.md
-        - tutorials/flow-task-config.md
-        - tutorials/execution.md
-        - tutorials/orchestration.md
-        - tutorials/deployments.md
-        - tutorials/storage.md
-        - tutorials/docker.md
-        - Cloud Agent Quickstart: tutorials/cloud-agent.md
-        - tutorials/testing.md
-        - tutorials/dask-ray-task-runners.md
+        - Flows & Tasks: tutorials/first-steps.md
+        - Configuration: tutorials/flow-task-config.md
+        - Execution: tutorials/execution.md
+        - Orchestration: tutorials/orchestration.md
+        - Deployments: tutorials/deployments.md
+        - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
         - concepts/index.md
         - Flows: concepts/flows.md
@@ -161,6 +158,11 @@ nav:
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
         - guides/index.md
+        - Testing: guides/testing.md
+        - Dask & Ray: guides/dask-ray-task-runners.md
+        - Deployment:
+            - Docker: guides/deployment/docker.md
+            - Azure Container Instance: guides/deployment/cloud-agent.md
         - Recipes: recipes/recipes.md
         - Migration Guide: guides/migration-guide.md
     - Integrations:
