@@ -12,7 +12,7 @@ tags:
 
 # First steps
 
-Lt's start by exploring the core elements of Prefect workflows: flows and tasks.
+Let's start by exploring the core elements of Prefect workflows: flows and tasks.
 
 ## Prerequisites
 
