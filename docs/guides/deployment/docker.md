@@ -6,16 +6,15 @@ tags:
     - orchestration
     - infrastructure
     - deployments
-    - tutorial
 ---
 
 # Running flows with Docker
 
 In the [Deployments](/tutorials/deployments/) and [Storage and Infrastructure](/tutorials/storage/) tutorials, we looked at creating configuration that enables creating flow runs via the API and with code that was uploaded to a remotely accessible location.  
 
-In this tutorial, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this tutorial to run it on remote machines. 
+In this guide, we'll further configure the deployment so flow runs are executed in a Docker container. We'll run our Docker instance locally, but you can extend this guide to run it on remote machines.
 
-In this tutorial we'll: 
+In this guide we'll:
 
 - Configure a Docker Container infrastructure block that enables creating flow runs in a container.
 - Build and apply a new `log_flow.py` deployment that uses the new infrastructure block.
@@ -33,9 +32,9 @@ To run a deployed flow in a Docker container, you'll need the following:
 [Docker Desktop](https://www.docker.com/products/docker-desktop) works fine for local testing if you don't already have Docker Engine configured in your environment.
 
 !!! note "Run a Prefect server"
-    This tutorial assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorials/deployments/) tutorial. 
+    This guide assumes you're already running a Prefect server with `prefect server start`, as described in the [Deployments](/tutorials/deployments/) tutorial.
     
-    If you shut down the server from a previous tutorial, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
+    If you shut down the server, you can start it again by opening another terminal session and starting the Prefect server with the `prefect server start` CLI command.
 
 ## Create an infrastructure block
 
@@ -47,7 +46,7 @@ You can see any previously configured storage blocks by opening the Prefect UI a
 
 Use these base blocks to create your own infrastructure blocks containing the settings needed to run flows in your environment.
 
-For this tutorial, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
+For this guide, find the **Docker Container** block, then select **Add +** to see the options for a Docker infrastructure block.
 
 ![Viewing a list of infrastructure block types in the Prefect UI](../img/tutorials/docker-infrastructure.png)
 
@@ -152,9 +151,9 @@ When you create flow runs from this deployment, the agent pulls the default Pref
 Let's create a flow run for this deployment. The flow run will execute in a Docker container on your local machine.
 
 !!! note "Run a Prefect agent"
-    This tutorial assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-pools) tutorial. 
+    This guide assumes you're already running a Prefect agent with `prefect agent start`, as described in the [Deployments](/tutorials/deployments/#agents-and-work-pools) tutorial.
     
-    If you shut down the agent from a previous tutorial, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
+    If you shut down the agent, you can start it again by opening another terminal session and starting the agent with the `prefect agent start -q test` CLI command. This agent pulls work from the `test` work queue created previously.
 
     Note also that the `PREFECT_API_URL` setting should be configured to point to the URL of your Prefect server or Prefect Cloud.
 

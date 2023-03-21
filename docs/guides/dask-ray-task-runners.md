@@ -1,7 +1,6 @@
 ---
 description: Learn how to use the Prefect Dask and Ray task runners for parallel or distributed task execution.
 tags:
-    - tutorial
     - tasks
     - task runners
     - flow configuration

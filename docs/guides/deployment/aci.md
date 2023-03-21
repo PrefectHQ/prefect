@@ -1,16 +1,13 @@
 ---
-description: Run an agent and flows in the cloud with containers.
+description: Run an agent and flows in the cloud with Azure Container Instances.
 tags:
     - Docker
     - containers
     - agents
     - cloud
-    - tutorial
 ---
 
-# Quickstart: Run an Agent in the Cloud
-
-## Run an Agent with Azure Container Instances
+# Run an Agent with Azure Container Instances
 
 Microsoft Azure Container Instances (ACI) provides a convenient and simple service for quickly spinning up a Docker container that can host a Prefect Agent and execute flow runs.
 
