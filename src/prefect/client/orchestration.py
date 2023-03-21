@@ -285,14 +285,14 @@ class PrefectClient:
         return await self.create_flow_from_name(flow.name, flow.description)
 
     async def create_flow_from_name(
-        self, flow_name: str, flow_description: str
+        self, flow_name: str, description: Optional[str] = None
     ) -> UUID:
         """
         Create a flow in the Prefect API.
 
         Args:
             flow_name: the name of the new flow
-            flow_description: the description of the new flow
+            description: the description of the new flow
 
         Raises:
             httpx.RequestError: if a flow was not created for any reason
@@ -301,7 +301,8 @@ class PrefectClient:
             the ID of the flow in the backend
         """
         flow_data = schemas.actions.FlowCreate(
-            name=flow_name, description=flow_description
+            name=flow_name,
+            description=description,
         )
         response = await self._client.post(
             "/flows/", json=flow_data.dict(json_compatible=True)
