@@ -1,6 +1,7 @@
 ---
 icon: material/star-shooting-outline
 description: Get started with Prefect, the easiest way to orchestrate and observe your data pipelines
+title: Welcome to Prefect
 tags:
     - getting started
     - quick start
