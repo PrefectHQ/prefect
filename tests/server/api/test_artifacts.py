@@ -401,6 +401,7 @@ class TestUpdateArtifact:
 class TestDeleteArtifact:
     async def test_delete_artifact_succeeds(self, artifact, session, client):
         artifact_id = artifact["id"]
+        artifact_key = artifact["key"]
         response = await client.delete(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 204
 
@@ -408,6 +409,11 @@ class TestDeleteArtifact:
             session=session, artifact_id=artifact_id
         )
         assert artifact is None
+
+        assert not await models.artifacts.read_latest_artifact(
+            session=session,
+            key=artifact_key,
+        )
 
         response = await client.get(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 404
