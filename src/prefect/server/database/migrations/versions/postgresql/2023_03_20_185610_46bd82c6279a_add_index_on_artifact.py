@@ -18,7 +18,7 @@ def upgrade():
     op.execute(
         """
         CREATE INDEX 
-        --IF NOT EXISTS
+        IF NOT EXISTS
         ix_artifact__key_created_desc
         ON artifact (key, created DESC)
         INCLUDE (id, updated, type, task_run_id, flow_run_id)
@@ -30,7 +30,7 @@ def downgrade():
     op.execute(
         """
         DROP INDEX 
-        --IF EXISTS
+        IF EXISTS
         ix_artifact__key_created_desc
     """
     )
