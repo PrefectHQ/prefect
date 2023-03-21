@@ -1088,7 +1088,7 @@ application. If disabled, task runs and subflow runs belonging to cancelled flow
 remain in non-terminal states.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_EVENTS_CLIENT = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect work pools.
 """
