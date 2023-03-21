@@ -3,7 +3,6 @@ import json
 import warnings
 from textwrap import dedent
 from typing import Dict, Type, Union
-from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -19,6 +18,7 @@ from prefect.exceptions import PrefectHTTPStatusError
 from prefect.server import models
 from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.dispatch import lookup_type, register_type
 from prefect.utilities.names import obfuscate_string
 
