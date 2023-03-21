@@ -64,6 +64,82 @@ def get_parameter_defaults(
     return parameter_defaults
 
 
+def explode_variadic_parameter(
+    fn: Callable, parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Given a parameter dictionary, move any parameters stored in a variadic keyword
+    argument parameter (i.e. **kwargs) into the top level.
+
+    Example:
+
+        ```python
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+        explode_variadic_parameter(foo, parameters)
+        # {"a": 1, "b": 2, "c": 3, "d": 4}
+        ```
+    """
+    variadic_key = None
+    for key, parameter in inspect.signature(fn).parameters.items():
+        if parameter.kind == parameter.VAR_KEYWORD:
+            variadic_key = key
+            break
+
+    if not variadic_key:
+        return parameters
+
+    new_parameters = parameters.copy()
+    for key, value in new_parameters.pop(variadic_key).items():
+        new_parameters[key] = value
+
+    return new_parameters
+
+
+def collapse_variadic_parameters(
+    fn: Callable, parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Given a parameter dictionary, move any parameters stored not present in the
+    signature into the variadic keyword argument.
+
+    Example:
+
+        ```python
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "c": 3, "d": 4}
+        collapse_variadic_parameters(foo, parameters)
+        # {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+        ```
+    """
+    signature_parameters = inspect.signature(fn).parameters
+    variadic_key = None
+    for key, parameter in signature_parameters.items():
+        if parameter.kind == parameter.VAR_KEYWORD:
+            variadic_key = key
+            break
+
+    missing_parameters = set(parameters.keys()) - set(signature_parameters.keys())
+
+    if not variadic_key and missing_parameters:
+        raise ValueError(
+            f"Signature for {fn} does not include any variadic keyword argument "
+            "but parameters were given that are not present in the signature."
+        )
+
+    new_parameters = parameters.copy()
+    new_parameters[variadic_key] = {}
+
+    for key in missing_parameters:
+        new_parameters[variadic_key][key] = new_parameters.pop(key)
+
+    return new_parameters
+
+
 def parameters_to_args_kwargs(
     fn: Callable,
     parameters: Dict[str, Any],
