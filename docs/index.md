@@ -96,9 +96,7 @@ If you're learning Prefect we encourage you to work through the [tutorial](/tuto
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
 - [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) 
 
-
 ---
-
 
 !!! tip "Changing from 'Orion'"
     With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, and variables. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
