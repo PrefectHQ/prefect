@@ -25,10 +25,10 @@ async def _create_artifact(
     Helper function to create an artifact.
 
     Args:
-        - type: The type of artifact to create.
-        - key: User-specified name of the artifact.
-        - description: User-specified description of the artifact.
-        - data: User-specified information of the artifact.
+        - type:  A string identifying the type of artifact.
+        - key: A string user-provided identifier.
+        - description: A user-specified description of the artifact.
+        - data: A JSON payload that allows for a result to be retrieved.
 
     Returns:
         - The table artifact ID.
@@ -61,7 +61,7 @@ async def _create_artifact(
 async def create_link_artifact(
     link: str,
     link_text: Optional[str] = None,
-    name: Optional[str] = None,
+    key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
     """
@@ -75,7 +75,7 @@ async def create_link_artifact(
     """
     formatted_link = f"[{link_text}]({link})" if link_text else f"[{link}]({link})"
     artifact = await _create_artifact(
-        key=name,
+        key=key,
         type="markdown",
         description=description,
         data=formatted_link,
@@ -87,7 +87,7 @@ async def create_link_artifact(
 @sync_compatible
 async def create_markdown_artifact(
     markdown: str,
-    name: Optional[str] = None,
+    key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
     """
@@ -100,7 +100,7 @@ async def create_markdown_artifact(
         - The table artifact ID.
     """
     artifact = await _create_artifact(
-        key=name,
+        key=key,
         type="markdown",
         description=description,
         data=markdown,
@@ -112,7 +112,7 @@ async def create_markdown_artifact(
 @sync_compatible
 async def create_table_artifact(
     table: Union[Dict[str, List[Any]], List[Dict[str, Any]]],
-    name: Optional[str] = None,
+    key: Optional[str] = None,
     description: Optional[str] = None,
 ) -> UUID:
     """
@@ -127,7 +127,7 @@ async def create_table_artifact(
     formatted_table = json.dumps(table) if isinstance(table, list) else table
 
     artifact = await _create_artifact(
-        key=name,
+        key=key,
         type="table",
         description=description,
         data=formatted_table,

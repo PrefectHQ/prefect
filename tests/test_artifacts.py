@@ -35,7 +35,7 @@ class TestCreateArtifacts:
     async def test_create_and_read_link_artifact_succeeds(self, artifact, client):
         my_link = "prefect.io"
         artifact_id = await create_link_artifact(
-            name=artifact.key,
+            key=artifact.key,
             link=my_link,
             description=artifact.description,
         )
@@ -50,7 +50,7 @@ class TestCreateArtifacts:
         my_link = "prefect.io"
         link_text = "Prefect"
         artifact_id = await create_link_artifact(
-            name=artifact.key,
+            key=artifact.key,
             link=my_link,
             link_text=link_text,
             description=artifact.description,
@@ -65,7 +65,7 @@ class TestCreateArtifacts:
         def my_special_task():
             task_run_id = get_run_context().task_run.id
             artifact_id = create_link_artifact(
-                name="task-link-artifact-3",
+                key="task-link-artifact-3",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -92,7 +92,7 @@ class TestCreateArtifacts:
             flow_run_id = get_run_context().flow_run.id
 
             artifact_id = create_link_artifact(
-                name="task-link-artifact-4",
+                key="task-link-artifact-4",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -112,7 +112,7 @@ class TestCreateArtifacts:
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
             artifact_id = create_link_artifact(
-                name="task-link-artifact-5",
+                key="task-link-artifact-5",
                 link="google.com",
                 description="my-artifact-description",
             )
@@ -142,8 +142,8 @@ class TestCreateArtifacts:
         @task
         def add_ten(x):
             create_link_artifact(
-                # TODO: uncomment this out once unique constraint is dropped on artifact name
-                # name="new-markdown-artifact",
+                # TODO: uncomment this out once unique constraint is dropped on artifact key
+                # key="new-markdown-artifact",
                 link="s3://my-bucket/my-file",
                 description="my-artifact-description",
             )
@@ -160,7 +160,7 @@ class TestCreateArtifacts:
     async def test_create_and_read_markdown_artifact_succeeds(self, artifact, client):
         my_markdown = "# This is a markdown description title"
         artifact_id = await create_markdown_artifact(
-            name=artifact.key,
+            key=artifact.key,
             markdown=my_markdown,
             description=artifact.description,
         )
@@ -174,7 +174,7 @@ class TestCreateArtifacts:
         def my_special_task():
             task_run_id = get_run_context().task_run.id
             artifact_id = create_markdown_artifact(
-                name="task-link-artifact-3",
+                key="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -203,7 +203,7 @@ class TestCreateArtifacts:
             flow_run_id = get_run_context().flow_run.id
 
             artifact_id = create_markdown_artifact(
-                name="task-link-artifact-4",
+                key="task-link-artifact-4",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -225,7 +225,7 @@ class TestCreateArtifacts:
         def my_subflow():
             flow_run_id = get_run_context().flow_run.id
             artifact_id = create_markdown_artifact(
-                name="task-link-artifact-3",
+                key="task-link-artifact-3",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -255,8 +255,8 @@ class TestCreateArtifacts:
         @task
         def add_ten(x):
             create_markdown_artifact(
-                # TODO: uncomment this out once unique constraint is dropped on artifact name
-                # name="new-markdown-artifact",
+                # TODO: uncomment this out once unique constraint is dropped on artifact key
+                # key="new-markdown-artifact",
                 markdown="my markdown",
                 description="my-artifact-description",
             )
@@ -276,7 +276,7 @@ class TestCreateArtifacts:
         my_table = {"a": [1, 3], "b": [2, 4]}
 
         artifact_id = await create_table_artifact(
-            name=artifact.key,
+            key=artifact.key,
             table=my_table,
             description=artifact.description,
         )
@@ -292,7 +292,7 @@ class TestCreateArtifacts:
         my_table = [{"a": 1, "b": 2}, {"a": 3, "b": 4}]
 
         artifact_id = await create_table_artifact(
-            name=artifact.key,
+            key=artifact.key,
             table=my_table,
             description=artifact.description,
         )
@@ -309,7 +309,7 @@ class TestCreateArtifacts:
             my_table = {"a": [1, 3], "b": [2, 4]}
             task_run_id = get_run_context().task_run.id
             artifact_id = create_table_artifact(
-                name="task-link-artifact-3",
+                key="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -340,7 +340,7 @@ class TestCreateArtifacts:
             flow_run_id = get_run_context().flow_run.id
 
             artifact_id = create_table_artifact(
-                name="task-link-artifact-4",
+                key="task-link-artifact-4",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -364,7 +364,7 @@ class TestCreateArtifacts:
             my_table = {"a": [1, 3], "b": [2, 4]}
             flow_run_id = get_run_context().flow_run.id
             artifact_id = create_table_artifact(
-                name="task-link-artifact-3",
+                key="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
             )
@@ -397,8 +397,8 @@ class TestCreateArtifacts:
         def add_ten(x):
             my_table = {"a": [1, 3], "b": [2, 4]}
             create_table_artifact(
-                # TODO: uncomment this out once unique constraint is dropped on artifact name
-                # name="task-link-artifact-3",
+                # TODO: uncomment this out once unique constraint is dropped on artifact key
+                # key="task-link-artifact-3",
                 table=my_table,
                 description="my-artifact-description",
             )
