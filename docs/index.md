@@ -38,7 +38,15 @@ Trying to implement these features from scratch is a huge pain that takes time, 
 
 ## Quick Start: Hello Prefect
 
-In your Python virtual environment, install Prefect with `pip install -U prefect`. See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+In your Python virtual environment, install Prefect with 
+
+<div class="terminal">
+```bash
+pip install -U prefect
+```
+</div>
+
+See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
 
 ### Run a basic flow
 
@@ -85,13 +93,9 @@ If you're learning Prefect we encourage you to work through the [tutorial](/tuto
 
 - Join over 25,000 engineers in the [Prefect Slack community](https://prefect.io/slack)
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
-- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) TK display social proof with count of github stars - mabye use badges.io?
+- [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) 
 
-  <a href="https://github.com/prefecthq/prefect/" alt="Stars">
-        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
-    <a href="https://prefect-community.slack.com" alt="Slack">
-        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
-    <a href="https://discourse.prefect.io/" alt="Discourse">
+
 ---
 
 
