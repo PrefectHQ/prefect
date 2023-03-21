@@ -2967,7 +2967,7 @@ class TestTaskMap:
             [4, 5, 6, 7],
         ]
 
-    def test_with_default_kwargs(self):
+    def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
             return x + y
@@ -2979,6 +2979,32 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+    def test_with_variadic_keywords_and_iterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=[4, 5, 6])
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [5, 7, 9]
+
+    def test_with_variadic_keywords_and_noniterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=1)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
 
 class TestTaskConstructorValidation:

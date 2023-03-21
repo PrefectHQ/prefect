@@ -103,6 +103,8 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.callables import (
+    collapse_variadic_parameters,
+    explode_variadic_parameter,
     get_parameter_defaults,
     parameters_to_args_kwargs,
 )
@@ -986,6 +988,9 @@ async def begin_task_map(
     # will also be tracked.
     parameters = await resolve_inputs(parameters, max_depth=1)
 
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(task.fn, parameters)
+
     iterable_parameters = {}
     static_parameters = {}
     annotated_parameters = {}
@@ -1028,6 +1033,9 @@ async def begin_task_map(
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
             call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+        # Collapse any previously exploded kwargs
+        call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
 
         task_runs.append(
             partial(
