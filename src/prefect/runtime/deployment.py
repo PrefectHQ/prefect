@@ -15,6 +15,7 @@ Example usage:
 Available attributes:
     - `id`: the deployment's unique ID
     - `name`: the deployment's name
+    - `version`: the deployment's version
     - `flow_run_id`: the current flow run ID for this deployment
     - `parameters`: the parameters that were passed to this run; note that these do not necessarily
         include default values set on the flow function, only the parameter values set on the deployment

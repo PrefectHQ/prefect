@@ -1,6 +1,8 @@
+import datetime
+import pendulum
 import pytest
 
-from prefect import flow, tags
+from prefect import flow, tags, states
 from prefect.runtime import flow_run
 
 
@@ -80,3 +82,25 @@ class TestTags:
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
         assert set(flow_run.tags) == {"red", "green"}
+
+
+class TestStartTime:
+    async def test_scheduled_start_time_is_attribute(self):
+        assert "scheduled_start_time" in dir(flow_run)
+
+    async def test_scheduled_start_time_is_timestamp_when_not_set(self):
+        assert isinstance(flow_run.scheduled_start_time, datetime.datetime)
+
+    async def test_scheduled_start_time_pulls_from_api_when_needed(
+        self, monkeypatch, orion_client
+    ):
+        TIMESTAMP = pendulum.now("utc").add(days=7)
+        run = await orion_client.create_flow_run(
+            flow=flow(lambda: None, name="test"),
+            state=states.Scheduled(scheduled_time=TIMESTAMP),
+        )
+        assert flow_run.scheduled_start_time != TIMESTAMP
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert flow_run.scheduled_start_time == TIMESTAMP
