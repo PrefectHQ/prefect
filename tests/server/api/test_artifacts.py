@@ -151,7 +151,7 @@ class TestReadArtifact:
 
 class TestReadLatestArtifact:
     async def test_read_latest_artifact(self, artifact, client):
-        response = await client.get(f"/experimental/artifacts/latest/{artifact['key']}")
+        response = await client.get(f"/experimental/artifacts/{artifact['key']}/latest")
         artifact_result = response.json()
         assert response.status_code == status.HTTP_200_OK
         assert artifact_result["key"] == artifact["key"]

@@ -78,7 +78,7 @@ async def read_artifact(
     return artifact
 
 
-@router.get("/latest/{key}")
+@router.get("/{key}/latest")
 async def read_latest_artifact(
     key: str = Path(
         ...,
