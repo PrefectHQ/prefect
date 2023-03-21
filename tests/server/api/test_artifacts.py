@@ -136,7 +136,7 @@ class TestCreateArtifact:
     ):
         with pytest.raises(
             pydantic.ValidationError,
-            match="name must only contain lowercase letters, numbers, and dashes",
+            match="key must only contain lowercase letters, numbers, and dashes",
         ):
             schemas.actions.ArtifactCreate(
                 key="camelCase_Key",
