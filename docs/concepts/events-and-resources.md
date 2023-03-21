@@ -1,5 +1,5 @@
 ---
-description: Events and resources are the primary units of observability in Prefect Cloud
+description: Events are the primary units of observability in Prefect Cloud
 tags:
     - resources
     - events
@@ -8,7 +8,7 @@ tags:
 
 # Events
 
-Events are the primary unit of observability in Prefect Cloud, and are designed to be a simple but complete record of something occuring somewhere in your stack at a given time. Prefect events can represent API calls, state changes, or events from your execution environment or infrastructure. Events enable both analysis of your data stack via (event feeds[link]) and the confiuration of stack reactivity via (automations[link])
+Events are the primary unit of observability in Prefect Cloud, and are designed to be a simple but complete record of something occuring somewhere in your stack at a given time, and power several features in prefect cloud, including flow run logs, audit logs, and automations. Prefect events can represent API calls, state changes, or events from your execution environment or infrastructure. Events enable analysis of your data stack via [event feed](/ui/events/), and the confiuration of stack reactivity via [automations](/ui/automations/).
 
 ![Prefect UI](../img/ui/event-feed.png)
 
@@ -31,7 +31,7 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 
 ## Event Grammar
 
-Generally, the event value has a consistent and informative grammar - an events describes a resource and an action that a resource took. For example, events emitted by Prefect objects take the form of:
+Generally, events have a consistent and informative grammar - an event describes a resource and an action that a resource took. For example, events emitted by Prefect objects take the form of:
 
 
 ```
@@ -49,28 +49,25 @@ flow. Running the following code will emit events to Prefect Cloud, which will v
 
 
 ```python3
-from prefect.events import Event
-from prefect.events.worker import get_events_worker
+from prefect.events import emit_event
 
 def some_function(name: str="kiki") -> None:
     print(f"hi {name}!")
-    with get_events_worker() as event_client:
-        event = Event(event=f"{name}.sent.event!", resource={f"prefect.resource.id":"coder.{name}"})
-        event_client.emit(event)
+    emit_event(event=f"{name}.sent.event!", resource=f"prefect.resource.id":"coder.{name}")
           
 some_function()
 ```
 
-This event now appears in the event feed (link) where you can search for it, visualization similar events, and configure [automations](/ui/automations/) to react to the presence or absence of it.
+This event now appears in the [event feed](/ui/events/) where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
 
 
-# Resources
+## Resources
 
-Every event has a primary resource, which describes what object emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are identified by dot-delimited strings such as
+Every event has a primary resource, which describes what object emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are consutrcted as dot-delimited strings such as
 
 ```
 prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3.action.0
-acme.user.kiki.script
+acme.user.kiki.elt_script_1
 prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6
 ```
 
@@ -78,28 +75,27 @@ Resources can optionally have additional arbitrary labels, such as:
 
 ```json
 "resource": {
-    "prefect.resource.id": "prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3.action.0",
+    "prefect.resource.id": "prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3",
     "prefect-cloud.action.type": "call-webhook"
     }
 ```
 
-Events can optionally contain related resources, used to tie the event from one resource to another, such as in the case that the primary resource acted on or with another resource:
+Events can optionally contain related resources, used to associate the event with other resources, such as in the case that the primary resource acted on or with another resource:
 
 ```json
-  "resource": {
+"resource": {
     "prefect.resource.id": "prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3.action.0",
     "prefect-cloud.action.type": "call-webhook"
-    },
-  "related": [
-    {
-        "prefect.resource.id": "prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3",
-        "prefect.resource.role": "automation",
-        "prefect-cloud.name": "webhook_body_demo",
-        "prefect-cloud.posture": "Reactive"
-    }
-  ]
+  },
+"related": [
+  {
+      "prefect.resource.id": "prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3",
+      "prefect.resource.role": "automation",
+      "prefect-cloud.name": "webhook_body_demo",
+      "prefect-cloud.posture": "Reactive"
+  }
+]
 ```
-
 
 
 
