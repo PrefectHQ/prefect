@@ -11,22 +11,23 @@ hide:
 
 # **Welcome to Prefect:** The easiest way to orchestrate and observe your Python code
 
-### Prefect gives your Python code superpowers!
+Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes.
 
-With Prefect you get easy:
+Bring your Python code, sprinkle in a few decorators, and go!
+
+With Prefect you gain easy:
 
 <ul class="ul-line-height-compress">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
     <li> <a href="/concepts/tasks/#task-arguments"> retries </a> </li>
     <li> <a href="/concepts/logs/"> logging </a> </li>
     <li> <a href="/concepts/tasks/#caching"> caching</a> </li>
+    <li> <a href="/concepts/task-runners/#task-runners"> async</a> </li>
     <li> <a href="/ui/notifications/"> notifications</a> </li>
     <li> <a href="/ui/overview/"> observability</a> </li>
 </ul>
 
 Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
-
-Prefect makes it easy for you to bring your Python code, sprinkle in a few decorators, and go!
 
 <figure markdown>
 ![screenshot of Cloud UI timeline view with menu](/img/ui_timeline_placeholder.png)
@@ -39,7 +40,7 @@ Prefect makes it easy for you to bring your Python code, sprinkle in a few decor
 
 In your Python virtual environment, install Prefect with `pip install -U prefect`. See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
 
-## Run a basic flow
+### Run a basic flow
 
 Import `flow` and decorate your Python function using the [`@flow`][prefect.flows.flow] decorator.
 
@@ -67,13 +68,13 @@ What is your favorite number?
 ```
 </div>
 
-The Prefect orchestration engine observes the flow run state and saves it for you in a database. By adding a single decorator, you now have observation capabilities. There's much more you can do with Prefect, so keep rolling to learn how to add easy parallelization, notifications, scheduling and more!
+The Prefect orchestration engine observes the flow run state and saves it for you in a database. By adding a single decorator, you now have observation capabilities. There's much more you can do with Prefect, so keep rolling to learn how to add easy retries, notifications, scheduling and more!
 
 ---
 
 ## Next Steps
 
-If you're learning Prefect we encourage your to work through the [tutorial](/tutorial/index/) where you'll create a Prefect Project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. 
+If you're learning Prefect we encourage you to work through the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. 
 
 
 [Tutorial](/tutorial/index/){ .md-button .md-button--primary .full}  [Concepts](/concepts/index/){ .md-button .full }  [Guides](guides/index/){ .md-button .full }
@@ -86,6 +87,11 @@ If you're learning Prefect we encourage your to work through the [tutorial](/tut
 - Get help in [Prefect Discourse](https://discourse.prefect.io/) - the community-driven knowledge base
 - [Give Prefect a ⭐️ on GitHub](https://github.com/PrefectHQ/prefect) TK display social proof with count of github stars - mabye use badges.io?
 
+  <a href="https://github.com/prefecthq/prefect/" alt="Stars">
+        <img src="https://img.shields.io/github/stars/prefecthq/prefect?color=0052FF&labelColor=090422" /></a>
+    <a href="https://prefect-community.slack.com" alt="Slack">
+        <img src="https://img.shields.io/badge/slack-join_community-red.svg?color=0052FF&labelColor=090422&logo=slack" /></a>
+    <a href="https://discourse.prefect.io/" alt="Discourse">
 ---
 
 
