@@ -76,6 +76,21 @@ from = "/ui/cloud-getting-started/"
 to = "/ui/cloud-quickstart/"
 status = 301
 
+# redirects added 2023-03-21
+
+[[redirects]]
+from = "/ui/overview/"
+to = "/ui/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/overview"
+to = "/api-ref/"
+status = 301
+
+
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
