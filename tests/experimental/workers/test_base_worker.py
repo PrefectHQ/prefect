@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Optional
 
 import pendulum
@@ -7,8 +6,8 @@ import pytest
 from pydantic import Field
 
 import prefect.server.schemas as schemas
+from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.deployments import Deployment
 from prefect.exceptions import ObjectNotFound
 from prefect.experimental.workers.base import (
     BaseJobConfiguration,
@@ -20,7 +19,6 @@ from prefect.server import models
 from prefect.settings import (
     PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
     PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
 )
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
@@ -124,15 +122,6 @@ async def worker_deployment_wq_2(
     return deployment
 
 
-async def test_worker_creates_workflows_directory_during_setup(tmp_path: Path):
-    await WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=tmp_path / "workflows",
-    ).setup()
-    assert (tmp_path / "workflows").exists()
-
-
 async def test_worker_creates_work_pool_by_default_during_sync(
     orion_client: PrefectClient,
 ):
@@ -172,7 +161,6 @@ async def test_worker_does_not_creates_work_pool_when_create_pool_is_false(
     "setting,attr",
     [
         (PREFECT_WORKER_PREFETCH_SECONDS, "prefetch_seconds"),
-        (PREFECT_WORKER_WORKFLOW_STORAGE_PATH, "workflow_storage_path"),
     ],
 )
 async def test_worker_respects_settings(setting, attr):
@@ -204,118 +192,6 @@ async def test_worker_sends_heartbeat_messages(
         )
         second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
-
-
-async def test_worker_applies_discovered_deployments(
-    orion_client: PrefectClient, flow_function, tmp_path: Path
-):
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-    read_deployment = await orion_client.read_deployment_by_name(
-        "client-test-flow/test-deployment"
-    )
-    assert read_deployment is not None
-
-
-async def test_worker_applies_updates_to_deployments(
-    orion_client: PrefectClient, flow_function, tmp_path: Path, work_pool
-):
-    # create initial deployment manifest
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function, work_pool_name=work_pool.name
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name=work_pool.name,
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-
-        # update deployment
-        deployment.tags = ["new-tag"]
-        deployment.timestamp = pendulum.now("UTC")
-        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-        assert read_deployment.tags == ["new-tag"]
-
-
-async def test_worker_does_not_apply_deployment_updates_for_old_timestamps(
-    orion_client: PrefectClient, flow_function, tmp_path: Path
-):
-    # create initial deployment manifest
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    deployment = await Deployment.build_from_flow(
-        name="test-deployment", flow=flow_function
-    )
-    await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-
-        # update deployment don't update timestamp
-        deployment.tags = ["new-tag"]
-        await deployment.to_yaml(workflows_path / "test-deployment.yaml")
-
-        await worker.scan_storage_for_deployments()
-
-        read_deployment = await orion_client.read_deployment_by_name(
-            "client-test-flow/test-deployment"
-        )
-        assert read_deployment is not None
-        assert read_deployment.tags == []
-
-
-async def test_worker_does_not_raise_on_malformed_manifests(
-    orion_client: PrefectClient, tmp_path: Path
-):
-    workflows_path = tmp_path / "workflows"
-    workflows_path.mkdir()
-    (workflows_path / "test-deployment.yaml").write_text(
-        "Ceci n'est pas un déploiement"
-    )
-
-    async with WorkerTestImpl(
-        name="test",
-        work_pool_name="test-work-pool",
-        workflow_storage_path=workflows_path,
-    ) as worker:
-        await worker.scan_storage_for_deployments()
-
-        assert len(await orion_client.read_deployments()) == 0
 
 
 async def test_worker_with_work_pool(
@@ -709,12 +585,12 @@ async def test_base_worker_gets_job_configuration_when_syncing_with_backend_with
         ),
     ],
 )
-def test_base_job_configuration_from_template_and_overrides(
+async def test_base_job_configuration_from_template_and_overrides(
     template, overrides, expected
 ):
     """Test that the job configuration is correctly built from the template and overrides"""
-    config = BaseJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides=overrides
+    config = await BaseJobConfiguration.from_template_and_values(
+        base_job_template=template, values=overrides
     )
     assert config.dict() == expected
 
@@ -885,17 +761,174 @@ def test_base_job_configuration_from_template_and_overrides(
         ),
     ],
 )
-def test_job_configuration_from_template_and_overrides(template, overrides, expected):
+async def test_job_configuration_from_template_and_overrides(
+    template, overrides, expected
+):
     """Test that the job configuration is correctly built from the template and overrides"""
 
     class ArbitraryJobConfiguration(BaseJobConfiguration):
         var1: str = Field(template="{{ var1 }}")
         var2: int = Field(template="{{ var2 }}")
 
-    config = ArbitraryJobConfiguration.from_template_and_overrides(
-        base_job_template=template, deployment_overrides=overrides
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values=overrides
     )
     assert config.dict() == expected
+
+
+async def test_job_configuration_from_template_and_overrides_with_nested_variables():
+    template = {
+        "job_configuration": {
+            "config": {
+                "var1": "{{ var1 }}",
+                "var2": "{{ var2 }}",
+            }
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                    "title": "Var1",
+                },
+                "var2": {
+                    "type": "integer",
+                    "title": "Var2",
+                    "default": 42,
+                },
+            },
+        },
+        "required": ["var1"],
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: dict = Field(template={"var1": "{{ var1 }}", "var2": "{{ var2 }}"})
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={"var1": "woof!"}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": {
+            "var1": "woof!",
+            "var2": 42,
+        },
+    }
+
+
+async def test_job_configuration_from_template_and_overrides_with_hard_coded_primitives():
+    template = {
+        "job_configuration": {"config": {"var1": 1, "var2": 1.1, "var3": True}},
+        "variables": {},
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: dict = Field(template={"var1": 1, "var2": 1.1, "var3": True})
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": {"var1": 1, "var2": 1.1, "var3": True},
+    }
+
+
+async def test_job_configuration_from_template_overrides_with_block():
+    class ArbitraryBlock(Block):
+        a: int
+        b: str
+
+    template = {
+        "job_configuration": {
+            "var1": "{{ var1 }}",
+            "arbitrary_block": "{{ arbitrary_block }}",
+        },
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                },
+                "arbitrary_block": {},
+            },
+            "definitions": {
+                "ArbitraryBlock": {
+                    "title": "ArbitraryBlock",
+                    "type": "object",
+                    "properties": {
+                        "a": {
+                            "title": "A",
+                            "type": "number",
+                        },
+                        "b": {
+                            "title": "B",
+                            "type": "string",
+                        },
+                    },
+                    "required": ["a", "b"],
+                    "block_type_slug": "arbitrary_block",
+                    "secret_fields": [],
+                    "block_schema_references": {},
+                },
+            },
+            "required": ["var1", "arbitrary_block"],
+        },
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        var1: str
+        arbitrary_block: ArbitraryBlock
+
+    block_id = await ArbitraryBlock(a=1, b="hello").save(name="arbitrary-block")
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template,
+        values={
+            "var1": "woof!",
+            "arbitrary_block": {"$ref": {"block_document_id": block_id}},
+        },
+    )
+
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "var1": "woof!",
+        # block_type_slug is added by Block.dict()
+        "arbitrary_block": {"a": 1, "b": "hello", "block_type_slug": "arbitraryblock"},
+    }
+
+
+async def test_job_configuration_from_template_and_overrides_with_variables_in_a_list():
+    template = {
+        "job_configuration": {"config": ["{{ var1 }}", "{{ var2 }}"]},
+        "variables": {
+            "properties": {
+                "var1": {
+                    "type": "string",
+                    "title": "Var1",
+                },
+                "var2": {
+                    "type": "integer",
+                    "title": "Var2",
+                    "default": 42,
+                },
+            },
+        },
+        "required": ["var1"],
+    }
+
+    class ArbitraryJobConfiguration(BaseJobConfiguration):
+        config: list = Field(template=["{{ var1 }}", "{{ var2 }}"])
+
+    config = await ArbitraryJobConfiguration.from_template_and_values(
+        base_job_template=template, values={"var1": "woof!"}
+    )
+    assert config.dict() == {
+        "command": None,
+        "env": {},
+        "config": ["woof!", 42],
+    }
 
 
 @pytest.mark.parametrize(
@@ -905,9 +938,9 @@ def test_job_configuration_from_template_and_overrides(template, overrides, expe
         "",
     ],
 )
-def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
+async def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
     """Test that valid falsey values are converted to None for `command`"""
-    template = BaseJobConfiguration.from_template_and_overrides(
+    template = await BaseJobConfiguration.from_template_and_values(
         base_job_template={
             "job_configuration": {
                 "command": "{{ command }}",
@@ -922,7 +955,7 @@ def test_base_job_configuration_converts_falsey_values_to_none(falsey_value):
                 "required": [],
             },
         },
-        deployment_overrides={"command": falsey_value},
+        values={"command": falsey_value},
     )
     assert template.command is None
 

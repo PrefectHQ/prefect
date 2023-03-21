@@ -15,7 +15,6 @@ import sniffio
 from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.experimental.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -92,11 +91,6 @@ class ProcessWorker(BaseWorker):
     _description = "Worker that executes flow runs within processes."
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
 
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        # TODO: Implement deployment verification for `ProcessWorker`
-        pass
-
-    # TODO: Add additional parameters to allow for the customization of behavior
     async def run(
         self,
         flow_run: FlowRun,

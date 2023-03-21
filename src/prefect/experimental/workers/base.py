@@ -1,32 +1,25 @@
 import abc
-import re
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Type, Union
 from uuid import uuid4
 
 import anyio
 import anyio.abc
-import httpx
 import pendulum
-from pydantic import BaseModel, Field, ValidationError, validator
+from pydantic import BaseModel, Field, validator
 
 from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.engine import propose_state
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.server import schemas
 from prefect.server.schemas.actions import WorkPoolUpdate
 from prefect.server.schemas.responses import WorkerFlowRunResponse
-from prefect.settings import (
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    PREFECT_WORKER_WORKFLOW_STORAGE_PATH,
-    get_current_settings,
-)
+from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Crashed, Pending, exception_to_failed_state
 from prefect.utilities.dispatch import register_base_type
+from prefect.utilities.templating import apply_values, resolve_block_document_references
 
 
 class BaseJobConfiguration(BaseModel):
@@ -61,23 +54,22 @@ class BaseJobConfiguration(BaseModel):
         return defaults
 
     @classmethod
-    def from_template_and_overrides(
-        cls, base_job_template: dict, deployment_overrides: dict
-    ):
+    async def from_template_and_values(cls, base_job_template: dict, values: dict):
         """Creates a valid worker configuration object from the provided base
         configuration and overrides.
 
         Important: this method expects that the base_job_template was already
         validated server-side.
         """
-        job_config = base_job_template["job_configuration"]
+        job_config: Dict[str, Any] = base_job_template["job_configuration"]
         variables_schema = base_job_template["variables"]
-        variables = cls._base_variables_from_variable_properties(
-            variables_schema["properties"]
+        variables = cls._get_base_config_defaults(
+            variables_schema.get("properties", {})
         )
-        variables.update(deployment_overrides)
+        variables.update(values)
+        variables = await resolve_block_document_references(variables)
 
-        populated_configuration = cls._apply_variables(job_config, variables)
+        populated_configuration = apply_values(job_config, variables)
         return cls(**populated_configuration)
 
     @classmethod
@@ -102,58 +94,6 @@ class BaseJobConfiguration(BaseModel):
             configuration[k] = template
 
         return configuration
-
-    @staticmethod
-    def _apply_variables(job_config: Dict[str, str], variables: Dict[str, Any]):
-        """
-        Apply variables to a job configuration template by interpolating variables into the placeholders in the
-        template.
-
-        If a value in the job configuration contains only a single placeholder, the value will be fully replaced
-        with the value.
-
-        If a value in the job configuration contains text before and after a placeholder or there are multiple
-        placeholders, the placeholders will be replaced with the corresponding variable values.
-
-        Args:
-            job_config: The job configuration portion of a base job template to apply variables to
-            variables: The variables to apply to the job configuration
-
-        Returns:
-            The job configuration with variables applied
-        """
-        variable_capture_regex = re.compile(r"({{\s*(\w+)\s*}})")
-        applied_config = {}
-        for key, value in (job_config or {}).items():
-            used_variables = variable_capture_regex.findall(value)
-            if not used_variables:
-                # If there are no variables, we can just use the value
-                applied_config[key] = value
-            elif (
-                len(used_variables) == 1
-                and used_variables[0][0] == value
-                and variables[used_variables[0][1]] is not None
-            ):
-                # If there is only one variable with no surrounding text, we can just replace it
-                applied_config[key] = variables[used_variables[0][1]]
-            else:
-                for full_match, variable_name in used_variables:
-                    if (
-                        variable_name in variables
-                        and variables[variable_name] is not None
-                    ):
-                        applied_config[key] = value.replace(
-                            full_match, variables[variable_name]
-                        )
-        return applied_config
-
-    @classmethod
-    def _base_variables_from_variable_properties(cls, variable_properties):
-        """Get base template variables."""
-        default_variables = cls._get_base_config_defaults(variable_properties)
-        variables = {key: None for key in variable_properties.keys()}
-        variables.update(default_variables)
-        return variables
 
 
 class BaseVariables(BaseModel):
@@ -197,7 +137,6 @@ class BaseWorker(abc.ABC):
         work_queues: Optional[List[str]] = None,
         name: Optional[str] = None,
         prefetch_seconds: Optional[float] = None,
-        workflow_storage_path: Optional[Path] = None,
         create_pool_if_not_found: bool = True,
         limit: Optional[int] = None,
     ):
@@ -214,8 +153,6 @@ class BaseWorker(abc.ABC):
             work_queues: A list of work queues to poll. If not provided, all
                 work queue in the work pool will be polled.
             prefetch_seconds: The number of seconds to prefetch flow runs for.
-            workflow_storage_path: The filesystem path to workflow storage for
-                this worker.
             create_pool_if_not_found: Whether to create the work pool
                 if it is not found. Defaults to `True`, but can be set to `False` to
                 ensure that work pools are not created accidentally.
@@ -234,9 +171,6 @@ class BaseWorker(abc.ABC):
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
-        )
-        self._workflow_storage_path: Path = (
-            workflow_storage_path or PREFECT_WORKER_WORKFLOW_STORAGE_PATH.value()
         )
 
         self._work_pool: Optional[schemas.core.WorkPool] = None
@@ -290,20 +224,6 @@ class BaseWorker(abc.ABC):
             "Workers must implement a method for running submitted flow runs"
         )
 
-    @abc.abstractmethod
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        """
-        Checks that scheduled flow runs for a submitted deployment can be run by the
-        current worker.
-
-        Should be implemented by `BaseWorker` implementations. Implementation of this
-        method should raise if any of the checks performed by the worker fail. If all
-        checks pass, then this method does not need to return anything.
-        """
-        raise NotImplementedError(
-            "Workers must implement a method for verifying submitted deployments"
-        )
-
     @classmethod
     def __dispatch_key__(cls):
         if cls.__name__ == "BaseWorker":
@@ -320,8 +240,6 @@ class BaseWorker(abc.ABC):
         self._client = get_client()
         await self._client.__aenter__()
         await self._runs_task_group.__aenter__()
-        # Setup workflows directory
-        self._workflow_storage_path.mkdir(parents=True, exist_ok=True)
 
         self.is_setup = True
 
@@ -392,70 +310,6 @@ class BaseWorker(abc.ABC):
         await self._send_worker_heartbeat()
 
         self._logger.debug("Worker synchronized with the Prefect API server.")
-
-    async def scan_storage_for_deployments(self):
-        """
-        Performs a scan of the worker's configured workflow storage location. If any
-        .yaml files are found in the workflow storage location, the worker will attempt
-        to apply the deployments defined in the discovered manifests.
-        """
-        self._logger.debug("Scanning %s for deployments", self._workflow_storage_path)
-        possible_deployment_files = self._workflow_storage_path.glob("*.yaml")
-        for possible_deployment_file in possible_deployment_files:
-            if possible_deployment_file.is_file:
-                await self._attempt_to_apply_deployment(possible_deployment_file)
-
-    async def _attempt_to_apply_deployment(self, deployment_manifest_path: Path):
-        """
-        Attempts to apply a deployment from a discovered .yaml file. Will not apply
-        if validation fails when loading the deployment from the discovered .yaml file.
-        """
-        try:
-            deployment = await Deployment.load_from_yaml(str(deployment_manifest_path))
-            # Update path to match worker's file system instead of submitters so that
-            # deployment will run successfully when scheduled
-            # TODO: Revisit once deployment experience is created
-            deployment.path = str(deployment_manifest_path.parent)
-
-            await self.verify_submitted_deployment(deployment)
-            try:
-                api_deployment = await self._client.read_deployment_by_name(
-                    f"{deployment.flow_name}/{deployment.name}"
-                )
-                updated = api_deployment.updated
-            except ObjectNotFound:
-                updated = None
-            if updated is None:
-                await deployment.apply()
-                self._logger.info(
-                    "Created new deployment %s/%s",
-                    deployment.flow_name,
-                    deployment.name,
-                )
-            elif deployment.timestamp > updated:
-                await deployment.apply()
-                self._logger.info(
-                    "Applied update to deployment %s/%s",
-                    deployment.flow_name,
-                    deployment.name,
-                )
-        except ValidationError:
-            self._logger.exception(
-                "Validation of deployment manifest %s failed.",
-                deployment_manifest_path,
-            )
-        except httpx.HTTPStatusError as exc:
-            self._logger.exception(
-                "Failed to apply deployment %s/%s: %s",
-                deployment.flow_name,
-                deployment.name,
-                exc.response.json().get("detail"),
-            )
-        except Exception as exc:
-            self._logger.exception(
-                "Unexpected error occurred while attempting to register discovered"
-                " deployment."
-            )
 
     async def _get_scheduled_flow_runs(
         self,
@@ -648,15 +502,14 @@ class BaseWorker(abc.ABC):
             ),
             "settings": {
                 "prefetch_seconds": self._prefetch_seconds,
-                "workflow_storage_path": self._workflow_storage_path,
             },
         }
 
     async def _get_configuration(self, flow_run: FlowRun) -> BaseJobConfiguration:
         deployment = await self._client.read_deployment(flow_run.deployment_id)
-        configuration = self.job_configuration.from_template_and_overrides(
+        configuration = await self.job_configuration.from_template_and_values(
             base_job_template=self._work_pool.base_job_template,
-            deployment_overrides=deployment.infra_overrides,
+            values=deployment.infra_overrides or {},
         )
         return configuration
 

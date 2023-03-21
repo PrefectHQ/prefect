@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import threading
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
 from unittest.mock import ANY, MagicMock, Mock
@@ -188,25 +189,25 @@ class TestInjectClient:
         assert client is orion_client, "Client should be the same object"
         assert not client._closed, "Client should not be closed after function returns"
 
-    async def test_use_existing_client_from_flow_run_ctx(self, orion_client):
+    async def test_does_not_use_existing_client_from_flow_run_ctx(self, orion_client):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func()
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
-    async def test_use_existing_client_from_task_run_ctx(self, orion_client):
+    async def test_does_not_use_existing_client_from_task_run_ctx(self, orion_client):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func()
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
-    async def test_use_existing_client_from_flow_run_ctx_with_null_kwarg(
+    async def test_does_not_use_existing_client_from_flow_run_ctx_with_null_kwarg(
         self, orion_client
     ):
         with prefect.context.FlowRunContext.construct(client=orion_client):
             client = await TestInjectClient.injected_func(client=None)
-        assert client is orion_client, "Client should be the same object"
-        assert not client._closed, "Client should not be closed after function returns"
+        assert client is not orion_client, "Client should not be the same object"
+        assert client._closed, "Client should be closed after function returns"
 
 
 def not_enough_open_files() -> bool:
@@ -222,6 +223,17 @@ def not_enough_open_files() -> bool:
 
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     return soft_limit < 512 or hard_limit < 512
+
+
+def make_lifespan(startup, shutdown) -> callable:
+    async def lifespan(app):
+        try:
+            startup()
+            yield
+        finally:
+            shutdown()
+
+    return asynccontextmanager(lifespan)
 
 
 class TestClientContextManager:
@@ -243,7 +255,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
         startup.assert_not_called()
@@ -258,7 +270,7 @@ class TestClientContextManager:
 
     async def test_client_context_calls_app_lifespan_once_despite_nesting(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         startup.assert_not_called()
         shutdown.assert_not_called()
@@ -274,7 +286,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_sequential_usage(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async with PrefectClient(app):
             pass
@@ -293,7 +305,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -338,7 +350,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(context):
             # We must re-enter the profile context in the new thread
@@ -366,7 +378,7 @@ class TestClientContextManager:
 
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -386,7 +398,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -437,7 +449,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -478,7 +490,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
 
@@ -491,7 +503,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(task_status):
             async with PrefectClient(app):
@@ -510,7 +522,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         with pytest.raises(ValueError):
             async with PrefectClient(app):
@@ -547,14 +559,14 @@ async def test_client_runs_migrations_for_ephemeral_app(enabled, monkeypatch):
 
 
 async def test_client_does_not_run_migrations_for_hosted_app(
-    hosted_orion_api, monkeypatch
+    hosted_api_server, monkeypatch
 ):
     with temporary_settings(updates={PREFECT_API_DATABASE_MIGRATE_ON_START: True}):
         mock = AsyncMock()
         monkeypatch.setattr(
             "prefect.server.database.interface.PrefectDBInterface.create_db", mock
         )
-        async with PrefectClient(hosted_orion_api):
+        async with PrefectClient(hosted_api_server):
             pass
 
     mock.assert_not_awaited()
@@ -1495,8 +1507,8 @@ def test_server_type_ephemeral(orion_client):
     assert orion_client.server_type == ServerType.EPHEMERAL
 
 
-async def test_server_type_server(hosted_orion_api):
-    async with PrefectClient(hosted_orion_api) as orion_client:
+async def test_server_type_server(hosted_api_server):
+    async with PrefectClient(hosted_api_server) as orion_client:
         assert orion_client.server_type == ServerType.SERVER
 
 

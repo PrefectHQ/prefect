@@ -346,14 +346,14 @@ class TestSetTaskRunState:
         assert run.run_count == 1
 
     @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
-    async def test_setting_task_run_state_twice_aborts(
+    async def test_setting_task_run_state_twice_works(
         self, task_run, client, session, proposed_state
     ):
-        # A multi-agent environment may attempt to orchestrate a run more than once,
-        # this test ensures that a 2nd agent cannot re-propose a state that's already
-        # been set
+        # Task runner infrastructure may kill and restart tasks without informing
+        # Prefect. This test checks that a task can re-transition  its current state
+        # to ensure restarts occur without error.
 
-        # first ensure the parent flow run is in a running state
+        # first, ensure the parent flow run is in a running state
         await client.post(
             f"/flow_runs/{task_run.flow_run_id}/set_state",
             json=dict(state=dict(type="RUNNING")),
@@ -372,10 +372,10 @@ class TestSetTaskRunState:
             f"/task_runs/{task_run.id}/set_state",
             json=dict(state=dict(type=proposed_state, name="Test State")),
         )
-        assert response.status_code == 200
+        assert response.status_code == 201
 
         api_response = OrchestrationResult.parse_obj(response.json())
-        assert api_response.status == responses.SetStateStatus.ABORT
+        assert api_response.status == responses.SetStateStatus.ACCEPT
 
     async def test_set_task_run_ignores_client_provided_timestamp(
         self, flow_run, client

@@ -2,7 +2,7 @@
 Full schemas of Prefect REST API objects.
 """
 import datetime
-import re
+import json
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -17,6 +17,7 @@ from prefect.server.utilities.schemas import DateTimeTZ, ORMBaseModel, PrefectBa
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict, listrepr
 from prefect.utilities.names import generate_slug, obfuscate, obfuscate_string
+from prefect.utilities.templating import find_placeholders
 
 INVALID_CHARACTERS = ["/", "%", "&", ">", "<"]
 
@@ -1111,16 +1112,18 @@ class WorkPool(ORMBaseModel):
         for template in job_config.values():
             # find any variables inside of double curly braces, minus any whitespace
             # e.g. "{{ var1 }}.{{var2}}" -> ["var1", "var2"]
-            found_variables = re.findall(r"{{\s*(.*?)\s*}}", template)
-            template_variables.update(found_variables)
+            # convert to json string to handle nested objects and lists
+            found_variables = find_placeholders(json.dumps(template))
+            template_variables = {placeholder.name for placeholder in found_variables}
 
         provided_variables = set(variables["properties"].keys())
         if not template_variables.issubset(provided_variables):
+            missing_variables = template_variables - provided_variables
             raise ValueError(
                 "The variables specified in the job configuration template must be "
-                "present as attributes in the variables class. "
-                f"Your job expects the following variables: {template_variables!r}, "
-                f"but your template provides: {provided_variables!r}"
+                "present as properties in the variables schema. "
+                "Your job configuration uses the following undeclared "
+                f"variable(s): {' ,'.join(missing_variables)}."
             )
         return v
 
@@ -1147,21 +1150,27 @@ class Artifact(ORMBaseModel):
     )
     type: Optional[str] = Field(
         default=None,
-        description="An identifier for how this artifact is persisted.",
+        description=(
+            "An identifier that describes the shape of the data field. e.g. 'result',"
+            " 'table', 'markdown'"
+        ),
     )
-
+    description: Optional[str] = Field(
+        default=None, description="A markdown-enabled description of the artifact."
+    )
     # data will eventually be typed as `Optional[Union[Result, Any]]`
     data: Optional[Union[Dict[str, Any], Any]] = Field(
         default=None,
         description=(
-            "Data associated with the artifact, e.g. a result. "
-            "Content must be storable as JSON."
+            "Data associated with the artifact, e.g. a result.; structure depends on"
+            " the artifact type."
         ),
     )
     metadata_: Optional[Dict[str, str]] = Field(
         default=None,
         description=(
-            "Artifact metadata used for the UI. Content must be storable as JSON."
+            "User-defined artifact metadata. Content must be string key and value"
+            " pairs."
         ),
     )
     flow_run_id: Optional[UUID] = Field(
@@ -1185,7 +1194,7 @@ class Artifact(ORMBaseModel):
 
             description = data.pop("artifact_description", None)
             if description:
-                artifact_info["metadata_"] = dict(description=description)
+                artifact_info["description"] = description
 
         return cls(data=data, **artifact_info)
 

@@ -369,9 +369,10 @@ class UnpersistedResult(BaseResult):
         obj: R,
         cache_object: bool = True,
     ) -> "UnpersistedResult[R]":
+        description = f"Unpersisted result of type `{type(obj).__name__}`"
         result = cls(
             artifact_type="result",
-            artifact_description=f"Unpersisted result of type {type(obj).__name__!r}",
+            artifact_description=description,
         )
         # Only store the object in local memory, it will not be sent to the API
         if cache_object:
@@ -410,7 +411,7 @@ class LiteralResult(BaseResult):
                 f" one of: {', '.join(type_.__name__ for type_ in LITERAL_TYPES)}"
             )
 
-        description = f"Literal: `{obj}`"
+        description = f"Result with value `{obj}` persisted to Prefect."
         return cls(value=obj, artifact_type="result", artifact_description=description)
 
 
@@ -458,8 +459,8 @@ class PersistedResult(BaseResult):
         blob = PersistedResultBlob.parse_raw(content)
         return blob
 
-    @classmethod
-    def _infer_path(cls, storage_block, key) -> str:
+    @staticmethod
+    def _infer_path(storage_block, key) -> str:
         """
         Attempts to infer a path associated with a storage block key, this method will
         defer to the block in the future
@@ -469,18 +470,6 @@ class PersistedResult(BaseResult):
             return storage_block._resolve_path(key)
         if hasattr(storage_block, "_remote_file_system"):
             return storage_block._remote_file_system._resolve_path(key)
-
-    @classmethod
-    def _infer_description(cls, obj, storage_block, key) -> str:
-        uri = cls._infer_path(storage_block, key)
-        if uri is not None:
-            return f"<{uri}>"
-
-        description = repr(obj)
-        max_description_length = 500
-        if len(description) > max_description_length:
-            return description[:max_description_length] + "..."
-        return f"```\n{description}\n```"
 
     @classmethod
     @sync_compatible
@@ -504,7 +493,12 @@ class PersistedResult(BaseResult):
         key = uuid.uuid4().hex
         await storage_block.write_path(key, content=blob.to_bytes())
 
-        description = cls._infer_description(obj, storage_block, key)
+        description = f"Result of type `{type(obj).__name__}`"
+        uri = cls._infer_path(storage_block, key)
+        if uri:
+            description += f" persisted to [{uri}]({uri})."
+        else:
+            description += f" persisted with storage block `{storage_block_id}`."
 
         result = cls(
             serializer_type=serializer.type,
