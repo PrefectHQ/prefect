@@ -351,7 +351,7 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
-            work_queue_name="wq",
+            work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
         ),
@@ -465,7 +465,18 @@ async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_queue=schemas.actions.WorkQueueCreate(name="wq"),
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_queue_2(session, work_pool):
+    model = await models.workers.create_work_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
     )
     await session.commit()
     return model

@@ -516,6 +516,15 @@ If the API does not support HTTP/2, this will have no effect and connections wil
 made via HTTP/1.1.
 """
 
+PREFECT_CLIENT_RETRY_JITTER_FACTOR = Setting(float, default=0.2)
+"""
+A value greater than or equal to zero to control the amount of jitter added to retried
+client requests. Higher values introduce larger amounts of jitter.
+
+Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
+can affect retry lengths.
+"""
+
 PREFECT_CLOUD_API_URL = Setting(
     str,
     default="https://api.prefect.cloud/api",
@@ -635,6 +644,17 @@ PREFECT_LOGGING_LEVEL = Setting(
 """
 The default logging level for Prefect loggers. Defaults to
 "INFO" during normal operation. Is forced to "DEBUG" during debug mode.
+"""
+
+
+PREFECT_LOGGING_INTERNAL_LEVEL = Setting(
+    str,
+    default="ERROR",
+    value_callback=debug_mode_log_level,
+)
+"""
+The default logging level for Prefect's internal machinery loggers. Defaults to
+"ERROR" during normal operation. Is forced to "DEBUG" during debug mode.
 """
 
 PREFECT_LOGGING_SERVER_LEVEL = Setting(
@@ -1112,22 +1132,6 @@ PREFECT_WORKER_PREFETCH_SECONDS = Setting(float, default=10)
 """
 The number of seconds into the future a worker should query for scheduled flow runs.
 Can be used to compensate for infrastructure start up time for a worker.
-"""
-
-PREFECT_WORKER_WORKFLOW_STORAGE_SCAN_SECONDS = Setting(float, default=30)
-"""
-The number of seconds a worker should wait between scanning its workflow storage
-location for submitted deployments.
-"""
-
-PREFECT_WORKER_WORKFLOW_STORAGE_PATH = Setting(
-    Path,
-    default=Path("${PREFECT_HOME}") / "workflows",
-    value_callback=template_with_settings(PREFECT_HOME),
-)
-"""
-The location where workers will scan for newly submitted deployments and store
-flow code for submitted deployments.
 """
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS = Setting(bool, default=False)

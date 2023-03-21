@@ -37,7 +37,11 @@
       </template>
 
       <template #runs>
-        <FlowRunFilteredList :flow-run-filter="deploymentFilter" />
+        <FlowRunFilteredList :flow-run-filter="deploymentFilter">
+          <template #empty-message>
+            No runs found
+          </template>
+        </FlowRunFilteredList>
       </template>
     </p-tabs>
 
@@ -49,7 +53,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
@@ -87,7 +91,7 @@
     return deployment.value?.infrastructureOverrides ? JSON.stringify(deployment.value.infrastructureOverrides, undefined, 2) : '{}'
   })
 
-  const { filter: deploymentFilter } = useRecentFlowRunsFilter({
+  const { filter: deploymentFilter } = useFlowRunsFilter({
     deployments: {
       id: deploymentIds,
     },

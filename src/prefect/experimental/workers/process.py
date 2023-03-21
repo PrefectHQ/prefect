@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import os
 import socket
 import subprocess
 import sys
@@ -13,7 +14,6 @@ import sniffio
 from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.experimental.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -48,8 +48,8 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
-    stream_output: bool = Field(template="{{ stream_output }}")
-    working_dir: Optional[Path] = Field(template="{{ working_dir }}")
+    stream_output: bool
+    working_dir: Optional[Path]
 
     @validator("working_dir")
     def validate_command(cls, v):
@@ -72,7 +72,7 @@ class ProcessVariables(BaseVariables):
         title="Working Directory",
         description=(
             "If provided, workers will open flow run processes within the "
-            "specified path as the working directory. Otherwise, a temporary"
+            "specified path as the working directory. Otherwise, a temporary "
             "directory will be created."
         ),
     )
@@ -90,11 +90,6 @@ class ProcessWorker(BaseWorker):
     _description = "Worker that executes flow runs within processes."
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
 
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        # TODO: Implement deployment verification for `ProcessWorker`
-        pass
-
-    # TODO: Add additional parameters to allow for the customization of behavior
     async def run(
         self,
         flow_run: FlowRun,
@@ -128,7 +123,9 @@ class ProcessWorker(BaseWorker):
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 cwd=working_dir,
-                env=self._base_flow_run_environment(flow_run=flow_run),
+                env=self._get_environment_variables(
+                    configuration=configuration, flow_run=flow_run
+                ),
                 **kwargs,
             )
 
@@ -172,3 +169,22 @@ class ProcessWorker(BaseWorker):
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
+
+    def _get_environment_variables(
+        self,
+        configuration: BaseJobConfiguration,
+        flow_run: FlowRun,
+        include_os_environ: bool = True,
+    ):
+        os_environ = os.environ if include_os_environ else {}
+        # The base environment must override the current environment or
+        # the Prefect settings context may not be respected
+        env = {
+            **os_environ,
+            **self._base_environment(),
+            **self._base_flow_run_environment(flow_run),
+            **configuration.env,
+        }
+
+        # Drop null values allowing users to "unset" variables
+        return {key: value for key, value in env.items() if value is not None}

@@ -22,6 +22,7 @@ from uuid import UUID
 
 import anyio
 
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
@@ -156,7 +157,7 @@ class PrefectFuture(Generic[R, A]):
             return self._wait(timeout=timeout)
         else:
             # type checking cannot handle the overloaded timeout passing
-            return sync(self._wait, timeout=timeout)  # type: ignore
+            return from_sync.call_soon_in_loop_thread(create_call(self._wait, timeout=timeout)).result()  # type: ignore
 
     @overload
     async def _wait(self, timeout: None = None) -> State[R]:
@@ -223,9 +224,11 @@ class PrefectFuture(Generic[R, A]):
         if self.asynchronous:
             return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
         else:
-            return sync(
-                self._result, timeout=timeout, raise_on_failure=raise_on_failure
-            )
+            return from_sync.call_soon_in_loop_thread(
+                create_call(
+                    self._result, timeout=timeout, raise_on_failure=raise_on_failure
+                )
+            ).result()
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
