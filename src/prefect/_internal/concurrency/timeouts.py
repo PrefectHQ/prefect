@@ -16,7 +16,7 @@ from typing import Callable, List, Optional, Type
 import anyio
 import anyio._backends._asyncio
 
-from prefect._internal.concurrency.event_loop import call_soon_in_loop
+from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect.logging import get_logger
 
 # TODO: We should update the format for this logger to include the current thread
@@ -180,7 +180,10 @@ class _AsyncCanceller(anyio._backends._asyncio.CancelScope):
     def cancel(self):
         self.context.mark_cancelled()
         # Cancellation must be called from the event loop that owns the scope
-        return call_soon_in_loop(self._loop, super().cancel).result()
+        if get_running_loop() != self._loop:
+            return call_soon_in_loop(self._loop, super().cancel).result()
+        else:
+            return super().cancel()
 
     def __exit__(self, *exc_info) -> Optional[bool]:
         self.context.mark_completed()
