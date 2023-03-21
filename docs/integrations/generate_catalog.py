@@ -1,4 +1,4 @@
-"""Script to generate the integrations(formerly collections) catalog table"""
+"""Script to generate the integrations (formerly collections) catalog table"""
 import glob
 from pathlib import Path
 

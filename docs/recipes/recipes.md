@@ -47,7 +47,7 @@ The following are Prefect recipes specific to Prefect 2. You can find a full rep
 {% endfor %}
 </div >
 
-### Contributing recipes
+## Contributing recipes
 
 We're always looking for new recipe contributions! See the [Prefect Recipes](https://github.com/PrefectHQ/prefect-recipes#contributing--swag-) repository for details on how you can add your Prefect recipe, share flow best practices with fellow Prefect users, and earn some swag. See the [Contributing Recipes](/recipes/contribute-recipes/) page for a guide on creating a good recipe.
 

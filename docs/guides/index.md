@@ -8,7 +8,7 @@ tags:
 
 ## Guides
 
-Learn how to do common workflows with Prefect
+Learn how to do common workflows with Prefect.
 
-- [Recipes](/guides/recipes)
+- [Recipes](/guides/recipes/)
 - [V1 to V2 Migration Guide](/guides/migration-guide/)
