@@ -6,7 +6,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import anyio
 import anyio.abc
@@ -22,6 +22,10 @@ from prefect.experimental.workers.base import (
 )
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
+
+if TYPE_CHECKING:
+    from prefect.server.schemas.core import Flow
+    from prefect.server.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -57,6 +61,21 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         if v:
             return relative_path_to_current_platform(v)
         return v
+
+    def prepare_for_flow_run(
+        self,
+        flow_run: "FlowRun",
+        deployment: Optional["DeploymentResponse"] = None,
+        flow: Optional["Flow"] = None,
+    ):
+        super().prepare_for_flow_run(flow_run, deployment, flow)
+
+        self.env = {**os.environ, **self.env}
+        self.command = (
+            f"{sys.executable} -m prefect.engine"
+            if self.command == self._base_flow_run_command()
+            else self.command
+        )
 
 
 class ProcessVariables(BaseVariables):
@@ -123,9 +142,7 @@ class ProcessWorker(BaseWorker):
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 cwd=working_dir,
-                env=self._get_environment_variables(
-                    configuration=configuration, flow_run=flow_run
-                ),
+                env=configuration.env,
                 **kwargs,
             )
 
@@ -169,22 +186,3 @@ class ProcessWorker(BaseWorker):
         return ProcessWorkerResult(
             status_code=process.returncode, identifier=str(process.pid)
         )
-
-    def _get_environment_variables(
-        self,
-        configuration: BaseJobConfiguration,
-        flow_run: FlowRun,
-        include_os_environ: bool = True,
-    ):
-        os_environ = os.environ if include_os_environ else {}
-        # The base environment must override the current environment or
-        # the Prefect settings context may not be respected
-        env = {
-            **os_environ,
-            **self._base_environment(),
-            **self._base_flow_run_environment(flow_run),
-            **configuration.env,
-        }
-
-        # Drop null values allowing users to "unset" variables
-        return {key: value for key, value in env.items() if value is not None}
