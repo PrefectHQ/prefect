@@ -13,7 +13,7 @@ tags:
 
 ### Prerequisites
 
-Before you start, install Prefect in your Python virtual environment:
+Before you start, install Prefect:
 
 <div class="terminal">
 ```bash
