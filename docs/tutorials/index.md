@@ -24,4 +24,4 @@ If you have used Prefect 1 ("Prefect Core") and are familiar with Prefect workfl
 
 ## Prerequisites
 
-These tutorials assume you have [installed Prefect 2](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer.
+These tutorials assume you have [installed Prefect](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer.
