@@ -28,10 +28,11 @@ def test_app_exposes_ui_settings():
     client = TestClient(app)
     response = client.get("/ui-settings")
     response.raise_for_status()
-    assert response.json() == {
-        "api_url": PREFECT_UI_API_URL.value(),
-        "flags": ["work_pools"],
-    }
+
+    json = response.json()
+    assert json.keys() == {"api_url", "flags"}
+    assert json["api_url"] == PREFECT_UI_API_URL.value()
+    assert set(json["flags"]) == {"work_pools", "events_client"}
 
 
 @pytest.mark.usefixtures("enable_prefect_experimental_test_opt_in_setting")
@@ -41,5 +42,6 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     response = client.get("/ui-settings")
     response.raise_for_status()
     json = response.json()
+    assert json.keys() == {"api_url", "flags"}
     assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {"test", "work_pools"}
+    assert set(json["flags"]) == {"test", "work_pools", "events_client"}
