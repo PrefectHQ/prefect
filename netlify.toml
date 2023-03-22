@@ -135,7 +135,7 @@ status = 301
 
 [[redirects]]
 from = "/tutorials/cloud-agent/"
-to = "/guides/deployment/cloud-agent/"
+to = "/guides/deployment/aci/"
 status = 301
 
 [[redirects]]
