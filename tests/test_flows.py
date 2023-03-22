@@ -13,7 +13,6 @@ import pytest
 from prefect import flow, get_run_logger, tags, task
 from prefect.client.orchestration import PrefectClient
 from prefect.context import PrefectObjectRegistry
-from prefect.deprecated.data_documents import DataDocument
 from prefect.exceptions import (
     CancelledRun,
     InvalidNameError,
@@ -387,7 +386,7 @@ class TestFlowCall:
             return State(
                 type=StateType.FAILED,
                 message="Test returned state",
-                data=DataDocument.encode("json", "hello!"),
+                data="hello!",
             )
 
         state = foo._run()
