@@ -57,6 +57,9 @@ If you like what you see, try the [tutorial](/tutorial/index/) where you'll crea
 
 [Tutorials](/tutorials/index/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts/index/){ .md-button .main-button--secondary .full }  [Guides](guides/index/){ .md-button .main-button--secondary .full }
 
+<div style="height: 10px"></div>
+See the [installation instructions](getting-started/installation/) for more details on installing and configuring Prefect.
+
 ---
 
 ## Why Prefect?
