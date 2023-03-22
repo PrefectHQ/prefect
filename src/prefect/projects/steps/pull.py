@@ -1,11 +1,13 @@
 """
 Core set of steps for specifying a Prefect project pull step.
 """
+import os
 import subprocess
 import sys
 
 
 def set_working_directory(directory: str) -> dict:
+    os.chdir(directory)
     return dict(directory=directory)
 
 
