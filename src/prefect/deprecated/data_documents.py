@@ -90,11 +90,11 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     _data: D
     __slots__ = ["_data"]
 
+    @classmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help="Data documents should not be created. Use result persistence instead.",
     )
-    @classmethod
     def encode(
         cls: Type["DataDocument"], encoding: str, data: D, **kwargs: Any
     ) -> "DataDocument[D]":
