@@ -18,7 +18,7 @@ Bring your Python code, sprinkle in a few decorators, and go!
 
 With Prefect you gain easy:
 
-<ul class="ul-line-height-compress">
+<ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
     <li> <a href="/concepts/tasks/#task-arguments"> retries </a> </li>
     <li> <a href="/concepts/logs/"> logging </a> </li>
