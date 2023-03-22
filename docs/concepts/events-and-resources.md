@@ -42,7 +42,7 @@ prefect-cloud.user.logged-in
 
 ## Event Sources
 
-Events are automatically emitted by all prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events will contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) via authenticated http request.
+Events are automatically emitted by all Prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events will contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the Prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) via authenticated http request.
 
 Prefect provides an events client that emits events, for use in arbitrary python code that may not be a task or 
 flow. Running the following code will emit events to Prefect Cloud, which will validate and ingest the event data.
@@ -58,12 +58,12 @@ def some_function(name: str="kiki") -> None:
 some_function()
 ```
 
-This event now appears in the [event feed](/ui/events/) where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
+Emitted events will appear in the [event feed](/ui/events/) where you can visualize activity in context and configure [automations](/ui/automations/) to react to the presence or absence of it in the future.
 
 
 ## Resources
 
-Every event has a primary resource, which describes what object emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are consutrcted as dot-delimited strings such as:
+Every event has a primary resource, which describes the object that emitted an event. Resources are used as quasi-stable identifiers for sources of events, and are constructed as dot-delimited strings, for example:
 
 ```
 prefect-cloud.automation.5b9c5c3d-6ca0-48d0-8331-79f4b65385b3.action.0
@@ -71,7 +71,7 @@ acme.user.kiki.elt_script_1
 prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6
 ```
 
-Resources can optionally have additional arbitrary labels which can be used in different event aggregatino queries, such as:
+Resources can optionally have additional arbitrary labels which can be used in event aggregation queries, such as:
 
 ```json
 "resource": {

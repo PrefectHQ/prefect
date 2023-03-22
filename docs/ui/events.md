@@ -11,7 +11,7 @@ tags:
 
 # Events
 
-Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your worksapce on the [event feed page](/concepts/events-and-resources/).
+Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the [event feed page](/concepts/events-and-resources/).
 
 ![Event feed](../img/ui/event-feed.png)
 
