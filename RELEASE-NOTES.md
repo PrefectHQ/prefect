@@ -1,5 +1,65 @@
 # Prefect Release Notes
 
+## Release 2.8.7
+
+### Engine reliability
+
+- All orchestration of flows and tasks happens in a dedicated worker thread
+- Synchronous flows are run on the main thread instead of worker threads
+    - Solves problems where flow code must be in the main thread e.g. https://github.com/PrefectHQ/prefect/issues/5991
+- Asynchronous flows no longer share an event loop with the Prefect engine
+- Flow timeouts are now enforced with signals
+    - Signals allow interrupt of long-running system calls like `sleep`
+- Asynchronous flows can be called from sync flows
+- Asynchronous tasks can be used as upstream dependencies for sync tasks in async flows
+- Waiting for many tasks that sleep no longer causes deadlocks
+- Flows with thousands of synchronous tasks are less likely to crash
+- Debug mode now enables verbose logging from Prefect concurrency internals
+- The API limits itself to 100 concurrent requests when using SQLite as a backend
+    - This avoid database file contention when using high levels of concurrency
+- Resolving task inputs no longer users worker threads
+    - This resolves issues where large numbers of upstream task inputs would cause deadlocks
+    - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
+
+See https://github.com/PrefectHQ/prefect/pull/8702 for more details.
+
+### Results page
+
+...
+
+### Enhancements
+- Add `--reverse` option to the flow run logs CLI to view logs in descending order  — https://github.com/PrefectHQ/prefect/pull/8625
+- Show all flow runs for deployments rather than just the last 7 days — https://github.com/PrefectHQ/prefect/pull/8837
+- Add jitter to Prefect client request retries — https://github.com/PrefectHQ/prefect/pull/8839
+- Add `deployment.name` and `deployment.version` to `prefect.runtime` — https://github.com/PrefectHQ/prefect/pull/8864
+- Add `flow_run.scheduled_start_time` to `prefect.runtime` — https://github.com/PrefectHQ/prefect/pull/8864
+- Adjust SQLite sync mode for improved performance — https://github.com/PrefectHQ/prefect/pull/8071
+- Add debug level log of active profile on module import — https://github.com/PrefectHQ/prefect/pull/8856
+- Update server to use new FastAPI lifespan context manager — https://github.com/PrefectHQ/prefect/pull/8842
+- Add support for variadic keyword arguments to `Task.map` — https://github.com/PrefectHQ/prefect/pull/8188
+
+### Fixes
+- Fix `prefect dev start` failure — https://github.com/PrefectHQ/prefect/pull/8850
+- Fix bug where `propose_state` could exceed recursion limits during extended waits — https://github.com/PrefectHQ/prefect/pull/8827
+- Fix configuration of flow run infrastructure when using agent default — https://github.com/PrefectHQ/prefect/pull/8872
+- Fix saving block document secrets that have not been modified — https://github.com/PrefectHQ/prefect/pull/8848
+
+### Experimental
+- Update to worker base job template logic for nested placeholders — https://github.com/PrefectHQ/prefect/pull/8795
+- Require lowercase artifact `key` field — https://github.com/PrefectHQ/prefect/pull/8860
+- Enable events client experimental flag by default — https://github.com/PrefectHQ/prefect/pull/8870
+- Create `emit_event` helper that takes args for an `Event` and emits it via a worker — https://github.com/PrefectHQ/prefect/pull/8867
+- Allow multiple artifacts to have the same key — https://github.com/PrefectHQ/prefect/pull/8855
+- Add common values to job configuration prior to flow run submission — https://github.com/PrefectHQ/prefect/pull/8826
+
+### Deprecations
+- Creating data documents will now throw deprecation warnings — https://github.com/PrefectHQ/prefect/pull/8760
+
+
+### Contributors
+* @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
+* @mesejo made their first contribution in https://github.com/PrefectHQ/prefect/pull/8842
+
 ## Release 2.8.6
 
 ### `prefect.runtime` for context access
