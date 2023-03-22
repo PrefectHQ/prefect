@@ -14,9 +14,7 @@ hide:
 # **Welcome to Prefect**
 ### The easiest way to orchestrate and observe your Python code { .main-page-subheader }
 
-Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes.
-
-Bring your Python code, sprinkle in a few decorators, and go!
+Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes. Bring your Python code, sprinkle in a few decorators, and go!
 
 With Prefect you gain easy:
 
@@ -30,13 +28,20 @@ With Prefect you gain easy:
     <li> <a href="/ui/overview/"> observability</a> </li>
 </ul>
 
-Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more! 
+Trying to implement these features from scratch is a huge pain that takes time, headaches, and money. That's why Prefect offers all this functionality and more!
 
 <figure markdown>
 ![screenshot of Cloud UI timeline view with menu](img/ui/flow-run-page.png)
 <figcaption>Prefect UI</figcaption>
 </figure>
 
+#### New to Prefect?
+If you're ready to dive in and learn Prefect, try the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
+
+[Tutorials](/tutorials/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts){ .md-button .main-button--secondary .full }  [Guides](guides){ .md-button .main-button--secondary .full }
+
+<div style="height: 10px"></div>
+<p>Or, read on for a quick sample of Prefect.</p>
 ---
 
 ## Quick Start: Hello Prefect
@@ -81,14 +86,8 @@ What is your favorite number?
 
 The Prefect orchestration engine observes the flow run state and saves it for you in a database. By adding a single decorator, you now have observation capabilities. There's much more you can do with Prefect, so keep rolling to learn how to add easy retries, notifications, scheduling and more!
 
----
-
 ## Next Steps
-
-
-If you're learning Prefect we encourage you to work through the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
-
-[Tutorials](/tutorials/index/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts/index/){ .md-button .main-button--secondary .full }  [Guides](guides/index/){ .md-button .main-button--secondary .full }
+If you like what you see, try our [tutorials](/tutorials) and [guides](/guides), or read more about [Prefect concepts](/concepts).
 
 ---
 

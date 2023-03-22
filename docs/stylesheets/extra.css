@@ -340,7 +340,8 @@ to force column width */
 }
 
 .ul-line-height-compress {
-    line-height: 80%
+    line-height: 80%;
+    margin-bottom: 30px !important;
 }
 
 .full {
