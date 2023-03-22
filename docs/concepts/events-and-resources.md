@@ -20,7 +20,7 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
   
 | Name | Type | Required? | Description |
 | ---- | ---- | --------- | ----------- |
-| occurred |  String | yes | When the event happened from the sender's perspective |
+| occurred |  String | yes | When the event happened |
 | event |  String | yes | The name of the event that happened |
 | resource|  Object | yes | The primary Resource this event concerns |
 | related | Array | no | A list of additional Resources involved in this event |
