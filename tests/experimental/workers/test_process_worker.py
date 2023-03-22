@@ -1,5 +1,7 @@
 import sys
+import uuid
 from pathlib import Path
+from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -83,11 +85,13 @@ def patch_client(monkeypatch, overrides: dict = None):
     """Patches client to return a mock deployment and mock flow with the specified overrides"""
 
     class MockDeployment(BaseModel):
+        id: UUID = uuid.uuid4()
         infra_overrides: dict = overrides or {}
         name: str = "test-deployment"
         updated: pendulum.DateTime = pendulum.now("utc")
 
     class MockFlow(BaseModel):
+        id: UUID = uuid.uuid4()
         name: str = "test-flow"
 
     mock_get_client = MagicMock()

@@ -185,6 +185,7 @@ class BaseJobConfiguration(BaseModel):
     @staticmethod
     def _base_deployment_labels(deployment: "DeploymentResponse") -> Dict[str, str]:
         labels = {
+            "prefect.io/deployment-id": str(deployment.id),
             "prefect.io/deployment-name": deployment.name,
         }
         if deployment.updated is not None:
@@ -196,6 +197,7 @@ class BaseJobConfiguration(BaseModel):
     @staticmethod
     def _base_flow_labels(flow: "Flow") -> Dict[str, str]:
         return {
+            "prefect.io/flow-id": str(flow.id),
             "prefect.io/flow-name": flow.name,
         }
 

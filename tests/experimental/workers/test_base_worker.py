@@ -1312,7 +1312,9 @@ class TestPrepareForFlowRun:
             "prefect.io/flow-run-id": str(flow_run.id),
             "prefect.io/flow-run-name": flow_run.name,
             "prefect.io/version": prefect.__version__,
+            "prefect.io/deployment-id": str(deployment.id),
             "prefect.io/deployment-name": deployment.name,
+            "prefect.io/flow-id": str(flow.id),
             "prefect.io/flow-name": flow.name,
         }
         assert job_config.name == "my-job-name"
