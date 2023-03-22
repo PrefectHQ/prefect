@@ -810,8 +810,13 @@ async def pause_flow_run(
         )
 
 
+@inject_client
 async def _in_process_pause(
-    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule=False,
+    key: str = None,
+    client=None,
 ):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -829,7 +834,7 @@ async def _in_process_pause(
 
     try:
         state = await propose_state(
-            client=context.client,
+            client=client,
             state=Paused(
                 timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
             ),
@@ -858,20 +863,20 @@ async def _in_process_pause(
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await context.client.read_flow_run(context.flow_run.id)
+        flow_run = await client.read_flow_run(context.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             return
 
         while True:
             await anyio.sleep(poll_interval)
-            flow_run = await context.client.read_flow_run(context.flow_run.id)
+            flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 return
 
     # check one last time before failing the flow
-    flow_run = await context.client.read_flow_run(context.flow_run.id)
+    flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         return
@@ -879,11 +884,13 @@ async def _in_process_pause(
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
+@inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
     timeout: int = 300,
     reschedule: bool = True,
     key: str = None,
+    client=None,
 ):
     if reschedule:
         raise RuntimeError(
@@ -891,7 +898,6 @@ async def _out_of_process_pause(
             " True."
         )
 
-    client = get_client()
     response = await client.set_flow_run_state(
         flow_run_id,
         Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
