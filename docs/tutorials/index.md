@@ -13,7 +13,15 @@ tags:
 
 ### Prerequisites
 
-These tutorials assume you have [installed Prefect](/getting-started/installation/) in your virtual environment along with Python 3.7 or newer.
+Before you start, install Prefect in your Python virtual environment:
+
+<div class="terminal">
+```bash
+pip install -U prefect
+```
+</div>
+
+See the [install guide](/getting-started/installation/) for more detailed instructions.
 
 ### Tutorials
 If you've never used Prefect before, let's start by exploring the core concepts:
