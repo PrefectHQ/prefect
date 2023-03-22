@@ -153,6 +153,7 @@ class DocumentJSONSerializer:
     Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
     """
 
+    @staticmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help=(
@@ -160,7 +161,6 @@ class DocumentJSONSerializer:
             " instead."
         ),
     )
-    @staticmethod
     def dumps(data: Any) -> bytes:
         return json.dumps(data).encode()
 
@@ -171,6 +171,7 @@ class DocumentJSONSerializer:
 
 @register_serializer("text")
 class TextSerializer:
+    @staticmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help=(
@@ -178,7 +179,6 @@ class TextSerializer:
             " instead."
         ),
     )
-    @staticmethod
     def dumps(data: str) -> bytes:
         return data.encode()
 
@@ -195,6 +195,7 @@ class DocumentPickleSerializer:
     Wraps `cloudpickle` to encode bytes in base64 for safe transmission.
     """
 
+    @staticmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help=(
@@ -202,7 +203,6 @@ class DocumentPickleSerializer:
             " instead."
         ),
     )
-    @staticmethod
     def dumps(data: Any) -> bytes:
         data_bytes = cloudpickle.dumps(data)
 
@@ -223,6 +223,7 @@ class PackageManifestSerializer:
     Serializes a package manifest.
     """
 
+    @staticmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help=(
@@ -230,7 +231,6 @@ class PackageManifestSerializer:
             " instead."
         ),
     )
-    @staticmethod
     def dumps(data: "PackageManifest") -> bytes:
         return data.json().encode()
 
@@ -247,6 +247,7 @@ class ResultSerializer:
     Serializes a result object
     """
 
+    @staticmethod
     @deprecated_callable(
         start_date="Sep 2022",
         help=(
@@ -254,7 +255,6 @@ class ResultSerializer:
             " instead."
         ),
     )
-    @staticmethod
     def dumps(data: "_Result") -> bytes:
         return data.json().encode()
 
