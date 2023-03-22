@@ -83,10 +83,10 @@ The Prefect orchestration engine observes the flow run state and saves it for yo
 
 ## Next Steps
 
-If you're learning Prefect we encourage you to work through the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. 
 
+If you're learning Prefect we encourage you to work through the [tutorial](/tutorial/index/) where you'll create a full data project, jump into Prefect [concepts](/concepts/index/), or explore the [guides](guides/index/) for common use cases. <div style="height: 10px"></div>
 
-[Tutorials](/tutorials/index/){ .md-button .md-button--primary .full}  [Concepts](/concepts/index/){ .md-button .full }  [Guides](guides/index/){ .md-button .full }
+[Tutorials](/tutorials/index/){ .md-button .md-button--primary .main-button--primary .full}  [Concepts](/concepts/index/){ .md-button .main-button--secondary .full }  [Guides](guides/index/){ .md-button .main-button--secondary .full }
 
 ---
 

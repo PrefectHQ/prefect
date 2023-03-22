@@ -6,6 +6,7 @@
     --md-primary-fg-color: #115AF4;
     --md-primary-fg-color--light: #115AF4;
     --md-primary-fg-color--dark: #115AF4;
+    --nav-size: 0.8rem;
 }
 
 /* code block margin and padding  */
@@ -343,14 +344,45 @@ to force column width */
 }
 
 .full {
-    width: 33%;
+    width: 31%;
     padding: 20em;
+    margin-right: 2%
 }
 
 .md-header {
     background-color: #0a082e;
 }
 
+.main-button--primary {
+    background: linear-gradient(90deg,#0a082e,#5988e3);
+    color: white;
+    border: none !important;
+    font-weight: 400 !important;
+    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    padding-right: 10px;
+    border-radius: 3px !important;
+}
+
+.main-button--primary:hover {
+    background: linear-gradient(45deg, var(--md-accent-fg-color), var(--md-accent-fg-color));
+    border-color: var(--md-accent-fg-color);
+    color: var(--md-accent-bg-color);
+}
+
+.main-button--secondary {
+    background: linear-gradient(90deg,#5988e3,#5988e3);
+    color: white !important;
+    border: none !important;
+    font-weight: 400 !important;
+    clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
+    border-radius: 3px !important;
+}
+
+.main-button--secondary:hover {
+    background: linear-gradient(45deg, var(--md-accent-fg-color), var(--md-accent-fg-color));
+    border-color: var(--md-accent-fg-color);
+    color: var(--md-accent-bg-color);
+}
 
 /* 60ex is the minimum width at which the full search 
    box displays in the nav bar */
@@ -374,11 +406,24 @@ to force column width */
     .md-nav__source {
         background-color: #0a082e;
     }
+
+    .full {
+        width: 66%;
+        margin-bottom: 10px;
+        margin-left: 17%
+    }
 }
 
 /* Mobile nav menu appears at 76.1875em */
 @media screen and (max-width: 76.1875em) {
     .md-nav--primary .md-nav__title[for=__drawer] { 
         background-color: #0a082e;
+    }
+}
+
+@media screen and (max-width: 40em) {
+    .full {
+        width: 86%;
+        margin-left: 7%
     }
 }
