@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 
 from prefect.deprecated.data_documents import (
@@ -16,6 +18,13 @@ def reset_registered_serializers(monkeypatch):
     yield
     _SERIALIZERS.clear()
     _SERIALIZERS.update(_copy)
+
+
+@pytest.fixture(autouse=True)
+def ignore_deprecation_warnings():
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        yield
 
 
 class TestDataDocument:

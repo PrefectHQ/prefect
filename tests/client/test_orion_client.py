@@ -2,6 +2,7 @@ import datetime
 import os
 import random
 import threading
+import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
@@ -1222,6 +1223,12 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
 
 
 class TestResolveDataDoc:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
             await orion_client.resolve_datadoc("foo")
