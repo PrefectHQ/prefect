@@ -114,7 +114,7 @@ class TestCreateArtifact:
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["task_run_id"] == str(task_run.id)
 
-    async def test_create_artifact_raises_error_on_existing_key(
+    async def test_create_artifact_with_existing_key_in_same_workspace_succeeds(
         self,
         artifact,
         client,
@@ -129,7 +129,7 @@ class TestCreateArtifact:
             json=data,
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 201
 
     async def test_create_camel_case_artifact_key_raises(
         self,

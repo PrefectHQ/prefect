@@ -311,7 +311,12 @@ class ORMArtifact:
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("key"),)
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                "key",
+            ),
+        )
 
 
 class ORMTaskRunStateCache:
