@@ -346,3 +346,17 @@ to force column width */
     width: 33%;
     padding: 20em;
 }
+
+.md-header {
+    background-color: #0a082e;
+}
+
+div[class="md-header__topic"]:not([data-md-component="header-topic"]) {
+    display: none;
+}
+
+@media screen and (min-width: 60em) {
+    .md-search__form {
+        background-color: #ffffff40;
+    }
+}

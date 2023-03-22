@@ -54,7 +54,7 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logos/prefect-logo-mark-solid-white-500.png
+    logo: img/logos/prefect-logo-gradient-white.svg
     palette:
       - media: "(prefers-color-scheme)"
         toggle:
