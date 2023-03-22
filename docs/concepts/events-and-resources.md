@@ -31,7 +31,7 @@ Events adhere to a structured [specification](https://app.prefect.cloud/api/docs
 
 ## Event Grammar
 
-Generally, events have a consistent and informative grammar - an event describes a resource and an action that a resource took. For example, events emitted by Prefect objects take the form of:
+Generally, events have a consistent and informative grammar - an event describes a resource and an action that a resource took or that was taken on that resource. For example, events emitted by Prefect objects take the form of:
 
 
 ```
