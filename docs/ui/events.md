@@ -17,7 +17,7 @@ Prefect Cloud provides an interactive dashboard to analyze and take action on ev
 
 ## Events feed
 
-The event feed is the primary place to view, search, and filter events to understand how data is moving through your stack. Each entry displays data on the resource, related resource, and event that took place.
+The event feed is the primary place to view, search, and filter events to understand activity across your stack. Each entry displays data on the resource, related resource, and event that took place.
 
 ## Event details
 
