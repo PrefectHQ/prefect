@@ -1,5 +1,5 @@
 ---
-description: Events are the primary units of observability in Prefect Cloud
+description: An event is a notification of a change from a resource
 tags:
     - resources
     - events
