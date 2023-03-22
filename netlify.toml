@@ -79,9 +79,10 @@ status = 301
 # redirects added 2023-03-21
 
 [[redirects]]
-from = "/ui/overview/*"
+from = "/ui/overview/"
 to = "/ui/"
 status = 301
+
 
 [[redirects]]
 from = "/api-ref/overview"
