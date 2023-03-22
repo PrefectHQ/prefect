@@ -79,7 +79,7 @@ status = 301
 # redirects added 2023-03-21
 
 [[redirects]]
-from = "/ui/overview/"
+from = "/ui/overview/*"
 to = "/ui/"
 status = 301
 
@@ -148,7 +148,21 @@ from = "/tutorials/dask-ray-task-runners/"
 to = "/guides/dask-ray-task-runners/"
 status = 301
 
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/filesystems/"
+status = 301
 
+[[redirects]]
+from = "/tutorials/flow-task/"
+to = "/tutorials/first-steps/"
+status = 301
+
+
+[[redirects]]
+from = "/integrations/catalog/"
+to = "/integrations/"
+status = 301
 
 
 [[headers]]

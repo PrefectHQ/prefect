@@ -93,6 +93,7 @@ To check that Prefect was installed correctly, use the Prefect CLI command `pref
 <div class="terminal">
 ```
 $ prefect version
+Version:             2.8.6
 API version:         0.8.4
 Python version:      3.11.0
 Git commit:          d0f14f17
@@ -184,14 +185,13 @@ Or use the Prefect CLI command `prefect version`, which prints version and envir
 <div class="terminal">
 ```
 $ prefect version
-Version:             2.7.5
-Version:             2.8.4
+Version:             2.8.6
 API version:         0.8.4
-Python version:      3.10.8
-Git commit:          f09ccc32
-Built:               Thu, Mar 2, 2023 12:34 PM
+Python version:      3.11.0
+Git commit:          d0f14f17
+Built:               Tue, Jan 3, 2023 8:46 AM
 OS/Arch:             darwin/arm64
-Profile:              default
+Profile:             default
 Server type:         ephemeral
 Server:
   Database:          sqlite
@@ -269,7 +269,7 @@ In Prefect 2.0b6 we added breaking changes with respect to the [Blocks API](/api
 
 After the upgrade, your data will remain intact, but you will need to upgrade to 2.0b6 to continue using the Cloud 2 API.
 
-Actions needed on your end to upgrade, especially as a Prefect Cloud 2 user:
+Actions needed to upgrade:
 
 - Upgrade Prefect Python package: `pip install -U "prefect>=2.0b6"`
 - Restart any agent processes.
