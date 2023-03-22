@@ -22,7 +22,7 @@ def bench_task_call(benchmark: BenchmarkFixture):
     benchmark_flow()
 
 
-@pytest.mark.parametrize("num_task_runs", [100, 250, 500])
+@pytest.mark.parametrize("num_task_runs", [100, 250])
 def bench_task_submit(benchmark: BenchmarkFixture, num_task_runs: int):
     noop_task = task(noop_function)
 
