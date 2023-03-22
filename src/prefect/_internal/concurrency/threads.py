@@ -41,6 +41,7 @@ class WorkerThread(Portal):
         """
         with self._lock:
             if not self._started:
+                self._started = True
                 self.thread.start()
 
     def submit(self, call: Call) -> Call:
@@ -87,7 +88,6 @@ class WorkerThread(Portal):
             raise
 
     def _run_until_shutdown(self):
-        self._started = True
         while True:
             call = self._queue.get()
             if call is None:
