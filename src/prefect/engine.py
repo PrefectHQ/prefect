@@ -35,7 +35,7 @@ from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -1851,19 +1851,26 @@ async def propose_state(
 
         link_state_to_result(state, result)
 
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = await set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
+            response = await set_state_func()
+        return response
+
     # Attempt to set the state
     if task_run_id:
-        response = await client.set_task_run_state(
-            task_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
-        response = await client.set_flow_run_state(
-            flow_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
@@ -1879,19 +1886,6 @@ async def propose_state(
 
     elif response.status == SetStateStatus.ABORT:
         raise prefect.exceptions.Abort(response.details.reason)
-
-    elif response.status == SetStateStatus.WAIT:
-        engine_logger.debug(
-            f"Received wait instruction for {response.details.delay_seconds}s: "
-            f"{response.details.reason}"
-        )
-        await anyio.sleep(response.details.delay_seconds)
-        return await propose_state(
-            client,
-            state,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
-        )
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():
