@@ -1,6 +1,18 @@
+import sys
 import threading
 import time
 from concurrent.futures import Future
+
+from packaging.version import Version
+
+import prefect
+
+# The version pauses were added in
+PAUSE_VERSION = "2.7.0"
+
+if Version(prefect.__version__) < Version(PAUSE_VERSION):
+    sys.exit(0)
+
 
 from prefect import flow, pause_flow_run, resume_flow_run, task
 from prefect.context import get_run_context
