@@ -15,6 +15,7 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
+import asyncio
 import logging
 import os
 import signal
@@ -1075,11 +1076,13 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
+    futures = set()
 
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
-            run_async_from_worker_thread(obj._wait_for_submission)
-            inputs.add(TaskRunResult(id=obj.task_run.id))
+            # We need to wait for futures to be submitted before we can get the task
+            # run id but we want to do so asynchronously
+            futures.add(obj)
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -1088,13 +1091,16 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             if state and state.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
-    await run_sync_in_worker_thread(
-        visit_collection,
+    visit_collection(
         expr,
         visit_fn=add_futures_and_states_to_inputs,
         return_data=False,
         max_depth=max_depth,
     )
+
+    await asyncio.gather(*[future._wait_for_submission() for future in futures])
+    for future in futures:
+        inputs.add(TaskRunResult(id=future.task_run.id))
 
     return inputs
 
