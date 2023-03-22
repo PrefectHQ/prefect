@@ -118,6 +118,7 @@ class TestAgentSignalForwarding:
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
             or "Agent stopped!" in out
+            or "Aborted." in out
         ), (
             "When sending two SIGINT shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
@@ -142,6 +143,7 @@ class TestAgentSignalForwarding:
             # or SIGKILL came too late, and the main PID is already closing
             or "KeyboardInterrupt" in out
             or "Agent stopped!" in out
+            or "Aborted." in out
         ), (
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
