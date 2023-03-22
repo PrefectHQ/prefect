@@ -3,12 +3,20 @@ import subprocess
 import sys
 
 import anyio
+from packaging.version import Version
 
 import prefect
 from prefect.deployments import Deployment
 
+# The version oldest verison this test runs with
+SUPPORTED_VERSION = "2.6.0"
 
-@prefect.flow(persist_result=True)
+
+if Version(prefect.__version__) < Version(SUPPORTED_VERSION):
+    sys.exit(0)
+
+
+@prefect.flow
 def hello(name: str = "world"):
     prefect.get_run_logger().info(f"Hello {name}!")
     return foo() + bar()
