@@ -6,7 +6,7 @@ tags:
     - observability
 ---
 
-# Events
+# Events <span class="badge cloud"></span>
 
 An event is a notification of a change. Together, events form a feed of activity recording what's happening across your stack. Events power several features in Prefect Cloud, including flow run logs, audit logs, and automations. Events can represent API calls, state transitions, or changes in your execution environment or infrastructure. Events enable observability into your data stack via the [event feed](/ui/events/), and the configuration of Prefect's reactivity via [automations](/ui/automations/).
 

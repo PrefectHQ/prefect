@@ -162,9 +162,9 @@ nav:
         - Roles (RBAC): ui/roles.md
         - Single Sign-on (SSO): ui/sso.md
         - Audit Log: ui/audit-log.md
+        - Events: ui/events.md
         - Troubleshooting: ui/troubleshooting.md
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
-        - Events: ui/events.md
     - Integrations:
         - Collections Catalog: collections/catalog.md
         - Using Collections: collections/usage.md

@@ -9,7 +9,7 @@ tags:
     - Events
 ---
 
-# Events
+# Events <span class="badge cloud"></span>
 
 Prefect Cloud provides an interactive dashboard to analyze and take action on events that occurred in your workspace on the [event feed page](/concepts/events-and-resources/).
 
