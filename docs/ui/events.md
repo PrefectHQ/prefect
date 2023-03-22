@@ -26,7 +26,7 @@ You can view more information about an event by clicking into it, where you can 
 ![Event detail](../img/ui/event-detail.png)
 
 
-## Automating based on events
+## Reacting to events
 
 From an event page, you can easily configure an automation to trigger on the observation of matching events or a lack of matching events by clicking the automate button in the overflow menu:
 
