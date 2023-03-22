@@ -353,6 +353,10 @@ to force column width */
     background-color: #0a082e;
 }
 
+.main-page-subheader {
+    margin-top: -2em !important;
+}
+
 .main-button--primary {
     background: linear-gradient(90deg,#0a082e,#5988e3);
     color: white;
