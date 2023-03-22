@@ -93,7 +93,7 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
         else:
             for full_match, name in placeholders:
                 if name in values and values[name] is not None:
-                    template = template.replace(full_match, values.get(name, ""))
+                    template = template.replace(full_match, str(values.get(name, "")))
             return template
     elif isinstance(template, dict):
         updated_template = {}
