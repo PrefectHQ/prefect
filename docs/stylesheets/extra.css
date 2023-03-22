@@ -384,7 +384,7 @@ to force column width */
     color: var(--md-accent-bg-color);
 }
 
-/* 60ex is the minimum width at which the full search 
+/* 60em is the minimum width at which the full search 
    box displays in the nav bar */
 @media screen and (min-width: 60em) {
     .md-search__form {
