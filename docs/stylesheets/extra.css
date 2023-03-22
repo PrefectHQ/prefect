@@ -354,7 +354,8 @@ to force column width */
 }
 
 .main-page-subheader {
-    margin-top: -2em !important;
+    margin-top: -1.5em !important;
+    margin-bottom: 1.5em !important;
 }
 
 .main-button--primary {
