@@ -351,12 +351,34 @@ to force column width */
     background-color: #0a082e;
 }
 
-div[class="md-header__topic"]:not([data-md-component="header-topic"]) {
-    display: none;
-}
 
+/* 60ex is the minimum width at which the full search 
+   box displays in the nav bar */
 @media screen and (min-width: 60em) {
     .md-search__form {
         background-color: #ffffff40;
+    }
+}
+
+/* At 76.1875em, the hamburger menu disappears 
+   and users see the full nav menu */
+@media screen and (min-width: 76.1875em) {
+    div[class="md-header__topic"]:not([data-md-component="header-topic"]) {
+        display: none;
+    }
+}
+
+/* At or below 59.9375em, git stats appear in mobile nav menu 
+   instead of in the main nav bar */
+@media screen and (max-width: 59.9375em) {
+    .md-nav__source {
+        background-color: #0a082e;
+    }
+}
+
+/* Mobile nav menu appears at 76.1875em */
+@media screen and (max-width: 76.1875em) {
+    .md-nav--primary .md-nav__title[for=__drawer] { 
+        background-color: #0a082e;
     }
 }
