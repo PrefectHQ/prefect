@@ -14,7 +14,7 @@ Events are the primary unit of observability in Prefect Cloud, and are designed 
 
 ## Event Specificiation
 
-Events adhere to a structured [specification](https://app.prefect.cloud/api/docs#tag/Events) for consistency.
+Events adhere to a structured [specification](https://app.prefect.cloud/api/docs#tag/Events).
 
 ![Prefect UI](../img/ui/event-spec.png)
   
