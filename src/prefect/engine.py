@@ -103,6 +103,8 @@ from prefect.utilities.asyncutils import (
     sync_compatible,
 )
 from prefect.utilities.callables import (
+    collapse_variadic_parameters,
+    explode_variadic_parameter,
     get_parameter_defaults,
     parameters_to_args_kwargs,
 )
@@ -161,21 +163,27 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
+    # On completion of root flows, wait for the global thread to ensure that
+    # any work there is complete
+    done_callbacks = (
+        [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
+    )
+
     if flow.isasync and (
         not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
     ):
         # return a coro for the user to await if the flow is async
         # unless it is an async subflow called in a sync flow
-        waiter = from_async.call_soon_in_global_thread(begin_run)
+        retval = from_async.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
+
     else:
-        waiter = from_sync.call_soon_in_global_thread(begin_run)
+        retval = from_sync.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
 
-    if not is_subflow_run:
-        # On completion of root flows, wait for the global thread to ensure that the
-        # any work there is complete
-        waiter.add_done_callback(create_call(wait_for_global_loop_exit))
-
-    return waiter.result()
+    return retval
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -641,8 +649,8 @@ async def orchestrate_flow_run(
 
                 flow_call = create_call(flow.fn, *args, **kwargs)
 
-                # This check for a parent call is only needed for test cases where
-                # this function is called directly instead of via our normal entrypoint
+                # This check for a parent call is needed for cases where the engine
+                # was entered directly; such as during testing _or_ deployment runs
                 parent_call = get_current_call()
 
                 if parent_call and (
@@ -652,7 +660,9 @@ async def orchestrate_flow_run(
                         and parent_flow_run_context.flow.isasync == flow.isasync
                     )
                 ):
-                    from_async.send_callback(flow_call, timeout=flow.timeout_seconds)
+                    from_async.call_soon_in_waiter_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
                 else:
                     from_async.call_soon_in_new_thread(
                         flow_call, timeout=flow.timeout_seconds
@@ -953,9 +963,9 @@ def enter_task_run_engine(
 
     if task.isasync and flow_run_context.flow.isasync:
         # return a coro for the user to await if an async task in an async flow
-        return from_async.call_soon_in_global_thread(begin_run).result()
+        return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
-        return from_sync.call_soon_in_global_thread(begin_run).result()
+        return from_sync.wait_for_call_in_loop_thread(begin_run)
 
 
 async def begin_task_map(
@@ -977,6 +987,9 @@ async def begin_task_map(
     # Nested parameters will be resolved in each mapped child where their relationships
     # will also be tracked.
     parameters = await resolve_inputs(parameters, max_depth=1)
+
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(task.fn, parameters)
 
     iterable_parameters = {}
     static_parameters = {}
@@ -1020,6 +1033,9 @@ async def begin_task_map(
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
             call_parameters[key] = annotation.rewrap(call_parameters[key])
+
+        # Collapse any previously exploded kwargs
+        call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
 
         task_runs.append(
             partial(
@@ -1510,9 +1526,10 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    result = await from_async.call_soon_in_new_thread(
+                    call = from_async.call_soon_in_new_thread(
                         create_call(task.fn, *args, **kwargs)
-                    ).result()
+                    )
+                    result = await call.aresult()
 
         except Exception as exc:
             name = message = None

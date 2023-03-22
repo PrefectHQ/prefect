@@ -45,7 +45,8 @@ async def test_waiter_repr(cls):
 def test_async_waiter_created_outside_of_loop():
     call = Call.new(identity, 1)
     call.run()
-    assert asyncio.run(AsyncWaiter(call).result()) == 1
+    asyncio.run(AsyncWaiter(call).wait())
+    assert call.result() == 1
 
 
 def test_async_waiter_early_submission():
@@ -56,7 +57,8 @@ def test_async_waiter_early_submission():
     callback = waiter.submit(Call.new(identity, 2))
     call.run()
 
-    assert asyncio.run(waiter.result()) == 1
+    asyncio.run(waiter.wait())
+    assert call.result() == 1
 
     # The call should be executed
     assert callback.result() == 2
@@ -71,7 +73,8 @@ def test_async_waiter_done_callback():
 
     waiter.add_done_callback(callback)
     call.run()
-    assert asyncio.run(waiter.result()) == 1
+    asyncio.run(waiter.wait())
+    assert call.result() == 1
 
     # The call should be executed
     assert callback.result() == 2
@@ -86,7 +89,8 @@ def test_async_waiter_done_callbacks():
         waiter.add_done_callback(callback)
 
     call.run()
-    assert asyncio.run(waiter.result()) == 1
+    asyncio.run(waiter.wait())
+    assert call.result() == 1
 
     # The call should be executed
     for i, callback in enumerate(callbacks):
@@ -109,7 +113,7 @@ def test_sync_waiter_timeout_in_worker_thread():
 
     t0 = time.time()
     with pytest.raises(TimeoutError):
-        waiter.result()
+        waiter.wait()
     t1 = time.time()
 
     # The call has a timeout error too
@@ -145,7 +149,7 @@ def test_sync_waiter_timeout_in_main_thread():
         portal.submit(call)
 
         t0 = time.time()
-        callback = waiter.result()
+        callback = waiter.wait().result()
         t1 = time.time()
 
     # The cancelled error is not raised by `waiter.result()` because the worker
@@ -174,7 +178,7 @@ async def test_async_waiter_timeout_in_worker_thread():
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
-            await waiter.result()
+            await waiter.wait()
         t1 = time.time()
 
     assert t1 - t0 < 1
@@ -210,7 +214,7 @@ async def test_async_waiter_timeout_in_main_thread():
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
-            await waiter.result()
+            await waiter.wait()
         t1 = time.time()
 
     assert t1 - t0 < 1
@@ -237,7 +241,7 @@ async def test_async_waiter_timeout_in_worker_thread_mixed_sleeps():
 
         t0 = time.time()
         with pytest.raises(TimeoutError):
-            await waiter.result()
+            await waiter.wait()
         t1 = time.time()
 
         assert t1 - t0 < 1
@@ -262,10 +266,10 @@ async def test_async_waiter_base_exception_in_worker_thread(exception_cls, raise
         waiter.add_done_callback(done_callback)
         portal.submit(call)
 
-        with pytest.raises(exception_cls, match="test"):
-            await waiter.result()
+        # Waiting does not throw an exception
+        await waiter.wait()
 
-    # The call has the error too
+    # The call has the error attached
     with pytest.raises(exception_cls, match="test"):
         call.result()
 
@@ -295,7 +299,8 @@ async def test_async_waiter_base_exception_in_main_thread(exception_cls, raise_f
         waiter.add_done_callback(done_callback)
         portal.submit(call)
 
-        callback = await waiter.result()
+        await waiter.wait()
+        callback = call.result()
 
     # The base exception error is not raised by `waiter.result()` because the worker
     # does not check the result of the future; however, the work that was sent
@@ -321,8 +326,8 @@ def test_sync_waiter_base_exception_in_worker_thread(exception_cls, raise_fn):
         waiter.add_done_callback(done_callback)
         portal.submit(call)
 
-        with pytest.raises(exception_cls, match="test"):
-            waiter.result()
+        # Waiting does not throw an exception
+        waiter.wait()
 
     # The call has the error too
     with pytest.raises(exception_cls, match="test"):
@@ -354,7 +359,7 @@ def test_sync_waiter_base_exception_in_main_thread(exception_cls, raise_fn):
         waiter.add_done_callback(done_callback)
         portal.submit(call)
 
-        callback = waiter.result()
+        callback = waiter.wait().result()
 
     # The base exception error is not raised by `waiter.result()` because the worker
     # does not check the result of the future; however, the work that was sent
