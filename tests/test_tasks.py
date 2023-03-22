@@ -13,7 +13,6 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
-from prefect.deprecated.data_documents import DataDocument
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
@@ -607,7 +606,7 @@ class TestTaskStates:
             return State(
                 type=StateType.FAILED,
                 message="Test returned state",
-                data=DataDocument.encode("json", True),
+                data=True,
             )
 
         @flow(version="test")

@@ -28,6 +28,10 @@ def to_qualified_name(obj: Any) -> str:
     Returns:
         str: the qualified name
     """
+    if sys.version_info < (3, 10):
+        # These attributes are only available in Python 3.10+
+        if isinstance(obj, (classmethod, staticmethod)):
+            obj = obj.__func__
     return obj.__module__ + "." + obj.__qualname__
 
 

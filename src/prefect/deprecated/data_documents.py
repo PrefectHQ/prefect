@@ -18,6 +18,10 @@ import cloudpickle
 import pydantic
 from typing_extensions import Protocol
 
+from prefect._internal.compatibility.deprecated import (
+    deprecated_callable,
+    generate_deprecation_message,
+)
 from prefect.server.utilities.schemas import PrefectBaseModel
 
 if TYPE_CHECKING:
@@ -87,6 +91,10 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     __slots__ = ["_data"]
 
     @classmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help="Data documents should not be created. Use result persistence instead.",
+    )
     def encode(
         cls: Type["DataDocument"], encoding: str, data: D, **kwargs: Any
     ) -> "DataDocument[D]":
@@ -146,6 +154,13 @@ class DocumentJSONSerializer:
     """
 
     @staticmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help=(
+            "Data document serializers should not be used. Use result serializers"
+            " instead."
+        ),
+    )
     def dumps(data: Any) -> bytes:
         return json.dumps(data).encode()
 
@@ -157,6 +172,13 @@ class DocumentJSONSerializer:
 @register_serializer("text")
 class TextSerializer:
     @staticmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help=(
+            "Data document serializers should not be used. Use result serializers"
+            " instead."
+        ),
+    )
     def dumps(data: str) -> bytes:
         return data.encode()
 
@@ -174,6 +196,13 @@ class DocumentPickleSerializer:
     """
 
     @staticmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help=(
+            "Data document serializers should not be used. Use result serializers"
+            " instead."
+        ),
+    )
     def dumps(data: Any) -> bytes:
         data_bytes = cloudpickle.dumps(data)
 
@@ -195,6 +224,13 @@ class PackageManifestSerializer:
     """
 
     @staticmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help=(
+            "Data document serializers should not be used. Use result serializers"
+            " instead."
+        ),
+    )
     def dumps(data: "PackageManifest") -> bytes:
         return data.json().encode()
 
@@ -212,6 +248,13 @@ class ResultSerializer:
     """
 
     @staticmethod
+    @deprecated_callable(
+        start_date="Sep 2022",
+        help=(
+            "Data document serializers should not be used. Use result serializers"
+            " instead."
+        ),
+    )
     def dumps(data: "_Result") -> bytes:
         return data.json().encode()
 
@@ -221,6 +264,15 @@ class ResultSerializer:
 
 
 def result_from_state_with_data_document(state, raise_on_failure: bool) -> Any:
+    # Complain about usage
+    warnings.warn(
+        generate_deprecation_message(
+            "Retrieving results from states with data documents", start_date="Sep 2022"
+        ),
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
     data = None
 
     if state.data:
