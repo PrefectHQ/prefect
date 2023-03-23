@@ -13,7 +13,7 @@ hide:
 
 # **Welcome to Prefect**
 
-Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes. Bring your Python code, sprinkle in a few decorators, and go!
+Prefect enables you to build and observe resilient data workflows so that you can understand, react to, and recover from unexpected changes. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. Just bring your Python code, sprinkle in a few decorators, and go!
 
 With Prefect you gain simple:
 
