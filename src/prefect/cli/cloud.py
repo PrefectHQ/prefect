@@ -313,6 +313,13 @@ async def login(
     if key and current_profile_api_key == key:
         exit_with_success("This profile is already authenticated with that key.")
 
+    if PREFECT_API_KEY.value() != current_profile_api_key:
+        exit_with_error(
+            f"Your PREFECT_API_KEY environment variable differs from the one in your"
+            f" currently active profile.\nUnset the environment variable. You can also"
+            f" check your active profile's PREFECT_API_KEY with `prefect config view"
+            f" --show-secrets`."
+        )
     already_logged_in_profiles = []
     for name, profile in profiles.items():
         profile_key = profile.settings.get(PREFECT_API_KEY)
