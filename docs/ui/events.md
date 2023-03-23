@@ -21,7 +21,7 @@ The event feed is the primary place to view, search, and filter events to unders
 
 ## Event details
 
-You can view more information about an event by clicking into it, where you can view the full details of an events resource, related resources, and payload.
+You can view more information about an event by clicking into it, where you can view the full details of an event's resource, related resources, and its payload.
 
 ![Event detail](../img/ui/event-detail.png)
 
