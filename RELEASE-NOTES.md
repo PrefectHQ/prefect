@@ -58,7 +58,6 @@ See the following pull requests for implementation details:
 ### Experimental
 - Update to worker base job template logic for nested placeholders — https://github.com/PrefectHQ/prefect/pull/8795
 - Require lowercase artifact `key` field — https://github.com/PrefectHQ/prefect/pull/8860
-- Enable events client experimental flag by default — https://github.com/PrefectHQ/prefect/pull/8870
 - Create `emit_event` helper that takes args for an `Event` and emits it via a worker — https://github.com/PrefectHQ/prefect/pull/8867
 - Allow multiple artifacts to have the same key — https://github.com/PrefectHQ/prefect/pull/8855
 - Add common values to job configuration prior to flow run submission — https://github.com/PrefectHQ/prefect/pull/8826
