@@ -27,7 +27,12 @@ The behavioral changes include:
     - This resolves issues where large numbers of upstream task inputs would cause deadlocks
     - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
 
-See https://github.com/PrefectHQ/prefect/pull/8702 for more details.
+See the following pull requests for implementation details:
+
+- https://github.com/PrefectHQ/prefect/pull/8702
+- https://github.com/PrefectHQ/prefect/pull/8887
+- https://github.com/PrefectHQ/prefect/pull/8903
+- https://github.com/PrefectHQ/prefect/pull/8830
 
 ### Results page
 
