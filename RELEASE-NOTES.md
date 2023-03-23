@@ -15,16 +15,16 @@ The behavioral changes include:
     - Solves problems where flow code must be in the main thread e.g. https://github.com/PrefectHQ/prefect/issues/5991
 - Asynchronous flows no longer share an event loop with the Prefect engine
 - Flow timeouts are now enforced with signals
-    - Signals allow interrupt of long-running system calls like `sleep`
+    - Allows interrupt of long-running system calls like `sleep` for more effective timeout enforcement
 - Asynchronous flows can be called from sync flows
 - Asynchronous tasks can be used as upstream dependencies for sync tasks in async flows
 - Waiting for many tasks that sleep no longer causes deadlocks
 - Flows with thousands of synchronous tasks are less likely to crash
 - Debug mode now enables verbose logging from Prefect concurrency internals
 - The API limits itself to 100 concurrent requests when using SQLite as a backend
-    - This avoid database file contention when using high levels of concurrency
+    - Avoids database file contention when using high levels of concurrency
 - Resolving task inputs no longer users worker threads
-    - This resolves issues where large numbers of upstream task inputs would cause deadlocks
+    - Resolves issues where large numbers of upstream task inputs would cause deadlocks
     - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
 
 See the following pull requests for implementation details:
