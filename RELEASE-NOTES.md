@@ -23,7 +23,7 @@ The behavioral changes include:
 - Debug mode now enables verbose logging from Prefect concurrency internals
 - The API limits itself to 100 concurrent requests when using SQLite as a backend
     - Avoids database file contention when using high levels of concurrency
-- Resolving task inputs no longer users worker threads
+- Resolving task inputs no longer uses worker threads
     - Resolves issues where large numbers of upstream task inputs would cause deadlocks
     - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
 
