@@ -365,19 +365,23 @@ class TestUpdateBlockType:
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
     async def test_update_block_type_only_if_different(
-        self, client, block_type_x, monkeypatch
+        self, client, block_type_x, monkeypatch, session
     ):
+        update = BlockTypeUpdate(
+            logo_url="http://foo.com/bar.png",
+            documentation_url="http://foo.com/bar.html",
+            description="A block, verily",
+            code_example=CODE_EXAMPLE,
+        )
+        await models.block_types.update_block_type(session, block_type_x.id, update)
+        await session.commit()
+
         mock = AsyncMock()
         monkeypatch.setattr("prefect.server.models.block_types.update_block_type", mock)
 
         response = await client.patch(
             f"/block_types/{block_type_x.id}",
-            json=BlockTypeUpdate(
-                logo_url=None,
-                documentation_url=None,
-                description=None,
-                code_example=None,
-            ).dict(json_compatible=True),
+            json=update.dict(json_compatible=True),
         )
 
         # doesn't update with same parameters
@@ -387,10 +391,10 @@ class TestUpdateBlockType:
         response = await client.patch(
             f"/block_types/{block_type_x.id}",
             json=BlockTypeUpdate(
-                logo_url="http://foo.com/bar.png",
-                documentation_url="http://foo.com/bar.html",
-                description="A block, verily",
-                code_example=CODE_EXAMPLE,
+                logo_url="http://foo2.com/bar.png",
+                documentation_url="http://foo2.com/bar.html",
+                description="A block2, verily",
+                code_example=CODE_EXAMPLE.replace("python", "bison"),
             ).dict(json_compatible=True),
         )
 
