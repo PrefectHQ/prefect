@@ -15,7 +15,7 @@ hide:
 
 Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes. Bring your Python code, sprinkle in a few decorators, and go!
 
-With Prefect you gain easy:
+With Prefect you gain simple:
 
 <ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
