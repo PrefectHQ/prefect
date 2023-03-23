@@ -54,7 +54,7 @@ pip install -U prefect
 ```
 </div>
 
-See the [install guide](/getting-started/installation/) for more detailed instructions, if needed.
+See the [install guide](/getting-started/installation/) for more detailed instructions.
 
 ### Run a basic flow
 
