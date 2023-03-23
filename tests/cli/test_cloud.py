@@ -733,14 +733,12 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
 def test_login_with_current_profile_and_prefect_api_key_env_var_exits_with_error(
     respx_mock,
 ):
-    foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
     bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
             json=[
-                foo_workspace.dict(json_compatible=True),
                 bar_workspace.dict(json_compatible=True),
             ],
         )
