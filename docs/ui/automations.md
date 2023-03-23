@@ -76,7 +76,8 @@ For example, if you would only like a trigger to execute an action if it receive
     "prefect.resource.id": "prefect.flow-run.*"
   },
   "match_related": {
-    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761"
+    "prefect.resource.id": "prefect.deployment.70cb25fe-e33d-4f96-b1bc-74aa4e50b761",
+    "prefect.resource.role": "deployment"
   },
   "for_each": [
     "prefect.resource.id"
