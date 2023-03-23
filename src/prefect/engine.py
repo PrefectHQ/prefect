@@ -1797,11 +1797,16 @@ async def resolve_inputs(
 
     # Only retrieve the result if requested as it may be expensive
     if return_data:
+        finished_states = [state for state in states if state.is_final()]
+
         state_results = await asyncio.gather(
-            *[state.result(raise_on_failure=False, fetch=True) for state in states]
+            *[
+                state.result(raise_on_failure=False, fetch=True)
+                for state in finished_states
+            ]
         )
 
-        for state, result in zip(states, state_results):
+        for state, result in zip(finished_states, state_results):
             result_by_state[state] = result
 
     def resolve_input(expr, context):
