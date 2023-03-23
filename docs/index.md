@@ -83,7 +83,7 @@ What is your favorite number?
 ```
 </div>
 
-The Prefect orchestration engine observes the flow run state and saves it in a database. By adding a single decorator, you've gained some observability of your flow. There's much more you can do with Prefect, so keep rolling to learn how to add easy retries, notifications, scheduling and more!
+Prefect automatically persists all executions of your flow along with useful metadata such as start time, end time, and state. This is just the beginning, so keep exploring to learn how to add retries, notifications, scheduling and much more!
 
 ## Next Steps
 If you like what you see, try our [tutorials](/tutorials) and [guides](/guides), or read more about [Prefect concepts](/concepts).
