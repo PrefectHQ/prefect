@@ -53,7 +53,7 @@ See the following pull requests for implementation details:
 
 ### Flow run graph
 
-We heard that people loved the simplicity and sleekness of the timeline on the flow run page, but valued Radar's abaility to traverse between flow runs and subflows runs. This release introduces the ability to expand and collapse subflow runs within the timeline. The flow run timeline has now evolved into a general purpose flow run graph with the ability to render thousands of nodes and edged performantly and navigate your flow runs with ease.
+We heard that people loved the simplicity and sleekness of the timeline on the flow run page, but valued Radar's ability to traverse between flow runs and subflows runs. This release introduces the ability to expand and collapse subflow runs within the timeline. With these enhancements, the flow run timeline has now evolved into a general purpose flow run graph, with the ability to render thousands of nodes and edges performantly. You can now observe and explore your flow runs even more quickly and easily!
 
 ![flow_run_graph](https://user-images.githubusercontent.com/3407835/227292160-7b29967c-3ffa-431c-b270-0dfd135b55b4.png)
 
