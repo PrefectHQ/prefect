@@ -15,6 +15,7 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
+import asyncio
 import logging
 import os
 import signal
@@ -98,7 +99,6 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
-    run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -197,7 +197,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+    return from_sync.wait_for_call_in_loop_thread(
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    ).result()
 
 
 @inject_client
@@ -810,8 +812,13 @@ async def pause_flow_run(
         )
 
 
+@inject_client
 async def _in_process_pause(
-    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule=False,
+    key: str = None,
+    client=None,
 ):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -829,7 +836,7 @@ async def _in_process_pause(
 
     try:
         state = await propose_state(
-            client=context.client,
+            client=client,
             state=Paused(
                 timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
             ),
@@ -858,20 +865,20 @@ async def _in_process_pause(
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await context.client.read_flow_run(context.flow_run.id)
+        flow_run = await client.read_flow_run(context.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             return
 
         while True:
             await anyio.sleep(poll_interval)
-            flow_run = await context.client.read_flow_run(context.flow_run.id)
+            flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 return
 
     # check one last time before failing the flow
-    flow_run = await context.client.read_flow_run(context.flow_run.id)
+    flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         return
@@ -879,11 +886,13 @@ async def _in_process_pause(
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
+@inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
     timeout: int = 300,
     reschedule: bool = True,
     key: str = None,
+    client=None,
 ):
     if reschedule:
         raise RuntimeError(
@@ -891,7 +900,6 @@ async def _out_of_process_pause(
             " True."
         )
 
-    client = get_client()
     response = await client.set_flow_run_state(
         flow_run_id,
         Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
@@ -1067,11 +1075,13 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
+    futures = set()
 
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
-            run_async_from_worker_thread(obj._wait_for_submission)
-            inputs.add(TaskRunResult(id=obj.task_run.id))
+            # We need to wait for futures to be submitted before we can get the task
+            # run id but we want to do so asynchronously
+            futures.add(obj)
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -1080,13 +1090,16 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             if state and state.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
-    await run_sync_in_worker_thread(
-        visit_collection,
+    visit_collection(
         expr,
         visit_fn=add_futures_and_states_to_inputs,
         return_data=False,
         max_depth=max_depth,
     )
+
+    await asyncio.gather(*[future._wait_for_submission() for future in futures])
+    for future in futures:
+        inputs.add(TaskRunResult(id=future.task_run.id))
 
     return inputs
 
@@ -1755,6 +1768,47 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
+    futures = set()
+    states = set()
+    result_by_state = {}
+
+    def collect_futures_and_states(expr, context):
+        # Expressions inside quotes should not be traversed
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
+        if isinstance(expr, PrefectFuture):
+            futures.add(expr)
+        if isinstance(expr, State):
+            states.add(expr)
+
+        return expr
+
+    visit_collection(
+        parameters,
+        visit_fn=collect_futures_and_states,
+        return_data=False,
+        max_depth=max_depth,
+        context={},
+    )
+
+    # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
+    states.update(await asyncio.gather(*[future._wait() for future in futures]))
+
+    # Only retrieve the result if requested as it may be expensive
+    if return_data:
+        finished_states = [state for state in states if state.is_final()]
+
+        state_results = await asyncio.gather(
+            *[
+                state.result(raise_on_failure=False, fetch=True)
+                for state in finished_states
+            ]
+        )
+
+        for state, result in zip(finished_states, state_results):
+            result_by_state[state] = result
+
     def resolve_input(expr, context):
         state = None
 
@@ -1763,7 +1817,7 @@ async def resolve_inputs(
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            state = run_async_from_worker_thread(expr._wait)
+            state = expr._final_state
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1785,11 +1839,9 @@ async def resolve_inputs(
                 " 'COMPLETED' state."
             )
 
-        # Only retrieve the result if requested as it may be expensive
-        return state.result(raise_on_failure=False, fetch=True) if return_data else None
+        return result_by_state.get(state)
 
-    return await run_sync_in_worker_thread(
-        visit_collection,
+    return visit_collection(
         parameters,
         visit_fn=resolve_input,
         return_data=return_data,
