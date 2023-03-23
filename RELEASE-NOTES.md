@@ -52,7 +52,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/8759
 
 ### Enhancements
-- Add `--reverse` option to the flow run logs CLI to view logs in descending order  — https://github.com/PrefectHQ/prefect/pull/8625
+- Add `--reverse` option to the flow run logs CLI to view logs in descending order — https://github.com/PrefectHQ/prefect/pull/8625
 - Show all flow runs for deployments rather than just the last 7 days — https://github.com/PrefectHQ/prefect/pull/8837
 - Add jitter to Prefect client request retries — https://github.com/PrefectHQ/prefect/pull/8839
 - Add `deployment.name` and `deployment.version` to `prefect.runtime` — https://github.com/PrefectHQ/prefect/pull/8864
