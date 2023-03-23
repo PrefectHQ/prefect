@@ -161,6 +161,10 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     RETRY_MAX = 5
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._inflight_requests = 0
+
     async def _send_with_retry(
         self,
         request: Callable,
@@ -239,6 +243,12 @@ class PrefectHttpxClient(httpx.AsyncClient):
 
     async def send(self, *args, **kwargs) -> Response:
         api_request = partial(super().send, *args, **kwargs)
+        self._inflight_requests += 1
+
+        # Add jitter based on the number of inflight requests
+        jitter = bounded_poisson_interval(0.0, float(self._inflight_requests) / 100.0)
+        await anyio.sleep(jitter)
+        print(self._inflight_requests, jitter)
 
         response = await self._send_with_retry(
             request=api_request,
@@ -259,6 +269,8 @@ class PrefectHttpxClient(httpx.AsyncClient):
                 httpx.LocalProtocolError,
             ),
         )
+
+        self._inflight_requests -= 1
 
         # Convert to a Prefect response to add nicer errors messages
         response = PrefectResponse.from_httpx_response(response)
