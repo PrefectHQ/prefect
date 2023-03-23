@@ -109,6 +109,7 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
 )
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
+from prefect.utilities.math import bounded_poisson_interval
 from prefect.utilities.pydantic import PartialModel
 
 R = TypeVar("R")
@@ -117,6 +118,7 @@ EngineReturnType = Literal["future", "state", "result"]
 
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
+_inflight_task_submissions = 0
 
 
 def enter_flow_run_engine_from_flow_call(
@@ -1193,6 +1195,14 @@ async def create_task_run_then_submit(
     task_runner: BaseTaskRunner,
     extra_task_inputs: Dict[str, Set[TaskRunInput]],
 ) -> None:
+    global _inflight_task_submissions
+
+    _inflight_task_submissions += 1
+
+    # Add jitter based on the number of inflight task submissions; up to 10s per 2000
+    jitter = bounded_poisson_interval(0.0, float(_inflight_task_submissions) / 200.0)
+    await anyio.sleep(jitter)
+
     task_run = await create_task_run(
         task=task,
         name=task_run_name,
@@ -1215,6 +1225,8 @@ async def create_task_run_then_submit(
         wait_for=wait_for,
         task_runner=task_runner,
     )
+
+    _inflight_task_submissions -= 1
 
     future._submitted.set()
 
