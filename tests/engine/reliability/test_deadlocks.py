@@ -10,7 +10,7 @@ from tests.generic_tasks import (
 )
 
 
-@pytest.mark.skip(reason="Causes a deadlock.")
+@pytest.mark.skip(reason="This test takes multiple minutes")
 def test_map_wait_for_many_tasks():
     @flow
     def run(n):
@@ -22,7 +22,7 @@ def test_map_wait_for_many_tasks():
     run(500)
 
 
-@pytest.mark.skip(reason="Causes a deadlock.")
+@pytest.mark.skip(reason="This test takes multiple minutes")
 def test_loop_wait_for_many_tasks():
     @flow
     def run(n):
