@@ -42,6 +42,14 @@ def validate_block_document_name(value):
     return value
 
 
+def validate_artifact_key(value):
+    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+        raise ValueError(
+            "Artifact key must only contain lowercase letters, numbers, and dashes"
+        )
+    return value
+
+
 class ActionBaseModel(PrefectBaseModel):
     class Config:
         extra = "forbid"
@@ -560,6 +568,10 @@ class ArtifactCreate(ActionBaseModel):
     metadata_: Optional[Dict[str, str]] = FieldFrom(schemas.core.Artifact)
     flow_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
     task_run_id: Optional[UUID] = FieldFrom(schemas.core.Artifact)
+
+    _validate_artifact_format = validator("key", allow_reuse=True)(
+        validate_artifact_key
+    )
 
 
 @copy_model_fields
