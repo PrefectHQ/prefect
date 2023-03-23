@@ -15,6 +15,10 @@
         <FlowRunLogs v-if="flowRun" :flow-run="flowRun" />
       </template>
 
+      <template #results>
+        <FlowRunResults v-if="flowRun" :flow-run="flowRun" />
+      </template>
+
       <template #task-runs>
         <FlowRunTaskRuns v-if="flowRun" :flow-run-id="flowRun.id" />
       </template>
@@ -46,6 +50,7 @@
     FlowRunLogs,
     FlowRunTaskRuns,
     FlowRunTimeline,
+    FlowRunResults,
     FlowRunSubFlows,
     useFavicon,
     useWorkspaceApi,
@@ -67,6 +72,7 @@
     const values = [
       'Logs',
       'Task Runs',
+      'Results',
       'Subflow Runs',
       'Parameters',
     ]
