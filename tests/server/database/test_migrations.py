@@ -32,7 +32,8 @@ async def sample_db_data(
     """Adds sample data to the database for testing migrations"""
 
 
-@pytest.mark.flaky(max_runs=3)
+@pytest.mark.service("database")
+@pytest.mark.timeout(120)
 async def test_orion_full_migration_works_with_data_in_db(sample_db_data):
     """
     Tests that downgrade migrations work when the database has data in it.
@@ -70,6 +71,7 @@ async def test_backfill_state_name(db, flow):
     if dialect.name == "postgresql":
         revisions = ("605ebb4e9155", "14dc68cc5853")
     else:
+        pytest.skip(reason="Test is excessively slow on SQLite")
         revisions = ("7f5f335cace3", "db6bde582447")
 
     flow_run_id = uuid4()

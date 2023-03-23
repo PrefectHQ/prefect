@@ -2,6 +2,8 @@
 Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
+
+For more user-accessible information about the current run, see [`prefect.runtime`](../runtime/flow_run).
 """
 import os
 import sys
@@ -32,6 +34,7 @@ import prefect.logging.configuration
 import prefect.settings
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import FlowRun, TaskRun
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
 from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
@@ -244,6 +247,9 @@ class FlowRunContext(RunContext):
 
     # Task group that can be used for background tasks during the flow run
     background_tasks: anyio.abc.TaskGroup
+
+    # Events worker to emit events to Prefect Cloud
+    events: Optional[EventsWorker] = None
 
     __var__ = ContextVar("flow_run")
 

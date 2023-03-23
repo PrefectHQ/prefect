@@ -30,6 +30,10 @@ class Foo:
     pass
 
 
+# Note we use the hosted API to avoid Postgres engine caching errors
+pytest.mark.usefixtures("hosted_orion")
+
+
 @pytest.fixture
 def reset_sys_modules():
     original_modules = sys.modules.copy()

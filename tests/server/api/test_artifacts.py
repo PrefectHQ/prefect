@@ -15,6 +15,7 @@ async def artifact(flow_run, task_run, client):
     artifact_schema = actions.ArtifactCreate(
         key="voltaic",
         data=1,
+        description="# This is a markdown description title",
         metadata_={"data": "opens many doors"},
         flow_run_id=flow_run.id,
         task_run_id=task_run.id,
@@ -30,22 +31,34 @@ async def artifact(flow_run, task_run, client):
 @pytest.fixture
 async def artifacts(flow_run, task_run, client):
     artifact1_schema = actions.ArtifactCreate(
-        key="artifact-1", data=1, flow_run_id=flow_run.id, task_run_id=task_run.id
+        key="artifact-1",
+        data=1,
+        description="# This is a markdown description title",
+        flow_run_id=flow_run.id,
+        task_run_id=task_run.id,
     ).dict(json_compatible=True)
     artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
 
     artifact2_schema = actions.ArtifactCreate(
-        key="artifact-2", data=2, flow_run_id=flow_run.id, task_run_id=uuid4()
+        key="artifact-2",
+        description="# This is a markdown description title",
+        data=2,
+        flow_run_id=flow_run.id,
+        task_run_id=uuid4(),
     ).dict(json_compatible=True)
     artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
 
     artifact3_schema = actions.ArtifactCreate(
-        key="artifact-3", flow_run_id=uuid4(), task_run_id=uuid4()
+        key="artifact-3",
+        description="# This is a markdown description title",
+        flow_run_id=uuid4(),
+        task_run_id=uuid4(),
     ).dict(json_compatible=True)
     artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
 
     artifact4_schema = actions.ArtifactCreate(
         key="artifact-4",
+        description="# This is a markdown description title",
     ).dict(json_compatible=True)
     artifact4 = await client.post("/experimental/artifacts/", json=artifact4_schema)
 
@@ -82,6 +95,7 @@ class TestCreateArtifact:
         artifact = actions.ArtifactCreate(
             key="voltaic",
             data=1,
+            description="# This is a markdown description title",
             metadata_={"data": "opens many doors"},
             flow_run_id=flow_run.id,
             task_run_id=task_run.id,
@@ -95,11 +109,12 @@ class TestCreateArtifact:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["key"] == artifact["key"]
         assert response.json()["data"] == artifact["data"]
+        assert response.json()["description"] == artifact["description"]
         assert response.json()["metadata_"] == artifact["metadata_"]
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["task_run_id"] == str(task_run.id)
 
-    async def test_create_artifact_raises_error_on_existing_key(
+    async def test_create_artifact_with_existing_key_in_same_workspace_succeeds(
         self,
         artifact,
         client,
@@ -114,7 +129,19 @@ class TestCreateArtifact:
             json=data,
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 201
+
+    async def test_create_camel_case_artifact_key_raises(
+        self,
+    ):
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="key must only contain lowercase letters, numbers, and dashes",
+        ):
+            schemas.actions.ArtifactCreate(
+                key="camelCase_Key",
+                data=1,
+            ).dict(json_compatible=True)
 
 
 class TestReadArtifact:
@@ -125,6 +152,7 @@ class TestReadArtifact:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["key"] == artifact["key"]
         assert response.json()["data"] == artifact["data"]
+        assert response.json()["description"] == artifact["description"]
         assert response.json()["metadata_"] == artifact["metadata_"]
         assert response.json()["flow_run_id"] == artifact["flow_run_id"]
 
@@ -141,6 +169,9 @@ class TestReadArtifacts:
 
         assert {r["key"] for r in response.json()} == {a["key"] for a in artifacts}
         assert {r["data"] for r in response.json()} == {a["data"] for a in artifacts}
+        assert {r["description"] for r in response.json()} == {
+            a["description"] for a in artifacts
+        }
         assert {r["flow_run_id"] for r in response.json()} == {
             a["flow_run_id"] for a in artifacts
         }

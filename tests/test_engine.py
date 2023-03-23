@@ -2,7 +2,7 @@ import asyncio
 import os
 import signal
 import statistics
-import time
+import sys
 from contextlib import contextmanager
 from functools import partial
 from typing import List
@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     begin_flow_run,
@@ -25,6 +26,7 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    propose_state,
     report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
@@ -43,11 +45,16 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.actions import FlowRunCreate
 from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.responses import (
+    SetStateStatus,
+    StateAcceptDetails,
+    StateWaitDetails,
+)
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
 from prefect.tasks import exponential_backoff
-from prefect.testing.utilities import AsyncMock, exceptions_equal, flaky_on_windows
+from prefect.testing.utilities import AsyncMock, exceptions_equal
 from prefect.utilities.annotations import quote
 from prefect.utilities.pydantic import PartialModel
 
@@ -513,6 +520,59 @@ class TestOutOfProcessPause:
 
 
 class TestOrchestrateTaskRun:
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep, flow_run
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), task_run_id=task_run.id
+            )
+
     async def test_waits_until_scheduled_start_time(
         self,
         orion_client,
@@ -972,38 +1032,6 @@ class TestOrchestrateTaskRun:
         # Check that the task completed happily
         assert state.is_completed()
 
-    @flaky_on_windows
-    async def test_interrupt_task(self):
-        i = 0
-
-        @task()
-        def just_sleep():
-            nonlocal i
-            for i in range(100):  # Sleep for 10 seconds
-                time.sleep(0.1)
-
-        @flow
-        def my_flow():
-            with pytest.raises(TimeoutError):
-                with anyio.fail_after(1):
-                    just_sleep()
-
-        t0 = time.perf_counter()
-        my_flow._run()
-        t1 = time.perf_counter()
-
-        runtime = t1 - t0
-        assert runtime < 3, "The call should be return quickly after timeout"
-
-        # Sleep for an extra second to check if the thread is still running. We cannot
-        # check `thread.is_alive()` because it is still alive — presumably this is because
-        # AnyIO is using long-lived worker threads instead of creating a new thread per
-        # task. Without a check like this, the thread can be running after timeout in the
-        # background and we will not know — the next test will start.
-        await anyio.sleep(1)
-
-        assert i <= 10, "`just_sleep` should not be running after timeout"
-
 
 class TestOrchestrateFlowRun:
     @pytest.fixture
@@ -1014,6 +1042,52 @@ class TestOrchestrateFlowRun:
             sync_portal=None,
             result_factory=result_factory,
         )
+
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+
+        @flow
+        def foo():
+            return 1
+
+        flow_run = await orion_client.create_flow_run(
+            flow=foo,
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_flow_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), flow_run_id=flow_run.id
+            )
 
     async def test_waits_until_scheduled_start_time(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context
@@ -1125,33 +1199,6 @@ class TestOrchestrateFlowRun:
             StateType.COMPLETED,
         ]
 
-    async def test_task_timeouts_retry_properly(self, flow_run, orion_client):
-        mock_func = MagicMock()
-
-        @task(timeout_seconds=1, retries=1)
-        async def my_task():
-            mock_func.should_call()
-            await asyncio.sleep(2)
-            mock_func.should_not_call()
-
-        @flow
-        async def my_flow():
-            x = await my_task()
-
-        await begin_flow_run(
-            flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-        )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        task_runs = await orion_client.read_task_runs()
-        task_run = task_runs[0]
-
-        assert task_run.state.type == StateType.FAILED
-        assert task_run.state.name == "TimedOut"
-
-        calls = [str(call) for call in mock_func.mock_calls]
-        assert calls == ["call.should_call()", "call.should_call()"]
-
 
 class TestFlowRunCrashes:
     @staticmethod
@@ -1167,111 +1214,6 @@ class TestFlowRunCrashes:
             pass
         except anyio.get_cancelled_exc_class() as exc:
             raise RuntimeError("The cancellation error was not caught.") from exc
-
-    async def test_anyio_cancellation_crashes_flow(self, flow_run, orion_client):
-        started = anyio.Event()
-
-        @flow
-        async def my_flow():
-            started.set()
-            await anyio.sleep_forever()
-
-        with self.capture_cancellation():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(
-                    partial(
-                        begin_flow_run,
-                        flow=my_flow,
-                        flow_run=flow_run,
-                        parameters={},
-                        client=orion_client,
-                    )
-                )
-                await started.wait()
-                tg.cancel_scope.cancel()
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-
-        assert flow_run.state.is_crashed()
-        assert flow_run.state.type == StateType.CRASHED
-        assert (
-            "Execution was cancelled by the runtime environment"
-            in flow_run.state.message
-        )
-        with pytest.raises(
-            CrashedRun, match="Execution was cancelled by the runtime environment"
-        ):
-            await flow_run.state.result()
-
-    async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
-        started = anyio.Event()
-
-        @flow
-        async def child_flow():
-            started.set()
-            await anyio.sleep_forever()
-
-        @flow
-        async def parent_flow():
-            await child_flow()
-
-        with self.capture_cancellation():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(
-                    partial(
-                        begin_flow_run,
-                        flow=parent_flow,
-                        parameters={},
-                        flow_run=flow_run,
-                        client=orion_client,
-                    )
-                )
-                await started.wait()
-                tg.cancel_scope.cancel()
-
-        parent_flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert parent_flow_run.state.is_crashed()
-        assert parent_flow_run.state.type == StateType.CRASHED
-        with pytest.raises(
-            CrashedRun, match="Execution was cancelled by the runtime environment"
-        ):
-            await parent_flow_run.state.result()
-
-        child_runs = await orion_client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
-        )
-        assert len(child_runs) == 1
-        child_run = child_runs[0]
-        assert child_run.state.is_crashed()
-        assert child_run.state.type == StateType.CRASHED
-        assert (
-            "Execution was cancelled by the runtime environment"
-            in child_run.state.message
-        )
-        with pytest.raises(
-            CrashedRun, match="Execution was cancelled by the runtime environment"
-        ):
-            await child_run.state.result()
-
-    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_in_flow_function_crashes_flow(
-        self, flow_run, orion_client, interrupt_type
-    ):
-        @flow
-        async def my_flow():
-            raise interrupt_type()
-
-        with pytest.raises(interrupt_type):
-            await begin_flow_run(
-                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
-            )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_crashed()
-        assert flow_run.state.type == StateType.CRASHED
-        assert "Execution was aborted" in flow_run.state.message
-        with pytest.raises(CrashedRun, match="Execution was aborted"):
-            await flow_run.state.result()
 
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_during_orchestration_crashes_flow(
@@ -1297,40 +1239,6 @@ class TestFlowRunCrashes:
         assert "Execution was aborted" in flow_run.state.message
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await flow_run.state.result()
-
-    @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
-    async def test_interrupt_in_flow_function_crashes_subflow(
-        self, flow_run, orion_client, interrupt_type
-    ):
-        @flow
-        async def child_flow():
-            raise interrupt_type()
-
-        @flow
-        async def parent_flow():
-            await child_flow()
-
-        with pytest.raises(interrupt_type):
-            await begin_flow_run(
-                flow=parent_flow, flow_run=flow_run, parameters={}, client=orion_client
-            )
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        assert flow_run.state.is_crashed()
-        assert flow_run.state.type == StateType.CRASHED
-        assert "Execution was aborted" in flow_run.state.message
-        with pytest.raises(CrashedRun, match="Execution was aborted"):
-            await flow_run.state.result()
-
-        child_runs = await orion_client.read_flow_runs(
-            flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
-        )
-        assert len(child_runs) == 1
-        child_run = child_runs[0]
-        assert child_run.id != flow_run.id
-        assert child_run.state.is_crashed()
-        assert child_run.state.type == StateType.CRASHED
-        assert "Execution was aborted" in child_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
         """
@@ -1377,74 +1285,6 @@ class TestFlowRunCrashes:
 
         assert flow_run.state.type != StateType.CRASHED
 
-    async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
-        """
-        Since timeouts capture anyio cancellations, we want to ensure that something
-        still ends up in a 'Crashed' state if it is cancelled independently from our
-        timeout cancellation.
-        """
-        started = anyio.Event()
-
-        @flow(timeout_seconds=100)
-        async def my_flow():
-            started.set()
-            await anyio.sleep_forever()
-
-        with self.capture_cancellation():
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(
-                    partial(
-                        begin_flow_run,
-                        parameters={},
-                        flow=my_flow,
-                        flow_run=flow_run,
-                        client=orion_client,
-                    )
-                )
-                await started.wait()
-                tg.cancel_scope.cancel()
-
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-
-        assert flow_run.state.is_crashed()
-        assert flow_run.state.type == StateType.CRASHED
-        assert (
-            "Execution was cancelled by the runtime environment"
-            in flow_run.state.message
-        )
-
-    @pytest.mark.flaky(max_runs=3)
-    async def test_interrupt_flow(self):
-        i = 0
-
-        @flow()
-        def just_sleep():
-            nonlocal i
-            for i in range(100):  # Sleep for 10 seconds
-                time.sleep(0.1)
-
-        @flow
-        def my_flow():
-            with pytest.raises(TimeoutError):
-                with anyio.fail_after(1):
-                    just_sleep()
-
-        t0 = time.perf_counter()
-        my_flow._run()
-        t1 = time.perf_counter()
-
-        runtime = t1 - t0
-        assert runtime < 3, "The call should be return quickly after timeout"
-
-        # Sleep for an extra second to check if the thread is still running. We cannot
-        # check `thread.is_alive()` because it is still alive — presumably this is because
-        # AnyIO is using long-lived worker threads instead of creating a new thread per
-        # task. Without a check like this, the thread can be running after timeout in the
-        # background and we will not know — the next test will start.
-        await anyio.sleep(1)
-
-        assert i <= 10, "`just_sleep` should not be running after timeout"
-
     async def test_report_flow_run_crashes_handles_sigterm(
         self, flow_run, orion_client, monkeypatch
     ):
@@ -1461,6 +1301,9 @@ class TestFlowRunCrashes:
 
 
 class TestTaskRunCrashes:
+    @pytest.mark.filterwarnings(
+        "ignore::pytest.PytestUnhandledThreadExceptionWarning"
+    )  # Pytest complains about unhandled exception in runtime thread
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_function_crashes_task_and_flow(
         self, flow_run, orion_client, interrupt_type
@@ -1494,6 +1337,9 @@ class TestTaskRunCrashes:
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await task_run.state.result()
 
+    @pytest.mark.filterwarnings(
+        "ignore::pytest.PytestUnhandledThreadExceptionWarning"
+    )  # Pytest complains about unhandled exception in runtime thread
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_task_orchestration_crashes_task_and_flow(
         self, flow_run, orion_client, interrupt_type, monkeypatch

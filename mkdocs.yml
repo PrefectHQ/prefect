@@ -115,6 +115,7 @@ nav:
                 - tutorials/storage.md
                 - tutorials/docker.md
                 - Prefect Cloud Quickstart: ui/cloud-quickstart.md
+                - Cloud Agent Quickstart: tutorials/cloud-agent.md
             - Advanced Tutorials:
                 - tutorials/testing.md
                 - tutorials/dask-ray-task-runners.md
@@ -139,6 +140,7 @@ nav:
         - Logging: concepts/logs.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
+        - Events & Resources: concepts/events-and-resources.md
     - Prefect UI & Prefect Cloud:
         - Prefect UI Overview: ui/overview.md
         - Prefect Cloud Overview: ui/cloud.md
@@ -160,6 +162,7 @@ nav:
         - Roles (RBAC): ui/roles.md
         - Single Sign-on (SSO): ui/sso.md
         - Audit Log: ui/audit-log.md
+        - Events: ui/events.md
         - Troubleshooting: ui/troubleshooting.md
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Integrations:
@@ -181,7 +184,9 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.infrastructure': api-ref/prefect/infrastructure.md
             - 'prefect.logging': api-ref/prefect/logging.md
-            - 'prefect.packaging': api-ref/prefect/packaging.md
+            - 'prefect.runtime': 
+                - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
+                - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md
@@ -192,6 +197,7 @@ nav:
                 - 'prefect.blocks.kubernetes': api-ref/prefect/blocks/kubernetes.md
                 - 'prefect.blocks.notifications': api-ref/prefect/blocks/notifications.md
                 - 'prefect.blocks.system': api-ref/prefect/blocks/system.md
+                - 'prefect.blocks.webhook': api-ref/prefect/blocks/webhook.md
             - 'Client':
                 - 'prefect.client.base': api-ref/prefect/client/base.md
                 - 'prefect.client.cloud': api-ref/prefect/client/cloud.md
@@ -273,7 +279,7 @@ extra:
     version:
         provider: mike
     analytics:
-        provider: custom
+        provider: google
         property: G-3M31G9B0QJ
     social:
         - icon: fontawesome/brands/slack

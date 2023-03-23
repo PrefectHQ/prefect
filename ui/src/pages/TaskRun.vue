@@ -13,8 +13,14 @@
         <TaskRunLogs :task-run="taskRun" />
       </template>
 
+      <template v-if="taskRun" #task-inputs-heading>
+        Task inputs
+        <ExtraInfoModal title="Task Inputs">
+          {{ localization.info.taskInput }}
+        </ExtraInfoModal>
+      </template>
       <template #task-inputs>
-        <CopyableWrapper v-if="deployment" :text-to-copy="parameters">
+        <CopyableWrapper v-if="taskRun" :text-to-copy="parameters">
           <p-code-highlight lang="json" :text="parameters" class="task-run__inputs" />
         </CopyableWrapper>
       </template>
@@ -27,7 +33,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi } from '@prefecthq/prefect-ui-library'
+  import { PageHeadingTaskRun, TaskRunLogs, TaskRunDetails, CopyableWrapper, useFavicon, useWorkspaceApi, localization, ExtraInfoModal } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscriptionWithDependencies } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'

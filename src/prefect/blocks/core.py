@@ -28,6 +28,12 @@ import prefect
 import prefect.exceptions
 from prefect.blocks.fields import SecretDict
 from prefect.client.utilities import inject_client
+from prefect.events.instrument import (
+    ResourceTuple,
+    emit_instance_method_called_event,
+    instrument_instance_method_call,
+    instrument_method_calls_on_class_instances,
+)
 from prefect.logging.loggers import disable_logger
 from prefect.server.schemas.core import (
     DEFAULT_BLOCK_SCHEMA_VERSION,
@@ -134,25 +140,22 @@ def _collect_secret_fields(name: str, type_: Type, secrets: List[str]) -> None:
 
 
 @register_base_type
+@instrument_method_calls_on_class_instances
 class Block(BaseModel, ABC):
     """
-        A base class for implementing a block that wraps an external service.
+    A base class for implementing a block that wraps an external service.
 
-        This class can be defined with an arbitrary set of fields and methods, and
-        couples business logic with data contained in an block document.
-        `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
-    <<<<<<< HEAD
-        `_block_type_id` are reserved by the Prefect API as Block metadata fields, but
-    =======
-        `_block_type_id` are reserved by Prefect as Block metadata fields, but
-    >>>>>>> ddff0f7939 (update docstrings and messages)
-        otherwise a Block can implement arbitrary logic. Blocks can be instantiated
-        without populating these metadata fields, but can only be used interactively,
-        not with the Prefect API.
+    This class can be defined with an arbitrary set of fields and methods, and
+    couples business logic with data contained in an block document.
+    `_block_document_name`, `_block_document_id`, `_block_schema_id`, and
+    `_block_type_id` are reserved by Prefect as Block metadata fields, but
+    otherwise a Block can implement arbitrary logic. Blocks can be instantiated
+    without populating these metadata fields, but can only be used interactively,
+    not with the Prefect API.
 
-        Instead of the __init__ method, a block implementation allows the
-        definition of a `block_initialization` method that is called after
-        initialization.
+    Instead of the __init__ method, a block implementation allows the
+    definition of a `block_initialization` method that is called after
+    initialization.
     """
 
     class Config:
@@ -248,6 +251,10 @@ class Block(BaseModel, ABC):
     _block_document_id: Optional[UUID] = None
     _block_document_name: Optional[str] = None
     _is_anonymous: Optional[bool] = None
+
+    # Exclude `save` as it uses the `sync_compatible` decorator and needs to be
+    # decorated directly.
+    _events_excluded_methods = ["block_initialization", "save", "dict"]
 
     @classmethod
     def __dispatch_key__(cls):
@@ -575,6 +582,8 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
+        block_cls = instrument_method_calls_on_class_instances(block_cls)
+
         block = block_cls.parse_obj(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
@@ -585,7 +594,39 @@ class Block(BaseModel, ABC):
             block_document.block_document_references
         )
 
+        # Due to the way blocks are loaded we can't directly instrument the
+        # `load` method and have the data be about the block document. Instead
+        # this will emit a proxy event for the load method so that block
+        # document data can be included instead of the event being about an
+        # 'anonymous' block.
+
+        emit_instance_method_called_event(block, "load", successful=True)
+
         return block
+
+    def _event_kind(self) -> str:
+        return f"prefect.block.{self.get_block_type_slug()}"
+
+    def _event_method_called_resources(self) -> Optional[ResourceTuple]:
+        if not (self._block_document_id and self._block_document_name):
+            return None
+
+        return (
+            {
+                "prefect.resource.id": (
+                    f"prefect.block-document.{self._block_document_id}"
+                ),
+                "prefect.name": self._block_document_name,
+            },
+            [
+                {
+                    "prefect.resource.id": (
+                        f"prefect.block-type.{self.get_block_type_slug()}"
+                    ),
+                    "prefect.resource.role": "block-type",
+                }
+            ],
+        )
 
     @classmethod
     def get_block_class_from_schema(cls: Type[Self], schema: BlockSchema) -> Type[Self]:
@@ -872,6 +913,7 @@ class Block(BaseModel, ABC):
         return self._block_document_id
 
     @sync_compatible
+    @instrument_instance_method_call()
     async def save(
         self, name: str, overwrite: bool = False, client: "PrefectClient" = None
     ):

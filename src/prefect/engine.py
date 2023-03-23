@@ -15,6 +15,7 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
+import asyncio
 import logging
 import os
 import signal
@@ -31,8 +32,11 @@ from typing_extensions import Literal
 
 import prefect
 import prefect.context
+from prefect._internal.concurrency.api import create_call, from_async, from_sync
+from prefect._internal.concurrency.calls import get_current_call
+from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -41,6 +45,7 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
+from prefect.events.worker import async_get_events_worker
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -93,14 +98,16 @@ from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
-    in_async_main_thread,
     is_async_fn,
-    run_async_from_worker_thread,
-    run_sync_in_interruptible_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import parameters_to_args_kwargs
+from prefect.utilities.callables import (
+    collapse_variadic_parameters,
+    explode_variadic_parameter,
+    get_parameter_defaults,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import StopVisiting, isiterable, visit_collection
 from prefect.utilities.pydantic import PartialModel
 
@@ -147,7 +154,7 @@ def enter_flow_run_engine_from_flow_call(
     if wait_for is not None and not is_subflow_run:
         raise ValueError("Only flows run as subflows can wait for dependencies.")
 
-    begin_run = partial(
+    begin_run = create_call(
         create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
@@ -156,29 +163,27 @@ def enter_flow_run_engine_from_flow_call(
         client=parent_flow_run_context.client if is_subflow_run else None,
     )
 
-    if not is_subflow_run:
-        # Async flow run
-        if flow.isasync:
-            return begin_run()  # Return a coroutine for the user to await
-        # Sync flow run
-        elif in_async_main_thread():
-            # An event loop is already running and we must create a blocking portal to
-            # run async code from this synchronous context
-            with start_blocking_portal() as portal:
-                return portal.call(begin_run)
-        else:
-            # An event loop is not running so we will create one
-            return anyio.run(begin_run)
+    # On completion of root flows, wait for the global thread to ensure that
+    # any work there is complete
+    done_callbacks = (
+        [create_call(wait_for_global_loop_exit)] if not is_subflow_run else None
+    )
 
-    if not parent_flow_run_context.flow.isasync:
-        # Async subflow run in sync flow run
-        return run_async_from_worker_thread(begin_run)
-    elif parent_flow_run_context.flow.isasync and flow.isasync:
-        # Async subflow run in async flow run
-        return begin_run()
+    if flow.isasync and (
+        not is_subflow_run or (is_subflow_run and parent_flow_run_context.flow.isasync)
+    ):
+        # return a coro for the user to await if the flow is async
+        # unless it is an async subflow called in a sync flow
+        retval = from_async.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
+
     else:
-        # Sync subflow run in async flow run
-        return parent_flow_run_context.sync_portal.call(begin_run)
+        retval = from_sync.wait_for_call_in_loop_thread(
+            begin_run, done_callbacks=done_callbacks
+        )
+
+    return retval
 
 
 def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
@@ -192,7 +197,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+    return from_sync.wait_for_call_in_loop_thread(
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    ).result()
 
 
 @inject_client
@@ -311,6 +318,9 @@ async def retrieve_flow_then_begin_flow_run(
     else:
         parameters = flow_run.parameters
 
+    # Ensure default values are populated
+    parameters = {**get_parameter_defaults(flow.fn), **parameters}
+
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
@@ -371,6 +381,10 @@ async def begin_flow_run(
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
             flow, client=client
+        )
+
+        flow_run_context.events = await stack.enter_async_context(
+            async_get_events_worker()
         )
 
         if log_prints:
@@ -587,6 +601,7 @@ async def orchestrate_flow_run(
     logger = flow_run_logger(flow_run, flow)
 
     flow_run_context = None
+    parent_flow_run_context = FlowRunContext.get()
 
     try:
         # Resolve futures in any non-data dependencies to ensure they are ready
@@ -617,41 +632,45 @@ async def orchestrate_flow_run(
         # Update the flow run to the latest data
         flow_run = await client.read_flow_run(flow_run.id)
         try:
-            timeout_context = anyio.fail_after(
-                flow.timeout_seconds if flow.timeout_seconds else None
-            )
+            with partial_flow_run_context.finalize(
+                flow=flow,
+                flow_run=flow_run,
+                client=client,
+            ) as flow_run_context:
+                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                logger.debug(
+                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
+                )
 
-            with timeout_context as timeout_scope:
-                with partial_flow_run_context.finalize(
-                    flow=flow,
-                    flow_run=flow_run,
-                    client=client,
-                    timeout_scope=timeout_scope,
-                ) as flow_run_context:
-                    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                if PREFECT_DEBUG_MODE:
+                    logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                else:
                     logger.debug(
-                        f"Executing flow {flow.name!r} for flow run"
-                        f" {flow_run.name!r}..."
+                        f"Beginning execution...", extra={"state_message": True}
                     )
 
-                    if PREFECT_DEBUG_MODE:
-                        logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
-                    else:
-                        logger.debug(
-                            f"Beginning execution...", extra={"state_message": True}
-                        )
+                flow_call = create_call(flow.fn, *args, **kwargs)
 
-                    flow_call = partial(flow.fn, *args, **kwargs)
+                # This check for a parent call is needed for cases where the engine
+                # was entered directly; such as during testing _or_ deployment runs
+                parent_call = get_current_call()
 
-                    if flow.isasync:
-                        result = await flow_call()
-                    else:
-                        run_sync = (
-                            run_sync_in_interruptible_worker_thread
-                            if interruptible or timeout_scope
-                            else run_sync_in_worker_thread
-                        )
-                        result = await run_sync(flow_call)
+                if parent_call and (
+                    not parent_flow_run_context
+                    or (
+                        parent_flow_run_context
+                        and parent_flow_run_context.flow.isasync == flow.isasync
+                    )
+                ):
+                    from_async.call_soon_in_waiter_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
+                else:
+                    from_async.call_soon_in_new_thread(
+                        flow_call, timeout=flow.timeout_seconds
+                    )
+
+                result = await flow_call.aresult()
 
                 waited_for_task_runs = await wait_for_task_runs_and_report_crashes(
                     flow_run_context.task_run_futures, client=client
@@ -665,10 +684,9 @@ async def orchestrate_flow_run(
             if (
                 # Flow run timeouts
                 isinstance(exc, TimeoutError)
-                and timeout_scope
                 # Only update the message if the timeout was actually encountered since
                 # this could be a timeout in the user's code
-                and timeout_scope.cancel_called
+                and flow_call.cancelled()
             ):
                 # TODO: Cancel task runs if feasible
                 name = "TimedOut"
@@ -794,8 +812,13 @@ async def pause_flow_run(
         )
 
 
+@inject_client
 async def _in_process_pause(
-    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule=False,
+    key: str = None,
+    client=None,
 ):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -813,7 +836,7 @@ async def _in_process_pause(
 
     try:
         state = await propose_state(
-            client=context.client,
+            client=client,
             state=Paused(
                 timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
             ),
@@ -842,20 +865,20 @@ async def _in_process_pause(
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await context.client.read_flow_run(context.flow_run.id)
+        flow_run = await client.read_flow_run(context.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             return
 
         while True:
             await anyio.sleep(poll_interval)
-            flow_run = await context.client.read_flow_run(context.flow_run.id)
+            flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 return
 
     # check one last time before failing the flow
-    flow_run = await context.client.read_flow_run(context.flow_run.id)
+    flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         return
@@ -863,11 +886,13 @@ async def _in_process_pause(
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
+@inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
     timeout: int = 300,
     reschedule: bool = True,
     key: str = None,
+    client=None,
 ):
     if reschedule:
         raise RuntimeError(
@@ -875,7 +900,6 @@ async def _out_of_process_pause(
             " True."
         )
 
-    client = get_client()
     response = await client.set_flow_run_state(
         flow_run_id,
         Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
@@ -935,7 +959,7 @@ def enter_task_run_engine(
     if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
         raise TimeoutError("Flow run timed out")
 
-    begin_run = partial(
+    begin_run = create_call(
         begin_task_map if mapped else get_task_call_return_value,
         task=task,
         flow_run_context=flow_run_context,
@@ -945,18 +969,11 @@ def enter_task_run_engine(
         task_runner=task_runner,
     )
 
-    # Async task run in async flow run
     if task.isasync and flow_run_context.flow.isasync:
-        return begin_run()  # Return a coroutine for the user to await
-
-    # Async or sync task run in sync flow run
-    elif not flow_run_context.flow.isasync:
-        return run_async_from_worker_thread(begin_run)
-
-    # Sync task run in async flow run
+        # return a coro for the user to await if an async task in an async flow
+        return from_async.wait_for_call_in_loop_thread(begin_run)
     else:
-        # Call out to the sync portal since we are not in a worker thread
-        return flow_run_context.sync_portal.call(begin_run)
+        return from_sync.wait_for_call_in_loop_thread(begin_run)
 
 
 async def begin_task_map(
@@ -978,6 +995,9 @@ async def begin_task_map(
     # Nested parameters will be resolved in each mapped child where their relationships
     # will also be tracked.
     parameters = await resolve_inputs(parameters, max_depth=1)
+
+    # Ensure that any parameters in kwargs are expanded before this check
+    parameters = explode_variadic_parameter(task.fn, parameters)
 
     iterable_parameters = {}
     static_parameters = {}
@@ -1022,6 +1042,9 @@ async def begin_task_map(
         for key, annotation in annotated_parameters.items():
             call_parameters[key] = annotation.rewrap(call_parameters[key])
 
+        # Collapse any previously exploded kwargs
+        call_parameters = collapse_variadic_parameters(task.fn, call_parameters)
+
         task_runs.append(
             partial(
                 get_task_call_return_value,
@@ -1052,11 +1075,13 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
     # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
+    futures = set()
 
     def add_futures_and_states_to_inputs(obj):
         if isinstance(obj, PrefectFuture):
-            run_async_from_worker_thread(obj._wait_for_submission)
-            inputs.add(TaskRunResult(id=obj.task_run.id))
+            # We need to wait for futures to be submitted before we can get the task
+            # run id but we want to do so asynchronously
+            futures.add(obj)
         elif isinstance(obj, State):
             if obj.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=obj.state_details.task_run_id))
@@ -1065,13 +1090,16 @@ async def collect_task_run_inputs(expr: Any, max_depth: int = -1) -> Set[TaskRun
             if state and state.state_details.task_run_id:
                 inputs.add(TaskRunResult(id=state.state_details.task_run_id))
 
-    await run_sync_in_worker_thread(
-        visit_collection,
+    visit_collection(
         expr,
         visit_fn=add_futures_and_states_to_inputs,
         return_data=False,
         max_depth=max_depth,
     )
+
+    await asyncio.gather(*[future._wait_for_submission() for future in futures])
+    for future in futures:
+        inputs.add(TaskRunResult(id=future.task_run.id))
 
     return inputs
 
@@ -1511,15 +1539,10 @@ async def orchestrate_task_run(
                 with task_run_context.copy(
                     update={"task_run": task_run, "start_time": pendulum.now("UTC")}
                 ):
-                    if task.isasync:
-                        result = await task.fn(*args, **kwargs)
-                    else:
-                        run_sync = (
-                            run_sync_in_interruptible_worker_thread
-                            if interruptible or timeout_scope
-                            else run_sync_in_worker_thread
-                        )
-                        result = await run_sync(task.fn, *args, **kwargs)
+                    call = from_async.call_soon_in_new_thread(
+                        create_call(task.fn, *args, **kwargs)
+                    )
+                    result = await call.aresult()
 
         except Exception as exc:
             name = message = None
@@ -1745,6 +1768,47 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
+    futures = set()
+    states = set()
+    result_by_state = {}
+
+    def collect_futures_and_states(expr, context):
+        # Expressions inside quotes should not be traversed
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
+        if isinstance(expr, PrefectFuture):
+            futures.add(expr)
+        if isinstance(expr, State):
+            states.add(expr)
+
+        return expr
+
+    visit_collection(
+        parameters,
+        visit_fn=collect_futures_and_states,
+        return_data=False,
+        max_depth=max_depth,
+        context={},
+    )
+
+    # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
+    states.update(await asyncio.gather(*[future._wait() for future in futures]))
+
+    # Only retrieve the result if requested as it may be expensive
+    if return_data:
+        finished_states = [state for state in states if state.is_final()]
+
+        state_results = await asyncio.gather(
+            *[
+                state.result(raise_on_failure=False, fetch=True)
+                for state in finished_states
+            ]
+        )
+
+        for state, result in zip(finished_states, state_results):
+            result_by_state[state] = result
+
     def resolve_input(expr, context):
         state = None
 
@@ -1753,7 +1817,7 @@ async def resolve_inputs(
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            state = run_async_from_worker_thread(expr._wait)
+            state = expr._final_state
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1775,11 +1839,9 @@ async def resolve_inputs(
                 " 'COMPLETED' state."
             )
 
-        # Only retrieve the result if requested as it may be expensive
-        return state.result(raise_on_failure=False, fetch=True) if return_data else None
+        return result_by_state.get(state)
 
-    return await run_sync_in_worker_thread(
-        visit_collection,
+    return visit_collection(
         parameters,
         visit_fn=resolve_input,
         return_data=return_data,
@@ -1841,19 +1903,26 @@ async def propose_state(
 
         link_state_to_result(state, result)
 
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = await set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
+            response = await set_state_func()
+        return response
+
     # Attempt to set the state
     if task_run_id:
-        response = await client.set_task_run_state(
-            task_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
-        response = await client.set_flow_run_state(
-            flow_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
@@ -1869,19 +1938,6 @@ async def propose_state(
 
     elif response.status == SetStateStatus.ABORT:
         raise prefect.exceptions.Abort(response.details.reason)
-
-    elif response.status == SetStateStatus.WAIT:
-        engine_logger.debug(
-            f"Received wait instruction for {response.details.delay_seconds}s: "
-            f"{response.details.reason}"
-        )
-        await anyio.sleep(response.details.delay_seconds)
-        return await propose_state(
-            client,
-            state,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
-        )
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():

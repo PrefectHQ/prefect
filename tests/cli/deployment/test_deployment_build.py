@@ -474,6 +474,35 @@ class TestFlowName:
         )
 
 
+class TestDescription:
+    @pytest.mark.filterwarnings("ignore:does not have upload capabilities")
+    def test_description_set_correctly(
+        self, patch_import, tmp_path, mock_build_from_flow
+    ):
+        deployment_description = "TEST DEPLOYMENT"
+        output_path = str(tmp_path / "test.yaml")
+        entrypoint = "fake-path.py:fn"
+        cmd = [
+            "deployment",
+            "build",
+            entrypoint,
+            "-n",
+            "TEST",
+            "--description",
+            deployment_description,
+            "-o",
+            output_path,
+        ]
+
+        invoke_and_assert(
+            cmd,
+            expected_code=0,
+        )
+
+        build_kwargs = mock_build_from_flow.call_args.kwargs
+        assert build_kwargs["description"] == deployment_description
+
+
 class TestEntrypoint:
     def test_entrypoint_is_saved_as_relative_path(self, patch_import, tmp_path):
         invoke_and_assert(
@@ -766,6 +795,85 @@ class TestAutoApply:
                 ]
             ),
             temp_dir=tmp_path,
+        )
+
+    def test_message_with_prefect_agent_work_pool(
+        self, patch_import, tmp_path, prefect_agent_work_pool
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                prefect_agent_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start an agent that"
+                    f" pulls work from the {prefect_agent_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect agent start -p {prefect_agent_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool(
+        self, patch_import, tmp_path, process_work_pool, enable_workers
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                process_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "To execute flow runs from this deployment, start a worker "
+                    f"that pulls work from the {process_work_pool.name!r} work pool:"
+                ),
+                f"$ prefect worker start -p {process_work_pool.name!r}",
+            ],
+        )
+
+    def test_message_with_process_work_pool_without_workers_enabled(
+        self, patch_import, tmp_path, process_work_pool
+    ):
+        invoke_and_assert(
+            [
+                "deployment",
+                "build",
+                "fake-path.py:fn",
+                "-n",
+                "TEST",
+                "-o",
+                str(tmp_path / "test.yaml"),
+                "-p",
+                process_work_pool.name,
+                "--apply",
+            ],
+            expected_output_contains=[
+                (
+                    "\nTo execute flow runs from this deployment, please enable "
+                    "the workers CLI and start a worker that pulls work from the "
+                    f"{process_work_pool.name!r} work pool:"
+                ),
+                (
+                    "$ prefect config set PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n"
+                    f"$ prefect worker start -p {process_work_pool.name!r}"
+                ),
+            ],
         )
 
 

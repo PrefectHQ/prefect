@@ -151,7 +151,7 @@ class ORMFlowRunState:
     def _result_artifact(cls):
         return sa.orm.relationship(
             "Artifact",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.result_artifact_id],
             primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
         )
@@ -236,7 +236,7 @@ class ORMTaskRunState:
     def _result_artifact(cls):
         return sa.orm.relationship(
             "Artifact",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.result_artifact_id],
             primaryjoin="Artifact.id==%s.result_artifact_id" % cls.__name__,
         )
@@ -304,12 +304,19 @@ class ORMArtifact:
 
     type = sa.Column(sa.String)
     data = sa.Column(sa.JSON, nullable=True)
+    description = sa.Column(sa.String, nullable=True)
+
     # Suffixed with underscore as attribute name 'metadata' is reserved for the MetaData instance when using a declarative base class.
     metadata_ = sa.Column(sa.JSON, nullable=True)
 
     @declared_attr
     def __table_args__(cls):
-        return (sa.UniqueConstraint("key"),)
+        return (
+            sa.Index(
+                "ix_artifact__key",
+                "key",
+            ),
+        )
 
 
 class ORMTaskRunStateCache:
@@ -443,12 +450,7 @@ class ORMFlowRun(ORMRun):
             index=True,
         )
 
-    @declared_attr
-    def deployment_id(cls):
-        return sa.Column(
-            UUID(), sa.ForeignKey("deployment.id", ondelete="set null"), index=True
-        )
-
+    deployment_id = sa.Column(UUID(), nullable=True)
     work_queue_name = sa.Column(sa.String, index=True)
     flow_version = sa.Column(sa.String, index=True)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -524,7 +526,7 @@ class ORMFlowRun(ORMRun):
     def _state(cls):
         return sa.orm.relationship(
             "FlowRunState",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.state_id],
             primaryjoin="FlowRunState.id==%s.state_id" % cls.__name__,
         )
@@ -582,7 +584,7 @@ class ORMFlowRun(ORMRun):
     def work_queue(cls):
         return sa.orm.relationship(
             "WorkQueue",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.work_queue_id],
         )
 
@@ -700,7 +702,7 @@ class ORMTaskRun(ORMRun):
     def _state(cls):
         return sa.orm.relationship(
             "TaskRunState",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.state_id],
             primaryjoin="TaskRunState.id==%s.state_id" % cls.__name__,
         )
@@ -868,7 +870,7 @@ class ORMDeployment:
     @declared_attr
     def work_queue(cls):
         return sa.orm.relationship(
-            "WorkQueue", lazy="joined", foreign_keys=[cls.work_queue_id]
+            "WorkQueue", lazy="selectin", foreign_keys=[cls.work_queue_id]
         )
 
     @declared_attr
@@ -959,7 +961,7 @@ class ORMBlockSchema:
 
     @declared_attr
     def block_type(cls):
-        return sa.orm.relationship("BlockType", lazy="joined")
+        return sa.orm.relationship("BlockType", lazy="selectin")
 
     @declared_attr
     def __table_args__(cls):
@@ -1011,7 +1013,7 @@ class ORMBlockDocument:
 
     @declared_attr
     def block_type(cls):
-        return sa.orm.relationship("BlockType", lazy="joined")
+        return sa.orm.relationship("BlockType", lazy="selectin")
 
     @declared_attr
     def block_schema_id(cls):
@@ -1023,7 +1025,7 @@ class ORMBlockDocument:
 
     @declared_attr
     def block_schema(cls):
-        return sa.orm.relationship("BlockSchema", lazy="joined")
+        return sa.orm.relationship("BlockSchema", lazy="selectin")
 
     @declared_attr
     def __table_args__(cls):
@@ -1142,7 +1144,7 @@ class ORMWorkQueue:
     def work_pool(cls):
         return sa.orm.relationship(
             "WorkPool",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.work_pool_id],
         )
 
@@ -1240,7 +1242,7 @@ class ORMFlowRunNotificationPolicy:
     def block_document(cls):
         return sa.orm.relationship(
             "BlockDocument",
-            lazy="joined",
+            lazy="selectin",
             foreign_keys=[cls.block_document_id],
         )
 

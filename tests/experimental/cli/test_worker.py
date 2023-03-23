@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 
 import prefect
@@ -22,6 +24,7 @@ def auto_enable_workers(enable_workers):
     import prefect.experimental.cli.worker  # noqa
 
 
+@pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_run_once_with_name():
     invoke_and_assert(
         command=[
@@ -32,6 +35,8 @@ def test_start_worker_run_once_with_name():
             "test-work-pool",
             "-n",
             "test-worker",
+            "-t",
+            "process",
         ],
         expected_code=0,
         expected_output_contains=[
@@ -44,7 +49,15 @@ def test_start_worker_run_once_with_name():
 async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
     await run_sync_in_worker_thread(
         invoke_and_assert,
-        command=["worker", "start", "--run-once", "-p", "not-yet-created-pool"],
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            "not-yet-created-pool",
+            "-t",
+            "process",
+        ],
         expected_code=0,
         expected_output_contains=["Worker", "stopped!", "Worker", "started!"],
     )
@@ -53,6 +66,34 @@ async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
     assert work_pool is not None
     assert work_pool.name == "not-yet-created-pool"
     assert work_pool.default_queue_id is not None
+
+
+def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
+    mock_worker = MagicMock()
+    monkeypatch.setattr(
+        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
+    )
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            process_work_pool.name,
+            "--work-queue",
+            "a",
+            "-q",
+            "b",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+    mock_worker.assert_called_once_with(
+        name=None,
+        work_pool_name=process_work_pool.name,
+        work_queues=["a", "b"],
+        prefetch_seconds=ANY,
+        limit=None,
+    )
 
 
 def test_start_worker_with_prefetch_seconds(monkeypatch):
@@ -69,12 +110,15 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
             "-p",
             "test",
             "--run-once",
+            "-t",
+            "process",
         ],
         expected_code=0,
     )
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=30,
         limit=None,
     )
@@ -93,12 +137,15 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
                 "-p",
                 "test",
                 "--run-once",
+                "-t",
+                "process",
             ],
             expected_code=0,
         )
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=100,
         limit=None,
     )
@@ -118,12 +165,15 @@ def test_start_worker_with_limit(monkeypatch):
             "-p",
             "test",
             "--run-once",
+            "-t",
+            "process",
         ],
         expected_code=0,
     )
     mock_worker.assert_called_once_with(
         name=None,
         work_pool_name="test",
+        work_queues=[],
         prefetch_seconds=10,
         limit=5,
     )
@@ -140,6 +190,8 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient
             work_pool.name,
             "-n",
             "test-worker",
+            "-t",
+            "process",
         ],
         expected_code=0,
         expected_output_contains=[
@@ -152,3 +204,54 @@ async def test_worker_joins_existing_pool(work_pool, orion_client: PrefectClient
         work_pool_name=work_pool.name
     )
     assert workers[0].name == "test-worker"
+
+
+async def test_worker_discovers_work_pool_type(
+    process_work_pool, orion_client: PrefectClient
+):
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            process_work_pool.name,
+            "-n",
+            "test-worker",
+        ],
+        expected_code=0,
+        expected_output_contains=[
+            (
+                f"Discovered worker type {process_work_pool.type!r} for work pool"
+                f" {process_work_pool.name!r}."
+            ),
+            "Worker 'test-worker' started!",
+            "Worker 'test-worker' stopped!",
+        ],
+    )
+
+    workers = await orion_client.read_workers_for_work_pool(
+        work_pool_name=process_work_pool.name
+    )
+    assert workers[0].name == "test-worker"
+
+
+async def test_worker_errors_if_no_type_and_non_existent_work_pool():
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--run-once",
+            "-p",
+            "not-here",
+            "-n",
+            "test-worker",
+        ],
+        expected_code=1,
+        expected_output_contains=[
+            "Work pool 'not-here' does not exist. To create a new work pool "
+            "on worker startup, include a worker type with the --type option."
+        ],
+    )

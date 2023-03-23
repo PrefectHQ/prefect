@@ -17,11 +17,13 @@ import yaml
 from rich.pretty import Pretty
 from rich.table import Table
 
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.blocks.core import Block
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
 from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.utilities import inject_client
 from prefect.context import PrefectObjectRegistry, registry_from_script
 from prefect.deployments import Deployment, load_deployments_from_yaml
 from prefect.exceptions import (
@@ -159,24 +161,60 @@ async def create_work_queue_and_set_concurrency_limit(
             )
 
 
-async def check_work_pool_exists(work_pool_name: Optional[str]):
+@inject_client
+async def check_work_pool_exists(
+    work_pool_name: Optional[str], client: PrefectClient = None
+):
     if work_pool_name is not None:
-        async with get_client() as client:
-            try:
-                await client.read_work_pool(work_pool_name=work_pool_name)
-            except ObjectNotFound:
-                app.console.print(
-                    (
-                        "\nThis deployment specifies a work pool name of"
-                        f" {work_pool_name!r}, but no such work pool exists.\n"
-                    ),
-                    style="red ",
-                )
-                app.console.print("To create a work pool via the CLI:\n")
-                app.console.print(
-                    f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
-                )
-                exit_with_error("Work pool not found!")
+        try:
+            await client.read_work_pool(work_pool_name=work_pool_name)
+        except ObjectNotFound:
+            app.console.print(
+                (
+                    "\nThis deployment specifies a work pool name of"
+                    f" {work_pool_name!r}, but no such work pool exists.\n"
+                ),
+                style="red ",
+            )
+            app.console.print("To create a work pool via the CLI:\n")
+            app.console.print(
+                f"$ prefect work-pool create {work_pool_name!r}\n", style="blue"
+            )
+            exit_with_error("Work pool not found!")
+
+
+@inject_client
+async def _print_deployment_work_pool_instructions(
+    work_pool_name: str, client: PrefectClient = None
+):
+    work_pool = await client.read_work_pool(work_pool_name)
+    blurb = (
+        "\nTo execute flow runs from this deployment, start an agent "
+        f"that pulls work from the {work_pool_name!r} work pool:"
+    )
+    command = f"$ prefect agent start -p {work_pool_name!r}"
+    if work_pool.type != "prefect-agent":
+        if experiment_enabled("workers"):
+            blurb = (
+                "\nTo execute flow runs from this deployment, start a"
+                " worker that pulls work from the"
+                f" {work_pool_name!r} work pool:"
+            )
+            command = f"$ prefect worker start -p {work_pool_name!r}"
+        else:
+            blurb = (
+                "\nTo execute flow runs from this deployment, please"
+                " enable the workers CLI and start a worker that pulls"
+                f" work from the {work_pool_name!r} work pool:"
+            )
+            command = (
+                "$ prefect config set"
+                " PREFECT_EXPERIMENTAL_ENABLE_WORKERS=True\n$ prefect"
+                f" worker start -p {work_pool_name!r}"
+            )
+
+    app.console.print(blurb)
+    app.console.print(command, style="blue")
 
 
 class RichTextIO:
@@ -644,84 +682,87 @@ async def apply(
     """
     Create or update a deployment from a YAML file.
     """
-    for path in paths:
-        try:
-            deployment = await Deployment.load_from_yaml(path)
-            app.console.print(f"Successfully loaded {deployment.name!r}", style="green")
-        except Exception as exc:
-            exit_with_error(f"'{path!s}' did not conform to deployment spec: {exc!r}")
+    async with get_client() as client:
+        for path in paths:
+            try:
+                deployment = await Deployment.load_from_yaml(path)
+                app.console.print(
+                    f"Successfully loaded {deployment.name!r}", style="green"
+                )
+            except Exception as exc:
+                exit_with_error(
+                    f"'{path!s}' did not conform to deployment spec: {exc!r}"
+                )
 
-        await create_work_queue_and_set_concurrency_limit(
-            deployment.work_queue_name,
-            deployment.work_pool_name,
-            work_queue_concurrency,
-        )
+            await create_work_queue_and_set_concurrency_limit(
+                deployment.work_queue_name,
+                deployment.work_pool_name,
+                work_queue_concurrency,
+            )
 
-        if upload:
-            if (
-                deployment.storage
-                and "put-directory" in deployment.storage.get_block_capabilities()
-            ):
-                file_count = await deployment.upload_to_storage()
-                if file_count:
+            if upload:
+                if (
+                    deployment.storage
+                    and "put-directory" in deployment.storage.get_block_capabilities()
+                ):
+                    file_count = await deployment.upload_to_storage()
+                    if file_count:
+                        app.console.print(
+                            (
+                                f"Successfully uploaded {file_count} files to"
+                                f" {deployment.location}"
+                            ),
+                            style="green",
+                        )
+                else:
                     app.console.print(
                         (
-                            f"Successfully uploaded {file_count} files to"
-                            f" {deployment.location}"
+                            f"Deployment storage {deployment.storage} does not have"
+                            " upload capabilities; no files uploaded."
                         ),
-                        style="green",
+                        style="red",
                     )
+            await check_work_pool_exists(
+                work_pool_name=deployment.work_pool_name, client=client
+            )
+            deployment_id = await deployment.apply()
+            app.console.print(
+                (
+                    f"Deployment '{deployment.flow_name}/{deployment.name}'"
+                    f" successfully created with id '{deployment_id}'."
+                ),
+                style="green",
+            )
+
+            if PREFECT_UI_URL:
+                app.console.print(
+                    "View Deployment in UI:"
+                    f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
+                )
+
+            if deployment.work_pool_name is not None:
+                await _print_deployment_work_pool_instructions(
+                    work_pool_name=deployment.work_pool_name, client=client
+                )
+            elif deployment.work_queue_name is not None:
+                app.console.print(
+                    "\nTo execute flow runs from this deployment, start an agent that"
+                    f" pulls work from the {deployment.work_queue_name!r} work queue:"
+                )
+                app.console.print(
+                    f"$ prefect agent start -q {deployment.work_queue_name!r}",
+                    style="blue",
+                )
             else:
                 app.console.print(
                     (
-                        f"Deployment storage {deployment.storage} does not have upload"
-                        " capabilities; no files uploaded."
+                        "\nThis deployment does not specify a work queue name, which"
+                        " means agents will not be able to pick up its runs. To add a"
+                        " work queue, edit the deployment spec and re-run this command,"
+                        " or visit the deployment in the UI."
                     ),
                     style="red",
                 )
-        await check_work_pool_exists(deployment.work_pool_name)
-        deployment_id = await deployment.apply()
-        app.console.print(
-            (
-                f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
-                f" created with id '{deployment_id}'."
-            ),
-            style="green",
-        )
-
-        if PREFECT_UI_URL:
-            app.console.print(
-                "View Deployment in UI:"
-                f" {PREFECT_UI_URL.value()}/deployments/deployment/{deployment_id}"
-            )
-
-        if deployment.work_pool_name is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the {deployment.work_pool_name!r} work pool:"
-            )
-            app.console.print(
-                f"$ prefect agent start -p {deployment.work_pool_name!r}",
-                style="blue",
-            )
-        elif deployment.work_queue_name is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
-            )
-            app.console.print(
-                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
-            )
-        else:
-            app.console.print(
-                (
-                    "\nThis deployment does not specify a work queue name, which means"
-                    " agents will not be able to pick up its runs. To add a work queue,"
-                    " edit the deployment spec and re-run this command, or visit the"
-                    " deployment in the UI."
-                ),
-                style="red",
-            )
 
 
 @deployment_app.command()
@@ -781,6 +822,15 @@ async def build(
     ),
     name: str = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
+    ),
+    description: str = typer.Option(
+        None,
+        "--description",
+        "-d",
+        help=(
+            "The description to give the deployment. If not provided, the description"
+            " will be populated from the flow's description."
+        ),
     ),
     version: str = typer.Option(
         None, "--version", "-v", help="A version to give the deployment."
@@ -1068,6 +1118,9 @@ async def build(
     if parameters:
         init_kwargs["parameters"] = parameters
 
+    if description:
+        init_kwargs["description"] = description
+
     # if a schedule, tags, work_queue_name, or infrastructure are not provided via CLI,
     # we let `build_from_flow` load them from the server
     if schedule:
@@ -1125,43 +1178,42 @@ async def build(
             )
 
     if _apply:
-        await check_work_pool_exists(deployment.work_pool_name)
-        deployment_id = await deployment.apply()
-        app.console.print(
-            (
-                f"Deployment '{deployment.flow_name}/{deployment.name}' successfully"
-                f" created with id '{deployment_id}'."
-            ),
-            style="green",
-        )
-        if deployment.work_pool_name is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the {deployment.work_pool_name!r} work pool:"
+        async with get_client() as client:
+            await check_work_pool_exists(
+                work_pool_name=deployment.work_pool_name, client=client
             )
-            app.console.print(
-                f"$ prefect agent start -p {deployment.work_pool_name!r}",
-                style="blue",
-            )
-
-        elif deployment.work_queue_name is not None:
-            app.console.print(
-                "\nTo execute flow runs from this deployment, start an agent "
-                f"that pulls work from the {deployment.work_queue_name!r} work queue:"
-            )
-            app.console.print(
-                f"$ prefect agent start -q {deployment.work_queue_name!r}", style="blue"
-            )
-        else:
+            deployment_id = await deployment.apply()
             app.console.print(
                 (
-                    "\nThis deployment does not specify a work queue name, which means"
-                    " agents will not be able to pick up its runs. To add a work queue,"
-                    " edit the deployment spec and re-run this command, or visit the"
-                    " deployment in the UI."
+                    f"Deployment '{deployment.flow_name}/{deployment.name}'"
+                    f" successfully created with id '{deployment_id}'."
                 ),
-                style="red",
+                style="green",
             )
+            if deployment.work_pool_name is not None:
+                await _print_deployment_work_pool_instructions(
+                    work_pool_name=deployment.work_pool_name, client=client
+                )
+
+            elif deployment.work_queue_name is not None:
+                app.console.print(
+                    "\nTo execute flow runs from this deployment, start an agent that"
+                    f" pulls work from the {deployment.work_queue_name!r} work queue:"
+                )
+                app.console.print(
+                    f"$ prefect agent start -q {deployment.work_queue_name!r}",
+                    style="blue",
+                )
+            else:
+                app.console.print(
+                    (
+                        "\nThis deployment does not specify a work queue name, which"
+                        " means agents will not be able to pick up its runs. To add a"
+                        " work queue, edit the deployment spec and re-run this command,"
+                        " or visit the deployment in the UI."
+                    ),
+                    style="red",
+                )
 
 
 def _load_json_key_values(

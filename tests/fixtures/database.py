@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
+from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
@@ -350,7 +351,7 @@ async def deployment(
             path="./subdir",
             entrypoint="/file.py:flow",
             infrastructure_document_id=infrastructure_document_id,
-            work_queue_name="wq",
+            work_queue_name=work_queue_1.name,
             parameter_openapi_schema=parameter_schema(hello),
             work_queue_id=work_queue_1.id,
         ),
@@ -433,11 +434,49 @@ async def work_pool(session):
 
 
 @pytest.fixture
+async def process_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type=ProcessWorker.type,
+            base_job_template=ProcessWorker.get_default_base_job_template(),
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def prefect_agent_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type="prefect-agent",
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
 async def work_queue_1(session, work_pool):
     model = await models.workers.create_work_queue(
         session=session,
         work_pool_id=work_pool.id,
-        work_queue=schemas.actions.WorkQueueCreate(name="wq"),
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_queue_2(session, work_pool):
+    model = await models.workers.create_work_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
     )
     await session.commit()
     return model

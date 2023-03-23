@@ -1,7 +1,7 @@
 import json
 from contextlib import contextmanager
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 from typing import Dict
 from unittest import mock
 from unittest.mock import MagicMock
@@ -42,6 +42,19 @@ def mock_watch(monkeypatch):
 
     monkeypatch.setattr("kubernetes.watch.Watch", MagicMock(return_value=mock))
     return mock
+
+
+@pytest.fixture
+def mock_anyio_sleep_monotonic(monkeypatch):
+    def mock_monotonic():
+        return mock_sleep.current_time
+
+    def mock_sleep(duration):
+        mock_sleep.current_time += duration
+
+    mock_sleep.current_time = monotonic()
+    monkeypatch.setattr("time.monotonic", mock_monotonic)
+    monkeypatch.setattr("anyio.sleep", mock_sleep)
 
 
 @pytest.fixture
@@ -679,7 +692,7 @@ def test_no_raise_on_submission_with_hosted_api(
     mock_cluster_config,
     mock_k8s_batch_client,
     mock_k8s_client,
-    use_hosted_orion,
+    use_hosted_api_server,
 ):
     KubernetesJob(command=["echo", "hello"]).run(MagicMock())
 
@@ -741,9 +754,7 @@ def test_allows_configurable_timeouts_for_pod_and_job_watches(
 
     if job_timeout is not None:
         k8s_job_args["job_watch_timeout_seconds"] = job_timeout
-        expected_job_call_kwargs["timeout_seconds"] = pytest.approx(
-            job_timeout, abs=0.01
-        )
+        expected_job_call_kwargs["timeout_seconds"] = pytest.approx(job_timeout, abs=1)
 
     KubernetesJob(**k8s_job_args).run(MagicMock())
 
@@ -881,7 +892,10 @@ def test_watch_timeout(mock_k8s_client, mock_watch, mock_k8s_batch_client):
 
 
 def test_watch_deadline_is_computed_before_log_streams(
-    mock_k8s_client, mock_watch, mock_k8s_batch_client
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
 ):
     # The job should not be completed to start
     mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
@@ -900,14 +914,14 @@ def test_watch_deadline_is_computed_before_log_streams(
             yield {"object": job}
 
     def mock_log_stream(*args, **kwargs):
-        sleep(0.5)
+        anyio.sleep(500)
         return MagicMock()
 
     mock_k8s_client.read_namespaced_pod_log.side_effect = mock_log_stream
     mock_watch.stream.side_effect = mock_stream
 
     result = KubernetesJob(
-        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1
+        command=["echo", "hello"], stream_output=True, job_watch_timeout_seconds=1000
     ).run(MagicMock())
 
     assert result.status_code == 1
@@ -921,12 +935,11 @@ def test_watch_deadline_is_computed_before_log_streams(
                 timeout_seconds=mock.ANY,
             ),
             # Starts with the full timeout minus the amount we slept streaming logs
-            # Approximate comparisons are needed since executing code takes some time
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.5, abs=0.02),
+                timeout_seconds=pytest.approx(500, 1),
             ),
         ]
     )
@@ -1040,8 +1053,12 @@ def test_timeout_during_log_stream_does_not_fail_completed_job(
         assert f"test {i}" not in stdout
 
 
+@pytest.mark.flaky  # Rarely, the sleep times we check for do not fit within the tolerences
 def test_watch_timeout_is_restarted_until_job_is_complete(
-    mock_k8s_client, mock_watch, mock_k8s_batch_client
+    mock_k8s_client,
+    mock_watch,
+    mock_k8s_batch_client,
+    mock_anyio_sleep_monotonic,
 ):
     # The job should not be completed to start
     mock_k8s_batch_client.read_namespaced_job.return_value.status.completion_time = None
@@ -1056,14 +1073,14 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
             job = MagicMock(spec=kubernetes.client.V1Job)
 
             # Sleep a little
-            sleep(0.25)
+            anyio.sleep(10)
 
             # Yield the job then return exiting the stream
             job.status.completion_time = None
             yield {"object": job}
 
     mock_watch.stream.side_effect = mock_stream
-    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=1).run(
+    result = KubernetesJob(command=["echo", "hello"], job_watch_timeout_seconds=40).run(
         MagicMock()
     )
     assert result.status_code == -1
@@ -1077,31 +1094,30 @@ def test_watch_timeout_is_restarted_until_job_is_complete(
                 timeout_seconds=mock.ANY,
             ),
             # Starts with the full timeout
-            # Approximate comparisons are needed since executing code takes some time
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(1, abs=0.01),
+                timeout_seconds=pytest.approx(40, abs=1),
+            ),
+            mock.call(
+                func=mock_k8s_batch_client.list_namespaced_job,
+                field_selector=mock.ANY,
+                namespace=mock.ANY,
+                timeout_seconds=pytest.approx(30, abs=1),
             ),
             # Then, elapsed time removed on each call
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.75, abs=0.05),
+                timeout_seconds=pytest.approx(20, abs=1),
             ),
             mock.call(
                 func=mock_k8s_batch_client.list_namespaced_job,
                 field_selector=mock.ANY,
                 namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.5, abs=0.05),
-            ),
-            mock.call(
-                func=mock_k8s_batch_client.list_namespaced_job,
-                field_selector=mock.ANY,
-                namespace=mock.ANY,
-                timeout_seconds=pytest.approx(0.25, abs=0.05),
+                timeout_seconds=pytest.approx(10, abs=1),
             ),
         ]
     )

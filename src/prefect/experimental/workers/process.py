@@ -1,11 +1,12 @@
 import asyncio
 import contextlib
+import os
 import socket
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional
 
 import anyio
 import anyio.abc
@@ -13,7 +14,6 @@ import sniffio
 from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
-from prefect.deployments import Deployment
 from prefect.experimental.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -22,6 +22,10 @@ from prefect.experimental.workers.base import (
 )
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import run_process
+
+if TYPE_CHECKING:
+    from prefect.server.schemas.core import Flow
+    from prefect.server.schemas.responses import DeploymentResponse
 
 if sys.platform == "win32":
     # exit code indicating that the process was terminated by Ctrl+C or Ctrl+Break
@@ -48,8 +52,8 @@ def _infrastructure_pid_from_process(process: anyio.abc.Process) -> str:
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
-    stream_output: bool = Field(template="{{ stream_output }}")
-    working_dir: Optional[Path] = Field(template="{{ working_dir }}")
+    stream_output: bool
+    working_dir: Optional[Path]
 
     @validator("working_dir")
     def validate_command(cls, v):
@@ -57,6 +61,21 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         if v:
             return relative_path_to_current_platform(v)
         return v
+
+    def prepare_for_flow_run(
+        self,
+        flow_run: "FlowRun",
+        deployment: Optional["DeploymentResponse"] = None,
+        flow: Optional["Flow"] = None,
+    ):
+        super().prepare_for_flow_run(flow_run, deployment, flow)
+
+        self.env = {**os.environ, **self.env}
+        self.command = (
+            f"{sys.executable} -m prefect.engine"
+            if self.command == self._base_flow_run_command()
+            else self.command
+        )
 
 
 class ProcessVariables(BaseVariables):
@@ -72,7 +91,7 @@ class ProcessVariables(BaseVariables):
         title="Working Directory",
         description=(
             "If provided, workers will open flow run processes within the "
-            "specified path as the working directory. Otherwise, a temporary"
+            "specified path as the working directory. Otherwise, a temporary "
             "directory will be created."
         ),
     )
@@ -90,11 +109,6 @@ class ProcessWorker(BaseWorker):
     _description = "Worker that executes flow runs within processes."
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/39WQhVu4JK40rZWltGqhuC/d15be6189a0cb95949a6b43df00dcb9b/image5.png?h=250"
 
-    async def verify_submitted_deployment(self, deployment: Deployment):
-        # TODO: Implement deployment verification for `ProcessWorker`
-        pass
-
-    # TODO: Add additional parameters to allow for the customization of behavior
     async def run(
         self,
         flow_run: FlowRun,
@@ -128,7 +142,7 @@ class ProcessWorker(BaseWorker):
                 task_status=task_status,
                 task_status_handler=_infrastructure_pid_from_process,
                 cwd=working_dir,
-                env=self._base_flow_run_environment(flow_run=flow_run),
+                env=configuration.env,
                 **kwargs,
             )
 

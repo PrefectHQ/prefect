@@ -5,6 +5,7 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
+from contextlib import asynccontextmanager
 from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
@@ -55,7 +56,16 @@ def set_login_api_ready_event():
     login_api.extra["ready-event"].set()
 
 
-login_api = FastAPI(on_startup=[set_login_api_ready_event])
+@asynccontextmanager
+async def lifespan(app):
+    try:
+        set_login_api_ready_event()
+        yield
+    finally:
+        pass
+
+
+login_api = FastAPI(lifespan=lifespan)
 """
 This small API server is used for data transmission for browser-based log in.
 """
@@ -200,7 +210,7 @@ def prompt_select_from_list(
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
-            elif key == readchar.key.ENTER:
+            elif key == readchar.key.ENTER or key == readchar.key.CR:
                 selected_option = options[current_idx]
                 if isinstance(selected_option, tuple):
                     selected_option = selected_option[0]

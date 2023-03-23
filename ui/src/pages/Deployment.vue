@@ -42,19 +42,14 @@
     </p-tabs>
 
     <template #well>
-      <DeploymentDetails
-        v-if="deployment"
-        :deployment="deployment"
-        alternate
-        @update="deploymentSubscription.refresh"
-      />
+      <DeploymentDetails v-if="deployment" :deployment="deployment" alternate @update="deploymentSubscription.refresh" />
     </template>
   </p-layout-well>
 </template>
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentDescription, FlowRunFilteredList, DeploymentDescriptionEmptyState, DeploymentDeprecatedMessage, PageHeadingDeployment, DeploymentDetails, ParametersTable, localization, useTabs, useWorkspaceApi, CopyableWrapper, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch } from 'vue'
   import { useRouter } from 'vue-router'
@@ -72,6 +67,9 @@
     interval: 300000,
   }
 
+  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
+  const deployment = computed(() => deploymentSubscription.response)
+
   const computedTabs = computed(() => [
     { label: 'Details', hidden: media.xl },
     { label: 'Runs' },
@@ -79,10 +77,7 @@
     { label: 'Infra Overrides', hidden: deployment.value?.deprecated },
     { label: 'Description' },
   ])
-  const tabs = useTabs(computedTabs)
-
-  const deploymentSubscription = useSubscription(api.deployments.getDeployment, [deploymentId.value], subscriptionOptions)
-  const deployment = computed(() => deploymentSubscription.response)
+  const { tabs } = useTabs(computedTabs)
 
   function routeToDeployments(): void {
     router.push(routes.deployments())
@@ -92,7 +87,7 @@
     return deployment.value?.infrastructureOverrides ? JSON.stringify(deployment.value.infrastructureOverrides, undefined, 2) : '{}'
   })
 
-  const { filter: deploymentFilter } = useRecentFlowRunsFilter({
+  const { filter: deploymentFilter } = useFlowRunsFilter({
     deployments: {
       id: deploymentIds,
     },

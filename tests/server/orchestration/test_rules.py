@@ -1461,6 +1461,12 @@ class TestOrchestrationContext:
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact.data == {"value": "some special data"}
 
+        if run_type == "task":
+            assert orm_artifact.task_run_id == ctx.run.id
+            assert orm_artifact.flow_run_id == ctx.run.flow_run_id
+        else:
+            assert orm_artifact.flow_run_id == ctx.run.id
+
     async def test_context_validation_writes_result_artifact_with_metadata(
         self, session, run_type, initialize_orchestration
     ):
@@ -1493,7 +1499,7 @@ class TestOrchestrationContext:
         orm_artifact = await models.artifacts.read_artifact(ctx.session, artifact_id)
         assert orm_artifact.data == {"value": "some special data"}
         assert orm_artifact.type == "a special type"
-        assert orm_artifact.metadata_["description"] == "it's so pretty"
+        assert orm_artifact.description == "it's so pretty"
 
     async def test_context_validation_does_not_write_artifact_when_no_result(
         self, session, run_type, initialize_orchestration
