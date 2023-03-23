@@ -36,8 +36,19 @@ See the following pull requests for implementation details:
 
 ### Results page
 
-...
+The Prefect UI now renders flow run and task run results! This view provides a visual representation of the output of your tasks and flows and, where possible, provides links to results persisted using any of our storage blocks. To see this in your UI, run any flow and navigate to the run page; from there you'll see a new tab, "Results":
 
+![Screenshot 2023-03-23 at 12 37 47 PM](https://user-images.githubusercontent.com/27291717/227274576-1379c67c-6624-4a79-9bf7-83ae70e1fb4d.png)
+
+![Screenshot 2023-03-23 at 12 37 37 PM](https://user-images.githubusercontent.com/27291717/227274578-35673508-09e2-4b83-bc22-11538f813eea.png)
+
+Relevant PRs:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1207
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1213
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1223
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/8904
+- https://github.com/PrefectHQ/prefect/pull/8759
 ### Enhancements
 - Add `--reverse` option to the flow run logs CLI to view logs in descending order  — https://github.com/PrefectHQ/prefect/pull/8625
 - Show all flow runs for deployments rather than just the last 7 days — https://github.com/PrefectHQ/prefect/pull/8837
