@@ -10,6 +10,7 @@ from functools import partial, wraps
 from hashlib import sha256
 from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
+import anyio
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -28,6 +29,7 @@ from prefect._internal.compatibility.experimental import enabled_experiments
 from prefect.logging import get_logger
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.utilities.database import get_dialect
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -92,6 +94,24 @@ class SPAStaticFiles(StaticFiles):
             return await super().get_response(path, scope)
         except HTTPException:
             return await super().get_response("./index.html", scope)
+
+
+class RequestLimitMiddleware:
+    """
+    A middleware that limits the number of concurrent requests handled by the API.
+
+    This is a blunt tool for limiting SQLite concurrent writes which will cause failures
+    at high volume. Ideally, we would only apply the limit to routes that perform
+    writes.
+    """
+
+    def __init__(self, app, limit: float):
+        self.app = app
+        self._limiter = anyio.CapacityLimiter(limit)
+
+    async def __call__(self, scope, receive, send) -> None:
+        async with self._limiter:
+            await self.app(scope, receive, send)
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -473,6 +493,15 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Limit the number of concurrent requests when using a SQLite datbase to reduce
+    # chance of errors where the database cannot be opened due to a high number of
+    # concurrent writes
+    if (
+        get_dialect(prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL.value()).name
+        == "sqlite"
+    ):
+        app.add_middleware(RequestLimitMiddleware, limit=100)
 
     api_app.mount(
         "/static",
