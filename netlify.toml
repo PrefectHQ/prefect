@@ -96,7 +96,7 @@ status = 301
 
 [[redirects]]
 from = "/collections/catalog/"
-to = "/integrations/catalog/"
+to = "/integrations/"
 status = 301
 
 [[redirects]]
@@ -120,13 +120,8 @@ to = "/guides/migration-guide/"
 status = 301
 
 [[redirects]]
-from = "/recipes/recipes/"
-to = "/guides/recipes/"
-status = 301
-
-[[redirects]]
 from = "/recipes/contribute-recipes/"
-to = "/guides/recipes/"
+to = "/recipes/recipes/"
 status = 301
 
 [[redirects]]
@@ -159,11 +154,16 @@ from = "/tutorials/flow-task/"
 to = "/tutorials/first-steps/"
 status = 301
 
-
 [[redirects]]
 from = "/integrations/catalog/"
 to = "/integrations/"
 status = 301
+
+[[redirects]]
+from = "/ui/flows-and-tasks/"
+to = "/ui/flows/"
+status = 301
+
 
 
 [[headers]]
