@@ -248,7 +248,11 @@ class PrefectHttpxClient(httpx.AsyncClient):
         # Add jitter based on the number of inflight requests
         jitter = bounded_poisson_interval(0.0, float(self._inflight_requests) / 100.0)
         await anyio.sleep(jitter)
-        print(self._inflight_requests, jitter)
+        logger.debug(
+            "Adding %.2fs jitter to request due to %d in-flight requests.",
+            jitter,
+            self._inflight_requests,
+        )
 
         response = await self._send_with_retry(
             request=api_request,
