@@ -83,6 +83,7 @@ See the following pull requests for implementation details:
 
 ### Documentation
 - Add documentation for events and resources — https://github.com/PrefectHQ/prefect/pull/8858
+- Add documentation for tracking of results - https://github.com/PrefectHQ/prefect/pull/8852
 
 ### Contributors
 * @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
