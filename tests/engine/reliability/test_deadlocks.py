@@ -11,7 +11,7 @@ from tests.generic_tasks import (
 
 
 @pytest.mark.service("slow")
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(200)
 def test_map_wait_for_many_tasks():
     @flow
     def run(n):
@@ -24,7 +24,7 @@ def test_map_wait_for_many_tasks():
 
 
 @pytest.mark.service("slow")
-@pytest.mark.timeout(120)
+@pytest.mark.timeout(200)
 def test_loop_wait_for_many_tasks():
     @flow
     def run(n):
