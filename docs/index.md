@@ -12,11 +12,10 @@ hide:
 
 
 # **Welcome to Prefect**
-### The easiest way to orchestrate and observe your Python code { .main-page-subheader }
 
 Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes. Bring your Python code, sprinkle in a few decorators, and go!
 
-With Prefect you gain easy:
+With Prefect you gain simple:
 
 <ul class="ul-line-height-compress" style="columns: 2">
     <li> <a href="/concepts/schedules"> scheduling </a> </li>
@@ -71,7 +70,7 @@ def my_favorite_function():
 print(my_favorite_function())
 ```
 
-Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its orchestration log:
+Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its execution via the Prefect logs:
 
 <div class="terminal">
 ```bash
@@ -84,10 +83,10 @@ What is your favorite number?
 ```
 </div>
 
-The Prefect orchestration engine observes the flow run state and saves it in a database. By adding a single decorator, you've gained some observability of your flow. There's much more you can do with Prefect, so keep rolling to learn how to add easy retries, notifications, scheduling and more!
+Prefect automatically persists all executions of your flow along with useful metadata such as start time, end time, and state. This is just the beginning, so keep exploring to learn how to add retries, notifications, scheduling and much more!
 
 ## Next Steps
-If you like what you see, try our [tutorials](/tutorials) and [guides](/guides), or read more about [Prefect concepts](/concepts).
+To learn more, try our [tutorials](/tutorials) and [guides](/guides), or go deeper with [Prefect concepts](/concepts).
 
 ---
 
