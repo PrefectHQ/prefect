@@ -2,7 +2,13 @@
 
 ## Release 2.8.7
 
+If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling and result artifacts. With this release, these experiments have culminated into exciting features.
+
 ### Engine reliability
+
+Supporting mixed asynchronous and synchronous code is really complicated, but when designing Prefect 2 we wanted to account for the future growth of asynchronous Python and the many user requests for asynchronous task support. Most of this complexity is buried in the Prefect engine, which manages execution of your flows and tasks. With this release, we've made some drastic improvements to our engine closing some long-standing bugs and ensuring that the engine is not a point of failure when running your flows.
+
+The behavioral changes include:
 
 - All orchestration of flows and tasks happens in a dedicated worker thread
 - Synchronous flows are run on the main thread instead of worker threads
