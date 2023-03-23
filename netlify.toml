@@ -164,6 +164,15 @@ from = "/ui/flows-and-tasks/"
 to = "/ui/flows/"
 status = 301
 
+[[redirects]]
+from = "/getting-started/overview//"
+to = "/"
+status = 301
+
+[[redirects]]
+from = "/cloud/"
+to = "/ui/cloud/"
+status = 301
 
 
 [[headers]]
