@@ -197,7 +197,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+    return from_sync.wait_for_call_in_loop_thread(
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    ).result()
 
 
 @inject_client
