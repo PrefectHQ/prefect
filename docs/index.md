@@ -71,7 +71,7 @@ def my_favorite_function():
 print(my_favorite_function())
 ```
 
-Run the code and you should see output like this:
+Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its orchestration log:
 
 <div class="terminal">
 ```bash
