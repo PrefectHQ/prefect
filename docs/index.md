@@ -12,7 +12,6 @@ hide:
 
 
 # **Welcome to Prefect**
-### The easiest way to orchestrate and observe your Python code { .main-page-subheader }
 
 Prefect enables you to build resilient data workflows so that you can understand, react to, and recover from unexpected changes. Bring your Python code, sprinkle in a few decorators, and go!
 
