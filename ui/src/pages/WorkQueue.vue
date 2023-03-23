@@ -31,7 +31,7 @@
         </template>
 
         <template #runs>
-          <FlowRunFilteredList v-model:states="states" :flow-run-filter="selectedFilter" />
+          <FlowRunFilteredList v-model:states="states" :flow-run-filter="flowRunFilter" />
         </template>
       </p-tabs>
 
@@ -45,7 +45,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useRecentFlowRunsFilter, useFlowRunsFilter, PrefectStateNames } from '@prefecthq/prefect-ui-library'
+  import { WorkQueueDetails, PageHeadingWorkQueue, FlowRunFilteredList, WorkQueueFlowRunsList, CodeBanner, localization, useWorkspaceApi, useFlowRunsFilter, PrefectStateNames } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed, watch, ref } from 'vue'
   import { useRouter } from 'vue-router'
@@ -88,19 +88,11 @@
   const activeRunsBuildUp = computed(() => !!(workQueueConcurrency.value && workQueueConcurrency.value <= activeFlowRunsCount.value && !workQueuePaused.value))
   const workQueueName = computed(() => workQueue.value ? [workQueue.value.name] : [])
 
-  const { filter: recentFlowRunFilter } = useRecentFlowRunsFilter({
-    flowRuns: {
-      workQueueName: workQueueName,
-    },
-  })
-
   const { filter: flowRunFilter } = useFlowRunsFilter({
     flowRuns: {
       workQueueName: workQueueName,
     },
   })
-
-  const selectedFilter = computed(() => activeRunsBuildUp.value ? flowRunFilter : recentFlowRunFilter)
 
   const routeToQueues = (): void => {
     router.push(routes.workQueues())

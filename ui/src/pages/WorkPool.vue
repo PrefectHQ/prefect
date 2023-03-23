@@ -35,7 +35,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useRecentFlowRunsFilter, useTabs, useCan, WorkersTable } from '@prefecthq/prefect-ui-library'
+  import { useWorkspaceApi, PageHeadingWorkPool, WorkPoolDetails, FlowRunFilteredList, WorkPoolQueuesTable, useFlowRunsFilter, useTabs, useCan, WorkersTable } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -55,7 +55,7 @@
     { label: 'Details', hidden: media.xl },
     { label: 'Runs' },
     { label: 'Work Queues' },
-    { label: "Workers", hidden: !can.access.workers || isAgentWorkPool.value }
+    { label: 'Workers', hidden: !can.access.workers || isAgentWorkPool.value },
   ])
 
   const { tab, tabs } = useTabs(computedTabs)
@@ -70,7 +70,7 @@
   const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPool.value?.name}`)
   const codeBannerSubtitle = computed(() => `Work pools organize work that ${isAgentWorkPool.value ? 'Prefect agents' : 'Prefect workers'} can pull from.`)
 
-  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
+  const { filter: flowRunFilter } = useFlowRunsFilter({
     workPools: {
       name: [workPoolName.value],
     },
