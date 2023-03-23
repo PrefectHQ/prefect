@@ -99,7 +99,6 @@ from prefect.utilities.annotations import allow_failure, quote, unmapped
 from prefect.utilities.asyncutils import (
     gather,
     is_async_fn,
-    run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
 )
@@ -1769,6 +1768,42 @@ async def resolve_inputs(
         UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
+    futures = set()
+    states = set()
+    result_by_state = {}
+
+    def collect_futures_and_states(expr, context):
+        # Expressions inside quotes should not be traversed
+        if isinstance(context.get("annotation"), quote):
+            raise StopVisiting()
+
+        if isinstance(expr, PrefectFuture):
+            futures.add(expr)
+        if isinstance(expr, State):
+            states.add(expr)
+
+        return expr
+
+    visit_collection(
+        parameters,
+        visit_fn=collect_futures_and_states,
+        return_data=False,
+        max_depth=max_depth,
+        context={},
+    )
+
+    # Wait for all futures so we do not block when we retrieve the state in `resolve_input`
+    states.update(await asyncio.gather(*[future._wait() for future in futures]))
+
+    # Only retrieve the result if requested as it may be expensive
+    if return_data:
+        state_results = await asyncio.gather(
+            *[state.result(raise_on_failure=False, fetch=True) for state in states]
+        )
+
+        for state, result in zip(states, state_results):
+            result_by_state[state] = result
+
     def resolve_input(expr, context):
         state = None
 
@@ -1777,7 +1812,7 @@ async def resolve_inputs(
             raise StopVisiting()
 
         if isinstance(expr, PrefectFuture):
-            state = run_async_from_worker_thread(expr._wait)
+            state = expr._final_state
         elif isinstance(expr, State):
             state = expr
         else:
@@ -1799,11 +1834,9 @@ async def resolve_inputs(
                 " 'COMPLETED' state."
             )
 
-        # Only retrieve the result if requested as it may be expensive
-        return state.result(raise_on_failure=False, fetch=True) if return_data else None
+        return result_by_state.get(state)
 
-    return await run_sync_in_worker_thread(
-        visit_collection,
+    return visit_collection(
         parameters,
         visit_fn=resolve_input,
         return_data=return_data,
