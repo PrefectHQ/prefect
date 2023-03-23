@@ -88,8 +88,6 @@ We heard that people loved the simplicity and sleekness of the timeline on the f
 ### Deprecations
 - Creating data documents will now throw deprecation warnings — https://github.com/PrefectHQ/prefect/pull/8760
 
-Note: This release also removes the Radar flow run graph
-
 ### Documentation
 - Add documentation for events and resources — https://github.com/PrefectHQ/prefect/pull/8858
 
