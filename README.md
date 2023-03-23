@@ -20,7 +20,7 @@
 
 # Prefect
 
-Prefect is an orchestrator for data-intensive workflows. Powered by an asynchronous orchestration engine, its the easiest way to transform any Python function into a unit of work that can be observed and governed. With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes. With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more. Every activity is tracked and observable with the Prefect server or Prefect Cloud dashboard.
+Prefect is an orchestrator for data-intensive workflows. It's the easiest way to transform any Python function into a unit of work that can be observed and orchestrated. With Prefect, you can build resilient, dynamic workflows that react to the world around them and recover from unexpected changes. With just a few decorators, Prefect supercharges your code with features like automatic retries, distributed execution, scheduling, caching, and much more. Every activity is tracked and observable with the Prefect server or Prefect Cloud dashboard.
 
 ```python
 from prefect import flow, task

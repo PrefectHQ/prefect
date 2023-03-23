@@ -340,7 +340,8 @@ to force column width */
 }
 
 .ul-line-height-compress {
-    line-height: 80%
+    line-height: 80%;
+    margin-bottom: 30px !important;
 }
 
 .full {
@@ -359,7 +360,7 @@ to force column width */
 
 .main-button--primary {
     background: linear-gradient(90deg,#0a082e,#5988e3);
-    color: white;
+    color: white !important;
     border: none !important;
     font-weight: 400 !important;
     clip-path: polygon(0 0,0 0,100% 0,100% 0,100% calc(100% - 15px),calc(100% - 15px) 100%,15px 100%,0 100%);
