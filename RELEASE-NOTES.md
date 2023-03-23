@@ -2,7 +2,7 @@
 
 ## Release 2.8.7
 
-If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling and result artifacts. With this release, these experiments have culminated into exciting features.
+If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling, flow run graph enhancements, and result artifacts. With this release, these experiments have culminated into exciting features!
 
 ### Engine reliability
 
@@ -23,7 +23,7 @@ The behavioral changes include:
 - Debug mode now enables verbose logging from Prefect concurrency internals
 - The API limits itself to 100 concurrent requests when using SQLite as a backend
     - Avoids database file contention when using high levels of concurrency
-- Resolving task inputs no longer uses worker threads
+- Resolving task inputs no longer users worker threads
     - Resolves issues where large numbers of upstream task inputs would cause deadlocks
     - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
 
@@ -34,7 +34,7 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/8903
 - https://github.com/PrefectHQ/prefect/pull/8830
 
-### Results page
+### Results tab on flow run pages
 
 The Prefect UI now renders information about your flow run and task run results! 
 
@@ -50,6 +50,12 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect-ui-library/pull/1223
 - https://github.com/PrefectHQ/prefect/pull/8904
 - https://github.com/PrefectHQ/prefect/pull/8759
+
+### Flow run graph
+
+We heard that people loved the simplicity and sleekness of the timeline on the flow run page, but valued Radar's abaility to traverse between flow runs and subflows runs. This release introduces the ability to expand and collapse subflow runs within the timeline. The flow run timeline has now evolved into a general purpose flow run graph with the ability to render thousands of nodes and edged performantly and navigate your flow runs with ease.
+
+![flow_run_graph](https://user-images.githubusercontent.com/3407835/227292160-7b29967c-3ffa-431c-b270-0dfd135b55b4.png)
 
 ### Enhancements
 - Add `--reverse` option to the flow run logs CLI to view logs in descending order — https://github.com/PrefectHQ/prefect/pull/8625
@@ -70,6 +76,7 @@ See the following pull requests for implementation details:
 - Fix saving block document secrets that have not been modified — https://github.com/PrefectHQ/prefect/pull/8848
 - Disable SLSA provenance setting in Docker buildx to resolve image pull errors with certain Cloud providers — https://github.com/PrefectHQ/prefect/pull/8889
 - Fix race condition in worker thread start — https://github.com/PrefectHQ/prefect/pull/8886
+- The state message has been returned to the flow run metadata panel on the right side of the flow run page - https://github.com/PrefectHQ/prefect/pull/8885
 
 ### Experimental
 - Update to worker base job template logic for nested placeholders — https://github.com/PrefectHQ/prefect/pull/8795
@@ -81,9 +88,10 @@ See the following pull requests for implementation details:
 ### Deprecations
 - Creating data documents will now throw deprecation warnings — https://github.com/PrefectHQ/prefect/pull/8760
 
+Note: This release also removes the Radar flow run graph
+
 ### Documentation
 - Add documentation for events and resources — https://github.com/PrefectHQ/prefect/pull/8858
-- Add documentation for tracking of results - https://github.com/PrefectHQ/prefect/pull/8852
 
 ### Contributors
 * @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
