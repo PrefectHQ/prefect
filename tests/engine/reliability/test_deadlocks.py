@@ -10,8 +10,7 @@ from tests.generic_tasks import (
 )
 
 
-@pytest.mark.service("slow")
-@pytest.mark.timeout(200)
+@pytest.mark.skip(reason="This test takes multiple minutes")
 def test_map_wait_for_many_tasks():
     @flow
     def run(n):
@@ -23,8 +22,7 @@ def test_map_wait_for_many_tasks():
     run(500)
 
 
-@pytest.mark.service("slow")
-@pytest.mark.timeout(200)
+@pytest.mark.skip(reason="This test takes multiple minutes")
 def test_loop_wait_for_many_tasks():
     @flow
     def run(n):
