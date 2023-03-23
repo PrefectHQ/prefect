@@ -86,7 +86,7 @@ What is your favorite number?
 Prefect automatically persists all executions of your flow along with useful metadata such as start time, end time, and state. This is just the beginning, so keep exploring to learn how to add retries, notifications, scheduling and much more!
 
 ## Next Steps
-If you like what you see, try our [tutorials](/tutorials) and [guides](/guides), or read more about [Prefect concepts](/concepts).
+To learn more, try our [tutorials](/tutorials) and [guides](/guides), or go deeper with [Prefect concepts](/concepts).
 
 ---
 
