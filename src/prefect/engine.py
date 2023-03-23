@@ -35,7 +35,7 @@ from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas import FlowRun, TaskRun
+from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
 from prefect.context import (
     FlowRunContext,
@@ -197,7 +197,9 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     setup_logging()
 
-    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+    return from_sync.wait_for_call_in_loop_thread(
+        create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
+    ).result()
 
 
 @inject_client
@@ -810,8 +812,13 @@ async def pause_flow_run(
         )
 
 
+@inject_client
 async def _in_process_pause(
-    timeout: int = 300, poll_interval: int = 10, reschedule=False, key: str = None
+    timeout: int = 300,
+    poll_interval: int = 10,
+    reschedule=False,
+    key: str = None,
+    client=None,
 ):
     if TaskRunContext.get():
         raise RuntimeError("Cannot pause task runs.")
@@ -829,7 +836,7 @@ async def _in_process_pause(
 
     try:
         state = await propose_state(
-            client=context.client,
+            client=client,
             state=Paused(
                 timeout_seconds=timeout, reschedule=reschedule, pause_key=pause_key
             ),
@@ -858,20 +865,20 @@ async def _in_process_pause(
         # attempt to check if a flow has resumed at least once
         initial_sleep = min(timeout / 2, poll_interval)
         await anyio.sleep(initial_sleep)
-        flow_run = await context.client.read_flow_run(context.flow_run.id)
+        flow_run = await client.read_flow_run(context.flow_run.id)
         if flow_run.state.is_running():
             logger.info("Resuming flow run execution!")
             return
 
         while True:
             await anyio.sleep(poll_interval)
-            flow_run = await context.client.read_flow_run(context.flow_run.id)
+            flow_run = await client.read_flow_run(context.flow_run.id)
             if flow_run.state.is_running():
                 logger.info("Resuming flow run execution!")
                 return
 
     # check one last time before failing the flow
-    flow_run = await context.client.read_flow_run(context.flow_run.id)
+    flow_run = await client.read_flow_run(context.flow_run.id)
     if flow_run.state.is_running():
         logger.info("Resuming flow run execution!")
         return
@@ -879,11 +886,13 @@ async def _in_process_pause(
     raise FlowPauseTimeout("Flow run was paused and never resumed.")
 
 
+@inject_client
 async def _out_of_process_pause(
     flow_run_id: UUID,
     timeout: int = 300,
     reschedule: bool = True,
     key: str = None,
+    client=None,
 ):
     if reschedule:
         raise RuntimeError(
@@ -891,7 +900,6 @@ async def _out_of_process_pause(
             " True."
         )
 
-    client = get_client()
     response = await client.set_flow_run_state(
         flow_run_id,
         Paused(timeout_seconds=timeout, reschedule=True, pause_key=key),
@@ -1851,19 +1859,26 @@ async def propose_state(
 
         link_state_to_result(state, result)
 
+    # Handle repeated WAITs in a loop instead of recursively, to avoid
+    # reaching max recursion depth in extreme cases.
+    async def set_state_and_handle_waits(set_state_func) -> OrchestrationResult:
+        response = await set_state_func()
+        while response.status == SetStateStatus.WAIT:
+            engine_logger.debug(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
+            response = await set_state_func()
+        return response
+
     # Attempt to set the state
     if task_run_id:
-        response = await client.set_task_run_state(
-            task_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_task_run_state, task_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     elif flow_run_id:
-        response = await client.set_flow_run_state(
-            flow_run_id,
-            state,
-            force=force,
-        )
+        set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
+        response = await set_state_and_handle_waits(set_state)
     else:
         raise ValueError(
             "Neither flow run id or task run id were provided. At least one must "
@@ -1879,19 +1894,6 @@ async def propose_state(
 
     elif response.status == SetStateStatus.ABORT:
         raise prefect.exceptions.Abort(response.details.reason)
-
-    elif response.status == SetStateStatus.WAIT:
-        engine_logger.debug(
-            f"Received wait instruction for {response.details.delay_seconds}s: "
-            f"{response.details.reason}"
-        )
-        await anyio.sleep(response.details.delay_seconds)
-        return await propose_state(
-            client,
-            state,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
-        )
 
     elif response.status == SetStateStatus.REJECT:
         if response.state.is_paused():

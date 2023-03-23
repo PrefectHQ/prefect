@@ -2,6 +2,7 @@ import asyncio
 import os
 import signal
 import statistics
+import sys
 from contextlib import contextmanager
 from functools import partial
 from typing import List
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 
 import prefect.flows
 from prefect import engine, flow, task
+from prefect.client.schemas import OrchestrationResult
 from prefect.context import FlowRunContext, get_run_context
 from prefect.engine import (
     begin_flow_run,
@@ -24,6 +26,7 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     pause_flow_run,
+    propose_state,
     report_flow_run_crashes,
     resume_flow_run,
     retrieve_flow_then_begin_flow_run,
@@ -42,6 +45,11 @@ from prefect.futures import PrefectFuture
 from prefect.results import ResultFactory
 from prefect.server.schemas.actions import FlowRunCreate
 from prefect.server.schemas.filters import FlowRunFilter
+from prefect.server.schemas.responses import (
+    SetStateStatus,
+    StateAcceptDetails,
+    StateWaitDetails,
+)
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.states import Cancelled, Failed, Pending, Running, State
 from prefect.task_runners import SequentialTaskRunner
@@ -512,6 +520,59 @@ class TestOutOfProcessPause:
 
 
 class TestOrchestrateTaskRun:
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep, flow_run
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+        # the flow run must be running prior to running tasks
+        await orion_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=Running(),
+        )
+
+        @task
+        def foo():
+            return 1
+
+        task_run = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run.id,
+            dynamic_key="0",
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_task_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), task_run_id=task_run.id
+            )
+
     async def test_waits_until_scheduled_start_time(
         self,
         orion_client,
@@ -981,6 +1042,52 @@ class TestOrchestrateFlowRun:
             sync_portal=None,
             result_factory=result_factory,
         )
+
+    async def test_propose_state_does_not_recurse(
+        self, monkeypatch, orion_client, mock_anyio_sleep
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/8825.
+        Previously propose_state would make a recursive call. In extreme cases
+        the server would instruct propose_state to wait almost indefinitely
+        leading to propose_state to hit max recursion depth
+        """
+
+        @flow
+        def foo():
+            return 1
+
+        flow_run = await orion_client.create_flow_run(
+            flow=foo,
+            state=State(
+                type=StateType.PENDING,
+            ),
+        )
+
+        delay_seconds = 30
+        num_waits = sys.getrecursionlimit() + 50
+
+        orion_client.set_flow_run_state = AsyncMock(
+            side_effect=[
+                *[
+                    OrchestrationResult(
+                        status=SetStateStatus.WAIT,
+                        details=StateWaitDetails(delay_seconds=delay_seconds),
+                    )
+                    for _ in range(num_waits)
+                ],
+                OrchestrationResult(
+                    status=SetStateStatus.ACCEPT,
+                    details=StateAcceptDetails(),
+                    state=Running(),
+                ),
+            ]
+        )
+
+        with mock_anyio_sleep.assert_sleeps_for(delay_seconds * num_waits):
+            await propose_state(
+                orion_client, State(type=StateType.RUNNING), flow_run_id=flow_run.id
+            )
 
     async def test_waits_until_scheduled_start_time(
         self, orion_client, mock_anyio_sleep, partial_flow_run_context

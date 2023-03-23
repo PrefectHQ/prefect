@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect.client import PrefectClient
-from prefect.deprecated.data_documents import DataDocument
 from prefect.flows import flow
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.states import Completed
@@ -21,7 +20,7 @@ async def test_resolve_futures_transforms_future(task_run):
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+        _final_state=Completed(data="foo"),
     )
     future.task_run = task_run
     future._submitted.set()
@@ -34,7 +33,7 @@ async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run)
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+        _final_state=Completed(data="foo"),
     )
     future.task_run = task_run
     future._submitted.set()
@@ -48,7 +47,7 @@ async def test_resolve_futures_transforms_future_in_generator_type(task_run):
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+        _final_state=Completed(data="foo"),
     )
     future.task_run = task_run
     future._submitted.set()
@@ -66,7 +65,7 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+        _final_state=Completed(data="foo"),
     )
     future.task_run = task_run
     future._submitted.set()
@@ -88,7 +87,7 @@ async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run)
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "foo")),
+        _final_state=Completed(data="foo"),
     )
     key_future.task_run = task_run
     key_future._submitted.set()
@@ -96,7 +95,7 @@ async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run)
         key=str(task_run.id),
         name="bar",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "bar")),
+        _final_state=Completed(data="bar"),
     )
     value_future.task_run = task_run
     value_future._submitted.set()
@@ -116,7 +115,7 @@ async def test_resolve_futures_transforms_future_in_dataclass(task_run):
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "bar")),
+        _final_state=Completed(data="bar"),
     )
     future.task_run = task_run
     future._submitted.set()
@@ -136,7 +135,7 @@ async def test_resolves_futures_in_nested_collections(task_run):
         key=str(task_run.id),
         name="foo",
         task_runner=None,
-        _final_state=Completed(data=DataDocument.encode("json", "bar")),
+        _final_state=Completed(data="bar"),
     )
     future.task_run = task_run
     future._submitted.set()
