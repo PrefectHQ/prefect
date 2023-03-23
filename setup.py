@@ -3,6 +3,7 @@ from setuptools import find_packages, setup
 import versioneer
 
 install_requires = open("requirements.txt").read().strip().split("\n")
+server_requires = open("requirements-server.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
 setup(
@@ -37,7 +38,7 @@ setup(
     # Requirements
     python_requires=">=3.7",
     install_requires=install_requires,
-    extras_require={"dev": dev_requires},
+    extras_require={"dev": dev_requires, "server": server_requires},
     classifiers=[
         "Natural Language :: English",
         "Intended Audience :: Developers",

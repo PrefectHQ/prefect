@@ -1,0 +1,1 @@
+sqlalchemy[asyncio] >= 1.4.22, != 1.4.33, < 2.0
