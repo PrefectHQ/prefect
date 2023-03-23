@@ -730,42 +730,33 @@ def test_login_already_logged_in_to_another_profile(respx_mock):
     assert PREFECT_API_KEY not in previous_profile.settings
 
 
-def test_login_respects_current_profile_over_prefect_api_key_env_var(respx_mock):
+def test_login_with_current_profile_and_prefect_api_key_env_var_exits_with_error(
+    respx_mock,
+):
     foo_workspace = gen_test_workspace(account_handle="test", workspace_handle="foo")
+    bar_workspace = gen_test_workspace(account_handle="test", workspace_handle="bar")
 
     respx_mock.get(PREFECT_CLOUD_API_URL.value() + "/me/workspaces").mock(
         return_value=httpx.Response(
             status.HTTP_200_OK,
-            json=[foo_workspace.dict(json_compatible=True)],
-        )
-    )
-
-    current_profile = load_current_profile()
-
-    save_profiles(
-        ProfilesCollection(
-            [
-                Profile(
-                    name="logged-in-profile",
-                    settings={
-                        PREFECT_API_URL: foo_workspace.api_url(),
-                        PREFECT_API_KEY: "foo",
-                    },
-                ),
-                current_profile,
+            json=[
+                foo_workspace.dict(json_compatible=True),
+                bar_workspace.dict(json_compatible=True),
             ],
-            active=current_profile.name,
         )
     )
+
     with temporary_settings({PREFECT_API_KEY: "bar"}):
-        with use_profile("logged-in-profile"):
-            invoke_and_assert(
-                ["cloud", "login", "--key", "foo", "--workspace", "test/foo"],
-                expected_code=0,
-                expected_output_contains=[
-                    "This profile is already authenticated with that key.",
-                ],
-            )
+        invoke_and_assert(
+            ["cloud", "login", "--key", "bar", "--workspace", "test/bar"],
+            expected_code=1,
+            expected_output_contains=[
+                (
+                    "Your PREFECT_API_KEY environment variable differs from the one in"
+                    " your currently active profile"
+                ),
+            ],
+        )
 
 
 @pytest.mark.usefixtures("interactive_console")
