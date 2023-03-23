@@ -6,7 +6,7 @@ If you have been watching the experimental section of our release notes, you may
 
 ### Engine reliability
 
-Supporting mixed asynchronous and synchronous code is really complicated, but when designing Prefect 2 we wanted to account for the future growth of asynchronous Python and the many user requests for asynchronous task support. Most of this complexity is buried in the Prefect engine, which manages execution of your flows and tasks. With this release, we've made some drastic improvements to our engine closing some long-standing bugs and ensuring that the engine is not a point of failure when running your flows.
+Supporting mixed asynchronous and synchronous code is complicated, but important. When designing Prefect 2, we wanted to account for the future growth of asynchronous Python and the many user requests for asynchronous task support. Most of this complexity is buried in the Prefect engine, which manages execution of your flows and tasks. With this release, we've made some dramatic improvements to the engine, closing some long-standing bugs and ensuring that it isn't a point of failure when running your flows.
 
 The behavioral changes include:
 
