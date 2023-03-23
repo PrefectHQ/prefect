@@ -40,9 +40,8 @@ The Prefect UI now renders information about your flow run and task run results!
 
 This view provides a visual representation of the output of your tasks and flows and, when possible, provides links to results persisted using any of our storage blocks. To see this in your UI, run any flow and navigate to the run page; from there you'll see a new tab, "Results":
 
-![results_list_view](https://user-images.githubusercontent.com/27291717/227274576-1379c67c-6624-4a79-9bf7-83ae70e1fb4d.png)
-
-![results_grid_view](https://user-images.githubusercontent.com/27291717/227274578-35673508-09e2-4b83-bc22-11538f813eea.png)
+![Results list view](https://user-images.githubusercontent.com/27291717/227274576-1379c67c-6624-4a79-9bf7-83ae70e1fb4d.png)
+![Results grid view](https://user-images.githubusercontent.com/27291717/227274578-35673508-09e2-4b83-bc22-11538f813eea.png)
 
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect-ui-library/pull/1207
@@ -55,7 +54,8 @@ See the following pull requests for implementation details:
 
 We heard that people loved the simplicity and sleekness of the timeline on the flow run page, but valued the radar graph's ability to traverse between flow runs and subflows runs. This release introduces the ability to expand and collapse subflow runs within the timeline. With these enhancements, the flow run timeline has now evolved into a general purpose flow run graph, with the ability to render thousands of nodes and edges performantly. You can now observe and explore your flow runs even more quickly and easily!
 
-![flow_run_graph](https://user-images.githubusercontent.com/3407835/227292160-7b29967c-3ffa-431c-b270-0dfd135b55b4.png)
+<img width="1497" alt="Flow run timeline" src="https://user-images.githubusercontent.com/2586601/227337664-8d856634-7093-4002-ab55-57986eeaa2ed.png">
+<img width="1496" alt="Subflow run expansion" src="https://user-images.githubusercontent.com/2586601/227337673-5cc574c9-76a6-442b-b579-e8fd2a184fd3.png">
 
 ### Enhancements
 - Add `--reverse` option to the flow run logs CLI to view logs in descending order — https://github.com/PrefectHQ/prefect/pull/8625
