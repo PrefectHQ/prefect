@@ -48,12 +48,15 @@ See the following pull requests for implementation details:
 - Add debug level log of active profile on module import — https://github.com/PrefectHQ/prefect/pull/8856
 - Update server to use new FastAPI lifespan context manager — https://github.com/PrefectHQ/prefect/pull/8842
 - Add support for variadic keyword arguments to `Task.map` — https://github.com/PrefectHQ/prefect/pull/8188
+- Show the full run history in the UI — https://github.com/PrefectHQ/prefect/pull/8885
 
 ### Fixes
 - Fix `prefect dev start` failure — https://github.com/PrefectHQ/prefect/pull/8850
 - Fix bug where `propose_state` could exceed recursion limits during extended waits — https://github.com/PrefectHQ/prefect/pull/8827
 - Fix configuration of flow run infrastructure when using agent default — https://github.com/PrefectHQ/prefect/pull/8872
 - Fix saving block document secrets that have not been modified — https://github.com/PrefectHQ/prefect/pull/8848
+- Disable SLSA provenance setting in Docker buildx to resolve image pull errors with certain Cloud providers — https://github.com/PrefectHQ/prefect/pull/8889
+- Fix race condition in worker thread start — https://github.com/PrefectHQ/prefect/pull/8886
 
 ### Experimental
 - Update to worker base job template logic for nested placeholders — https://github.com/PrefectHQ/prefect/pull/8795
@@ -65,6 +68,8 @@ See the following pull requests for implementation details:
 ### Deprecations
 - Creating data documents will now throw deprecation warnings — https://github.com/PrefectHQ/prefect/pull/8760
 
+### Documentation
+- Add documentation for events and resources — https://github.com/PrefectHQ/prefect/pull/8858
 
 ### Contributors
 * @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
