@@ -44,7 +44,7 @@ prefect-cloud.user.logged-in
 
 Events are automatically emitted by all Prefect objects, including flows, tasks, deployments, work queues, and logs. Prefect-emitted events will contain the `prefect` or `prefect-cloud` resource prefix. Events can also be sent to the Prefect [events API](https://app.prefect.cloud/api/docs#tag/Events) via authenticated http request.
 
-Prefect provides an events client that emits events, for use in arbitrary python code that may not be a task or 
+The Prefect SDK provides a method that emits events, for use in arbitrary python code that may not be a task or 
 flow. Running the following code will emit events to Prefect Cloud, which will validate and ingest the event data.
 
 
