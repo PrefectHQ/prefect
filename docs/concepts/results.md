@@ -443,8 +443,9 @@ If `persist_result` is set to `False`, these values will never be stored.
 
 ## Tracking results
 
-The Prefect API tracks metadata about your results for display in the UI. As previously mentioned, the value of your result is only stored in specific cases. Otherwise, Prefect tracks the name of the type of your result to help understand how data flows through your tasks.
+The Prefect API tracks metadata about your results. The value of your result is only stored in the [specific cases](#storage-of-results-in-prefect). Prefect tracks the name of the type of your result to help understand how data flows through your tasks.
 
+Result metadata can be seen in the UI on the "Results" page for flows. When results are persisted, we will include information about where the result was persisted to.
 
 ## Caching of results in memory
 
