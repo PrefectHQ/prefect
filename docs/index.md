@@ -71,7 +71,7 @@ def my_favorite_function():
 print(my_favorite_function())
 ```
 
-Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its orchestration log:
+Thats it! Your function is now a flow. Run the code as you normally would, and you'll see its execution via the Prefect logs:
 
 <div class="terminal">
 ```bash
