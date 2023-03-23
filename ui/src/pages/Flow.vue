@@ -26,7 +26,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useRecentFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
+  import { DeploymentsTable, PageHeadingFlow, FlowDetails, FlowRunFilteredList, useWorkspaceApi, useFlowRunsFilter, useDeploymentsFilter } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { useRouter } from 'vue-router'
@@ -54,7 +54,7 @@
   const flowSubscription = useSubscription(api.flows.getFlow, [flowId.value], subscriptionOptions)
   const flow = computed(() => flowSubscription.response)
 
-  const { filter: flowRunsFilter } = useRecentFlowRunsFilter({
+  const { filter: flowRunsFilter } = useFlowRunsFilter({
     flows: {
       id: flowIds,
     },

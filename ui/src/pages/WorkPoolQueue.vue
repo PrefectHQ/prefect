@@ -32,7 +32,7 @@
 
 <script lang="ts" setup>
   import { media } from '@prefecthq/prefect-design'
-  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useRecentFlowRunsFilter } from '@prefecthq/prefect-ui-library'
+  import { useWorkspaceApi, PageHeadingWorkPoolQueue, CodeBanner, WorkPoolQueueDetails, WorkPoolQueueUpcomingFlowRunsList, FlowRunFilteredList, useFlowRunsFilter } from '@prefecthq/prefect-ui-library'
   import { useRouteParam, useSubscription } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
   import { usePageTitle } from '@/compositions/usePageTitle'
@@ -62,7 +62,7 @@
   const codeBannerCliCommand = computed(() => `prefect ${isAgentWorkPool.value ? 'agent' : 'worker'} start --pool ${workPoolName.value} --work-queue ${workPoolQueueName.value}`)
   const codeBannerSubtitle = computed(() => `Work queues are scoped to a work pool to allow ${isAgentWorkPool.value ? 'agents' : 'workers'} to pull from groups of queues with different priorities.`)
 
-  const { filter: flowRunFilter } = useRecentFlowRunsFilter({
+  const { filter: flowRunFilter } = useFlowRunsFilter({
     workPoolQueues: {
       name: workPoolQueueNames,
     },
