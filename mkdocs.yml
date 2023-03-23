@@ -130,6 +130,7 @@ nav:
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
+        - Events & Resources: concepts/events-and-resources.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - UI & Cloud:
@@ -153,6 +154,7 @@ nav:
         - Roles (RBAC): ui/roles.md
         - Single Sign-on (SSO): ui/sso.md
         - Audit Log: ui/audit-log.md
+        - Events: ui/events.md
         - Troubleshooting: ui/troubleshooting.md
         - Prefect Cloud API Rate Limits: ui/rate-limits.md
     - Guides: 
