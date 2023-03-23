@@ -497,7 +497,7 @@ class PersistedResult(BaseResult):
         uri = cls._infer_path(storage_block, key)
         if uri:
             if isinstance(storage_block, LocalFileSystem):
-                description += f" persisted to `{uri}`."
+                description += f" persisted to: `{uri}`"
             else:
                 description += f" persisted to [{uri}]({uri})."
         else:
