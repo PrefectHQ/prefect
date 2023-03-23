@@ -46,7 +46,7 @@ If you're ready to dive in and learn Prefect, try the [tutorial](/tutorial/index
 
 ## Quick Start: Hello Prefect
 
-In your Python virtual environment, install Prefect with 
+Install Prefect with 
 
 <div class="terminal">
 ```bash
