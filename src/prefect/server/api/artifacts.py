@@ -19,11 +19,8 @@ from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 def error_404_if_artifacts_not_enabled(request: Request):
     route = request.url.path.split("/")[-1]
 
-    if route == "filter":
+    if route == "filter" or (route == "{id}" and request.method == "GET"):
         return
-    elif route == "{id}":
-        if request.method == "GET":
-            return
     else:
         if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
             raise HTTPException(status_code=404, detail="Artifacts are not enabled")
