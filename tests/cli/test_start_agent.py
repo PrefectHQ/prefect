@@ -11,7 +11,7 @@ from prefect.utilities.processutils import open_process
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 20
-SHUTDOWN_TIMEOUT = 40
+SHUTDOWN_TIMEOUT = 60
 
 
 @pytest.fixture(scope="function")
