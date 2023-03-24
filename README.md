@@ -63,7 +63,7 @@ Prefect requires Python 3.7 or later. To [install Prefect](https://docs.prefect.
 pip install prefect
 ```
 
-Start by then exploring the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/overview/), then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example.
+Start by then exploring the [core concepts of Prefect workflows](https://docs.prefect.io/concepts/), then follow one of our [friendly tutorials](https://docs.prefect.io/tutorials/first-steps) to learn by example.
 
 ## Join the community
 
