@@ -1,17 +1,14 @@
 ---
 description: Learn about writing tests for Prefect flows and tasks.
 tags:
-    - tutorial
     - testing
     - unit test
-    - tasks
-    - flows
     - development
 ---
 
 # Testing
 
-Now that you have all of these awesome flows, you probably want to test them!
+Once you have some awesome flows, you probably want to test them!
 
 ## Unit testing flows
 

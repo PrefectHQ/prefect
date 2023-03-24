@@ -21,7 +21,7 @@ You may configure blocks through code or via the Prefect Cloud and the Prefect s
 
 You can access blocks for both configuring flow [deployments](/concepts/deployments/) and directly from within your flow code.
 
-Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Collections](/collections/catalog/). To use these blocks you can `pip install` the collection, then register the blocks you want to use with Prefect Cloud or a Prefect server.
+Prefect provides some built-in block types that you can use right out of the box. Additional blocks are available through [Prefect Integrations](/integrations/). To use these blocks you can `pip install` the package, then register the blocks you want to use with Prefect Cloud or a Prefect server.
 
 Prefect Cloud and the Prefect server UI display a library of block types available for you to configure blocks that may be used by your flows.
 
@@ -61,11 +61,11 @@ Prefect provides a broad range of commonly used, built-in block types. These blo
 | [Twilio SMS](/api-ref/prefect/blocks/notifications/#prefect.blocks.notifications.TwilioSMS) | `twilio-sms` | Enables sending notifications via Twilio SMS. |
 | [Webhook](/api-ref/prefect/blocks/webhook/#prefect.blocks.webhook.Webhook) | `webhook` | Block that enables calling webhooks. |
 
-## Blocks in Prefect Collections
+## Blocks in Prefect Integrations
 
-Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Collections](/collections/catalog/). The following table provides an overview of the blocks available from our most popular Prefect Collections.
+Blocks can also be created by anyone and shared with the community. You'll find blocks that are available for consumption in many of the published [Prefect Integrations](/integrations/). The following table provides an overview of the blocks available from our most popular Prefect Integrations.
 
-| Collection | Block | Slug |
+| Integration | Block | Slug |
 | --- | --- | --- |
 | [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/) | [Airbyte Connection](https://prefecthq.github.io/prefect-airbyte/connections/#prefect_airbyte.connections.AirbyteConnection) | `airbyte-connection` |
 | [prefect-airbyte](https://prefecthq.github.io/prefect-airbyte/) | [Airbyte Server](https://prefecthq.github.io/prefect-airbyte/server/#prefect_airbyte.server.AirbyteServer) | `airbyte-server` |
@@ -428,7 +428,7 @@ $ prefect block register --module prefect_aws.credentials
 ```
 </div>
 
-This command is useful for registering all blocks found in the credentials module within [Prefect Collections](/collections/catalog/).
+This command is useful for registering all blocks found in the credentials module within [Prefect Integrations](/integrations/).
 
 Or, if a block has been created in a `.py` file, the block can also be registered with the CLI command:
 

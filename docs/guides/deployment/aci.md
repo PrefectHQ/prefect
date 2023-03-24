@@ -1,16 +1,13 @@
 ---
-description: Run an agent and flows in the cloud with containers.
+description: Run an agent and flows in the cloud with Azure Container Instances.
 tags:
     - Docker
     - containers
     - agents
     - cloud
-    - tutorial
 ---
 
-# Quickstart: Run an Agent in the Cloud
-
-## Run an Agent with Azure Container Instances
+# Run an Agent with Azure Container Instances
 
 Microsoft Azure Container Instances (ACI) provides a convenient and simple service for quickly spinning up a Docker container that can host a Prefect Agent and execute flow runs.
 
@@ -55,7 +52,7 @@ az container create \
 
 When the container instance is running, go to Prefect Cloud and select the [**Work Pools** page](/ui/work-pools/). Select **default-agent-pool**, then select the **Queues** tab to see work queues configured on this work pool. When the container instance is running and the agent has started, the `test` work queue displays "Healthy" status. This work queue and agent are ready to execute deployments configured to run on the `test` queue.
 
-![Prefect Cloud UI indicates a healthy work queue in the default work pool](../img/ui/healthy-work-queue.png)
+![Prefect Cloud UI indicates a healthy work queue in the default work pool](../../img/ui/healthy-work-queue.png)
 
 !!! info "Agents and queues"
     The agent running in this container instance can now pick up and execute flow runs for any deployment configured to use the `test` queue on the `default-agent-pool` work pool.

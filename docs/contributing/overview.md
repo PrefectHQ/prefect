@@ -1,5 +1,5 @@
 ---
-description: Learn about contributing to Prefect 2.
+description: Learn about contributing to Prefect.
 tags:
     - open source
     - contributing
