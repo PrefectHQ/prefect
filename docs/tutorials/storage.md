@@ -11,7 +11,7 @@ tags:
 
 # Storage and Infrastructure
 
-In previous tutorials, we've run flow and tasks entirely in a local execution environment using the local file system to store flow scripts. 
+In previous sections, we've run flow and tasks entirely in a local execution environment using the local file system to store flow scripts.
 
 For production workflows, you'll most likely want to configure deployments that create flow runs in remote execution environments &mdash; a VM, a Docker container, or a Kubernetes cluster, for example. These deployments require _remote storage_ and _infrastructure_ blocks that specify where your flow code is stored and how the flow run execution environment should be configured.
 
@@ -251,5 +251,5 @@ if __name__ == "__main__":
 
 This recipe for loading blocks is useful across a wide variety of situations, not just deployments.  We can load arbitrary block types from the core `Block` class by referencing their slug.
 
-!!! tip "Next steps: Flow runs with Docker"
-    Continue on to the [Docker](/tutorials/docker/) tutorial where we'll put storage, infrastructure, and deployments together to run a flow in a Docker container.
+!!! tip "Next steps: Guides"
+    Congratulations, you've completed the Prefect tutorial! Now go check out [Concepts](/concepts/) for a deeper dive into a specific topic, or check out [Guides](/guides/) that put everything together.

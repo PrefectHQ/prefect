@@ -1,18 +1,18 @@
 ---
-description: Contribute blocks and collections to the Prefect Collections Catalog.
+description: Contribute blocks and integrations to the Prefect Integrations Catalog.
 tags:
   - blocks
   - storage
   - secrets
   - configuration
   - infrastructure
-  - collections
+  - integrations
   - contributing
 ---
 
 # Contribute
 
-We welcome contributors! You can help contribute blocks and collections by following these steps.
+We welcome contributors! You can help contribute blocks and integrations by following these steps.
 
 ## Contributing Blocks
 
@@ -59,23 +59,23 @@ class Secret(Block):
 
 To view in the Prefect Cloud or Prefect server UI, [register the block](https://docs.prefect.io/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui).
 
-## Contributing Collections
+## Contributing Integrations
 
-Anyone can create and share a Prefect Collection and we encourage anyone interested in creating a collection to do so!
+Anyone can create and share a Prefect Integration and we encourage anyone interested in creating a integration to do so!
 
 ### Generate a project
 
-To help you get started with your collection, we've created a template that gives the tools you need to create and publish your collection.
+To help you get started with your integration, we've created a template that gives the tools you need to create and publish your integration.
 
-Use the [Prefect Collection template](https://github.com/PrefectHQ/prefect-collection-template#quickstart) to get started creating a collection with a bootstrapped project!
+Use the [Prefect Integration template](https://github.com/PrefectHQ/prefect-integration-template#quickstart) to get started creating an integration with a bootstrapped project!
 
-### List a project in the Collections Catalog
+### List a project in the Integrations Catalog
 
-To list your collection in the Prefect Collections Catalog, submit a PR to the Prefect repository adding a file to the `docs/collections/catalog` directory with details about your collection. Please use `TEMPLATE.yaml` in that folder as a guide.
+To list your integration in the Prefect Integrations Catalog, submit a PR to the Prefect repository adding a file to the `docs/integrations/catalog` directory with details about your integration. Please use `TEMPLATE.yaml` in that folder as a guide.
 
-## Contribute fixes or enhancements to Collections
+## Contribute fixes or enhancements to Integrations
 
-If you'd like to help contribute to fix an issue or add a feature to any of our Collections, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
+If you'd like to help contribute to fix an issue or add a feature to any of our Integrations, please [propose changes through a pull request from a fork of the repository](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork).
 
 1. [Fork the repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#forking-a-repository)
 2. [Clone the forked repository](https://docs.github.com/en/get-started/quickstart/fork-a-repo#cloning-your-forked-repository)
@@ -85,7 +85,7 @@ pip install -e ".[dev]"
 ```
 4. Make desired changes
 5. Add tests
-6. Insert an entry to the Collection's CHANGELOG.md
+6. Insert an entry to the Integration's CHANGELOG.md
 7. Install `pre-commit` to perform quality checks prior to commit:
 ```
 pre-commit install

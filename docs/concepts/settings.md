@@ -43,7 +43,7 @@ PREFECT_API_URL="https://api.prefect.cloud/api/accounts/[ACCOUNT-ID]/workspaces/
 
 
 !!! tip "Running the Prefect UI behind a reverse proxy"
-    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_UI_API_URL`](prefect/settings/#prefect.settings.PREFECT_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-server.example.com/ then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
+    When using a reverse proxy (such as [Nginx](https://nginx.org) or [Traefik](https://traefik.io)) to proxy traffic to a locally-hosted Prefect UI instance, the Prefect server also needs to be configured to know how to connect to the API. The  [`PREFECT_UI_API_URL`](prefect/settings/#PREFECT_UI_API_URL)  should be set to the external proxy URL (e.g. if your external URL is https://prefect-server.example.com/ then set `PREFECT_UI_API_URL=https://prefect-server.example.com/api` for the Prefect server process).  You can also accomplish this by setting [`PREFECT_API_URL`](/concepts/settings/#prefect.settings.PREFECT_API_URL) to the API URL, as this setting is used as a fallback if `PREFECT_UI_API_URL` is not set.
 
 
 ### PREFECT_API_KEY
