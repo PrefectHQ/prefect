@@ -18,6 +18,7 @@ The behavioral changes include:
     - Allows interrupt of long-running system calls like `sleep` for more effective timeout enforcement
 - Asynchronous flows can be called from sync flows
 - Asynchronous tasks can be used as upstream dependencies for sync tasks in async flows
+- Synchronous tasks can be submitted from asynchronous flows
 - Waiting for many tasks that sleep no longer causes deadlocks
 - Flows with thousands of synchronous tasks are less likely to crash
 - Debug mode now enables verbose logging from Prefect concurrency internals
