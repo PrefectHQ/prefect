@@ -10,7 +10,7 @@ tags:
 
 # Flow Runs
 
-The **Flow Runs** page provides high-level visibility into the status of your flow and task runs. From the dashboard, you can filter results to explore specific run states, scheduled runs, and more. You can drill down into details about: 
+The **Flow Runs** page provides high-level visibility into the status of your flow and task runs. From the dashboard, you can filter results to explore specific run states, scheduled runs, and more. You can drill down into details about:
 
 - Flows
 - Deployments
@@ -28,7 +28,7 @@ The following sections discuss each section of the dashboard view.
 
 ## Filters
 
-The **Filters** area at the top of the page provides controls that enable you to display selected details of flow runs on the dashboard. Filters include date intervals, flow run state, flow name, deployment name, and tags. 
+The **Filters** area at the top of the page provides controls that enable you to display selected details of flow runs on the dashboard. Filters include date intervals, flow run state, flow name, deployment name, and tags.
 
 ![Highlighting the filters section of the dashboard.](../img/ui/dash-filters.png)
 
@@ -40,7 +40,7 @@ The **run history** area of the page provides an overview of recent flow runs by
 
 ## Flow run details
 
-The flow run details area of the page provides a listing of flow runs that are scheduled or have attempted to execute. 
+The flow run details area of the page provides a listing of flow runs that are scheduled or have attempted to execute.
 
 You can select any flow name or flow run name on the list to display further details. See the [Flows and Tasks](/ui/flows-and-tasks/) documentation for more information.
 
@@ -88,6 +88,7 @@ You can see details about the flow run including:
 
 - Flow and flow run names
 - State
+- An interactive graph of your flow
 - Elapsed run time
 - Flow and flow run IDs
 - Timestamp of flow run creation (time of flow run for ad-hoc flow runs, or time when the deployment was created or updated for scheduled deployments)
@@ -98,7 +99,6 @@ You can see details about the flow run including:
 - Logs
 - Task runs
 - Subflow runs
-- [Radar](#radar-view) view of the flow run
 
 **Logs** displays all log messages for the flow run. See [Logging](/concepts/logs/) for more information about configuring and customizing log messages. Logs are the default view for a flow run.
 
@@ -108,15 +108,13 @@ You can see details about the flow run including:
 
 **Sub Flow Runs** displays any subflows for the flow run.
 
-![Display any subflow runs for the parent flow run.](../img/ui/subflows.png)
+## Flow Run Graph
 
-## Radar view
+When viewing flow run details, the Flow Run Graph shows a simple visualization of the task runs and sub flow runs executed within the flow run. Each item on the graph displays the length of time that item took to run. Select items to see more details about them and to highlight the dependency path preceding and fallowing the selection.
 
-When viewing flow run details, the Radar shows a simple visualization of the task runs executed within the flow run. Click on the **Radar** area to see a detailed, hierarchical visualization of the task execution paths for the flow run.
+Zoom and pan to explore the flow run in more detail. Controls in the bottom right allow you to recenter or view the graph in full screen mode, as well as control some options for how the graph is displayed.
 
-Zoom out to see the entire flow hierarchy, and zoom in and drag the radar around to see details and connections between tasks. Select any task to focus the view on that task.
-
-![Radar view of flow and task relationships.](../img/ui/flow-radar.png)
+![Graph view of flow and task relationships.](../img/ui/flow-run-graph.png)
 
 ## Troubleshooting flows
 
@@ -129,11 +127,11 @@ Flows may end up in states other than Completed. This is where Prefect really he
 - Check [work pools](/ui/work-pools/) to make sure there's a queue that can service the flow run based on tags, deployment, or flow runner.
 - Make sure an [agent](/concepts/work-pools/) is running in your execution environment and is configured to pull work from an appropriate work pool.
 
-If you need to delete a flow or flow run: 
+If you need to delete a flow or flow run:
 
 In the Prefect UI or Prefect Cloud, go the page for flow or flow run and the select the **Delete** command from the button to the right of the flow or flow run name.
 
-From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run. 
+From the command line in your execution environment, you can delete a flow run by using the `prefect flow-run delete` CLI command, passing the ID of the flow run.
 
 <div class="terminal">
 ```bash
@@ -141,20 +139,20 @@ $ prefect flow-run delete 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
 </div>
 
-To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run). 
+To get the flow run ID, see [Inspect a flow run](#inspect-a-flow-run).
 
 ## Flow run retention policy
 
 !!! info "Prefect Cloud feature"
     The Flow Run Retention Policy setting is only applicable in Prefect Cloud.
 
-Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy setting in your personal account or organization profile. The policy setting applies to all workspaces owned by the personal account or organization respectively. 
+Flow runs in Prefect Cloud are retained according to the Flow Run Retention Policy setting in your personal account or organization profile. The policy setting applies to all workspaces owned by the personal account or organization respectively.
 
-The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends. Once a flow run reaches a terminal state ([detailed in the chart here](/concepts/states/#state-types)), it will be retained until the end of the flow run retention period. 
+The flow run retention policy represents the number of days each flow run is available in the Prefect Cloud UI, and via the Prefect CLI and API after it ends. Once a flow run reaches a terminal state ([detailed in the chart here](/concepts/states/#state-types)), it will be retained until the end of the flow run retention period.
 
 !!! tip "Flow Run Retention Policy keys on terminal state"
     Note that, because Flow Run Retention Policy keys on terminal state, if two flows start at the same time, but reach a terminal state at different times, they will be removed at different times according to when they each reached their respective terminal states.
 
-This retention policy applies to all [details about a flow run](/ui/flow-runs/#inspect-a-flow-run), including its task runs. Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state. 
+This retention policy applies to all [details about a flow run](/ui/flow-runs/#inspect-a-flow-run), including its task runs. Subflow runs follow the retention policy independently from their parent flow runs, and are removed based on the time each subflow run reaches a terminal state.
 
 If you or your organization have needs that require a tailored retention period, [contact our Sales team](https://www.prefect.io/pricing).
