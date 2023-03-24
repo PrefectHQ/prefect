@@ -139,6 +139,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.Artifact
 
     @property
+    def ArtifactCollection(self):
+        """An artifact collection orm model"""
+        return self.orm.ArtifactCollection
+
+    @property
     def TaskRunStateCache(self):
         """A task run state cache orm model"""
         return self.orm.TaskRunStateCache
