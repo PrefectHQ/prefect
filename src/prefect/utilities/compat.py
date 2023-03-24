@@ -25,6 +25,8 @@ else:
     from asyncio import to_thread as asyncio_to_thread
 
 if sys.version_info < (3, 8):
+    import os
+    import stat
 
     def copytree(src, dst, symlinks=False, ignore=None, *args, **kwargs):
         """
@@ -53,7 +55,7 @@ if sys.version_info < (3, 8):
                     st = os.lstat(source_path)
                     mode = stat.S_IMODE(st.st_mode)
                     os.lchmod(destination_path, mode)
-                except:
+                except Exception:
                     pass  # lchmod not available
             elif os.path.isdir(source_path):
                 copytree(source_path, destination_path, symlinks, ignore)
@@ -64,6 +66,7 @@ else:
     from shutil import copytree
 
 if sys.version_info < (3, 8):
+    import os
 
     def raise_signal(signal: int):
         os.kill(os.getpid(), signal)
