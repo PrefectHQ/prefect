@@ -22,7 +22,7 @@ publish = "site"
 
 [[redirects]]
 from = "/collections/overview/"
-to = "/collections/catalog/"
+to = "/integrations/catalog/"
 status = 301
 
 [[redirects]]
@@ -53,7 +53,7 @@ status = 301
 
 [[redirects]]
 from = "/migration_guide/"
-to = "/migration-guide/"
+to = "/guides/migration-guide/"
 status = 301
 
 [[redirects]]
@@ -75,6 +75,105 @@ status = 301
 from = "/ui/cloud-getting-started/"
 to = "/ui/cloud-quickstart/"
 status = 301
+
+# redirects added 2023-03-21
+
+[[redirects]]
+from = "/ui/overview/"
+to = "/ui/"
+status = 301
+
+
+[[redirects]]
+from = "/api-ref/overview"
+to = "/api-ref/"
+status = 301
+
+[[redirects]]
+from = "/concepts/overview/"
+to = "/concepts/concepts/"
+status = 301
+
+[[redirects]]
+from = "/collections/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/collections/usage/"
+to = "/integrations/usage/"
+status = 301
+
+[[redirects]]
+from = "/collections/contribute/"
+to = "/integrations/contribute/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/first-steps/"
+to = "/tutorials/"
+status = 301
+
+[[redirects]]
+from = "/migration-guide/"
+to = "/guides/migration-guide/"
+status = 301
+
+[[redirects]]
+from = "/recipes/contribute-recipes/"
+to = "/recipes/recipes/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/docker/"
+to = "/guides/deployment/docker/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/cloud-agent/"
+to = "/guides/deployment/aci/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/testing/"
+to = "/guides/testing/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/dask-ray-task-runners/"
+to = "/guides/dask-ray-task-runners/"
+status = 301
+
+[[redirects]]
+from = "/api-ref/prefect/blocks/storage/"
+to = "/api-ref/prefect/blocks/filesystems/"
+status = 301
+
+[[redirects]]
+from = "/tutorials/flow-task/"
+to = "/tutorials/first-steps/"
+status = 301
+
+[[redirects]]
+from = "/integrations/catalog/"
+to = "/integrations/"
+status = 301
+
+[[redirects]]
+from = "/ui/flows-and-tasks/"
+to = "/ui/flows/"
+status = 301
+
+[[redirects]]
+from = "/getting-started/overview//"
+to = "/"
+status = 301
+
+[[redirects]]
+from = "/cloud/"
+to = "/ui/cloud/"
+status = 301
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
