@@ -36,6 +36,7 @@ async def artifacts(flow_run, task_run, client):
         description="# This is a markdown description title",
         flow_run_id=flow_run.id,
         task_run_id=task_run.id,
+        type="table",
     ).dict(json_compatible=True)
     artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
 
@@ -45,6 +46,7 @@ async def artifacts(flow_run, task_run, client):
         data=2,
         flow_run_id=flow_run.id,
         task_run_id=uuid4(),
+        type="markdown",
     ).dict(json_compatible=True)
     artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
 
@@ -53,6 +55,7 @@ async def artifacts(flow_run, task_run, client):
         description="# This is a markdown description title",
         flow_run_id=uuid4(),
         task_run_id=uuid4(),
+        type="result",
     ).dict(json_compatible=True)
     artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
 
@@ -114,7 +117,7 @@ class TestCreateArtifact:
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["task_run_id"] == str(task_run.id)
 
-    async def test_create_artifact_with_existing_key_in_same_workspace_succeeds(
+    async def test_create_artifact_with_existing_key_succeeds(
         self,
         artifact,
         client,
@@ -159,6 +162,18 @@ class TestReadArtifact:
     async def test_read_artifact_not_found(self, client):
         response = await client.get(f"/experimental/artifacts/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestReadLatestArtifact:
+    async def test_read_latest_artifact(self, artifact, client):
+        response = await client.get(f"/experimental/artifacts/{artifact['key']}/latest")
+        artifact_result = response.json()
+        assert response.status_code == status.HTTP_200_OK
+        assert artifact_result["key"] == artifact["key"]
+        assert artifact_result["data"] == artifact["data"]
+        assert artifact_result["description"] == artifact["description"]
+        assert artifact_result["metadata_"] == artifact["metadata_"]
+        assert artifact_result["flow_run_id"] == artifact["flow_run_id"]
 
 
 class TestReadArtifacts:
@@ -243,6 +258,38 @@ class TestReadArtifacts:
         assert all(
             [item["task_run_id"] == str(task_run_id) for item in response.json()]
         )
+
+    async def test_read_artifacts_with_artifact_type_filter_any(
+        self, artifacts, client
+    ):
+        artifact_type = artifacts[1]["type"]
+        artifact_type_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=[artifact_type])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_type_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["type"] == artifact_type
+
+    async def test_read_artifacts_with_artifact_type_filter_not_any(
+        self, artifacts, client
+    ):
+        artifact_type = artifacts[2]["type"]
+        artifact_type_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(not_any_=[artifact_type])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_type_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+        assert all([item["type"] != artifact_type for item in response.json()])
 
     async def test_read_artifacts_with_multiple_filters(
         self, artifacts, flow_run, task_run, client
@@ -413,6 +460,7 @@ class TestUpdateArtifact:
 class TestDeleteArtifact:
     async def test_delete_artifact_succeeds(self, artifact, session, client):
         artifact_id = artifact["id"]
+        artifact_key = artifact["key"]
         response = await client.delete(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 204
 
@@ -420,6 +468,11 @@ class TestDeleteArtifact:
             session=session, artifact_id=artifact_id
         )
         assert artifact is None
+
+        assert not await models.artifacts.read_latest_artifact(
+            session=session,
+            key=artifact_key,
+        )
 
         response = await client.get(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 404

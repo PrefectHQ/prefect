@@ -19,7 +19,7 @@ from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 def error_404_if_artifacts_not_enabled(request: Request):
     route = request.url.path.split("/")[-1]
 
-    if route in ["{id}", "filter"]:
+    if route == "filter" or (route == "{id}" and request.method == "GET"):
         return
     else:
         if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
@@ -68,6 +68,25 @@ async def read_artifact(
         artifact = await models.artifacts.read_artifact(
             session=session, artifact_id=artifact_id
         )
+
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    return artifact
+
+
+@router.get("/{key}/latest")
+async def read_latest_artifact(
+    key: str = Path(
+        ...,
+        description="The key of the artifact to retrieve.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> core.Artifact:
+    """
+    Retrieve the latest artifact from the artifact table.
+    """
+    async with db.session_context() as session:
+        artifact = await models.artifacts.read_latest_artifact(session=session, key=key)
 
     if artifact is None:
         raise HTTPException(status_code=404, detail="Artifact not found.")
