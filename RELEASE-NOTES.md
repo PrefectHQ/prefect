@@ -1,5 +1,101 @@
 # Prefect Release Notes
 
+## Release 2.8.7
+
+If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling, flow run graph enhancements, and result artifacts. With this release, these experiments have culminated into exciting features!
+
+### Engine reliability
+
+Supporting mixed asynchronous and synchronous code is complicated, but important. When designing Prefect 2, we wanted to account for the future growth of asynchronous Python and the many user requests for asynchronous task support. Most of this complexity is buried in the Prefect engine, which manages execution of your flows and tasks. With this release, we've made some dramatic improvements to the engine, closing some long-standing bugs and ensuring that it isn't a point of failure when running your flows.
+
+The behavioral changes include:
+
+- All orchestration of flows and tasks happens in a dedicated worker thread
+- Synchronous flows are run on the main thread instead of worker threads
+    - Solves problems where flow code must be in the main thread e.g. https://github.com/PrefectHQ/prefect/issues/5991
+- Asynchronous flows no longer share an event loop with the Prefect engine
+- Flow timeouts are now enforced with signals
+    - Allows interrupt of long-running system calls like `sleep` for more effective timeout enforcement
+- Asynchronous flows can be called from sync flows
+- Asynchronous tasks can be used as upstream dependencies for sync tasks in async flows
+- Synchronous tasks can be submitted from asynchronous flows
+- Waiting for many tasks that sleep no longer causes deadlocks
+- Flows with thousands of synchronous tasks are less likely to crash
+- Debug mode now enables verbose logging from Prefect concurrency internals
+- The API limits itself to 100 concurrent requests when using SQLite as a backend
+    - Avoids database file contention when using high levels of concurrency
+- Resolving task inputs no longer uses worker threads
+    - Resolves issues where large numbers of upstream task inputs would cause deadlocks
+    - Instead of using worker threads, we wait for upstream tasks on the event loop to support high levels of concurrency
+
+See the following pull requests for implementation details:
+
+- https://github.com/PrefectHQ/prefect/pull/8702
+- https://github.com/PrefectHQ/prefect/pull/8887
+- https://github.com/PrefectHQ/prefect/pull/8903
+- https://github.com/PrefectHQ/prefect/pull/8830
+
+### Results tab on flow run pages
+
+The Prefect UI now renders information about your flow run and task run results! 
+
+This view provides a visual representation of the output of your tasks and flows and, when possible, provides links to results persisted using any of our storage blocks. To see this in your UI, run any flow and navigate to the run page; from there you'll see a new tab, "Results":
+
+![Results list view](https://user-images.githubusercontent.com/27291717/227274576-1379c67c-6624-4a79-9bf7-83ae70e1fb4d.png)
+![Results grid view](https://user-images.githubusercontent.com/27291717/227274578-35673508-09e2-4b83-bc22-11538f813eea.png)
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1207
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1213
+- https://github.com/PrefectHQ/prefect-ui-library/pull/1223
+- https://github.com/PrefectHQ/prefect/pull/8904
+- https://github.com/PrefectHQ/prefect/pull/8759
+
+### Flow run graph
+
+We heard that people loved the simplicity and sleekness of the timeline on the flow run page, but valued the radar graph's ability to traverse between flow runs and subflows runs. This release introduces the ability to expand and collapse subflow runs within the timeline. With these enhancements, the flow run timeline has now evolved into a general purpose flow run graph, with the ability to render thousands of nodes and edges performantly. The radar graph has been retired. You can now observe and explore your flow runs even more quickly and easily in a single flow run graph!
+
+<img width="1497" alt="Flow run timeline" src="https://user-images.githubusercontent.com/2586601/227337664-8d856634-7093-4002-ab55-57986eeaa2ed.png">
+<img width="1496" alt="Subflow run expansion" src="https://user-images.githubusercontent.com/2586601/227337673-5cc574c9-76a6-442b-b579-e8fd2a184fd3.png">
+
+### Enhancements
+- Add `--reverse` option to the flow run logs CLI to view logs in descending order — https://github.com/PrefectHQ/prefect/pull/8625
+- Show all flow runs for deployments rather than just the last 7 days — https://github.com/PrefectHQ/prefect/pull/8837
+- Add jitter to Prefect client request retries — https://github.com/PrefectHQ/prefect/pull/8839
+- Add `deployment.name` and `deployment.version` to `prefect.runtime` — https://github.com/PrefectHQ/prefect/pull/8864
+- Add `flow_run.scheduled_start_time` to `prefect.runtime` — https://github.com/PrefectHQ/prefect/pull/8864
+- Adjust SQLite sync mode for improved performance — https://github.com/PrefectHQ/prefect/pull/8071
+- Add debug level log of active profile on module import — https://github.com/PrefectHQ/prefect/pull/8856
+- Update server to use new FastAPI lifespan context manager — https://github.com/PrefectHQ/prefect/pull/8842
+- Add support for variadic keyword arguments to `Task.map` — https://github.com/PrefectHQ/prefect/pull/8188
+- Show the full run history in the UI — https://github.com/PrefectHQ/prefect/pull/8885
+
+### Fixes
+- Fix `prefect dev start` failure — https://github.com/PrefectHQ/prefect/pull/8850
+- Fix bug where `propose_state` could exceed recursion limits during extended waits — https://github.com/PrefectHQ/prefect/pull/8827
+- Fix configuration of flow run infrastructure when using agent default — https://github.com/PrefectHQ/prefect/pull/8872
+- Fix saving block document secrets that have not been modified — https://github.com/PrefectHQ/prefect/pull/8848
+- Disable SLSA provenance setting in Docker buildx to resolve image pull errors with certain Cloud providers — https://github.com/PrefectHQ/prefect/pull/8889
+- Fix race condition in worker thread start — https://github.com/PrefectHQ/prefect/pull/8886
+- The state message has been returned to the flow run metadata panel on the right side of the flow run page - https://github.com/PrefectHQ/prefect/pull/8885
+
+### Experimental
+- Update to worker base job template logic for nested placeholders — https://github.com/PrefectHQ/prefect/pull/8795
+- Require lowercase artifact `key` field — https://github.com/PrefectHQ/prefect/pull/8860
+- Create `emit_event` helper that takes args for an `Event` and emits it via a worker — https://github.com/PrefectHQ/prefect/pull/8867
+- Allow multiple artifacts to have the same key — https://github.com/PrefectHQ/prefect/pull/8855
+- Add common values to job configuration prior to flow run submission — https://github.com/PrefectHQ/prefect/pull/8826
+
+### Deprecations
+- Creating data documents will now throw deprecation warnings — https://github.com/PrefectHQ/prefect/pull/8760
+
+### Documentation
+- Add documentation for events and resources — https://github.com/PrefectHQ/prefect/pull/8858
+
+### Contributors
+* @lounis89 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8625
+* @mesejo made their first contribution in https://github.com/PrefectHQ/prefect/pull/8842
+
 ## Release 2.8.6
 
 ### `prefect.runtime` for context access

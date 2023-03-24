@@ -74,7 +74,6 @@ class TestCreateArtifacts:
         new_artifact = await models.artifacts.create_artifact(
             session=session,
             artifact=new_artifact_schema,
-            key=new_artifact_schema.key,
         )
 
         assert await models.artifacts.read_artifact(
@@ -101,7 +100,6 @@ class TestCreateArtifacts:
             description="Some info about my artifact",
         )
         artifact = await models.artifacts.create_artifact(
-            key=artifact_schema.key,
             session=session,
             artifact=artifact_schema,
         )
@@ -169,7 +167,8 @@ class TestReadLatestArtifact:
             key="voltaic", data=1, description="opens many doors"
         )
         artifact = await models.artifacts.create_artifact(
-            session=session, artifact=artifact_schema, key=artifact_schema.key
+            session=session,
+            artifact=artifact_schema,
         )
 
         assert artifact.key == "voltaic"
@@ -347,7 +346,6 @@ class TestDeleteArtifacts:
         artifact1 = await models.artifacts.create_artifact(
             session=session,
             artifact=artifact1_schema,
-            key=artifact1_schema.key,
         )
 
         artifact2_schema = schemas.core.Artifact(
@@ -358,7 +356,6 @@ class TestDeleteArtifacts:
         artifact2 = await models.artifacts.create_artifact(
             session=session,
             artifact=artifact2_schema,
-            key=artifact2_schema.key,
         )
 
         artifact3_schema = schemas.core.Artifact(
@@ -369,7 +366,6 @@ class TestDeleteArtifacts:
         artifact3 = await models.artifacts.create_artifact(
             session=session,
             artifact=artifact3_schema,
-            key=artifact3_schema.key,
         )
 
         await session.commit()

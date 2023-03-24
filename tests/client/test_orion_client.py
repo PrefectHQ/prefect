@@ -2,6 +2,8 @@ import datetime
 import os
 import random
 import threading
+import warnings
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
 from unittest.mock import ANY, MagicMock, Mock
@@ -224,6 +226,17 @@ def not_enough_open_files() -> bool:
     return soft_limit < 512 or hard_limit < 512
 
 
+def make_lifespan(startup, shutdown) -> callable:
+    async def lifespan(app):
+        try:
+            startup()
+            yield
+        finally:
+            shutdown()
+
+    return asynccontextmanager(lifespan)
+
+
 class TestClientContextManager:
     async def test_client_context_cannot_be_reentered(self):
         client = PrefectClient("http://foo.test")
@@ -243,7 +256,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
         startup.assert_not_called()
@@ -258,7 +271,7 @@ class TestClientContextManager:
 
     async def test_client_context_calls_app_lifespan_once_despite_nesting(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         startup.assert_not_called()
         shutdown.assert_not_called()
@@ -274,7 +287,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_sequential_usage(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async with PrefectClient(app):
             pass
@@ -293,7 +306,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -338,7 +351,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(context):
             # We must re-enter the profile context in the new thread
@@ -366,7 +379,7 @@ class TestClientContextManager:
 
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -386,7 +399,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -437,7 +450,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -478,7 +491,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
 
@@ -491,7 +504,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(task_status):
             async with PrefectClient(app):
@@ -510,7 +523,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         with pytest.raises(ValueError):
             async with PrefectClient(app):
@@ -1210,6 +1223,12 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
 
 
 class TestResolveDataDoc:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
             await orion_client.resolve_datadoc("foo")

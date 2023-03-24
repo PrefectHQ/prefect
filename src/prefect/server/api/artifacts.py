@@ -5,7 +5,7 @@ from typing import List
 from uuid import UUID
 
 import pendulum
-from fastapi import Body, Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Request, Response, status
 
 import prefect.server.api.dependencies as dependencies
 from prefect.server import models
@@ -16,9 +16,14 @@ from prefect.server.utilities.server import PrefectRouter
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 
 
-def error_404_if_artifacts_not_enabled():
-    if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
-        raise HTTPException(status_code=404, detail="Artifacts are not enabled")
+def error_404_if_artifacts_not_enabled(request: Request):
+    route = request.url.path.split("/")[-1]
+
+    if route == "filter" or (route == "{id}" and request.method == "GET"):
+        return
+    else:
+        if not PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
+            raise HTTPException(status_code=404, detail="Artifacts are not enabled")
 
 
 router = PrefectRouter(
