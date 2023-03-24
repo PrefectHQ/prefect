@@ -133,16 +133,18 @@ async def read_latest_artifact(
     Returns:
         Artifact: The latest artifact
     """
-    query = (
+    latest_id_query = (
         sa.select(db.ArtifactCollection.latest_id)
         .where(db.ArtifactCollection.key == key)
         .limit(1)
     )
-    latest_id = await session.execute(query)
+    latest_id = await session.execute(latest_id_query)
     latest_id_scalar = latest_id.scalar()
 
-    query = sa.select(db.Artifact).where(db.Artifact.id == latest_id_scalar)
-    result = await session.execute(query)
+    latest_artifact_query = sa.select(db.Artifact).where(
+        db.Artifact.id == latest_id_scalar
+    )
+    result = await session.execute(latest_artifact_query)
 
     return result.scalar()
 
