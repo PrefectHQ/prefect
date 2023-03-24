@@ -12,7 +12,7 @@ async def artifact(session):
         key="voltaic", data=1, metadata_={"description": "opens many doors"}
     )
     artifact = await models.artifacts.create_artifact(
-        key=artifact_schema.key, session=session, artifact=artifact_schema
+        session=session, artifact=artifact_schema
     )
     await session.commit()
     return artifact
