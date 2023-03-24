@@ -15,6 +15,7 @@ depends_on = None
 
 
 def upgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
     op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
     op.create_index(
         op.f("ix_artifact__key"),
@@ -22,9 +23,11 @@ def upgrade():
         ["key"],
         unique=False,
     )
+    op.execute("PRAGMA foreign_keys=ON")
 
 
 def downgrade():
+    op.execute("PRAGMA foreign_keys=OFF")
     op.drop_index(op.f("ix_artifact__key"), table_name="artifact")
     op.create_index(
         op.f("ix_artifact__key"),
@@ -32,3 +35,4 @@ def downgrade():
         ["key"],
         unique=True,
     )
+    op.execute("PRAGMA foreign_keys=ON")

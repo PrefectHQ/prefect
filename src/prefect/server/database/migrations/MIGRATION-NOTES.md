@@ -16,6 +16,14 @@ Postgres: `46bd82c6279a`
 SQLite: `b9aafc3ab936`
 Postgres: `d20618ce678e`
 
+# Remove Artifact unique constraint
+SQLite: `1d7441c031d0`
+Postgres: `aa84ac237ce8`
+
+# Add Artifact description column
+SQLite: `cf1159bd0d3c`
+Postgres: `4a1a0e4f89de`
+
 # Remove Flow Run foreign keys
 SQLite: `f3df94dca3cc`
 Postgres: `7d918a392297`

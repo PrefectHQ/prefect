@@ -26,7 +26,7 @@ There are four recommended ways to create a schedule for a deployment:
 
 ## Creating schedules through the UI
 
-You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview.md). 
+You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview/). 
 
 ![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
