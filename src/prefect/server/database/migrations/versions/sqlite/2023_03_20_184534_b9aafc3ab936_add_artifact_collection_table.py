@@ -1,7 +1,7 @@
 """Adds artifact_collection table
 
 Revision ID: b9aafc3ab936
-Revises: 4c6903568ef0
+Revises: 1d7441c031d0
 Create Date: 2023-03-20 18:45:34.438841
 
 """
