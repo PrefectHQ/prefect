@@ -98,13 +98,15 @@ async def _insert_into_artifact(
 
 @inject_db
 async def create_artifact(
-    session: sa.orm.Session, artifact: Artifact, db: PrefectDBInterface, key: str = None
+    session: sa.orm.Session,
+    artifact: Artifact,
+    db: PrefectDBInterface,
 ):
     now = pendulum.now("UTC")
 
-    if key is not None:
+    if artifact.key is not None:
         await _insert_into_artifact_collection(
-            session=session, key=key, now=now, db=db, artifact_id=artifact.id
+            session=session, key=artifact.key, now=now, db=db, artifact_id=artifact.id
         )
 
     result = await _insert_into_artifact(
@@ -132,17 +134,16 @@ async def read_latest_artifact(
         Artifact: The latest artifact
     """
     query = (
-        sa.select(db.Artifact)
-        .where(
-            sa.and_(
-                db.Artifact.id == db.ArtifactCollection.latest_id,
-                db.ArtifactCollection.key == key,
-            )
-        )
+        sa.select(db.ArtifactCollection.latest_id)
+        .where(db.ArtifactCollection.key == key)
         .limit(1)
     )
+    latest_id = await session.execute(query)
+    latest_id_scalar = latest_id.scalar()
 
+    query = sa.select(db.Artifact).where(db.Artifact.id == latest_id_scalar)
     result = await session.execute(query)
+
     return result.scalar()
 
 
@@ -274,6 +275,23 @@ async def delete_artifact(
 ) -> bool:
     """
     Deletes an artifact by id.
+
+    The ArtifactCollection table is used to track the latest version of an artifact
+    by key. If we are deleting the latest version of an artifact from the Artifact
+    table, we need to first update the latest version referenced in ArtifactCollection
+    so that it points to the next latest version of the artifact.
+
+    Example:
+    If we have the following artifacts in Artifact:
+    - key: "foo", id: 1, created: 2020-01-01
+    - key: "foo", id: 2, created: 2020-01-02
+    - key: "foo", id: 3, created: 2020-01-03
+
+    the ArtifactCollection table has the following entry:
+    - key: "foo", latest_id: 3
+
+    If we delete the artifact with id 3, we need to update the latest version of the
+    artifact with key "foo" to be the artifact with id 2.
 
     Args:
         session: A database session
