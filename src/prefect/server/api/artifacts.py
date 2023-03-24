@@ -42,20 +42,11 @@ async def create_artifact(
     artifact = core.Artifact(**artifact.dict())
 
     now = pendulum.now("UTC")
-    artifact_key = artifact.key
 
     async with db.session_context(begin_transaction=True) as session:
-        model = (
-            await models.artifacts.create_artifact(
-                key=artifact_key,
-                session=session,
-                artifact=artifact,
-            )
-            if artifact_key is not None
-            else await models.artifacts.create_artifact(
-                session=session,
-                artifact=artifact,
-            )
+        model = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact,
         )
 
     if model.created >= now:
