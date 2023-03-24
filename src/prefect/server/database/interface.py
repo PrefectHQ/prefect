@@ -244,6 +244,11 @@ class PrefectDBInterface(metaclass=DBSingleton):
         return self.orm.flow_run_unique_upsert_columns
 
     @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an ArtifactCollection"""
+        return self.orm.artifact_collection_unique_upsert_columns
+
+    @property
     def block_type_unique_upsert_columns(self):
         """Unique columns for upserting a BlockType"""
         return self.orm.block_type_unique_upsert_columns

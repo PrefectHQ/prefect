@@ -1561,6 +1561,11 @@ class BaseORMConfiguration(ABC):
         return [self.BlockType.slug]
 
     @property
+    def artifact_collection_unique_upsert_columns(self):
+        """Unique columns for upserting an ArtifactCollection"""
+        return [self.ArtifactCollection.key]
+
+    @property
     def block_schema_unique_upsert_columns(self):
         """Unique columns for upserting a BlockSchema"""
         return [self.BlockSchema.checksum, self.BlockSchema.version]
