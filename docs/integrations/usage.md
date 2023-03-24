@@ -1,47 +1,47 @@
 ---
-description: Prefect Collections provide Prefect integrations that help you build dataflows quickly.
+description: Prefect Integrations provide Prefect integrations that help you build dataflows quickly.
 tags:
     - tasks
     - flows
     - blocks
-    - collections
+    - integrations
     - task library
     - contributing
 ---
 
-# Using Collections
+# Using Integrations
 
-## Installing a Collection
+## Installing an Integration
 
-To use a Prefect Collection, first install the collection via `pip`.
+Install the Integration via `pip`.
 
-As an example, to use `prefect-aws`:
+For example, to use `prefect-aws`:
 
 ```bash
 pip install prefect-aws
 ```
 
-## Registering Blocks from a Collection
+## Registering Blocks from an Integration
 
-Once the Prefect Collection is installed, [register the blocks](/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the collection to view them in the Prefect Cloud UI:
+Once the Prefect Integration is installed, [register the blocks](/concepts/blocks/#registering-blocks-for-use-in-the-prefect-ui) within the integration to view them in the Prefect Cloud UI:
 
-As an example, to register the blocks available in `prefect-aws`:
+For example, to register the blocks available in `prefect-aws`:
 
 ```bash
 prefect block register -m prefect_aws
 ```
 
-!!! tip "Updating blocks from Prefect Collections"
-    If you install an updated Prefect collection that adds fields to a block type, you will need to re-register that block type.
+!!! tip "Updating blocks from an integrations"
+    If you install an updated Prefect integration that adds fields to a block type, you will need to re-register that block type.
 
 !!! tip "Loading a block in code"
     To use the `load` method on a Block, you must already have a block document [saved](/concepts/blocks/#saving-blocks) either through code or through the Prefect UI.
 
 Learn more about Blocks [here](/concepts/blocks)!
 
-## Using Tasks and Flows from a Collection
+## Using Tasks and Flows from an Integration
 
-Collections also contain pre-built tasks and flows that can be imported and called within your code.
+Integrations also contain pre-built tasks and flows that can be imported and called within your code.
 
 As an example, to read a secret from AWS Secrets Manager with the `read_secret` task:
 
@@ -61,7 +61,7 @@ def connect_to_database():
     # Use secret_value to connect to a database
 ```
 
-## Customizing Tasks and Flows from a Collection
+## Customizing Tasks and Flows from an Integration
 
 To customize the settings of a task or flow pre-configured in a collection, use `with_options`:
     
@@ -88,4 +88,4 @@ run_dbt_job_flow()
 ``` 
 ## Recipes and Tutorials
 
-To learn more about how to use Collections, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Collections can be used in various scenarios.
+To learn more about how to use Integrations, check out [Prefect recipes](https://github.com/PrefectHQ/prefect-recipes#diving-deeper-) on GitHub. These recipes provide examples of how Integrations can be used in various scenarios.

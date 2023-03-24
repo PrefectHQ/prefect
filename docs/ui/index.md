@@ -1,5 +1,6 @@
 ---
 description: Gain overall visibility and coordination of your workflows with Prefect UI and Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -10,7 +11,7 @@ tags:
     - Prefect Cloud
 ---
 
-# Prefect UI & Prefect Cloud Overview
+# Prefect UI & Prefect Cloud 
 
 The Prefect UI provides an overview of all of your flows. It was designed around a simple question: what's the health of my system?
 

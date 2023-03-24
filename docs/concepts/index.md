@@ -1,5 +1,6 @@
 ---
-description: Take a deeper dive into the features of Prefect 2.
+icon: material/brain
+description: Learn about Prefect concepts.
 tags:
     - concepts
     - features

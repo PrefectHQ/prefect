@@ -1,5 +1,6 @@
 ---
 description: Prefect APIs enable you to interact programmatically with flows, deployments, the REST API, and Prefect Cloud.
+icon: octicons/book-16
 tags:
     - API
     - Prefect API
@@ -14,7 +15,7 @@ tags:
 !!! tip "Changing 'Orion' nomenclature"
     With the 2.8.1 release, **we removed references to "Orion" and replaced them with more explicit, conventional nomenclature throughout the codebase**. These changes clarify the function of various components, commands, variables, and more. See the [Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md#release-281) for details.
 
-Prefect 2 provides a number of programmatic workflow interfaces. Each API is documented in this section. 
+Prefect provides a number of programmatic workflow interfaces. Each API is documented in this section. 
 
 - The Prefect Python API is used to build, test, and execute workflows against the Prefect orchestration engine. This is the primary user-facing API.
 - The Prefect Server API is used by the server to work with workflow metadata and enforce orchestration logic. This API is primarily used by Prefect developers.

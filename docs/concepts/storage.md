@@ -18,7 +18,7 @@ Storage lets you configure how flow code for deployments is persisted and retrie
 
 If no storage is explicitly configured, Prefect will use `LocalFileSystem` storage by default. Local storage works fine for many local flow run scenarios, especially when testing and getting started. However, due to the inherent lack of portability, many use cases are better served by using remote storage such as S3 or Google Cloud Storage.
 
-Prefect 2 supports creating multiple storage configurations and switching between storage as needed.
+Prefect supports creating multiple storage configurations and switching between storage as needed.
 
 !!! tip "Storage uses blocks"
     [Blocks](/concepts/blocks/) is the Prefect technology underlying storage, and enables you to do so much more. 
