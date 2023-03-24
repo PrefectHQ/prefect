@@ -66,6 +66,7 @@ else:
     from shutil import copytree
 
 if sys.version_info < (3, 8):
+    import os
 
     def raise_signal(signal: int):
         os.kill(os.getpid(), signal)
