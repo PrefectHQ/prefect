@@ -15,7 +15,7 @@ At any time, you can visit the [Prefect UI](/ui/flow-runs/) to get a comprehensi
 
 Notifications enable you to set up alerts that are sent when a flow enters any state you specify. When your flow and task runs changes [state](/concepts/states/), Prefect notes the state change and checks whether the new state matches any notification policies. If it does, a new notification is queued.
 
-Currently Prefect 2 supports sending notifications via:
+Currently Prefect supports sending notifications via:
 
 - Slack message to a channel
 - Microsoft Teams message to a channel

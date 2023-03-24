@@ -9,6 +9,9 @@ query-filters:
   - exclude:
       # catching base exceptions is required
       id: py/catch-base-exception
+  - exclude:
+      # too many false positives with prefect.runtime
+      id: py/undefined-export
 
 paths-ignore:
   - tests/**/test_*.py

@@ -1,5 +1,6 @@
 ---
-description: Take a deeper dive into the features of Prefect 2.
+icon: material/brain
+description: Learn about Prefect concepts.
 tags:
     - concepts
     - features
@@ -12,7 +13,7 @@ Getting started building and running workflows with Prefect doesn't require much
 
 These guides are intended to provide the reader with a deeper understanding of how the system works and how it can be used to its full potential; in addition, these guides can be revisited as reference material as you learn more.
 
-## Building Blocks
+## Core Concepts
 
 The fundamental building blocks of Prefect are [flows](/concepts/flows/) and [tasks](/concepts/tasks/).  We recommend all readers begin by understanding these concepts first. 
 

@@ -383,12 +383,18 @@ class PrefectAgent:
         # overrides only apply when configuring known infra blocks
         if not deployment.infrastructure_document_id:
             if self.default_infrastructure:
-                return self.default_infrastructure
+                infra_block = self.default_infrastructure
             else:
                 infra_document = await self.client.read_block_document(
                     self.default_infrastructure_document_id
                 )
-                return Block._from_block_document(infra_document)
+                infra_block = Block._from_block_document(infra_document)
+
+            # Add flow run metadata to the infrastructure
+            prepared_infrastructure = infra_block.prepare_for_flow_run(
+                flow_run, deployment=deployment, flow=flow
+            )
+            return prepared_infrastructure
 
         ## get infra
         infra_document = await self.client.read_block_document(
