@@ -1524,6 +1524,25 @@ class ArtifactFilterTaskRunId(PrefectFilterBaseModel):
         return filters
 
 
+class ArtifactFilterType(PrefectFilterBaseModel):
+    """Filter by `Artifact.type`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to include"
+    )
+    not_any_: Optional[List[str]] = Field(
+        default=None, description="A list of artifact types to exclude"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Artifact.type.in_(self.any_))
+        if self.not_any_ is not None:
+            filters.append(db.Artifact.type.notin_(self.not_any_))
+        return filters
+
+
 class ArtifactFilter(PrefectOperatorFilterBaseModel):
     """Filter artifacts. Only artifacts matching all criteria will be returned"""
 
@@ -1539,6 +1558,9 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
     task_run_id: Optional[ArtifactFilterTaskRunId] = Field(
         default=None, description="Filter criteria for `Artifact.task_run_id`"
     )
+    type: Optional[ArtifactFilterType] = Field(
+        default=None, description="Filter criteria for `Artifact.type`"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -1551,5 +1573,7 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.flow_run_id.as_sql_filter(db))
         if self.task_run_id is not None:
             filters.append(self.task_run_id.as_sql_filter(db))
+        if self.type is not None:
+            filters.append(self.type.as_sql_filter(db))
 
         return filters
