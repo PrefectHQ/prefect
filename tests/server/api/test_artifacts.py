@@ -387,13 +387,9 @@ class TestReadArtifacts:
         )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == len(artifacts) - 1
-        expected_artifacts = [
-            artifact for artifact in artifacts if artifact["key"] != "artifact-4"
-        ]
-
-        response_keys = set([d.get("key", "") for d in response.json()])
-        expected_keys = set([d.get("key", "") for d in expected_artifacts])
-        assert response_keys == expected_keys
+        assert response.json()[0]["key"] == artifacts[-3]["key"]
+        assert response.json()[1]["key"] == artifacts[1]["key"]
+        assert response.json()[2]["key"] == artifacts[0]["key"]
 
     async def test_read_artifacts_with_sort(self, artifacts, client):
         response = await client.post(
