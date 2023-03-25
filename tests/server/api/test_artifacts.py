@@ -402,6 +402,57 @@ class TestReadArtifacts:
         assert response.json()[0]["key"] == artifacts[0]["key"]
 
 
+class TestReadLatestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, client):
+        artifact1_schema = actions.ArtifactCreate(
+            key="artifact-1",
+            data=1,
+            description="# This is a markdown description title",
+            type="table",
+        ).dict(json_compatible=True)
+        artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
+
+        artifact2_schema = actions.ArtifactCreate(
+            key="artifact-1",
+            description="# This is a markdown description title",
+            data=2,
+            type="markdown",
+        ).dict(json_compatible=True)
+        artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
+
+        artifact3_schema = actions.ArtifactCreate(
+            key="artifact-3",
+            description="# This is a markdown description title",
+            type="result",
+        ).dict(json_compatible=True)
+        artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
+
+        artifact4_schema = actions.ArtifactCreate(
+            data=1,
+            description="# This is a markdown description title",
+        ).dict(json_compatible=True)
+        artifact4 = await client.post("/experimental/artifacts/", json=artifact4_schema)
+
+        yield [
+            artifact1.json(),
+            artifact2.json(),
+            artifact3.json(),
+            artifact4.json(),
+        ]
+
+    async def test_read_latest_artifacts(self, artifacts, client):
+        latest_filter = {"latest": True}
+
+        response = await client.post(
+            "/experimental/artifacts/filter", json=latest_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+        assert response.json()[0]["key"] == artifacts[1]["key"]
+        assert response.json()[1]["key"] == artifacts[2]["key"]
+
+
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/experimental/artifacts/filter")

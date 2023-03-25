@@ -182,6 +182,48 @@ class TestReadLatestArtifact:
         assert tutored_artifact.description == "opens many doors"
 
 
+class TestReadLatestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, session):
+        artifacts = [
+            schemas.core.Artifact(
+                key="key-1",
+                data=1,
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-1",
+                data=2,
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-2",
+                data=3,
+                description="Some info about my artifact",
+            ),
+        ]
+        for artifact_schema in artifacts:
+            await models.artifacts.create_artifact(
+                session=session,
+                artifact=artifact_schema,
+            )
+
+        return artifacts
+
+    async def test_read_latest_artifacts(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(session=session)
+
+        assert len(read_artifacts) == 2
+        assert read_artifacts[0].key == artifacts[1].key
+        assert read_artifacts[0].data == artifacts[1].data
+        assert read_artifacts[0].metadata_ == artifacts[1].metadata_
+        assert read_artifacts[1].key == artifacts[2].key
+
+
 class TestReadingSingleArtifacts:
     async def test_reading_artifacts_by_id(self, session):
         artifact_schema = schemas.core.Artifact(

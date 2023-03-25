@@ -150,6 +150,26 @@ async def read_latest_artifact(
 
 
 @inject_db
+async def read_latest_artifacts(
+    session: sa.orm.Session,
+    db: PrefectDBInterface,
+):
+    """
+    Reads the latest artifacts for all keys.
+    """
+    latest_ids_query = sa.select(db.ArtifactCollection.latest_id)
+    latest_ids = await session.execute(latest_ids_query)
+    latest_ids = [i[0] for i in latest_ids.fetchall()]
+
+    latest_artifacts_query = sa.select(db.Artifact).where(
+        db.Artifact.id.in_(latest_ids)
+    )
+    result = await session.execute(latest_artifacts_query)
+
+    return result.scalars().all()
+
+
+@inject_db
 async def read_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
