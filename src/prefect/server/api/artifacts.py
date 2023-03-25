@@ -74,6 +74,25 @@ async def read_artifact(
     return artifact
 
 
+@router.get("/{key}/latest")
+async def read_latest_artifact(
+    key: str = Path(
+        ...,
+        description="The key of the artifact to retrieve.",
+    ),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> core.Artifact:
+    """
+    Retrieve the latest artifact from the artifact table.
+    """
+    async with db.session_context() as session:
+        artifact = await models.artifacts.read_latest_artifact(session=session, key=key)
+
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    return artifact
+
+
 @router.post("/filter")
 async def read_artifacts(
     sort: sorting.ArtifactSort = Body(sorting.ArtifactSort.ID_DESC),
