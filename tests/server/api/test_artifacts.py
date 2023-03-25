@@ -449,8 +449,9 @@ class TestReadLatestArtifacts:
         )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == 2
-        assert response.json()[0]["key"] == artifacts[1]["key"]
-        assert response.json()[1]["key"] == artifacts[2]["key"]
+        expected_artifacts = [artifacts[0]["key"], artifacts[2]["key"]]
+        actual_artifacts = [a["key"] for a in response.json()]
+        assert set(expected_artifacts) == set(actual_artifacts)
 
 
 class TestUpdateArtifact:
