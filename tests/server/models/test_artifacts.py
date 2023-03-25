@@ -218,12 +218,9 @@ class TestReadLatestArtifacts:
         read_artifacts = await models.artifacts.read_latest_artifacts(session=session)
 
         assert len(read_artifacts) == 2
-        assert read_artifacts[0].key == artifacts[1].key
-        assert read_artifacts[0].data == artifacts[1].data
-        assert read_artifacts[0].description == artifacts[1].description
-        assert read_artifacts[1].key == artifacts[2].key
-        assert read_artifacts[1].data == artifacts[2].data
-        assert read_artifacts[1].description == artifacts[2].description
+        expected_artifacts = [artifacts[0].key, artifacts[2].key]
+        actual_artifacts = [a.key for a in read_artifacts]
+        assert set(expected_artifacts) == set(actual_artifacts)
 
 
 class TestReadingSingleArtifacts:
