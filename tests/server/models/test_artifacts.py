@@ -189,16 +189,25 @@ class TestReadLatestArtifacts:
             schemas.core.Artifact(
                 key="key-1",
                 data=1,
+                type="markdown",
                 description="Some info about my artifact",
             ),
             schemas.core.Artifact(
                 key="key-1",
                 data=2,
+                type="markdown",
                 description="Some info about my artifact",
             ),
             schemas.core.Artifact(
                 key="key-2",
                 data=3,
+                type="table",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-3",
+                data=4,
+                type="table",
                 description="Some info about my artifact",
             ),
         ]
@@ -217,10 +226,56 @@ class TestReadLatestArtifacts:
     ):
         read_artifacts = await models.artifacts.read_latest_artifacts(session=session)
 
-        assert len(read_artifacts) == 2
-        expected_artifacts = [artifacts[0].key, artifacts[2].key]
+        assert len(read_artifacts) == 3
+        expected_artifacts = [artifacts[0].key, artifacts[2].key, artifacts[3].key]
         actual_artifacts = [a.key for a in read_artifacts]
         assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_type_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=["table"])
+            ),
+        )
+
+        assert len(read_artifacts) == 2
+
+        expected_artifacts = [artifacts[2].key, artifacts[3].key]
+        actual_artifacts = [a.key for a in read_artifacts]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_key_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(any_=["key-1"])
+            ),
+        )
+
+        assert len(read_artifacts) == 1
+
+        assert artifacts[1].id == read_artifacts[0].id
+
+    async def test_read_latest_artifacts_with_limit(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session, limit=1, sort=schemas.sorting.ArtifactSort.KEY_DESC
+        )
+
+        assert len(read_artifacts) == 1
+        assert read_artifacts[0].key == artifacts[-1].key
 
 
 class TestReadingSingleArtifacts:
