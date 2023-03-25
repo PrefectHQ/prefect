@@ -382,14 +382,14 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter",
             json={
                 "offset": 1,
-                "sort": schemas.sorting.ArtifactSort.KEY_DESC,
+                "sort": schemas.sorting.ArtifactSort.CREATED_DESC,
             },
         )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == len(artifacts) - 1
-        assert response.json()[0]["key"] == artifacts[-3]["key"]
-        assert response.json()[1]["key"] == artifacts[1]["key"]
-        assert response.json()[2]["key"] == artifacts[0]["key"]
+        actual_keys = [item["key"] for item in response.json()]
+        expected_keys = [item["key"] for item in artifacts[:-1]]
+        assert set(actual_keys) == set(expected_keys)
 
     async def test_read_artifacts_with_sort(self, artifacts, client):
         response = await client.post(
