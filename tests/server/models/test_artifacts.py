@@ -220,8 +220,10 @@ class TestReadLatestArtifacts:
         assert len(read_artifacts) == 2
         assert read_artifacts[0].key == artifacts[1].key
         assert read_artifacts[0].data == artifacts[1].data
-        assert read_artifacts[0].metadata_ == artifacts[1].metadata_
+        assert read_artifacts[0].description == artifacts[1].description
         assert read_artifacts[1].key == artifacts[2].key
+        assert read_artifacts[1].data == artifacts[2].data
+        assert read_artifacts[1].description == artifacts[2].description
 
 
 class TestReadingSingleArtifacts:
