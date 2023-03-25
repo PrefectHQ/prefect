@@ -21,6 +21,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFuture
+from prefect.runtime import task_run as task_run_ctx
 from prefect.server import models
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import StateType
@@ -91,7 +92,13 @@ class TestTaskRunName:
             def format(*args, **kwargs):
                 pass
 
-        with pytest.raises(TypeError, match="'task_run_name' is not a string"):
+        with pytest.raises(
+            TypeError,
+            match=(
+                "Expected string or callable for 'task_run_name'; got"
+                " InvalidTaskRunNameArg instead."
+            ),
+        ):
 
             @task(task_run_name=InvalidTaskRunNameArg())
             def my_task():
@@ -112,7 +119,13 @@ class TestTaskRunName:
 
         my_task.task_run_name = InvalidTaskRunNameArg()
 
-        with pytest.raises(RuntimeError, match="'task_run_name' is not a string"):
+        with pytest.raises(
+            TypeError,
+            match=(
+                "Expected string or callable for 'task_run_name'; got"
+                " InvalidTaskRunNameArg instead."
+            ),
+        ):
             my_flow()
 
     def test_run_name_from_kwarg(self):
@@ -122,6 +135,16 @@ class TestTaskRunName:
 
         assert my_task.task_run_name == "another_name"
 
+    def test_run_name_from_function(self):
+        def generate_task_run_name():
+            return "another_name"
+
+        @task(task_run_name=generate_task_run_name)
+        def my_task():
+            pass
+
+        assert my_task.task_run_name() == "another_name"
+
     def test_run_name_from_options(self):
         @task(task_run_name="first_name")
         def my_task():
@@ -129,8 +152,8 @@ class TestTaskRunName:
 
         assert my_task.task_run_name == "first_name"
 
-        new_task = my_task.with_options(task_run_name="second_name")
-        assert new_task.task_run_name == "second_name"
+        new_task = my_task.with_options(task_run_name=lambda: "second_name")
+        assert new_task.task_run_name() == "second_name"
 
 
 class TestTaskCall:
@@ -3218,6 +3241,76 @@ async def test_task_run_name_is_set_with_kwargs_including_defaults(orion_client)
     assert tr_state.is_completed()
     task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
     assert task_run.name == "chris-wuz-here"
+
+
+async def test_task_run_name_is_set_with_function(orion_client):
+    def generate_task_run_name():
+        return "is-this-a-bird"
+
+    @task(task_run_name=generate_task_run_name)
+    def my_task(name, where="here"):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="butterfly")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "is-this-a-bird"
+
+
+async def test_task_run_name_is_set_with_function_using_runtime_context(orion_client):
+    def generate_task_run_name():
+        params = task_run_ctx.parameters
+        tokens = []
+        tokens.append("anon" if "name" not in params else str(params["name"]))
+        tokens.append("wuz")
+        tokens.append("where?" if "where" not in params else str(params["where"]))
+
+        return "-".join(tokens)
+
+    @task(task_run_name=generate_task_run_name)
+    def my_task(name, where="here"):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name, return_state=True)
+
+    tr_state = my_flow(name="chris")
+
+    # Check that the state completed happily
+    assert tr_state.is_completed()
+    task_run = await orion_client.read_task_run(tr_state.state_details.task_run_id)
+    assert task_run.name == "chris-wuz-here"
+
+
+async def test_task_run_name_is_set_with_function_not_returning_string(orion_client):
+    def generate_task_run_name():
+        pass
+
+    @task(task_run_name=generate_task_run_name)
+    def my_task(name, where="here"):
+        return name
+
+    @flow
+    def my_flow(name):
+        return my_task(name)
+
+    with pytest.raises(
+        TypeError,
+        match=(
+            r"Callable <function"
+            r" test_task_run_name_is_set_with_function_not_returning_string.<locals>.generate_task_run_name"
+            r" at .*> for 'task_run_name' returned type NoneType but a string is"
+            r" required"
+        ),
+    ):
+        my_flow("anon")
 
 
 def create_hook(mock_obj):

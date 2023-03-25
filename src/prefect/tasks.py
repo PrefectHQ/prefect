@@ -130,7 +130,8 @@ class Task(Generic[P, R]):
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This
@@ -178,7 +179,7 @@ class Task(Generic[P, R]):
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
         cache_expiration: datetime.timedelta = None,
-        task_run_name: str = None,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: int = 0,
         retry_delay_seconds: Union[
             float,
@@ -214,8 +215,12 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
-        if task_run_name is not None and not isinstance(task_run_name, str):
-            raise TypeError("'task_run_name' is not a string")
+        if task_run_name is not None:
+            if not isinstance(task_run_name, str) and not callable(task_run_name):
+                raise TypeError(
+                    "Expected string or callable for 'task_run_name'; got"
+                    f" {type(task_run_name).__name__} instead."
+                )
         self.task_run_name = task_run_name
 
         self.version = version
@@ -297,7 +302,7 @@ class Task(Generic[P, R]):
         cache_key_fn: Callable[
             ["TaskRunContext", Dict[str, Any]], Optional[str]
         ] = None,
-        task_run_name: str = None,
+        task_run_name: Optional[Union[Callable[[], str], str]] = None,
         cache_expiration: datetime.timedelta = None,
         retries: Optional[int] = NotSet,
         retry_delay_seconds: Union[
@@ -329,7 +334,8 @@ class Task(Generic[P, R]):
             cache_key_fn: A new cache key function for the task.
             cache_expiration: A new cache expiration time for the task.
             task_run_name: An optional name to distinguish runs of this task; this name can be provided
-                as a string template with the task's keyword arguments as variables.
+                as a string template with the task's keyword arguments as variables,
+                or a function that returns a string.
             retries: A new number of times to retry on task run failure.
             retry_delay_seconds: Optionally configures how long to wait before retrying
                 the task after failure. This is only applicable if `retries` is nonzero.
@@ -877,7 +883,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -909,7 +915,7 @@ def task(
     version: str = None,
     cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
     cache_expiration: datetime.timedelta = None,
-    task_run_name: str = None,
+    task_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[
         float,
@@ -949,7 +955,8 @@ def task(
             for this task should be restorable; if not provided, cached states will
             never expire.
         task_run_name: An optional name to distinguish runs of this task; this name can be provided
-            as a string template with the task's keyword arguments as variables.
+            as a string template with the task's keyword arguments as variables,
+            or a function that returns a string.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: Optionally configures how long to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero. This

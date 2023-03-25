@@ -1533,13 +1533,11 @@ async def orchestrate_task_run(
                     args, kwargs = parameters_to_args_kwargs(
                         task.fn, resolved_parameters
                     )
-
                     # update task run name
                     if not run_name_set and task.task_run_name:
-                        if not isinstance(task.task_run_name, str):
-                            raise RuntimeError("'task_run_name' is not a string")
-
-                        task_run_name = task.task_run_name.format(**resolved_parameters)
+                        task_run_name = _resolve_custom_task_run_name(
+                            task=task, parameters=resolved_parameters
+                        )
                         await client.set_task_run_name(
                             task_run_id=task_run.id, name=task_run_name
                         )
@@ -2085,6 +2083,25 @@ def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str
         )
 
     return flow_run_name
+
+
+def _resolve_custom_task_run_name(task: Task, parameters: Dict[str, Any]) -> str:
+    if callable(task.task_run_name):
+        task_run_name = task.task_run_name()
+        if not isinstance(task_run_name, str):
+            raise TypeError(
+                f"Callable {task.task_run_name} for 'task_run_name' returned type"
+                f" {type(task_run_name).__name__} but a string is required."
+            )
+    elif isinstance(task.task_run_name, str):
+        task_run_name = task.task_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'task_run_name'; got"
+            f" {type(task.task_run_name).__name__} instead."
+        )
+
+    return task_run_name
 
 
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:

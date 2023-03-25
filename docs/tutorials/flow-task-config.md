@@ -190,6 +190,57 @@ def my_flow():
     my_task(name="marvin", date=datetime.datetime.utcnow())
 ```
 
+Additionally this setting also accepts a function that returns a string to be used for the task run name:
+
+```python
+import datetime
+from prefect import flow, task
+
+def generate_task_name():
+    date = datetime.datetime.utcnow()
+    return f"{date:%A}-is-a-lovely-day"
+
+@task(name="My Example Task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name):
+    pass
+
+@flow
+def my_flow():
+    # creates a run with a name like "Thursday-is-a-lovely-day"
+    my_task(name="marvin")
+```
+
+If you need access to information about the task, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run, task_run
+
+def generate_task_name():
+    flow_name = flow_run.flow_name
+    task_name = task_run.task_name
+
+    parameters = task_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-{task_name}-with-{name}-and-{limit}"
+
+@task(name="my-example-task",
+      description="An example task for a tutorial.",
+      task_run_name=generate_task_name)
+def my_task(name: str, limit: int = 100):
+    pass
+
+@flow
+def my_flow(name: str):
+    # creates a run with a name like "my-flow-my-example-task-with-marvin-and-100"
+    my_task(name="marvin")
+```
+
+
 ## Flow and task retries
 
 Prefect includes built-in support for both flow and [task retries](/concepts/tasks/#retries), which you configure on the flow or task. This enables flows and tasks to automatically retry on failure. You can specify how many retries you want to attempt and, optionally, a delay between retry attempts:
