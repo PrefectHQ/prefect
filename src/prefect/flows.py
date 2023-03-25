@@ -83,8 +83,9 @@ class Flow(Generic[P, R]):
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
-        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-            as a string template with the flow's parameters as variables.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can
+            be provided as a string template with the flow's parameters as variables,
+            or a function that returns a string.
         task_runner: An optional task runner to use for task execution within the flow;
             if not provided, a `ConcurrentTaskRunner` will be used.
         description: An optional string description for the flow; if not provided, the
@@ -125,7 +126,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: Optional[str] = None,
         version: Optional[str] = None,
-        flow_run_name: Optional[str] = None,
+        flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = ConcurrentTaskRunner,
@@ -149,8 +150,12 @@ class Flow(Generic[P, R]):
 
         self.name = name or fn.__name__.replace("_", "-")
 
-        if flow_run_name is not None and not isinstance(flow_run_name, str):
-            raise TypeError("'flow_run_name' is not a string")
+        if flow_run_name is not None:
+            if not isinstance(flow_run_name, str) and not callable(flow_run_name):
+                raise TypeError(
+                    "Expected string or callable for 'flow_run_name'; got"
+                    f" {type(flow_run_name).__name__} instead."
+                )
         self.flow_run_name = flow_run_name
 
         task_runner = task_runner or ConcurrentTaskRunner()
@@ -232,7 +237,7 @@ class Flow(Generic[P, R]):
         retries: int = 0,
         retry_delay_seconds: Union[int, float] = 0,
         description: str = None,
-        flow_run_name: str = None,
+        flow_run_name: Optional[Union[Callable[[], str], str]] = None,
         task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = None,
@@ -251,8 +256,9 @@ class Flow(Generic[P, R]):
             name: A new name for the flow.
             version: A new version for the flow.
             description: A new description for the flow.
-            flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-                as a string template with the flow's parameters as variables.
+            flow_run_name: An optional name to distinguish runs of this flow; this name
+                can be provided as a string template with the flow's parameters as variables,
+                or a function that returns a string.
             task_runner: A new task runner for the flow.
             timeout_seconds: A new number of seconds to fail the flow after if still
                 running.
@@ -532,7 +538,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
-    flow_run_name: Optional[str] = None,
+    flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -555,7 +561,7 @@ def flow(
     *,
     name: Optional[str] = None,
     version: Optional[str] = None,
-    flow_run_name: Optional[str] = None,
+    flow_run_name: Optional[Union[Callable[[], str], str]] = None,
     retries: int = 0,
     retry_delay_seconds: Union[int, float] = 0,
     task_runner: BaseTaskRunner = ConcurrentTaskRunner,
@@ -583,8 +589,9 @@ def flow(
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
-        flow_run_name: An optional name to distinguish runs of this flow; this name can be provided
-            as a string template with the flow's parameters as variables.
+        flow_run_name: An optional name to distinguish runs of this flow; this name can
+            be provided as a string template with the flow's parameters as variables,
+            or a function that returns a string.
         task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `ConcurrentTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the

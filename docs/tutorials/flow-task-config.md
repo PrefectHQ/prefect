@@ -94,6 +94,49 @@ def my_flow(name: str, date: datetime.datetime):
 my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
+Additionally this setting also accepts a function that returns a string for the flow run name:
+
+```python
+import datetime
+from prefect import flow
+
+def generate_flow_run_name():
+    date = datetime.datetime.utcnow()
+
+    return f"{date:%A}-is-a-nice-day"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str):
+    pass
+
+# creates a flow run called 'Thursday-is-a-nice-day'
+my_flow(name="marvin")
+```
+
+If you need access to information about the flow, use the `prefect.runtime` module. For example:
+
+```python
+from prefect import flow
+from prefect.runtime import flow_run
+
+def generate_flow_run_name():
+    flow_name = flow_run.flow_name
+
+    parameters = flow_run.parameters
+    name = parameters["name"]
+    limit = parameters["limit"]
+
+    return f"{flow_name}-with-{name}-and-{limit}"
+
+@flow(flow_run_name=generate_flow_run_name)
+def my_flow(name: str, limit: int = 100):
+    pass
+
+# creates a flow run called 'my-flow-with-marvin-and-100'
+my_flow(name="marvin")
+```
+
+
 ## Basic task configuration
 
 By design, tasks follow a very similar model to flows: you can independently assign tasks their own name and description.

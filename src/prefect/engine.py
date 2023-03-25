@@ -613,10 +613,8 @@ async def orchestrate_flow_run(
         )
 
     if flow.flow_run_name:
-        if not isinstance(flow.flow_run_name, str):
-            raise RuntimeError("'flow_run_name' is not a string")
+        flow_run_name = _resolve_custom_flow_run_name(flow, parameters)
 
-        flow_run_name = flow.flow_run_name.format(**parameters)
         await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
         logger.extra["flow_run_name"] = flow_run_name
         logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
@@ -2061,6 +2059,25 @@ def should_log_prints(flow_or_task: Union[Flow, Task]) -> bool:
             return PREFECT_LOGGING_LOG_PRINTS.value()
 
     return flow_or_task.log_prints
+
+
+def _resolve_custom_flow_run_name(flow: Flow, parameters: Dict[str, Any]) -> str:
+    if callable(flow.flow_run_name):
+        flow_run_name = flow.flow_run_name()
+        if not isinstance(flow_run_name, str):
+            raise TypeError(
+                f"Callable {flow.flow_run_name} for 'flow_run_name' returned type"
+                f" {type(flow_run_name).__name__} but a string is required."
+            )
+    elif isinstance(flow.flow_run_name, str):
+        flow_run_name = flow.flow_run_name.format(**parameters)
+    else:
+        raise TypeError(
+            "Expected string or callable for 'flow_run_name'; got"
+            f" {type(flow.flow_run_name).__name__} instead."
+        )
+
+    return flow_run_name
 
 
 async def _run_task_hooks(task: Task, task_run: TaskRun, state: State) -> None:
