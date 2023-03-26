@@ -856,7 +856,10 @@ class GitHub(ReadableDeploymentStorage):
     access_token: Optional[SecretStr] = Field(
         name="Personal Access Token",
         default=None,
-        description="A GitHub Personal Access Token (PAT) with repo scope.",
+        description=(
+            "A GitHub Personal Access Token (PAT) with repo scope."
+            " To use a fine-grained PAT, provide '{username}:{PAT}' as the value."
+        ),
     )
     include_git_objects: bool = Field(
         default=True,
