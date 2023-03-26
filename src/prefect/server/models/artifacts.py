@@ -168,28 +168,27 @@ async def read_latest_artifacts(
     latest_ids = await session.execute(latest_ids_query)
     latest_ids = [i[0] for i in latest_ids.fetchall()]
 
-    if latest_ids:
-        query = (
-            sa.select(db.Artifact)
-            .where(db.Artifact.id.in_(latest_ids))
-            .order_by(sort.as_sql_sort(db))
-        )
+    query = (
+        sa.select(db.Artifact)
+        .where(db.Artifact.id.in_(latest_ids))
+        .order_by(sort.as_sql_sort(db))
+    )
 
-        query = await _apply_artifact_filters(
-            query,
-            db=db,
-            artifact_filter=artifact_filter,
-            flow_run_filter=flow_run_filter,
-            task_run_filter=task_run_filter,
-        )
+    query = await _apply_artifact_filters(
+        query,
+        db=db,
+        artifact_filter=artifact_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
 
-        if limit is not None:
-            query = query.limit(limit)
-        if offset is not None:
-            query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
 
-        result = await session.execute(query)
-        return result.scalars().unique().all()
+    result = await session.execute(query)
+    return result.scalars().unique().all()
 
 
 @inject_db

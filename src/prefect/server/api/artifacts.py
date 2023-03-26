@@ -107,27 +107,28 @@ async def read_artifacts(
     """
     Retrieve artifacts from the database.
     """
-    artifact_args = dict(
-        artifact_filter=artifacts,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        offset=offset,
-        limit=limit,
-        sort=sort,
-    )
-
     if latest:
         async with db.session_context() as session:
             return await models.artifacts.read_latest_artifacts(
                 session=session,
-                **artifact_args,
+                artifact_filter=artifacts,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                offset=offset,
+                limit=limit,
+                sort=sort,
             )
 
     else:
         async with db.session_context() as session:
             return await models.artifacts.read_artifacts(
                 session=session,
-                **artifact_args,
+                artifact_filter=artifacts,
+                flow_run_filter=flow_runs,
+                task_run_filter=task_runs,
+                offset=offset,
+                limit=limit,
+                sort=sort,
             )
 
 
