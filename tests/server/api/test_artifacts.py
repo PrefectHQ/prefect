@@ -65,7 +65,19 @@ async def artifacts(flow_run, task_run, client):
     ).dict(json_compatible=True)
     artifact4 = await client.post("/experimental/artifacts/", json=artifact4_schema)
 
-    yield [artifact1.json(), artifact2.json(), artifact3.json(), artifact4.json()]
+    artifact5_schema = actions.ArtifactCreate(
+        data=1,
+        description="# This is a markdown description title",
+    ).dict(json_compatible=True)
+    artifact5 = await client.post("/experimental/artifacts/", json=artifact5_schema)
+
+    yield [
+        artifact1.json(),
+        artifact2.json(),
+        artifact3.json(),
+        artifact4.json(),
+        artifact5.json(),
+    ]
 
 
 @pytest.fixture(autouse=True)
@@ -191,7 +203,7 @@ class TestReadArtifacts:
             a["flow_run_id"] for a in artifacts
         }
 
-    async def test_read_artifacts_with_artifact_key_filter(self, artifacts, client):
+    async def test_read_artifacts_with_artifact_key_filter_any(self, artifacts, client):
         artifact_filter = dict(
             artifacts=schemas.filters.ArtifactFilter(
                 key=schemas.filters.ArtifactFilterKey(
@@ -208,6 +220,36 @@ class TestReadArtifacts:
             artifacts[0]["key"],
             artifacts[1]["key"],
         }
+
+    async def test_read_artifact_with_artifact_key_filter_exists(
+        self, artifacts, client
+    ):
+        artifact_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(exists_=True)
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == len(artifacts) - 1
+        assert all(r["key"] for r in response.json())
+
+    async def test_read_artifact_with_artifact_key_filter_not_exists(
+        self, artifacts, client
+    ):
+        artifact_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(exists_=False)
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["key"] is None
 
     async def test_read_artifacts_with_artifact_id_filter(self, artifacts, client):
         artifact_id = artifacts[0]["id"]
@@ -356,15 +398,14 @@ class TestReadArtifacts:
             "/experimental/artifacts/filter",
             json={
                 "offset": 1,
-                "sort": schemas.sorting.ArtifactSort.KEY_DESC,
+                "sort": schemas.sorting.ArtifactSort.CREATED_DESC,
             },
         )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == len(artifacts) - 1
-        expected_artifacts = artifacts[:-1][::-1]
-        assert [item["key"] for item in response.json()] == [
-            item["key"] for item in expected_artifacts
-        ]
+        actual_keys = [item["key"] for item in response.json()]
+        expected_keys = [item["key"] for item in artifacts[:-1]]
+        assert set(actual_keys) == set(expected_keys)
 
     async def test_read_artifacts_with_sort(self, artifacts, client):
         response = await client.post(

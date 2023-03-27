@@ -1487,12 +1487,26 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         example="my-artifact-%",
     )
 
+    exists_: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If `true`, only include artifacts with a non-null key. If `false`, "
+            "only include artifacts with a null key."
+        ),
+    )
+
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
         if self.like_ is not None:
             filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
+        if self.exists_ is not None:
+            filters.append(
+                db.Artifact.key.isnot(None)
+                if self.exists_
+                else db.Artifact.key.is_(None)
+            )
         return filters
 
 
