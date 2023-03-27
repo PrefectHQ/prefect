@@ -455,11 +455,18 @@ from prefect import flow, task
 def my_flow():
     hello_world()
 
-@task(persist_result=True, result_storage_key="{flow_run.flow_name}-{flow_run.name}-hello.json")
+@task(persist_result=True, result_storage_key="{flow_run.flow_name}_{flow_run.name}_hello.json")
 def hello_world(name: str = "world"):
     return f"hello {name}"
 
 my_flow()
+```
+
+After running this flow, we can see a result file templated with the name of the flow and the flow run:
+
+```
+❯ ls ~/.prefect/storage | grep "my-flow"    
+my-flow_industrious-trout_hello.json
 ```
 
 
