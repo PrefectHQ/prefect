@@ -5,6 +5,7 @@ Defines the Prefect REST API FastAPI app.
 import asyncio
 import mimetypes
 import os
+import random
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
@@ -12,6 +13,7 @@ from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import anyio
 import sqlalchemy as sa
+import sqlalchemy.exc
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -55,6 +57,17 @@ enforce_minimum_version = EnforceMinimumAPIVersion(
     minimum_api_version="0.8.0",
     logger=logger,
 )
+
+SERVICE_UNAVAILABLE_RETRY_AFTER = (
+    2  # The number of seconds after which the client should retry on 503s
+)
+SERVICE_UNAVAILABLE_RETRY_AFTER_JITTER = 1  # Retry jitter for 503s
+
+
+def get_retry_after_value() -> float:
+    return SERVICE_UNAVAILABLE_RETRY_AFTER + (
+        random.random() * SERVICE_UNAVAILABLE_RETRY_AFTER_JITTER
+    )
 
 
 API_ROUTERS = (
@@ -141,6 +154,17 @@ async def integrity_exception_handler(request: Request, exc: Exception):
             )
         },
         status_code=status.HTTP_409_CONFLICT,
+    )
+
+
+async def db_operational_exception_handler(
+    request: Request, exc: sqlalchemy.exc.OperationalError
+):
+    """Return a 503 so the client can try again."""
+    return JSONResponse(
+        content={"exception_message": "Service Unavailable"},
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        headers={"Retry-After": str(get_retry_after_value())},
     )
 
 
@@ -505,6 +529,9 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
+        app.add_exception_handler(
+            sqlalchemy.exc.OperationalError, db_operational_exception_handler
+        )
 
     api_app.mount(
         "/static",
