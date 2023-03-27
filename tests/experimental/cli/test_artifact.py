@@ -32,6 +32,33 @@ async def artifact(session):
     return model[0]
 
 
+@pytest.fixture
+async def artifacts(session):
+    artifact1_schema = schemas.core.Artifact(
+        key="voltaic", data=1, description="opens many doors", type="table"
+    )
+    artifact2_schema = schemas.core.Artifact(
+        key="voltaic", data=2, description="opens many doors", type="table"
+    )
+    artifact3_schema = schemas.core.Artifact(
+        key="lotus", data=3, description="opens many doors", type="markdown"
+    )
+
+    model1 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact1_schema
+    )
+    model2 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact2_schema
+    )
+    model3 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact3_schema
+    )
+
+    await session.commit()
+
+    return [model1, model2, model3]
+
+
 def test_listing_artifacts_when_none_exist():
     invoke_and_assert(
         ["artifact", "ls"],
@@ -54,4 +81,17 @@ def test_listing_artifacts_after_creating_artifacts(artifact):
             │ {artifact.id} │ {artifact.key} │ {artifact.type} │ {pendulum.instance(artifact.updated).diff_for_humans()} │
             └──────────────────────────────────────┴─────────┴──────┴───────────────────┘
             """,
+    )
+
+
+def test_listing_artifacts_lists_only_latest_versions(artifacts):
+    expected_output = (
+        f"{artifacts[2].id}",
+        f"{artifacts[1].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls"],
+        expected_output_contains=expected_output,
+        expected_code=0,
     )
