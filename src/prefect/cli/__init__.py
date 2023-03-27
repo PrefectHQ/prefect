@@ -22,3 +22,7 @@ import prefect.cli.work_pool
 # Only load workers CLI if enabled via a setting
 if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
     import prefect.experimental.cli.worker
+
+# Only load artifacts CLI if enabled via a setting
+if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
+    import prefect.experimental.cli.artifact
