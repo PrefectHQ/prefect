@@ -157,9 +157,7 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     )
 
 
-async def db_operational_exception_handler(
-    request: Request, exc: sqlalchemy.exc.OperationalError
-):
+async def retry_exception_handler(request: Request, exc: Exception):
     """Return a 503 so the client can try again."""
     return JSONResponse(
         content={"exception_message": "Service Unavailable"},
