@@ -1398,7 +1398,7 @@ class PrefectClient:
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name"]
+            for field in ["work_pool_name", "work_queue_name", "pull_steps"]
             if field not in deployment_create.__fields_set__
         }
 
