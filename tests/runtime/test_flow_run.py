@@ -4,6 +4,8 @@ import pendulum
 import pytest
 
 from prefect import flow, states, tags
+from prefect.client.schemas import FlowRun
+from prefect.context import FlowRunContext
 from prefect.runtime import flow_run
 
 
@@ -105,3 +107,29 @@ class TestStartTime:
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
         assert flow_run.scheduled_start_time == TIMESTAMP
+
+
+class TestName:
+    async def test_name_is_attribute(self):
+        assert "name" in dir(flow_run)
+
+    async def test_name_is_empty_when_not_set(self):
+        assert flow_run.name is None
+
+    async def test_name_returns_name_when_present_dynamically(self):
+        assert flow_run.name is None
+
+        with FlowRunContext.construct(flow_run=FlowRun.construct(name="foo")):
+            assert flow_run.name == "foo"
+
+        assert flow_run.name is None
+
+    async def test_name_pulls_from_api_when_needed(self, monkeypatch, orion_client):
+        run = await orion_client.create_flow_run(
+            flow=flow(lambda: None, name="test"), name="foo"
+        )
+        assert flow_run.name is None
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+
+        assert flow_run.name == "foo"
