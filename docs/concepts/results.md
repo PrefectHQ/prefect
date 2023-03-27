@@ -399,6 +399,30 @@ You can configure this to use a specific storage using one of the following:
 - A storage instance, e.g. `LocalFileSystem(basepath=".my-results")`
 - A storage slug, e.g. `'s3/dev-s3-block'`
 
+#### Result storage key
+
+The path of the result file in the result storage can be configured with the `result_storage_key`. The `result_storage_key` option defaults to a null value, which generates a unique identifier for each result.
+
+
+```python
+from prefect import flow, task
+from prefect.filesystems import LocalFileSystem, S3
+
+@flow()
+def my_flow(result_storage=S3(bucket_path="my-bucket")):
+    my_task()
+
+@task(persist_result=True, result_storage_key="my_task.json")
+def my_task():
+    ...
+
+my_flow()  # The task's result will be persisted to 's3://my-bucket/my_task.json'
+```
+
+If a result exists at a given storage key in the storage location, it will be overwritten.
+
+Result storage keys can only be configured on tasks at this time. Result storage keys are not templated with any runtime information at this time.
+
 #### Result serializer
 
 [The result serializer](#result-serializer-types) can be configured with the `result_serializer` option. The `result_serializer` option defaults to a null value, which infers the serializer from the context.
