@@ -195,12 +195,28 @@ class TestParameters:
     async def test_within_flow_run_uses_unserialized_parameters(self):
         @dataclasses.dataclass
         class Foo:
-            x: int
+            y: int
 
-        foo = Foo(x=1)
+        foo = Foo(y=1)
 
         @flow
         def my_flow(x):
             return flow_run.parameters
 
         assert my_flow(foo) == {"x": foo}
+
+    async def test_outside_flow_run_uses_serialized_parameters(self, monkeypatch):
+        @dataclasses.dataclass
+        class Foo:
+            y: int
+
+        foo = Foo(y=1)
+
+        @flow
+        def my_flow(x):
+            return flow_run.get_id()
+
+        flow_run_id = my_flow(foo)
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=flow_run_id)
+        assert flow_run.parameters == {"x": {"y": 1}}
