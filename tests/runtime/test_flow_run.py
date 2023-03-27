@@ -57,7 +57,7 @@ class TestID:
         assert flow_with_new_id() != "foo"
         assert flow_run.id == "foo"
 
-    async def test_id_can_be_retreived_from_task_run_context(self):
+    async def test_id_can_be_retrieved_from_task_run_context(self):
         with TaskRunContext.construct(task_run=TaskRun.construct(flow_run_id="foo")):
             assert flow_run.id == "foo"
 
