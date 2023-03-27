@@ -527,8 +527,8 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
-        app.add_exception_handler(
-            sqlalchemy.exc.OperationalError, db_operational_exception_handler
+        api_app.add_exception_handler(
+            sqlalchemy.exc.OperationalError, retry_exception_handler
         )
 
     api_app.mount(
