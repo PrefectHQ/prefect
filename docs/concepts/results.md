@@ -597,10 +597,16 @@ Drawbacks of the JSON serializer:
 
 Prefect uses internal result types to capture information about the result attached to a state. The following types are used:
 
+- `UnpersistedResult`: Stores result metadata but the value is only available when created.
 - `LiteralResult`: Stores simple values inline.
 - `PersistedResult`: Stores a reference to a result persisted to storage.
 
 All result types include a `get()` method that can be called to return the value of the result. This is done behind the scenes when the `result()` method is used on states or futures.
+
+### Unpersisted results
+
+Unpersisted results are used to represent results that have not been and will not be persisted beyond the current flow run. The value associated with the result is stored in memory, but will not be available later. Result metadata is attached to this object for storage in the API and representation in the UI.
+
 
 ### Literal results
 
