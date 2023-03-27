@@ -212,7 +212,7 @@ async def register_flow(entrypoint: str, force: bool = False):
         flows = {}
 
     ## quality control
-    if flows.get(flow.name) != entrypoint:
+    if flow.name in flows and flows[flow.name] != entrypoint:
         if not force:
             raise ValueError(
                 "Conflicting entry found for flow with name"
