@@ -419,9 +419,37 @@ def my_task():
 my_flow()  # The task's result will be persisted to 's3://my-bucket/my_task.json'
 ```
 
+Result storage keys are formatted with access to the `prefect` module and the run's `parameters`. In the following example, we will run a flow with three runs of the same task. Each task run will write its result to a unique file based on the `name` parameter.
+
+```python
+from prefect import flow, task
+from prefect.serializers import JSONSerializer
+
+@flow(result_serializer=JSONSerializer())
+def my_flow():
+    hello_world()
+    hello_world(name="foo")
+    hello_world(name="bar")
+
+@task(persist_result=True, result_storage_key="hello-{parameters[name]}.json")
+def hello_world(name: str = "world"):
+    return f"hello {name}"
+
+my_flow()
+```
+
+After running the flow, we can see three persisted result files in our storage directory:
+
+```shell
+$ ls ~/.prefect/storage | grep "hello-"
+hello-bar.json
+hello-foo.json
+hello-world.json
+```
+
 If a result exists at a given storage key in the storage location, it will be overwritten.
 
-Result storage keys can only be configured on tasks at this time. Result storage keys are not templated with any runtime information at this time.
+Result storage keys can only be configured on tasks at this time.
 
 #### Result serializer
 
