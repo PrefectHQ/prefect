@@ -4,8 +4,8 @@ import pendulum
 import pytest
 
 from prefect import flow, states, tags
-from prefect.client.schemas import FlowRun
-from prefect.context import FlowRunContext
+from prefect.client.schemas import FlowRun, TaskRun
+from prefect.context import FlowRunContext, TaskRunContext
 from prefect.flows import Flow
 from prefect.runtime import flow_run
 
@@ -56,6 +56,10 @@ class TestID:
         assert isinstance(new_id, str)
         assert flow_with_new_id() != "foo"
         assert flow_run.id == "foo"
+
+    async def test_id_can_be_retrieved_from_task_run_context(self):
+        with TaskRunContext.construct(task_run=TaskRun.construct(flow_run_id="foo")):
+            assert flow_run.id == "foo"
 
 
 class TestTags:
