@@ -1471,7 +1471,10 @@ async def orchestrate_task_run(
     # Generate the cache key to attach to proposed states
     # The cache key uses a TaskRunContext that does not include a `timeout_context``
     cache_key = (
-        task.cache_key_fn(partial_task_run_context.finalize(), resolved_parameters)
+        task.cache_key_fn(
+            partial_task_run_context.finalize(parameters=resolved_parameters),
+            resolved_parameters,
+        )
         if task.cache_key_fn
         else None
     )
