@@ -1,9 +1,11 @@
+import contextlib
 import sqlite3
 from abc import ABC, abstractmethod
 from asyncio import AbstractEventLoop, get_running_loop
 from functools import partial
 from typing import Dict, Hashable, Tuple
 
+import anyio
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from typing_extensions import Literal
@@ -65,6 +67,12 @@ class BaseDatabaseConfiguration(ABC):
     @abstractmethod
     def is_inmemory(self) -> bool:
         """Returns true if database is run in memory"""
+
+    @abstractmethod
+    async def transaction_limit(self):
+        """
+        A context manager for a limiting the number of active transactions.
+        """
 
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
@@ -162,10 +170,16 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
         return False
 
+    @contextlib.asynccontextmanager
+    async def transaction_limit(self):
+        # No limit is applied to Postgres
+        yield
+
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
     ENGINES: Dict[Tuple[AbstractEventLoop, str, bool, float], AsyncEngine] = {}
     MIN_SQLITE_VERSION = (3, 24, 0)
+    TRANSACTION_LIMITER = anyio.Lock()
 
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
@@ -296,3 +310,8 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """Returns true if database is run in memory"""
 
         return ":memory:" in self.connection_url or "mode=memory" in self.connection_url
+
+    @contextlib.asynccontextmanager
+    async def transaction_limit(self):
+        async with self.TRANSACTION_LIMITER:
+            yield

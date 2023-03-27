@@ -98,8 +98,9 @@ class PrefectDBInterface(metaclass=DBSingleton):
         session = await self.session()
         async with session:
             if begin_transaction:
-                async with session.begin():
-                    yield session
+                async with self.database_config.transaction_limit():
+                    async with session.begin():
+                        yield session
             else:
                 yield session
 
