@@ -44,7 +44,7 @@ async def list_artifacts():
             table.add_row(
                 str(artifact.id),
                 artifact.key,
-                str(artifact.type),
+                artifact.type,
                 pendulum.instance(artifact.updated).diff_for_humans(),
             )
 
