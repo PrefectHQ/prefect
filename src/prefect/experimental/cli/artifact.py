@@ -1,4 +1,5 @@
 import pendulum
+import typer
 from rich.table import Table
 
 from prefect import get_client
@@ -19,15 +20,28 @@ app.add_typer(artifact_app)
     feature="The Artifact CLI",
     group="artifacts",
 )
-async def list_artifacts():
+async def list_artifacts(
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        help="The maximum number of artifacts to return.",
+    ),
+    latest: bool = typer.Option(
+        False,
+        "--latest",
+        help="Whether or not to only return the latest version of each artifact.",
+    ),
+):
     """
     List artifacts.
     """
     async with get_client() as client:
         latest_artifact_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=latest)
         )
-        artifacts = await client.read_artifacts(artifact_filter=latest_artifact_filter)
+        artifacts = await client.read_artifacts(
+            artifact_filter=latest_artifact_filter, limit=limit
+        )
 
         table = Table(
             title="Artifacts",
