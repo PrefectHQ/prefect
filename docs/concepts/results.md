@@ -448,7 +448,7 @@ hello-world.json
 
 In the next example, we include metadata about the flow run from the `prefect.runtime.flow_run` module:
 
-```
+```python
 from prefect import flow, task
 
 @flow
