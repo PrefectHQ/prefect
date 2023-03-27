@@ -230,7 +230,7 @@ class ResultFactory(pydantic.BaseModel):
             cache_result_in_memory=cache_result_in_memory,
             client=client,
             storage_key_fn=(
-                (lambda: task.result_storage_key)
+                (lambda: task.result_storage_key.format(prefect=prefect))
                 if task.result_storage_key is not None
                 else DEFAULT_STORAGE_KEY_FN
             ),
