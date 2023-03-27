@@ -116,7 +116,7 @@ ARG PREFECT_EXTRAS=${PREFECT_EXTRAS:-""}
 RUN pip install --no-cache-dir "./dist/prefect.tar.gz${PREFECT_EXTRAS}"
 
 ARG EXTRA_PIP_PACKAGES=${EXTRA_PIP_PACKAGES:-""}
-RUN pip install --no-cache-dir ${EXTRA_PIP_PACKAGES}
+RUN [ -z "${EXTRA_PIP_PACKAGES}" ] && pip install --no-cache-dir "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version
