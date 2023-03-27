@@ -3,7 +3,7 @@ import json
 import pytest
 
 from prefect.filesystems import LocalFileSystem
-from prefect.results import PersistedResult, PersistedResultBlob
+from prefect.results import DEFAULT_STORAGE_KEY_FN, PersistedResult, PersistedResultBlob
 from prefect.serializers import JSONSerializer, PickleSerializer
 
 
@@ -20,6 +20,7 @@ async def test_result_reference_create_and_get(cache_object, storage_block):
         "test",
         storage_block_id=storage_block._block_document_id,
         storage_block=storage_block,
+        storage_key_fn=DEFAULT_STORAGE_KEY_FN,
         serializer=JSONSerializer(),
         cache_object=cache_object,
     )
@@ -40,6 +41,7 @@ async def test_result_literal_populates_default_artifact_metadata(
         "test",
         storage_block_id=storage_block._block_document_id,
         storage_block=storage_block,
+        storage_key_fn=DEFAULT_STORAGE_KEY_FN,
         serializer=JSONSerializer(),
         cache_object=cache_object,
     )
@@ -54,6 +56,7 @@ async def test_result_reference_create_uses_storage(storage_block):
         "test",
         storage_block_id=storage_block._block_document_id,
         storage_block=storage_block,
+        storage_key_fn=DEFAULT_STORAGE_KEY_FN,
         serializer=JSONSerializer(),
     )
 
@@ -69,6 +72,7 @@ async def test_result_reference_create_uses_serializer(storage_block):
         "test",
         storage_block_id=storage_block._block_document_id,
         storage_block=storage_block,
+        storage_key_fn=DEFAULT_STORAGE_KEY_FN,
         serializer=serializer,
     )
 
@@ -88,6 +92,7 @@ async def test_result_reference_file_blob_is_json(storage_block):
         "test",
         storage_block_id=storage_block._block_document_id,
         storage_block=storage_block,
+        storage_key_fn=DEFAULT_STORAGE_KEY_FN,
         serializer=serializer,
     )
 
@@ -101,3 +106,17 @@ async def test_result_reference_file_blob_is_json(storage_block):
 
     assert blob.serializer
     assert blob.data
+
+
+async def test_result_reference_create_uses_storage_key_fn(storage_block):
+    result = await PersistedResult.create(
+        "test",
+        storage_block_id=storage_block._block_document_id,
+        storage_block=storage_block,
+        storage_key_fn=lambda: "test",
+        serializer=JSONSerializer(),
+    )
+
+    assert result.storage_key == "test"
+    contents = await storage_block.read_path("test")
+    assert contents
