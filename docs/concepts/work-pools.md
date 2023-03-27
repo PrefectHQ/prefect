@@ -181,6 +181,7 @@ prefect work-pool ls
 │ test-pool  │  prefect-agent │ a51adf8c-58bb-4949-abe6-1b87af46eabd │ None              │
 └────────────┴────────────────┴──────────────────────────────────────┴───────────────────┘
                        (**) denotes a paused pool
+```
 </div>
 
 `prefect work-pool inspect` provides all configuration metadata for a specific work pool by ID.
