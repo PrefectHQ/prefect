@@ -1398,12 +1398,15 @@ class PrefectClient:
         # Exclude newer fields that are not set to avoid compatibility issues
         exclude = {
             field
-            for field in ["work_pool_name", "work_queue_name", "pull_steps"]
+            for field in ["work_pool_name", "work_queue_name"]
             if field not in deployment_create.__fields_set__
         }
 
         if deployment_create.is_schedule_active is None:
             exclude.add("is_schedule_active")
+
+        if deployment_create.pull_steps is None:
+            exclude.add("pull_steps")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(
