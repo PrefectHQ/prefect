@@ -1,3 +1,4 @@
+import dataclasses
 import datetime
 
 import pendulum
@@ -168,3 +169,38 @@ class TestFlowName:
         monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
 
         assert flow_run.flow_name == "foo"
+
+
+class TestParameters:
+    async def test_parameters_is_attribute(self):
+        assert "parameters" in dir(flow_run)
+
+    async def test_parameters_is_dict_when_not_set(self):
+        assert flow_run.parameters == {}
+
+    async def test_parameters_from_context(self):
+        with FlowRunContext.construct(
+            flow_run=FlowRun.construct(id="foo"), parameters={"x": "foo", "y": "bar"}
+        ):
+            assert flow_run.parameters == {"x": "foo", "y": "bar"}
+
+    async def test_parameters_from_api(self, monkeypatch, orion_client):
+        run = await orion_client.create_flow_run(
+            flow=flow(lambda: None, name="foo"), parameters={"x": "foo", "y": "bar"}
+        )
+
+        monkeypatch.setenv(name="PREFECT__FLOW_RUN_ID", value=str(run.id))
+        assert flow_run.parameters == {"x": "foo", "y": "bar"}
+
+    async def test_within_flow_run_uses_unserialized_parameters(self):
+        @dataclasses.dataclass
+        class Foo:
+            x: int
+
+        foo = Foo(x=1)
+
+        @flow
+        def my_flow(x):
+            return flow_run.parameters
+
+        assert my_flow(foo) == {"x": foo}

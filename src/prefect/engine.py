@@ -636,6 +636,7 @@ async def orchestrate_flow_run(
                 flow=flow,
                 flow_run=flow_run,
                 client=client,
+                parameters=parameters,
             ) as flow_run_context:
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
