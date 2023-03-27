@@ -1,5 +1,6 @@
 import abc
 import uuid
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -98,6 +99,10 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     if not task.cache_result_in_memory:
         return True
     return False
+
+
+def format_user_supplied_storage_key(key):
+    return key.format(prefect=prefect)
 
 
 class ResultFactory(pydantic.BaseModel):
@@ -230,7 +235,7 @@ class ResultFactory(pydantic.BaseModel):
             cache_result_in_memory=cache_result_in_memory,
             client=client,
             storage_key_fn=(
-                (lambda: task.result_storage_key.format(prefect=prefect))
+                partial(format_user_supplied_storage_key, task.result_storage_key)
                 if task.result_storage_key is not None
                 else DEFAULT_STORAGE_KEY_FN
             ),
