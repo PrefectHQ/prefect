@@ -10,8 +10,8 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "1.4.4",
-    "@prefecthq/prefect-ui-library": "1.1.23",
+    "@prefecthq/prefect-design": "1.5.0",
+    "@prefecthq/prefect-ui-library": "1.1.26",
     "@prefecthq/vue-compositions": "1.4.0",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
@@ -21,7 +21,7 @@
     "vue-router": "4.1.6"
   },
   "devDependencies": {
-    "@playwright/test": "1.32.0",
+    "@playwright/test": "1.32.1",
     "@prefecthq/eslint-config": "1.0.23",
     "@vitejs/plugin-vue": "4.1.0",
     "autoprefixer": "10.4.14",

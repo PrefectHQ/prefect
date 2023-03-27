@@ -42,7 +42,9 @@ def validate_block_document_name(value):
 
 
 def validate_artifact_key(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+    if value is not None and not bool(
+        re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)
+    ):
         raise ValueError(
             "Artifact key must only contain lowercase letters, numbers, and dashes"
         )
