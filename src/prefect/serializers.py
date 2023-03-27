@@ -32,10 +32,13 @@ def prefect_json_object_encoder(obj: Any) -> Any:
 
     Raises a `TypeError` to fallback on other encoders on failure.
     """
-    return {
-        "__class__": to_qualified_name(obj.__class__),
-        "data": pydantic_encoder(obj),
-    }
+    if isinstance(obj, BaseException):
+        return {"__exc_type__": to_qualified_name(obj.__class__), "message": str(obj)}
+    else:
+        return {
+            "__class__": to_qualified_name(obj.__class__),
+            "data": pydantic_encoder(obj),
+        }
 
 
 def prefect_json_object_decoder(result: dict):
@@ -47,7 +50,10 @@ def prefect_json_object_decoder(result: dict):
         return pydantic.parse_obj_as(
             from_qualified_name(result["__class__"]), result["data"]
         )
-    return result
+    elif "__exc_type__" in result:
+        return from_qualified_name(result["__exc_type__"])(result["message"])
+    else:
+        return result
 
 
 @add_type_dispatch
