@@ -234,6 +234,22 @@ class TestReadArtifacts:
         )
         assert response.status_code == status.HTTP_200_OK
         assert len(response.json()) == len(artifacts) - 1
+        assert all(r["key"] for r in response.json())
+
+    async def test_read_artifact_with_artifact_key_filter_not_exists(
+        self, artifacts, client
+    ):
+        artifact_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(exists_=False)
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["key"] is None
 
     async def test_read_artifacts_with_artifact_id_filter(self, artifacts, client):
         artifact_id = artifacts[0]["id"]

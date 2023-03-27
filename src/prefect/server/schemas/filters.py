@@ -1501,8 +1501,12 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
             filters.append(db.Artifact.key.in_(self.any_))
         if self.like_ is not None:
             filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
-        if self.exists_ is True:
-            filters.append(db.Artifact.key.isnot(None))
+        if self.exists_ is not None:
+            filters.append(
+                db.Artifact.key.isnot(None)
+                if self.exists_
+                else db.Artifact.key.is_(None)
+            )
         return filters
 
 
