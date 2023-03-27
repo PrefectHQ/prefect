@@ -17,7 +17,7 @@ from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
 from prefect.context import FlowRunContext
 
-__all__ = ["id", "tags", "scheduled_start_time"]
+__all__ = ["id", "tags", "scheduled_start_time", "name"]
 
 
 def __getattr__(name: str) -> Any:
@@ -65,6 +65,21 @@ def get_tags():
         return flow_run.flow_run.tags
 
 
+def get_name():
+    flow_run = FlowRunContext.get()
+    run_id = get_id()
+    if flow_run is None and run_id is None:
+        return None
+    elif flow_run is None:
+        flow_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
+
+        return flow_run.name
+    else:
+        return flow_run.flow_run.name
+
+
 def get_scheduled_start_time():
     flow_run = FlowRunContext.get()
     run_id = get_id()
@@ -84,4 +99,5 @@ FIELDS = {
     "id": get_id,
     "tags": get_tags,
     "scheduled_start_time": get_scheduled_start_time,
+    "name": get_name,
 }
