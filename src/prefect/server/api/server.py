@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -186,6 +187,7 @@ def create_orion_api(
     """
     fast_api_app_kwargs = fast_api_app_kwargs or {}
     api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    api_app.add_middleware(GZipMiddleware)
 
     @api_app.get(health_check_path, tags=["Root"])
     async def health_check():
@@ -245,6 +247,7 @@ def create_orion_api(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
+    ui_app.add_middleware(GZipMiddleware)
 
     if os.name == "nt":
         # Windows defaults to text/plain for .js files
