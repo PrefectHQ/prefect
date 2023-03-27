@@ -101,8 +101,10 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     return False
 
 
-def format_user_supplied_storage_key(key):
-    return key.format(prefect=prefect)
+def _format_user_supplied_storage_key(key):
+    # Note here we are pinning to task runs since flow runs do not support storage keys
+    # yet; we'll need to split logic in the future or have two separate functions
+    return key.format(prefect=prefect, parameters=prefect.runtime.task_run.parameters)
 
 
 class ResultFactory(pydantic.BaseModel):
@@ -235,7 +237,7 @@ class ResultFactory(pydantic.BaseModel):
             cache_result_in_memory=cache_result_in_memory,
             client=client,
             storage_key_fn=(
-                partial(format_user_supplied_storage_key, task.result_storage_key)
+                partial(_format_user_supplied_storage_key, task.result_storage_key)
                 if task.result_storage_key is not None
                 else DEFAULT_STORAGE_KEY_FN
             ),
