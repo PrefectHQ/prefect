@@ -29,11 +29,7 @@ async def artifact(session):
 
     await session.commit()
 
-    read_artifact = await models.artifacts.read_artifact(
-        session=session, artifact_id=model[0].id
-    )
-
-    return read_artifact
+    return model[0]
 
 
 def test_listing_artifacts_when_none_exist():
