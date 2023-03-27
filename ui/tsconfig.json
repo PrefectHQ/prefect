@@ -3,7 +3,6 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "declaration": true,
-    "emitDeclarationOnly": true,
     "esModuleInterop": true,
     "importHelpers": true,
     "jsx": "preserve",
