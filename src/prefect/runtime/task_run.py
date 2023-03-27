@@ -11,8 +11,6 @@ Available attributes:
 """
 from typing import Any, Dict, List, Optional
 
-from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.client.orchestration import get_client
 from prefect.context import TaskRunContext
 
 __all__ = ["id", "tags", "name", "parameters"]
@@ -35,11 +33,6 @@ def __dir__() -> List[str]:
     return sorted(__all__)
 
 
-async def _get_task_run(task_run_id):
-    async with get_client() as client:
-        return await client.read_task_run(task_run_id)
-
-
 def get_id() -> str:
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx is not None:
@@ -48,28 +41,16 @@ def get_id() -> str:
 
 def get_tags() -> List[str]:
     task_run_ctx = TaskRunContext.get()
-    run_id = get_id()
-    if task_run_ctx is None and run_id is None:
+    if task_run_ctx is None:
         return []
-    elif task_run_ctx is None:
-        task_run = from_sync.call_soon_in_loop_thread(
-            create_call(_get_task_run, run_id)
-        ).result()
-
-        return task_run.tags
     else:
         return task_run_ctx.task_run.tags
 
 
 def get_name() -> Optional[str]:
     task_run_ctx = TaskRunContext.get()
-    run_id = get_id()
     if task_run_ctx is None:
-        task_run = from_sync.call_soon_in_loop_thread(
-            create_call(_get_task_run, run_id)
-        ).result()
-
-        return task_run.name
+        return None
     else:
         return task_run_ctx.task_run.name
 
