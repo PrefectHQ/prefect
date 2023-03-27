@@ -424,6 +424,7 @@ class TestReadLatestArtifacts:
         artifact3_schema = actions.ArtifactCreate(
             key="artifact-3",
             description="# This is a markdown description title",
+            data=3,
             type="result",
         ).dict(json_compatible=True)
         artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
@@ -443,65 +444,70 @@ class TestReadLatestArtifacts:
         ]
 
     async def test_read_latest_artifacts(self, artifacts, client):
-        latest_filter = {"latest": True}
+        latest_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
+            ).dict(json_compatible=True),
+        )
 
         response = await client.post(
             "/experimental/artifacts/filter", json=latest_filter
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == 200
         assert len(response.json()) == 2
-        expected_artifacts = [artifacts[0]["key"], artifacts[2]["key"]]
-        actual_artifacts = [a["key"] for a in response.json()]
-        assert set(expected_artifacts) == set(actual_artifacts)
+        keyed_data = {(r["key"], r["data"]) for r in response.json()}
+        assert keyed_data == {
+            ("artifact-1", 2),
+            ("artifact-3", 3),
+        }
 
     async def test_read_latest_artifacts_with_artifact_type_filter(
         self, artifacts, client
     ):
         latest_filter_table_type = dict(
-            latest=True,
             artifacts=schemas.filters.ArtifactFilter(
-                type=schemas.filters.ArtifactFilterType(any_=["table"])
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+                type=schemas.filters.ArtifactFilterType(any_=["table"]),
             ).dict(json_compatible=True),
         )
-
         response = await client.post(
             "/experimental/artifacts/filter", json=latest_filter_table_type
         )
-        assert response.status_code == status.HTTP_200_OK
+
+        assert response.status_code == 200
         assert len(response.json()) == 1
-        expected_artifacts = artifacts[1]["id"]
-        actual_artifacts = response.json()[0]["id"]
-        assert set(expected_artifacts) == set(actual_artifacts)
 
     async def test_read_latest_artifacts_with_artifact_key_filter(
         self, artifacts, client
     ):
-        latest_filter = dict(
-            latest=True,
+        latest_filter_key = dict(
             artifacts=schemas.filters.ArtifactFilter(
-                key=schemas.filters.ArtifactFilterKey(any_=["artifact-1"])
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+                key=schemas.filters.ArtifactFilterKey(any_=["artifact-1"]),
             ).dict(json_compatible=True),
         )
 
         response = await client.post(
-            "/experimental/artifacts/filter", json=latest_filter
+            "/experimental/artifacts/filter", json=latest_filter_key
         )
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == 200
         assert len(response.json()) == 1
-        expected_artifacts = artifacts[0]["key"]
-        actual_artifacts = response.json()[0]["key"]
-        assert set(expected_artifacts) == set(actual_artifacts)
+        assert response.json()[0]["key"] == "artifact-1"
+        assert response.json()[0]["data"] == 2
 
     async def test_read_latest_artifact_with_limit(self, artifacts, client):
-        latest_filter = dict(
-            latest=True,
+        latest_filter_limit = dict(
             limit=2,
+            artifacts=schemas.filters.ArtifactFilter(
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            ).dict(json_compatible=True),
         )
 
         response = await client.post(
-            "/experimental/artifacts/filter", json=latest_filter
+            "/experimental/artifacts/filter", json=latest_filter_limit
         )
-        assert response.status_code == status.HTTP_200_OK
+
+        assert response.status_code == 200
         assert len(response.json()) == 2
 
 

@@ -224,40 +224,44 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_latest_artifacts(session=session)
+        artifact_is_latest_filter = schemas.filters.ArtifactFilter(
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+        )
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session, artifact_filter=artifact_is_latest_filter
+        )
 
         assert len(read_artifacts) == 3
-        expected_artifacts = [artifacts[0].key, artifacts[2].key, artifacts[3].key]
-        actual_artifacts = [a.key for a in read_artifacts]
-        assert set(expected_artifacts) == set(actual_artifacts)
+        assert {a.key for a in read_artifacts} == {"key-1", "key-2", "key-3"}
+        assert {a.data for a in read_artifacts} == {2, 3, 4}
 
     async def test_read_latest_artifacts_with_artifact_type_filter(
         self,
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_latest_artifacts(
+        read_artifacts = await models.artifacts.read_artifacts(
             session=session,
             artifact_filter=schemas.filters.ArtifactFilter(
-                type=schemas.filters.ArtifactFilterType(any_=["table"])
+                type=schemas.filters.ArtifactFilterType(any_=["table"]),
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
             ),
         )
-
         assert len(read_artifacts) == 2
 
-        expected_artifacts = [artifacts[2].key, artifacts[3].key]
-        actual_artifacts = [a.key for a in read_artifacts]
-        assert set(expected_artifacts) == set(actual_artifacts)
+        assert {a.key for a in read_artifacts} == {"key-2", "key-3"}
+        assert {a.data for a in read_artifacts} == {3, 4}
 
     async def test_read_latest_artifacts_with_artifact_key_filter(
         self,
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_latest_artifacts(
+        read_artifacts = await models.artifacts.read_artifacts(
             session=session,
             artifact_filter=schemas.filters.ArtifactFilter(
-                key=schemas.filters.ArtifactFilterKey(any_=["key-1"])
+                key=schemas.filters.ArtifactFilterKey(any_=["key-1"]),
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
             ),
         )
 
@@ -270,8 +274,13 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_latest_artifacts(
-            session=session, limit=1, sort=schemas.sorting.ArtifactSort.KEY_DESC
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session,
+            limit=1,
+            sort=schemas.sorting.ArtifactSort.KEY_DESC,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            ),
         )
 
         assert len(read_artifacts) == 1

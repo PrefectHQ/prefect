@@ -101,35 +101,21 @@ async def read_artifacts(
     artifacts: filters.ArtifactFilter = None,
     flow_runs: filters.FlowRunFilter = None,
     task_runs: filters.TaskRunFilter = None,
-    latest: bool = Body(False),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> List[core.Artifact]:
     """
     Retrieve artifacts from the database.
     """
-    if latest:
-        async with db.session_context() as session:
-            return await models.artifacts.read_latest_artifacts(
-                session=session,
-                artifact_filter=artifacts,
-                flow_run_filter=flow_runs,
-                task_run_filter=task_runs,
-                offset=offset,
-                limit=limit,
-                sort=sort,
-            )
-
-    else:
-        async with db.session_context() as session:
-            return await models.artifacts.read_artifacts(
-                session=session,
-                artifact_filter=artifacts,
-                flow_run_filter=flow_runs,
-                task_run_filter=task_runs,
-                offset=offset,
-                limit=limit,
-                sort=sort,
-            )
+    async with db.session_context() as session:
+        return await models.artifacts.read_artifacts(
+            session=session,
+            artifact_filter=artifacts,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+        )
 
 
 @router.patch("/{id}", status_code=204)
