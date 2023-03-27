@@ -1,8 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
-
 from prefect.testing.cli import invoke_and_assert
 
 
