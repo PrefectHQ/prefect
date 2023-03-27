@@ -5,7 +5,6 @@ Defines the Prefect REST API FastAPI app.
 import asyncio
 import mimetypes
 import os
-import random
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from hashlib import sha256
@@ -57,17 +56,6 @@ enforce_minimum_version = EnforceMinimumAPIVersion(
     minimum_api_version="0.8.0",
     logger=logger,
 )
-
-SERVICE_UNAVAILABLE_RETRY_AFTER = (
-    2  # The number of seconds after which the client should retry on 503s
-)
-SERVICE_UNAVAILABLE_RETRY_AFTER_JITTER = 1  # Retry jitter for 503s
-
-
-def get_retry_after_value() -> float:
-    return SERVICE_UNAVAILABLE_RETRY_AFTER + (
-        random.random() * SERVICE_UNAVAILABLE_RETRY_AFTER_JITTER
-    )
 
 
 API_ROUTERS = (
@@ -162,7 +150,6 @@ async def retry_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         content={"exception_message": "Service Unavailable"},
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        headers={"Retry-After": str(get_retry_after_value())},
     )
 
 
