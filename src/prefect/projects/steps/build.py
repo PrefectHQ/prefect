@@ -54,19 +54,20 @@ def build_docker_image(
     with docker_client() as client:
         image: Image = client.images.get(image_id)
         image.tag(image_name, tag=tag)
-    if push:
-        events = client.api.push(image_name, tag=tag, stream=True, decode=True)
-        try:
-            for event in events:
-                if "status" in event:
-                    sys.stdout.write(event["status"])
-                    if "progress" in event:
-                        sys.stdout.write(" " + event["progress"])
-                    sys.stdout.write("\n")
-                    sys.stdout.flush()
-                elif "error" in event:
-                    raise OSError(event["error"])
-        finally:
-            client.api.remove_image(f"{image_name}:{tag}", noprune=True)
+
+        if push:
+            events = client.api.push(image_name, tag=tag, stream=True, decode=True)
+            try:
+                for event in events:
+                    if "status" in event:
+                        sys.stdout.write(event["status"])
+                        if "progress" in event:
+                            sys.stdout.write(" " + event["progress"])
+                        sys.stdout.write("\n")
+                        sys.stdout.flush()
+                    elif "error" in event:
+                        raise OSError(event["error"])
+            finally:
+                client.api.remove_image(f"{image_name}:{tag}", noprune=True)
 
     return dict(image_name=f"{image_name}:{tag}")
