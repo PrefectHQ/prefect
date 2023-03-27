@@ -1624,30 +1624,30 @@ class TestArtifacts:
 
     @pytest.fixture
     async def artifacts(self, orion_client):
-        artifact1_schema = ArtifactCreate(
-            key="voltaic",
-            data=1,
-            type="table",
-            description="# This is a markdown description title",
+        artifact1 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=1,
+                type="table",
+                description="# This is a markdown description title",
+            )
         )
-
-        artifact2_schema = ArtifactCreate(
-            key="voltaic",
-            data=2,
-            type="table",
-            description="# This is a markdown description title",
+        artifact2 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=2,
+                type="table",
+                description="# This is a markdown description title",
+            )
         )
-
-        artifact3_schema = ArtifactCreate(
-            key="lotus",
-            data=3,
-            type="markdown",
-            description="# This is a markdown description title",
+        artifact3 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="lotus",
+                data=3,
+                type="markdown",
+                description="# This is a markdown description title",
+            )
         )
-
-        artifact1 = await orion_client.create_artifact(artifact=artifact1_schema)
-        artifact2 = await orion_client.create_artifact(artifact=artifact2_schema)
-        artifact3 = await orion_client.create_artifact(artifact=artifact3_schema)
 
         return [artifact1, artifact2, artifact3]
 
