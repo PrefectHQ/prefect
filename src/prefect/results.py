@@ -1,5 +1,6 @@
 import abc
 import uuid
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -98,6 +99,13 @@ def task_features_require_result_persistence(task: "Task") -> bool:
     if not task.cache_result_in_memory:
         return True
     return False
+
+
+def _format_user_supplied_storage_key(key):
+    # Note here we are pinning to task runs since flow runs do not support storage keys
+    # yet; we'll need to split logic in the future or have two separate functions
+    runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
+    return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
 class ResultFactory(pydantic.BaseModel):
@@ -230,7 +238,7 @@ class ResultFactory(pydantic.BaseModel):
             cache_result_in_memory=cache_result_in_memory,
             client=client,
             storage_key_fn=(
-                (lambda: task.result_storage_key)
+                partial(_format_user_supplied_storage_key, task.result_storage_key)
                 if task.result_storage_key is not None
                 else DEFAULT_STORAGE_KEY_FN
             ),
