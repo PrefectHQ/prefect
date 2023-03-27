@@ -6,16 +6,113 @@ from prefect.server import models, schemas
 from prefect.server.schemas import actions
 
 
-async def test_creating_artifacts(session):
+@pytest.fixture
+async def artifact(session):
     artifact_schema = schemas.core.Artifact(
         key="voltaic", data=1, metadata_={"description": "opens many doors"}
     )
     artifact = await models.artifacts.create_artifact(
         session=session, artifact=artifact_schema
     )
-    assert artifact.key == "voltaic"
-    assert artifact.data == 1
-    assert artifact.metadata_ == {"description": "opens many doors"}
+    await session.commit()
+    return artifact
+
+
+class TestCreateArtifacts:
+    async def test_creating_artifacts(self, session):
+        artifact_schema = schemas.core.Artifact(
+            key="voltaic", data=1, metadata_={"description": "opens many doors"}
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session, artifact=artifact_schema
+        )
+        assert artifact.key == "voltaic"
+        assert artifact.data == 1
+        assert artifact.metadata_ == {"description": "opens many doors"}
+
+    async def test_creating_artifact_with_key_succeeds_and_upsert_to_artifact_collection(
+        self, artifact, session
+    ):
+        assert await models.artifacts.read_artifact(session, artifact.id)
+
+        artifact_collection_result = await models.artifacts.read_latest_artifact(
+            key=artifact.key, session=session
+        )
+        assert artifact_collection_result.id == artifact.id
+
+    async def test_creating_artifact_without_key_arg_does_not_upsert_to_artifact_collection(
+        self, session
+    ):
+        artifact_schema = schemas.core.Artifact(
+            key=None,
+            data=1,
+            description="Some info about my artifact",
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session, artifact=artifact_schema
+        )
+        assert artifact.id is not None
+        assert artifact.key == artifact_schema.key
+        assert artifact.data == artifact_schema.data
+        assert artifact.description == artifact_schema.description
+
+    async def test_creating_artifact_with_existing_key_appends_in_artifact_and_upserts_in_artifact_collection(
+        self, artifact, session
+    ):
+        artifact_result = await models.artifacts.read_latest_artifact(
+            session=session, key=artifact.key
+        )
+        assert artifact_result.id == artifact.id
+        assert artifact_result.key == artifact.key
+        assert artifact_result.updated == artifact_result.created
+
+        new_artifact_schema = schemas.core.Artifact(
+            key=artifact.key,
+            data=2,
+            description="Some info about my artifact",
+        )
+        new_artifact = await models.artifacts.create_artifact(
+            session=session,
+            artifact=new_artifact_schema,
+        )
+
+        assert await models.artifacts.read_artifact(
+            session=session,
+            artifact_id=artifact.id,
+        )
+        assert await models.artifacts.read_artifact(
+            session=session,
+            artifact_id=new_artifact.id,
+        )
+
+        new_artifact_version = await models.artifacts.read_latest_artifact(
+            session=session,
+            key=artifact.key,
+        )
+
+        assert new_artifact_version.id == new_artifact.id
+
+    async def test_creating_artifact_with_null_key_does_not_upsert_to_artifact_collection(
+        self, session
+    ):
+        artifact_schema = schemas.core.Artifact(
+            data=1,
+            description="Some info about my artifact",
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact_schema,
+        )
+
+        assert await models.artifacts.read_artifact(
+            session=session,
+            artifact_id=artifact.id,
+        )
+
+        assert not await models.artifacts.read_latest_artifact(
+            session=session,
+            key=artifact_schema.key,
+        )
 
 
 class TestUpdateArtifacts:
@@ -62,6 +159,123 @@ class TestUpdateArtifacts:
 
         updated_artifact = await models.artifacts.read_artifact(session, artifact_id)
         assert updated_artifact.data == 1
+
+
+class TestReadLatestArtifact:
+    async def test_reading_artifact_by_key(self, session):
+        artifact_schema = schemas.core.Artifact(
+            key="voltaic", data=1, description="opens many doors"
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact_schema,
+        )
+
+        assert artifact.key == "voltaic"
+
+        tutored_artifact = await models.artifacts.read_latest_artifact(
+            session=session, key=artifact.key
+        )
+
+        assert tutored_artifact.key == "voltaic"
+        assert tutored_artifact.data == 1
+        assert tutored_artifact.description == "opens many doors"
+
+
+class TestReadLatestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, session):
+        artifacts = [
+            schemas.core.Artifact(
+                key="key-1",
+                data=1,
+                type="markdown",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-1",
+                data=2,
+                type="markdown",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-2",
+                data=3,
+                type="table",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-3",
+                data=4,
+                type="table",
+                description="Some info about my artifact",
+            ),
+        ]
+        for artifact_schema in artifacts:
+            await models.artifacts.create_artifact(
+                session=session,
+                artifact=artifact_schema,
+            )
+
+        return artifacts
+
+    async def test_read_latest_artifacts(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(session=session)
+
+        assert len(read_artifacts) == 3
+        expected_artifacts = [artifacts[0].key, artifacts[2].key, artifacts[3].key]
+        actual_artifacts = [a.key for a in read_artifacts]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_type_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=["table"])
+            ),
+        )
+
+        assert len(read_artifacts) == 2
+
+        expected_artifacts = [artifacts[2].key, artifacts[3].key]
+        actual_artifacts = [a.key for a in read_artifacts]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_key_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(any_=["key-1"])
+            ),
+        )
+
+        assert len(read_artifacts) == 1
+
+        assert artifacts[1].id == read_artifacts[0].id
+
+    async def test_read_latest_artifacts_with_limit(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session, limit=1, sort=schemas.sorting.ArtifactSort.KEY_DESC
+        )
+
+        assert len(read_artifacts) == 1
+        assert read_artifacts[0].key == artifacts[-1].key
 
 
 class TestReadingSingleArtifacts:
@@ -214,6 +428,45 @@ class TestReadingMultipleArtifacts:
 
 
 class TestDeleteArtifacts:
+    @pytest.fixture
+    async def artifacts(
+        self,
+        session,
+    ):
+        # Create several artifacts with the same key
+        artifact1_schema = schemas.core.Artifact(
+            key="test-key-1",
+            data="my important data",
+            description="Info about the artifact",
+        )
+        artifact1 = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact1_schema,
+        )
+
+        artifact2_schema = schemas.core.Artifact(
+            key="test-key-1",
+            data="my important data",
+            description="Info about the artifact",
+        )
+        artifact2 = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact2_schema,
+        )
+
+        artifact3_schema = schemas.core.Artifact(
+            key="test-key-1",
+            data="my important data",
+            description="Info about the artifact",
+        )
+        artifact3 = await models.artifacts.create_artifact(
+            session=session,
+            artifact=artifact3_schema,
+        )
+
+        await session.commit()
+        return [artifact1, artifact2, artifact3]
+
     async def test_delete_artifact_succeeds(self, session):
         artifact_schema = schemas.core.Artifact(
             key="voltaic", data=1, metadata_={"description": "opens many doors"}
@@ -234,3 +487,71 @@ class TestDeleteArtifacts:
         deleted_result = await models.artifacts.delete_artifact(session, str(uuid4()))
 
         assert not deleted_result
+
+    async def test_delete_only_artifact_version_deletes_row_in_artifact_and_artifact_collection(
+        self,
+        artifact,
+        session,
+    ):
+        assert await models.artifacts.delete_artifact(
+            session=session, artifact_id=artifact.id
+        )
+        assert not await models.artifacts.read_artifact(
+            session=session, artifact_id=artifact.id
+        )
+
+        assert not await models.artifacts.read_latest_artifact(
+            session=session, key=artifact.key
+        )
+
+    async def test_delete_earliest_artifact_deletes_row_in_artifact_and_ignores_artifact_collection(
+        self,
+        artifacts,
+        session,
+    ):
+        assert await models.artifacts.delete_artifact(
+            session=session, artifact_id=artifacts[0].id
+        )
+        assert not await models.artifacts.read_artifact(
+            session=session, artifact_id=artifacts[0].id
+        )
+
+        artifact_result = await models.artifacts.read_latest_artifact(
+            session=session, key=artifacts[1].key
+        )
+
+        assert artifact_result.id == artifacts[-1].id
+
+    async def test_delete_middle_artifact_deletes_row_in_artifact_and_ignores_artifact_collection(
+        self, artifacts, session
+    ):
+        assert await models.artifacts.delete_artifact(
+            session=session, artifact_id=artifacts[1].id
+        )
+
+        assert not await models.artifacts.read_artifact(
+            session=session, artifact_id=artifacts[1].id
+        )
+
+        artifact_result = await models.artifacts.read_latest_artifact(
+            session=session, key=artifacts[-1].key
+        )
+
+        assert artifact_result.id == artifacts[-1].id
+
+    async def test_delete_latest_artifact_deletes_row_in_artifact_and_updates_artifact_collection(
+        self, artifacts, session
+    ):
+        assert await models.artifacts.delete_artifact(
+            session=session, artifact_id=artifacts[2].id
+        )
+
+        assert not await models.artifacts.read_artifact(
+            session=session, artifact_id=artifacts[2].id
+        )
+
+        artifact_result = await models.artifacts.read_latest_artifact(
+            session=session, key=artifacts[1].key
+        )
+
+        assert artifact_result.id == artifacts[1].id

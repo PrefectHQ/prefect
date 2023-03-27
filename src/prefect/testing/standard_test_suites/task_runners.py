@@ -12,7 +12,6 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.schemas import TaskRun
-from prefect.deprecated.data_documents import DataDocument
 from prefect.logging import get_run_logger
 from prefect.server.schemas.states import StateType
 from prefect.states import Crashed, State
@@ -341,7 +340,7 @@ class TaskRunnerStandardTestSuite(ABC):
         async def fake_orchestrate_task_run(example_kwarg):
             return State(
                 type=StateType.COMPLETED,
-                data=DataDocument.encode("json", example_kwarg),
+                data=example_kwarg,
             )
 
         async with task_runner.start():

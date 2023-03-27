@@ -36,6 +36,7 @@ async def artifacts(flow_run, task_run, client):
         description="# This is a markdown description title",
         flow_run_id=flow_run.id,
         task_run_id=task_run.id,
+        type="table",
     ).dict(json_compatible=True)
     artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
 
@@ -45,6 +46,7 @@ async def artifacts(flow_run, task_run, client):
         data=2,
         flow_run_id=flow_run.id,
         task_run_id=uuid4(),
+        type="markdown",
     ).dict(json_compatible=True)
     artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
 
@@ -53,6 +55,7 @@ async def artifacts(flow_run, task_run, client):
         description="# This is a markdown description title",
         flow_run_id=uuid4(),
         task_run_id=uuid4(),
+        type="result",
     ).dict(json_compatible=True)
     artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
 
@@ -114,7 +117,7 @@ class TestCreateArtifact:
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["task_run_id"] == str(task_run.id)
 
-    async def test_create_artifact_raises_error_on_existing_key(
+    async def test_create_artifact_with_existing_key_succeeds(
         self,
         artifact,
         client,
@@ -129,7 +132,19 @@ class TestCreateArtifact:
             json=data,
         )
 
-        assert response.status_code == 409
+        assert response.status_code == 201
+
+    async def test_create_camel_case_artifact_key_raises(
+        self,
+    ):
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="key must only contain lowercase letters, numbers, and dashes",
+        ):
+            schemas.actions.ArtifactCreate(
+                key="camelCase_Key",
+                data=1,
+            ).dict(json_compatible=True)
 
 
 class TestReadArtifact:
@@ -147,6 +162,18 @@ class TestReadArtifact:
     async def test_read_artifact_not_found(self, client):
         response = await client.get(f"/experimental/artifacts/{uuid4()}")
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestReadLatestArtifact:
+    async def test_read_latest_artifact(self, artifact, client):
+        response = await client.get(f"/experimental/artifacts/{artifact['key']}/latest")
+        artifact_result = response.json()
+        assert response.status_code == status.HTTP_200_OK
+        assert artifact_result["key"] == artifact["key"]
+        assert artifact_result["data"] == artifact["data"]
+        assert artifact_result["description"] == artifact["description"]
+        assert artifact_result["metadata_"] == artifact["metadata_"]
+        assert artifact_result["flow_run_id"] == artifact["flow_run_id"]
 
 
 class TestReadArtifacts:
@@ -231,6 +258,38 @@ class TestReadArtifacts:
         assert all(
             [item["task_run_id"] == str(task_run_id) for item in response.json()]
         )
+
+    async def test_read_artifacts_with_artifact_type_filter_any(
+        self, artifacts, client
+    ):
+        artifact_type = artifacts[1]["type"]
+        artifact_type_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=[artifact_type])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_type_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        assert response.json()[0]["type"] == artifact_type
+
+    async def test_read_artifacts_with_artifact_type_filter_not_any(
+        self, artifacts, client
+    ):
+        artifact_type = artifacts[2]["type"]
+        artifact_type_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(not_any_=[artifact_type])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post(
+            "/experimental/artifacts/filter", json=artifact_type_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+        assert all([item["type"] != artifact_type for item in response.json()])
 
     async def test_read_artifacts_with_multiple_filters(
         self, artifacts, flow_run, task_run, client
@@ -343,6 +402,109 @@ class TestReadArtifacts:
         assert response.json()[0]["key"] == artifacts[0]["key"]
 
 
+class TestReadLatestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, client):
+        artifact1_schema = actions.ArtifactCreate(
+            key="artifact-1",
+            data=1,
+            description="# This is a markdown description title",
+            type="table",
+        ).dict(json_compatible=True)
+        artifact1 = await client.post("/experimental/artifacts/", json=artifact1_schema)
+
+        artifact2_schema = actions.ArtifactCreate(
+            key="artifact-1",
+            description="# This is a markdown description title",
+            data=2,
+            type="table",
+        ).dict(json_compatible=True)
+        artifact2 = await client.post("/experimental/artifacts/", json=artifact2_schema)
+
+        artifact3_schema = actions.ArtifactCreate(
+            key="artifact-3",
+            description="# This is a markdown description title",
+            type="result",
+        ).dict(json_compatible=True)
+        artifact3 = await client.post("/experimental/artifacts/", json=artifact3_schema)
+
+        artifact4_schema = actions.ArtifactCreate(
+            data=1,
+            type="markdown",
+            description="# This is a markdown description title",
+        ).dict(json_compatible=True)
+        artifact4 = await client.post("/experimental/artifacts/", json=artifact4_schema)
+
+        yield [
+            artifact1.json(),
+            artifact2.json(),
+            artifact3.json(),
+            artifact4.json(),
+        ]
+
+    async def test_read_latest_artifacts(self, artifacts, client):
+        latest_filter = {"latest": True}
+
+        response = await client.post(
+            "/experimental/artifacts/filter", json=latest_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+        expected_artifacts = [artifacts[0]["key"], artifacts[2]["key"]]
+        actual_artifacts = [a["key"] for a in response.json()]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_type_filter(
+        self, artifacts, client
+    ):
+        latest_filter_table_type = dict(
+            latest=True,
+            artifacts=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=["table"])
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.post(
+            "/experimental/artifacts/filter", json=latest_filter_table_type
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        expected_artifacts = artifacts[1]["id"]
+        actual_artifacts = response.json()[0]["id"]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifacts_with_artifact_key_filter(
+        self, artifacts, client
+    ):
+        latest_filter = dict(
+            latest=True,
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(any_=["artifact-1"])
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.post(
+            "/experimental/artifacts/filter", json=latest_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 1
+        expected_artifacts = artifacts[0]["key"]
+        actual_artifacts = response.json()[0]["key"]
+        assert set(expected_artifacts) == set(actual_artifacts)
+
+    async def test_read_latest_artifact_with_limit(self, artifacts, client):
+        latest_filter = dict(
+            latest=True,
+            limit=2,
+        )
+
+        response = await client.post(
+            "/experimental/artifacts/filter", json=latest_filter
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+
+
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/experimental/artifacts/filter")
@@ -401,6 +563,7 @@ class TestUpdateArtifact:
 class TestDeleteArtifact:
     async def test_delete_artifact_succeeds(self, artifact, session, client):
         artifact_id = artifact["id"]
+        artifact_key = artifact["key"]
         response = await client.delete(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 204
 
@@ -408,6 +571,11 @@ class TestDeleteArtifact:
             session=session, artifact_id=artifact_id
         )
         assert artifact is None
+
+        assert not await models.artifacts.read_latest_artifact(
+            session=session,
+            key=artifact_key,
+        )
 
         response = await client.get(f"/experimental/artifacts/{artifact_id}")
         assert response.status_code == 404
