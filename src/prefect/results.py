@@ -104,7 +104,8 @@ def task_features_require_result_persistence(task: "Task") -> bool:
 def _format_user_supplied_storage_key(key):
     # Note here we are pinning to task runs since flow runs do not support storage keys
     # yet; we'll need to split logic in the future or have two separate functions
-    return key.format(prefect=prefect, parameters=prefect.runtime.task_run.parameters)
+    runtime_vars = {key: getattr(prefect.runtime, key) for key in dir(prefect.runtime)}
+    return key.format(**runtime_vars, parameters=prefect.runtime.task_run.parameters)
 
 
 class ResultFactory(pydantic.BaseModel):
