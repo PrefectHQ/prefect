@@ -22,6 +22,7 @@ jobs:
         flavor:
           - ""
           - "-conda"
+          - "-kubernetes"
         python-version:
           - "3.7"
           - "3.8"
@@ -101,6 +102,7 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'EXTRA_PIP_PACKAGES=prefect-kubernetes' ) || '' }}
           tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
           labels: ${{ steps.metadata-dev.outputs.labels }}
           push: true
