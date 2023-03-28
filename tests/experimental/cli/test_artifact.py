@@ -130,6 +130,9 @@ def test_listing_artifacts_lists_only_latest_versions(artifacts):
 
 
 def test_inspecting_artifact_succeeds(artifacts):
+    """
+    We expect to see all versions of the artifact.
+    """
     expected_output = (
         f"{artifacts[0].id}",
         f"{artifacts[0].key}",
