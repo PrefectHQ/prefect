@@ -127,3 +127,33 @@ def test_listing_artifacts_lists_only_latest_versions(artifacts):
         expected_output_does_not_contain=f"{artifacts[0].id}",
         expected_code=0,
     )
+
+
+def test_inspecting_artifact_succeeds(artifacts):
+    expected_output = (
+        f"{artifacts[0].id}",
+        f"{artifacts[0].key}",
+        f"{artifacts[0].type}",
+        f"{artifacts[0].description}",
+        f"{artifacts[0].data}",
+        f"{artifacts[1].id}",
+        f"{artifacts[1].key}",
+        f"{artifacts[1].type}",
+        f"{artifacts[1].description}",
+        f"{artifacts[1].data}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "inspect", str(artifacts[0].key)],
+        expected_output_contains=expected_output,
+        expected_code=0,
+        expected_output_does_not_contain=f"{artifacts[2].id}",
+    )
+
+
+def test_inspecting_artifact_nonexistent_key_raises():
+    invoke_and_assert(
+        ["artifact", "inspect", "nonexistent_key"],
+        expected_output_contains="Artifact 'nonexistent_key' not found",
+        expected_code=1,
+    )
