@@ -9,6 +9,7 @@ from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.server import schemas
+from prefect.server.schemas import sorting
 
 artifact_app = PrefectTyper(
     name="artifact", help="Commands for starting and interacting with artifacts."
@@ -41,7 +42,9 @@ async def list_artifacts(
             is_latest=schemas.filters.ArtifactFilterLatest(is_latest=latest)
         )
         artifacts = await client.read_artifacts(
-            artifact_filter=latest_artifact_filter, limit=limit
+            sort=sorting.ArtifactSort.KEY_ASC,
+            artifact_filter=latest_artifact_filter,
+            limit=limit,
         )
 
         table = Table(
@@ -71,7 +74,14 @@ async def list_artifacts(
     feature="The Artifact CLI",
     group="artifacts",
 )
-async def inspect(key: str):
+async def inspect(
+    key: str,
+    limit: int = typer.Option(
+        10,
+        "--limit",
+        help="The maximum number of artifacts to return.",
+    ),
+):
     """
         View details about an artifact.
 
@@ -110,9 +120,11 @@ async def inspect(key: str):
 
     async with get_client() as client:
         artifacts = await client.read_artifacts(
+            limit=limit,
+            sort=sorting.ArtifactSort.UPDATED_DESC,
             artifact_filter=schemas.filters.ArtifactFilter(
                 key=schemas.filters.ArtifactFilterKey(any_=[key])
-            )
+            ),
         )
         if not artifacts:
             exit_with_error(f"Artifact {key!r} not found.")
