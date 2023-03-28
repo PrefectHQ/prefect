@@ -30,19 +30,19 @@ pip install -U "prefect==2.0b9"
 ```
 </div>
 
-Find the available release versions in the [Prefect 2.0 Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+Find the available release versions in the [Prefect 2.0 Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
 
 ### Installing the bleeding edge
 
-If you'd like to test with the most up-to-date code, you can install directly off the `orion` branch on GitHub:
+If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
 
 <div class="terminal">
 ```bash
-pip install git+https://github.com/PrefectHQ/prefect@orion
+pip install git+https://github.com/PrefectHQ/prefect@main
 ```
 </div>
 
-!!! warning "The `orion` branch may not be stable"
+!!! warning "The `main` branch may not be stable"
     Please be aware that this method installs unreleased code and may not be stable.
 
 ### Installing for development
