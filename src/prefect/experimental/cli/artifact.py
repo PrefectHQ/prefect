@@ -31,18 +31,25 @@ async def list_artifacts(
         "--limit",
         help="The maximum number of artifacts to return.",
     ),
-    latest: bool = typer.Option(
+    all: bool = typer.Option(
         False,
-        "--latest",
+        "--all",
+        "-a",
         help="Whether or not to only return the latest version of each artifact.",
     ),
 ):
     """
     List artifacts.
     """
+    if all:
+        latest_only = False
+    else:
+        latest_only = True
+
     async with get_client() as client:
         latest_artifact_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=latest)
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=latest_only),
+            key=schemas.filters.ArtifactFilterKey(exists_=True),
         )
         artifacts = await client.read_artifacts(
             sort=sorting.ArtifactSort.KEY_ASC,
@@ -189,7 +196,10 @@ async def delete(
                 ),
             )
             if not artifacts:
-                exit_with_error(f"Artifact {key!r} not found.")
+                exit_with_error(
+                    f"Artifact with key {key!r} not found. You can also specify an"
+                    " artifact id with the --id flag."
+                )
 
             confirm_delete = typer.confirm(
                 (

@@ -1567,7 +1567,7 @@ class ArtifactFilterLatest(PrefectFilterBaseModel):
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
-        if self.is_latest is not None:
+        if self.is_latest is not None and self.is_latest:
             filters.append(db.ArtifactCollection.latest_id == db.Artifact.id)
         return filters
 
