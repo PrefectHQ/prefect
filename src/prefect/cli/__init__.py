@@ -1,3 +1,4 @@
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.cli.root import app
 import prefect.settings
 
@@ -24,5 +25,5 @@ if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
     import prefect.experimental.cli.worker
 
 # Only load artifacts CLI if enabled via a setting
-if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value():
+if experiment_enabled("artifacts"):
     import prefect.experimental.cli.artifact
