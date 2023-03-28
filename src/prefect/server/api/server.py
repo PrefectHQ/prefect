@@ -12,6 +12,7 @@ from typing import Awaitable, Callable, Dict, List, Mapping, Optional, Tuple
 
 import anyio
 import sqlalchemy as sa
+import sqlalchemy.exc
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -141,6 +142,29 @@ async def integrity_exception_handler(request: Request, exc: Exception):
             )
         },
         status_code=status.HTTP_409_CONFLICT,
+    )
+
+
+async def db_locked_exception_handler(
+    request: Request, exc: sqlalchemy.exc.OperationalError
+):
+    """
+    Catch all sqlalchemy.exc.OperationalError. Return a 503 if it's a db locked error
+    to retry, otherwise log the error and return 500.
+    """
+    if (
+        getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
+        and getattr(exc.orig, "sqlite_errorcode", None) == 5
+    ):
+        return JSONResponse(
+            content={"exception_message": "Service Unavailable"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    logger.error(f"Encountered exception in request:", exc_info=True)
+    return JSONResponse(
+        content={"exception_message": "Internal Server Error"},
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
 
 
@@ -505,6 +529,9 @@ def create_app(
         == "sqlite"
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
+        api_app.add_exception_handler(
+            sqlalchemy.exc.OperationalError, db_locked_exception_handler
+        )
 
     api_app.mount(
         "/static",

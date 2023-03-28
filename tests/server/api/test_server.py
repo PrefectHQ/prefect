@@ -1,15 +1,19 @@
+import sqlite3
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
+import sqlalchemy as sa
 import toml
-from fastapi import APIRouter, status, testclient
+from fastapi import APIRouter, FastAPI, status, testclient
+from httpx import ASGITransport, AsyncClient
 
 from prefect.server.api.server import (
     API_ROUTERS,
     SERVER_API_VERSION,
     _memoize_block_auto_registration,
     create_orion_api,
+    db_locked_exception_handler,
     method_paths_from_routes,
 )
 from prefect.settings import (
@@ -46,6 +50,35 @@ async def test_validation_error_handler(client):
     response = await client.post("/deployments/", json=bad_deployment_data)
     assert response.status_code == status.HTTP_409_CONFLICT
     assert "Data integrity conflict" in response.json()["detail"]
+
+
+async def test_db_locked_exception_handler():
+    app = FastAPI()
+
+    @app.get("/raise_db_locked")
+    async def raise_db_locked():
+        """A route that raises a sqlite db locked error"""
+        orig = sqlite3.OperationalError("database locked")
+        setattr(orig, "sqlite_errorname", "SQLITE_BUSY")
+        setattr(orig, "sqlite_errorcode", 5)
+        raise sa.exc.OperationalError("", "", orig=orig)
+
+    @app.get("/other_sql_error")
+    async def raise_other_sql_error():
+        """A route that raises a different OperationalError"""
+        raise sa.exc.OperationalError("", "", orig=ValueError("something else"))
+
+    app.add_exception_handler(sa.exc.OperationalError, db_locked_exception_handler)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://test",
+    ) as client:
+        response = await client.get("/raise_db_locked")
+        assert response.status_code == 503
+
+        response = await client.get("/other_sql_error")
+        assert response.status_code == 500
 
 
 async def test_health_check_route(client):
