@@ -1717,6 +1717,6 @@ class TestArtifacts:
             ("lotus", 3),
         }
 
-    async def test_delete_nonexistent_artifact_fails(self, orion_client):
+    async def test_delete_nonexistent_artifact_raises(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.delete_artifact(uuid4())
