@@ -9,10 +9,10 @@ from prefect.testing.cli import invoke_and_assert
 @pytest.fixture(autouse=True)
 def auto_enable_artifacts(enable_artifacts):
     """
-    Enable workers for testing
+    Enable artifacts for testing
     """
     assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
-    # Import to register worker CLI
+    # Import to register artifact CLI
     import prefect.experimental.cli.artifact  # noqa
 
 
