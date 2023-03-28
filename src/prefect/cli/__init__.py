@@ -1,3 +1,4 @@
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.cli.root import app
 import prefect.settings
 
