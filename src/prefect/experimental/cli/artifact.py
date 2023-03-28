@@ -1,4 +1,3 @@
-import asyncio
 from typing import Optional
 
 import pendulum
@@ -202,13 +201,8 @@ async def delete(
             if not confirm_delete:
                 exit_with_error("Deletion aborted.")
 
-            async def delete_artifacts(artifact_batch):
-                tasks = [client.delete_artifact(str(a.id)) for a in artifact_batch]
-                await asyncio.gather(*tasks)
-
-            for i in range(0, len(artifacts), BATCH_SIZE):
-                batch = artifacts[i : i + BATCH_SIZE]
-                await delete_artifacts(batch)
+            for a in artifacts:
+                await client.delete_artifact(str(a.id))
 
             exit_with_success(f"Deleted {len(artifacts)} artifact(s) with key {key!r}.")
 

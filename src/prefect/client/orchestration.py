@@ -2334,7 +2334,7 @@ class PrefectClient:
         response = await self._client.post("/experimental/artifacts/filter", json=body)
         return pydantic.parse_obj_as(List[Artifact], response.json())
 
-    async def delete_artifact(self, artifact_id: str) -> None:
+    async def delete_artifact(self, artifact_id: UUID) -> None:
         """
         Deletes an artifact with the provided id.
 

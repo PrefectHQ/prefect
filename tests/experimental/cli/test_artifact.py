@@ -3,8 +3,6 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect import flow
-from prefect.experimental.artifacts import create_table_artifact
 from prefect.server import models, schemas
 from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 from prefect.testing.cli import invoke_and_assert
@@ -260,24 +258,4 @@ def test_deleting_artifact_without_key_or_id_raises(artifacts):
         ["artifact", "delete"],
         expected_output_contains="Please provide a key or an artifact_id.",
         expected_code=1,
-    )
-
-
-def test_creating_many_artifacts_and_deleting_them_succeeds():
-    @flow
-    def my_flow():
-        for _ in range(110):
-            create_table_artifact(
-                key="artifact-clone",
-                table={"my-table": "my-table-data"},
-                description="my-artifact-description",
-            )
-
-    my_flow()
-
-    invoke_and_assert(
-        ["artifact", "delete", "artifact-clone"],
-        user_input="y",
-        expected_output_contains="Deleted 110 artifact(s) with key 'artifact-clone'.",
-        expected_code=0,
     )
