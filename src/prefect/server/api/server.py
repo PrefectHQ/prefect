@@ -145,11 +145,26 @@ async def integrity_exception_handler(request: Request, exc: Exception):
     )
 
 
-async def retry_exception_handler(request: Request, exc: Exception):
-    """Return a 503 so the client can try again."""
+async def db_locked_exception_handler(
+    request: Request, exc: sqlalchemy.exc.OperationalError
+):
+    """
+    Catch all sqlalchemy.exc.OperationalError. Return a 503 if it's a db locked error
+    to retry, otherwise log the error and return 500.
+    """
+    if (
+        getattr(exc.orig, "sqlite_errorname", None) == "SQLITE_BUSY"
+        and getattr(exc.orig, "sqlite_errorcode", None) == 5
+    ):
+        return JSONResponse(
+            content={"exception_message": "Service Unavailable"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+    logger.error(f"Encountered exception in request:", exc_info=True)
     return JSONResponse(
-        content={"exception_message": "Service Unavailable"},
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={"exception_message": "Internal Server Error"},
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
 
 
@@ -515,7 +530,7 @@ def create_app(
     ):
         app.add_middleware(RequestLimitMiddleware, limit=100)
         api_app.add_exception_handler(
-            sqlalchemy.exc.OperationalError, retry_exception_handler
+            sqlalchemy.exc.OperationalError, db_locked_exception_handler
         )
 
     api_app.mount(
