@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 import pendulum
@@ -181,6 +182,8 @@ async def delete(
                 exit_with_error(f"Artifact with id {artifact_id!r} not found!")
 
         elif key is not None:
+            BATCH_SIZE = 100
+
             artifacts = await client.read_artifacts(
                 artifact_filter=schemas.filters.ArtifactFilter(
                     key=schemas.filters.ArtifactFilterKey(any_=[key])
@@ -199,8 +202,13 @@ async def delete(
             if not confirm_delete:
                 exit_with_error("Deletion aborted.")
 
-            ids = [str(a.id) for a in artifacts]
-            [await client.delete_artifact(id) for id in ids]
+            async def delete_artifacts(artifact_batch):
+                tasks = [client.delete_artifact(str(a.id)) for a in artifact_batch]
+                await asyncio.gather(*tasks)
+
+            for i in range(0, len(artifacts), BATCH_SIZE):
+                batch = artifacts[i : i + BATCH_SIZE]
+                await delete_artifacts(batch)
 
             exit_with_success(f"Deleted {len(artifacts)} artifact(s) with key {key!r}.")
 
