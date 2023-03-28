@@ -15,11 +15,13 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import set_default_ignore_file
 
 
-def find_prefect_directory() -> Optional[Path]:
+def find_prefect_directory(path: Path = None) -> Optional[Path]:
     """
     Recurses upward looking for .prefect/ directories.  If found is never found, `None` is returned.
+
+    Returns the absolute location of the .prefect/ directory.
     """
-    path = Path(".").resolve()
+    path = Path(path or ".").resolve()
     parent = path.parent.resolve()
     while path != parent:
         prefect_dir = path.joinpath(".prefect")
