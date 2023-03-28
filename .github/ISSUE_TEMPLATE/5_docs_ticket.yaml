@@ -15,14 +15,7 @@ body:
 
   - type: textarea
     attributes:
-      label: Paste the relevant docs section URL here
-      description: If the issue applies to more than one section, please choose a representative example and paste that URL
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: Describe the current state
+      label: Paste the relevant docs section URL here and describe the issue
       description: A clear, concise description of the current docs behavior
     validations:
       required: true
