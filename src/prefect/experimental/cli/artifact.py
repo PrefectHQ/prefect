@@ -202,7 +202,7 @@ async def delete(
                 exit_with_error("Deletion aborted.")
 
             for a in artifacts:
-                await client.delete_artifact(str(a.id))
+                await client.delete_artifact(a.id)
 
             exit_with_success(f"Deleted {len(artifacts)} artifact(s) with key {key!r}.")
 
