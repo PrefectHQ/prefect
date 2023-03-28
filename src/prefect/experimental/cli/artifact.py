@@ -1,3 +1,5 @@
+from typing import Optional
+
 import pendulum
 import typer
 from rich.pretty import Pretty
@@ -6,8 +8,9 @@ from rich.table import Table
 from prefect import get_client
 from prefect._internal.compatibility.experimental import experimental
 from prefect.cli._types import PrefectTyper
-from prefect.cli._utilities import exit_with_error
+from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.exceptions import ObjectNotFound
 from prefect.server import schemas
 from prefect.server.schemas import sorting
 
@@ -132,3 +135,74 @@ async def inspect(
         artifacts = [a.dict(json_compatible=True) for a in artifacts]
 
         app.console.print(Pretty(artifacts))
+
+
+@artifact_app.command("delete")
+@experimental(
+    feature="The Artifact CLI",
+    group="artifacts",
+)
+async def delete(
+    key: Optional[str] = typer.Argument(
+        None, help="The key of the artifact to delete."
+    ),
+    artifact_id: Optional[str] = typer.Option(
+        None, "--id", help="The ID of the artifact to delete."
+    ),
+):
+    """
+    Delete an artifact.
+
+    Arguments:
+        key: the key of the artifact to delete
+
+    Examples:
+        $ prefect artifact delete "my-artifact"
+    """
+    if key and artifact_id:
+        exit_with_error("Please provide either a key or an artifact_id but not both.")
+
+    async with get_client() as client:
+        if artifact_id is not None:
+            try:
+                confirm_delete = typer.confirm(
+                    (
+                        "Are you sure you want to delete artifact with id"
+                        f" {artifact_id!r}?"
+                    ),
+                    default=False,
+                )
+                if not confirm_delete:
+                    exit_with_error("Deletion aborted.")
+
+                await client.delete_artifact(artifact_id)
+                exit_with_success(f"Deleted artifact with id {artifact_id!r}.")
+            except ObjectNotFound:
+                exit_with_error(f"Artifact with id {artifact_id!r} not found!")
+
+        elif key is not None:
+            artifacts = await client.read_artifacts(
+                artifact_filter=schemas.filters.ArtifactFilter(
+                    key=schemas.filters.ArtifactFilterKey(any_=[key])
+                ),
+            )
+            if not artifacts:
+                exit_with_error(f"Artifact {key!r} not found.")
+
+            confirm_delete = typer.confirm(
+                (
+                    f"Are you sure you want to delete {len(artifacts)} artifact(s) with"
+                    f" key {key!r}?"
+                ),
+                default=False,
+            )
+            if not confirm_delete:
+                exit_with_error("Deletion aborted.")
+
+            ids = [str(a.id) for a in artifacts]
+            [await client.delete_artifact(id) for id in ids]
+
+            exit_with_success(f"Deleted {len(artifacts)} artifact(s) with key {key!r}.")
+
+        else:
+            exit_with_error("Please provide a key or an artifact_id.")

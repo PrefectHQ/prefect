@@ -1706,3 +1706,17 @@ class TestArtifacts:
             ("voltaic", 1),
             ("voltaic", 2),
         }
+
+    async def test_delete_artifact_succeeds(self, orion_client, artifacts):
+        await orion_client.delete_artifact(artifacts[1].id)
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("lotus", 3),
+        }
+
+    async def test_delete_nonexistent_artifact_fails(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_artifact(uuid4())

@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pendulum
 import pytest
 
@@ -183,4 +185,77 @@ def test_inspecting_artifact_with_limit(artifacts):
         expected_output_contains=expected_output,
         expected_output_does_not_contain=(f"{artifacts[0].id}", f"{artifacts[2].id}"),
         expected_code=0,
+    )
+
+
+def test_deleting_artifact_by_key_succeeds(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete", str(artifacts[0].key)],
+        user_input="y",
+        expected_output_contains=f"Deleted 2 artifact(s) with key 'voltaic'.",
+        expected_code=0,
+    )
+
+
+def test_deleting_artifact_nonexistent_key_raises():
+    invoke_and_assert(
+        ["artifact", "delete", "nonexistent_key"],
+        user_input="y",
+        expected_output_contains="Artifact 'nonexistent_key' not found",
+        expected_code=1,
+    )
+
+
+def test_deleting_artifact_by_key_without_confimation_aborts(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete", str(artifacts[0].key)],
+        user_input="n",
+        expected_output_contains="Deletion aborted.",
+        expected_code=1,
+    )
+
+
+def test_deleting_artifact_by_id_succeeds(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete", "--id", str(artifacts[0].id)],
+        user_input="y",
+        expected_output_contains="Deleted artifact",
+        expected_code=0,
+    )
+
+
+def test_deleting_artifact_nonexistent_id_raises():
+    fake_artifact_id = str(uuid4())
+    invoke_and_assert(
+        ["artifact", "delete", "--id", fake_artifact_id],
+        user_input="y",
+        expected_output_contains=f"Artifact with id '{fake_artifact_id}' not found",
+        expected_code=1,
+    )
+
+
+def test_deleting_artifact_by_id_without_confimation_aborts(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete", "--id", str(artifacts[0].id)],
+        user_input="n",
+        expected_output_contains="Deletion aborted.",
+        expected_code=1,
+    )
+
+
+def test_deleting_artifact_with_key_and_id_raises(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete", artifacts[1].key, "--id", artifacts[1].id],
+        expected_output_contains=(
+            "Please provide either a key or an artifact_id but not both."
+        ),
+        expected_code=1,
+    )
+
+
+def test_deleting_artifact_without_key_or_id_raises(artifacts):
+    invoke_and_assert(
+        ["artifact", "delete"],
+        expected_output_contains="Please provide a key or an artifact_id.",
+        expected_code=1,
     )
