@@ -46,3 +46,36 @@ class TestRegisterFlow:
             flows = json.load(f)
 
         assert flows["test"] == "import-project/my_module/flow.py:test_flow"
+
+    async def test_register_flow_allows_identical_calls(self):
+        f = await register_flow(
+            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+            + ":test_flow"
+        )
+        assert f.name == "test"
+
+        f = await register_flow(
+            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+            + ":test_flow"
+        )
+        assert f.name == "test"
+
+    async def test_register_flow_disallows_overwrites(self):
+        f = await register_flow(
+            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+            + ":test_flow"
+        )
+        assert f.name == "test"
+
+        with pytest.raises(ValueError, match="Conflicting entry found"):
+            await register_flow(
+                str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+                + ":prod_flow"
+            )
+
+        f = await register_flow(
+            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+            + ":prod_flow",
+            force=True,
+        )
+        assert f.name == "test"
