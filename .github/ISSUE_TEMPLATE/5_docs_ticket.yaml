@@ -22,15 +22,15 @@ body:
       
   - type: textarea
     attributes:
-      label: Describe the proposed state
-      description: A clear, concise description of what new content or behavior you would like to see
+      label: Describe the proposed change
+      description: A clear, concise description of the proposed docs change
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: Additional context
-      description: Provide additional context or relevant examples related to this issue
+      description: Provide additional context or relevant examples for this issue
     validations:
       required: false
 
