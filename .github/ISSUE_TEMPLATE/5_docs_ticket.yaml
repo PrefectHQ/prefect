@@ -1,0 +1,46 @@
+name: 📝 Suggest edits or changes to docs
+description: Propose edits or enhancements to Prefect documentation
+labels: ["docs enhancement", "copy edit"]
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: First check
+      description: Please confirm and check all the following options.
+      options:
+        - label: I added a descriptive title to this issue.
+          required: true
+        - label: I used GitHub search to find a similar request and didn't find it 😇
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Paste the relevant docs section URL here
+      description: If the issue applies to more than one section, please choose a representative example and paste that URL
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Describe the current state
+      description: A clear, concise description of the current docs behavior
+    validations:
+      required: true
+      
+  - type: textarea
+    attributes:
+      label: Describe the proposed state
+      description: A clear, concise description of what new content or behavior you would like to see
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Provide additional context or relevant examples related to this issue
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: "**Happy engineering!**"
