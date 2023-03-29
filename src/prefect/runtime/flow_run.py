@@ -15,7 +15,7 @@ import pendulum
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 
 __all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name"]
 
@@ -50,10 +50,13 @@ async def _get_flow_from_run(flow_run_id):
 
 def get_id() -> str:
     flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx is None:
-        return os.getenv("PREFECT__FLOW_RUN_ID")
-    else:
+    task_run_ctx = TaskRunContext.get()
+    if flow_run_ctx is not None:
         return str(flow_run_ctx.flow_run.id)
+    if task_run_ctx is not None:
+        return str(task_run_ctx.task_run.flow_run_id)
+    else:
+        return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
 def get_tags():
