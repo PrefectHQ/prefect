@@ -6,7 +6,7 @@ Artifacts offer a means to publish and manage data that is rendered in the Prefe
 !!! warning "Artifacts are an experimental feature"
     Artifact are an experimental feature and are subject to change in future releases.
 
-Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase important data within your pipeline. By leveraging artifacts, you can easily manage and share critical information with your team, providing valuable insights and context for your workflow runs. With the ability to publish links, markdown, tables, and more, artifacts make it easier than ever to stay organized and informed.
+Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your pipeline. By leveraging artifacts, you can easily manage and share information with your team, providing valuable insights and context. With the ability to publish links, markdown, tables, and more, artifacts make it easier than ever to stay organized and informed.
 
 Some potential use cases for artifacts are:
 
