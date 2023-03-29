@@ -150,6 +150,48 @@ async def read_latest_artifact(
 
 
 @inject_db
+async def read_latest_artifacts(
+    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    offset: int = None,
+    limit: int = None,
+    artifact_filter: filters.ArtifactFilter = None,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+    sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
+):
+    """
+    Reads the latest artifacts for all keys.
+    """
+
+    latest_ids_query = sa.select(db.ArtifactCollection.latest_id)
+    latest_ids = await session.execute(latest_ids_query)
+    latest_ids = [i[0] for i in latest_ids.fetchall()]
+
+    query = (
+        sa.select(db.Artifact)
+        .where(db.Artifact.id.in_(latest_ids))
+        .order_by(sort.as_sql_sort(db))
+    )
+
+    query = await _apply_artifact_filters(
+        query,
+        db=db,
+        artifact_filter=artifact_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
+
+    if limit is not None:
+        query = query.limit(limit)
+    if offset is not None:
+        query = query.offset(offset)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
+
+
+@inject_db
 async def read_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,
