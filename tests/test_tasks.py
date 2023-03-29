@@ -13,7 +13,6 @@ import pytest
 from prefect import flow, get_run_logger, tags
 from prefect.blocks.core import Block
 from prefect.context import PrefectObjectRegistry, TaskRunContext, get_run_context
-from prefect.deprecated.data_documents import DataDocument
 from prefect.engine import get_state_for_result
 from prefect.exceptions import (
     MappingLengthMismatch,
@@ -607,7 +606,7 @@ class TestTaskStates:
             return State(
                 type=StateType.FAILED,
                 message="Test returned state",
-                data=DataDocument.encode("json", True),
+                data=True,
             )
 
         @flow(version="test")
@@ -2400,6 +2399,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=False,
             timeout_seconds=None,
             refresh_cache=False,
+            result_storage_key="foo",
         )
         def initial_task():
             pass
@@ -2418,6 +2418,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=True,
             timeout_seconds=42,
             refresh_cache=True,
+            result_storage_key="bar",
         )
 
         assert task_with_options.name == "Copied task"
@@ -2433,6 +2434,7 @@ class TestTaskWithOptions:
         assert task_with_options.cache_result_in_memory is True
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache == True
+        assert task_with_options.result_storage_key == "bar"
 
     def test_with_options_uses_existing_settings_when_no_override(self):
         def cache_key_fn(*_):
@@ -2452,6 +2454,7 @@ class TestTaskWithOptions:
             cache_result_in_memory=False,
             timeout_seconds=42,
             refresh_cache=True,
+            result_storage_key="test",
         )
         def initial_task():
             pass
@@ -2475,6 +2478,7 @@ class TestTaskWithOptions:
         assert task_with_options.cache_result_in_memory is False
         assert task_with_options.timeout_seconds == 42
         assert task_with_options.refresh_cache == True
+        assert task_with_options.result_storage_key == "test"
 
     def test_with_options_can_unset_result_options_with_none(self):
         @task(
@@ -2482,6 +2486,7 @@ class TestTaskWithOptions:
             result_serializer="json",
             result_storage=LocalFileSystem(),
             refresh_cache=True,
+            result_storage_key="test",
         )
         def initial_task():
             pass
@@ -2491,11 +2496,13 @@ class TestTaskWithOptions:
             result_serializer=None,
             result_storage=None,
             refresh_cache=None,
+            result_storage_key=None,
         )
         assert task_with_options.persist_result is None
         assert task_with_options.result_serializer is None
         assert task_with_options.result_storage is None
         assert task_with_options.refresh_cache is None
+        assert task_with_options.result_storage_key is None
 
     def test_tags_are_copied_from_original_task(self):
         "Ensure changes to the tags on the original task don't affect the new task"
@@ -2967,7 +2974,7 @@ class TestTaskMap:
             [4, 5, 6, 7],
         ]
 
-    def test_with_default_kwargs(self):
+    def test_with_keyword_with_default(self):
         @task
         def add_some(x, y=5):
             return x + y
@@ -2979,6 +2986,32 @@ class TestTaskMap:
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
+
+    def test_with_variadic_keywords_and_iterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=[4, 5, 6])
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [5, 7, 9]
+
+    def test_with_variadic_keywords_and_noniterable(self):
+        @task
+        def add_some(x, **kwargs):
+            return x + kwargs["y"]
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers, y=1)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
 
 
 class TestTaskConstructorValidation:

@@ -2002,7 +2002,11 @@ class PrefectClient:
         return pydantic.parse_obj_as(List[FlowRunNotificationPolicy], response.json())
 
     async def read_logs(
-        self, log_filter: LogFilter = None, limit: int = None, offset: int = None
+        self,
+        log_filter: LogFilter = None,
+        limit: int = None,
+        offset: int = None,
+        sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
     ) -> None:
         """
         Read flow and task run logs.
@@ -2011,6 +2015,7 @@ class PrefectClient:
             "logs": log_filter.dict(json_compatible=True) if log_filter else None,
             "limit": limit,
             "offset": offset,
+            "sort": sort,
         }
 
         response = await self._client.post(f"/logs/filter", json=body)
@@ -2288,6 +2293,46 @@ class PrefectClient:
         )
 
         return pydantic.parse_obj_as(Artifact, response.json())
+
+    async def read_artifacts(
+        self,
+        *,
+        artifact_filter: schemas.filters.ArtifactFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
+        sort: schemas.sorting.ArtifactSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[Artifact]:
+        """
+        Query the Prefect API for artifacts. Only artifacts matching all criteria will
+        be returned.
+        Args:
+            artifact_filter: filter criteria for artifacts
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            sort: sort criteria for the artifacts
+            limit: limit for the artifact query
+            offset: offset for the artifact query
+        Returns:
+            a list of Artifact model representations of the artifacts
+        """
+        body = {
+            "artifacts": (
+                artifact_filter.dict(json_compatible=True) if artifact_filter else None
+            ),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self._client.post("/experimental/artifacts/filter", json=body)
+        return pydantic.parse_obj_as(List[Artifact], response.json())
 
     async def __aenter__(self):
         """

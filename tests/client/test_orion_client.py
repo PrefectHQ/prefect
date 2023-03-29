@@ -2,6 +2,8 @@ import datetime
 import os
 import random
 import threading
+import warnings
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List
 from unittest.mock import ANY, MagicMock, Mock
@@ -225,6 +227,17 @@ def not_enough_open_files() -> bool:
     return soft_limit < 512 or hard_limit < 512
 
 
+def make_lifespan(startup, shutdown) -> callable:
+    async def lifespan(app):
+        try:
+            startup()
+            yield
+        finally:
+            shutdown()
+
+    return asynccontextmanager(lifespan)
+
+
 class TestClientContextManager:
     async def test_client_context_cannot_be_reentered(self):
         client = PrefectClient("http://foo.test")
@@ -244,7 +257,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
         startup.assert_not_called()
@@ -259,7 +272,7 @@ class TestClientContextManager:
 
     async def test_client_context_calls_app_lifespan_once_despite_nesting(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         startup.assert_not_called()
         shutdown.assert_not_called()
@@ -275,7 +288,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_sequential_usage(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async with PrefectClient(app):
             pass
@@ -294,7 +307,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -339,7 +352,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_threaded_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(context):
             # We must re-enter the profile context in the new thread
@@ -367,7 +380,7 @@ class TestClientContextManager:
 
     async def test_client_context_lifespan_is_robust_to_high_async_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -387,7 +400,7 @@ class TestClientContextManager:
     @pytest.mark.skipif(not_enough_open_files(), reason=not_enough_open_files.__doc__)
     async def test_client_context_lifespan_is_robust_to_mixed_concurrency(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client():
             # Use random sleeps to interleave clients
@@ -438,7 +451,7 @@ class TestClientContextManager:
         startup = MagicMock(side_effect=lambda: print("Startup called!"))
         shutdown = MagicMock(side_effect=lambda: print("Shutdown called!!"))
 
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         one_started = anyio.Event()
         one_exited = anyio.Event()
@@ -479,7 +492,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         client = PrefectClient(app)
 
@@ -492,7 +505,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_anyio_cancellation(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         async def enter_client(task_status):
             async with PrefectClient(app):
@@ -511,7 +524,7 @@ class TestClientContextManager:
 
     async def test_client_context_manages_app_lifespan_on_exception_when_nested(self):
         startup, shutdown = MagicMock(), MagicMock()
-        app = FastAPI(on_startup=[startup], on_shutdown=[shutdown])
+        app = FastAPI(lifespan=make_lifespan(startup, shutdown))
 
         with pytest.raises(ValueError):
             async with PrefectClient(app):
@@ -1211,6 +1224,12 @@ async def test_prefect_api_tls_insecure_skip_verify_default_setting(monkeypatch)
 
 
 class TestResolveDataDoc:
+    @pytest.fixture(autouse=True)
+    def ignore_deprecation_warnings(self):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            yield
+
     async def test_does_not_allow_other_types(self, orion_client):
         with pytest.raises(TypeError, match="invalid type str"):
             await orion_client.resolve_datadoc("foo")
@@ -1604,20 +1623,86 @@ class TestArtifacts:
         assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value() is True
 
     @pytest.fixture
-    async def artifact(self):
-        yield ArtifactCreate(
+    async def artifacts(self, orion_client):
+        artifact1 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=1,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact2 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=2,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact3 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="lotus",
+                data=3,
+                type="markdown",
+                description="# This is a markdown description title",
+            )
+        )
+
+        return [artifact1, artifact2, artifact3]
+
+    async def test_create_then_read_artifact(self, orion_client, client):
+        artifact_schema = ArtifactCreate(
             key="voltaic",
             data=1,
             description="# This is a markdown description title",
             metadata_={"data": "opens many doors"},
         )
+        artifact = await orion_client.create_artifact(artifact=artifact_schema)
 
-    async def test_create_then_read_artifact(self, orion_client, client, artifact):
-        result = await orion_client.create_artifact(artifact=artifact)
-        assert result.key == artifact.key
-        assert result.description == artifact.description
-
-        response = await client.get(f"/experimental/artifacts/{result.id}")
+        response = await client.get(f"/experimental/artifacts/{artifact.id}")
         assert response.status_code == 200
         assert response.json()["key"] == artifact.key
         assert response.json()["description"] == artifact.description
+
+    async def test_read_artifacts(self, orion_client, artifacts):
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 3
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_latest_filter(self, orion_client, artifacts):
+        latest_artifact_filter = schemas.filters.ArtifactFilter(
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
+        )
+
+        artifact_list = await orion_client.read_artifacts(
+            artifact_filter=latest_artifact_filter
+        )
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_key_filter(self, orion_client, artifacts):
+        key_artifact_filter = schemas.filters.ArtifactFilter(
+            key=schemas.filters.ArtifactFilterKey(any_=["voltaic"])
+        )
+
+        artifact_list = await orion_client.read_artifacts(
+            artifact_filter=key_artifact_filter
+        )
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+        }
