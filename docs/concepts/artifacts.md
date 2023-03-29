@@ -1,6 +1,6 @@
 # Artifacts
 
-Artifacts offer a means to publish and manage crucial data that is rendered in the Prefect UI, making it easy to see where and when your results were written. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a more advanced way to present information compared to typical logging practices-- including the ability to display reports, tables, markdown, and links to external data.
+Artifacts offer a means to publish and manage data that is rendered in the Prefect UI, making it easy to see where and when your results were written. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a more advanced way to present information compared to typical logging practices-- including the ability to display tables, markdown, and links to external data.
 ## Artifacts Overview <span class="badge experimental"></span>
 
 !!! warning "Artifacts are an experimental feature"
