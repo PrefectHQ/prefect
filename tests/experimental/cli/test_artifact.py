@@ -4,18 +4,7 @@ import pendulum
 import pytest
 
 from prefect.server import models, schemas
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
 from prefect.testing.cli import invoke_and_assert
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_artifacts(enable_artifacts):
-    """
-    Enable artifacts for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS
-    # Import to register artifact CLI
-    import prefect.experimental.cli.artifact  # noqa
 
 
 @pytest.fixture
