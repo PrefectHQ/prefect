@@ -181,7 +181,7 @@ In the Prefect UI, you can view all of the latest versions of your artifacts and
 
 ### Deleting Artifacts
 
-To delete an artifact, simply do so directly in the Artifacts page. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts__id__delete).
+To delete an artifact, simply do so directly in the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts__id__delete).
 
 ## Artifacts API
 
