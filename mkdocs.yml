@@ -132,6 +132,7 @@ nav:
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
+        - Artifacts: concepts/artifacts.md
         - Events & Resources: concepts/events-and-resources.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md

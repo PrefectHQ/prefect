@@ -27,7 +27,7 @@ from prefect.client.utilities import inject_client
 from prefect.deprecated.data_documents import DataDocument
 from prefect.server import schemas
 from prefect.server.api.server import SERVER_API_VERSION, create_app
-from prefect.server.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.server.schemas.actions import ArtifactCreate, LogCreate, WorkPoolCreate
 from prefect.server.schemas.core import FlowRunNotificationPolicy
 from prefect.server.schemas.filters import (
     FlowRunNotificationPolicyFilter,
@@ -42,6 +42,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1611,3 +1612,111 @@ class TestWorkPools:
         await orion_client.delete_work_pool(work_pool.name)
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.read_work_pool(work_pool.id)
+
+
+class TestArtifacts:
+    @pytest.fixture(autouse=True)
+    def auto_enable_artifacts(self, enable_artifacts):
+        """
+        Enable artifacts for testing
+        """
+        assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value() is True
+
+    @pytest.fixture
+    async def artifacts(self, orion_client):
+        artifact1 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=1,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact2 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="voltaic",
+                data=2,
+                type="table",
+                description="# This is a markdown description title",
+            )
+        )
+        artifact3 = await orion_client.create_artifact(
+            artifact=ArtifactCreate(
+                key="lotus",
+                data=3,
+                type="markdown",
+                description="# This is a markdown description title",
+            )
+        )
+
+        return [artifact1, artifact2, artifact3]
+
+    async def test_create_then_read_artifact(self, orion_client, client):
+        artifact_schema = ArtifactCreate(
+            key="voltaic",
+            data=1,
+            description="# This is a markdown description title",
+            metadata_={"data": "opens many doors"},
+        )
+        artifact = await orion_client.create_artifact(artifact=artifact_schema)
+
+        response = await client.get(f"/experimental/artifacts/{artifact.id}")
+        assert response.status_code == 200
+        assert response.json()["key"] == artifact.key
+        assert response.json()["description"] == artifact.description
+
+    async def test_read_artifacts(self, orion_client, artifacts):
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 3
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_latest_filter(self, orion_client, artifacts):
+        latest_artifact_filter = schemas.filters.ArtifactFilter(
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
+        )
+
+        artifact_list = await orion_client.read_artifacts(
+            artifact_filter=latest_artifact_filter
+        )
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 2),
+            ("lotus", 3),
+        }
+
+    async def test_read_artifacts_with_key_filter(self, orion_client, artifacts):
+        key_artifact_filter = schemas.filters.ArtifactFilter(
+            key=schemas.filters.ArtifactFilterKey(any_=["voltaic"])
+        )
+
+        artifact_list = await orion_client.read_artifacts(
+            artifact_filter=key_artifact_filter
+        )
+
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("voltaic", 2),
+        }
+
+    async def test_delete_artifact_succeeds(self, orion_client, artifacts):
+        await orion_client.delete_artifact(artifacts[1].id)
+        artifact_list = await orion_client.read_artifacts()
+        assert len(artifact_list) == 2
+        keyed_data = {(r.key, r.data) for r in artifact_list}
+        assert keyed_data == {
+            ("voltaic", 1),
+            ("lotus", 3),
+        }
+
+    async def test_delete_nonexistent_artifact_raises(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_artifact(uuid4())
