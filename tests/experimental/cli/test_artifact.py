@@ -115,6 +115,17 @@ def test_listing_artifacts_after_creating_artifacts_with_null_fields(
     )
 
 
+def test_listing_artifacts_with_limit(
+    artifacts,
+):
+    expected_output = artifacts[2].key
+    invoke_and_assert(
+        ["artifact", "ls", "--limit", "1"],
+        expected_output_contains=expected_output,
+        expected_code=0,
+    )
+
+
 def test_listing_artifacts_lists_only_latest_versions(artifacts):
     expected_output = (
         f"{artifacts[2].id}",
@@ -125,5 +136,51 @@ def test_listing_artifacts_lists_only_latest_versions(artifacts):
         ["artifact", "ls"],
         expected_output_contains=expected_output,
         expected_output_does_not_contain=f"{artifacts[0].id}",
+        expected_code=0,
+    )
+
+
+def test_inspecting_artifact_succeeds(artifacts):
+    """
+    We expect to see all versions of the artifact.
+    """
+    expected_output = (
+        f"{artifacts[0].id}",
+        f"{artifacts[0].key}",
+        f"{artifacts[0].type}",
+        f"{artifacts[0].description}",
+        f"{artifacts[0].data}",
+        f"{artifacts[1].id}",
+        f"{artifacts[1].key}",
+        f"{artifacts[1].type}",
+        f"{artifacts[1].description}",
+        f"{artifacts[1].data}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "inspect", str(artifacts[0].key)],
+        expected_output_contains=expected_output,
+        expected_code=0,
+        expected_output_does_not_contain=f"{artifacts[2].id}",
+    )
+
+
+def test_inspecting_artifact_nonexistent_key_raises():
+    invoke_and_assert(
+        ["artifact", "inspect", "nonexistent_key"],
+        expected_output_contains="Artifact 'nonexistent_key' not found",
+        expected_code=1,
+    )
+
+
+def test_inspecting_artifact_with_limit(artifacts):
+    expected_output = (
+        f"{artifacts[1].key}",
+        f"{artifacts[1].data}",
+    )  # most recently updated
+    invoke_and_assert(
+        ["artifact", "inspect", str(artifacts[0].key), "--limit", "1"],
+        expected_output_contains=expected_output,
+        expected_output_does_not_contain=(f"{artifacts[0].id}", f"{artifacts[2].id}"),
         expected_code=0,
     )
