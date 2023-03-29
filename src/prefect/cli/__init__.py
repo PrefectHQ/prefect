@@ -6,6 +6,7 @@ import prefect.settings
 # isort: split
 
 import prefect.cli.agent
+import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
 import prefect.cli.concurrency_limit
@@ -23,7 +24,3 @@ import prefect.cli.work_pool
 # Only load workers CLI if enabled via a setting
 if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
     import prefect.experimental.cli.worker
-
-# Only load artifacts CLI if enabled via a setting
-if experiment_enabled("artifacts"):
-    import prefect.experimental.cli.artifact
