@@ -188,7 +188,6 @@ async def delete(
                 exit_with_error(f"Artifact with id {artifact_id!r} not found!")
 
         elif key is not None:
-
             artifacts = await client.read_artifacts(
                 artifact_filter=schemas.filters.ArtifactFilter(
                     key=schemas.filters.ArtifactFilterKey(any_=[key])
