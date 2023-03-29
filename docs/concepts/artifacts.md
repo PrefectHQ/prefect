@@ -23,7 +23,7 @@ To create artifacts, you need to set `PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS` to 
     
     Unlike the `print()` command, where you can concatenate multiple calls to include additional items in a report, within a task, these commands must be used multiple times if necessary. 
     
-    To create artifacts like reports or summaries using `create_markdown_artifact()`, it's recommended to compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
+    To create artifacts like reports or summaries using `create_markdown_artifact()`, compile your message string separately and then pass it to `create_markdown_artifact()` to create the complete artifact.
 
 ### Creating Link Artifacts
 
