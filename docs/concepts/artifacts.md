@@ -89,7 +89,7 @@ def my_flow():
 if __name__ == "__main__":
     my_flow()
 ```
-
+In the above example, the `create_link_artifact` method is used within a flow to create a link artifact with a key of `my-important-link`. The `link` parameter is used to specify the external resource to be linked to, and `link_text` is used to specify the text to be displayed for the link. An optional `description` could also be added for context.
 ### Creating Markdown Artifacts
 
 To create a markdown artifact, you can use the `create_markdown_artifact()` function.
