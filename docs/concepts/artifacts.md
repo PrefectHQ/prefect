@@ -1,14 +1,14 @@
 # Artifacts
 
-Artifacts offer a means to publish and manage data that is rendered in the Prefect UI, making it easy to track and monitor your data over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a more advanced way to present information compared to typical logging practices-- including the ability to display tables, markdown, and links to external data.
+Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or API. They can also be rendered and managed in the Prefect UI, making it easy to track and monitor the objects that your flows produce and update over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices-- including the ability to display tables, markdown, and links to external data.
 ## Artifacts Overview <span class="badge experimental"></span>
 
 !!! warning "Artifacts are an experimental feature"
     Artifacts are an experimental feature and are subject to change in future releases.
 
-Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your pipeline. By leveraging artifacts, you can easily manage and share information with your team, providing valuable insights and context.
+Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflow. With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
 
-Some potential use cases for artifacts are:
+Common use cases for artifacts include:
 
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to the location where the artifact is stored (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     my_fn()
 ```
 
-As you may notice, you don't need to create an artifact in a flow run context. You can use it however you like and still get the benefits in the Prefect UI.
+As you can see, you don't need to create an artifact in a flow run context. You can use it however you like and still get the benefits in the Prefect UI.
 
 ## Managing Artifacts
 
@@ -181,11 +181,11 @@ In the Prefect UI, you can view all of the latest versions of your artifacts and
 
 ### Deleting Artifacts
 
-To delete an artifact, simply do so directly in the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts__id__delete).
+You can delete an artifact directly from the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts__id__delete).
 
 ## Artifacts API
 
-Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically. With the Artifacts API, you can automate the creation and management of artifacts as part of your data pipeline.
+Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically. With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
 
 To use it, remember to enable artifacts by running:
 ```bash
