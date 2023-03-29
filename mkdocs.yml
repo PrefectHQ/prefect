@@ -76,6 +76,8 @@ theme:
             name: Switch to light mode
 plugins:
     mike:
+      canonical_version: latest
+      version_selector: true
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
