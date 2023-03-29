@@ -30,7 +30,7 @@ def test_app_exposes_ui_settings():
     response.raise_for_status()
     assert response.json() == {
         "api_url": PREFECT_UI_API_URL.value(),
-        "flags": ["work_pools", "artifacts"],
+        "flags": ["artifacts", "work_pools"],  # must be alphabetical
     }
 
 
