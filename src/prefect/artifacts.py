@@ -6,7 +6,6 @@ import json
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from prefect._internal.compatibility.experimental import experimental
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -15,10 +14,6 @@ from prefect.utilities.asyncutils import sync_compatible
 
 
 @inject_client
-@experimental(
-    feature="The artifacts feature",
-    group="artifacts",
-)
 async def _create_artifact(
     type: str,
     key: Optional[str] = None,

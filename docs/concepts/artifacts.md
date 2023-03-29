@@ -1,10 +1,7 @@
 # Artifacts
 
 Artifacts are persisted outputs such as tables, files, or links. They can be published via the Prefect SDK or API. They can also be rendered and managed in the Prefect UI, making it easy to track and monitor the objects that your flows produce and update over time. Published artifacts may be associated with a particular task run, flow run, or outside a flow run context. Artifacts provide a richer way to present information relative to typical logging practices-- including the ability to display tables, markdown, and links to external data.
-## Artifacts Overview <span class="badge experimental"></span>
-
-!!! warning "Artifacts are an experimental feature"
-    Artifacts are an experimental feature and are subject to change in future releases.
+## Artifacts Overview
 
 Whether you're publishing links, markdown, or tables, artifacts provide a powerful and flexible way to showcase data within your workflow. With artifacts, you can easily manage and share information with your team, providing valuable insights and context.
 
@@ -16,7 +13,7 @@ Common use cases for artifacts include:
 
 ## Creating Artifacts
 
-To create artifacts, you need to set `PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS` to true. Once enabled, you can publish data from task and flow runs or outside of a flow run context. Currently, you can render three artifact types: links, markdown, and tables.
+Creating artifacts allows you to publish data from task and flow runs or outside of a flow run context. Currently, you can render three artifact types: links, markdown, and tables.
 
 !!! note "Artifacts render individually"
     Please note that every artifact created within a task will be displayed as an individual artifact in the Prefect UI. This means that each call to `create_link_artifact()` or `create_markdown_artifact()` generates a distinct artifact. 
@@ -31,7 +28,7 @@ To create a link artifact, use the `create_link_artifact()` function.
 
 ```python
 from prefect import flow, task
-from prefect.experimental.artifacts import create_link_artifact
+from prefect.artifacts import create_link_artifact
 import pendulum
 
 @task
@@ -76,7 +73,7 @@ To make the links more readable for you and your collaborators, you can pass in 
 
 ```python
 from prefect import flow
-from prefect.experimental.artifacts import create_link_artifact
+from prefect.artifacts import create_link_artifact
 
 @flow
 def my_flow():
@@ -96,7 +93,7 @@ To create a markdown artifact, you can use the `create_markdown_artifact()` func
 
 ```python
 from prefect import flow, task
-from prefect.experimental.artifacts import create_markdown_artifact
+from prefect.artifacts import create_markdown_artifact
 
 @task
 def my_task():
@@ -152,7 +149,7 @@ You can create a table artifact by calling `create_table_artifact()`.
 
 ```python
 from prefect import flow, task
-from prefect.experimental.artifacts import create_table_artifact
+from prefect.artifacts import create_table_artifact
 
 def my_fn():
     highest_churn_possibility = [
@@ -176,27 +173,21 @@ As you can see, you don't need to create an artifact in a flow run context. You 
 
 ### Reading Artifacts
 
-In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time. You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts_filter_post) to programmatically filter your results.
+In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time. You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
 
 ### Deleting Artifacts
 
-You can delete an artifact directly from the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__experimental_artifacts__id__delete).
+You can delete an artifact directly from the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
 
 ## Artifacts API
 
 Prefect provides the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts) to allow you to create, read, and delete artifacts programmatically. With the Artifacts API, you can automate the creation and management of artifacts as part of your workflow.
-
-To use it, remember to enable artifacts by running:
-```bash
-prefect config set PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS=True
-```
 
 For example, to read the 5 most recently created markdown, table, and link artifacts, you can do the following:
 
 ```python
 import requests
 
-PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS=True
 PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc/workspaces/xyz"
 PREFECT_API_KEY="pnu_ghijk"
 data = {
@@ -210,7 +201,7 @@ data = {
 }
 
 headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
-endpoint = f"{PREFECT_API_URL}/experimental/artifacts/filter"
+endpoint = f"{PREFECT_API_URL}/artifacts/filter"
 
 response = requests.post(endpoint, headers=headers, json=data)
 assert response.status_code == 200
@@ -219,8 +210,5 @@ for artifact in response.json():
 ```
 
 If we don't specify a key or that a key must exist, we will also return results (which are a type of key-less artifact).
-
-!!!note
-    Note that the Artifacts API is still experimental and subject to change.
 
 See the rest of the [Prefect REST API documentation](https://app.prefect.cloud/api/docs#tag/Artifacts) on artifacts for more information!
