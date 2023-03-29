@@ -2334,6 +2334,21 @@ class PrefectClient:
         response = await self._client.post("/experimental/artifacts/filter", json=body)
         return pydantic.parse_obj_as(List[Artifact], response.json())
 
+    async def delete_artifact(self, artifact_id: UUID) -> None:
+        """
+        Deletes an artifact with the provided id.
+
+        Args:
+            artifact_id: The id of the artifact to delete.
+        """
+        try:
+            await self._client.delete(f"/experimental/artifacts/{artifact_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def __aenter__(self):
         """
         Start the client.
