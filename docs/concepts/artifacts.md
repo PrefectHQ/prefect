@@ -49,7 +49,7 @@ def my_first_task():
 def my_second_task():
     now = pendulum.now('UTC').to_datetime_string()
     prediction_accuracy = 0.42
-    if prediction_accuracy >= 0.50:
+    if prediction_accuracy < 0.50:
         create_link_artifact(
             key="irregular-data",
             link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data_{now}.csv",
