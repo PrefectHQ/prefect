@@ -1558,16 +1558,19 @@ class ArtifactFilterType(PrefectFilterBaseModel):
 
 
 class ArtifactFilterLatest(PrefectFilterBaseModel):
-    """Filter by `Artifact.is_latest`."""
+    """Filter by `ArtifactCollection.latest_id`."""
 
-    is_latest: Optional[bool] = Field(
-        default=None,
-        description="If true, only return the latest artifact for each key",
+    is_latest: bool = Field(
+        default=False,
+        description=(
+            "If `true`, only return the latest artifact for each key. If `false`, "
+            "include all artifacts."
+        ),
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
-        if self.is_latest is not None and self.is_latest:
+        if self.is_latest:
             filters.append(db.ArtifactCollection.latest_id == db.Artifact.id)
         return filters
 
