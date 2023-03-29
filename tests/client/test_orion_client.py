@@ -42,6 +42,7 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1651,7 +1652,6 @@ class TestArtifacts:
             metadata_={"data": "opens many doors"},
         )
         artifact = await orion_client.create_artifact(artifact=artifact_schema)
-
         response = await client.get(f"/artifacts/{artifact.id}")
         assert response.status_code == 200
         assert response.json()["key"] == artifact.key
