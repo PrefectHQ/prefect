@@ -198,17 +198,16 @@ For example, to read the 5 most recently created markdown, table, and link artif
 import requests
 
 PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS=True
-PREFECT_API_URL='https://api.prefect.cloud/api/accounts/abc/workspaces/xyz'
+PREFECT_API_URL="https://api.prefect.cloud/api/accounts/abc/workspaces/xyz"
 PREFECT_API_KEY="pnu_ghijk"
 data = {
-  "sort": "CREATED_DESC",
-  "limit": 5,
-  "artifacts": {
-    "key":
-        {
+    "sort": "CREATED_DESC",
+    "limit": 5,
+    "artifacts": {
+        "key": {
             "exists_": True
+        }
     }
-}
 }
 
 headers = {"Authorization": f"Bearer {PREFECT_API_KEY}"}
