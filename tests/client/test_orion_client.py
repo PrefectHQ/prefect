@@ -42,7 +42,6 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
