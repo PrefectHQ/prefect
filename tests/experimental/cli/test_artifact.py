@@ -142,6 +142,34 @@ def test_listing_artifacts_lists_only_latest_versions(artifacts):
     )
 
 
+def test_listing_artifacts_with_all_set_to_true(artifacts):
+    expected_output = (
+        f"{artifacts[0].id}",
+        f"{artifacts[1].id}",
+        f"{artifacts[2].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls", "--all"],
+        expected_output_contains=expected_output,
+        expected_code=0,
+    )
+
+
+def test_listing_artifacts_with_all_set_to_false(artifacts):
+    expected_output = (
+        f"{artifacts[2].id}",
+        f"{artifacts[1].id}",
+    )
+
+    invoke_and_assert(
+        ["artifact", "ls"],
+        expected_output_contains=expected_output,
+        expected_output_does_not_contain=f"{artifacts[0].id}",
+        expected_code=0,
+    )
+
+
 def test_inspecting_artifact_succeeds(artifacts):
     """
     We expect to see all versions of the artifact.
@@ -198,10 +226,11 @@ def test_deleting_artifact_by_key_succeeds(artifacts):
 
 
 def test_deleting_artifact_nonexistent_key_raises():
+    nonexistent_key = "nonexistent_key"
     invoke_and_assert(
-        ["artifact", "delete", "nonexistent_key"],
+        ["artifact", "delete", nonexistent_key],
         user_input="y",
-        expected_output_contains="Artifact 'nonexistent_key' not found",
+        expected_output_contains=f"Artifact with key '{nonexistent_key}' not found.",
         expected_code=1,
     )
 
