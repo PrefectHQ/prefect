@@ -27,7 +27,7 @@ To create artifacts, you need to set `PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS` to 
 
 ### Creating Link Artifacts
 
-To create a link artifact, simply use the `create_link_artifact()` function.
+To create a link artifact, use the `create_link_artifact()` function.
 
 ```python
 from prefect import flow, task
