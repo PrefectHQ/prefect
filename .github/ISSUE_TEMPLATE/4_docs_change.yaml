@@ -1,5 +1,5 @@
-name: 📝 Suggest edits or changes to docs
-description: Propose edits or enhancements to Prefect documentation
+name: 📝 Suggest a change to documentation
+description: Propose edits, enhancements, or fixes to Prefect documentation
 labels: ["docs", "status:triage"]
 body:
   - type: checkboxes
@@ -15,22 +15,22 @@ body:
 
   - type: textarea
     attributes:
-      label: Paste the relevant docs section URL here and describe the issue
-      description: A clear, concise description of the current docs behavior
+      label: Describe the issue
+      description: A clear, concise description of the current state of the documentation; please include a URL for the relevant section and screenshots if there is a rendering problem.
     validations:
       required: true
       
   - type: textarea
     attributes:
       label: Describe the proposed change
-      description: A clear, concise description of the proposed docs change
+      description: A clear, concise description of the proposed change to the documentation.
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: Additional context
-      description: Provide additional context or relevant examples for this issue
+      description: Provide additional context or relevant examples for this issue.
     validations:
       required: false
 
