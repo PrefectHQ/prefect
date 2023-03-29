@@ -219,7 +219,7 @@ for artifact in response.json():
     print(artifact)
 ```
 
-If we don't specify a key or that the key exists, we will return result artifacts as well.
+If we don't specify a key or that a key must exist, we will also return results (which are a type of key-less artifact).
 
 !!!note
     Note that the Artifacts API is still experimental and subject to change.
