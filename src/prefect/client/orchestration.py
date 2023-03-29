@@ -2288,7 +2288,7 @@ class PrefectClient:
         """
 
         response = await self._client.post(
-            "/experimental/artifacts/",
+            "/artifacts/",
             json=artifact.dict(json_compatible=True, exclude_unset=True),
         )
 
@@ -2331,7 +2331,7 @@ class PrefectClient:
             "limit": limit,
             "offset": offset,
         }
-        response = await self._client.post("/experimental/artifacts/filter", json=body)
+        response = await self._client.post("/artifacts/filter", json=body)
         return pydantic.parse_obj_as(List[Artifact], response.json())
 
     async def delete_artifact(self, artifact_id: UUID) -> None:
@@ -2342,7 +2342,7 @@ class PrefectClient:
             artifact_id: The id of the artifact to delete.
         """
         try:
-            await self._client.delete(f"/experimental/artifacts/{artifact_id}")
+            await self._client.delete(f"/artifacts/{artifact_id}")
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
