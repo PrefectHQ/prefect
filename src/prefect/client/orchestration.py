@@ -27,6 +27,7 @@ from prefect.server.schemas.actions import (
     WorkQueueUpdate,
 )
 from prefect.server.schemas.core import (
+    Artifact,
     BlockDocument,
     BlockSchema,
     BlockType,
@@ -2272,6 +2273,81 @@ class PrefectClient:
         )
 
         return pydantic.parse_obj_as(List[WorkerFlowRunResponse], response.json())
+
+    async def create_artifact(
+        self,
+        artifact: schemas.actions.ArtifactCreate,
+    ) -> schemas.core.Artifact:
+        """
+        Creates an artifact with the provided configuration.
+
+        Args:
+            artifact: Desired configuration for the new artifact.
+        Returns:
+            Information about the newly created artifact.
+        """
+
+        response = await self._client.post(
+            "/experimental/artifacts/",
+            json=artifact.dict(json_compatible=True, exclude_unset=True),
+        )
+
+        return pydantic.parse_obj_as(Artifact, response.json())
+
+    async def read_artifacts(
+        self,
+        *,
+        artifact_filter: schemas.filters.ArtifactFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
+        sort: schemas.sorting.ArtifactSort = None,
+        limit: int = None,
+        offset: int = 0,
+    ) -> List[Artifact]:
+        """
+        Query the Prefect API for artifacts. Only artifacts matching all criteria will
+        be returned.
+        Args:
+            artifact_filter: filter criteria for artifacts
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            sort: sort criteria for the artifacts
+            limit: limit for the artifact query
+            offset: offset for the artifact query
+        Returns:
+            a list of Artifact model representations of the artifacts
+        """
+        body = {
+            "artifacts": (
+                artifact_filter.dict(json_compatible=True) if artifact_filter else None
+            ),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self._client.post("/experimental/artifacts/filter", json=body)
+        return pydantic.parse_obj_as(List[Artifact], response.json())
+
+    async def delete_artifact(self, artifact_id: UUID) -> None:
+        """
+        Deletes an artifact with the provided id.
+
+        Args:
+            artifact_id: The id of the artifact to delete.
+        """
+        try:
+            await self._client.delete(f"/experimental/artifacts/{artifact_id}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
 
     async def __aenter__(self):
         """

@@ -185,6 +185,7 @@ to force column width */
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
+    vertical-align: middle;
 }
 
 .beta::before {
