@@ -42,7 +42,6 @@ from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
-    PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS,
     temporary_settings,
 )
 from prefect.states import Completed, Pending, Running, Scheduled, State
@@ -1615,13 +1614,6 @@ class TestWorkPools:
 
 
 class TestArtifacts:
-    @pytest.fixture(autouse=True)
-    def auto_enable_artifacts(self, enable_artifacts):
-        """
-        Enable artifacts for testing
-        """
-        assert PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS.value() is True
-
     @pytest.fixture
     async def artifacts(self, orion_client):
         artifact1 = await orion_client.create_artifact(
@@ -1660,7 +1652,7 @@ class TestArtifacts:
         )
         artifact = await orion_client.create_artifact(artifact=artifact_schema)
 
-        response = await client.get(f"/experimental/artifacts/{artifact.id}")
+        response = await client.get(f"/artifacts/{artifact.id}")
         assert response.status_code == 200
         assert response.json()["key"] == artifact.key
         assert response.json()["description"] == artifact.description

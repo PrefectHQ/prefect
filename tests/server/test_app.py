@@ -30,7 +30,7 @@ def test_app_exposes_ui_settings():
     response.raise_for_status()
     assert response.json() == {
         "api_url": PREFECT_UI_API_URL.value(),
-        "flags": ["work_pools"],
+        "flags": ["work_pools", "artifacts"],
     }
 
 
@@ -42,4 +42,4 @@ def test_app_exposes_ui_settings_with_experiments_enabled():
     response.raise_for_status()
     json = response.json()
     assert json["api_url"] == PREFECT_UI_API_URL.value()
-    assert set(json["flags"]) == {"test", "work_pools"}
+    assert set(json["flags"]) == {"test", "work_pools", "artifacts"}
