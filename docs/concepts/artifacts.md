@@ -192,7 +192,7 @@ To use it, remember to enable artifacts by running:
 prefect config set PREFECT_EXPERIMENTAL_ENABLE_ARTIFACTS=True
 ```
 
-For example, to read the 5 most recently created artifacts, you can do the following:
+For example, to read the 5 most recently created markdown, table, and link artifacts, you can do the following:
 
 ```python
 import requests
