@@ -5,12 +5,12 @@ import pydantic
 import pytest
 
 from prefect import flow, task
-from prefect.context import get_run_context
-from prefect.experimental.artifacts import (
+from prefect.artifacts import (
     create_link_artifact,
     create_markdown_artifact,
     create_table_artifact,
 )
+from prefect.context import get_run_context
 from prefect.server import schemas
 from prefect.server.schemas.actions import ArtifactCreate
 
