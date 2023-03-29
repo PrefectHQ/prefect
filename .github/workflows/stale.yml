@@ -20,4 +20,4 @@ jobs:
           days-before-close: 14
           exempt-issue-labels: "status:in-progress,status:roadmap,status:accepted"
           ascending: true # https://github.com/actions/stale#ascending
-          operations-per-run: 30
+          operations-per-run: 500
