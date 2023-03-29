@@ -155,11 +155,10 @@ from prefect import flow, task
 from prefect.experimental.artifacts import create_table_artifact
 
 def my_fn():
-    highest_churn_possibility = {
-        'customer_id': ['123456789', '987654321', '246810121', '135791113', '864208046'],
-        'name': ['John Smith', 'Jane Doe', 'Bob Johnson', 'Sarah Jones', 'Tom Wilson'],
-        'churn_probability': [0.85, 0.79, 0.67, 0.61, 0.57]
-    }
+    highest_churn_possibility = [
+       {'customer_id':'12345', 'name': 'John Smith', 'churn_probability': 0.85 }, 
+       {'customer_id':'56789', 'name': 'Jane Jones', 'churn_probability': 0.65 } 
+    ]
 
     create_table_artifact(
         key="personalized-reachout",
