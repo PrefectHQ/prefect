@@ -8,6 +8,34 @@ Most workflows produce or update an artifact of some kind, whether its a table, 
 
 <insert image>
 
+A variety of artifact types are available. To create an artifact that produces a table, for example, you can use the `create_table_artifact()` function.
+
+```python
+from prefect import flow, task
+from prefect.artifacts import create_table_artifact
+
+def my_fn():
+    my_table = [
+        {'repo': 'deep-thoughts', 'language': 'Python', 'stars': 5200}, 
+        {'repo': 'fizz-buzz', 'language': 'Python', 'stars': 31900},
+        {'repo': 'rainbow-bridge', 'language': 'JavaScript', 'stars': 170000},
+        {'repo': 'bubble-sort', 'language': 'JavaScript', 'stars': 184000}
+    ]
+
+    create_table_artifact(
+        key="fun-data-table",
+        table=my_table,
+        description= "Our most heavily utilized repos for this week!"
+    )
+
+if __name__ == "__main__":
+    my_fn()
+```
+
+You can view your artifacts in the Artifacts page of the Prefect UI, easily search your the data in your new table artifact, and toggle between a rendered and raw version of your data.
+
+<insert image>
+
 ### Configure result storage keys
 
 When persisting results, Prefect stores data at a unique, randomly-generated path. While this is convenient for ensuring the result is never overwritten, it limits organization of result files. In this release, we've added configuration of result storage keys, which gives you control over the result file path. Result storage keys can be dynamically formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. 
