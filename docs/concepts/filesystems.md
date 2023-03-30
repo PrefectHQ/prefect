@@ -308,7 +308,7 @@ A Prefect installation and doesn't include filesystem-specific package dependenc
 
 You must ensure that filesystem-specific libraries are installed in an execution environment where they will be used by flow runs.
 
-In Dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+In Dockerized deployments using a `prefecthq/prefect` image, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
 
 Here is an example from a deployment YAML file showing how to specify the installation of `s3fs` from into your image:
 
