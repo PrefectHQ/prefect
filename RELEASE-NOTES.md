@@ -117,6 +117,7 @@ See the following pull requests for implementation details:
 - Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
 - Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
 - Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
+- Update the runtime to detect flow run information from task run contexts — https://github.com/PrefectHQ/prefect/pull/8951
 
 ### Fixes
 - Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
