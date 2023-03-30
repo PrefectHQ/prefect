@@ -45,7 +45,6 @@ See [the docs](https://docs.prefect.io/concepts/results/?h=result#result-storage
 
 ### Enhancements
 - Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
-- Add support for custom static task storage keys - https://github.com/PrefectHQ/prefect/pull/8924
 - Add flow name, flow run name, and flow id to `prefect.runtime.flow_run`, enabling them to be retrieved during a flow run's execution - https://github.com/PrefectHQ/prefect/pull/8947, https://github.com/PrefectHQ/prefect/pull/8948, and https://github.com/PrefectHQ/prefect/pull/8951
 - Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
 - Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
