@@ -298,6 +298,7 @@ In order to successfully submit such a project to a dockerized environment, we n
 !!! tip "Advanced: `push` steps"
     Populating a `push` step is considered an advanced feature of projects that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
 
+
 ## Customizing the steps
 
 For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/projects).
