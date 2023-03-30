@@ -1,3 +1,4 @@
+from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect.cli.root import app
 import prefect.settings
 
@@ -5,6 +6,7 @@ import prefect.settings
 # isort: split
 
 import prefect.cli.agent
+import prefect.cli.artifact
 import prefect.cli.block
 import prefect.cli.cloud
 import prefect.cli.concurrency_limit
