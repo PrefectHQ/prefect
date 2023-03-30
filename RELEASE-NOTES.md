@@ -6,7 +6,7 @@
 
 Most workflows produce or update an artifact of some kind, whether its a table, a file, or a model. With Prefect Artifacts, you can track changes to these outputs and richly display them in the UI as tables, markdown, and links. Artifacts may be associated with a particular task run, flow run, or even exist outside a flow run context, enabling you to not only observe your flows, but the objects that they interact with as well. 
 
-<insert image>
+![Artifacts top-level view](https://user-images.githubusercontent.com/27291717/228905742-0bad7874-6b6b-4000-9111-1c4d0e0bd6e1.png)
 
 A variety of artifact types are available. To create an artifact that produces a table, for example, you can use the `create_table_artifact()` function.
 
@@ -33,15 +33,14 @@ if __name__ == "__main__":
 
 You can view your artifacts in the Artifacts page of the Prefect UI, easily search your the data in your new table artifact, and toggle between a rendered and raw version of your data.
 
-<insert image>
-
+![Table artifact in a timeline view](https://user-images.githubusercontent.com/27291717/228905740-bd297de9-6381-45ec-aba3-8b72def70a08.png)
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9003
 - https://github.com/PrefectHQ/prefect/pull/8832
 - https://github.com/PrefectHQ/prefect/pull/8932
-- https://github.com/PrefectHQ/prefect/commit/3a6cfcff153eccbced252291fd82d2cda0f19aa6
 - https://github.com/PrefectHQ/prefect/pull/8875
 - https://github.com/PrefectHQ/prefect/pull/8874
+- https://github.com/PrefectHQ/prefect/pull/8985
 
 ### Configure result storage keys
 
