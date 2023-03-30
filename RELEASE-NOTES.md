@@ -34,6 +34,8 @@ if __name__ == "__main__":
 You can view your artifacts in the Artifacts page of the Prefect UI, easily search your the data in your new table artifact, and toggle between a rendered and raw version of your data.
 
 ![Table artifact in a timeline view](https://user-images.githubusercontent.com/27291717/228905740-bd297de9-6381-45ec-aba3-8b72def70a08.png)
+See [the documentation](https://docs.prefect.io/concepts/artifacts) for more information.
+
 See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9003
 - https://github.com/PrefectHQ/prefect/pull/8832
