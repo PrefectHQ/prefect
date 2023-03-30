@@ -33,23 +33,17 @@ import pendulum
 
 @task
 def my_first_task():
-    now = pendulum.now('UTC').to_datetime_string()
-    data_variability = 1764 ** 0.5
-    if data_variability >= 42:
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data_{now}.csv",
+            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
             description="## Highly variable data",
         )
 
 @task
 def my_second_task():
-    now = pendulum.now('UTC').to_datetime_string()
-    prediction_accuracy = 0.42
-    if prediction_accuracy < 0.50:
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data_{now}.csv",
+            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
             description="# Low prediction accuracy",
         )
 
