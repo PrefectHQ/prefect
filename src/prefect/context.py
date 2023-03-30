@@ -224,6 +224,7 @@ class FlowRunContext(RunContext):
     flow_run: FlowRun
     task_runner: BaseTaskRunner
     log_prints: bool = False
+    parameters: Dict[str, Any]
 
     # Result handling
     result_factory: ResultFactory
