@@ -8,7 +8,7 @@ Most workflows produce or update an artifact of some kind, whether its a table, 
 
 <insert image>
 
-### Configure result persistence with result storage keys
+### Configure result storage keys
 
 When persisting results, Prefect stores data at a unique, randomly-generated path. While this is convenient for ensuring the result is never overwritten, it limits organization of result files. In this release, we've added configuration of result storage keys, which gives you control over the result file path. Result storage keys can be dynamically formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. 
 
