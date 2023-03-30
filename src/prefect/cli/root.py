@@ -368,8 +368,11 @@ async def deploy(
         base_deploy["version"] = version
     if tags:
         base_deploy["tags"] = tags
+
     if description:
         base_deploy["description"] = description
+    elif not base_deploy["description"]:
+        base_deploy["description"] = flow.description
 
     # TODO: add schedule
 
