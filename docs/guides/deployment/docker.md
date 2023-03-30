@@ -58,7 +58,7 @@ Second, we need to make sure the container includes any additional files, librar
 
 In the [Storage and Infrastructure](/tutorials/storage/) tutorial, recall that we needed to `pip install s3fs` the library for an S3 storage block. You'll need to include the same command in the configuration of the Docker Container infrastructure block. When the agent spins up a container for a flow run, it will know to install the `s3fs` package before starting the flow run.
 
-As a convenience, we can use the [`EXTRA_PIP_PACKAGES` environment variable](/concepts/infrastructure/#installing-extra-dependencies-at-runtime) to install dependencies at runtime. If defined, `pip install ${EXTRA_PIP_PACKAGES}` is executed before the flow run starts.
+As a convenience, Prefect base images check the [`EXTRA_PIP_PACKAGES` environment variable](/concepts/infrastructure/#installing-extra-dependencies-at-runtime) to install dependencies at runtime. If defined, `pip install ${EXTRA_PIP_PACKAGES}` is executed before the flow run starts.
 
 In the **Env (Optional)** box, enter the following to specify that the `s3fs` package should be installed. Note that we use JSON formatting to specify the environment variable (key) and packages to install (value).
 
