@@ -111,6 +111,7 @@ async def get_flow_run_context(orion_client, result_factory, local_filesystem):
                 client=orion_client,
                 task_runner=test_task_runner,
                 result_factory=result_factory,
+                parameters={},
             )
 
     return _get_flow_run_context
