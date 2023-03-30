@@ -86,7 +86,7 @@ def get_name():
 
         return flow_run.name
     else:
-        return flow_run_tx.flow_run.name
+        return flow_run_ctx.flow_run.name
 
 
 def get_flow_name():
