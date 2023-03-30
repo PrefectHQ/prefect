@@ -35,7 +35,7 @@ import pendulum
 def my_first_task():
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
+            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
             description="## Highly variable data",
         )
 
