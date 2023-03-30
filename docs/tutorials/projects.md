@@ -260,7 +260,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 ```
 </div>
 
-You will find 
+Your run should complete succsessfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
 
 #### A counterexample
 
@@ -297,6 +297,25 @@ In order to successfully submit such a project to a dockerized environment, we n
 
 !!! tip "Advanced: `push` steps"
     Populating a `push` step is considered an advanced feature of projects that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
+
+Following the same structure as above, we will include a new `build` step as well as alter our `pull` step to be compatible with the built image's filesystem:
+
+```yaml
+# partial contents of prefect.yaml
+
+build:
+- prefect_docker.projects.steps.build_docker_image:
+    image_name: local-only/testing
+    tag: dev2
+    dockerfile: auto
+    push: false
+
+pull:
+- prefect.projects.steps.set_working_directory:
+    directory: /opt/prefect/hello-projects
+```
+
+Rerunning the same `deploy` command above now gives us a healthy deployment!
 
 
 ## Customizing the steps
