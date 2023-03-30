@@ -11,29 +11,42 @@ Most workflows produce or update an artifact of some kind, whether it's a table,
 A variety of artifact types are available. To create an artifact that produces a table, for example, you can use the `create_table_artifact()` function.
 
 ```python
+from prefect import task, flow
 from prefect.artifacts import create_table_artifact
 
-def my_fn():
-    my_table = [
-        {'repo': 'deep-thoughts', 'language': 'Python', 'stars': 5200}, 
-        {'repo': 'fizz-buzz', 'language': 'Python', 'stars': 31900},
-        {'repo': 'rainbow-bridge', 'language': 'JavaScript', 'stars': 170000},
-        {'repo': 'bubble-sort', 'language': 'JavaScript', 'stars': 184000}
+@task
+def my_table_task():
+    table_data = [
+        {"id": 0, "name": "Dublin", "lat": 53.3498, "lon": -6.2603,},
+        {"id": 1, "name": "London", "lat": 51.5074, "lon": -0.1278,},
+        {"id": 2, "name": "New York", "lat": 40.7128, "lon": -74.0060,},
+        {"id": 3, "name": "Oslo", "lat": 59.9139, "lon": 10.7522,},
+        {"id": 4, "name": "Paris", "lat": 48.8566, "lon": 2.3522,},
+        {"id": 5, "name": "Rome", "lat": 41.9028, "lon": 12.4964,},
+        {"id": 6, "name": "Tokyo", "lat": 35.6895, "lon": 139.6917,},
+        {"id": 7, "name": "Vancouver", "lat": 49.2827, "lon": -123.1207,}
     ]
 
-    create_table_artifact(
-        key="popular-repos",
-        table=my_table,
-        description= "Our most heavily utilized repos for this week!"
+    return create_table_artifact(
+        key="cities-table",
+        table=table_data,
+        description="A table of cities and their coordinates",
     )
 
+@flow
+def my_flow():
+    table = my_table_task()
+    return table
+
 if __name__ == "__main__":
-    my_fn()
+    my_flow()
+
 ```
 
 You can view your artifacts in the Artifacts page of the Prefect UI, easily search the data in your new table artifact, and toggle between a rendered and raw version of your data.
 
 ![Table artifact in a timeline view](https://user-images.githubusercontent.com/27291717/228905740-bd297de9-6381-45ec-aba3-8b72def70a08.png)
+
 See [the documentation](https://docs.prefect.io/concepts/artifacts) for more information, as well as the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/9003
 - https://github.com/PrefectHQ/prefect/pull/8832
