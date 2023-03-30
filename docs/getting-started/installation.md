@@ -52,7 +52,7 @@ pip install -U "prefect==2.8.6"
 ```
 </div>
 
-Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+Find the available release versions in the [Prefect Release Notes](https://github.com/PrefectHQ/prefect/blob/main/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
 
 ### Installing the bleeding edge
 

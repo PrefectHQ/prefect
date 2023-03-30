@@ -636,6 +636,7 @@ async def orchestrate_flow_run(
                 flow=flow,
                 flow_run=flow_run,
                 client=client,
+                parameters=parameters,
             ) as flow_run_context:
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
@@ -1471,10 +1472,15 @@ async def orchestrate_task_run(
     # Generate the cache key to attach to proposed states
     # The cache key uses a TaskRunContext that does not include a `timeout_context``
     cache_key = (
-        task.cache_key_fn(partial_task_run_context.finalize(), resolved_parameters)
+        task.cache_key_fn(
+            partial_task_run_context.finalize(parameters=resolved_parameters),
+            resolved_parameters,
+        )
         if task.cache_key_fn
         else None
     )
+
+    task_run_context = partial_task_run_context.finalize(parameters=resolved_parameters)
 
     # Ignore the cached results for a cache key, default = false
     # Setting on task level overrules the Prefect setting (env var)
@@ -1509,105 +1515,107 @@ async def orchestrate_task_run(
         # Retrieve the latest metadata for the task run context
         task_run = await client.read_task_run(task_run.id)
 
-        try:
-            with timeout_context as timeout_scope:
-                task_run_context = partial_task_run_context.finalize(
-                    timeout_scope=timeout_scope
-                )
-                args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
-
-                # update task run name
-                if not run_name_set and task.task_run_name:
-                    task_run_name = task.task_run_name.format(**resolved_parameters)
-                    await client.set_task_run_name(
-                        task_run_id=task_run.id, name=task_run_name
-                    )
-                    logger.extra["task_run_name"] = task_run_name
-                    logger.debug(
-                        f"Renamed task run {task_run.name!r} to {task_run_name!r}"
-                    )
-                    task_run.name = task_run_name
-                    run_name_set = True
-
-                if PREFECT_DEBUG_MODE.value():
-                    logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
-                else:
-                    logger.debug(
-                        f"Beginning execution...", extra={"state_message": True}
+        with task_run_context.copy(
+            update={"task_run": task_run, "start_time": pendulum.now("UTC")}
+        ):
+            try:
+                with timeout_context as timeout_scope:
+                    args, kwargs = parameters_to_args_kwargs(
+                        task.fn, resolved_parameters
                     )
 
-                with task_run_context.copy(
-                    update={"task_run": task_run, "start_time": pendulum.now("UTC")}
+                    # update task run name
+                    if not run_name_set and task.task_run_name:
+                        task_run_name = task.task_run_name.format(**resolved_parameters)
+                        await client.set_task_run_name(
+                            task_run_id=task_run.id, name=task_run_name
+                        )
+                        logger.extra["task_run_name"] = task_run_name
+                        logger.debug(
+                            f"Renamed task run {task_run.name!r} to {task_run_name!r}"
+                        )
+                        task_run.name = task_run_name
+                        run_name_set = True
+
+                    if PREFECT_DEBUG_MODE.value():
+                        logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
+                    else:
+                        logger.debug(
+                            f"Beginning execution...", extra={"state_message": True}
+                        )
+
+                        call = from_async.call_soon_in_new_thread(
+                            create_call(task.fn, *args, **kwargs)
+                        )
+                        result = await call.aresult()
+
+            except Exception as exc:
+                name = message = None
+                if (
+                    # Task run timeouts
+                    isinstance(exc, TimeoutError)
+                    and timeout_scope
+                    # Only update the message if the timeout was actually encountered since
+                    # this could be a timeout in the user's code
+                    and timeout_scope.cancel_called
                 ):
-                    call = from_async.call_soon_in_new_thread(
-                        create_call(task.fn, *args, **kwargs)
+                    name = "TimedOut"
+                    message = (
+                        f"Task run exceeded timeout of {task.timeout_seconds} seconds"
                     )
-                    result = await call.aresult()
+                    logger.exception(message)
+                else:
+                    message = "Task run encountered an exception:"
+                    logger.exception("Encountered exception during execution:")
 
-        except Exception as exc:
-            name = message = None
-            if (
-                # Task run timeouts
-                isinstance(exc, TimeoutError)
-                and timeout_scope
-                # Only update the message if the timeout was actually encountered since
-                # this could be a timeout in the user's code
-                and timeout_scope.cancel_called
-            ):
-                name = "TimedOut"
-                message = f"Task run exceeded timeout of {task.timeout_seconds} seconds"
-                logger.exception(message)
-            else:
-                message = "Task run encountered an exception:"
-                logger.exception("Encountered exception during execution:")
-
-            terminal_state = await exception_to_failed_state(
-                name=name,
-                message=message,
-                result_factory=task_run_context.result_factory,
-            )
-        else:
-            terminal_state = await return_value_to_state(
-                result,
-                result_factory=task_run_context.result_factory,
-            )
-
-            # for COMPLETED tasks, add the cache key and expiration
-            if terminal_state.is_completed():
-                terminal_state.state_details.cache_expiration = (
-                    (pendulum.now("utc") + task.cache_expiration)
-                    if task.cache_expiration
-                    else None
+                terminal_state = await exception_to_failed_state(
+                    name=name,
+                    message=message,
+                    result_factory=task_run_context.result_factory,
                 )
-                terminal_state.state_details.cache_key = cache_key
+            else:
+                terminal_state = await return_value_to_state(
+                    result,
+                    result_factory=task_run_context.result_factory,
+                )
 
-        state = await propose_state(client, terminal_state, task_run_id=task_run.id)
+                # for COMPLETED tasks, add the cache key and expiration
+                if terminal_state.is_completed():
+                    terminal_state.state_details.cache_expiration = (
+                        (pendulum.now("utc") + task.cache_expiration)
+                        if task.cache_expiration
+                        else None
+                    )
+                    terminal_state.state_details.cache_key = cache_key
 
-        await _run_task_hooks(
-            task=task,
-            task_run=task_run,
-            state=state,
-        )
+            state = await propose_state(client, terminal_state, task_run_id=task_run.id)
 
-        if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
-            logger.debug(
-                (
-                    f"Received new state {state} when proposing final state"
-                    f" {terminal_state}"
-                ),
-                extra={"send_to_orion": False},
+            await _run_task_hooks(
+                task=task,
+                task_run=task_run,
+                state=state,
             )
 
-        if not state.is_final():
-            logger.info(
-                (
-                    f"Received non-final state {state.name!r} when proposing final"
-                    f" state {terminal_state.name!r} and will attempt to run again..."
-                ),
-                extra={"send_to_orion": False},
-            )
-            # Attempt to enter a running state again
-            state = await propose_state(client, Running(), task_run_id=task_run.id)
+            if state.type != terminal_state.type and PREFECT_DEBUG_MODE:
+                logger.debug(
+                    (
+                        f"Received new state {state} when proposing final state"
+                        f" {terminal_state}"
+                    ),
+                    extra={"send_to_orion": False},
+                )
+
+            if not state.is_final():
+                logger.info(
+                    (
+                        f"Received non-final state {state.name!r} when proposing final"
+                        f" state {terminal_state.name!r} and will attempt to run"
+                        " again..."
+                    ),
+                    extra={"send_to_orion": False},
+                )
+                # Attempt to enter a running state again
+                state = await propose_state(client, Running(), task_run_id=task_run.id)
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = repr(state) if PREFECT_DEBUG_MODE else str(state)

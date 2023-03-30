@@ -1487,12 +1487,26 @@ class ArtifactFilterKey(PrefectFilterBaseModel):
         example="my-artifact-%",
     )
 
+    exists_: Optional[bool] = Field(
+        default=None,
+        description=(
+            "If `true`, only include artifacts with a non-null key. If `false`, "
+            "only include artifacts with a null key."
+        ),
+    )
+
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Artifact.key.in_(self.any_))
         if self.like_ is not None:
             filters.append(db.Artifact.key.ilike(f"%{self.like_}%"))
+        if self.exists_ is not None:
+            filters.append(
+                db.Artifact.key.isnot(None)
+                if self.exists_
+                else db.Artifact.key.is_(None)
+            )
         return filters
 
 
@@ -1543,6 +1557,24 @@ class ArtifactFilterType(PrefectFilterBaseModel):
         return filters
 
 
+class ArtifactFilterLatest(PrefectFilterBaseModel):
+    """Filter by `ArtifactCollection.latest_id`."""
+
+    is_latest: bool = Field(
+        default=False,
+        description=(
+            "If `true`, only return the latest artifact for each key. If `false`, "
+            "include all artifacts."
+        ),
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.is_latest:
+            filters.append(db.ArtifactCollection.latest_id == db.Artifact.id)
+        return filters
+
+
 class ArtifactFilter(PrefectOperatorFilterBaseModel):
     """Filter artifacts. Only artifacts matching all criteria will be returned"""
 
@@ -1561,6 +1593,9 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
     type: Optional[ArtifactFilterType] = Field(
         default=None, description="Filter criteria for `Artifact.type`"
     )
+    is_latest: Optional[ArtifactFilterLatest] = Field(
+        default=None, description="If true, only include latest artifacts"
+    )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:
         filters = []
@@ -1575,5 +1610,7 @@ class ArtifactFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.task_run_id.as_sql_filter(db))
         if self.type is not None:
             filters.append(self.type.as_sql_filter(db))
+        if self.is_latest is not None:
+            filters.append(self.is_latest.as_sql_filter(db))
 
         return filters
