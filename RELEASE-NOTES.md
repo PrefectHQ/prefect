@@ -43,10 +43,29 @@ hello__rousing-mushroom__world.json
 
 See [the documentation](https://docs.prefect.io/concepts/results/#result-storage-key) for more information. 
 
+### Expanded `prefect.runtime`
+
+The `prefect.runtime` module is now the preferred way to access information about the current run. In this release, we've added the following attributes:
+
+- `prefect.runtime.task_run.id`
+- `prefect.runtime.task_run.name`
+- `prefect.runtime.task_run.task_name`
+- `prefect.runtime.task_run.tags`
+- `prefect.runtime.task_run.parameters`
+- `prefect.runtime.flow_run.name`
+- `prefect.runtime.flow_run.flow_name`
+- `prefect.runtime.flow_run.parameters`
+
+See [the documentation](https://docs.prefect.io/concepts/runtime-context/) for more information.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/8947
+- https://github.com/PrefectHQ/prefect/pull/8948
+- https://github.com/PrefectHQ/prefect/pull/8949
+
 ### Enhancements
 - Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
-- Add flow name, flow run name, and flow id to `prefect.runtime.flow_run`, enabling them to be retrieved during a flow run's execution - https://github.com/PrefectHQ/prefect/pull/8947, https://github.com/PrefectHQ/prefect/pull/8948, and https://github.com/PrefectHQ/prefect/pull/8951
-- Add `prefect.runtime.task_run` to pull from and adjust the scope of the task run context - https://github.com/PrefectHQ/prefect/pull/8949
+- Update the runtime to detect flow run information from task run contexts — https://github.com/PrefectHQ/prefect/pull/8951
 - Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
 - Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
 
