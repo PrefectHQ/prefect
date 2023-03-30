@@ -310,7 +310,7 @@ You must ensure that filesystem-specific libraries are installed in an execution
 
 In Dockerized deployments using the Prefect base image, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
 
-In Dockerized deployments that utilize a custom image, you must include the filesystem-specific package dependency in your image.
+In Dockerized deployments using a custom image, you must include the filesystem-specific package dependency in your image.
 
 Here is an example from a deployment YAML file showing how to specify the installation of `s3fs` from into your image:
 
