@@ -233,7 +233,10 @@ class APILogWorker:
             if self._started:
                 self._flush_event.set()
                 self._stop_event.set()
-                self._send_thread.join()
+                # TODO: Sometimes the log worker will deadlock and never join during
+                #       an at-exit hook so we will only block for 30 seconds here.
+                #       When logging is refactored, this deadlock should be resolved.
+                self._send_thread.join(30.0)
                 self._started = False
                 self._stopped = True
 
