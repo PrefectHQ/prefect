@@ -41,7 +41,7 @@ hello__rousing-mushroom__foo.json
 hello__rousing-mushroom__world.json
 ```
 
-See [the docs](https://docs.prefect.io/concepts/results/?h=result#result-storage-key) for more information. 
+See [the documentation](https://docs.prefect.io/concepts/results/#result-storage-key) for more information. 
 
 ### Enhancements
 - Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
