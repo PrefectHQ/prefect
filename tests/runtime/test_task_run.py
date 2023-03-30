@@ -3,6 +3,7 @@ import pytest
 from prefect.client.schemas import TaskRun
 from prefect.context import TaskRunContext
 from prefect.runtime import task_run
+from prefect.tasks import Task
 
 
 class TestAttributeAccessPatterns:
@@ -53,3 +54,27 @@ class TestParameters:
     async def test_parameters_from_context(self):
         with TaskRunContext.construct(parameters={"x": "foo", "y": "bar"}):
             assert task_run.parameters == {"x": "foo", "y": "bar"}
+
+
+class TestName:
+    async def test_name_is_attribute(self):
+        assert "name" in dir(task_run)
+
+    async def test_name_is_none_when_not_set(self):
+        assert task_run.name is None
+
+    async def test_name_from_context(self):
+        with TaskRunContext.construct(task_run=TaskRun.construct(name="foo")):
+            assert task_run.name == "foo"
+
+
+class TestTaskName:
+    async def test_task_name_is_attribute(self):
+        assert "task_name" in dir(task_run)
+
+    async def test_task_name_is_none_when_not_set(self):
+        assert task_run.task_name is None
+
+    async def test_task_name_from_context(self):
+        with TaskRunContext.construct(task=Task(fn=lambda: None, name="foo")):
+            assert task_run.task_name == "foo"
