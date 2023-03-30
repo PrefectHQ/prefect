@@ -42,7 +42,7 @@ When persisting results, Prefect stores data at a unique, randomly-generated pat
 
 For example, you can name each result to correspond to the flow run that produced it and a parameter it received:
 
-```
+```python
 from prefect import flow, task
 
 @flow()
