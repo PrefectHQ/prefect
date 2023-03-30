@@ -1,5 +1,73 @@
 # Prefect Release Notes
 
+## Release 2.9.0
+
+### Track and manage artifacts
+
+Most workflows produce or update an artifact of some kind, whether its a table, a file, or a model. With Prefect Artifacts, you can track changes to these outputs and richly display them in the UI as tables, markdown, and links. Artifacts may be associated with a particular task run, flow run, or even exist outside a flow run context, enabling you to not only observe your flows, but the objects that they interact with as well. 
+
+<insert image>
+
+### Result Storage Keys
+
+While Prefect allowed you to persist results to a storage block, the path could only be a UUID, so you were limited in how those results could be organized. This release introduces result storage keys, which enable you to configure the path of the result file in the result storage. Result storage keys can be formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. For example, you can name each result to correspond to the flow that produced it:
+
+```
+from prefect import flow, task 
+
+@flow() 
+def my_flow(): 
+     hello_world() 
+     hello_world(name="foo") 
+     hello_world(name="bar") 
+
+@task(persist_result=True, result_storage_key="hello-{parameters[name]}.json") 
+def hello_world(name: str = "world"): 
+     return f"hello {name}"
+
+my_flow()
+```
+
+Which will persist three result files in the storage directory:
+```
+$ ls ~/.prefect/storage | grep "hello-" 
+hello-bar.json 
+hello-foo.json 
+hello-world.json
+```
+
+See [the docs](https://docs.prefect.io/concepts/results/?h=result#result-storage-key) for more information. 
+
+### Enhancements
+- Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
+- Add support for custom static task storage keys - https://github.com/PrefectHQ/prefect/pull/8924
+- Add flow name, flow run name, and flow id to `prefect.runtime.flow_run`, enabling them to be retrieved during a flow run's execution - https://github.com/PrefectHQ/prefect/pull/8947, https://github.com/PrefectHQ/prefect/pull/8948, and https://github.com/PrefectHQ/prefect/pull/8951
+- Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
+- Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
+
+### Fixes
+- Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
+- Retry on sqlite operational errors - https://github.com/PrefectHQ/prefect/pull/8950
+- Use dot notation for helm release tag - https://github.com/PrefectHQ/prefect/pull/8911
+
+### Documentation
+- Disambiguate reference to "Blocks" - https://github.com/PrefectHQ/prefect/pull/8921
+- Fix broken concepts link - https://github.com/PrefectHQ/prefect/pull/8923
+- Add note about fine-grained PAT format - https://github.com/PrefectHQ/prefect/pull/8929
+- Add `UnpersistedResult` type - https://github.com/PrefectHQ/prefect/pull/8953
+- Update docs CSS and config for versioning compatibility - https://github.com/PrefectHQ/prefect/pull/8957
+- Clarify Filesystem package dependencies - https://github.com/PrefectHQ/prefect/pull/8989
+- Update flow runs documentation - https://github.com/PrefectHQ/prefect/pull/8919
+- Fix missing backticks on Work Pools concept page - https://github.com/PrefectHQ/prefect/pull/8942
+- Update links to the release notes in the installation guide - https://github.com/PrefectHQ/prefect/pull/8974
+
+### Contributors
+- @andreadistefano made their first contribution in https://github.com/PrefectHQ/prefect/pull/8942
+- @knl made their first contribution in https://github.com/PrefectHQ/prefect/pull/8974
+- @thomas-te made their first contribution in https://github.com/PrefectHQ/prefect/pull/8959
+
+
+
 ## Release 2.8.7
 
 If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling, flow run graph enhancements, and result artifacts. With this release, these experiments have culminated into exciting features!
@@ -178,7 +246,7 @@ See https://github.com/PrefectHQ/prefect/pull/8790 for details.
 - Corrected typo in Storage.md — https://github.com/PrefectHQ/prefect/pull/8692
 - Fix `prefect flow-run cancel` help — https://github.com/PrefectHQ/prefect/pull/8755
 
-### New Contributors
+### Contributors
 * @Zesky665 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8692
 * @predatorprasad made their first contribution in https://github.com/PrefectHQ/prefect/pull/8755
 
