@@ -5,6 +5,7 @@ import router from '@/router'
 import { initColorMode } from '@/utilities/colorMode'
 
 // styles
+import '@prefecthq/vue-charts/dist/style.css'
 import '@prefecthq/prefect-design/dist/style.css'
 import '@prefecthq/prefect-ui-library/dist/style.css'
 import '@/styles/style.css'
