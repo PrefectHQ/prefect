@@ -1,5 +1,148 @@
 # Prefect Release Notes
 
+## Release 2.9.0
+
+### Track and manage artifacts
+
+Most workflows produce or update an artifact of some kind, whether it's a table, a file, or a model. With Prefect Artifacts, you can track changes to these outputs and richly display them in the UI as tables, markdown, and links. Artifacts may be associated with a particular task run, flow run, or even exist outside a flow run context, enabling you to not only observe your flows, but the objects that they interact with as well. 
+
+![Artifacts top-level view](https://user-images.githubusercontent.com/27291717/228905742-0bad7874-6b6b-4000-9111-1c4d0e0bd6e1.png)
+
+A variety of artifact types are available. To create an artifact that produces a table, for example, you can use the `create_table_artifact()` function.
+
+```python
+from prefect import task, flow
+from prefect.artifacts import create_table_artifact
+
+@task
+def my_table_task():
+    table_data = [
+        {"id": 0, "name": "Dublin", "lat": 53.3498, "lon": -6.2603,},
+        {"id": 1, "name": "London", "lat": 51.5074, "lon": -0.1278,},
+        {"id": 2, "name": "New York", "lat": 40.7128, "lon": -74.0060,},
+        {"id": 3, "name": "Oslo", "lat": 59.9139, "lon": 10.7522,},
+        {"id": 4, "name": "Paris", "lat": 48.8566, "lon": 2.3522,},
+        {"id": 5, "name": "Rome", "lat": 41.9028, "lon": 12.4964,},
+        {"id": 6, "name": "Tokyo", "lat": 35.6895, "lon": 139.6917,},
+        {"id": 7, "name": "Vancouver", "lat": 49.2827, "lon": -123.1207,}
+    ]
+
+    return create_table_artifact(
+        key="cities-table",
+        table=table_data,
+        description="A table of cities and their coordinates",
+    )
+
+@flow
+def my_flow():
+    table = my_table_task()
+    return table
+
+if __name__ == "__main__":
+    my_flow()
+
+```
+
+You can view your artifacts in the Artifacts page of the Prefect UI, easily search the data in your new table artifact, and toggle between a rendered and raw version of your data.
+
+![Table artifact in a timeline view](https://user-images.githubusercontent.com/27291717/228905740-bd297de9-6381-45ec-aba3-8b72def70a08.png)
+
+See [the documentation](https://docs.prefect.io/concepts/artifacts) for more information, as well as the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9003
+- https://github.com/PrefectHQ/prefect/pull/8832
+- https://github.com/PrefectHQ/prefect/pull/8932
+- https://github.com/PrefectHQ/prefect/pull/8875
+- https://github.com/PrefectHQ/prefect/pull/8874
+- https://github.com/PrefectHQ/prefect/pull/8985
+
+### Configure result storage keys
+
+When persisting results, Prefect stores data at a unique, randomly-generated path. While this is convenient for ensuring the result is never overwritten, it limits organization of result files. In this release, we've added configuration of result storage keys, which gives you control over the result file path. Result storage keys can be dynamically formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. 
+
+For example, you can name each result to correspond to the flow run that produced it and a parameter it received:
+
+```python
+from prefect import flow, task
+
+@flow()
+def my_flow():
+    hello_world()
+    hello_world(name="foo")
+    hello_world(name="bar")
+
+@task(
+    persist_result=True,
+    result_storage_key="hello__{flow_run.name}__{parameters[name]}.json",
+)
+def hello_world(name: str = "world"):
+    return f"hello {name}"
+
+my_flow()
+```
+
+Which will persist three result files in the storage directory:
+```
+$ ls ~/.prefect/storage | grep "hello__" 
+hello__rousing-mushroom__bar.json
+hello__rousing-mushroom__foo.json
+hello__rousing-mushroom__world.json
+```
+
+See [the documentation](https://docs.prefect.io/concepts/results/#result-storage-key) for more information. 
+
+### Expanded `prefect.runtime`
+
+The `prefect.runtime` module is now the preferred way to access information about the current run. In this release, we've added the following attributes:
+
+- `prefect.runtime.task_run.id`
+- `prefect.runtime.task_run.name`
+- `prefect.runtime.task_run.task_name`
+- `prefect.runtime.task_run.tags`
+- `prefect.runtime.task_run.parameters`
+- `prefect.runtime.flow_run.name`
+- `prefect.runtime.flow_run.flow_name`
+- `prefect.runtime.flow_run.parameters`
+
+See [the documentation](https://docs.prefect.io/concepts/runtime-context/) for more information.
+
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/8947
+- https://github.com/PrefectHQ/prefect/pull/8948
+- https://github.com/PrefectHQ/prefect/pull/8949
+- https://github.com/PrefectHQ/prefect/pull/8951
+- https://github.com/PrefectHQ/prefect/pull/8954
+- https://github.com/PrefectHQ/prefect/pull/8956
+
+### Enhancements
+- Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
+- Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
+- Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
+- Update the runtime to detect flow run information from task run contexts — https://github.com/PrefectHQ/prefect/pull/8951
+
+### Fixes
+- Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
+- Retry on sqlite operational errors - https://github.com/PrefectHQ/prefect/pull/8950
+- Add 30 second timeout to shutdown of the log worker thread — https://github.com/PrefectHQ/prefect/pull/8983
+
+### Documentation
+- Disambiguate reference to "Blocks" - https://github.com/PrefectHQ/prefect/pull/8921
+- Fix broken concepts link - https://github.com/PrefectHQ/prefect/pull/8923
+- Add note about fine-grained PAT format - https://github.com/PrefectHQ/prefect/pull/8929
+- Add `UnpersistedResult` type - https://github.com/PrefectHQ/prefect/pull/8953
+- Update docs CSS and config for versioning compatibility - https://github.com/PrefectHQ/prefect/pull/8957
+- Clarify Filesystem package dependencies - https://github.com/PrefectHQ/prefect/pull/8989
+- Update flow runs documentation - https://github.com/PrefectHQ/prefect/pull/8919
+- Fix missing backticks on Work Pools concept page - https://github.com/PrefectHQ/prefect/pull/8942
+- Update links to the release notes in the installation guide - https://github.com/PrefectHQ/prefect/pull/8974
+- Fix `EXTRA_PIP_PACKAGES` info in Docker guide — https://github.com/PrefectHQ/prefect/pull/8995
+- Fix `KubernetesJob.job_watch_timeout_seconds` docstring — https://github.com/PrefectHQ/prefect/pull/8977
+- Add task run runtime to API reference — https://github.com/PrefectHQ/prefect/pull/8998
+- Add documentation for runtime context — https://github.com/PrefectHQ/prefect/pull/8999
+
+### Contributors
+- @andreadistefano made their first contribution in https://github.com/PrefectHQ/prefect/pull/8942
+- @knl made their first contribution in https://github.com/PrefectHQ/prefect/pull/8974
+- @thomas-te made their first contribution in https://github.com/PrefectHQ/prefect/pull/8959
 ## Release 2.8.7
 
 If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling, flow run graph enhancements, and result artifacts. With this release, these experiments have culminated into exciting features!
@@ -178,7 +321,7 @@ See https://github.com/PrefectHQ/prefect/pull/8790 for details.
 - Corrected typo in Storage.md — https://github.com/PrefectHQ/prefect/pull/8692
 - Fix `prefect flow-run cancel` help — https://github.com/PrefectHQ/prefect/pull/8755
 
-### New Contributors
+### Contributors
 * @Zesky665 made their first contribution in https://github.com/PrefectHQ/prefect/pull/8692
 * @predatorprasad made their first contribution in https://github.com/PrefectHQ/prefect/pull/8755
 
