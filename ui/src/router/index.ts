@@ -4,6 +4,9 @@ import { routes, NamedRoute, AppRouteLocation, AppRouteRecord } from '@/router/r
 import { BASE_URL } from '@/utilities/meta'
 
 const workspaceRoutes = createWorkspaceRouteRecords({
+  artifact: () => import('@/pages/Artifact.vue'),
+  artifactKey: () => import('@/pages/ArtifactKey.vue'),
+  artifacts: () => import('@/pages/Artifacts.vue'),
   flowRuns: () => import('@/pages/FlowRuns.vue'),
   flowRun: () => import('@/pages/FlowRun.vue'),
   flowRunRadar: () => import('@/pages/FlowRunRadar.vue'),

@@ -8,6 +8,8 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return 'access:workers'
     case 'work_pools':
       return 'access:work_pools'
+    case 'artifacts':
+      return 'access:artifacts'
     default:
       return null
   }
