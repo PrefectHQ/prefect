@@ -35,6 +35,14 @@ You can view your artifacts in the Artifacts page of the Prefect UI, easily sear
 
 <insert image>
 
+See the following pull requests for implementation details:
+- https://github.com/PrefectHQ/prefect/pull/9003
+- https://github.com/PrefectHQ/prefect/pull/8832
+- https://github.com/PrefectHQ/prefect/pull/8932
+- https://github.com/PrefectHQ/prefect/commit/3a6cfcff153eccbced252291fd82d2cda0f19aa6
+- https://github.com/PrefectHQ/prefect/pull/8875
+- https://github.com/PrefectHQ/prefect/pull/8874
+
 ### Configure result storage keys
 
 When persisting results, Prefect stores data at a unique, randomly-generated path. While this is convenient for ensuring the result is never overwritten, it limits organization of result files. In this release, we've added configuration of result storage keys, which gives you control over the result file path. Result storage keys can be dynamically formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. 
