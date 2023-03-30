@@ -122,9 +122,6 @@ See the following pull requests for implementation details:
 - @andreadistefano made their first contribution in https://github.com/PrefectHQ/prefect/pull/8942
 - @knl made their first contribution in https://github.com/PrefectHQ/prefect/pull/8974
 - @thomas-te made their first contribution in https://github.com/PrefectHQ/prefect/pull/8959
-
-
-
 ## Release 2.8.7
 
 If you have been watching the experimental section of our release notes, you may have noticed a lot of work around concurrency tooling, flow run graph enhancements, and result artifacts. With this release, these experiments have culminated into exciting features!
