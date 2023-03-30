@@ -147,11 +147,52 @@ We can now proceed with the same steps as above to create a new deployment:
 
 <div class="terminal">
 ```bash
-$ git clone https://github.com/PrefectHQ/hello-projects
-$ cd hello-projects
-$ prefect project init
+$ prefect deploy -f 'log-flow' \
+    -n my-git-deployment \
+    -p local-work
 ```
 </div>
+
+Notice that we were able to deploy based on flow name alone; this is because the repository owner [pre-registered the `log-flow` for us](https://github.com/PrefectHQ/hello-projects/blob/main/.prefect/flows.json).  Alternatively, we could run `prefect deploy ./flows/log_flow.py:log_flow` if we knew the full entrypoint path.
+
+
+Let's run this flow and discuss it's output:
+<div class="terminal">
+```bash
+$ prefect deployment run 'log-flow/my-git-deployment'
+```
+</div>
+
+In your worker process, you should see output that looks something like this:
+<div class="terminal">
+```bash
+Cloning into 'hello-projects'...
+...
+12:01:43.188 | INFO    | Task run 'log_task-0' - Hello Marvin!
+12:01:43.189 | INFO    | Task run 'log_task-0' - Prefect Version = 2.8.7+84.ge479b48b6.dirty 🚀
+12:01:43.189 | INFO    | Task run 'log_task-0' - Hello from another file
+...
+12:01:43.236 | INFO    | Task run 'log_config-0' - Found config {'some-piece-of-config': 100}
+...
+12:01:43.266 | INFO    | Flow run 'delicate-labrador' - Finished in state Completed('All states completed.')
+```
+</div>
+
+A few important notes on what we're looking at here:
+
+- You'll notice the message "Hello from another file"; this flow imports code from [other related files](https://github.com/PrefectHQ/hello-projects/tree/main/flows) within the project. Prefect takes care of migrating the _entire_ project directory for you, which includes files that you may import from
+- Similarly, the configuration that is logged is located within [the root directory](https://github.com/PrefectHQ/hello-projects/blob/main/config.json) of this project; you can always consider this root directory your working directory both locally and when this deployment is executed remotely
+- Lastly, note the top line "Cloning into 'hello-projects'..."; because this project is based out of a GitHub repository, it is _automatically_ portable to any remote location where both `git` and `prefect` are configured! You can convince yourself of this by either running a new local worker on a different machine, or by switching this deployment to run with your docker work pool (more on this shortly).
+
+!!! note "`prefect.yaml`"
+    The above process worked out-of-the-box because of the information stored within `prefect.yaml`; if you open this file up in a text editor, you'll find that is not empty.  Specifically, it contains the following `pull` step that was automatically populated when you first ran `prefect project init`:
+    ```yaml
+    pull:
+    - prefect.projects.steps.git_clone_project:
+        repository: https://github.com/PrefectHQ/hello-projects.git
+        branch: main
+    ```
+    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations.
 
 
 ### Dockerized deployment
