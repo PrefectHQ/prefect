@@ -8,6 +8,7 @@
     <p-context-nav-item title="Blocks" icon="CubeIcon" :to="routes.blocks()" />
     <p-context-nav-item title="Notifications" icon="BellIcon" :to="routes.notifications()" />
     <p-context-nav-item title="Task Run Concurrency" icon="Task" :to="routes.concurrencyLimits()" />
+    <p-context-nav-item v-if="canSeeArtifacts" title="Artifacts" icon="FingerPrintIcon" :to="routes.artifacts()" />
 
     <template #footer>
       <p-context-nav-item title="Settings" icon="CogIcon" :to="routes.settings()" />
@@ -23,4 +24,5 @@
 
   const can = useCan()
   const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
+  const canSeeArtifacts = computed(() => can.access.artifacts)
 </script>
