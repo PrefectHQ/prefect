@@ -89,14 +89,14 @@ See the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/8947
 - https://github.com/PrefectHQ/prefect/pull/8948
 - https://github.com/PrefectHQ/prefect/pull/8949
+- https://github.com/PrefectHQ/prefect/pull/8951
+- https://github.com/PrefectHQ/prefect/pull/8954
+- https://github.com/PrefectHQ/prefect/pull/8956
 
 ### Enhancements
 - Add unique integers to worker thread names for inspection - https://github.com/PrefectHQ/prefect/pull/8908
-- Update the runtime to detect flow run information from task run contexts — https://github.com/PrefectHQ/prefect/pull/8951
 - Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
 - Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
-- Add task_name to the `task_run` runtime module — https://github.com/PrefectHQ/prefect/pull/8954
-- Add flow run parameter retrieval to `flow_run` runtime module — https://github.com/PrefectHQ/prefect/pull/8956
 
 ### Fixes
 - Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
