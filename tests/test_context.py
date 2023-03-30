@@ -100,6 +100,7 @@ async def test_flow_run_context(orion_client):
             task_runner=test_task_runner,
             result_factory=result_factory,
             background_tasks=task_group,
+            parameters={"x": "y"},
         ):
             ctx = FlowRunContext.get()
             assert ctx.flow is foo
@@ -108,6 +109,7 @@ async def test_flow_run_context(orion_client):
             assert ctx.task_runner is test_task_runner
             assert ctx.result_factory == result_factory
             assert isinstance(ctx.start_time, DateTime)
+            assert ctx.parameters == {"x": "y"}
 
 
 async def test_task_run_context(orion_client, flow_run):
@@ -169,6 +171,7 @@ async def test_get_run_context(orion_client, local_filesystem):
             task_runner=test_task_runner,
             background_tasks=task_group,
             result_factory=await ResultFactory.from_flow(foo, client=orion_client),
+            parameters={"x": "y"},
         ) as flow_ctx:
             assert get_run_context() is flow_ctx
 
