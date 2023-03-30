@@ -2349,6 +2349,17 @@ class PrefectClient:
             else:
                 raise
 
+    async def read_variable_by_name(self, variable_name: str) -> schemas.core.Variable:
+        """TODO!!!"""
+        try:
+            response = await self._client.get(f"/variables/name/{variable_name}")
+            return pydantic.parse_obj_as(schemas.core.Variable, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
     async def __aenter__(self):
         """
         Start the client.

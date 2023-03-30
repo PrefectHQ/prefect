@@ -1203,3 +1203,17 @@ class Artifact(ORMBaseModel):
             if len(str(v[key])) > max_metadata_length:
                 v[key] = str(v[key])[:max_metadata_length] + "..."
         return v
+
+
+class Variable(ORMBaseModel):
+    name: str = Field(
+        default=..., description="The name of the variable", example="my-variable"
+    )
+    value: str = Field(
+        default=..., description="The value of the variable", example="my-value"
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
+    )
