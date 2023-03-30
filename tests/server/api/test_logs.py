@@ -22,6 +22,7 @@ from prefect.server.schemas.filters import LogFilter
 NOW = pendulum.now("UTC")
 CREATE_LOGS_URL = "/logs/"
 READ_LOGS_URL = "/logs/filter"
+COUNT_LOGS_URL = "/logs/count"
 
 
 @pytest.fixture
@@ -239,3 +240,39 @@ class TestReadLogs:
         assert api_logs[0].task_run_id == UUID(single_task_run_log["task_run_id"])
         assert api_logs[-1].task_run_id == task_run_id
         assert api_logs[0].task_run_id > api_logs[-1].task_run_id
+
+
+class TestCountLogs:
+    @pytest.fixture()
+    async def single_flow_run_log(self, client):
+        flow_run_logs = [
+            LogCreate(
+                name="prefect.flow_run",
+                level=80,
+                message="Full speed ahead!",
+                timestamp=NOW,
+                flow_run_id=uuid1(),
+            ).dict(json_compatible=True)
+        ]
+        await client.post(CREATE_LOGS_URL, json=flow_run_logs)
+        yield flow_run_logs[0]
+
+    async def test_log_count_single(self, client, single_flow_run_log):
+        log_filter = {"flow_run_id": {"any_": [single_flow_run_log["flow_run_id"]]}}
+        response = await client.post(COUNT_LOGS_URL, json=log_filter)
+        assert response.json() == 1
+
+    async def test_log_count_function(self, session, client, log_data, flow_run_id):
+        await client.post(CREATE_LOGS_URL, json=log_data)
+        log_filter = LogFilter(flow_run_id={"any_": [flow_run_id]})
+        count = await models.logs.count_logs(session=session, log_filter=log_filter)
+        assert count == 2
+
+    async def test_log_count(self, client, log_data, flow_run_id):
+        response = await client.post(COUNT_LOGS_URL, json={})
+        assert response.json() == 0
+
+        await client.post(CREATE_LOGS_URL, json=log_data)
+        log_filter = {"flow_run_id": {"any_": [str(flow_run_id)]}}
+        response = await client.post(COUNT_LOGS_URL, json=log_filter)
+        assert response.json() == 2

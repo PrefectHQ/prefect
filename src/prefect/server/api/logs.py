@@ -42,3 +42,15 @@ async def read_logs(
         return await models.logs.read_logs(
             session=session, log_filter=logs, offset=offset, limit=limit, sort=sort
         )
+
+
+@router.post("/count")
+async def count_logs(
+    logs: schemas.filters.LogFilter = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Query for log count.
+    """
+    async with db.session_context() as session:
+        return await models.logs.count_logs(session=session, log_filter=logs)

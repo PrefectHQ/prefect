@@ -4,7 +4,7 @@ Intended for internal use by the Prefect REST API.
 """
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
@@ -75,3 +75,26 @@ async def read_logs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@inject_db
+async def count_logs(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    log_filter: schemas.filters.LogFilter,
+):
+    """
+    Count the number of logs matching the specified filter.
+
+    Args:
+        session: a database session
+        db: the database interface
+        log_filter: only count logs that match these filters
+
+    Returns:
+        int: the number of matching logs
+    """
+    query = select(func.count(db.Log.id)).where(log_filter.as_sql_filter(db))
+
+    result = await session.execute(query)
+    return result.scalar()

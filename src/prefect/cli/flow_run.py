@@ -171,6 +171,13 @@ async def logs(
         "-r",
         help="Reverse the logs order to print the most recent logs first",
     ),
+    tail: int = typer.Option(
+        None,
+        "--tail",
+        "-t",
+        help="Show the last N logs",
+        min=1,
+    ),
 ):
     """
     View logs for a flow run.
@@ -194,6 +201,12 @@ async def logs(
             flow_run = await client.read_flow_run(id)
         except ObjectNotFound as exc:
             exit_with_error(f"Flow run {str(id)!r} not found!")
+
+        if tail:
+            # Count the total number of logs in the flow run
+            total_logs_count = await client.count_logs(log_filter=log_filter)
+            # Calculate the offset to retrieve the last N logs
+            offset = max(0, total_logs_count - tail)
 
         while more_logs:
             num_logs_to_return_from_page = (

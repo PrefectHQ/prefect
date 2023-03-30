@@ -2020,6 +2020,16 @@ class PrefectClient:
         response = await self._client.post(f"/logs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Log], response.json())
 
+    async def count_logs(self, log_filter: LogFilter = None) -> int:
+        """
+        Get count of flow and task run logs.
+        """
+        body = log_filter.dict(json_compatible=True) if log_filter else {}
+
+        response = await self._client.post(f"/logs/count", json=body)
+
+        return response.json()
+
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
         """
         Recursively decode possibly nested data documents.
