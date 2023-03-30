@@ -22,7 +22,7 @@ def my_fn():
     ]
 
     create_table_artifact(
-        key="fun-data-table",
+        key="popular-repos",
         table=my_table,
         description= "Our most heavily utilized repos for this week!"
     )
