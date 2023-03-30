@@ -393,6 +393,7 @@ async def deploy(
     base_deploy["work_pool"]["job_variables"] = apply_values(
         base_deploy["work_pool"]["job_variables"], step_outputs
     )
+    base_deploy["work_pool"]["job_variables"].update(variable_overrides)
 
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
