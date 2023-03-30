@@ -67,15 +67,13 @@
   const artifactSubscription = useSubscription(api.artifacts.getArtifact, [artifactId])
   const artifact = computed(() => artifactSubscription.response)
 
-  const computedTabs = computed(() => [
+  const showRaw = ref(false)
+
+  const { tab, tabs } = useTabs([
     { label: 'Artifact' },
     { label: 'Details' },
     { label: 'Raw' },
   ])
-
-  const showRaw = ref(false)
-
-  const { tab, tabs } = useTabs(computedTabs)
 
   const pageTitle = computed<string>(() => {
     if (!artifact.value) {
