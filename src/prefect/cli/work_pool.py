@@ -1,7 +1,7 @@
 """
 Command line interface for working with work queues.
 """
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 import pendulum
 import typer
@@ -58,13 +58,9 @@ async def create(
     # will always be an empty dict until workers added
     base_job_template = await get_default_base_job_template_for_type(type)
     if base_job_template is None:
-        base_job_template = dict()
-        app.console.print(
-            (
-                "Unable to find a default base job template for type "
-                f"{type!r}. Creating a work pool with an empty base job template."
-            ),
-            style="yellow",
+        exit_with_error(
+            f"Unknown work pool type {type!r}. "
+            f"Please choose from {', '.join(await get_available_work_pool_types())}."
         )
     async with get_client() as client:
         try:
@@ -402,6 +398,28 @@ async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str
                 for worker in collection.values():
                     if worker.get("type") == type:
                         return worker.get("default_base_job_configuration")
-        except Exception as exc:
-            print(exc)
+        except Exception:
             return None
+
+
+async def get_available_work_pool_types() -> Set[str]:
+    work_pool_types = []
+    worker_registry = get_registry_for_type(BaseWorker)
+    if worker_registry is not None:
+        work_pool_types.extend(worker_registry.keys())
+
+    async with get_cloud_client() as client:
+        try:
+            worker_metadata = await client.get(
+                "collections/views/aggregate-worker-metadata"
+            )
+
+            for collection in worker_metadata.values():
+                for worker in collection.values():
+                    work_pool_types.append(worker.get("type"))
+        except Exception:
+            # Return only work pool types from the local type registry if
+            # the request to the collections registry fails.
+            pass
+
+    return set([type for type in work_pool_types if type is not None])
