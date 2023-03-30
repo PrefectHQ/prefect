@@ -210,12 +210,13 @@ async def deploy(
             "It will be created if it doesn't already exist. Defaults to `None`."
         ),
     ),
-    overrides: List[str] = typer.Option(
+    variables: List[str] = typer.Option(
         None,
-        "--override",
+        "-v",
+        "--variable",
         help=(
-            "One or more optional infrastructure overrides provided as a dot delimited"
-            " path, e.g., `env.env_key=env_value`"
+            "One or more job variable overrides for the work pool provided in the"
+            " format of key=value"
         ),
     ),
     cron: str = typer.Option(
@@ -360,6 +361,13 @@ async def deploy(
     step_outputs = {}
     for step in project["build"] + project["push"]:
         step_outputs.update(run_step(step))
+
+    variable_overrides = {}
+    for variable in variables or []:
+        key, value = variable.split("=", 1)
+        variable_overrides[key] = value
+
+    step_outputs.update(variable_overrides)
 
     # set other CLI flags
     if name:

@@ -197,7 +197,106 @@ A few important notes on what we're looking at here:
 
 ### Dockerized deployment
 
-In this example, we extend the above two by dockerizing our setup and executing runs with the Docker Worker.
+In this example, we extend the above two by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that we started at the beginning:
+
+<div class="terminal">
+```bash
+$ prefect deploy -f 'log-flow' \
+    -n my-docker-git-deployment \
+    -p docker-work
+$ prefect deployment run 'log-flow/my-docker-git-deployment'
+```
+</div>
+
+As promised above, this worked out of the box!  
+
+Let's deploy a new flow from this project that requires additional dependencies that might not be available in the default image our work pool is using; this flow requires both `pandas` and `numpy` as a dependency, which we will also install locally first and confirm the flow is working:
+
+<div class="terminal">
+```bash
+$ pip install -r requirements.txt
+$ python flows/pandas_flow.py
+```
+</div>
+
+We now have two options for how to manage these dependencies:
+
+- setting the `EXTRA_PIP_PACKAGES` environment variable
+- building a custom Docker image with the dependencies baked in
+
+The first option is the quickest, but it does run the risk of changing runtime state from one run to the next and is not recommended for production use cases.  For the second option, we will specify a `build` step within our `prefect.yaml` file as follows:
+
+```yaml
+# partial contents of prefect.yaml
+
+build:
+- prefect_docker.projects.steps.build_docker_image:
+    image_name: local-only/testing
+    tag: dev
+    dockerfile: auto
+    push: false
+
+pull:
+- prefect.projects.steps.git_clone_project:
+    repository: https://github.com/PrefectHQ/hello-projects.git
+    branch: main
+```
+
+A few notes:
+
+- each step references a function with inputs and outputs
+- in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
+- to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
+
+All that's left to do is create our deployment and specify our image name to instruct the worker what image to pull:
+
+<div class="terminal">
+```bash
+$ prefect deploy -f 'pandas-flow' \
+    -n docker-build-deployment \
+    -p docker-work \
+    -v image=local-only/testing:dev
+$ prefect deployment run 'log-flow/my-docker-git-deployment'
+```
+</div>
+
+You will find 
+
+#### A counterexample
+
+Revisiting [our local deployment above](#local-deployment), let's begin by switching it to submit work to our `docker-work` work pool by re-running `prefect deploy` to see what happens:
+
+<div class="terminal">
+```bash
+$ prefect deploy ./api_flow.py:call_api \
+    -n my-second-deployment \
+    -p docker-work
+$ prefect deployment run 'Call API/my-second-deployment'
+```
+</div>
+
+This fails with the following error:
+<div class="terminal">
+```bash
+ERROR: FileNotFoundError: [Errno 2] No such file or directory: '/Users/chris/dev/my-first-project'
+```
+</div>
+
+The reason this occurs is because our deployment has a fundamentally local `pull` step; inspecting `prefect.yaml` we find:
+
+```yaml
+pull:
+- prefect.projects.steps.set_working_directory:
+    directory: /Users/chris/dev/my-first-project
+```
+
+In order to successfully submit such a project to a dockerized environment, we need to either:
+
+- `push` this project to a remote location (such as GitHub, or possibly a Cloud storage bucket)
+- `build` this project into a Docker image artifact 
+
+!!! tip "Advanced: `push` steps"
+    Populating a `push` step is considered an advanced feature of projects that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
 
 ## Customizing the steps
 
