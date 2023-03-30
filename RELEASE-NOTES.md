@@ -11,7 +11,6 @@ Most workflows produce or update an artifact of some kind, whether its a table, 
 A variety of artifact types are available. To create an artifact that produces a table, for example, you can use the `create_table_artifact()` function.
 
 ```python
-from prefect import flow, task
 from prefect.artifacts import create_table_artifact
 
 def my_fn():
