@@ -1,7 +1,7 @@
 """
 Command line interface for working with work queues.
 """
-from typing import Optional
+from typing import Any, Dict, Optional
 
 import pendulum
 import typer
@@ -9,12 +9,18 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import experimental
+from prefect._internal.compatibility.experimental import (
+    experimental,
+    experimental_parameter,
+)
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
+from prefect.client.cloud import get_cloud_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
+from prefect.experimental.workers.base import BaseWorker
 from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.utilities.dispatch import get_registry_for_type
 
 work_pool_app = PrefectTyper(
     name="work-pool", help="Commands for working with work pools."
@@ -27,12 +33,19 @@ app.add_typer(work_pool_app, aliases=["work-pool"])
     feature="The Work Pool CLI",
     group="work_pools",
 )
+@experimental_parameter(
+    name="type",
+    group="work_pools",
+)
 async def create(
     name: str = typer.Argument(..., help="The name of the work pool."),
-    paused: Optional[bool] = typer.Option(
+    paused: bool = typer.Option(
         False,
         "--paused",
         help="Whether or not to create the work pool in a paused state.",
+    ),
+    type: str = typer.Option(
+        "prefect-agent", "-t", "--type", help="The type of work pool to create."
     ),
 ):
     """
@@ -43,12 +56,21 @@ async def create(
         $ prefect work-pool create "my-pool" --paused
     """
     # will always be an empty dict until workers added
-    base_job_template = dict()
+    base_job_template = await get_default_base_job_template_for_type(type)
+    if base_job_template is None:
+        base_job_template = dict()
+        app.console.print(
+            (
+                "Unable to find a default base job template for type "
+                f"{type!r}. Creating a work pool with an empty base job template."
+            ),
+            style="yellow",
+        )
     async with get_client() as client:
         try:
             wp = WorkPoolCreate(
                 name=name,
-                type="prefect-agent",
+                type=type,
                 base_job_template=base_job_template,
                 is_paused=paused,
             )
@@ -357,3 +379,29 @@ async def preview(
             ),
             style="yellow",
         )
+
+
+async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str, Any]]:
+    # Attempt to get the default base job template for the worker type
+    # from the local type registry first.
+    worker_registry = get_registry_for_type(BaseWorker)
+    if worker_registry is not None:
+        worker_cls = worker_registry.get(type)
+        if worker_cls is not None:
+            return worker_cls.get_default_base_job_template()
+
+    # If the worker type is not found in the local type registry, attempt to
+    # get the default base job template from the collections registry.
+    async with get_cloud_client() as client:
+        try:
+            worker_metadata = await client.get(
+                "collections/views/aggregate-worker-metadata"
+            )
+
+            for collection in worker_metadata.values():
+                for worker in collection.values():
+                    if worker.get("type") == type:
+                        return worker.get("default_base_job_configuration")
+        except Exception as exc:
+            print(exc)
+            return None
