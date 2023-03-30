@@ -32,10 +32,10 @@ my_flow()
 
 Which will persist three result files in the storage directory:
 ```
-$ ls ~/.prefect/storage | grep "hello-" 
-hello-bar.json 
-hello-foo.json 
-hello-world.json
+$ ls ~/.prefect/storage | grep "hello__" 
+hello__rousing-mushroom__bar.json
+hello__rousing-mushroom__foo.json
+hello__rousing-mushroom__world.json
 ```
 
 See [the docs](https://docs.prefect.io/concepts/results/?h=result#result-storage-key) for more information. 
