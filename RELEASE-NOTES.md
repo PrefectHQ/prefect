@@ -8,7 +8,7 @@ Most workflows produce or update an artifact of some kind, whether its a table, 
 
 <insert image>
 
-### Result Storage Keys
+### Result storage keys
 
 While Prefect allowed you to persist results to a storage block, the path could only be a UUID, so you were limited in how those results could be organized. This release introduces result storage keys, which enable you to configure the path of the result file in the result storage. Result storage keys can be formatted with access to all of the modules in `prefect.runtime` and the run's `parameters`. For example, you can name each result to correspond to the flow that produced it:
 
