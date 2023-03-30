@@ -43,7 +43,7 @@ def my_first_task():
 def my_second_task():
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
+            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
             description="# Low prediction accuracy",
         )
 
