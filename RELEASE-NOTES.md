@@ -15,17 +15,20 @@ While Prefect allowed you to persist results to a storage block, the path could 
 For example, you can name each result to correspond to the flow run that produced it and a parameter it received:
 
 ```
-from prefect import flow, task 
+from prefect import flow, task
 
-@flow() 
-def my_flow(): 
-     hello_world() 
-     hello_world(name="foo") 
-     hello_world(name="bar") 
+@flow()
+def my_flow():
+    hello_world()
+    hello_world(name="foo")
+    hello_world(name="bar")
 
-@task(persist_result=True, result_storage_key="hello-{parameters[name]}.json") 
-def hello_world(name: str = "world"): 
-     return f"hello {name}"
+@task(
+    persist_result=True,
+    result_storage_key="hello__{flow_run.name}__{parameters[name]}.json",
+)
+def hello_world(name: str = "world"):
+    return f"hello {name}"
 
 my_flow()
 ```
