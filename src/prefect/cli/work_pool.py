@@ -400,6 +400,7 @@ async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str
                         return worker.get("default_base_job_configuration")
         except Exception:
             return None
+    return None
 
 
 async def get_available_work_pool_types() -> Set[str]:
