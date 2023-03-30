@@ -96,10 +96,13 @@ See the following pull requests for implementation details:
 - Update the runtime to detect flow run information from task run contexts — https://github.com/PrefectHQ/prefect/pull/8951
 - Add support to `JSONSerializer` for serialization of exceptions so they are persisted even on failure - https://github.com/PrefectHQ/prefect/pull/8922
 - Add Gzip middleware to the UI and API FastAPI apps for compressing responses - https://github.com/PrefectHQ/prefect/pull/8931
+- Add task_name to the `task_run` runtime module — https://github.com/PrefectHQ/prefect/pull/8954
+- Add flow run parameter retrieval to `flow_run` runtime module — https://github.com/PrefectHQ/prefect/pull/8956
 
 ### Fixes
 - Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
 - Retry on sqlite operational errors - https://github.com/PrefectHQ/prefect/pull/8950
+- Add 30 second timeout to shutdown of the log worker thread — https://github.com/PrefectHQ/prefect/pull/8983
 
 ### Documentation
 - Disambiguate reference to "Blocks" - https://github.com/PrefectHQ/prefect/pull/8921
@@ -111,6 +114,10 @@ See the following pull requests for implementation details:
 - Update flow runs documentation - https://github.com/PrefectHQ/prefect/pull/8919
 - Fix missing backticks on Work Pools concept page - https://github.com/PrefectHQ/prefect/pull/8942
 - Update links to the release notes in the installation guide - https://github.com/PrefectHQ/prefect/pull/8974
+- Fix `EXTRA_PIP_PACKAGES` info in Docker guide — https://github.com/PrefectHQ/prefect/pull/8995
+- Fix `KubernetesJob.job_watch_timeout_seconds` docstring — https://github.com/PrefectHQ/prefect/pull/8977
+- Add task run runtime to API reference — https://github.com/PrefectHQ/prefect/pull/8998
+- Add documentation for runtime context — https://github.com/PrefectHQ/prefect/pull/8999
 
 ### Contributors
 - @andreadistefano made their first contribution in https://github.com/PrefectHQ/prefect/pull/8942
