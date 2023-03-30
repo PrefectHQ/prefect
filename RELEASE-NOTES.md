@@ -53,7 +53,6 @@ See [the docs](https://docs.prefect.io/concepts/results/?h=result#result-storage
 ### Fixes
 - Fix imports in copytree backport for Python 3.7 - https://github.com/PrefectHQ/prefect/pull/8925
 - Retry on sqlite operational errors - https://github.com/PrefectHQ/prefect/pull/8950
-- Use dot notation for helm release tag - https://github.com/PrefectHQ/prefect/pull/8911
 
 ### Documentation
 - Disambiguate reference to "Blocks" - https://github.com/PrefectHQ/prefect/pull/8921
