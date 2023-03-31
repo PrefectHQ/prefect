@@ -106,7 +106,7 @@ nav:
     - Getting Started: 
         - index.md  
         - Installation: getting-started/installation.md
-        - Cloud Quickstart: ui/cloud-quickstart.md
+        - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorials: 
         - tutorials/index.md
         - Flows & Tasks: tutorials/first-steps.md
@@ -130,33 +130,22 @@ nav:
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
-        - Events & Resources: concepts/events-and-resources.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
-    - UI & Cloud:
-        - ui/index.md
-        - Cloud Overview: ui/cloud.md
-        - Cloud Quickstart: ui/cloud-quickstart.md
-        - Cloud Concepts: 
-            - Manage API keys: ui/cloud-api-keys.md
-            - Configure Local Environments: ui/cloud-local-environment.md
-        - ui/flow-runs.md
-        - ui/flows.md
-        - ui/deployments.md
-        - ui/work-pools.md
-        - ui/blocks.md
-        - ui/notifications.md
-        - ui/task-concurrency.md
-        - Workspaces: ui/workspaces.md
-        - Automations: ui/automations.md
-        - Organizations: ui/organizations.md
-        - Service Accounts: ui/service-accounts.md
-        - Roles (RBAC): ui/roles.md
-        - Single Sign-on (SSO): ui/sso.md
-        - Audit Log: ui/audit-log.md
-        - Events: ui/events.md
-        - Troubleshooting: ui/troubleshooting.md
-        - Prefect Cloud API Rate Limits: ui/rate-limits.md
+    - Cloud:
+        - cloud/index.md
+        - Cloud Quickstart: cloud/cloud-quickstart.md
+        - Workspaces: cloud/workspaces.md
+        - Automations: cloud/automations.md
+        - Organizations: cloud/organizations.md
+        - Users: cloud/users
+            - Roles (RBAC): cloud/roles.md
+            - API Keys: cloud/cloud-api-keys.md
+            - Service Accounts: cloud/service-accounts.md
+            - Single Sign-on (SSO): cloud/sso.md
+        - Audit Log: cloud/audit-log.md
+        - Events: cloud/events.md
+        - API Rate Limits: cloud/rate-limits.md
     - Guides: 
         - guides/index.md
         - Testing: guides/testing.md

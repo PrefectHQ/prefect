@@ -175,6 +175,36 @@ to = "/ui/cloud/"
 status = 301
 
 
+# redirects to add from these locations 
+# I think I can use * or splat - check netlifly docs
+# pages that don't carry over get added above explicitly
+# then splat the rest from ui/ to cloud/
+ 
+ #       - ui/flow-runs.md
+ #       - ui/flows.md
+ #       - ui/deployments.md
+ #       - ui/work-pools.md
+ #       - ui/blocks.md
+ #       - ui/notifications.md
+ #       - ui/task-concurrency.md
+#       - ui/index.md -> cloud/index.md
+#       - ui/cloud.md -> cloud/index.md
+#       - ui/cloud-quickstart.md -> cloud/cloud-quickstart.md
+#       - ui/cloud-api-keys.md -> cloud/cloud-api-keys.md
+#       - ui/cloud-local-environment.md -> cloud/index.md
+#       - Organizations: ui/organizations.md 
+#       - Workspaces: ui/workspaces.md
+#       - Service Accounts: ui/service-accounts.md
+#       - Roles (RBAC): ui/roles.md
+#       - Single Sign-on (SSO): ui/sso.md
+#       - Audit Log: ui/audit-log.md
+#       - Automations: ui/automations.md
+#       - Events: ui/events.md
+#       - ui/troubleshooting -> cloud/index
+#       - Rate Limits: ui/rate-limits.md
+
+
+
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
 for = "/*"
