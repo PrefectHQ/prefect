@@ -10,7 +10,7 @@ tags:
 
 # Configure a Local Execution Environment
 
-In order to create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you must: 
+To create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you need to  
 
 - Configure the execution environment with the location of the API. 
 - Authenticate with the API, either by logging in or providing a valid API key (Prefect Cloud only).
@@ -36,7 +36,7 @@ $ prefect cloud login
 ```
 </div>
 
-The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you may log in with either an API key or through a browser.
+The `prefect cloud login` command, used on its own, provides an interactive login experience. Using this command, you can log in with either an API key or through a browser.
 
 <div class="terminal">
 ```bash
@@ -52,7 +52,7 @@ Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspa
 ```
 </div>
 
-You can also log in by providing a [Prefect Cloud API key](/ui/cloud-api-keys/).
+You can also log in by providing a [Prefect Cloud API key](/ui/cloud-api-keys/) that you create.
 
 ### Change workspaces
 
