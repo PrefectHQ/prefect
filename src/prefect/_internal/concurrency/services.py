@@ -67,7 +67,7 @@ class QueueService(abc.ABC, Generic[T]):
 
     def send(self, item: T):
         """
-        Send an item to the instance of the service.
+        Send an item to this instance of the service.
         """
         if self._stopped:
             raise RuntimeError("Cannot put items in a stopped service.")
@@ -94,7 +94,7 @@ class QueueService(abc.ABC, Generic[T]):
         Process an item sent to the service.
         """
 
-    def drain_one(self) -> Union[Awaitable, None]:
+    def drain(self) -> Union[Awaitable, None]:
         """
         Stop this instance of the service and wait for remaining work to be completed.
 
@@ -119,7 +119,7 @@ class QueueService(abc.ABC, Generic[T]):
         instances = tuple(cls._instances.values())
 
         for instance in instances:
-            futures.append(instance.drain_one())
+            futures.append(instance.drain())
 
         if get_running_loop() is not None:
             return asyncio.gather(*futures)
