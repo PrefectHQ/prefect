@@ -23,7 +23,7 @@ Currently Prefect supports sending notifications via:
 - Email (Prefect Cloud only)
 
 !!! cloud-ad "Notifications in Prefect Cloud"
-    Prefect Cloud uses the robust [Automations](/ui/automations/) interface to enable notifications related to flow run state changes and work queue health.
+    Prefect Cloud uses the robust [Automations](/cloud/automations/) interface to enable notifications related to flow run state changes and work queue health.
 
 ## Configure notifications
 
@@ -37,9 +37,9 @@ Notifications are structured just as you would describe them to someone. You can
 - Tags to filter which flow runs are covered by the notification.
 - Whether to send an email, a Slack message, Microsoft Teams message, or other services.
 
-For Slack notifications, the configuration requires webhook credentials for your Slack and the channel to which the message is sent.
+For email notifications (supported on Prefect Cloud only), the configuration requires email addresses to which the message is sent.
 
-For email notifications (supported on Prefect Cloud only), the configuraiton requires email addresses to which the message is sent.
+For Slack notifications, the configuration requires webhook credentials for your Slack and the channel to which the message is sent.
 
 For example, to get a Slack message if a flow with a `daily-etl` tag fails, the notification will read:
 

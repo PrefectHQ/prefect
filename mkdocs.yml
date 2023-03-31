@@ -130,6 +130,7 @@ nav:
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Logging: concepts/logs.md
+        - Notifications: concepts/notifications.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
     - Cloud:
