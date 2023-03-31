@@ -9,7 +9,7 @@ Common use cases for artifacts include:
 
 - Debugging: By publishing data that you care about in the UI, you can easily see when and where your results were written. If an artifact doesn't look the way you expect, you can find out which flow run last updated it, and you can click through a link in the artifact to the location where the artifact is stored (such as an S3 bucket).
 - Data quality checks: Artifacts can be used to publish data quality checks from in-progress tasks. This can help ensure that data quality is maintained throughout the pipeline. During long-running tasks such as ML model training, you might use artifacts to publish performance graphs. This can help you visualize how well your models are performing and make adjustments as needed. You can also track the versions of these artifacts over time, making it easier to identify changes in your data.
-- Documentation: Artifacts can be used to publish documentation and sample data from in-progress tasks. This can help you keep track of their work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important. 
+- Documentation: Artifacts can be used to publish documentation and sample data to help you keep track of your work and share information with your colleagues. For instance, artifacts allow you to add a description to let your colleagues know why this piece of data is important. 
 
 ## Creating Artifacts
 
@@ -33,23 +33,17 @@ import pendulum
 
 @task
 def my_first_task():
-    now = pendulum.now('UTC').to_datetime_string()
-    data_variability = 1764 ** 0.5
-    if data_variability >= 42:
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data_{now}.csv",
+            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/highly_variable_data.csv",
             description="## Highly variable data",
         )
 
 @task
 def my_second_task():
-    now = pendulum.now('UTC').to_datetime_string()
-    prediction_accuracy = 0.42
-    if prediction_accuracy < 0.50:
         create_link_artifact(
             key="irregular-data",
-            link=f"https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data_{now}.csv",
+            link="https://nyc3.digitaloceanspaces.com/my-bucket-name/low_pred_data.csv",
             description="# Low prediction accuracy",
         )
 
@@ -96,46 +90,44 @@ from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 
 @task
-def my_task():
+def markdown_task():
     na_revenue = 500000
-    markdown_report = """
-        # Sales Report
+    markdown_report = f"""# Sales Report
 
-        ## Summary
+## Summary
 
-        In the past quarter, our company saw a significant increase in sales, with a total revenue of $1,000,000. This represents a 20% increase over the same period last year.
+In the past quarter, our company saw a significant increase in sales, with a total revenue of $1,000,000. This represents a 20% increase over the same period last year.
 
-        ## Sales by Region
+## Sales by Region
 
-        | Region        | Revenue |
-        |:--------------|-------:|
-        | North America | ${na_revenue:,} |
-        | Europe        | $250,000 |
-        | Asia          | $150,000 |
-        | South America | $75,000 |
-        | Africa        | $25,000 |
+| Region        | Revenue |
+|:--------------|-------:|
+| North America | ${na_revenue:,} |
+| Europe        | $250,000 |
+| Asia          | $150,000 |
+| South America | $75,000 |
+| Africa        | $25,000 |
 
-        ## Top Products
+## Top Products
 
-        1. Product A - $300,000 in revenue
-        2. Product B - $200,000 in revenue
-        3. Product C - $150,000 in revenue
+1. Product A - $300,000 in revenue
+2. Product B - $200,000 in revenue
+3. Product C - $150,000 in revenue
 
-        ## Conclusion
+## Conclusion
 
-        Overall, these results are very encouraging and demonstrate the success of our sales team in increasing revenue across all regions. However, we still have room for improvement and should focus on further increasing sales in the coming quarter.
-        """
-    return markdown_report
-
-@flow
-def my_flow():
-    my_important_report = my_task()
-
+Overall, these results are very encouraging and demonstrate the success of our sales team in increasing revenue across all regions. However, we still have room for improvement and should focus on further increasing sales in the coming quarter.
+"""
     create_markdown_artifact(
         key="gtm-report",
-        markdown=my_important_report,
+        markdown=markdown_report,
         description="Quarterly Sales Report",
     )
+
+@flow()
+def my_flow():
+    markdown_task()
+    
 
 if __name__ == "__main__":
     my_flow()
@@ -173,11 +165,41 @@ As you can see, you don't need to create an artifact in a flow run context. You 
 
 ### Reading Artifacts
 
-In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time. You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
+In the Prefect UI, you can view all of the latest versions of your artifacts and click into a specific artifact to see its lineage over time. Additionally, you can inspect all versions of an artifact with a given key by running:
+
+<div class="terminal">
+```bash
+$ prefect artifact inspect <my-key>
+```
+</div>
+
+or view all artifacts by running:
+
+<div class="terminal">
+```bash
+$ prefect artifact ls
+```
+</div>
+
+You can also use the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/read_artifacts_api_accounts__account_id__workspaces__workspace_id__artifacts_filter_post) to programmatically filter your results.
 
 ### Deleting Artifacts
 
-You can delete an artifact directly from the Artifacts page in the UI. Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
+You can delete an artifact directly from the Artifacts page in the UI. You can also use the CLI to delete specific artifacts with a given key or id:
+
+<div class="terminal">
+```bash
+$ prefect artifact delete <my-key>
+```
+</div>
+
+<div class="terminal">
+```bash
+$ prefect artifact delete --id <my-id>
+```
+</div>
+
+Alternatively, you can delete artifacts using the [Prefect REST API](https://app.prefect.cloud/api/docs#tag/Artifacts/operation/delete_artifact_api_accounts__account_id__workspaces__workspace_id__artifacts__id__delete).
 
 ## Artifacts API
 
