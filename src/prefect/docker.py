@@ -491,3 +491,20 @@ def parse_image_tag(name: str) -> Tuple[str, Optional[str]]:
             image_path, tag = image_path.split(":")
         image_name = f"{index_name}/{image_path}"
     return image_name, tag
+
+
+def format_outlier_version_name(version: str):
+    """
+    Formats outlier docker version names to pass `packaging.version.parse` validation
+    - Current cases are simple, but creats stub for more complicated formatting if eventually needed.
+    - Example outlier versions that throw a parsing exception:
+      - "20.10.0-ce" (variant of community edition label)
+      - "20.10.0-ee" (variant of enterprise edition label)
+
+    Args:
+        version (str): raw docker version value
+
+    Returns:
+        str: value that can pass `packaging.version.parse` validation
+    """
+    return version.replace("-ce", "").replace("-ee", "")

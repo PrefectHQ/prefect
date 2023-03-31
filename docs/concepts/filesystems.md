@@ -40,7 +40,7 @@ fs = LocalFileSystem(basepath="/foo/bar")
 ```
 
 !!! warning "Limited access to local file system"
-    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the enviornment you are writing and deploying your code on. 
+    Be aware that `LocalFileSystem` access is limited to the exact path provided. This file system may not be ideal for some use cases. The execution environment for your workflows may not have the same file system as the environment you are writing and deploying your code on. 
     
     Use of this file system can limit the availability of results after a flow run has completed or prevent the code for a flow from being retrieved successfully at the start of a run.
 
@@ -105,6 +105,7 @@ The `Azure` file system block enables interaction with Azure Datalake and Azure 
 | azure_storage_tenant_id | Azure storage tenant ID. |
 | azure_storage_client_id | Azure storage client ID. |
 | azure_storage_client_secret | Azure storage client secret. |
+| azure_storage_anon | Anonymous authentication, disable to use `DefaultAzureCredential`. |
 
 
 To create a block:
@@ -307,7 +308,9 @@ A Prefect installation and doesn't include filesystem-specific package dependenc
 
 You must ensure that filesystem-specific libraries are installed in an execution environment where they will be used by flow runs.
 
-In Dockerized deployments, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+In Dockerized deployments using the Prefect base image, you can leverage the `EXTRA_PIP_PACKAGES` environment variable. Those dependencies will be installed at runtime within your Docker container or Kubernetes Job before the flow starts running. 
+
+In Dockerized deployments using a custom image, you must include the filesystem-specific package dependency in your image.
 
 Here is an example from a deployment YAML file showing how to specify the installation of `s3fs` from into your image:
 

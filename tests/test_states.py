@@ -2,8 +2,14 @@ import uuid
 
 import pytest
 
+from prefect import flow
 from prefect.exceptions import CancelledRun, CrashedRun, FailedRun
-from prefect.results import LiteralResult, PersistedResult, ResultFactory
+from prefect.results import (
+    LiteralResult,
+    PersistedResult,
+    ResultFactory,
+    UnpersistedResult,
+)
 from prefect.states import (
     Cancelled,
     Completed,
@@ -11,12 +17,14 @@ from prefect.states import (
     Failed,
     Pending,
     Running,
+    State,
     StateGroup,
     is_state,
     is_state_iterable,
     raise_state_exception,
     return_value_to_state,
 )
+from prefect.utilities.annotations import quote
 
 
 def test_is_state():
@@ -125,10 +133,19 @@ class TestRaiseStateException:
         with pytest.raises(TypeError, match="int cannot be resolved into an exception"):
             await raise_state_exception(state_cls(data=2))
 
+    async def test_quoted_state_does_not_raise_state_exception(self, state_cls):
+        @flow
+        def test_flow():
+            return quote(state_cls())
+
+        actual = test_flow()
+        assert isinstance(actual, quote)
+        assert isinstance(actual.unquote(), State)
+
 
 class TestReturnValueToState:
     @pytest.fixture
-    async def factory(orion_client):
+    async def factory(self, orion_client):
         return await ResultFactory.default_factory(client=orion_client)
 
     async def test_returns_single_state_unaltered(self, factory):
@@ -139,7 +156,7 @@ class TestReturnValueToState:
         state = Completed(data=None)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data == LiteralResult(value=None)
+        assert isinstance(result_state.data, UnpersistedResult)
         assert await result_state.result() is None
 
     async def test_returns_single_state_with_data_to_persist(self, factory):
@@ -157,7 +174,11 @@ class TestReturnValueToState:
         state = Completed(data=result)
         result_state = await return_value_to_state(state, factory)
         assert result_state is state
-        assert result_state.data is result
+        # Pydantic makes a copy of the result type during state so we cannot assert that
+        # it is the original `result` object but we can assert there is not a copy in
+        # `return_value_to_state`
+        assert result_state.data is state.data
+        assert result_state.data == result
         assert await result_state.result() == "test"
 
     async def test_all_completed_states(self, factory):

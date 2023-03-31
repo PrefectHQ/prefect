@@ -3,7 +3,7 @@ import sys
 import traceback
 import warnings
 from collections import Counter
-from types import TracebackType
+from types import GeneratorType, TracebackType
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Type, TypeVar
 
 import anyio
@@ -23,10 +23,11 @@ from prefect.exceptions import (
     MissingResult,
     PausedRun,
 )
-from prefect.orion import schemas
-from prefect.orion.schemas.states import StateDetails, StateType
 from prefect.results import BaseResult, R, ResultFactory
+from prefect.server import schemas
+from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import PREFECT_ASYNC_FETCH_STATE_RESULT
+from prefect.utilities.annotations import BaseAnnotation
 from prefect.utilities.asyncutils import in_async_main_thread, sync_compatible
 from prefect.utilities.collections import ensure_iterable
 
@@ -55,10 +56,12 @@ def get_state_result(
     if not fetch:
         if fetch is None and in_async_main_thread():
             warnings.warn(
-                "State.result() was called from an async context but not awaited. "
-                "This method will be updated to return a coroutine by default in "
-                "the future. Pass `fetch=True` and `await` the call to get rid of "
-                "this warning.",
+                (
+                    "State.result() was called from an async context but not awaited. "
+                    "This method will be updated to return a coroutine by default in "
+                    "the future. Pass `fetch=True` and `await` the call to get rid of "
+                    "this warning."
+                ),
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -147,13 +150,19 @@ async def exception_to_crashed_state(
             request: httpx.Request = exc.request
         except RuntimeError:
             # The request property is not set
-            state_message = f"Request failed while attempting to contact the server: {format_exception(exc)}"
+            state_message = (
+                "Request failed while attempting to contact the server:"
+                f" {format_exception(exc)}"
+            )
         else:
             # TODO: We can check if this is actually our API url
             state_message = f"Request to {request.url} failed: {format_exception(exc)}."
 
     else:
-        state_message = f"Execution was interrupted by an unexpected exception: {format_exception(exc)}"
+        state_message = (
+            "Execution was interrupted by an unexpected exception:"
+            f" {format_exception(exc)}"
+        )
 
     if result_factory:
         data = await result_factory.create_result(exc)
@@ -230,6 +239,10 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
     ):
         state = retval
 
+        # Do not modify states with data documents attached; backwards compatibility
+        if isinstance(state.data, DataDocument):
+            return state
+
         # Unless the user has already constructed a result explicitly, use the factory
         # to update the data to the correct type
         if not isinstance(state.data, BaseResult):
@@ -272,8 +285,14 @@ async def return_value_to_state(retval: R, result_factory: ResultFactory) -> Sta
             data=await result_factory.create_result(retval),
         )
 
+    # Generators aren't portable, implicitly convert them to a list.
+    if isinstance(retval, GeneratorType):
+        data = list(retval)
+    else:
+        data = retval
+
     # Otherwise, they just gave data and this is a completed retval
-    return Completed(data=await result_factory.create_result(retval))
+    return Completed(data=await result_factory.create_result(data))
 
 
 @sync_compatible
@@ -385,8 +404,11 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     """
     # We do not check for arbitary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
-
-    if isinstance(obj, (list, set, tuple)) and obj:
+    if (
+        not isinstance(obj, BaseAnnotation)
+        and isinstance(obj, (list, set, tuple))
+        and obj
+    ):
         return all([is_state(o) for o in obj])
     else:
         return False
@@ -486,6 +508,15 @@ def Crashed(cls: Type[State] = State, **kwargs) -> State:
         State: a Crashed state
     """
     return schemas.states.Crashed(cls=cls, **kwargs)
+
+
+def Cancelling(cls: Type[State] = State, **kwargs) -> State:
+    """Convenience function for creating `Cancelling` states.
+
+    Returns:
+        State: a Cancelling state
+    """
+    return schemas.states.Cancelling(cls=cls, **kwargs)
 
 
 def Cancelled(cls: Type[State] = State, **kwargs) -> State:

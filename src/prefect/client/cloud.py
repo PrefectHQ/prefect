@@ -19,6 +19,9 @@ def get_cloud_client(
     httpx_settings: dict = None,
     infer_cloud_url: bool = False,
 ) -> "CloudClient":
+    """
+    Needs a docstring.
+    """
     if httpx_settings is not None:
         httpx_settings = httpx_settings.copy()
 
@@ -48,7 +51,6 @@ class CloudClient:
         api_key: str,
         httpx_settings: dict = None,
     ) -> None:
-
         httpx_settings = httpx_settings or dict()
         httpx_settings.setdefault("headers", dict())
         httpx_settings["headers"].setdefault("Authorization", f"Bearer {api_key}")

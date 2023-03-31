@@ -16,7 +16,7 @@ __module_path__ = pathlib.Path(__file__).parent
 # The absolute path to the root of the repository, only valid for use during development.
 __root_path__ = __module_path__.parents[1]
 # The absolute path to the built UI within the Python module
-__ui_static_path__ = __module_path__ / "orion" / "ui"
+__ui_static_path__ = __module_path__ / "server" / "ui"
 
 del _version, pathlib
 
@@ -31,8 +31,9 @@ from prefect.manifests import Manifest
 from prefect.utilities.annotations import unmapped, allow_failure
 from prefect.results import BaseResult
 from prefect.engine import pause_flow_run, resume_flow_run
-from prefect.client.orion import get_client, OrionClient
+from prefect.client.orchestration import get_client, PrefectClient
 from prefect.client.cloud import get_cloud_client, CloudClient
+import prefect.runtime
 
 # Import modules that register types
 import prefect.serializers
@@ -69,13 +70,30 @@ prefect.plugins.load_extra_entrypoints()
 import prefect.logging.configuration
 
 prefect.logging.configuration.setup_logging()
-
+prefect.logging.get_logger("profiles").debug(
+    f"Using profile {prefect.context.get_settings_context().profile.name!r}"
+)
 
 # Ensure moved names are accessible at old locations
 import prefect.client
 
 prefect.client.get_client = get_client
-prefect.client.OrionClient = OrionClient
+prefect.client.PrefectClient = PrefectClient
+
+
+from prefect._internal.compatibility.deprecated import (
+    inject_renamed_module_alias_finder,
+    register_renamed_module,
+)
+
+register_renamed_module("prefect.orion", "prefect.server", start_date="Feb 2023")
+register_renamed_module(
+    "prefect.client.orchestration",
+    "prefect.client.orchestration",
+    start_date="Feb 2023",
+)
+inject_renamed_module_alias_finder()
+
 
 # Attempt to warn users who are importing Prefect 1.x attributes that they may
 # have accidentally installed Prefect 2.x
@@ -99,16 +117,16 @@ class Prefect1ImportInterceptor(importlib.abc.Loader):
     def find_spec(self, fullname, path, target=None):
         if fullname in PREFECT_1_ATTRIBUTES:
             warnings.warn(
-                f"Attempted import of {fullname!r}, which is part of Prefect 1.x, "
-                f"while Prefect {__version__} is installed. If you're "
-                "upgrading you'll need to update your code, see the Prefect "
-                "2.x migration guide: `https://orion-docs.prefect.io/migration_guide/`. "
-                "Otherwise ensure that your code is pinned to the expected version."
+                f"Attempted import of {fullname!r}, which is part of Prefect 1.x, while"
+                f" Prefect {__version__} is installed. If you're upgrading you'll need"
+                " to update your code, see the Prefect 2.x migration guide:"
+                " `https://orion-docs.prefect.io/migration_guide/`. Otherwise ensure"
+                " that your code is pinned to the expected version."
             )
 
 
 if not hasattr(sys, "frozen"):
-    sys.meta_path = [Prefect1ImportInterceptor()] + sys.meta_path
+    sys.meta_path.insert(0, Prefect1ImportInterceptor())
 
 
 # Declare API for type-checkers

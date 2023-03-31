@@ -136,7 +136,7 @@ Also notice that `Starting 'SequentialTaskRunner'; submitted tasks will be run s
 
 ## Parallel execution
 
-You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Collections](/collections/catalog/). 
+You can also run tasks using parallel or distributed execution by using the Dask or Ray task runners available through [Prefect Integrations](/integrations/catalog/). 
 
 For example, you can achieve parallel task execution, even on in a local execution environment, but using the `DaskTaskRunner`.
 
@@ -254,9 +254,9 @@ Task runners only manage _task runs_ within a flow run. But what about flows?
 
 Any given flow run &mdash; meaning in this case your workflow including any subflows and tasks &mdash; executes in its own environment using the infrastructure configured for that environment. In these examples, that infrastructure is probably your local computing environment. But for flow runs based on [deployments](/concepts/deployments/), that infrastructure might be a server in a datacenter, a VM, a Docker container, or a Kubernetes cluster.
 
-The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work queues](/concepts/work-queues/) &mdash; advanced topics that are covered in other tutorials.
+The ability to execute flow runs in a non-blocking or parallel manner is subject to execution infrastructure and the configuration of [agents and work pools](/concepts/work-pools/) &mdash; advanced topics that are covered in other tutorials.
 
 Within a flow, subflow runs behave like normal flow runs, except subflows will block execution of the parent flow until completion. However, asynchronous subflows are supported using AnyIO task groups or `asyncio.gather`.
 
 !!! tip "Next steps: Flow orchestration with Prefect"
-    The next step is learning about [the components of Prefect](/tutorials/orion/) that enable coordination and orchestration of your flow and task runs.
+    The next step is learning about [the components of Prefect](/tutorials/orchestration/) that enable coordination and orchestration of your flow and task runs.

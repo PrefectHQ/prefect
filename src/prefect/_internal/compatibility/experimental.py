@@ -12,18 +12,22 @@ Some experimental features require opt-in to enable any usage. These require the
 """
 import functools
 import warnings
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Set, Type, TypeVar
+
+import pydantic
 
 from prefect.settings import PREFECT_EXPERIMENTAL_WARN, SETTING_VARIABLES, Setting
 from prefect.utilities.callables import get_call_parameters
 
 T = TypeVar("T", bound=Callable)
+M = TypeVar("M", bound=pydantic.BaseModel)
 
 
 EXPERIMENTAL_WARNING = (
-    "{feature} is experimental. {help}"
-    "The interface or behavior may change without warning, we recommend pinning versions to prevent unexpected changes. "
-    "To disable warnings for this group of experiments, disable PREFECT_EXPERIMENTAL_WARN_{group}."
+    "{feature} is experimental. {help}The interface or behavior may change without"
+    " warning, we recommend pinning versions to prevent unexpected changes. To disable"
+    " warnings for this group of experiments, disable"
+    " PREFECT_EXPERIMENTAL_WARN_{group}."
 )
 
 EXPERIMENTAL_ERROR = (
@@ -82,7 +86,12 @@ def _warn_setting_for_group(group: str) -> Setting[bool]:
 
 
 def experimental(
-    group: str, feature: str, help: str = "", stacklevel: int = 2, opt_in: bool = False
+    feature: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
 ) -> Callable[[T], T]:
     group = group.upper()
 
@@ -124,6 +133,7 @@ def experiment_enabled(group: str) -> bool:
 
 def experimental_parameter(
     name: str,
+    *,
     group: str,
     help: str = "",
     stacklevel: int = 2,
@@ -171,3 +181,74 @@ def experimental_parameter(
         return wrapper
 
     return decorator
+
+
+def experimental_field(
+    name: str,
+    *,
+    group: str,
+    help: str = "",
+    stacklevel: int = 2,
+    opt_in: bool = False,
+    when: Optional[Callable[[Any], bool]] = None,
+):
+    """
+    Mark a field in a Pydantic model as experimental.
+
+    Raises warning only if the field is specified during init.
+
+    Example:
+
+        ```python
+
+        @experimental_parameter("y", group="example", when=lambda y: y is not None)
+        def foo(x, y = None):
+            return x + 1 + (y or 0)
+        ```
+    """
+
+    when = when or (lambda _: True)
+
+    @experimental(
+        group=group,
+        feature=f"The field {name!r}",
+        help=help,
+        opt_in=opt_in,
+        stacklevel=stacklevel + 2,
+    )
+    def experimental_check():
+        """Utility function for performing a warning check for the specified group"""
+
+    # Replaces the model's __init__ method with one that performs an additional warning check
+    def decorator(model_cls: Type[M]) -> Type[M]:
+        cls_init = model_cls.__init__
+
+        @functools.wraps(model_cls.__init__)
+        def __init__(__pydantic_self__, **data: Any) -> None:
+            # Call the original init
+            cls_init(__pydantic_self__, **data)
+            # Perform warning check
+            if name in data.keys() and when(data[name]):
+                experimental_check()
+            field = __pydantic_self__.__fields__.get(name)
+            if field is not None:
+                field.field_info.extra["experimental"] = True
+                field.field_info.extra["experimental-group"] = group
+
+        # Patch the model's init method
+        model_cls.__init__ = __init__
+
+        return model_cls
+
+    return decorator
+
+
+def enabled_experiments() -> Set[str]:
+    """
+    Return the set of all enabled experiments.
+    """
+    return {
+        name[len("PREFECT_EXPERIMENTAL_ENABLE_") :].lower()
+        for name, setting in SETTING_VARIABLES.items()
+        if name.startswith("PREFECT_EXPERIMENTAL_ENABLE_") and setting.value()
+    }

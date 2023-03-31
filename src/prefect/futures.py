@@ -22,7 +22,8 @@ from uuid import UUID
 
 import anyio
 
-from prefect.client.orion import OrionClient
+from prefect._internal.concurrency.api import create_call, from_sync
+from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
 from prefect.utilities.asyncutils import (
@@ -61,21 +62,21 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()  # PrefectFuture[str, Sync] includes result type
+        >>>     future = my_task.submit()  # PrefectFuture[str, Sync] includes result type
         >>>     future.task_run.id  # UUID for the task run
 
         Wait for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait()
 
         Wait N sconds for the task to complete
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     final_state = future.wait(0.1)
         >>>     if final_state:
         >>>         ... # Task done
@@ -86,7 +87,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result()
         >>>     assert result == "hello"
 
@@ -94,7 +95,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     result = future.result(timeout=5)
         >>>     assert result == "hello"
 
@@ -102,7 +103,7 @@ class PrefectFuture(Generic[R, A]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()
+        >>>     future = my_task.submit()
         >>>     state = future.get_state()
     """
 
@@ -156,7 +157,7 @@ class PrefectFuture(Generic[R, A]):
             return self._wait(timeout=timeout)
         else:
             # type checking cannot handle the overloaded timeout passing
-            return sync(self._wait, timeout=timeout)  # type: ignore
+            return from_sync.call_soon_in_loop_thread(create_call(self._wait, timeout=timeout)).result()  # type: ignore
 
     @overload
     async def _wait(self, timeout: None = None) -> State[R]:
@@ -223,9 +224,11 @@ class PrefectFuture(Generic[R, A]):
         if self.asynchronous:
             return self._result(timeout=timeout, raise_on_failure=raise_on_failure)
         else:
-            return sync(
-                self._result, timeout=timeout, raise_on_failure=raise_on_failure
-            )
+            return from_sync.call_soon_in_loop_thread(
+                create_call(
+                    self._result, timeout=timeout, raise_on_failure=raise_on_failure
+                )
+            ).result()
 
     async def _result(self, timeout: float = None, raise_on_failure: bool = True):
         """
@@ -238,17 +241,17 @@ class PrefectFuture(Generic[R, A]):
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Async]", client: OrionClient = None
+        self: "PrefectFuture[R, Async]", client: PrefectClient = None
     ) -> Awaitable[State[R]]:
         ...
 
     @overload
     def get_state(
-        self: "PrefectFuture[R, Sync]", client: OrionClient = None
+        self: "PrefectFuture[R, Sync]", client: PrefectClient = None
     ) -> State[R]:
         ...
 
-    def get_state(self, client: OrionClient = None):
+    def get_state(self, client: PrefectClient = None):
         """
         Get the current state of the task run.
         """
@@ -258,7 +261,7 @@ class PrefectFuture(Generic[R, A]):
             return cast(State[R], sync(self._get_state, client=client))
 
     @inject_client
-    async def _get_state(self, client: OrionClient = None) -> State[R]:
+    async def _get_state(self, client: PrefectClient = None) -> State[R]:
         assert client is not None  # always injected
 
         # We must wait for the task run id to be populated
@@ -293,9 +296,11 @@ class PrefectFuture(Generic[R, A]):
 
     def __bool__(self) -> bool:
         warnings.warn(
-            "A 'PrefectFuture' from a task call was cast to a boolean; "
-            "did you mean to check the result of the task instead? "
-            "e.g. `if my_task().result(): ...`",
+            (
+                "A 'PrefectFuture' from a task call was cast to a boolean; "
+                "did you mean to check the result of the task instead? "
+                "e.g. `if my_task().result(): ...`"
+            ),
             stacklevel=2,
         )
         return True

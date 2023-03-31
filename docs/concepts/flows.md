@@ -40,14 +40,14 @@ You can create a flow run by calling the flow. For example, by running a Python 
 
 You can also create a flow run by:
 
-- Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect Orion server
+- Creating a [deployment](/concepts/deployments/) on Prefect Cloud or a locally run Prefect server.
 - Creating a flow run for the deployment via a schedule, the Prefect UI, or the Prefect API.
 
 However you run the flow, the Prefect API monitors the flow run, capturing flow run state for observability.
 
 When you run a flow that contains tasks or additional flows, Prefect will track the relationship of each child run to the parent flow run.
 
-![Prefect UI](/img/ui/orion-dashboard.png)
+![Prefect UI](../img/ui/prefect-dashboard.png)
 
 ## Writing flows
 
@@ -104,6 +104,7 @@ Flows allow a great deal of configuration by passing arguments to the decorator.
 | `name` | An optional name for the flow. If not provided, the name will be inferred from the function. |
 | `retries` | An optional number of times to retry on flow run failure. |
 | <span class="no-wrap">`retry_delay_seconds`</span> | An optional number of seconds to wait before retrying the flow after failure. This is only applicable if `retries` is nonzero. |
+| `flow_run_name` | An optional name to distinguish runs of this flow; this name can be provided as a string template with the flow's parameters as variables. |
 | `task_runner` | An optional [task runner](/concepts/task-runners/) to use for task execution within the flow when you `.submit()` tasks. If not provided and you `.submit()` tasks, the `ConcurrentTaskRunner` will be used. |
 | `timeout_seconds` | An optional number of seconds indicating a maximum runtime for the flow. If the flow exceeds this runtime, it will be marked as failed. Flow execution may continue until the next task is called. |
 | `validate_parameters` | Boolean indicating whether parameters passed to flows are validated by Pydantic. Default is `True`.  |
@@ -130,6 +131,20 @@ You can also provide the description as the docstring on the flow function.
 def my_flow():
     """My flow using SequentialTaskRunner"""
     return
+```
+
+You can distinguish runs of this flow by providing a `flow_run_name`; this setting accepts a string that can optionally contain templated references to the parameters of your flow. The name will be formatted using Python's standard string formatting syntax as can be seen here:
+
+```python
+import datetime
+from prefect import flow
+
+@flow(flow_run_name="{name}-on-{date:%A}")
+def my_flow(name: str, date: datetime.datetime):
+    pass
+
+# creates a flow run called 'marvin-on-Thursday'
+my_flow(name="marvin", date=datetime.datetime.utcnow())
 ```
 
 Note that `validate_parameters` will check that input values conform to the annotated types on the function. Where possible, values will be coerced into the correct type. For example, if a parameter is defined as `x: int` and "5" is passed, it will be resolved to `5`. If set to `False`, no validation will be performed on flow parameters.
@@ -277,7 +292,7 @@ Subflow says: Hello Marvin!
 </div>
 
 !!! tip "Subflows or tasks?"
-    In Prefect 2 you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
+    In Prefect you can call tasks _or_ subflows to do work within your workflow, including passing results from other tasks to your subflow. So a common question we hear is:
 
     "When should I use a subflow instead of a task?"
 
@@ -292,10 +307,10 @@ Subflow says: Hello Marvin!
 
 ## Parameters
 
-Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect Orion orchestration engine on the flow run object.
+Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored by the Prefect orchestration engine on the flow run object.
 
 !!! warning "Prefect API requires keyword arguments"
-    When creating flow runs from the Prefect Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
+    When creating flow runs from the Prefect API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
 Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
 
@@ -527,7 +542,7 @@ If a flow returns a manually created state, the final state is determined based 
 
 ```python hl_lines="16-19"
 from prefect import task, flow
-from prefect.orion.schemas.states import Completed, Failed
+from prefect.server.schemas.states import Completed, Failed
 
 @task
 def always_fails_task():
@@ -608,10 +623,102 @@ Completed(message=None, type=COMPLETED, result='foo', flow_run_id=7240e6f5-f0a8-
 ```
 </div>
 
+## Pause a flow run
 
-## Flow run cancellation
+Prefect enables pausing an in-progress flow run for manual approval. Prefect exposes this functionality via the [`pause_flow_run`](/api-ref/prefect/engine/#prefect.engine.pause_flow_run) and [`resume_flow_run`](/api-ref/prefect/engine/#prefect.engine.resume_flow_run) functions, as well as via the Prefect server or Prefect Cloud UI. 
 
-Flow runs can be cancelled from the CLI, UI, REST API, or Python client. 
+Most simply, `pause_flow_run` can be called inside a flow. A timeout option can be supplied as well &mdash; after the specified number of seconds, the flow will fail if it hasn't been resumed.
+
+```python
+from prefect import task, flow, pause_flow_run, resume_flow_run
+
+@task
+async def marvin_setup():
+    return "a raft of ducks walk into a bar..."
+@task
+async def marvin_punchline():
+    return "it's a wonder none of them ducked!"
+@flow
+async def inspiring_joke():
+    await marvin_setup()
+    await pause_flow_run(timeout=600)  # pauses for 10 minutes
+    await marvin_punchline()
+```
+
+Calling this flow will pause after the first task and wait for resumption.
+
+<div class="terminal">
+```bash
+await inspiring_joke()
+> "a raft of ducks walk into a bar..."
+```
+</div>
+
+Paused flow runs can be resumed by clicking the **Resume** button in the Prefect UI or calling the `resume_flow_run` utility via client code.
+
+```python
+resume_flow_run(FLOW_RUN_ID)
+```
+
+The paused flow run will then finish!
+
+<div class="terminal">
+```
+> "it's a wonder none of them ducked!"
+```
+</div>
+
+Here is an example of a flow that does not block flow execution while paused. This flow will exit after one task, and will be rescheduled upon resuming. The stored result of the first task is retrieved instead of being rerun.
+
+```python
+from prefect import flow, pause_flow_run, task
+
+@task(persist_result=True)
+def foo():
+    return 42
+
+@flow(persist_result=True)
+def noblock_pausing():
+    x = foo.submit()
+    pause_flow_run(timeout=30, reschedule=True)
+    y = foo.submit()
+    z = foo(wait_for=[x])
+    alpha = foo(wait_for=[y])
+    omega = foo(wait_for=[x, y])
+```
+
+This long-running flow can be paused out of process, either by calling `pause_flow_run(flow_run_id=<ID>)` or selecting the **Pause** button in the Prefect UI or Prefect Cloud.
+
+```python
+from prefect import flow, task
+import time
+
+@task(persist_result=True)
+async def foo():
+    return 42
+
+@flow(persist_result=True)
+async def longrunning():
+    res = 0
+    for ii in range(20):
+        time.sleep(5)
+        res += (await foo())
+    return res
+```
+
+!!! tip "Pausing flow runs is blocking by default"
+    By default, pausing a flow run blocks the agent &mdash; the flow is still running inside the `pause_flow_run` function. However, you may pause any flow run in this fashion, including non-deployment local flow runs and subflows.
+
+    Alternatively, flow runs can be paused without blocking the flow run process. This is particularly useful when running the flow via an agent and you want the agent to be able to pick up other flows while the paused flow is paused. 
+    
+    Non-blocking pause can be accomplished by setting the `reschedule` flag to `True`. In order to use this feature, flows that pause with the `reschedule` flag must have:
+    
+    - An associated deployment
+    - Results configured with the `persist_results` flag
+
+## Cancel a flow run
+
+You may cancel a scheduled or in-progress flow run from the CLI, UI, REST API, or Python client. 
 
 When cancellation is requested, the flow run is moved to a "Cancelling" state. The agent monitors the state of flow runs and detects that cancellation has been requested. The agent then sends a signal to the flow run infrastructure, requesting termination of the run. If the run does not terminate after a grace period (default of 30 seconds), the infrastructure will be killed, ensuring the flow run exits.
 
@@ -660,4 +767,4 @@ $ prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 
 From the UI you can cancel a flow run by navigating to the flow run's detail page and clicking the `Cancel` button in the upper right corner.
 
-![Prefect UI](/img/ui/flow-run-cancellation-ui.png)
+![Prefect UI](../img/ui/flow-run-cancellation-ui.png)

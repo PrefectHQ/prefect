@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Type
 
 import yaml
-from pydantic import Field
+from pydantic import Field, validator
 from typing_extensions import Self
 
 from prefect.blocks.core import Block
@@ -37,6 +37,7 @@ class KubernetesClusterConfig(Block):
 
     _block_type_name = "Kubernetes Cluster Config"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1zrSeY8DZ1MJZs2BAyyyGk/20445025358491b8b72600b8f996125b/Kubernetes_logo_without_workmark.svg.png?h=250"
+    _documentation_url = "https://docs.prefect.io/api-ref/prefect/blocks/kubernetes/#prefect.blocks.kubernetes.KubernetesClusterConfig"
 
     config: Dict = Field(
         default=..., description="The entire contents of a kubectl config file."
@@ -44,6 +45,12 @@ class KubernetesClusterConfig(Block):
     context_name: str = Field(
         default=..., description="The name of the kubectl context to use."
     )
+
+    @validator("config", pre=True)
+    def parse_yaml_config(cls, value):
+        if isinstance(value, str):
+            return yaml.safe_load(value)
+        return value
 
     @classmethod
     def from_file(cls: Type[Self], path: Path = None, context_name: str = None) -> Self:

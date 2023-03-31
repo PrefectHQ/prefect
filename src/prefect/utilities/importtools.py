@@ -4,10 +4,12 @@ import inspect
 import os
 import runpy
 import sys
+from importlib.abc import Loader, MetaPathFinder
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from types import ModuleType
-from typing import Any, Dict, Union
+from typing import Any, Callable, Dict, Iterable, NamedTuple, Optional, Union
 
 import fsspec
 
@@ -26,6 +28,10 @@ def to_qualified_name(obj: Any) -> str:
     Returns:
         str: the qualified name
     """
+    if sys.version_info < (3, 10):
+        # These attributes are only available in Python 3.10+
+        if isinstance(obj, (classmethod, staticmethod)):
+            obj = obj.__func__
     return obj.__module__ + "." + obj.__qualname__
 
 
@@ -134,6 +140,9 @@ def load_script_as_module(path: str) -> ModuleType:
     """
     # We will add the parent directory to search locations to support relative imports
     # during execution of the script
+    if not path.endswith(".py"):
+        raise ValueError(f"The provided path does not point to a python file: {path!r}")
+
     parent_path = str(Path(path).resolve().parent)
     working_directory = os.getcwd()
 
@@ -149,7 +158,6 @@ def load_script_as_module(path: str) -> ModuleType:
     # Support implicit relative imports i.e. `from foo import bar`
     sys.path.insert(0, working_directory)
     sys.path.insert(0, parent_path)
-
     try:
         spec.loader.exec_module(module)
     except Exception as exc:
@@ -230,10 +238,10 @@ class DelayedImportErrorModule(ModuleType):
         else:
             fd = self.__frame_data
             raise ModuleNotFoundError(
-                f"No module named '{fd['spec']}'\n\n"
-                "This module was originally imported at:\n"
-                f'  File "{fd["filename"]}", line {fd["lineno"]}, in {fd["function"]}\n\n'
-                f'    {"".join(fd["code_context"]).strip()}\n' + self.__help_message
+                f"No module named '{fd['spec']}'\n\nThis module was originally imported"
+                f" at:\n  File \"{fd['filename']}\", line {fd['lineno']}, in"
+                f" {fd['function']}\n\n    {''.join(fd['code_context']).strip()}\n"
+                + self.__help_message
             )
 
 
@@ -283,3 +291,69 @@ def lazy_import(
     loader.exec_module(module)
 
     return module
+
+
+class AliasedModuleDefinition(NamedTuple):
+    """
+    A definition for the `AliasedModuleFinder`.
+
+    Args:
+        alias: The import name to create
+        real: The import name of the module to reference for the alias
+        callback: A function to call when the alias module is loaded
+    """
+
+    alias: str
+    real: str
+    callback: Optional[Callable[[str], None]]
+
+
+class AliasedModuleFinder(MetaPathFinder):
+    def __init__(self, aliases: Iterable[AliasedModuleDefinition]):
+        """
+        See `AliasedModuleDefinition` for alias specification.
+
+        Aliases apply to all modules nested within an alias.
+        """
+        self.aliases = aliases
+
+    def find_spec(
+        self,
+        fullname: str,
+        path=None,
+        target=None,
+    ) -> Optional[ModuleSpec]:
+        """
+        The fullname is the imported path, e.g. "foo.bar". If there is an alias "phi"
+        for "foo" then on import of "phi.bar" we will find the spec for "foo.bar" and
+        create a new spec for "phi.bar" that points to "foo.bar".
+        """
+        for alias, real, callback in self.aliases:
+            if fullname.startswith(alias):
+                # Retrieve the spec of the real module
+                real_spec = importlib.util.find_spec(fullname.replace(alias, real, 1))
+                # Create a new spec for the alias
+                return ModuleSpec(
+                    fullname,
+                    AliasedModuleLoader(fullname, callback, real_spec),
+                    origin=real_spec.origin,
+                    is_package=real_spec.submodule_search_locations is not None,
+                )
+
+
+class AliasedModuleLoader(Loader):
+    def __init__(
+        self,
+        alias: str,
+        callback: Optional[Callable[[str], None]],
+        real_spec: ModuleSpec,
+    ):
+        self.alias = alias
+        self.callback = callback
+        self.real_spec = real_spec
+
+    def exec_module(self, _: ModuleType) -> None:
+        root_module = importlib.import_module(self.real_spec.name)
+        if self.callback is not None:
+            self.callback(self.alias)
+        sys.modules[self.alias] = root_module

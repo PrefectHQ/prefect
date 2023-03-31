@@ -1,5 +1,6 @@
 ---
 description: Monitor user access and activity with Audit Logs in Prefect Cloud.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -34,7 +35,7 @@ See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more abou
 
 Within your organization, select the **Audit Log** page to view audit logs. 
 
-![Viewing audit logs for an organization in the Prefect Cloud UI.](/img/ui/audit-log.png)
+![Viewing audit logs for an organization in the Prefect Cloud UI.](../img/ui/audit-log.png)
 
 Organization admins can view audit logs for: 
 

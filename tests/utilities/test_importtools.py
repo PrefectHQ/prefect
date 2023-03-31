@@ -30,6 +30,10 @@ class Foo:
     pass
 
 
+# Note we use the hosted API to avoid Postgres engine caching errors
+pytest.mark.usefixtures("hosted_orion")
+
+
 @pytest.fixture
 def reset_sys_modules():
     original_modules = sys.modules.copy()
@@ -158,7 +162,6 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
 def test_import_object_from_script_with_relative_imports(
     working_directory, script_path
 ):
-
     with tmpchdir(working_directory):
         foobar = import_object(f"{script_path}:foobar")
 
@@ -183,7 +186,6 @@ def test_import_object_from_script_with_relative_imports(
 def test_import_object_from_script_with_relative_imports_expected_failures(
     working_directory, script_path
 ):
-
     with tmpchdir(working_directory):
         with pytest.raises(ScriptError):
             import_object(f"{script_path}:foobar")

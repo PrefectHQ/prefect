@@ -1,6 +1,7 @@
 import os
 import signal
 import socket
+import subprocess
 import sys
 from unittest.mock import MagicMock, call
 
@@ -8,6 +9,10 @@ import anyio
 import anyio.abc
 import pytest
 
+import prefect
+import prefect.infrastructure
+import prefect.infrastructure.process
+import prefect.utilities.processutils
 from prefect.exceptions import InfrastructureNotAvailable, InfrastructureNotFound
 from prefect.infrastructure.process import Process
 from prefect.testing.utilities import AsyncMock
@@ -15,9 +20,20 @@ from prefect.testing.utilities import AsyncMock
 
 @pytest.fixture
 def mock_open_process(monkeypatch):
-    monkeypatch.setattr("anyio.open_process", AsyncMock())
-    anyio.open_process.return_value.terminate = MagicMock()  #  Not an async attribute
-    yield anyio.open_process
+    if sys.platform == "win32":
+        monkeypatch.setattr(
+            "prefect.utilities.processutils._open_anyio_process", AsyncMock()
+        )
+        prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
+            MagicMock()
+        )
+
+        yield prefect.utilities.processutils._open_anyio_process  # noqa
+    else:
+        monkeypatch.setattr("anyio.open_process", AsyncMock())
+        anyio.open_process.return_value.terminate = MagicMock()  # noqa
+
+        yield anyio.open_process
 
 
 @pytest.mark.parametrize("stream_output", [True, False])
@@ -33,6 +49,7 @@ def test_process_stream_output(capsys, stream_output):
         assert "hello world" in out
 
 
+@pytest.mark.flaky(max_runs=2 if sys.version_info > (3, 10) else 1)
 @pytest.mark.skipif(
     sys.platform == "win32", reason="stderr redirect does not work on Windows"
 )
@@ -56,23 +73,53 @@ def test_process_returns_exit_code(exit_code):
 
 
 def test_process_runs_command(tmp_path):
-    # Perform a side-effect to demonstrate the command is run
-    assert Process(command=["touch", str(tmp_path / "canary")]).run()
-    assert (tmp_path / "canary").exists()
+    """
+    Run a command that creates a file as a side effect to demonstrate the command
+    is run.
+    """
+    file_path = tmp_path / "test.txt"
+    # don't assume any specific programs are available other than touch on
+    # Unix-like systems and cmd.exe on Windows
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", f"echo hello > {str(file_path)}"]
+    else:
+        command = ["touch", str(file_path)]
+
+    assert Process(command=command).run()
+    assert file_path.exists()
 
 
 def test_process_runs_command_in_working_dir_str(tmpdir, capsys):
-    assert Process(
-        command=["bash", "-c", "pwd"], stream_output=True, working_dir=str(tmpdir)
-    ).run()
+    """
+    Test that a command that displays the current working directory runs
+    and displays the specified working directory for the process when the
+    working directory is a string.
+    """
+
+    # a command to display the current working directory with alternatives
+    # for Windows and Unix-like systems
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", "cd"]
+    else:
+        command = ["bash", "-c", "pwd"]
+
+    assert Process(command=command, stream_output=True, working_dir=str(tmpdir)).run()
     out, _ = capsys.readouterr()
     assert str(tmpdir) in out
 
 
 def test_process_runs_command_in_working_dir_path(tmp_path, capsys):
-    assert Process(
-        command=["bash", "-c", "pwd"], stream_output=True, working_dir=tmp_path
-    ).run()
+    """
+    Test that a command that displays the current working directory runs
+    and displays the specified working directory for the process when the
+    working directory is a path.
+    """
+    if sys.platform == "win32":
+        command = ["cmd.exe", "/c", "cd"]
+    else:
+        command = ["bash", "-c", "pwd"]
+
+    assert Process(command=command, stream_output=True, working_dir=tmp_path).run()
     out, _ = capsys.readouterr()
     assert str(tmp_path) in out
 
@@ -175,7 +222,6 @@ async def test_prepare_for_flow_run_uses_sys_executable(
 def test_process_logs_exit_code_help_message(
     exit_code, help_message, caplog, monkeypatch
 ):
-
     # We need to use a monkeypatch because `bash -c "exit -9"`` returns a 247
     class fake_process:
         returncode = exit_code
@@ -187,9 +233,12 @@ def test_process_logs_exit_code_help_message(
     result = Process(command=["noop"]).run()
     assert result.status_code == exit_code
 
-    record = caplog.records[-1]
-    assert record.levelname == "ERROR"
-    assert help_message in record.message
+    for record in caplog.records:
+        if help_message in record.message:
+            assert record.levelname == "ERROR"
+            break
+    else:
+        assert False, f"{help_message} not found in records"
 
 
 async def test_process_kill_mismatching_hostname(monkeypatch):
@@ -207,9 +256,6 @@ async def test_process_kill_mismatching_hostname(monkeypatch):
 
 
 async def test_process_kill_no_matching_pid(monkeypatch):
-    os_kill = MagicMock(side_effect=ProcessLookupError())
-    monkeypatch.setattr("os.kill", os_kill)
-
     infrastructure_pid = f"{socket.gethostname()}:12345"
 
     process = Process(command=["noop"])
@@ -288,3 +334,49 @@ async def test_process_kill_windows_sends_ctrl_break(monkeypatch):
     )
 
     os_kill.assert_called_once_with(12345, signal.CTRL_BREAK_EVENT)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="subprocess.CREATE_NEW_PROCESS_GROUP is only defined in Windows",
+)
+def test_windows_process_run_sets_process_group_creation_flag(monkeypatch):
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.terminate = AsyncMock()
+
+    mock_run_process_call = AsyncMock(return_value=mock_process)
+
+    monkeypatch.setattr(
+        prefect.infrastructure.process, "run_process", mock_run_process_call
+    )
+
+    prefect.infrastructure.Process(command=["echo", "hello world"]).run()
+
+    mock_run_process_call.assert_awaited_once()
+    (_, kwargs) = mock_run_process_call.call_args
+    assert kwargs.get("creationflags") == subprocess.CREATE_NEW_PROCESS_GROUP
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "The asyncio.open_process_*.creationflags argument is only supported on Windows"
+    ),
+)
+def test_unix_process_run_does_not_set_creation_flag(monkeypatch):
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_process.terminate = AsyncMock()
+
+    mock_run_process_call = AsyncMock(return_value=mock_process)
+
+    monkeypatch.setattr(
+        prefect.infrastructure.process, "run_process", mock_run_process_call
+    )
+
+    prefect.infrastructure.Process(command=["echo", "hello world"]).run()
+
+    mock_run_process_call.assert_awaited_once()
+    (_, kwargs) = mock_run_process_call.call_args
+    assert kwargs.get("creationflags") is None

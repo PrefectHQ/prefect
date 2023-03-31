@@ -9,7 +9,18 @@ import warnings
 from contextlib import asynccontextmanager
 from functools import partial, wraps
 from threading import Thread
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Type, TypeVar, Union
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import anyio
@@ -26,6 +37,17 @@ A = TypeVar("A", Async, Sync, covariant=True)
 
 # Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
 EVENT_LOOP_GC_REFS = {}
+
+PREFECT_THREAD_LIMITER: Optional[anyio.CapacityLimiter] = None
+
+
+def get_thread_limiter():
+    global PREFECT_THREAD_LIMITER
+
+    if PREFECT_THREAD_LIMITER is None:
+        PREFECT_THREAD_LIMITER = anyio.CapacityLimiter(250)
+
+    return PREFECT_THREAD_LIMITER
 
 
 def is_async_fn(
@@ -66,7 +88,9 @@ async def run_sync_in_worker_thread(
     thread may continue running — the outcome will just be ignored.
     """
     call = partial(__fn, *args, **kwargs)
-    return await anyio.to_thread.run_sync(call, cancellable=True)
+    return await anyio.to_thread.run_sync(
+        call, cancellable=True, limiter=get_thread_limiter()
+    )
 
 
 def raise_async_exception_in_thread(thread: Thread, exc_type: Type[BaseException]):
@@ -134,6 +158,7 @@ async def run_sync_in_interruptible_worker_thread(
                 anyio.to_thread.run_sync,
                 capture_worker_thread_and_result,
                 cancellable=True,
+                limiter=get_thread_limiter(),
             )
         )
 
@@ -192,17 +217,47 @@ def sync_compatible(async_fn: T) -> T:
 
     @wraps(async_fn)
     def coroutine_wrapper(*args, **kwargs):
-        if in_async_main_thread():
-            # In the main async context; return the coro for them to await
+        from prefect._internal.concurrency.api import create_call, from_sync
+        from prefect._internal.concurrency.calls import get_current_call, logger
+        from prefect._internal.concurrency.event_loop import get_running_loop
+        from prefect._internal.concurrency.threads import get_global_loop
+
+        global_thread_portal = get_global_loop()
+        current_thread = threading.current_thread()
+        current_call = get_current_call()
+        current_loop = get_running_loop()
+
+        if current_thread.ident == global_thread_portal.thread.ident:
+            logger.debug(f"{async_fn} --> return coroutine for internal await")
+            # In the prefect async context; return the coro for us to await
             return async_fn(*args, **kwargs)
+        elif in_async_main_thread() and (
+            not current_call or is_async_fn(current_call.fn)
+        ):
+            # In the main async context; return the coro for them to await
+            logger.debug(f"{async_fn} --> return coroutine for user await")
+            return async_fn(*args, **kwargs)
+        elif current_call and current_call.waiter and not is_async_fn(current_call.fn):
+            logger.debug(f"{async_fn} --> run async in callback portal")
+            return from_sync.call_soon_in_waiter_thread(
+                create_call(async_fn, *args, **kwargs)
+            ).result()
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
             # call to the parent
             return run_async_from_worker_thread(async_fn, *args, **kwargs)
+        elif current_loop is not None:
+            logger.debug(f"{async_fn} --> run async in global loop portal")
+            # An event loop is already present but we are in a sync context, run the
+            # call in Prefect's event loop thread
+            return from_sync.call_soon_in_loop_thread(
+                create_call(async_fn, *args, **kwargs)
+            ).result()
         else:
-            # In a sync context and there is no event loop; just create an event loop
-            # to run the async code then tear it down
-            return run_async_in_new_loop(async_fn, *args, **kwargs)
+            logger.debug(f"{async_fn} --> run async in new loop")
+            # Run in a new event loop, but use a `Call` for nested context detection
+            call = create_call(async_fn, *args, **kwargs)
+            return call()
 
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.

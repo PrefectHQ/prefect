@@ -3,11 +3,14 @@ Utilities for working with Python callables.
 """
 import inspect
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import cloudpickle
 import pydantic
 import pydantic.schema
+from griffe.dataclasses import Docstring
+from griffe.docstrings.dataclasses import DocstringSectionKind
+from griffe.docstrings.parsers import Parser, parse
 from typing_extensions import Literal
 
 from prefect.exceptions import (
@@ -15,6 +18,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
     SignatureMismatchError,
 )
+from prefect.logging.loggers import disable_logger
 
 
 def get_call_parameters(
@@ -43,8 +47,103 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
-def parameters_to_args_kwargs(
+def get_parameter_defaults(
+    fn: Callable,
+) -> Dict[str, Any]:
+    """
+    Get default parameter values for a callable.
+    """
+    signature = inspect.signature(fn)
+
+    parameter_defaults = {}
+
+    for name, param in signature.parameters.items():
+        if param.default is not signature.empty:
+            parameter_defaults[name] = param.default
+
+    return parameter_defaults
+
+
+def explode_variadic_parameter(
     fn: Callable, parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Given a parameter dictionary, move any parameters stored in a variadic keyword
+    argument parameter (i.e. **kwargs) into the top level.
+
+    Example:
+
+        ```python
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+        explode_variadic_parameter(foo, parameters)
+        # {"a": 1, "b": 2, "c": 3, "d": 4}
+        ```
+    """
+    variadic_key = None
+    for key, parameter in inspect.signature(fn).parameters.items():
+        if parameter.kind == parameter.VAR_KEYWORD:
+            variadic_key = key
+            break
+
+    if not variadic_key:
+        return parameters
+
+    new_parameters = parameters.copy()
+    for key, value in new_parameters.pop(variadic_key).items():
+        new_parameters[key] = value
+
+    return new_parameters
+
+
+def collapse_variadic_parameters(
+    fn: Callable, parameters: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Given a parameter dictionary, move any parameters stored not present in the
+    signature into the variadic keyword argument.
+
+    Example:
+
+        ```python
+        def foo(a, b, **kwargs):
+            pass
+
+        parameters = {"a": 1, "b": 2, "c": 3, "d": 4}
+        collapse_variadic_parameters(foo, parameters)
+        # {"a": 1, "b": 2, "kwargs": {"c": 3, "d": 4}}
+        ```
+    """
+    signature_parameters = inspect.signature(fn).parameters
+    variadic_key = None
+    for key, parameter in signature_parameters.items():
+        if parameter.kind == parameter.VAR_KEYWORD:
+            variadic_key = key
+            break
+
+    missing_parameters = set(parameters.keys()) - set(signature_parameters.keys())
+
+    if not variadic_key and missing_parameters:
+        raise ValueError(
+            f"Signature for {fn} does not include any variadic keyword argument "
+            "but parameters were given that are not present in the signature."
+        )
+
+    new_parameters = parameters.copy()
+    if variadic_key:
+        new_parameters[variadic_key] = {}
+
+    for key in missing_parameters:
+        new_parameters[variadic_key][key] = new_parameters.pop(key)
+
+    return new_parameters
+
+
+def parameters_to_args_kwargs(
+    fn: Callable,
+    parameters: Dict[str, Any],
 ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
     """
     Convert a `parameters` dictionary to positional and keyword arguments
@@ -119,6 +218,36 @@ class ParameterSchema(pydantic.BaseModel):
         return super().dict(*args, **kwargs)
 
 
+def parameter_docstrings(docstring: Optional[str]) -> Dict[str, str]:
+    """
+    Given a docstring in Google docstring format, parse the parameter section
+    and return a dictionary that maps parameter names to docstring.
+
+    Args:
+        docstring: The function's docstring.
+
+    Returns:
+        Mapping from parameter names to docstrings.
+    """
+    param_docstrings = {}
+
+    if not docstring:
+        return param_docstrings
+
+    with disable_logger("griffe.docstrings.google"), disable_logger(
+        "griffe.agents.nodes"
+    ):
+        parsed = parse(Docstring(docstring), Parser.google)
+        for section in parsed:
+            if section.kind != DocstringSectionKind.parameters:
+                continue
+            param_docstrings = {
+                parameter.name: parameter.description for parameter in section.value
+            }
+
+    return param_docstrings
+
+
 def parameter_schema(fn: Callable) -> ParameterSchema:
     """Given a function, generates an OpenAPI-compatible description
     of the function's arguments, including:
@@ -137,11 +266,12 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
     signature = inspect.signature(fn)
     model_fields = {}
     aliases = {}
+    docstrings = parameter_docstrings(inspect.getdoc(fn))
 
     class ModelConfig:
         arbitrary_types_allowed = True
 
-    for param in signature.parameters.values():
+    for position, param in enumerate(signature.parameters.values()):
         # Pydantic model creation will fail if names collide with the BaseModel type
         if hasattr(pydantic.BaseModel, param.name):
             name = param.name + "__"
@@ -154,8 +284,9 @@ def parameter_schema(fn: Callable) -> ParameterSchema:
             pydantic.Field(
                 default=... if param.default is param.empty else param.default,
                 title=param.name,
-                description=None,
+                description=docstrings.get(param.name, None),
                 alias=aliases.get(name),
+                position=position,
             ),
         )
 

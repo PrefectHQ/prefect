@@ -5,6 +5,7 @@ import signal
 import traceback
 import urllib.parse
 import webbrowser
+from contextlib import asynccontextmanager
 from typing import Hashable, Iterable, List, Optional, Tuple, Union
 
 import anyio
@@ -55,7 +56,16 @@ def set_login_api_ready_event():
     login_api.extra["ready-event"].set()
 
 
-login_api = FastAPI(on_startup=[set_login_api_ready_event])
+@asynccontextmanager
+async def lifespan(app):
+    try:
+        set_login_api_ready_event()
+        yield
+    finally:
+        pass
+
+
+login_api = FastAPI(lifespan=lifespan)
 """
 This small API server is used for data transmission for browser-based log in.
 """
@@ -200,7 +210,7 @@ def prompt_select_from_list(
             elif key == readchar.key.CTRL_C:
                 # gracefully exit with no message
                 exit_with_error("")
-            elif key == readchar.key.ENTER:
+            elif key == readchar.key.ENTER or key == readchar.key.CR:
                 selected_option = options[current_idx]
                 if isinstance(selected_option, tuple):
                     selected_option = selected_option[0]
@@ -226,7 +236,6 @@ async def login_with_browser() -> str:
 
     timeout_scope = None
     async with anyio.create_task_group() as tg:
-
         # Run a server in the background to get payload from the browser
         server = await tg.start(serve_login_api, tg.cancel_scope)
 
@@ -292,7 +301,9 @@ async def login(
         None,
         "--workspace",
         "-w",
-        help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
+        help=(
+            "Full handle of workspace, in format '<account_handle>/<workspace_handle>'"
+        ),
     ),
 ):
     """
@@ -302,7 +313,8 @@ async def login(
     """
     if not is_interactive() and (not key or not workspace_handle):
         exit_with_error(
-            "When not using an interactive terminal, you must supply a `--key` and `--workspace`."
+            "When not using an interactive terminal, you must supply a `--key` and"
+            " `--workspace`."
         )
 
     profiles = load_profiles()
@@ -379,7 +391,11 @@ async def login(
             workspaces = await client.read_workspaces()
         except CloudUnauthorizedError:
             if key.startswith("pcu"):
-                help_message = "It looks like you're using API key from Cloud 1 (https://cloud.prefect.io). Make sure that you generate API key using Cloud 2 (https://app.prefect.cloud)"
+                help_message = (
+                    "It looks like you're using API key from Cloud 1"
+                    " (https://cloud.prefect.io). Make sure that you generate API key"
+                    " using Cloud 2 (https://app.prefect.cloud)"
+                )
             elif not key.startswith("pnu"):
                 help_message = "Your key is not in our expected format."
             else:
@@ -397,7 +413,10 @@ async def login(
                 break
         else:
             if workspaces:
-                hint = f" Available workspaces: {listrepr((w.handle for w in workspaces), ', ')}"
+                hint = (
+                    " Available workspaces:"
+                    f" {listrepr((w.handle for w in workspaces), ', ')}"
+                )
             else:
                 hint = ""
 
@@ -426,7 +445,15 @@ async def login(
                 [(workspace, workspace.handle) for workspace in workspaces],
             )
         else:
-            workspace = current_workspace or workspaces[0]
+            if current_workspace:
+                workspace = current_workspace
+            elif len(workspaces) > 0:
+                workspace = workspaces[0]
+            else:
+                exit_with_error(
+                    "No workspaces found! Create a workspace at"
+                    f" {PREFECT_CLOUD_UI_URL.value()} and try again."
+                )
 
     update_current_profile(
         {
@@ -499,7 +526,9 @@ async def set(
         None,
         "--workspace",
         "-w",
-        help="Full handle of workspace, in format '<account_handle>/<workspace_handle>'",
+        help=(
+            "Full handle of workspace, in format '<account_handle>/<workspace_handle>'"
+        ),
     ),
 ):
     """Set current workspace. Shows a workspace picker if no workspace is specified."""
@@ -530,5 +559,6 @@ async def set(
     profile = update_current_profile({PREFECT_API_URL: workspace.api_url()})
 
     exit_with_success(
-        f"Successfully set workspace to {workspace.handle!r} in profile {profile.name!r}."
+        f"Successfully set workspace to {workspace.handle!r} in profile"
+        f" {profile.name!r}."
     )

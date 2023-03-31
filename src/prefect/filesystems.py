@@ -3,6 +3,7 @@ import io
 import json
 import urllib.parse
 from pathlib import Path
+from shutil import ignore_patterns
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Tuple, Union
 
@@ -79,6 +80,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Local File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/EVKjxM7fNyi4NGUSkeTEE/95c958c5dd5a56c59ea5033e919c1a63/image1.png?h=250"
+    _documentation_url = (
+        "https://docs.prefect.io/concepts/filesystems/#local-filesystem"
+    )
 
     basepath: Optional[str] = Field(
         default=None, description="Default local path for this block to write to."
@@ -100,7 +104,11 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         # Determine the path to access relative to the base path, ensuring that paths
         # outside of the base path are off limits
+        if path is None:
+            return basepath
+
         path: Path = Path(path).expanduser()
+
         if not path.is_absolute():
             path = basepath / path
         else:
@@ -161,11 +169,9 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         Copies a directory from one place to another on the local filesystem.
 
         Defaults to copying the entire contents of the current working directory to the block's basepath.
-
         An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
         """
-        if not to_path:
-            to_path = Path(self.basepath).expanduser()
+        destination_path = self._resolve_path(to_path)
 
         if not local_path:
             local_path = Path(".").absolute()
@@ -177,11 +183,14 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
         else:
             ignore_func = None
 
-        if local_path == to_path:
+        if local_path == destination_path:
             pass
         else:
             copytree(
-                src=local_path, dst=to_path, ignore=ignore_func, dirs_exist_ok=True
+                src=local_path,
+                dst=destination_path,
+                ignore=ignore_func,
+                dirs_exist_ok=True,
             )
 
     @sync_compatible
@@ -234,6 +243,9 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Remote File System"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CxjycqILlT9S9YchI7o1q/ee62e2089dfceb19072245c62f0c69d2/image12.png?h=250"
+    _documentation_url = (
+        "https://docs.prefect.io/concepts/filesystems/#remote-file-system"
+    )
 
     basepath: str = Field(
         default=...,
@@ -262,7 +274,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         if scheme == "file":
             raise ValueError(
-                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for local file access."
+                "Base path scheme cannot be 'file'. Use `LocalFileSystem` instead for"
+                " local file access."
             )
 
         return value
@@ -277,7 +290,8 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
         if scheme:
             if scheme != base_scheme:
                 raise ValueError(
-                    f"Path {path!r} with scheme {scheme!r} must use the same scheme as the base path {base_scheme!r}."
+                    f"Path {path!r} with scheme {scheme!r} must use the same scheme as"
+                    f" the base path {base_scheme!r}."
                 )
 
         if netloc:
@@ -414,6 +428,7 @@ class S3(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "S3"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/1jbV4lceHOjGgunX15lUwT/db88e184d727f721575aeb054a37e277/aws.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#s3"
 
     bucket_path: str = Field(
         default=...,
@@ -503,6 +518,7 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     """
 
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/4CD4wwbiIKPkZDt4U3TEuW/c112fe85653da054b6d5334ef662bec4/gcp.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#gcs"
 
     bucket_path: str = Field(
         default=...,
@@ -515,7 +531,10 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
     )
     project: Optional[str] = Field(
         default=None,
-        description="The project the GCS bucket resides in. If not provided, the project will be inferred from the credentials or environment.",
+        description=(
+            "The project the GCS bucket resides in. If not provided, the project will"
+            " be inferred from the credentials or environment."
+        ),
     )
 
     @property
@@ -532,7 +551,8 @@ class GCS(WritableFileSystem, WritableDeploymentStorage):
                 )
             except json.JSONDecodeError:
                 raise ValueError(
-                    "Unable to load provided service_account_info. Please make sure that the provided value is a valid JSON string."
+                    "Unable to load provided service_account_info. Please make sure"
+                    " that the provided value is a valid JSON string."
                 )
         remote_file_system = RemoteFileSystem(
             basepath=f"gcs://{self.bucket_path}", settings=settings
@@ -592,6 +612,7 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "Azure"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6AiQ6HRIft8TspZH7AfyZg/39fd82bdbb186db85560f688746c8cdd/azure.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#azure"
 
     bucket_path: str = Field(
         default=...,
@@ -601,12 +622,16 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     azure_storage_connection_string: Optional[SecretStr] = Field(
         default=None,
         title="Azure storage connection string",
-        description="Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable.",
+        description=(
+            "Equivalent to the AZURE_STORAGE_CONNECTION_STRING environment variable."
+        ),
     )
     azure_storage_account_name: Optional[SecretStr] = Field(
         default=None,
         title="Azure storage account name",
-        description="Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable.",
+        description=(
+            "Equivalent to the AZURE_STORAGE_ACCOUNT_NAME environment variable."
+        ),
     )
     azure_storage_account_key: Optional[SecretStr] = Field(
         default=None,
@@ -628,6 +653,15 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         title="Azure storage client secret",
         description="Equivalent to the AZURE_CLIENT_SECRET environment variable.",
     )
+    azure_storage_anon: bool = Field(
+        default=True,
+        title="Azure storage anonymous connection",
+        description=(
+            "Set the 'anon' flag for ADLFS. This should be False for systems that"
+            " require ADLFS to use DefaultAzureCredentials."
+        ),
+    )
+
     _remote_file_system: RemoteFileSystem = None
 
     @property
@@ -638,13 +672,13 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
     def filesystem(self) -> RemoteFileSystem:
         settings = {}
         if self.azure_storage_connection_string:
-            settings[
-                "connection_string"
-            ] = self.azure_storage_connection_string.get_secret_value()
+            settings["connection_string"] = (
+                self.azure_storage_connection_string.get_secret_value()
+            )
         if self.azure_storage_account_name:
-            settings[
-                "account_name"
-            ] = self.azure_storage_account_name.get_secret_value()
+            settings["account_name"] = (
+                self.azure_storage_account_name.get_secret_value()
+            )
         if self.azure_storage_account_key:
             settings["account_key"] = self.azure_storage_account_key.get_secret_value()
         if self.azure_storage_tenant_id:
@@ -652,9 +686,10 @@ class Azure(WritableFileSystem, WritableDeploymentStorage):
         if self.azure_storage_client_id:
             settings["client_id"] = self.azure_storage_client_id.get_secret_value()
         if self.azure_storage_client_secret:
-            settings[
-                "client_secret"
-            ] = self.azure_storage_client_secret.get_secret_value()
+            settings["client_secret"] = (
+                self.azure_storage_client_secret.get_secret_value()
+            )
+        settings["anon"] = self.azure_storage_anon
         self._remote_file_system = RemoteFileSystem(
             basepath=f"az://{self.bucket_path}", settings=settings
         )
@@ -714,6 +749,7 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
     _block_type_name = "SMB"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/6J444m3vW6ukgBOCinSxLk/025f5562d3c165feb7a5df599578a6a8/samba_2010_logo_transparent_151x27.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#smb"
 
     share_path: str = Field(
         default=...,
@@ -799,15 +835,19 @@ class SMB(WritableFileSystem, WritableDeploymentStorage):
 
 class GitHub(ReadableDeploymentStorage):
     """
-    Interact with files stored on public GitHub repositories.
+    Interact with files stored on GitHub repositories.
     """
 
     _block_type_name = "GitHub"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/187oCWsD18m5yooahq1vU0/ace41e99ab6dc40c53e5584365a33821/github.png?h=250"
+    _documentation_url = "https://docs.prefect.io/concepts/filesystems/#github"
 
     repository: str = Field(
         default=...,
-        description="The URL of a GitHub repository to read from, in either HTTPS or SSH format.",
+        description=(
+            "The URL of a GitHub repository to read from, in either HTTPS or SSH"
+            " format."
+        ),
     )
     reference: Optional[str] = Field(
         default=None,
@@ -816,7 +856,17 @@ class GitHub(ReadableDeploymentStorage):
     access_token: Optional[SecretStr] = Field(
         name="Personal Access Token",
         default=None,
-        description="A GitHub Personal Access Token (PAT) with repo scope.",
+        description=(
+            "A GitHub Personal Access Token (PAT) with repo scope."
+            " To use a fine-grained PAT, provide '{username}:{PAT}' as the value."
+        ),
+    )
+    include_git_objects: bool = Field(
+        default=True,
+        description=(
+            "Whether to include git objects when copying the repo contents to a"
+            " directory."
+        ),
     )
 
     @validator("access_token")
@@ -829,13 +879,11 @@ class GitHub(ReadableDeploymentStorage):
         if v is not None:
             if urllib.parse.urlparse(values["repository"]).scheme != "https":
                 raise InvalidRepositoryURLError(
-                    (
-                        "Crendentials can only be used with GitHub repositories "
-                        "using the 'HTTPS' format. You must either remove the "
-                        "credential if you wish to use the 'SSH' format and are not "
-                        "using a private repository, or you must change the repository "
-                        "URL to the 'HTTPS' format. "
-                    )
+                    "Crendentials can only be used with GitHub repositories "
+                    "using the 'HTTPS' format. You must either remove the "
+                    "credential if you wish to use the 'SSH' format and are not "
+                    "using a private repository, or you must change the repository "
+                    "URL to the 'HTTPS' format. "
                 )
 
         return v
@@ -914,4 +962,13 @@ class GitHub(ReadableDeploymentStorage):
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
             )
 
-            copytree(src=content_source, dst=content_destination, dirs_exist_ok=True)
+            ignore_func = None
+            if not self.include_git_objects:
+                ignore_func = ignore_patterns(".git")
+
+            copytree(
+                src=content_source,
+                dst=content_destination,
+                dirs_exist_ok=True,
+                ignore=ignore_func,
+            )

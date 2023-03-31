@@ -4,7 +4,7 @@ Interface and implementations of various task runners.
 [Task Runners](/concepts/task-runners/) in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
 
 Example:
-
+    ```
     >>> from prefect import flow, task
     >>> from prefect.task_runners import SequentialTaskRunner
     >>> from typing import List
@@ -32,8 +32,10 @@ Example:
     goodbye ford
     hello marvin
     goodbye marvin
+    ```
 
     Switching to a `DaskTaskRunner`:
+    ```
     >>> from prefect_dask.task_runners import DaskTaskRunner
     >>> flow.task_runner = DaskTaskRunner()
     >>> greetings(["arthur", "trillian", "ford", "marvin"])
@@ -45,6 +47,7 @@ Example:
     hello marvin
     goodbye ford
     goodbye trillian
+    ```
 
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
@@ -72,7 +75,7 @@ if TYPE_CHECKING:
     import anyio.abc
 
 from prefect.logging import get_logger
-from prefect.orion.schemas.states import State
+from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
 from prefect.utilities.collections import AutoEnum
 
@@ -216,14 +219,15 @@ class ConcurrentTaskRunner(BaseTaskRunner):
     A concurrent task runner that allows tasks to switch when blocking on IO.
     Synchronous tasks will be submitted to a thread pool maintained by `anyio`.
 
-    Examples:
-
+    Example:
+        ```
         Using a thread for concurrency:
         >>> from prefect import flow
         >>> from prefect.task_runners import ConcurrentTaskRunner
         >>> @flow(task_runner=ConcurrentTaskRunner)
         >>> def my_flow():
         >>>     ...
+        ```
     """
 
     def __init__(self):
@@ -304,7 +308,6 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         result_event = self._result_events.get(key)
 
         with anyio.move_on_after(timeout):
-
             # Attempt to use the event to wait for the result. This is much more efficient
             # than the spin-lock that follows but does not work if the wait call
             # happens from an event loop in a different thread than the one from which

@@ -85,6 +85,12 @@ class CancelledRun(PrefectException):
     """
 
 
+class PausedRun(PrefectException):
+    """
+    Raised when the result from a paused run is retrieved.
+    """
+
+
 class MissingFlowError(PrefectException):
     """
     Raised when a given flow name is not found in the expected script.
@@ -114,7 +120,7 @@ class ScriptError(PrefectException):
         user_exc: Exception,
         path: str,
     ) -> None:
-        message = f"Script at {str(path)!r} encountered an exception"
+        message = f"Script at {str(path)!r} encountered an exception: {user_exc!r}"
         super().__init__(message)
         self.user_exc = user_exc
 
@@ -193,7 +199,10 @@ class SignatureMismatchError(PrefectException, TypeError):
 
     @classmethod
     def from_bad_params(cls, expected_params: List[str], provided_params: List[str]):
-        msg = f"Function expects parameters {expected_params} but was provided with parameters {provided_params}"
+        msg = (
+            f"Function expects parameters {expected_params} but was provided with"
+            f" parameters {provided_params}"
+        )
         return cls(msg)
 
 
@@ -262,6 +271,27 @@ class Abort(PrefectSignal):
 
     Indicates that the run should exit immediately.
     """
+
+
+class Pause(PrefectSignal):
+    """
+    Raised when a flow run is PAUSED and needs to exit for resubmission.
+    """
+
+
+class ExternalSignal(BaseException):
+    """
+    Base type for external signal-like exceptions that should never be caught by users.
+    """
+
+
+class TerminationSignal(ExternalSignal):
+    """
+    Raised when a flow run receives a termination signal.
+    """
+
+    def __init__(self, signal: int):
+        self.signal = signal
 
 
 class PrefectHTTPStatusError(HTTPStatusError):
@@ -349,7 +379,3 @@ class NotPausedError(PrefectException):
 
 class FlowPauseTimeout(PrefectException):
     """Raised when a flow pause times out"""
-
-
-class PausedRun(PrefectSignal):
-    """Signal raised when exiting a flow early for nonblocking pauses"""

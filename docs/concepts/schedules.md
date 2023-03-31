@@ -26,7 +26,7 @@ There are four recommended ways to create a schedule for a deployment:
 
 ## Creating schedules through the UI
 
-You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview.md). 
+You can add, modify, and view schedules by selecting **Edit** under the three dot menu next to a Deployment in the **Deployments** tab of the [Prefect UI](/ui/overview/). 
 
 ![Deployment edit button](../img/concepts/edit-schedule-callout.png)
 
@@ -66,7 +66,7 @@ This schedule will create flow runs for this deployment every day at midnight.
 Here's how you create the equivalent schedule in a Python deployment file, with a timezone specified.
 
 ```python
-from prefect.orion.schemas.schedules import CronSchedule
+from prefect.server.schemas.schedules import CronSchedule
 
 cron_demo = Deployment.build_from_flow(
     pipeline,
@@ -115,7 +115,7 @@ The `day_or` property defaults to `True`, matching `cron`, which connects those 
     
     Longer schedules, such as one that fires at 9am every morning, will adjust for DST automatically.
   
-  See the Python [CronSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.CronSchedule) for more information. 
+  See the Python [CronSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.CronSchedule) for more information. 
 
 
 ## Interval
@@ -147,7 +147,7 @@ Note that the `anchor_date` does not indicate a "start time" for the schedule, b
     
     For longer intervals, like a daily schedule, the interval schedule will adjust for DST boundaries so that the clock-hour remains constant. This means that a daily schedule that always fires at 9am will observe DST and continue to fire at 9am in the local time zone.
 
-See the Python [IntervalSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.IntervalSchedule) for more information. 
+See the Python [IntervalSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.IntervalSchedule) for more information. 
 
 ## RRule
 
@@ -178,17 +178,20 @@ schedule:
   rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20240730T040000Z'
 ```
 
+!!! info "Max RRule length"
+    Note the max supported character length of an `rrulestr` is 6500 characters
+
 !!! info "Daylight saving time considerations"
     Note that as a calendar-oriented standard, `RRules` are sensitive to the initial timezone provided. A 9am daily schedule with a DST-aware start date will maintain a local 9am time through DST boundaries. A 9am daily schedule with a UTC start date will maintain a 9am UTC time.
 
 
 
-See the Python [RRuleSchedule class docs](/api-ref/orion/schemas/schedules/#prefect.orion.schemas.schedules.RRuleSchedule) for more information. 
+See the Python [RRuleSchedule class docs](/api-ref/server/schemas/schedules/#prefect.server.schemas.schedules.RRuleSchedule) for more information. 
 
 
 ## The `Scheduler` service
 
-The `Scheduler` service is started automatically when `prefect orion start` is run and it is a built-in service of Prefect Cloud. 
+The `Scheduler` service is started automatically when `prefect server start` is run and it is a built-in service of Prefect Cloud. 
 
 By default, the `Scheduler` service visits deployments on a 60-second loop, though recently-modified deployments will be visited more frequently. The `Scheduler` evaluates each deployment's schedule and creates new runs appropriately. For typical deployments, it will create the next three runs, though more runs will be scheduled if the next 3 would all start in the next hour. 
 
@@ -203,14 +206,14 @@ These behaviors can all be adjusted through the relevant settings that can be vi
 
 <div class='terminal'>
 ```bash
-PREFECT_ORION_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE='100' 
-PREFECT_ORION_SERVICES_SCHEDULER_ENABLED='True' 
-PREFECT_ORION_SERVICES_SCHEDULER_INSERT_BATCH_SIZE='500' 
-PREFECT_ORION_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' 
-PREFECT_ORION_SERVICES_SCHEDULER_MIN_RUNS='3' 
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_RUNS='100' 
-PREFECT_ORION_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME='1:00:00' 
-PREFECT_ORION_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00' 
+PREFECT_API_SERVICES_SCHEDULER_DEPLOYMENT_BATCH_SIZE='100' 
+PREFECT_API_SERVICES_SCHEDULER_ENABLED='True' 
+PREFECT_API_SERVICES_SCHEDULER_INSERT_BATCH_SIZE='500' 
+PREFECT_API_SERVICES_SCHEDULER_LOOP_SECONDS='60.0' 
+PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS='3' 
+PREFECT_API_SERVICES_SCHEDULER_MAX_RUNS='100' 
+PREFECT_API_SERVICES_SCHEDULER_MIN_SCHEDULED_TIME='1:00:00' 
+PREFECT_API_SERVICES_SCHEDULER_MAX_SCHEDULED_TIME='100 days, 0:00:00' 
 ```
 </div>
 
@@ -219,7 +222,7 @@ See the [Settings docs](/concepts/settings/) for more information on altering yo
 These settings mean that if a deployment has an hourly schedule, the default settings will create runs for the next 4 days (or 100 hours). If it has a weekly schedule, the default settings will maintain the next 14 runs (up to 100 days in the future).
 
 !!! tip "The `Scheduler` does not affect execution"
-    The Prefect Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. 
+    The Prefect `Scheduler` service only creates new flow runs and places them in `Scheduled` states. It is not involved in flow or task execution. 
 
 If you change a schedule, previously scheduled flow runs that have not started are removed, and new scheduled flow runs are created to reflect the new schedule.
 

@@ -6,8 +6,9 @@ import importlib
 import json
 import sys
 from datetime import datetime
+from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Union
 from uuid import UUID
 
 import anyio
@@ -15,8 +16,10 @@ import pendulum
 import yaml
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
+from prefect._internal.compatibility.experimental import experimental_field
 from prefect.blocks.core import Block
-from prefect.client.orion import OrionClient, get_client
+from prefect.blocks.fields import SecretDict
+from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, PrefectObjectRegistry
 from prefect.exceptions import (
@@ -25,32 +28,32 @@ from prefect.exceptions import (
     ObjectNotFound,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.flows import Flow
+from prefect.flows import Flow, load_flow_from_entrypoint
 from prefect.infrastructure import Infrastructure, Process
 from prefect.logging.loggers import flow_run_logger
-from prefect.orion import schemas
+from prefect.server import schemas
+from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.states import Scheduled
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_sync_in_worker_thread, sync_compatible
 from prefect.utilities.callables import ParameterSchema, parameter_schema
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.filesystem import relative_path_to_current_platform, tmpchdir
-from prefect.utilities.importtools import import_object
 from prefect.utilities.slugify import slugify
 
 
 @sync_compatible
 @inject_client
 async def run_deployment(
-    name: str,
-    client: OrionClient = None,
-    parameters: dict = None,
-    scheduled_time: datetime = None,
-    flow_run_name: str = None,
-    timeout: float = None,
-    poll_interval: float = 5,
+    name: Union[str, UUID],
+    client: Optional[PrefectClient] = None,
+    parameters: Optional[dict] = None,
+    scheduled_time: Optional[datetime] = None,
+    flow_run_name: Optional[str] = None,
+    timeout: Optional[float] = None,
+    poll_interval: Optional[float] = 5,
     tags: Optional[Iterable[str]] = None,
-    idempotency_key: str = None,
+    idempotency_key: Optional[str] = None,
 ):
     """
     Create a flow run for a deployment and return it after completion or a timeout.
@@ -61,9 +64,9 @@ async def run_deployment(
     checking the state of the flow run if completion is important moving forward.
 
     Args:
-        name: The deployment name in the form: '<flow-name>/<deployment-name>'
+        name: The deployment id or deployment name in the form: '<flow-name>/<deployment-name>'
         parameters: Parameter overrides for this flow run. Merged with the deployment
-            defaults
+            defaults.
         scheduled_time: The time to schedule the flow run for, defaults to scheduling
             the flow run to start now.
         flow_run_name: A name for the created flow run
@@ -72,6 +75,8 @@ async def run_deployment(
             Setting `timeout` to None will allow this function to poll indefinitely.
             Defaults to None
         poll_interval: The number of seconds between polls
+        tags: A list of tags to associate with this flow run; note that tags are used only for organizational purposes.
+        idempotency_key: A unique value to recognize retries of the same run, and prevent creating multiple flow runs.
     """
     if timeout is not None and timeout < 0:
         raise ValueError("`timeout` cannot be negative")
@@ -81,7 +86,20 @@ async def run_deployment(
 
     parameters = parameters or {}
 
-    deployment = await client.read_deployment_by_name(name)
+    deployment_id = None
+
+    if isinstance(name, UUID):
+        deployment_id = name
+    else:
+        try:
+            deployment_id = UUID(name)
+        except ValueError:
+            pass
+
+    if deployment_id:
+        deployment = await client.read_deployment(deployment_id=deployment_id)
+    else:
+        deployment = await client.read_deployment_by_name(name)
 
     flow_run_ctx = FlowRunContext.get()
     if flow_run_ctx:
@@ -96,14 +114,20 @@ async def run_deployment(
             k: await collect_task_run_inputs(v) for k, v in parameters.items()
         }
 
+        if deployment_id:
+            flow = await client.read_flow(deployment.flow_id)
+            deployment_name = f"{flow.name}/{deployment.name}"
+        else:
+            deployment_name = name
+
         # Generate a task in the parent flow run to represent the result of the subflow
         dummy_task = Task(
-            name=name,
+            name=deployment_name,
             fn=lambda: None,
             version=deployment.version,
         )
         # Override the default task key to include the deployment name
-        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(name)}"
+        dummy_task.task_key = f"{__name__}.run_deployment.{slugify(deployment_name)}"
         parent_task_run = await client.create_task_run(
             task=dummy_task,
             flow_run_id=flow_run_ctx.flow_run.id,
@@ -143,7 +167,7 @@ async def run_deployment(
 
 @inject_client
 async def load_flow_from_flow_run(
-    flow_run: schemas.core.FlowRun, client: OrionClient, ignore_storage: bool = False
+    flow_run: schemas.core.FlowRun, client: PrefectClient, ignore_storage: bool = False
 ) -> Flow:
     """
     Load a flow from the location/script provided in a deployment's storage document.
@@ -152,6 +176,7 @@ async def load_flow_from_flow_run(
     is largely for testing, and assumes the flow is already available locally.
     """
     deployment = await client.read_deployment(flow_run.deployment_id)
+    logger = flow_run_logger(flow_run)
 
     if not ignore_storage:
         if deployment.storage_document_id:
@@ -164,13 +189,12 @@ async def load_flow_from_flow_run(
             storage_block = LocalFileSystem(basepath=basepath)
 
         sys.path.insert(0, ".")
+
+        logger.info(f"Downloading flow code from storage at {deployment.path!r}")
         await storage_block.get_directory(from_path=deployment.path, local_path=".")
 
-    flow_run_logger(flow_run).debug(
-        f"Loading flow for deployment {deployment.name!r}..."
-    )
-
     import_path = relative_path_to_current_platform(deployment.entrypoint)
+    logger.debug(f"Importing flow code from '{import_path}'")
 
     # for backwards compat
     if deployment.manifest_path:
@@ -179,7 +203,7 @@ async def load_flow_from_flow_run(
             import_path = (
                 Path(deployment.manifest_path).parent / import_path
             ).absolute()
-    flow = await run_sync_in_worker_thread(import_object, str(import_path))
+    flow = await run_sync_in_worker_thread(load_flow_from_entrypoint, str(import_path))
     return flow
 
 
@@ -206,6 +230,11 @@ def load_deployments_from_yaml(
     return registry
 
 
+@experimental_field(
+    "work_pool_name",
+    group="work_pools",
+    when=lambda x: x is not None and x != DEFAULT_AGENT_WORK_POOL_NAME,
+)
 class Deployment(BaseModel):
     """
     A Prefect Deployment definition, used for specifying and building deployments.
@@ -217,8 +246,9 @@ class Deployment(BaseModel):
         tags: An optional list of tags to associate with this deployment; note that tags are
             used only for organizational purposes. For delegating work to agents, see `work_queue_name`.
         schedule: A schedule to run this deployment on, once registered
+        is_schedule_active: Whether or not the schedule is active
         work_queue_name: The work queue that will handle this deployment's runs
-        flow: The name of the flow this deployment encapsulates
+        flow_name: The name of the flow this deployment encapsulates
         parameters: A dictionary of parameter values to pass to runs created from this deployment
         infrastructure: An optional infrastructure block used to configure infrastructure for runs;
             if not provided, will default to running this deployment in Agent subprocesses
@@ -266,6 +296,7 @@ class Deployment(BaseModel):
     """
 
     class Config:
+        json_encoders = {SecretDict: lambda v: v.dict()}
         validate_assignment = True
         extra = "forbid"
 
@@ -276,9 +307,11 @@ class Deployment(BaseModel):
             "description",
             "version",
             "work_queue_name",
+            "work_pool_name",
             "tags",
             "parameters",
             "schedule",
+            "is_schedule_active",
             "infra_overrides",
         ]
 
@@ -316,7 +349,8 @@ class Deployment(BaseModel):
         with open(path, "w") as f:
             # write header
             f.write(
-                f"###\n### A complete description of a Prefect Deployment for flow {self.flow_name!r}\n###\n"
+                "###\n### A complete description of a Prefect Deployment for flow"
+                f" {self.flow_name!r}\n###\n"
             )
 
             # write editable fields
@@ -370,18 +404,25 @@ class Deployment(BaseModel):
         description="One of more tags to apply to this deployment.",
     )
     schedule: schemas.schedules.SCHEDULE_TYPES = None
+    is_schedule_active: Optional[bool] = Field(
+        default=None, description="Whether or not the schedule is active."
+    )
     flow_name: Optional[str] = Field(default=None, description="The name of the flow.")
     work_queue_name: Optional[str] = Field(
         "default",
         description="The work queue for the deployment.",
         yaml_comment="The work queue that will handle this deployment's runs",
     )
-
+    work_pool_name: Optional[str] = Field(
+        default=None, description="The work pool for the deployment"
+    )
     # flow data
     parameters: Dict[str, Any] = Field(default_factory=dict)
     manifest_path: Optional[str] = Field(
         default=None,
-        description="The path to the flow's manifest file, relative to the chosen storage.",
+        description=(
+            "The path to the flow's manifest file, relative to the chosen storage."
+        ),
     )
     infrastructure: Infrastructure = Field(default_factory=Process)
     infra_overrides: Dict[str, Any] = Field(
@@ -394,16 +435,22 @@ class Deployment(BaseModel):
     )
     path: Optional[str] = Field(
         default=None,
-        description="The path to the working directory for the workflow, relative to remote storage or an absolute path.",
+        description=(
+            "The path to the working directory for the workflow, relative to remote"
+            " storage or an absolute path."
+        ),
     )
     entrypoint: Optional[str] = Field(
         default=None,
-        description="The path to the entrypoint for the workflow, relative to the `path`.",
+        description=(
+            "The path to the entrypoint for the workflow, relative to the `path`."
+        ),
     )
     parameter_openapi_schema: ParameterSchema = Field(
         default_factory=ParameterSchema,
         description="The parameter schema of the flow, including defaults.",
     )
+    timestamp: datetime = Field(default_factory=partial(pendulum.now, "UTC"))
 
     @validator("infrastructure", pre=True)
     def infrastructure_must_have_capabilities(cls, value):
@@ -452,25 +499,24 @@ class Deployment(BaseModel):
     @classmethod
     @sync_compatible
     async def load_from_yaml(cls, path: str):
-        with open(str(path), "r") as f:
-            data = yaml.safe_load(f)
+        data = yaml.safe_load(await anyio.Path(path).read_bytes())
 
-            # load blocks from server to ensure secret values are properly hydrated
-            if data["storage"]:
-                block_doc_name = data["storage"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["storage"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["storage"] = block
+        # load blocks from server to ensure secret values are properly hydrated
+        if data["storage"]:
+            block_doc_name = data["storage"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["storage"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["storage"] = block
 
-            if data["infrastructure"]:
-                block_doc_name = data["infrastructure"].get("_block_document_name")
-                # if no doc name, this block is not stored on the server
-                if block_doc_name:
-                    block_slug = data["infrastructure"]["_block_type_slug"]
-                    block = await Block.load(f"{block_slug}/{block_doc_name}")
-                    data["infrastructure"] = block
+        if data["infrastructure"]:
+            block_doc_name = data["infrastructure"].get("_block_document_name")
+            # if no doc name, this block is not stored on the server
+            if block_doc_name:
+                block_slug = data["infrastructure"]["_block_type_slug"]
+                block = await Block.load(f"{block_slug}/{block_doc_name}")
+                data["infrastructure"] = block
 
             return cls(**data)
 
@@ -498,7 +544,7 @@ class Deployment(BaseModel):
                     )
 
                 excluded_fields = self.__fields_set__.union(
-                    {"infrastructure", "storage"}
+                    {"infrastructure", "storage", "timestamp"}
                 )
                 for field in set(self.__fields__.keys()) - excluded_fields:
                     new_value = getattr(deployment, field)
@@ -574,7 +620,8 @@ class Deployment(BaseModel):
         elif self.storage:
             if "put-directory" not in self.storage.get_block_capabilities():
                 raise BlockMissingCapabilities(
-                    f"Storage block {self.storage!r} missing 'put-directory' capability."
+                    f"Storage block {self.storage!r} missing 'put-directory'"
+                    " capability."
                 )
 
             file_count = await self.storage.put_directory(
@@ -617,10 +664,12 @@ class Deployment(BaseModel):
 
             if self.work_queue_name and work_queue_concurrency is not None:
                 try:
-                    res = await client.create_work_queue(name=self.work_queue_name)
+                    res = await client.create_work_queue(
+                        name=self.work_queue_name, work_pool_name=self.work_pool_name
+                    )
                 except ObjectAlreadyExists:
                     res = await client.read_work_queue_by_name(
-                        name=self.work_queue_name
+                        name=self.work_queue_name, work_pool_name=self.work_pool_name
                     )
                 await client.update_work_queue(
                     res.id, concurrency_limit=work_queue_concurrency
@@ -628,13 +677,14 @@ class Deployment(BaseModel):
 
             # we assume storage was already saved
             storage_document_id = getattr(self.storage, "_block_document_id", None)
-
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=self.name,
                 work_queue_name=self.work_queue_name,
+                work_pool_name=self.work_pool_name,
                 version=self.version,
                 schedule=self.schedule,
+                is_schedule_active=self.is_schedule_active,
                 parameters=self.parameters,
                 description=self.description,
                 tags=self.tags,

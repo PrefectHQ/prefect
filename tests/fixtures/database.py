@@ -6,15 +6,16 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
+from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
-from prefect.orion import models, schemas
-from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.orchestration.rules import (
+from prefect.server import models, schemas
+from prefect.server.database.dependencies import provide_database_interface
+from prefect.server.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.schemas import states
+from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
 
 
@@ -57,16 +58,18 @@ async def setup_db(database_engine, db):
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db):
-    """Clear the database by
-
-    Args:
-        database_engine ([type]): [description]
+async def clear_db(db):
+    """
+    Delete all data from all tables after running each test.
     """
     yield
-    async with database_engine.begin() as conn:
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(db.Agent.__table__.delete())
+        # work pool has a circular dependency on pool queue; delete it first
+        await session.execute(db.WorkPool.__table__.delete())
+
         for table in reversed(db.Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+            await session.execute(table.delete())
 
 
 @pytest.fixture
@@ -217,7 +220,7 @@ async def nonblocking_paused_flow_run(session, flow, deployment):
 
 @pytest.fixture
 async def flow_run_state(session, flow_run, db):
-    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
+    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return flow_run.state
 
@@ -236,7 +239,7 @@ async def task_run(session, flow_run):
 
 @pytest.fixture
 async def task_run_state(session, task_run, db):
-    task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
+    task_run.set_state(db.TaskRunState(**schemas.states.Pending().orm_dict()))
     await session.commit()
     return task_run.state
 
@@ -324,7 +327,47 @@ async def infrastructure_document_id_2(orion_client):
 
 @pytest.fixture
 async def deployment(
-    session, flow, flow_function, infrastructure_document_id, storage_document_id
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,
+):
+    def hello(name: str):
+        pass
+
+    deployment = await models.deployments.create_deployment(
+        session=session,
+        deployment=schemas.core.Deployment(
+            name="My Deployment",
+            tags=["test"],
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1),
+                anchor_date=pendulum.datetime(2020, 1, 1),
+            ),
+            storage_document_id=storage_document_id,
+            path="./subdir",
+            entrypoint="/file.py:flow",
+            infrastructure_document_id=infrastructure_document_id,
+            work_queue_name=work_queue_1.name,
+            parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
+        ),
+    )
+    await session.commit()
+    return deployment
+
+
+@pytest.fixture
+async def deployment_in_non_default_work_pool(
+    session,
+    flow,
+    flow_function,
+    infrastructure_document_id,
+    storage_document_id,
+    work_queue_1,
 ):
     def hello(name: str):
         pass
@@ -345,6 +388,7 @@ async def deployment(
             infrastructure_document_id=infrastructure_document_id,
             work_queue_name="wq",
             parameter_openapi_schema=parameter_schema(hello),
+            work_queue_id=work_queue_1.id,
         ),
     )
     await session.commit()
@@ -355,13 +399,87 @@ async def deployment(
 async def work_queue(session):
     work_queue = await models.work_queues.create_work_queue(
         session=session,
-        work_queue=schemas.core.WorkQueue(
-            name="wq-1",
-            description="All about my work queue",
+        work_queue=schemas.actions.WorkQueueCreate(
+            name="wq-1", description="All about my work queue", priority=1
         ),
     )
     await session.commit()
     return work_queue
+
+
+@pytest.fixture
+async def work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="test-work-pool",
+            type="test-type",
+            base_job_template={
+                "job_configuration": {"command": "{{ command }}"},
+                "variables": {
+                    "properties": {
+                        "command": {
+                            "type": "array",
+                            "title": "Command",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def process_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type=ProcessWorker.type,
+            base_job_template=ProcessWorker.get_default_base_job_template(),
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def prefect_agent_work_pool(session):
+    model = await models.workers.create_work_pool(
+        session=session,
+        work_pool=schemas.actions.WorkPoolCreate(
+            name="process-work-pool",
+            type="prefect-agent",
+        ),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_queue_1(session, work_pool):
+    model = await models.workers.create_work_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-1"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def work_queue_2(session, work_pool):
+    model = await models.workers.create_work_queue(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_queue=schemas.actions.WorkQueueCreate(name="wq-2"),
+    )
+    await session.commit()
+    return model
 
 
 @pytest.fixture
