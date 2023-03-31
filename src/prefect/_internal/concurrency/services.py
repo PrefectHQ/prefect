@@ -64,7 +64,7 @@ class QueueService(abc.ABC, Generic[T]):
             self._start_call.result()
 
         self._stopped = True
-        call_soon_in_loop(self._loop, self._queue.put_nowait, None).result()
+        call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
     def send(self, item: T):
         """
