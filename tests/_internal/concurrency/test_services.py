@@ -1,3 +1,4 @@
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from unittest.mock import ANY, MagicMock, call
@@ -164,3 +165,23 @@ def test_drain_on_exit_async_from_same_loop():
     from_sync.call_soon_in_loop_thread(create_call(on_global_loop)).result()
 
     MockService.mock.assert_has_calls([call(ANY, i) for i in range(10)])
+
+
+def test_lifespan():
+    class LifespanService(QueueService[int]):
+        events = []
+
+        async def _handle(self, item):
+            raise ValueError("Oh no!")
+
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            self.events.append("enter")
+            try:
+                yield
+            finally:
+                self.events.append("exit")
+
+    LifespanService.instance().send(1)
+    LifespanService.drain_all()
+    assert LifespanService.events == ["enter", "exit"]

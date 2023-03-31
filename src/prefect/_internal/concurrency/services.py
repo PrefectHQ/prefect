@@ -10,11 +10,14 @@ from typing import Awaitable, Dict, Generic, Optional, Type, TypeVar, Union
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect._internal.concurrency.calls import Call
 from prefect._internal.concurrency.event_loop import call_soon_in_loop, get_running_loop
 from prefect._internal.concurrency.threads import get_global_loop
+from prefect.logging import get_logger
 
 T = TypeVar("T")
+
+
+logger = get_logger("prefect._internal.concurrency.services")
 
 
 class QueueService(abc.ABC, Generic[T]):
@@ -38,11 +41,10 @@ class QueueService(abc.ABC, Generic[T]):
         self._done_event = asyncio.Event()
         self._task = self._loop.create_task(self._run())
         self._started = True
-        self._start_call: Optional[Call] = None
 
         # Put all early submissions in the queue
         while self._early_items:
-            self.send(self._early_items.pop())
+            self.send(self._early_items.popleft())
 
         # Stop at interpreter exit by default
         atexit.register(self.drain_all)
@@ -82,6 +84,8 @@ class QueueService(abc.ABC, Generic[T]):
         try:
             async with self._lifespan():
                 await self._main_loop()
+        except Exception:
+            logger.exception("Service %r failed.", type(self).__name__)
         finally:
             self._stopped = True
             self._done_event.set()
@@ -176,7 +180,9 @@ class QueueService(abc.ABC, Generic[T]):
 
         # Otherwise, bind the service to the global loop
         else:
-            from_sync.call_soon_in_loop_thread(create_call(instance.start))
+            instance._start_call = from_sync.call_soon_in_loop_thread(
+                create_call(instance.start)
+            )
 
         return instance
 
