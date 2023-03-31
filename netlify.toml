@@ -187,21 +187,21 @@ status = 301
  #       - ui/blocks.md
  #       - ui/notifications.md
  #       - ui/task-concurrency.md
-#       - ui/index.md -> cloud/index.md
-#       - ui/cloud.md -> cloud/index.md
+#       - ui/index.md -> /cloud/
+#       - ui/cloud.md -> /cloud/
 #       - ui/cloud-quickstart.md -> cloud/cloud-quickstart.md
-#       - ui/cloud-api-keys.md -> cloud/cloud-api-keys.md
-#       - ui/cloud-local-environment.md -> cloud/index.md
-#       - Organizations: ui/organizations.md 
+#       - ui/cloud-api-keys.md -> cloud/users/api-keys.md
+#       - ui/cloud-local-environment.md -> /cloud/
+#       - Organizations: ui/organizations.md -> /cloud/organizations/
 #       - Workspaces: ui/workspaces.md
-#       - Service Accounts: ui/service-accounts.md
-#       - Roles (RBAC): ui/roles.md
-#       - Single Sign-on (SSO): ui/sso.md
-#       - Audit Log: ui/audit-log.md
+#       - Service Accounts: ui/service-accounts.md -> /cloud/users/service-accounts/
+#       - Roles (RBAC): ui/roles.md -> /cloud/users/roles/
+#       - Single Sign-on (SSO): ui/sso.md -> /cloud/users/sso/
+#       - Audit Log: ui/audit-log.md -> /cloud/users/audit-log/
 #       - Automations: ui/automations.md
-#       - Events: ui/events.md
-#       - ui/troubleshooting -> cloud/index
-#       - Rate Limits: ui/rate-limits.md
+#       - Events: ui/events.md -> /cloud/events/
+#       - ui/troubleshooting -> /cloud/
+#       - Rate Limits: ui/rate-limits.md -> /cloud/rate-limits/
 
 
 
