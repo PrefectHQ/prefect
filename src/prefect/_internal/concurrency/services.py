@@ -64,7 +64,7 @@ class QueueService(abc.ABC, Generic[T]):
             self._start_call.result()
 
         self._stopped = True
-        call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+        call_soon_in_loop(self._loop, self._queue.put_nowait, None).result()
 
     def send(self, item: T):
         """
@@ -79,6 +79,14 @@ class QueueService(abc.ABC, Generic[T]):
             call_soon_in_loop(self._loop, self._queue.put_nowait, item)
 
     async def _run(self):
+        try:
+            async with self._lifespan():
+                await self._main_loop()
+        finally:
+            self._stopped = True
+            self._done_event.set()
+
+    async def _main_loop(self):
         while True:
             item: T = await self._queue.get()
 
@@ -87,13 +95,18 @@ class QueueService(abc.ABC, Generic[T]):
 
             await self._handle(item)
 
-        self._done_event.set()
-
     @abc.abstractmethod
     async def _handle(self, item: T):
         """
         Process an item sent to the service.
         """
+
+    @contextlib.asynccontextmanager
+    async def _lifespan(self):
+        """
+        Perform any setup and teardown for the service.
+        """
+        yield
 
     def _drain(self) -> concurrent.futures.Future:
         """
@@ -103,7 +116,7 @@ class QueueService(abc.ABC, Generic[T]):
         future = asyncio.run_coroutine_threadsafe(self._done_event.wait(), self._loop)
         return future
 
-    def drain(self) -> concurrent.futures.Future:
+    def drain(self) -> None:
         """
         Stop this instance of the service and wait for remaining work to be completed.
 
@@ -163,7 +176,7 @@ class QueueService(abc.ABC, Generic[T]):
 
         # Otherwise, bind the service to the global loop
         else:
-            from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
+            from_sync.call_soon_in_loop_thread(create_call(instance.start))
 
         return instance
 
