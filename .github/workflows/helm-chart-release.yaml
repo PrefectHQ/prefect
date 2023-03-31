@@ -21,4 +21,4 @@ jobs:
             --notes "Packaged with Prefect version \
             [${{ github.ref_name }}](https://github.com/PrefectHQ/prefect/releases/tag/${{ github.ref_name }})"
         env:
-          GH_TOKEN: ${{ secrets.HELM_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.PREFECT_HELM_CONTENTS_RW }}
