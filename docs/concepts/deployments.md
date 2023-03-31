@@ -44,7 +44,7 @@ flowchart LR
         D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
     end
     subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
-        B("<div style='margin: 5px 10px 5px 5px;'>Flow</div>"):::yellow
+        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
     end
     subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
         G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
