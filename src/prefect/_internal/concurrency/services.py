@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import atexit
+import concurrent.futures
 import contextlib
 import threading
 from collections import deque
@@ -94,14 +95,21 @@ class QueueService(abc.ABC, Generic[T]):
         Process an item sent to the service.
         """
 
-    def drain(self) -> Union[Awaitable, None]:
+    def _drain(self) -> concurrent.futures.Future:
+        """
+        Internal implementation for `drain`. Returns a future for sync/async interfaces.
+        """
+        self._stop()
+        future = asyncio.run_coroutine_threadsafe(self._done_event.wait(), self._loop)
+        return future
+
+    def drain(self) -> concurrent.futures.Future:
         """
         Stop this instance of the service and wait for remaining work to be completed.
 
         Returns an awaitable if called from an async context.
         """
-        self._stop()
-        future = asyncio.run_coroutine_threadsafe(self._done_event.wait(), self._loop)
+        future = self._drain()
         if get_running_loop() is not None:
             return asyncio.wrap_future(future)
         else:
@@ -119,10 +127,12 @@ class QueueService(abc.ABC, Generic[T]):
         instances = tuple(cls._instances.values())
 
         for instance in instances:
-            futures.append(instance.drain())
+            futures.append(instance._drain())
 
         if get_running_loop() is not None:
-            return asyncio.gather(*futures)
+            return asyncio.gather(*[asyncio.wrap_future(fut) for fut in futures])
+        else:
+            return concurrent.futures.wait(futures)
 
     @classmethod
     def instance(cls: Type[Self], *args) -> Self:
