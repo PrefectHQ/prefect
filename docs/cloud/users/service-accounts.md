@@ -1,6 +1,5 @@
 ---
 description: Workspaces are isolated environments for flows and deployments within Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - Prefect Cloud
@@ -16,16 +15,16 @@ Service accounts enable you to create a Prefect Cloud API key that is not associ
 
 Service accounts are non-user organization accounts that have the following:
 
-- Prefect Cloud [API keys](/ui/cloud-api-keys/#create-an-api-key)
-- Organization [roles](/ui/roles/) and permissions
+- Prefect Cloud [API keys](/cloud/cloud-api-keys/#create-an-api-key)
+- Organization [roles](/cloud/roles/) and permissions
 
-Using service account credentials, you can [configure an execution environment](/ui/cloud-local-environment/#configure-a-local-execution-environment) to interact with your Prefect Cloud organization workspaces without a user having to manually log in from that environment. Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting organization user accounts.
+Using service account credentials, you can [configure an execution environment](/cloud/connecting/#configure-a-local-execution-environment) to interact with your Prefect Cloud organization workspaces without a user having to manually log in from that environment. Service accounts may be created, added to workspaces, have their roles changed, or deleted without affecting organization user accounts.
 
 Select **Service Accounts** to view, create, or edit service accounts for your organization.
 
 ![Viewing service accounts for an organization in Prefect Cloud.](../img/ui/service-accounts.png)
 
-Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account. See [workspace sharing](/ui/workspaces/#workspace-sharing) for more information.
+Service accounts are created at the organization level, but individual workspaces within the organization may be shared with the account. See [workspace sharing](/cloud/workspaces/#workspace-sharing) for more information.
 
 !!! tip "Service account credentials"
     When you create a service account, Prefect Cloud creates a new API key for the account and provides the API configuration command for the execution environment. Save these to a safe location for future use. If the access credentials are lost or compromised, you should regenerate the credentials from the service account page.
@@ -43,7 +42,7 @@ Within your organization, on the **Service Accounts** page, select the **+** ico
 - An expiration date, or the **Never Expire** option.
 
 !!! note "Service account roles"
-    A service account may only be a Member of an organization. You may apply any valid _workspace-level_ role to a service account when it is [added to a workspace](/ui/workspaces/#workspace-sharing).
+    A service account may only be a Member of an organization. You may apply any valid _workspace-level_ role to a service account when it is [added to a workspace](/cloud/workspaces/#workspace-sharing).
 
 Select **Create** to actually create the new service account. 
 

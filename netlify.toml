@@ -191,17 +191,18 @@ status = 301
 #       - ui/cloud.md -> /cloud/
 #       - ui/cloud-quickstart.md -> cloud/cloud-quickstart.md
 #       - ui/cloud-api-keys.md -> cloud/users/api-keys.md
-#       - ui/cloud-local-environment.md -> /cloud/
-#       - Organizations: ui/organizations.md -> /cloud/organizations/
-#       - Workspaces: ui/workspaces.md
-#       - Service Accounts: ui/service-accounts.md -> /cloud/users/service-accounts/
-#       - Roles (RBAC): ui/roles.md -> /cloud/users/roles/
-#       - Single Sign-on (SSO): ui/sso.md -> /cloud/users/sso/
-#       - Audit Log: ui/audit-log.md -> /cloud/users/audit-log/
-#       - Automations: ui/automations.md
-#       - Events: ui/events.md -> /cloud/events/
-#       - ui/troubleshooting -> /cloud/
-#       - Rate Limits: ui/rate-limits.md -> /cloud/rate-limits/
+#       - ui/cloud-local-environment.md -> /cloud/connecting/
+#       - /cloud/cloud-local-environment/ -> /cloud/connecting/
+#       - ui/organizations.md -> /cloud/organizations/
+#       - ui/workspaces.md
+#       - ui/service-accounts.md -> /cloud/users/service-accounts/
+#       - ui/roles.md -> /cloud/users/roles/
+#       - ui/sso.md -> /cloud/users/sso/
+#       - ui/audit-log.md -> /cloud/users/audit-log/
+#       - ui/automations.md -> /cloud/automations/
+#       - ui/events.md -> /cloud/events/
+#       - ui/troubleshooting -> /cloud/connecting/
+#       - ui/rate-limits.md -> /cloud/rate-limits/
 
 
 

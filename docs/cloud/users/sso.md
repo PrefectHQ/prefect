@@ -1,6 +1,5 @@
 ---
 description: Configure single sign-on (SSO) for your Prefect Cloud users.
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard

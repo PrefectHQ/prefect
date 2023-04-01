@@ -1,6 +1,5 @@
 ---
 description: Prefect Cloud Event Feed
-icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -32,4 +31,4 @@ From an event page, you can easily configure an automation to trigger on the obs
 
 ![Automation from event](../img/ui/automation-from-event.png)
 
-The default trigger configuration will fire every time it sees an event with a matching resource identifier. Advanced configuration is possible via [custom triggers](/ui/automations/). 
+The default trigger configuration will fire every time it sees an event with a matching resource identifier. Advanced configuration is possible via [custom triggers](/cloud/automations/). 

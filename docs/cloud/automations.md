@@ -1,6 +1,5 @@
 ---
 description: Configure automations based on flow state from the Prefect UI and Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - states
@@ -17,7 +16,7 @@ Automations in Prefect Cloud enable you to configure [actions](#actions) that Pr
 Using triggers and actions you can automatically kick off flow runs, pause deployments, or send custom notifications in response to real-time monitoring events.
 
 !!! cloud-ad "Automations are only available in Prefect Cloud"
-    [Notifications](/ui/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
+    [Notifications](/cloud/notifications/) in the open-source Prefect server provide a subset of the notification message-sending features avaiable in Automations.
 
 ## Automations overview
 
