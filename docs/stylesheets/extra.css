@@ -185,6 +185,7 @@ to force column width */
     color: rgb(131, 131, 131);
     border: 1px solid rgb(131, 131, 131);
     content: "Experimental";
+    vertical-align: middle;
 }
 
 .beta::before {
@@ -400,7 +401,11 @@ to force column width */
 /* At 76.1875em, the hamburger menu disappears 
    and users see the full nav menu */
 @media screen and (min-width: 76.1875em) {
+<<<<<<< HEAD
     div[class="md-header__topic"]:not([data-md-component="header-topic"]) {
+=======
+    div[class="md-header__topic"]:not([data-md-component="header-topic"]) > span {
+>>>>>>> origin/main
         display: none;
     }
 }

@@ -43,9 +43,14 @@ theme:
         - announce.dismiss
         # - toc.integrate # have to make index pages for sections if want emoji for them
         # - navigation.tabs
+        # - toc.integrate # have to make index pages for sections if want emoji for them
+        # - navigation.tabs
         - navigation.tabs.sticky
         - search.suggest
         - search.highlight
+        - navigation.path
+        - navigation.indexes
+
         - navigation.path
         - navigation.indexes
 
@@ -76,6 +81,8 @@ theme:
             name: Switch to light mode
 plugins:
     mike:
+      canonical_version: latest
+      version_selector: true
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -97,6 +104,7 @@ plugins:
     gen-files:
         scripts:
             - docs/integrations/generate_catalog.py
+            - docs/integrations/generate_catalog.py
             - docs/recipes/generate_catalog.py
 watch:
     - mkdocs.yml
@@ -105,7 +113,20 @@ watch:
 nav:
     - Getting Started: 
         - index.md  
+    - Getting Started: 
+        - index.md  
         - Installation: getting-started/installation.md
+        - Cloud Quickstart: ui/cloud-quickstart.md
+    - Tutorials: 
+        - tutorials/index.md
+        - Flows & Tasks: tutorials/first-steps.md
+        - Configuration: tutorials/flow-task-config.md
+        - Execution: tutorials/execution.md
+        - Orchestration: tutorials/orchestration.md
+        - Deployments: tutorials/deployments.md
+        - Storage & Infrastructure: tutorials/storage.md
+    - Concepts: 
+        - concepts/index.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorials: 
         - tutorials/index.md
@@ -129,6 +150,7 @@ nav:
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
+        - Runtime Context: concepts/runtime-context.md
         - Logging: concepts/logs.md
         - Prefect Server/Notifications: concepts/notifications.md
         - Database: concepts/database.md
@@ -178,6 +200,7 @@ nav:
             - 'prefect.runtime': 
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
+                - 'prefect.runtime.task_run': api-ref/prefect/runtime/task_run.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md

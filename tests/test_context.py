@@ -100,6 +100,7 @@ async def test_flow_run_context(orion_client):
             task_runner=test_task_runner,
             result_factory=result_factory,
             background_tasks=task_group,
+            parameters={"x": "y"},
         ):
             ctx = FlowRunContext.get()
             assert ctx.flow is foo
@@ -108,6 +109,7 @@ async def test_flow_run_context(orion_client):
             assert ctx.task_runner is test_task_runner
             assert ctx.result_factory == result_factory
             assert isinstance(ctx.start_time, DateTime)
+            assert ctx.parameters == {"x": "y"}
 
 
 async def test_task_run_context(orion_client, flow_run):
@@ -123,12 +125,14 @@ async def test_task_run_context(orion_client, flow_run):
         task_run=task_run,
         client=orion_client,
         result_factory=result_factory,
+        parameters={"foo": "bar"},
     ):
         ctx = TaskRunContext.get()
         assert ctx.task is foo
         assert ctx.task_run == task_run
         assert ctx.result_factory == result_factory
         assert isinstance(ctx.start_time, DateTime)
+        assert ctx.parameters == {"foo": "bar"}
 
 
 @pytest.fixture
@@ -167,6 +171,7 @@ async def test_get_run_context(orion_client, local_filesystem):
             task_runner=test_task_runner,
             background_tasks=task_group,
             result_factory=await ResultFactory.from_flow(foo, client=orion_client),
+            parameters={"x": "y"},
         ) as flow_ctx:
             assert get_run_context() is flow_ctx
 
@@ -175,6 +180,7 @@ async def test_get_run_context(orion_client, local_filesystem):
                 task_run=task_run,
                 client=orion_client,
                 result_factory=await ResultFactory.from_task(bar, client=orion_client),
+                parameters={"foo": "bar"},
             ) as task_ctx:
                 assert get_run_context() is task_ctx, "Task context takes precendence"
 
