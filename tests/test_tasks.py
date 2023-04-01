@@ -86,6 +86,35 @@ class TestTaskRunName:
 
         assert my_task.task_run_name is None
 
+    def test_invalid_run_name(self):
+        class InvalidTaskRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        with pytest.raises(TypeError, match="'task_run_name' is not a string"):
+
+            @task(task_run_name=InvalidTaskRunNameArg())
+            def my_task():
+                pass
+
+    def test_invalid_runtime_run_name(self):
+        class InvalidTaskRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        @task
+        def my_task():
+            pass
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_task.task_run_name = InvalidTaskRunNameArg()
+
+        with pytest.raises(RuntimeError, match="'task_run_name' is not a string"):
+            my_flow()
+
     def test_run_name_from_kwarg(self):
         @task(task_run_name="another_name")
         def my_task():

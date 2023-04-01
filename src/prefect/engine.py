@@ -1531,6 +1531,9 @@ async def orchestrate_task_run(
 
                     # update task run name
                     if not run_name_set and task.task_run_name:
+                        if not isinstance(task.task_run_name, str):
+                            raise RuntimeError("'task_run_name' is not a string")
+
                         task_run_name = task.task_run_name.format(**resolved_parameters)
                         await client.set_task_run_name(
                             task_run_id=task_run.id, name=task_run_name

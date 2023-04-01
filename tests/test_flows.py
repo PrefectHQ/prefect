@@ -128,7 +128,7 @@ class TestFlow:
                 pass
 
         with pytest.raises(TypeError, match="'flow_run_name' is not a string"):
-            Flow(fn=lambda: 1, name='hello', flow_run_name=InvalidFlowRunNameArg())
+            Flow(fn=lambda: 1, name="hello", flow_run_name=InvalidFlowRunNameArg())
 
     def test_using_return_state_in_flow_definition_raises_reserved(self):
         with pytest.raises(
@@ -175,10 +175,10 @@ class TestDecorator:
                 pass
 
         with pytest.raises(TypeError, match="'flow_run_name' is not a string"):
+
             @flow(flow_run_name=InvalidFlowRunNameArg())
             def flow_with_illegal_run_name():
                 pass
-
 
 
 class TestFlowWithOptions:

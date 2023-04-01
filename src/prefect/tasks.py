@@ -214,7 +214,10 @@ class Task(Generic[P, R]):
         else:
             self.name = name
 
+        if task_run_name is not None and not isinstance(task_run_name, str):
+            raise TypeError("'task_run_name' is not a string")
         self.task_run_name = task_run_name
+
         self.version = version
         self.log_prints = log_prints
 
