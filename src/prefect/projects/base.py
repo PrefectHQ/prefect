@@ -12,7 +12,7 @@ import yaml
 
 from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.filesystem import set_default_ignore_file
+from prefect.utilities.filesystem import create_default_ignore_file
 
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
@@ -32,7 +32,7 @@ def find_prefect_directory(path: Path = None) -> Optional[Path]:
         parent = path.parent.resolve()
 
 
-def set_default_deployment_yaml(path: str) -> bool:
+def create_default_deployment_yaml(path: str) -> bool:
     """
     Creates default deployment.yaml file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
@@ -60,7 +60,7 @@ def set_prefect_hidden_dir() -> bool:
     return True
 
 
-def set_default_project_yaml(
+def create_default_project_yaml(
     path: str, name: str = None, pull_step: dict = None
 ) -> bool:
     """
@@ -165,11 +165,11 @@ def initialize_project(name: str = None) -> List[str]:
         ]
 
     files = []
-    if set_default_ignore_file("."):
+    if create_default_ignore_file("."):
         files.append(".prefectignore")
-    if set_default_deployment_yaml("."):
+    if create_default_deployment_yaml("."):
         files.append("deployment.yaml")
-    if set_default_project_yaml(".", name=name, pull_step=pull_step):
+    if create_default_project_yaml(".", name=name, pull_step=pull_step):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")
