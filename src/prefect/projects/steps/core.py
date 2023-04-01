@@ -47,16 +47,16 @@ def run_step(step: dict) -> dict:
     """
     fqn, inputs = step.popitem()
 
+    if step:
+        raise ValueError(
+            f"Step has unexpected additional keys: {', '.join(step.keys())}"
+        )
+
     keywords = {
         keyword: inputs.pop(keyword)
         for keyword in RESERVED_KEYWORDS
         if keyword in inputs
     }
-
-    if step:
-        raise ValueError(
-            f"Step has unexpected additional keys: {', '.join(step.keys())}"
-        )
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     return step_func(**inputs)
