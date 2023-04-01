@@ -148,7 +148,11 @@ class Flow(Generic[P, R]):
             raise_on_invalid_name(name)
 
         self.name = name or fn.__name__.replace("_", "-")
+
+        if flow_run_name is not None and not isinstance(flow_run_name, str):
+            raise TypeError("'flow_run_name' is not a string")
         self.flow_run_name = flow_run_name
+
         task_runner = task_runner or ConcurrentTaskRunner()
         self.task_runner = (
             task_runner() if isinstance(task_runner, type) else task_runner

@@ -613,6 +613,9 @@ async def orchestrate_flow_run(
         )
 
     if flow.flow_run_name:
+        if not isinstance(flow.flow_run_name, str):
+            raise RuntimeError("'flow_run_name' is not a string")
+
         flow_run_name = flow.flow_run_name.format(**parameters)
         await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
         logger.extra["flow_run_name"] = flow_run_name

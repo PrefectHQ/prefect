@@ -122,6 +122,14 @@ class TestFlow:
         with pytest.raises(InvalidNameError, match="contains an invalid character"):
             Flow(fn=lambda: 1, name=name)
 
+    def test_invalid_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        with pytest.raises(TypeError, match="'flow_run_name' is not a string"):
+            Flow(fn=lambda: 1, name='hello', flow_run_name=InvalidFlowRunNameArg())
+
     def test_using_return_state_in_flow_definition_raises_reserved(self):
         with pytest.raises(
             ReservedArgumentError, match="'return_state' is a reserved argument name"
@@ -160,6 +168,17 @@ class TestDecorator:
         my_flow = flow(flatdict_to_dict)
 
         assert my_flow.version == file_hash(flatdict_to_dict.__globals__["__file__"])
+
+    def test_invalid_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        with pytest.raises(TypeError, match="'flow_run_name' is not a string"):
+            @flow(flow_run_name=InvalidFlowRunNameArg())
+            def flow_with_illegal_run_name():
+                pass
+
 
 
 class TestFlowWithOptions:
@@ -1941,6 +1960,20 @@ async def test_handling_script_with_unprotected_call_in_flow_script(
 
 
 class TestFlowRunName:
+    async def test_invalid_runtime_run_name(self):
+        class InvalidFlowRunNameArg:
+            def format(*args, **kwargs):
+                pass
+
+        @flow
+        def my_flow():
+            pass
+
+        my_flow.flow_run_name = InvalidFlowRunNameArg()
+
+        with pytest.raises(RuntimeError, match="'flow_run_name' is not a string"):
+            my_flow()
+
     async def test_sets_run_name_when_provided(self, orion_client):
         @flow(flow_run_name="hi")
         def flow_with_name(foo: str = "bar", bar: int = 1):
