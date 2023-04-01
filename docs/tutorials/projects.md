@@ -27,7 +27,12 @@ The main ingredients of a project are 3 files / directories:
 
 
 !!! tip "Projects require workers"
-    Note that using a project to manage your deployments requires the use of workers.
+    Note that using a project to manage your deployments requires the use of workers.  In this tutorial we will assume you have set up two work pools each with a worker already, each of which only requires a single CLI command:
+
+    - **Local**: `prefect worker start -t process -p local-work`
+    - **Docker**: `prefect worker start -t docker -p docker-work`
+
+    Note that each of these commands will automatically create an appropriately typed work pool with default settings.
 
 ## Initializing a project
 
@@ -49,8 +54,6 @@ This command also attempts to pre-populate `prefect.yaml` with steps based on in
 
 Projects are most useful for creating deployments; let's walk through some examples right now.  
 
-!!! note "Deployments require workers"
-    The following examples require a worker to be running; for local examples you can start a local worker with `prefect worker start -t process -p local-work` and for examples that require Docker run `prefect worker start -t docker -p docker-work`.
 
 ### Local deployment
 
