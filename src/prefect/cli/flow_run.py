@@ -171,6 +171,13 @@ async def logs(
         "-r",
         help="Reverse the logs order to print the most recent logs first",
     ),
+    tail: int = typer.Option(
+        None,
+        "--tail",
+        "-t",
+        help="Show the last N logs",
+        min=1,
+    ),
 ):
     """
     View logs for a flow run.
@@ -179,10 +186,13 @@ async def logs(
     offset = 0
     more_logs = True
     num_logs_returned = 0
-
+    tail_limit = LOGS_DEFAULT_PAGE_SIZE
     # If head is specified, we need to stop after we've retrieved enough logs
     if head or num_logs:
         user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+    elif tail:
+        user_specified_num_logs = tail
+        offset = max(0, tail - LOGS_DEFAULT_PAGE_SIZE)
     else:
         user_specified_num_logs = None
 
@@ -201,6 +211,8 @@ async def logs(
                 if user_specified_num_logs is None
                 else min(LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs)
             )
+            if tail and offset == 0:
+                num_logs_to_return_from_page = tail_limit
 
             # Get the next page of logs
             page_logs = await client.read_logs(
@@ -209,13 +221,12 @@ async def logs(
                 offset=offset,
                 sort=(
                     schemas.sorting.LogSort.TIMESTAMP_DESC
-                    if reverse
+                    if reverse or tail
                     else schemas.sorting.LogSort.TIMESTAMP_ASC
                 ),
             )
 
-            # Print the logs
-            for log in page_logs:
+            for log in reversed(page_logs) if tail else page_logs:
                 app.console.print(
                     # Print following the flow run format (declared in logging.yml)
                     (
@@ -229,8 +240,20 @@ async def logs(
             # Update the number of logs retrieved
             num_logs_returned += num_logs_to_return_from_page
 
-            if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
-                offset += LOGS_DEFAULT_PAGE_SIZE
+            if tail:
+                if offset != 0:
+                    # remaining logs are less than LOGS_DEFAULT_PAGE_SIZE
+                    if offset < LOGS_DEFAULT_PAGE_SIZE:
+                        tail_limit = offset
+                        offset = 0
+                    else:
+                        offset = offset - LOGS_DEFAULT_PAGE_SIZE
+                else:
+                    # No more logs to show, exit
+                    more_logs = False
             else:
-                # No more logs to show, exit
-                more_logs = False
+                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
+                    offset += LOGS_DEFAULT_PAGE_SIZE
+                else:
+                    # No more logs to show, exit
+                    more_logs = False
