@@ -132,7 +132,8 @@ class TestInitProject:
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
-        assert "prefect.projects.steps.git_clone_project" in contents["pull"]
+        clone_step = contents["pull"][0]
+        assert "prefect.projects.steps.git_clone_project" in clone_step
 
 
 class TestRegisterFlow:

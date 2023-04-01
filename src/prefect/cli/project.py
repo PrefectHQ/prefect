@@ -19,6 +19,26 @@ project_app = PrefectTyper(
 )
 app.add_typer(project_app, aliases=["projects"])
 
+recipe_app = PrefectTyper(
+    name="recipe", help="Commands for interacting with project recipes."
+)
+project_app.add_typer(recipe_app, aliases=["recipes"])
+
+
+@recipe_app.command()
+async def ls():
+    """
+    List available recipes.
+    """
+    import prefect
+
+    recipe_paths = (
+        Path(prefect.__root_path__) / "src" / "prefect" / "projects" / "recipes"
+    )
+    recipes = [p.name for p in recipe_paths.iterdir() if p.is_dir()]
+    for recipe in recipes:
+        app.console.print(f"[green]{recipe}[/green]")
+
 
 @project_app.command()
 async def init(name: str = None, recipe: str = None):
@@ -26,10 +46,19 @@ async def init(name: str = None, recipe: str = None):
     Initialize a new project.
     """
 
-    files = [
-        f"[green]{fname}[/green]"
-        for fname in initialize_project(name=name, recipe=recipe)
-    ]
+    try:
+        files = [
+            f"[green]{fname}[/green]"
+            for fname in initialize_project(name=name, recipe=recipe)
+        ]
+    except ValueError as exc:
+        if "Unknown recipe" in str(exc):
+            exit_with_error(
+                f"Unknown recipe {recipe!r} provided - run [yellow]`prefect project"
+                " recipe ls`[/yellow] to see all available recipes."
+            )
+        else:
+            raise
 
     files = "\n".join(files)
     empty_msg = (

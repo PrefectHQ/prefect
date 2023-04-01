@@ -15,8 +15,6 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
 
-RECIPES = {"local", "docker", "docker+git"}
-
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
     """

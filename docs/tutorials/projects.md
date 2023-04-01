@@ -11,6 +11,7 @@ tags:
     - infrastructure
     - blocks
     - tutorial
+    - recipes
 ---
 
 # Projects<span class="badge beta"></span>
@@ -50,6 +51,16 @@ This command will create your `.prefect/` directory along with the two YAML file
 
 This command also attempts to pre-populate `prefect.yaml` with steps based on information already present within the directory; for example, if you initialize a project within a git repository, Prefect will automatically populate a `pull` step for you.
 
+!!! tip "Project Recipes"
+    Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure.  You can see all available recipes by running:
+
+    <div class="terminal">
+    ```bash
+    $ prefect project recipe ls
+    ```
+    </div>
+
+
 ## Creating a basic deployment
 
 Projects are most useful for creating deployments; let's walk through some examples right now.  
@@ -63,7 +74,7 @@ In this example, we'll create a project from scratch that runs locally.  Let's s
 ```bash
 $ mkdir my-first-project
 $ cd my-first-project
-$ prefect project init
+$ prefect project init --recipe local
 ```
 </div>
 
@@ -142,7 +153,7 @@ We start by cloning the remote repository and initializing a project within the 
 ```bash
 $ git clone https://github.com/PrefectHQ/hello-projects
 $ cd hello-projects
-$ prefect project init
+$ prefect project init --recipe git
 ```
 </div>
 

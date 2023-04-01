@@ -33,6 +33,18 @@ def project_dir():
             file.unlink()
 
 
+class TestProjectRecipes:
+    def test_project_recipe_ls(self):
+        result = invoke_and_assert("project recipe ls")
+        assert result.exit_code == 0
+
+        lines = result.output.split()
+        assert len(lines) > 3
+        assert "local" in lines
+        assert "docker" in lines
+        assert "git" in lines
+
+
 class TestProjectInit:
     def test_project_init(self):
         with TemporaryDirectory() as tempdir:
@@ -50,6 +62,14 @@ class TestProjectInit:
                 "project init --name test_project --recipe local", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
+
+    def test_project_init_with_unknown_recipe(self):
+        result = invoke_and_assert(
+            "project init --name test_project --recipe def-not-a-recipe",
+            expected_code=1,
+        )
+        assert result.exit_code == 1
+        assert "prefect project recipe ls" in result.output
 
 
 class TestProjectDeploy:
