@@ -1,0 +1,9 @@
+prefect-version: null
+name: null
+
+build: null
+push: null
+pull:
+  - prefect.projects.steps.git_clone_project:
+      repository: null
+      branch: null

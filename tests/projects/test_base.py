@@ -1,11 +1,18 @@
 import json
 import os
 import shutil
+from pathlib import Path
 
 import pytest
+import yaml
 
 import prefect
-from prefect.projects.base import find_prefect_directory, register_flow
+from prefect.projects.base import (
+    configure_project_by_recipe,
+    find_prefect_directory,
+    initialize_project,
+    register_flow,
+)
 
 TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
@@ -16,6 +23,9 @@ def project_dir():
     (TEST_PROJECTS_DIR / ".prefect").mkdir(exist_ok=True)
     yield
     shutil.rmtree((TEST_PROJECTS_DIR / ".prefect"), ignore_errors=True)
+    (TEST_PROJECTS_DIR / ".prefectignore").unlink(missing_ok=True)
+    (TEST_PROJECTS_DIR / "deployment.yaml").unlink(missing_ok=True)
+    (TEST_PROJECTS_DIR / "prefect.yaml").unlink(missing_ok=True)
 
 
 class TestFindProject:
@@ -32,6 +42,61 @@ class TestFindProject:
             find_prefect_directory(tmp_path / "subdir" / "subsubdir")
             == tmp_path / ".prefect"
         )
+
+
+class TestRecipes:
+    async def test_configure_project_by_recipe_raises(self):
+        with pytest.raises(ValueError, match="Unknown recipe"):
+            configure_project_by_recipe("not-a-recipe")
+
+    @pytest.mark.parametrize(
+        "recipe",
+        [
+            d.absolute().name
+            for d in Path(
+                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+            ).iterdir()
+            if d.is_dir()
+        ],
+    )
+    async def test_configure_project_by_recipe_doesnt_raise(self, recipe):
+        recipe_config = configure_project_by_recipe(recipe)
+        for key in ["name", "prefect-version", "build", "push", "pull"]:
+            assert key in recipe_config
+
+
+class TestInitProject:
+    async def test_initialize_project_works(self, tmp_path):
+        files = initialize_project()
+        assert len(files) == 3
+
+        for file in files:
+            assert Path(file).exists()
+
+        # test defaults
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        assert contents["name"] == "PrefectHQ/prefect"
+        assert contents["prefect-version"] == prefect.__version__
+
+    async def test_initialize_project_with_name(self, tmp_path):
+        files = initialize_project(name="my-test-its-a-test")
+        assert len(files) == 3
+
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        assert contents["name"] == "my-test-its-a-test"
+
+    async def test_initialize_project_with_recipe(self, tmp_path):
+        files = initialize_project(recipe="docker-git")
+        assert len(files) == 3
+
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        assert "prefect.projects.steps.git_clone_project" in contents["pull"]
 
 
 class TestRegisterFlow:

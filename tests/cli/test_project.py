@@ -19,6 +19,7 @@ def project_dir():
     result = invoke_and_assert("project init --name test_project")
     yield
     shutil.rmtree((TEST_PROJECTS_DIR / ".prefect"), ignore_errors=True)
+    os.remove(TEST_PROJECTS_DIR / ".prefectignore")
     os.remove(TEST_PROJECTS_DIR / "deployment.yaml")
     os.remove(TEST_PROJECTS_DIR / "prefect.yaml")
 
@@ -33,6 +34,13 @@ class TestProjectInit:
             for file in ["prefect.yaml", "deployment.yaml", ".prefectignore"]:
                 # temp_dir creates a *new* nested temporary directory within tempdir
                 assert any(Path(tempdir).rglob(file))
+
+    def test_project_init_with_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "project init --name test_project --recipe local", temp_dir=str(tempdir)
+            )
+            assert result.exit_code == 0
 
 
 class TestProjectDeploy:

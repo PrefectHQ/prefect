@@ -14,6 +14,8 @@ from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file
 
+RECIPES = {"local", "docker", "docker+git"}
+
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
     """
@@ -112,9 +114,40 @@ def create_default_project_yaml(
     return True
 
 
-def initialize_project(name: str = None) -> List[str]:
+def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     """
-    Initializes a basic project structure with base files.
+    Given a recipe name, returns a dictionary representing base configuration options.
+
+    Raises ValueError if recipe does not exist.
+    """
+    # load the recipe
+    recipe_path = Path(__file__).parent / "recipes" / recipe / "prefect.yaml"
+
+    if not recipe_path.exists():
+        raise ValueError(f"Unknown recipe {recipe!r} provided.")
+
+    with open(recipe_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    for key, value in config.items():
+        if isinstance(value, str):
+            config[key] = value.format(**formatting_kwargs)
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                if isinstance(v, str):
+                    value[k] = v.format(**formatting_kwargs)
+        elif isinstance(value, list):
+            for i, v in enumerate(value):
+                if isinstance(v, str):
+                    value[i] = v.format(**formatting_kwargs)
+
+    return config
+
+
+def initialize_project(name: str = None, recipe: str = None) -> List[str]:
+    """
+    Initializes a basic project structure with base files.  If no name is provided, the name
+    of the current directory is used.  If no recipe is provided, one is inferred.
 
     Returns a list of files / directories that were created.
     """
@@ -122,6 +155,8 @@ def initialize_project(name: str = None) -> List[str]:
     is_git_based = False
     repository = None
     pull_step = None
+    formatting_kwargs = {"directory": str(Path(".").absolute().resolve())}
+
     try:
         p = subprocess.check_output(
             ["git", "remote", "get-url", "origin"],
@@ -131,45 +166,37 @@ def initialize_project(name: str = None) -> List[str]:
         repository = p.decode().strip()
         is_git_based = True
         name = name or "/".join(p.decode().strip().split("/")[-2:]).replace(".git", "")
-    except subprocess.CalledProcessError:
-        dir_name = os.path.basename(os.getcwd())
-        name = name or dir_name
 
-    # hand craft a pull step
-    if is_git_based:
         try:
             p = subprocess.check_output(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 shell=sys.platform == "win32",
                 stderr=subprocess.DEVNULL,
             )
-            branch = p.decode().strip()
+            formatting_kwargs["branch"] = p.decode().strip()
         except subprocess.CalledProcessError:
-            branch = "main"
+            formatting_kwargs["branch"] = "main"
 
-        pull_step = [
-            {
-                "prefect.projects.steps.git_clone_project": {
-                    "repository": repository,
-                    "branch": branch,
-                }
-            }
-        ]
-    else:
-        pull_step = [
-            {
-                "prefect.projects.steps.set_working_directory": {
-                    "directory": str(Path(".").absolute().resolve()),
-                }
-            }
-        ]
+    except subprocess.CalledProcessError:
+        dir_name = os.path.basename(os.getcwd())
+        name = name or dir_name
+
+    formatting_kwargs["name"] = name
+
+    # hand craft a pull step
+    if is_git_based and recipe is None:
+        recipe = "git"
+    elif recipe is None:
+        recipe = "local"
+
+    configuration = configure_project_by_recipe(recipe=recipe, **formatting_kwargs)
 
     files = []
     if create_default_ignore_file("."):
         files.append(".prefectignore")
     if create_default_deployment_yaml("."):
         files.append("deployment.yaml")
-    if create_default_project_yaml(".", name=name, pull_step=pull_step):
+    if create_default_project_yaml(".", name=name, pull_step=config["pull"]):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")

@@ -1,0 +1,13 @@
+prefect-version: null
+name: null
+
+build:
+  - prefect_docker.projects.steps.build_docker_image:
+      image_name: null
+      tag: null
+      dockerfile: null
+      push: null
+push: null
+pull: 
+  - prefect.projects.steps.set_working_directory:
+      directory: null
