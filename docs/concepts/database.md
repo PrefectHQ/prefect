@@ -8,7 +8,7 @@ tags:
     - PostgreSQL
 ---
 
-# Pefect Database
+# Prefect Database
 
 The Prefect database persists data used by many features of Prefect to persist and track the state of your flow runs, including:
 
