@@ -233,12 +233,12 @@ $ python flows/pandas_flow.py
 ```
 </div>
 
-We now have two options for how to manage these dependencies:
+We now have two options for how to manage these dependencies in our worker's environment:
 
-- setting the `EXTRA_PIP_PACKAGES` environment variable
+- setting the `EXTRA_PIP_PACKAGES` environment variable or using another hook to install the dependencies at runtime
 - building a custom Docker image with the dependencies baked in
 
-The first option is the quickest, but it does run the risk of changing runtime state from one run to the next and is not recommended for production use cases.  For the second option, we will specify a `build` step within our `prefect.yaml` file as follows:
+The first option is the quickest, but it does run the risk of changing runtime state from one run to the next and is not recommended for production use cases.  For the second option, we need to configure a `build` step within our `prefect.yaml` file as follows (Note: if starting from scratch we could use the `docker-git` recipe):
 
 ```yaml
 # partial contents of prefect.yaml

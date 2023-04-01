@@ -275,11 +275,11 @@ async def deploy(
         project = yaml.safe_load(f)
 
     # sanitize
-    if project["build"] is None:
+    if project.get("build") is None:
         project["build"] = []
-    if project["push"] is None:
+    if project.get("push") is None:
         project["push"] = []
-    if project["pull"] is None:
+    if project.get("pull") is None:
         project["pull"] = []
 
     if not flow_name and not base_deploy["flow_name"] and not entrypoint:
