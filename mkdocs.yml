@@ -137,15 +137,15 @@ nav:
         - cloud/index.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
         - Workspaces: cloud/workspaces.md
-        - Automations: cloud/automations.md
         - Organizations: cloud/organizations.md
         - Users: cloud/users
             - Roles (RBAC): cloud/roles.md
             - API Keys: cloud/cloud-api-keys.md
             - Service Accounts: cloud/service-accounts.md
             - Single Sign-on (SSO): cloud/sso.md
-        - Audit Log: cloud/audit-log.md
+            - Audit Log: cloud/audit-log.md
         - Events: cloud/events.md
+        - Automations: cloud/automations.md
         - API Rate Limits: cloud/rate-limits.md
         - Connecting & Troubleshooting: cloud/connecting.md
     - Guides: 
