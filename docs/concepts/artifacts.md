@@ -29,7 +29,6 @@ To create a link artifact, use the `create_link_artifact()` function.
 ```python
 from prefect import flow, task
 from prefect.artifacts import create_link_artifact
-import pendulum
 
 @task
 def my_first_task():
@@ -140,7 +139,6 @@ After running the above flow, you should see your "gtm-report" artifact in the A
 You can create a table artifact by calling `create_table_artifact()`.
 
 ```python
-from prefect import flow, task
 from prefect.artifacts import create_table_artifact
 
 def my_fn():
