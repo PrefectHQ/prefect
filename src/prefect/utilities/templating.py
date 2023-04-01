@@ -69,7 +69,7 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     If a template contains a placeholder that is not in `values`, UNSET will
     be returned to signify that no placeholder replacement occurred. If
     `template` is a dictionary that contains a key with a value of UNSET,
-    the key will be removed in the return value.
+    the key will be removed in the return value
 
     Args:
         template: template to discover and replace values in
@@ -78,7 +78,7 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     Returns:
         The template with the values applied
     """
-    if isinstance(template, (int, float, bool, Unset)):
+    if isinstance(template, (int, float, bool, Unset, type(None))):
         return template
     if isinstance(template, str):
         placeholders = find_placeholders(template)

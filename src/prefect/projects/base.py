@@ -13,6 +13,7 @@ import yaml
 from prefect.flows import load_flow_from_entrypoint
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import create_default_ignore_file
+from prefect.utilities.templating import apply_values
 
 RECIPES = {"local", "docker", "docker+git"}
 
@@ -129,17 +130,7 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     with open(recipe_path, "r") as f:
         config = yaml.safe_load(f)
 
-    for key, value in config.items():
-        if isinstance(value, str):
-            config[key] = value.format(**formatting_kwargs)
-        elif isinstance(value, dict):
-            for k, v in value.items():
-                if isinstance(v, str):
-                    value[k] = v.format(**formatting_kwargs)
-        elif isinstance(value, list):
-            for i, v in enumerate(value):
-                if isinstance(v, str):
-                    value[i] = v.format(**formatting_kwargs)
+    config = apply_values(template=config, values=formatting_kwargs)
 
     return config
 
@@ -196,7 +187,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
         files.append(".prefectignore")
     if create_default_deployment_yaml("."):
         files.append("deployment.yaml")
-    if create_default_project_yaml(".", name=name, pull_step=config["pull"]):
+    if create_default_project_yaml(".", name=name, pull_step=configuration["pull"]):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")

@@ -21,12 +21,15 @@ app.add_typer(project_app, aliases=["projects"])
 
 
 @project_app.command()
-async def init(name: str = None):
+async def init(name: str = None, recipe: str = None):
     """
     Initialize a new project.
     """
 
-    files = [f"[green]{fname}[/green]" for fname in initialize_project(name=name)]
+    files = [
+        f"[green]{fname}[/green]"
+        for fname in initialize_project(name=name, recipe=recipe)
+    ]
 
     files = "\n".join(files)
     empty_msg = (

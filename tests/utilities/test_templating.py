@@ -91,6 +91,11 @@ class TestApplyValues:
         values = {"first_name": "Alice", "age": 30}
         assert apply_values(template, values) == {"age": 30}
 
+    def test_apply_values_dictionary_with_null(self):
+        template = {"last_name": None, "age": "{{age}}"}
+        values = {"first_name": "Alice", "age": 30}
+        assert apply_values(template, values) == {"last_name": None, "age": 30}
+
     def test_apply_values_nested_dictionary_with_placeholders(self):
         template = {
             "name": {"first_name": "{{ first_name }}", "last_name": "{{ last_name }}"},
