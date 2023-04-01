@@ -3,4 +3,7 @@ name: null
 
 build: null
 push: null
-pull: null
+pull:
+  - prefect.projects.steps.git_clone_project:
+      repository: "{{ name }}"
+      branch: "{{ branch }}"
