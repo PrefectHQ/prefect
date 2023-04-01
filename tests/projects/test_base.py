@@ -64,6 +64,31 @@ class TestRecipes:
         for key in ["name", "prefect-version", "build", "push", "pull"]:
             assert key in recipe_config
 
+    @pytest.mark.parametrize(
+        "recipe",
+        [
+            d.absolute().name
+            for d in Path(
+                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+            ).iterdir()
+            if d.is_dir() and "git" in d.absolute().name
+        ],
+    )
+    async def test_configure_project_handles_templates_on_git_recipes(self, recipe):
+        recipe_config = configure_project_by_recipe(recipe, name="test-org/test-repo")
+        clone_step = recipe_config["pull"][0][
+            "prefect.projects.steps.git_clone_project"
+        ]
+        assert clone_step["repository"] == "test-org/test-repo"
+        assert clone_step["branch"] == "{{ branch }}"
+
+    async def test_configure_project_replaces_templates_on_docker(self):
+        recipe_config = configure_project_by_recipe("docker", name="test-dir")
+        clone_step = recipe_config["pull"][0][
+            "prefect.projects.steps.set_working_directory"
+        ]
+        assert clone_step["directory"] == "/opt/prefect/test-dir"
+
 
 class TestInitProject:
     async def test_initialize_project_works(self, tmp_path):

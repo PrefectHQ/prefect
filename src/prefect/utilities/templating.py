@@ -51,7 +51,9 @@ def find_placeholders(template: T) -> Set[Placeholder]:
         raise ValueError(f"Unexpected type: {type(template)}")
 
 
-def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
+def apply_values(
+    template: T, values: Dict[str, Any], remove_notset: bool = True
+) -> Union[T, Unset]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
 
@@ -69,11 +71,12 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     If a template contains a placeholder that is not in `values`, UNSET will
     be returned to signify that no placeholder replacement occurred. If
     `template` is a dictionary that contains a key with a value of UNSET,
-    the key will be removed in the return value
+    the key will be removed in the return value unless `remove_notset` is set to False.
 
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
+        remove_notset: If True, remove keys with an unset value
 
     Returns:
         The template with the values applied
@@ -98,15 +101,17 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     elif isinstance(template, dict):
         updated_template = {}
         for key, value in template.items():
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not UNSET:
                 updated_template[key] = updated_value
+            elif not remove_notset:
+                updated_template[key] = value
 
         return updated_template
     elif isinstance(template, list):
         updated_list = []
         for value in template:
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not UNSET:
                 updated_list.append(updated_value)
         return updated_list

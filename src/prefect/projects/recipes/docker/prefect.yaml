@@ -3,11 +3,10 @@ name: null
 
 build:
   - prefect_docker.projects.steps.build_docker_image:
-      image_name: null
+      image_name: "{{ image_name }}"
       tag: null
-      dockerfile: null
-      push: null
+      dockerfile: "{{ dockerfile }}"
 push: null
 pull: 
   - prefect.projects.steps.set_working_directory:
-      directory: null
+      directory: "/opt/prefect/{{ name }}"

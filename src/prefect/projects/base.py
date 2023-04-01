@@ -130,7 +130,9 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     with open(recipe_path, "r") as f:
         config = yaml.safe_load(f)
 
-    config = apply_values(template=config, values=formatting_kwargs)
+    config = apply_values(
+        template=config, values=formatting_kwargs, remove_notset=False
+    )
 
     return config
 
