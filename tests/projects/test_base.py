@@ -19,13 +19,22 @@ TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 @pytest.fixture(autouse=True)
 def project_dir():
+    original_dir = os.getcwd()
     os.chdir(TEST_PROJECTS_DIR)
     (TEST_PROJECTS_DIR / ".prefect").mkdir(exist_ok=True)
     yield
+    os.chdir(original_dir)
     shutil.rmtree((TEST_PROJECTS_DIR / ".prefect"), ignore_errors=True)
-    (TEST_PROJECTS_DIR / ".prefectignore").unlink(missing_ok=True)
-    (TEST_PROJECTS_DIR / "deployment.yaml").unlink(missing_ok=True)
-    (TEST_PROJECTS_DIR / "prefect.yaml").unlink(missing_ok=True)
+
+    # missing_ok=True is only available in Python 3.8+
+    files = [
+        TEST_PROJECTS_DIR / ".prefectignore",
+        TEST_PROJECTS_DIR / "prefect.yaml",
+        TEST_PROJECTS_DIR / "deployment.yaml",
+    ]
+    for file in files:
+        if file.exists():
+            file.unlink()
 
 
 class TestFindProject:
