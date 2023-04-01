@@ -492,6 +492,58 @@ class TestReadLatestArtifacts:
         assert len(response.json()) == 2
 
 
+class TestCountArtifacts:
+    async def test_counting_artifacts(self, artifacts, session):
+        count = await models.artifacts.count_artifacts(session=session)
+
+        assert count == 5
+
+    async def test_counting_single_artifact(self, artifact, session):
+        count = await models.artifacts.count_artifacts(session=session)
+
+        assert count == 1
+
+    async def test_count_artifacts_with_artifact_filter(self, artifacts, client):
+        key_filter = dict(
+            artifacts=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(
+                    any_=[artifacts[0]["key"], artifacts[1]["key"]]
+                )
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.post("/artifacts/count", json=key_filter)
+        assert response.status_code == 200
+        assert response.json() == 2
+
+    async def test_count_artifacts_with_flow_run_filter(self, artifacts, client):
+        flow_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[artifacts[0]["flow_run_id"]])
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.post("/artifacts/count", json=flow_run_filter)
+        assert response.status_code == 200
+        assert response.json() == 2
+
+    async def test_count_artifacts_with_task_run_filter(
+        self,
+        artifacts,
+        client,
+    ):
+        task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[artifacts[0]["task_run_id"]])
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.post("/artifacts/count", json=task_run_filter)
+
+        assert response.status_code == 200
+        assert response.json() == 1
+
+
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
         response = await client.post("/artifacts/filter")
