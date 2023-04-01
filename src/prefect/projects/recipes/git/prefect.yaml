@@ -5,5 +5,5 @@ build: null
 push: null
 pull:
   - prefect.projects.steps.git_clone_project:
-      repository: "{{ name }}"
+      repository: "{{ repository }}"
       branch: "{{ branch }}"

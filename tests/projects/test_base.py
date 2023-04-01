@@ -84,7 +84,9 @@ class TestRecipes:
         ],
     )
     async def test_configure_project_handles_templates_on_git_recipes(self, recipe):
-        recipe_config = configure_project_by_recipe(recipe, name="test-org/test-repo")
+        recipe_config = configure_project_by_recipe(
+            recipe, repository="test-org/test-repo"
+        )
         clone_step = recipe_config["pull"][0][
             "prefect.projects.steps.git_clone_project"
         ]

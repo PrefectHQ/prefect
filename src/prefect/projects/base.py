@@ -146,8 +146,6 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
     """
     # determine if in git repo or use directory name as a default
     is_git_based = False
-    repository = None
-    pull_step = None
     formatting_kwargs = {"directory": str(Path(".").absolute().resolve())}
 
     try:
@@ -156,7 +154,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
             shell=sys.platform == "win32",
             stderr=subprocess.DEVNULL,
         )
-        repository = p.decode().strip()
+        formatting_kwargs["repository"] = p.decode().strip()
         is_git_based = True
         name = name or "/".join(p.decode().strip().split("/")[-2:]).replace(".git", "")
 
