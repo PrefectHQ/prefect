@@ -6,9 +6,11 @@ tags:
     - configuration
     - agents
     - workers
+    - troubleshooting
+    -connecting
 ---
 
-# Configure a Local Execution Environment
+# Connecting & Troubleshooting Prefect Cloud
 
 To create flow runs in a local or remote execution environment and use either Prefect Cloud or a Prefect server as the backend API server, you need to  
 

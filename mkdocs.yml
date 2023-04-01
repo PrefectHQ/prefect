@@ -147,6 +147,7 @@ nav:
         - Audit Log: cloud/audit-log.md
         - Events: cloud/events.md
         - API Rate Limits: cloud/rate-limits.md
+        - Connecting & Troubleshooting: cloud/connecting.md
     - Guides: 
         - guides/index.md
         - Testing: guides/testing.md
