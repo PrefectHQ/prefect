@@ -186,13 +186,14 @@ async def logs(
     offset = 0
     more_logs = True
     num_logs_returned = 0
-    tail_limit = LOGS_DEFAULT_PAGE_SIZE
+    tail_limit = 0
     # If head is specified, we need to stop after we've retrieved enough logs
     if head or num_logs:
         user_specified_num_logs = num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
     elif tail:
         user_specified_num_logs = tail
         offset = max(0, tail - LOGS_DEFAULT_PAGE_SIZE)
+        tail_limit = min(tail, LOGS_DEFAULT_PAGE_SIZE)
     else:
         user_specified_num_logs = None
 
@@ -249,7 +250,6 @@ async def logs(
                     else:
                         offset = offset - LOGS_DEFAULT_PAGE_SIZE
                 else:
-                    # No more logs to show, exit
                     more_logs = False
             else:
                 if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
