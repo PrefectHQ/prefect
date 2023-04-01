@@ -112,9 +112,18 @@ In addition, users can control aspects of work pool behavior, like how many runs
 
 You can configure work pools by using:
 
-- Prefect UI [**Work Pools**](/ui/work-pools/) page
+ 
 - Prefect CLI commands
 - Prefect Python API
+- Prefect UI
+
+To manage work pools in the UI, click the **Work Pools** icon. This displays a list of currently configured work pools.
+
+![The UI displays a list of configured work pools](../img/ui/work-pool-list.png)
+
+You can pause a work pool from this page by using the toggle.
+
+Select the **+** button to create a new work pool. You'll be able to specify the details for work served by this work pool.
 
 To configure a work pool via the Prefect CLI, use the `prefect work-pool create` command:
 
