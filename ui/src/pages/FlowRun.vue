@@ -88,7 +88,7 @@
   const flowRunDetailsSubscription = useSubscription(api.flowRuns.getFlowRun, [flowRunId], { interval: 5000 })
   const flowRun = computed(() => flowRunDetailsSubscription.response)
   const deploymentId = computed(() => flowRun.value?.deploymentId)
-  const deployment = useDeployment(deploymentId)
+  const { deployment } = useDeployment(deploymentId)
 
   watch(flowRunId, (oldFlowRunId, newFlowRunId) => {
     if (oldFlowRunId !== newFlowRunId) {

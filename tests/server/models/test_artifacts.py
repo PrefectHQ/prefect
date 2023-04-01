@@ -18,6 +18,42 @@ async def artifact(session):
     return artifact
 
 
+@pytest.fixture
+async def artifacts(flow_run, task_run, session):
+    # create 3 artifacts w/ diff keys
+    artifact1_schema = schemas.core.Artifact(
+        key="voltaic1",
+        data=1,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+        task_run_id=task_run.id,
+    )
+    artifact1 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact1_schema
+    )
+
+    artifact2_schema = schemas.core.Artifact(
+        key="voltaic2",
+        data=2,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+        task_run_id=task_run.id,
+    )
+    artifact2 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact2_schema
+    )
+
+    artifact3_schema = schemas.core.Artifact(
+        key="voltaic3",
+        data=3,
+        metadata_={"description": "opens many doors"},
+    )
+    artifact3 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact3_schema
+    )
+    yield [artifact1, artifact2, artifact3]
+
+
 class TestCreateArtifacts:
     async def test_creating_artifacts(self, session):
         artifact_schema = schemas.core.Artifact(
@@ -115,6 +151,56 @@ class TestCreateArtifacts:
         )
 
 
+class TestCountArtifacts:
+    async def test_count_artifacts(self, session):
+        artifact_schema = schemas.core.Artifact(
+            key="voltaic", data=1, metadata_={"description": "opens many doors"}
+        )
+        artifact = await models.artifacts.create_artifact(
+            session=session, artifact=artifact_schema
+        )
+        assert artifact.key == "voltaic"
+
+        count = await models.artifacts.count_artifacts(session=session)
+
+        assert count == 1
+
+    async def test_counting_single_artifact(self, artifact, session):
+        count = await models.artifacts.count_artifacts(session=session)
+
+        assert count == 1
+
+    async def test_counting_artifacts_with_artifact_filter(self, artifacts, session):
+        artifact_filter = schemas.filters.ArtifactFilter(
+            key=schemas.filters.ArtifactFilterKey(any_=[artifacts[0].key])
+        )
+        count = await models.artifacts.count_artifacts(
+            session=session, artifact_filter=artifact_filter
+        )
+
+        assert count == 1
+
+    async def test_counting_artifacts_by_with_flow_run_filter(self, artifacts, session):
+        flow_run_filter = schemas.filters.FlowRunFilter(
+            id=schemas.filters.FlowRunFilterId(any_=[artifacts[0].flow_run_id])
+        )
+        count = await models.artifacts.count_artifacts(
+            session=session, flow_run_filter=flow_run_filter
+        )
+
+        assert count == 2
+
+    async def test_counting_artifacts_by_with_task_run_filter(self, artifacts, session):
+        task_run_filter = schemas.filters.TaskRunFilter(
+            id=schemas.filters.TaskRunFilterId(any_=[artifacts[0].task_run_id])
+        )
+        count = await models.artifacts.count_artifacts(
+            session=session, task_run_filter=task_run_filter
+        )
+
+        assert count == 2
+
+
 class TestUpdateArtifacts:
     @pytest.fixture
     async def artifact(self, session):
@@ -182,6 +268,111 @@ class TestReadLatestArtifact:
         assert tutored_artifact.description == "opens many doors"
 
 
+class TestReadLatestArtifacts:
+    @pytest.fixture
+    async def artifacts(self, session):
+        artifacts = [
+            schemas.core.Artifact(
+                key="key-1",
+                data=1,
+                type="markdown",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-1",
+                data=2,
+                type="markdown",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-2",
+                data=3,
+                type="table",
+                description="Some info about my artifact",
+            ),
+            schemas.core.Artifact(
+                key="key-3",
+                data=4,
+                type="table",
+                description="Some info about my artifact",
+            ),
+        ]
+        for artifact_schema in artifacts:
+            await models.artifacts.create_artifact(
+                session=session,
+                artifact=artifact_schema,
+            )
+
+        return artifacts
+
+    async def test_read_latest_artifacts(
+        self,
+        artifacts,
+        session,
+    ):
+        artifact_is_latest_filter = schemas.filters.ArtifactFilter(
+            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+        )
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session, artifact_filter=artifact_is_latest_filter
+        )
+
+        assert len(read_artifacts) == 3
+        assert {a.key for a in read_artifacts} == {"key-1", "key-2", "key-3"}
+        assert {a.data for a in read_artifacts} == {2, 3, 4}
+
+    async def test_read_latest_artifacts_with_artifact_type_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                type=schemas.filters.ArtifactFilterType(any_=["table"]),
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            ),
+        )
+        assert len(read_artifacts) == 2
+
+        assert {a.key for a in read_artifacts} == {"key-2", "key-3"}
+        assert {a.data for a in read_artifacts} == {3, 4}
+
+    async def test_read_latest_artifacts_with_artifact_key_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                key=schemas.filters.ArtifactFilterKey(any_=["key-1"]),
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            ),
+        )
+
+        assert len(read_artifacts) == 1
+
+        assert artifacts[1].id == read_artifacts[0].id
+
+    async def test_read_latest_artifacts_with_limit(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_artifacts(
+            session=session,
+            limit=1,
+            sort=schemas.sorting.ArtifactSort.KEY_DESC,
+            artifact_filter=schemas.filters.ArtifactFilter(
+                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            ),
+        )
+
+        assert len(read_artifacts) == 1
+        assert read_artifacts[0].key == artifacts[-1].key
+
+
 class TestReadingSingleArtifacts:
     async def test_reading_artifacts_by_id(self, session):
         artifact_schema = schemas.core.Artifact(
@@ -205,41 +396,6 @@ class TestReadingSingleArtifacts:
 
 
 class TestReadingMultipleArtifacts:
-    @pytest.fixture
-    async def artifacts(self, flow_run, task_run, session):
-        # create 3 artifacts w/ diff keys
-        artifact1_schema = schemas.core.Artifact(
-            key="voltaic1",
-            data=1,
-            metadata_={"description": "opens many doors"},
-            flow_run_id=flow_run.id,
-            task_run_id=task_run.id,
-        )
-        artifact1 = await models.artifacts.create_artifact(
-            session=session, artifact=artifact1_schema
-        )
-
-        artifact2_schema = schemas.core.Artifact(
-            key="voltaic2",
-            data=2,
-            metadata_={"description": "opens many doors"},
-            flow_run_id=flow_run.id,
-            task_run_id=task_run.id,
-        )
-        artifact2 = await models.artifacts.create_artifact(
-            session=session, artifact=artifact2_schema
-        )
-
-        artifact3_schema = schemas.core.Artifact(
-            key="voltaic3",
-            data=3,
-            metadata_={"description": "opens many doors"},
-        )
-        artifact3 = await models.artifacts.create_artifact(
-            session=session, artifact=artifact3_schema
-        )
-        yield [artifact1, artifact2, artifact3]
-
     async def test_reading_artifacts_by_ids(self, artifacts, session):
         artifact_ids = [artifact.id for artifact in artifacts]
         artifact_filter = schemas.filters.ArtifactFilter(

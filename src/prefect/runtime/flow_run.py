@@ -9,15 +9,15 @@ Available attributes:
     - `scheduled_start_time`: the flow run's expected scheduled start time; defaults to now if not present
 """
 import os
-from typing import Any, List
+from typing import Any, Dict, List
 
 import pendulum
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.client.orchestration import get_client
-from prefect.context import FlowRunContext
+from prefect.context import FlowRunContext, TaskRunContext
 
-__all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name"]
+__all__ = ["id", "tags", "scheduled_start_time", "name", "flow_name", "parameters"]
 
 
 def __getattr__(name: str) -> Any:
@@ -50,40 +50,43 @@ async def _get_flow_from_run(flow_run_id):
 
 def get_id() -> str:
     flow_run_ctx = FlowRunContext.get()
-    if flow_run_ctx is None:
-        return os.getenv("PREFECT__FLOW_RUN_ID")
-    else:
+    task_run_ctx = TaskRunContext.get()
+    if flow_run_ctx is not None:
         return str(flow_run_ctx.flow_run.id)
+    if task_run_ctx is not None:
+        return str(task_run_ctx.task_run.flow_run_id)
+    else:
+        return os.getenv("PREFECT__FLOW_RUN_ID")
 
 
 def get_tags():
-    flow_run = FlowRunContext.get()
+    flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
-    if flow_run is None and run_id is None:
+    if flow_run_ctx is None and run_id is None:
         return []
-    elif flow_run is None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.tags
     else:
-        return flow_run.flow_run.tags
+        return flow_run_ctx.flow_run.tags
 
 
 def get_name():
-    flow_run = FlowRunContext.get()
+    flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
-    if flow_run is None and run_id is None:
+    if flow_run_ctx is None and run_id is None:
         return None
-    elif flow_run is None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.name
     else:
-        return flow_run.flow_run.name
+        return flow_run_ctx.flow_run.name
 
 
 def get_flow_name():
@@ -102,18 +105,34 @@ def get_flow_name():
 
 
 def get_scheduled_start_time():
-    flow_run = FlowRunContext.get()
+    flow_run_ctx = FlowRunContext.get()
     run_id = get_id()
-    if flow_run is None and run_id is None:
+    if flow_run_ctx is None and run_id is None:
         return pendulum.now("utc")
-    elif flow_run is None:
+    elif flow_run_ctx is None:
         flow_run = from_sync.call_soon_in_loop_thread(
             create_call(_get_flow_run, run_id)
         ).result()
 
         return flow_run.expected_start_time
     else:
-        return flow_run.flow_run.expected_start_time
+        return flow_run_ctx.flow_run.expected_start_time
+
+
+def get_parameters() -> Dict[str, Any]:
+    flow_run_ctx = FlowRunContext.get()
+    run_id = get_id()
+    if flow_run_ctx is not None:
+        # Use the unserialized parameters from the context if available
+        return flow_run_ctx.parameters
+    elif run_id is not None:
+        flow_run = from_sync.call_soon_in_loop_thread(
+            create_call(_get_flow_run, run_id)
+        ).result()
+
+        return flow_run.parameters
+    else:
+        return {}
 
 
 FIELDS = {
@@ -122,4 +141,5 @@ FIELDS = {
     "scheduled_start_time": get_scheduled_start_time,
     "name": get_name,
     "flow_name": get_flow_name,
+    "parameters": get_parameters,
 }

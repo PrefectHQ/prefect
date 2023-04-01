@@ -76,6 +76,8 @@ theme:
             name: Switch to light mode
 plugins:
     mike:
+      canonical_version: latest
+      version_selector: true
     autorefs: {}
     mkdocstrings:
         # custom_templates: docs/templates
@@ -131,7 +133,9 @@ nav:
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
+        - Runtime Context: concepts/runtime-context.md
         - Logging: concepts/logs.md
+        - Artifacts: concepts/artifacts.md
         - Events & Resources: concepts/events-and-resources.md
         - Database: concepts/database.md
         - Settings: concepts/settings.md
@@ -189,6 +193,7 @@ nav:
             - 'prefect.runtime': 
                 - 'prefect.runtime.flow_run': api-ref/prefect/runtime/flow_run.md
                 - 'prefect.runtime.deployment': api-ref/prefect/runtime/deployment.md
+                - 'prefect.runtime.task_run': api-ref/prefect/runtime/task_run.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.settings': api-ref/prefect/settings.md
             - 'prefect.states': api-ref/prefect/states.md

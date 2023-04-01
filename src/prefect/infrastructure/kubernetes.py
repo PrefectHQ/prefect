@@ -72,9 +72,8 @@ class KubernetesJob(Infrastructure):
             Defaults to the Prefect image.
         image_pull_policy: The Kubernetes image pull policy to use for job containers.
         job: The base manifest for the Kubernetes Job.
-        job_watch_timeout_seconds: Number of seconds to wait for each event emitted by the job before
-            timing out. Defaults to `None`, which means no timeout will be enforced
-            while waiting for each event in the job lifecycle.
+        job_watch_timeout_seconds: Number of seconds to wait for the job to complete
+            before marking it as crashed. Defaults to `None`, which means no timeout will be enforced.
         labels: An optional dictionary of labels to add to the job.
         name: An optional name for the job.
         namespace: An optional string signifying the Kubernetes namespace to use.
@@ -134,9 +133,8 @@ class KubernetesJob(Infrastructure):
     job_watch_timeout_seconds: Optional[int] = Field(
         default=None,
         description=(
-            "Number of seconds to wait for each event emitted by the job before "
-            "timing out. Defaults to `None`, which means no timeout will be enforced "
-            "while waiting for each event in the job lifecycle."
+            "Number of seconds to wait for the job to complete before marking it as"
+            " crashed. Defaults to `None`, which means no timeout will be enforced."
         ),
     )
     pod_watch_timeout_seconds: int = Field(
