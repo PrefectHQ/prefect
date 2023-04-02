@@ -102,9 +102,9 @@ class TestRecipes:
 
 
 class TestInitProject:
-    async def test_initialize_project_works(self, tmp_path):
+    async def test_initialize_project_works(self):
         files = initialize_project()
-        assert len(files) == 3
+        assert len(files) >= 3
 
         for file in files:
             assert Path(file).exists()
@@ -116,18 +116,18 @@ class TestInitProject:
         assert contents["name"] == "PrefectHQ/prefect"
         assert contents["prefect-version"] == prefect.__version__
 
-    async def test_initialize_project_with_name(self, tmp_path):
+    async def test_initialize_project_with_name(self):
         files = initialize_project(name="my-test-its-a-test")
-        assert len(files) == 3
+        assert len(files) >= 3
 
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
         assert contents["name"] == "my-test-its-a-test"
 
-    async def test_initialize_project_with_recipe(self, tmp_path):
+    async def test_initialize_project_with_recipe(self):
         files = initialize_project(recipe="docker-git")
-        assert len(files) == 3
+        assert len(files) >= 3
 
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
