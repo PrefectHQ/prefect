@@ -138,23 +138,25 @@ nav:
         - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
         - concepts/index.md
-        - Develop: concepts/develop.md
+        - Develop: 
             - Flows: concepts/flows.md
             - Tasks: concepts/tasks.md
             - Results: concepts/results.md
             - States: concepts/states.md
             - Blocks: concepts/blocks.md
             - Task Runners: concepts/task-runners.md 
-        - Deployments: concepts/deployments.md
+            - Runtime Context: concepts/runtime-context.md
+        - Deployments: 
+            - concepts/deployments.md
             - Agents & Work Pools: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
             - Schedules: concepts/schedules.md
             - Infrastructure: concepts/infrastructure.md
-        - Server: concepts/server.md
+        - Server: 
+            - concepts/server.md
             - Database: concepts/database.md
             - Logging: concepts/logs.md
-            - Runtime Context: concepts/runtime-context.md
             - Notifications: concepts/notifications.md
             - Settings: concepts/settings.md
     - Cloud:
@@ -162,7 +164,8 @@ nav:
         - Cloud Quickstart: cloud/cloud-quickstart.md
         - Workspaces: cloud/workspaces.md
         - Organizations: cloud/organizations.md
-        - Users: cloud/users
+        - Users: 
+            - cloud/users.md
             - Roles (RBAC): cloud/roles.md
             - API Keys: cloud/cloud-api-keys.md
             - Service Accounts: cloud/service-accounts.md
