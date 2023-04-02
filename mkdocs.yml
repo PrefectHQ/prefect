@@ -138,23 +138,25 @@ nav:
         - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
         - concepts/index.md
-        - Flows: concepts/flows.md
-        - Tasks: concepts/tasks.md
-        - Results: concepts/results.md
-        - States: concepts/states.md
-        - Infrastructure: concepts/infrastructure.md
-        - Task Runners: concepts/task-runners.md
+        - Develop: concepts/develop.md
+            - Flows: concepts/flows.md
+            - Tasks: concepts/tasks.md
+            - Results: concepts/results.md
+            - States: concepts/states.md
+            - Blocks: concepts/blocks.md
+            - Task Runners: concepts/task-runners.md 
         - Deployments: concepts/deployments.md
-        - Agents & Work Pools: concepts/work-pools.md
-        - Storage: concepts/storage.md
-        - Blocks: concepts/blocks.md
-        - Filesystems: concepts/filesystems.md
-        - Schedules: concepts/schedules.md
-        - Runtime Context: concepts/runtime-context.md
-        - Logging: concepts/logs.md
-        - Prefect Server/Notifications: concepts/notifications.md
-        - Database: concepts/database.md
-        - Settings: concepts/settings.md
+            - Agents & Work Pools: concepts/work-pools.md
+            - Storage: concepts/storage.md
+            - Filesystems: concepts/filesystems.md
+            - Schedules: concepts/schedules.md
+            - Infrastructure: concepts/infrastructure.md
+        - Server: concepts/server.md
+            - Database: concepts/database.md
+            - Logging: concepts/logs.md
+            - Runtime Context: concepts/runtime-context.md
+            - Notifications: concepts/notifications.md
+            - Settings: concepts/settings.md
     - Cloud:
         - cloud/index.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
