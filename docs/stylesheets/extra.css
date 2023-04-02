@@ -48,6 +48,9 @@
     outline: none;
 }
 
+nav.md-code__nav {
+    margin-top: 20px;
+}
 /* Image drop shadow, separates browser from background */
 img {
     margin-top: 1rem;
