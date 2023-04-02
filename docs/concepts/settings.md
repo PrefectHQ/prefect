@@ -9,13 +9,13 @@ tags:
 
 # Settings
 
-Prefect's settings are [well-documented][prefect.settings.Settings] and type-validated. By modifying these settings, users can customize various aspects of the system.
+Prefect's settings are [documented][prefect.settings.Settings] and type-validated. By modifying the default settings, you can customize various aspects of the system.
 
 Settings can be viewed from the CLI or the UI.
 
-Settings have keys that match environment variables that can be used to override the settings in a profile.
+You can override the setting for a profile with environment variables.
 
-Prefect provides the ability to organize settings as [profiles](#configuration-profiles) and apply the settings persisted in a profile. When you change profiles, all of the settings configured in the profile are applied. You can apply profiles to individual commands or set a profile for your environment.
+Prefect [profiles](#configuration-profiles) are groups of settings that you can persist on your machine. When you change profiles, all of the settings configured in the profile are applied. You can apply profiles to individual commands or set a profile for your environment.
 
 ## Commonly configured settings
 
@@ -109,7 +109,7 @@ PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='DEBUG'
 ```
 
-You may can show the sources of values with `--show-sources`:
+You can show the sources of values with `--show-sources`:
 
 
 ```bash
@@ -118,7 +118,7 @@ PREFECT_PROFILE="default"
 PREFECT_LOGGING_LEVEL='DEBUG' (from env)
 ```
 
-You may also include default values with `--show-defaults`:
+You can also include default values with `--show-defaults`:
 
 ```bash
 $ prefect config view --show-defaults
@@ -181,7 +181,7 @@ prefect.settings.PREFECT_SERVER_API_PORT.value()  # 4242
 ## Configuration profiles
 
 Prefect allows you to persist settings instead of setting an environment variable each time you open a new shell.
-Settings are persisted to profiles, which allow you to change settings quickly.
+Settings are persisted to profiles, which allow you to move between groups of settings quickly.
 
 The `prefect profile` CLI commands enable you to create, review, and manage profiles.
 
