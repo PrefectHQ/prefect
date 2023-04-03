@@ -1,8 +1,6 @@
-import time
 from uuid import UUID
 
 from prefect.events import emit_event
-from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.utilities.schemas import DateTimeTZ
 
@@ -13,9 +11,7 @@ def test_emits_simple_event(asserting_events_worker: EventsWorker, reset_worker_
         resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
     )
 
-    time.sleep(0.1)
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 1
     event = asserting_events_worker._client.events[0]
@@ -40,9 +36,7 @@ def test_emits_complex_event(
         id=UUID(int=1),
     )
 
-    time.sleep(0.1)
-
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+    asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 1
     event = asserting_events_worker._client.events[0]

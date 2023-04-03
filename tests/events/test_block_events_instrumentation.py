@@ -1,4 +1,3 @@
-import time
 from unittest import mock
 
 from pydantic import SecretStr
@@ -18,7 +17,7 @@ async def test_async_blocks_instrumented(
     secret = await Secret.load("top-secret")
     secret.get()
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 3
@@ -53,7 +52,7 @@ def test_sync_blocks_instrumented(
     secret = Secret.load("top-secret")
     secret.get()
 
-    time.sleep(0.1)
+    asserting_events_worker.drain()
 
     assert isinstance(asserting_events_worker._client, AssertingEventsClient)
     assert len(asserting_events_worker._client.events) == 3
@@ -95,7 +94,7 @@ def test_notifications_notify_instrumented_sync(
         pgduty = PagerDutyWebHook.load("pager-duty-events")
         pgduty.notify("Oh, we're you sleeping?")
 
-        time.sleep(0.1)
+        asserting_events_worker.drain()
 
         assert isinstance(asserting_events_worker._client, AssertingEventsClient)
         assert len(asserting_events_worker._client.events) == 3
@@ -137,7 +136,7 @@ async def test_notifications_notify_instrumented_async(
         pgduty = await PagerDutyWebHook.load("pager-duty-events")
         await pgduty.notify("Oh, we're you sleeping?")
 
-        time.sleep(0.1)
+        await asserting_events_worker.drain()
 
         assert isinstance(asserting_events_worker._client, AssertingEventsClient)
         assert len(asserting_events_worker._client.events) == 3

@@ -1,4 +1,5 @@
 import contextlib
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 from unittest.mock import ANY, MagicMock, call
@@ -31,17 +32,17 @@ def reset_mock_service():
     MockService.mock.reset_mock()
 
 
-def test_get_instance_returns_instance():
+def test_instance_returns_instance():
     instance = MockService.instance()
     assert isinstance(instance, MockService)
 
 
-def test_get_instance_returns_same_instance():
+def test_instance_returns_same_instance():
     instance = MockService.instance()
     assert MockService.instance() is instance
 
 
-def test_get_instance_returns_new_instance_after_stopping():
+def test_instance_returns_new_instance_after_stopping():
     instance = MockService.instance()
     instance._stop()
     new_instance = MockService.instance()
@@ -49,11 +50,63 @@ def test_get_instance_returns_new_instance_after_stopping():
     assert isinstance(new_instance, MockService)
 
 
-def test_get_instance_returns_new_instance_with_unique_key():
+def test_instance_returns_new_instance_with_unique_key():
     instance = MockService.instance(1)
     new_instance = MockService.instance(2)
     assert new_instance is not instance
     assert isinstance(new_instance, MockService)
+
+
+def test_instance_returns_same_instance_after_error():
+    event = threading.Event()
+
+    def on_handle(*_):
+        event.set()
+        raise ValueError("Oh no")
+
+    instance = MockService.instance()
+    instance.mock = MagicMock()
+    instance.mock.side_effect = on_handle
+    instance.send(1)
+
+    # Wait for the service to actually handle the item
+    event.wait()
+
+    new_instance = MockService.instance()
+    assert new_instance is instance
+    assert isinstance(new_instance, MockService)
+
+    instance.mock.side_effect = None
+
+    # The instance can be used still
+    new_instance.send(2)
+    new_instance.drain()
+    new_instance.mock.assert_has_calls([call(instance, 1), call(instance, 2)])
+
+
+def test_instance_returns_new_instance_after_base_exception():
+    event = threading.Event()
+
+    def on_handle(*_):
+        event.set()
+        raise BaseException("Oh no")
+
+    instance = MockService.instance()
+    instance.mock = MagicMock()
+    instance.mock.side_effect = on_handle
+    instance.send(1)
+
+    # Wait for the service to actually handle the item
+    event.wait()
+
+    new_instance = MockService.instance()
+    assert new_instance is not instance
+    assert isinstance(new_instance, MockService)
+
+    # The new instance can be used
+    new_instance.send(2)
+    new_instance.drain()
+    new_instance.mock.assert_called_once_with(new_instance, 2)
 
 
 def test_send_one():
@@ -172,7 +225,27 @@ def test_lifespan():
         events = []
 
         async def _handle(self, item):
-            raise ValueError("Oh no!")
+            pass
+
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            self.events.append("enter")
+            try:
+                yield
+            finally:
+                self.events.append("exit")
+
+    LifespanService.instance().send(1)
+    LifespanService.drain_all()
+    assert LifespanService.events == ["enter", "exit"]
+
+
+def test_lifespan_on_base_exception():
+    class LifespanService(QueueService[int]):
+        events = []
+
+        async def _handle(self, item):
+            raise BaseException("Oh no!")
 
         @contextlib.asynccontextmanager
         async def _lifespan(self):
