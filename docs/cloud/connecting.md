@@ -80,15 +80,7 @@ $ prefect cloud login --workspace "prefect/my-workspace"
 
 ## Manually configure Prefect API settings
 
-You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud or Prefect server API.
-
-Go to your terminal session and run this command to set the API URL to point to a Prefect server instance:
-
-<div class='terminal'>
-```bash
-$ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
-```
-</div>
+You can also manually configure the `PREFECT_API_URL` setting to specify the Prefect Cloud API.
 
 For Prefect Cloud, you can configure the `PREFECT_API_URL` and `PREFECT_API_KEY` settings to authenticate with Prefect Cloud by using an account ID, workspace ID, and API key.
 
