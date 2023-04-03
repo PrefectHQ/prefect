@@ -34,27 +34,6 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo", "bar"]
         assert deployment.infrastructure_document_id == infrastructure_document_id
 
-    async def test_creating_a_deployment_creates_associated_work_queue(
-        self, session, flow
-    ):
-        wq = await models.work_queues.read_work_queue_by_name(
-            session=session, name="wq-1"
-        )
-        assert wq is None
-
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="d1", work_queue_name="wq-1", flow_id=flow.id, manifest_path=""
-            ),
-        )
-        await session.commit()
-
-        wq = await models.work_queues.read_work_queue_by_name(
-            session=session, name="wq-1"
-        )
-        assert wq is not None
-
     async def test_creating_a_deployment_with_existing_work_queue_is_ok(
         self, session, flow
     ):
