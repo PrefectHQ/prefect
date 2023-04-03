@@ -16,16 +16,7 @@ from prefect.client.schemas import State
 from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
-from prefect.settings import PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 from prefect.testing.utilities import AsyncMock, MagicMock
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_workers(enable_workers):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
 @flow

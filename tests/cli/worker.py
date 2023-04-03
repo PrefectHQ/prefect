@@ -4,24 +4,10 @@ import pytest
 
 import prefect
 from prefect.client.orchestration import PrefectClient
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_workers(enable_workers):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
-    # Import to register worker CLI
-    import prefect.experimental.cli.worker  # noqa
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
