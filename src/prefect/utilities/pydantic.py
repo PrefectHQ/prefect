@@ -76,6 +76,23 @@ def add_cloudpickle_reduction(__model_cls: Type[M] = None, **kwargs: Any):
         )
 
 
+def get_class_fields_only(model: Type[pydantic.BaseModel]) -> set:
+    """
+    Gets all the field names defined on the model class but not any parent classes.
+    Any fields that are on the parent but redefined on the subclass are included.
+    """
+    subclass_class_fields = set(model.__annotations__.keys())
+    parent_class_fields = set()
+
+    for base in model.__class__.__bases__:
+        if issubclass(base, pydantic.BaseModel):
+            parent_class_fields.update(base.__annotations__.keys())
+
+    return (subclass_class_fields - parent_class_fields) | (
+        subclass_class_fields & parent_class_fields
+    )
+
+
 def add_type_dispatch(model_cls: Type[M]) -> Type[M]:
     """
     Extend a Pydantic model to add a 'type' field that is used a discriminator field
