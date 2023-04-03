@@ -56,8 +56,8 @@ def find_placeholders(template: T) -> Set[Placeholder]:
     if isinstance(template, str):
         result = PLACEHOLDER_CAPTURE_REGEX.findall(template)
         return {
-            Placeholder(match[0], match[1], determine_placeholder_type(match[1]))
-            for match in result
+            Placeholder(full_match, name, determine_placeholder_type(name))
+            for full_match, name in result
         }
     elif isinstance(template, dict):
         return set().union(
@@ -96,11 +96,7 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     Returns:
         The template with the values applied
     """
-    if (
-        isinstance(template, (int, float, bool))
-        or template is NotSet
-        or template is None
-    ):
+    if isinstance(template, (int, float, bool, type(NotSet), type(None))):
         return template
     if isinstance(template, str):
         placeholders = find_placeholders(template)
