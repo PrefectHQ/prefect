@@ -154,7 +154,7 @@ nav:
         - Users: 
             - cloud/users/index.md
             - Roles (RBAC): cloud/users/roles.md
-            - API Keys: cloud/users/cloud-api-keys.md
+            - API Keys: cloud/users/api-keys.md
             - Service Accounts: cloud/users/service-accounts.md
             - Single Sign-on (SSO): cloud/users/sso.md
             - Audit Log: cloud/users/audit-log.md
