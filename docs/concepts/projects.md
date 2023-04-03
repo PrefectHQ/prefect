@@ -93,7 +93,7 @@ work_pool:
 So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
 
 !!! note "Docker step"
-    The most commonly used build step is `prefect_docker.projects.steps.build_docker_image` which produces both the `image_name` and `image_tag` fields.
+    The most commonly used build step is [`prefect_docker.projects.steps.build_docker_image`](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.build_docker_image) which produces both the `image_name` and `image_tag` fields.
 
 ## The Prefect YAML file
 
@@ -102,13 +102,37 @@ The `prefect.yaml` file contains instructions for how to build and push any nece
 The base structure for `prefect.yaml` is as follows:
 
 ```yaml
+# generic metadata
 prefect-version: null
 name: null
 
+# preparation steps
 build: null
 push: null
+
+# runtime steps
 pull: null
 ```
+
+The metadata fields are always pre-populated for you and are currently for bookkeeping purposes only.  The other sections are pre-populated based on recipe; if no recipe is provided, Prefect will attempt to guess an appropriate one based on local configuration.  Each step has the following format:
+
+```yaml
+section:
+  - prefect_package.path.to.importable.step:
+      requires: "pip-installable-package-spec" # optional
+      kwarg1: value
+      kwarg2: more-values
+```
+
+Every step can optionally provide a `requires` field that Prefect will use to auto-install in the event that the step cannot be found in the current environment.  The additional fields map directly onto Python keyword arguments to the step function.  Within a given section, steps always run in the order that they are provided within the `prefect.yaml` file.  
+
+Calling `prefect deploy` performs the following actions:
+
+- runs the `build` steps
+- runs the `push` steps
+- stores the `pull` steps on the deployment for future invocation
+
+For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
 ### The Build Section
 ### The Push Section
