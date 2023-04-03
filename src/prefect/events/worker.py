@@ -28,7 +28,6 @@ class EventsWorker(QueueService[Event]):
             yield
 
     async def _handle(self, item: Event):
-        print("Emitting", item)
         await self._client.emit(item)
 
     @classmethod
