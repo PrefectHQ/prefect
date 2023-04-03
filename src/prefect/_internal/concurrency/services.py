@@ -3,6 +3,7 @@ import asyncio
 import atexit
 import concurrent.futures
 import contextlib
+import sys
 import threading
 from collections import deque
 from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
@@ -49,7 +50,18 @@ class QueueService(abc.ABC, Generic[T]):
             self.send(self._early_items.popleft())
 
         # Stop at interpreter exit by default
-        atexit.register(self.drain_all)
+        if sys.version_info < (3, 9):
+            atexit.register(self.drain)
+        else:
+            # See related issue at https://bugs.python.org/issue42647
+            # Handling items may require spawning a thread and in 3.9  new threads
+            # cannot be spawned after the interpreter finalizes threads which happens
+            #  _before_ the normal `atexit` hook is called resulting in failure to
+            # process items. This is particularly relevant for services which use an
+            # httpx client.
+            from threading import _register_atexit
+
+            _register_atexit(self.drain)
 
     def _stop(self):
         """
@@ -132,6 +144,11 @@ class QueueService(abc.ABC, Generic[T]):
         Internal implementation for `drain`. Returns a future for sync/async interfaces.
         """
         self._stop()
+        if self._done_event.is_set():
+            future = concurrent.futures.Future()
+            future.set_result(None)
+            return future
+
         future = asyncio.run_coroutine_threadsafe(self._done_event.wait(), self._loop)
         return future
 
