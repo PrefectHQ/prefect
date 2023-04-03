@@ -1,13 +1,15 @@
 import contextlib
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
 
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.services import (
+    BatchedQueueService,
     QueueService,
     drain_on_exit,
     drain_on_exit_async,
@@ -25,6 +27,20 @@ class MockService(QueueService[int]):
 
     async def _handle(self, item: int):
         self.mock(self, item)
+
+
+class MockBatchedService(BatchedQueueService[int]):
+    _max_batch_size = 2
+    mock = MagicMock()
+
+    def __init__(self, index: Optional[int] = None) -> None:
+        if index is not None:
+            super().__init__(index)
+        else:
+            super().__init__()
+
+    async def _handle_batch(self, items: List[int]):
+        self.mock(self, items)
 
 
 @pytest.fixture(autouse=True)
@@ -258,3 +274,26 @@ def test_lifespan_on_base_exception():
     LifespanService.instance().send(1)
     LifespanService.drain_all()
     assert LifespanService.events == ["enter", "exit"]
+
+
+def test_batched_queue_service():
+    instance = MockBatchedService.instance()
+    instance.send(1)
+    instance.send(2)
+    instance.send(3)
+    instance.send(4)
+    instance.send(5)
+    instance.drain()
+    MockBatchedService.mock.assert_has_calls(
+        [call(instance, [1, 2]), call(instance, [3, 4]), call(instance, [5])]
+    )
+
+
+def test_batched_queue_service_min_interval():
+    instance = MockBatchedService.instance()
+    instance._min_interval = 0.1
+    instance.send(1)
+    time.sleep(0.1)
+    instance.send(2)
+    time.sleep(0.1)
+    MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])

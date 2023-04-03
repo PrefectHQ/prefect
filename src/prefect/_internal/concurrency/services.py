@@ -5,8 +5,9 @@ import concurrent.futures
 import contextlib
 import threading
 from collections import deque
-from typing import Awaitable, Dict, Generic, Optional, Type, TypeVar, Union
+from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
+import anyio
 from typing_extensions import Self
 
 from prefect._internal.concurrency.api import create_call, from_sync
@@ -187,6 +188,70 @@ class QueueService(abc.ABC, Generic[T]):
             from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
 
         return instance
+
+
+class BatchedQueueService(QueueService[T]):
+    """
+    A queue service that handles a batch of items instead of a single item at a time.
+
+    Items will be processed when the batch reaches the configured `_max_batch_size`
+    or after an interval of `_min_interval` seconds (if set).
+    """
+
+    _max_batch_size: int
+    _min_interval: Optional[float] = None
+
+    async def _main_loop(self):
+        done = False
+
+        while not done:
+            batch = []
+            batch_size = 0
+
+            with (
+                # Process the batch after `min_interval` even if it is small
+                anyio.move_on_after(self._min_interval)
+                if self._min_interval
+                else contextlib.nullcontext()
+            ):
+                # Pull items from the queue until we reach the batch size
+                while batch_size < self._max_batch_size:
+                    item = await self._queue.get()
+
+                    if item is None:
+                        done = True
+                        break
+
+                    batch.append(item)
+                    batch_size += self._get_size(item)
+
+            if not batch:
+                continue
+
+            try:
+                await self._handle_batch(batch)
+            except Exception:
+                logger.exception(
+                    "Service %r failed to process batch of size %s",
+                    type(self).__name__,
+                    batch_size,
+                )
+
+    @abc.abstractmethod
+    async def _handle_batch(self, items: List[T]):
+        """
+        Process a batch of items sent to the service.
+        """
+
+    async def _handle(self, item: T):
+        assert False, "`_handle` should never be called for batched queue services"
+
+    def _get_size(self, item: T) -> int:
+        """
+        Calculate the size of a single item.
+        """
+        # By default, batch size is just the number of items
+        return 1
 
 
 @contextlib.contextmanager
