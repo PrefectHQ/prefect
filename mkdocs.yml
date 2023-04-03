@@ -146,19 +146,19 @@ nav:
             - Blocks: concepts/blocks.md
             - Task Runners: concepts/task-runners.md 
             - Runtime Context: concepts/runtime-context.md
+            - Logging: concepts/logs.md
+            - Settings: concepts/settings.md
         - Deployments: 
             - concepts/deployments.md
             - Agents & Work Pools: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
-            - Schedules: concepts/schedules.md
             - Infrastructure: concepts/infrastructure.md
+            - Schedules: concepts/schedules.md
         - Server: 
             - concepts/server.md
             - Database: concepts/database.md
-            - Logging: concepts/logs.md
             - Notifications: concepts/notifications.md
-            - Settings: concepts/settings.md
     - Cloud:
         - cloud/index.md
         - Cloud Quickstart: cloud/cloud-quickstart.md
