@@ -20,11 +20,16 @@ def project_dir(tmp_path):
     original_dir = os.getcwd()
     if sys.version_info >= (3, 8):
         shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+        (tmp_path / ".prefect").mkdir(exist_ok=True)
+        os.chdir(tmp_path)
+        initialize_project()
+        yield tmp_path
     else:
-        shutil.copytree(TEST_PROJECTS_DIR, tmp_path)
-    os.chdir(tmp_path)
-    initialize_project()
-    yield
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path / "three-seven")
+        (tmp_path / "three-seven" / ".prefect").mkdir(exist_ok=True)
+        os.chdir(tmp_path / "three-seven")
+        initialize_project()
+        yield tmp_path / "three-seven"
     os.chdir(original_dir)
 
 
