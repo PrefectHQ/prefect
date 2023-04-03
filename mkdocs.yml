@@ -148,15 +148,15 @@ nav:
             - Runtime Context: concepts/runtime-context.md
             - Logging: concepts/logs.md
             - Settings: concepts/settings.md
-        - Deployments: 
-            - concepts/deployments.md
+        - Deploy: 
+            - Deployments: concepts/deployments.md
             - Agents & Work Pools: concepts/work-pools.md
             - Storage: concepts/storage.md
             - Filesystems: concepts/filesystems.md
             - Infrastructure: concepts/infrastructure.md
             - Schedules: concepts/schedules.md
-        - Server: 
-            - concepts/server.md
+        - Serve: 
+            - Server: concepts/server.md
             - Database: concepts/database.md
             - Notifications: concepts/notifications.md
     - Cloud:
