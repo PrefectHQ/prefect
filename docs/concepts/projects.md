@@ -52,14 +52,48 @@ work_pool:
   name: null
   work_queue_name: null
   job_variables: {}
-
 ```
 
 You can create deployments via the CLI command `prefect deploy` without ever needing to alter this file in any way - its sole purpose is for version control and providing base settings in the situation where you are creating many deployments from your project.  [As described below](#deployment-mechanics), when creating a deployment these settings are first loaded from this base file, and then any additional flags provided via `prefect deploy` are layered on top before registering the deployment with the Prefect API.
 
 ### Templating Options
 
-Values that you place within your `deployment.yaml` file can be dynamic templates 
+Values that you place within your `deployment.yaml` file can reference dynamic values in two different ways:
+
+- **step outputs**: every step of both `build` and `push` produce named fields such as `image_name`; you can reference these fields within `deployment.yaml` and `prefect deploy` will populate them with each call.  References must be enclosed in double brackets and be of the form `"{{ field_name }}"`
+- **blocks**: [Prefect blocks](/concepts/blocks) can also be referenced with the special syntax `{{ prefect.blocks.block_type.block_slug }}`
+
+As an example, consider the following `deployment.yaml` file:
+
+```yaml
+# base metadata
+name: null
+version: "{{ image_tag }}"
+tags:
+    - "{{ image_tag }}"
+description: null
+schedule: null
+
+# flow-specific fields
+flow_name: null
+entrypoint: null
+path: null
+parameters: {}
+parameter_openapi_schema: null
+
+# infra-specific fields
+work_pool:
+  name: "my-k8s-work-pool"
+  work_queue_name: null
+  job_variables:
+    image: "{{ image_name }}"
+    cluster_config: "{{ prefect.blocks.kubernetesclusterconfig.my-favorite-config }}"
+```
+
+So long as our `build` steps produce fields called `image_name` and `image_tag`, every time we deploy a new version of our deployment these fields will be dynamically populated with the relevant values.
+
+!!! note "Docker step"
+    The most commonly used build step is `prefect_docker.projects.steps.build_docker_image` which produces both the `image_name` and `image_tag` fields.
 
 ## The Prefect YAML file
 
