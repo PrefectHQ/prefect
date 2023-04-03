@@ -66,7 +66,7 @@ class APILogWorker(BatchedQueueService[Dict[str, Any]]):
         return super().instance(*settings)
 
     def _get_size(self, item: Dict[str, Any]) -> int:
-        return item.pop("__payload_size__") or len(json.dumps(item).encode())
+        return item.pop("__payload_size__", None) or len(json.dumps(item).encode())
 
 
 class APILogHandler(logging.Handler):
@@ -174,7 +174,7 @@ class APILogHandler(logging.Handler):
             message=self.format(record),
         ).dict(json_compatible=True)
 
-        log_size = log["__payload_size__"] = len(json.dumps(log).encode())
+        log_size = log["__payload_size__"] = self._get_payload_size(log)
         if log_size > PREFECT_LOGGING_TO_API_MAX_LOG_SIZE.value():
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
@@ -182,6 +182,12 @@ class APILogHandler(logging.Handler):
             )
 
         return log
+
+    def _get_payload_size(self, log: Dict[str, Any]) -> int:
+        return len(json.dumps(log).encode())
+
+    def close(self):
+        APILogWorker.drain_all()
 
 
 class PrefectConsoleHandler(logging.StreamHandler):
