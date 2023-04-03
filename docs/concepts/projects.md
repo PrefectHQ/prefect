@@ -126,11 +126,8 @@ section:
 
 Every step can optionally provide a `requires` field that Prefect will use to auto-install in the event that the step cannot be found in the current environment.  The additional fields map directly onto Python keyword arguments to the step function.  Within a given section, steps always run in the order that they are provided within the `prefect.yaml` file.  
 
-Calling `prefect deploy` performs the following actions:
-
-- runs the `build` steps
-- runs the `push` steps
-- stores the `pull` steps on the deployment for future invocation
+!!! tip "Step templating"
+    [Just as in `deployment.yaml`](#templating-options), step inputs can be templated with the outputs of prior steps or with block references.
 
 For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
