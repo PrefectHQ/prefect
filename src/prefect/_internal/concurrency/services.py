@@ -22,7 +22,6 @@ logger = get_logger("prefect._internal.concurrency.services")
 
 class QueueService(abc.ABC, Generic[T]):
     _instances: Dict[int, Self] = {}
-    _instance_lock = threading.Lock()
 
     def __init__(self, *args) -> None:
         self._queue: Optional[asyncio.Queue] = None
@@ -30,7 +29,6 @@ class QueueService(abc.ABC, Generic[T]):
         self._done_event: Optional[asyncio.Event] = None
         self._task: Optional[asyncio.Task] = None
         self._early_items = deque()
-        self._lock = threading.Lock()
         self._stopped: bool = False
         self._started: bool = False
         self._key = hash(args)
@@ -55,15 +53,12 @@ class QueueService(abc.ABC, Generic[T]):
 
         Does not wait for the instance to finish. See `drain`.
         """
+
         if self._stopped:
             return
 
         # Stop sending work to this instance
         self._remove_instance()
-
-        if not self._started:
-            # Wait for start to finish before stopping
-            self._start_call.result()
 
         self._stopped = True
         call_soon_in_loop(self._loop, self._queue.put_nowait, None)
@@ -73,7 +68,7 @@ class QueueService(abc.ABC, Generic[T]):
         Send an item to this instance of the service.
         """
         if self._stopped:
-            raise RuntimeError("Cannot put items in a stopped service.")
+            raise RuntimeError("Cannot put items in a stopped service instance.")
 
         if not self._started:
             self._early_items.append(item)
@@ -84,9 +79,13 @@ class QueueService(abc.ABC, Generic[T]):
         try:
             async with self._lifespan():
                 await self._main_loop()
-        except Exception:
+        except BaseException:
+            self._remove_instance()
+            # The logging call yields to another thread, so we must remove the instance
+            # before reporting the failure to prevent retrieval of a dead instance
             logger.exception("Service %r failed.", type(self).__name__)
         finally:
+            self._remove_instance()
             self._stopped = True
             self._done_event.set()
 
@@ -97,7 +96,12 @@ class QueueService(abc.ABC, Generic[T]):
             if item is None:
                 break
 
-            await self._handle(item)
+            try:
+                await self._handle(item)
+            except Exception:
+                logger.exception(
+                    "Service %r failed to process item %r", type(self).__name__, item
+                )
 
     @abc.abstractmethod
     async def _handle(self, item: T):
@@ -180,9 +184,7 @@ class QueueService(abc.ABC, Generic[T]):
 
         # Otherwise, bind the service to the global loop
         else:
-            instance._start_call = from_sync.call_soon_in_loop_thread(
-                create_call(instance.start)
-            )
+            from_sync.call_soon_in_loop_thread(create_call(instance.start)).result()
 
         return instance
 
