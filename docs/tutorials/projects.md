@@ -20,12 +20,11 @@ Prefect projects are the recommended way to organize and manage Prefect deployme
 
 A project is a directory of code and configuration for your workflows that can be customized for portability.
 
-The main ingredients of a project are 3 files / directories:
+The main ingredients of a project are 3 files:
 
-- `.prefect/`: a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
-- `deployment.yaml`: a YAML file that can be used to persist settings for one or more flow deployments
-- `prefect.yaml`: a YAML file that contains procedural instructions for how to build relevant artifacts for this project's deployments, push those artifacts, and retrieve them at runtime by a Prefect worker
-
+- [`deployment.yaml`](/concepts/projects/#the-deployment-yaml-file): a YAML file that can be used to persist settings for one or more flow deployments
+- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for how to build relevant artifacts for this project's deployments, push those artifacts, and retrieve them at runtime by a Prefect worker
+- [`.prefect/`](/concepts/projects/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 !!! tip "Projects require workers"
     Note that using a project to manage your deployments requires the use of workers.  In this tutorial we will assume you have set up two work pools each with a worker already, each of which only requires a single CLI command:
@@ -49,8 +48,6 @@ Note that you can run this command in a non-empty directory where you already ha
 
 This command will create your `.prefect/` directory along with the two YAML files `deployment.yaml` and `prefect.yaml`; if any of these files or directories already exist, they will not be altered or overwritten.
 
-This command also attempts to pre-populate `prefect.yaml` with steps based on information already present within the directory; for example, if you initialize a project within a git repository, Prefect will automatically populate a `pull` step for you.
-
 !!! tip "Project Recipes"
     Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure.  You can see all available recipes by running:
 
@@ -59,6 +56,16 @@ This command also attempts to pre-populate `prefect.yaml` with steps based on in
     $ prefect project recipe ls
     ```
     </div>
+
+    And you can use recipes with the `--recipe` flag:
+
+    <div class="terminal">
+    ```bash
+    $ prefect project init --recipe docker
+    ```
+    </div>
+
+    If no recipe is provided, the `init` command makes an intelligent choice of recipe based on local configuration; for example, if you initialize a project within a git repository, Prefect will automatically use the `git` recipe.
 
 
 ## Creating a basic deployment
@@ -109,11 +116,11 @@ This command will create a new deployment for your `"Call API"` flow with the na
 
 Note that Prefect has automatically done a few things for you:
 
-- registered the existence of this flow with your local project
+- registered the existence of this flow [with your local project](/concepts/projects/#the-prefect-directory)
 - created a description for this deployment based on the docstring of your flow function
 - parsed the parameter schema for this flow function in order to expose an API for running this flow
 
-You can customize all of this either by manually editing `deployment.yaml` or by providing more flags to the `prefect deploy` CLI command; CLI inputs will always be prioritized over hard-coded values in your deployment's YAML file.
+You can customize all of this either by [manually editing `deployment.yaml`](/concepts/projects/#the-deployment-yaml-file) or by providing more flags to the `prefect deploy` CLI command; CLI inputs will always be prioritized over hard-coded values in your deployment's YAML file.
 
 Let's create two ad-hoc runs for this deployment and confirm things are healthy:
 <div class="terminal">
@@ -206,7 +213,7 @@ A few important notes on what we're looking at here:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
     ```
-    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations.
+    These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
 
 ### Dockerized deployment
@@ -258,7 +265,7 @@ pull:
 
 A few notes:
 
-- each step references a function with inputs and outputs
+- [each step](/concepts/projects/#the-prefect-yaml-file) references a function with inputs and outputs
 - in this case, we are using `dockerfile: auto` to tell Prefect to automatically create a `Dockerfile` for us; otherwise we could write our own and pass its location as a path to the `dockerfile` kwarg
 - to avoid dealing with real image registries, we are not pushing this image; in most use cases you will want `push: true` (which is the default)
 
@@ -275,6 +282,9 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 </div>
 
 Your run should complete succsessfully, logs and all!  Note that the `-v` flag represents a job variable, which are the allowed pieces of infrastructure configuration on a given work pool.  Each work pool can customize the fields they accept here.
+
+!!! tip "Templating values"
+    As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/projects/#templating-options).
 
 #### A counterexample
 
@@ -306,8 +316,8 @@ pull:
 
 In order to successfully submit such a project to a dockerized environment, we need to either:
 
-- `push` this project to a remote location (such as GitHub, or possibly a Cloud storage bucket)
-- `build` this project into a Docker image artifact 
+- [`push` this project](/concepts/projects/#the-push-section) to a remote location (such as GitHub, or possibly a Cloud storage bucket)
+- [`build` this project](/concepts/projects/#the-build-section) into a Docker image artifact 
 
 !!! tip "Advanced: `push` steps"
     Populating a `push` step is considered an advanced feature of projects that requires additional considerations to ensure the `pull` step is compatible with the `push` step; as such it is out of scope for this tutorial.
