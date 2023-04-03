@@ -2987,6 +2987,19 @@ class TestTaskMap:
         task_states = my_flow()
         assert [state.result() for state in task_states] == [6, 7, 8]
 
+    def test_with_keyword_with_iterable_default(self):
+        @task
+        def add_some(x, y=[1, 4]):
+            return x + sum(y)
+
+        @flow
+        def my_flow():
+            numbers = [1, 2, 3]
+            return add_some.map(numbers)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [6, 7, 8]
+
     def test_with_variadic_keywords_and_iterable(self):
         @task
         def add_some(x, **kwargs):

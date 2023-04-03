@@ -845,8 +845,9 @@ class Task(Generic[P, R]):
 
         from prefect.engine import enter_task_run_engine
 
-        # Convert the call args/kwargs to a parameter dict
-        parameters = get_call_parameters(self.fn, args, kwargs)
+        # Convert the call args/kwargs to a parameter dict; do not apply defaults
+        # since they should not be mapped over
+        parameters = get_call_parameters(self.fn, args, kwargs, apply_defaults=False)
         return_type = "state" if return_state else "future"
 
         return enter_task_run_engine(

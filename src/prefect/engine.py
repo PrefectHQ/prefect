@@ -1039,6 +1039,11 @@ async def begin_task_map(
         call_parameters = {key: value[i] for key, value in iterable_parameters.items()}
         call_parameters.update({key: value for key, value in static_parameters.items()})
 
+        # Add default values for parameters; these are skipped earlier since they should
+        # not be mapped over
+        for key, value in get_parameter_defaults(task.fn).items():
+            call_parameters.setdefault(key, value)
+
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
             call_parameters[key] = annotation.rewrap(call_parameters[key])
