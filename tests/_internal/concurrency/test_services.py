@@ -292,9 +292,9 @@ def test_batched_queue_service():
 
 def test_batched_queue_service_min_interval():
     instance = MockBatchedService.instance()
-    instance._min_interval = 0.1
+    instance._min_interval = 0.01
     instance.send(1)
-    time.sleep(0.25)
+    time.sleep(1)
     instance.send(2)
-    time.sleep(0.25)
+    time.sleep(1)
     MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])
