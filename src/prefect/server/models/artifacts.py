@@ -273,7 +273,7 @@ async def read_latest_artifacts(
     db: PrefectDBInterface,
     offset: int = None,
     limit: int = None,
-    artifact_filter: filters.ArtifactCollectionFilter = None,  # can only specify 1 or the other
+    artifact_filter: filters.ArtifactCollectionFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
     sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC,
