@@ -19,6 +19,7 @@ from prefect.server.utilities.schemas import (
     copy_model_fields,
     orjson_dumps_extra_compatible,
 )
+from prefect.utilities.pydantic import get_class_fields_only
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
 
@@ -397,6 +398,10 @@ class BlockTypeUpdate(ActionBaseModel):
     )
     description: Optional[str] = FieldFrom(schemas.core.BlockType)
     code_example: Optional[str] = FieldFrom(schemas.core.BlockType)
+
+    @classmethod
+    def updatable_fields(cls) -> set:
+        return get_class_fields_only(cls)
 
 
 @copy_model_fields

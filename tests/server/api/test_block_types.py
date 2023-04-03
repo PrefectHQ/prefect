@@ -12,6 +12,7 @@ from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.actions import BlockTypeCreate, BlockTypeUpdate
 from prefect.server.schemas.core import BlockDocument, BlockType
+from prefect.testing.utilities import AsyncMock
 from prefect.utilities.slugify import slugify
 from tests.server.models.test_block_types import CODE_EXAMPLE
 
@@ -362,6 +363,44 @@ class TestUpdateBlockType:
             ).dict(json_compatible=True),
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    async def test_update_block_type_only_if_different(
+        self, client, block_type_x, monkeypatch, session
+    ):
+        update = BlockTypeUpdate(
+            logo_url="http://foo.com/bar.png",
+            documentation_url="http://foo.com/bar.html",
+            description="A block, verily",
+            code_example=CODE_EXAMPLE,
+        )
+        await models.block_types.update_block_type(session, block_type_x.id, update)
+        await session.commit()
+
+        mock = AsyncMock()
+        monkeypatch.setattr("prefect.server.models.block_types.update_block_type", mock)
+
+        response = await client.patch(
+            f"/block_types/{block_type_x.id}",
+            json=update.dict(json_compatible=True),
+        )
+
+        # doesn't update with same parameters
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert mock.await_count == 0
+
+        response = await client.patch(
+            f"/block_types/{block_type_x.id}",
+            json=BlockTypeUpdate(
+                logo_url="http://foo2.com/bar.png",
+                documentation_url="http://foo2.com/bar.html",
+                description="A block2, verily",
+                code_example=CODE_EXAMPLE.replace("python", "bison"),
+            ).dict(json_compatible=True),
+        )
+
+        # does update with same parameters
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert mock.await_count == 1
 
 
 class TestDeleteBlockType:

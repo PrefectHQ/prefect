@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from prefect.server.schemas.actions import (
+    BlockTypeUpdate,
     DeploymentCreate,
     DeploymentUpdate,
     FlowRunCreate,
@@ -115,3 +116,14 @@ class TestDeploymentUpdate:
 
         for key in kwargs.keys():
             assert getattr(deployment_update, key, 0) == 0
+
+
+class TestBlockTypeUpdate:
+    def test_updatable_fields(self):
+        fields = BlockTypeUpdate.updatable_fields()
+        assert fields == {
+            "logo_url",
+            "documentation_url",
+            "description",
+            "code_example",
+        }

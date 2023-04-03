@@ -4,6 +4,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Query, status
 
+from prefect.blocks.core import _should_update_block_type
 from prefect.server import models, schemas
 from prefect.server.api import dependencies
 from prefect.server.database.dependencies import provide_database_interface
@@ -113,9 +114,17 @@ async def update_block_type(
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, detail="Block type not found"
             )
-        await models.block_types.update_block_type(
-            session=session, block_type=block_type, block_type_id=block_type_id
-        )
+
+        # Only update the block type if there is any meaningful changes.
+        # This avoids deadlocks when creating multiple blocks of the same type.
+        # This check happens client side, but we do it server side as well
+        # to accommodate older clients.
+        if _should_update_block_type(
+            block_type, schemas.core.BlockType.from_orm(db_block_type)
+        ):
+            await models.block_types.update_block_type(
+                session=session, block_type=block_type, block_type_id=block_type_id
+            )
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
