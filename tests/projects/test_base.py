@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,10 @@ TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 @pytest.fixture(autouse=True)
 def project_dir(tmp_path):
     original_dir = os.getcwd()
-    shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    if sys.version_info >= (3, 8):
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    else:
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path)
     (tmp_path / ".prefect").mkdir(exist_ok=True)
     os.chdir(tmp_path)
     yield

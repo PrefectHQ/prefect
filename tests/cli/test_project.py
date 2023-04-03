@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -17,7 +18,10 @@ TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 @pytest.fixture
 def project_dir(tmp_path):
     original_dir = os.getcwd()
-    shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    if sys.version_info >= (3, 8):
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    else:
+        shutil.copytree(TEST_PROJECTS_DIR, tmp_path)
     os.chdir(tmp_path)
     initialize_project()
     yield
