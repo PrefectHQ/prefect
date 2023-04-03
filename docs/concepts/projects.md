@@ -132,6 +132,30 @@ Every step can optionally provide a `requires` field that Prefect will use to au
 For more information on the mechanics of steps, [see below](#deployment-mechanics).
 
 ### The Build Section
+
+The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If we initialize with the docker recipe we find a template for such a step: 
+
+<div class="terminal">
+```bash
+$ prefect project init --recipe docker
+```
+</div>
+
+```yaml
+build:
+- prefect_docker.projects.steps.build_docker_image:
+    requires: prefect-docker>0.1.0
+    image_name: null
+    tag: null
+    dockerfile: auto
+```
+
+Once we edit the `null` fields to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.
+
+
+!!! note Some steps require Prefect integrations
+    Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
+
 ### The Push Section
 ### The Pull Section
 
