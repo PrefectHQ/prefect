@@ -160,4 +160,4 @@ prefect server database downgrade -y -r d20618ce678e
 </div>
 
 ### Creating migrations
-See the [contributing docs](/contributing/adding-db-migrations/) for more information on how to create new migrations
+See the [contributing docs](/contributing/overview/#adding-database-migrations) for more information on how to create new migrations
