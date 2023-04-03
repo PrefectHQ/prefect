@@ -223,7 +223,26 @@ class TestResolveBlockDocumentReferences:
 
         with pytest.raises(
             ValueError,
-            match="Block placeholders must be the only placeholder in a string.",
+            match=(
+                "Only a single block placeholder is allowed in a string and no"
+                " surrounding text is allowed."
+            ),
+        ):
+            await resolve_block_document_references(template, client=orion_client)
+
+    async def test_resolve_block_document_references_raises_on_extra_text(
+        self, orion_client
+    ):
+        template = {
+            "key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }} extra text"
+        }
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Only a single block placeholder is allowed in a string and no"
+                " surrounding text is allowed."
+            ),
         ):
             await resolve_block_document_references(template, client=orion_client)
 

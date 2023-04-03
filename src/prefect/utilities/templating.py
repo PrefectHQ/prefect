@@ -191,7 +191,13 @@ async def resolve_block_document_references(
         ]
     elif isinstance(template, str):
         placeholders = find_placeholders(template)
-        if (
+        has_block_document_placeholder = any(
+            placeholder.type is PlaceholderType.BLOCK_DOCUMENT
+            for placeholder in placeholders
+        )
+        if len(placeholders) == 0 or not has_block_document_placeholder:
+            return template
+        elif (
             len(placeholders) == 1
             and list(placeholders)[0].full_match == template
             and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
@@ -205,12 +211,10 @@ async def resolve_block_document_references(
                 name=block_document_name, block_type_slug=block_type_slug
             )
             return block_document.data
-        elif len(placeholders) > 1 and any(
-            [p.type == PlaceholderType.BLOCK_DOCUMENT for p in placeholders]
-        ):
+        else:
             raise ValueError(
-                f"Invalid template: {template!r}. Block placeholders must "
-                "be the only placeholder in a string."
+                f"Invalid template: {template!r}. Only a single block placeholder is"
+                " allowed in a string and no surrounding text is allowed."
             )
 
     return template
