@@ -6,7 +6,7 @@ tags:
     - flow runs
     - notifications
     - alerts
-    - Prefect Cloud
+
 ---
 
 # Notifications
@@ -27,7 +27,7 @@ Currently Prefect supports sending notifications via:
 
 ## Configure notifications
 
-To configure a notification, go to the **Notifications** page and select **Create Notification** or the **+** button. 
+To configure a notification in Prefect Server, go to the **Notifications** page and select **Create Notification** or the **+** button. 
 
 ![Creating a notification in the Prefect UI](../img/ui/create-slack-notification.png)
 
@@ -45,7 +45,7 @@ For example, to get a Slack message if a flow with a `daily-etl` tag fails, the 
 
 > If a run of any flow with **daily-etl** tag enters a **failed** state, send a notification to **my-slack-webhook**
 
-When the conditions of the notification are triggered, you’ll receive a simple message:
+When the conditions of the notification are triggered, you’ll receive a message:
 
 > The **fuzzy-leopard** run of the **daily-etl** flow entered a **failed** state at **22-06-27 16:21:37 EST**.
 

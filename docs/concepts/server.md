@@ -57,6 +57,7 @@ $ prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 ```
 </div>
 
-You must set the API Server address for containers.
+!
+You must set the API Server address to use Prefect within a container, such a a Docker container.
 
 You can save the API server address in a profile and use that profile
