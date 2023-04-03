@@ -13,10 +13,10 @@ import prefect
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
-from prefect.experimental.workers.process import ProcessWorker, ProcessWorkerResult
 from prefect.server.schemas.core import WorkPool
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.testing.utilities import AsyncMock, MagicMock
+from prefect.workers.process import ProcessWorker, ProcessWorkerResult
 
 
 @flow
@@ -30,9 +30,7 @@ def patch_run_process(monkeypatch):
         mock_run_process = AsyncMock()
         mock_run_process.return_value.returncode = returncode
         mock_run_process.return_value.pid = pid
-        monkeypatch.setattr(
-            prefect.experimental.workers.process, "run_process", mock_run_process
-        )
+        monkeypatch.setattr(prefect.workers.process, "run_process", mock_run_process)
 
         return mock_run_process
 
@@ -95,7 +93,7 @@ def patch_client(monkeypatch, overrides: dict = None):
     mock_client.read_flow = mock_read_flow
     mock_get_client.return_value = mock_client
 
-    monkeypatch.setattr("prefect.experimental.workers.base.get_client", mock_get_client)
+    monkeypatch.setattr("prefect.workers.base.get_client", mock_get_client)
 
     return mock_read_deployment
 

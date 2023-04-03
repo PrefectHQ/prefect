@@ -11,11 +11,6 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import (
-    BaseJobConfiguration,
-    BaseVariables,
-    BaseWorker,
-)
 from prefect.flows import flow
 from prefect.server import models
 from prefect.server.schemas.core import Flow
@@ -24,6 +19,7 @@ from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settin
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import parameter_schema
+from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
 class WorkerTestImpl(BaseWorker):

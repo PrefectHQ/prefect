@@ -56,9 +56,7 @@ async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
 
 def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",
@@ -84,9 +82,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
 
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",
@@ -112,9 +108,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
 
 def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     with temporary_settings({PREFECT_WORKER_PREFETCH_SECONDS: 100}):
         invoke_and_assert(
             command=[
@@ -139,9 +133,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
 
 def test_start_worker_with_limit(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",
