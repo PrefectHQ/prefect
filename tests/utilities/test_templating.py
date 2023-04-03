@@ -121,21 +121,21 @@ class TestApplyValues:
         values = {"age": 30}
         assert apply_values(template, values) == {"age": 30}
 
-    def test_apply_values_dictionary_with_UNSET_value_not_removed(self):
-        template = {"name": UNSET, "age": "{{age}}"}
+    def test_apply_values_dictionary_with_NotSet_value_not_removed(self):
+        template = {"name": NotSet, "age": "{{age}}"}
         values = {"age": 30}
         assert apply_values(template, values, remove_notset=False) == {
-            "name": UNSET,
+            "name": NotSet,
             "age": 30,
         }
 
-    def test_apply_values_nested_with_UNSET_value_not_removed(self):
-        template = [{"top_key": {"name": UNSET, "age": "{{age}}"}}]
+    def test_apply_values_nested_with_NotSet_value_not_removed(self):
+        template = [{"top_key": {"name": NotSet, "age": "{{age}}"}}]
         values = {"age": 30}
         assert apply_values(template, values, remove_notset=False) == [
             {
                 "top_key": {
-                    "name": UNSET,
+                    "name": NotSet,
                     "age": 30,
                 }
             }
