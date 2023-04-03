@@ -113,21 +113,8 @@ watch:
 nav:
     - Getting Started: 
         - index.md  
-    - Getting Started: 
-        - index.md  
         - Installation: getting-started/installation.md
         - Cloud Quickstart: ui/cloud-quickstart.md
-    - Tutorials: 
-        - tutorials/index.md
-        - Flows & Tasks: tutorials/first-steps.md
-        - Configuration: tutorials/flow-task-config.md
-        - Execution: tutorials/execution.md
-        - Orchestration: tutorials/orchestration.md
-        - Deployments: tutorials/deployments.md
-        - Storage & Infrastructure: tutorials/storage.md
-    - Concepts: 
-        - concepts/index.md
-        - Cloud Quickstart: cloud/cloud-quickstart.md
     - Tutorials: 
         - tutorials/index.md
         - Flows & Tasks: tutorials/first-steps.md
@@ -165,12 +152,12 @@ nav:
         - Workspaces: cloud/workspaces.md
         - Organizations: cloud/organizations.md
         - Users: 
-            - cloud/users.md
-            - Roles (RBAC): cloud/roles.md
-            - API Keys: cloud/cloud-api-keys.md
-            - Service Accounts: cloud/service-accounts.md
-            - Single Sign-on (SSO): cloud/sso.md
-            - Audit Log: cloud/audit-log.md
+            - cloud/users/index.md
+            - Roles (RBAC): cloud/users/roles.md
+            - API Keys: cloud/users/cloud-api-keys.md
+            - Service Accounts: cloud/users/service-accounts.md
+            - Single Sign-on (SSO): cloud/users/sso.md
+            - Audit Log: cloud/users/audit-log.md
         - Events: cloud/events.md
         - Automations: cloud/automations.md
         - API Rate Limits: cloud/rate-limits.md
