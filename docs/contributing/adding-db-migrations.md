@@ -1,5 +1,15 @@
+---
+description: How to add a database migration to Prefect.
+tags:
+    - contributing
+    - database
+    - migrations
+    - SQLite
+    - PostgreSQL
+---
+
 # Adding Database Migrations
-To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example
+To make changes to a table, first update the SQLAlchemy model in `src/prefect/server/database/orm_models.py`. For example,
 if you wanted to add a new column to the `flow_run` table, you would add a new column to the `FlowRun` model:
 
 ```python
@@ -12,7 +22,7 @@ class ORMFlowRun(ORMRun):
     new_column = Column(String, nullable=True) # <-- add this line
 ```
 
-Next, you will need to generate a new migration file. You will need to generate a new migration file for each database type. 
+Next, you will need to generate new migration files. You must generate a new migration file for each database type. 
 Migrations will be generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to.
 
 To generate a new migration file, run the following command:
@@ -25,9 +35,9 @@ prefect server database revision --autogenerate -m "add_flow_run__new_column"
 
 The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. This does
 not guarantee a correct migration, so you will need to manually inspect the generated migration file to make sure
-it is accurate. Be sure to make sure to remove any commands that are not related to the change you are making.
+it is accurate. Be sure to remove any commands that are not related to the change you are making.
 
-When adding a migration for SQLite it's important to include the following `PRAGMA` statements for both upgrade and downgrade
+When adding a migration for SQLite, it's important to include the following `PRAGMA` statements for both upgrade and downgrade:
 
 ```python
 def upgrade():

@@ -280,6 +280,7 @@ nav:
         - Style: contributing/style.md
         - Versioning: contributing/versioning.md
         - Troubleshooting: contributing/common-mistakes.md
+        - Adding a Database Migration: contributing/adding-db-migration.md
 
 extra:
     version:
