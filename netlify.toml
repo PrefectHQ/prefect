@@ -167,7 +167,7 @@ to = "/ui/flows/"
 status = 301
 
 [[redirects]]
-from = "/getting-started/overview//"
+from = "/getting-started/overview/"
 to = "/"
 status = 301
 
@@ -175,38 +175,6 @@ status = 301
 from = "/cloud/"
 to = "/ui/cloud/"
 status = 301
-
-
-# redirects to add from these locations 
-# I think I can use * or splat - check netlifly docs
-# pages that don't carry over get added above explicitly
-# then splat the rest from ui/ to cloud/
- 
- #       - ui/flow-runs.md
- #       - ui/flows.md
- #       - ui/deployments.md
- #       - ui/work-pools.md
- #       - ui/blocks.md
- #       - ui/notifications.md
- #       - ui/task-concurrency.md
-#       - ui/index.md -> /cloud/
-#       - ui/cloud.md -> /cloud/
-#       - ui/cloud-quickstart.md -> cloud/cloud-quickstart.md
-#       - ui/cloud-api-keys.md -> cloud/users/api-keys.md
-#       - ui/cloud-local-environment.md -> /cloud/connecting/
-#       - /cloud/cloud-local-environment/ -> /cloud/connecting/
-#       - ui/organizations.md -> /cloud/organizations/
-#       - ui/workspaces.md
-#       - ui/service-accounts.md -> /cloud/users/service-accounts/
-#       - ui/roles.md -> /cloud/users/roles/
-#       - ui/sso.md -> /cloud/users/sso/
-#       - ui/audit-log.md -> /cloud/users/audit-log/
-#       - ui/automations.md -> /cloud/automations/
-#       - ui/events.md -> /cloud/events/
-#       - ui/troubleshooting -> /cloud/connecting/
-#       - ui/rate-limits.md -> /cloud/rate-limits/
-
-
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
