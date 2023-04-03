@@ -1,6 +1,5 @@
 ---
 description: Workspaces are isolated environments for flows and deployments within Prefect Cloud.
-icon: material/cloud-outline
 tags:
     - UI
     - Prefect Cloud

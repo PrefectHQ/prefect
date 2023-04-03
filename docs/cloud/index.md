@@ -1,6 +1,6 @@
 ---
-<<<<<<< HEAD:docs/cloud/index.md
 description: Observe and orchestrate your workflows with the hosted Prefect Cloud platform.
+icon: material/cloud-outline
 tags:
     - UI
     - dashboard
@@ -230,7 +230,6 @@ See the [Prefect Cloud](/ui/cloud/) documentation for details about setting up a
 ## Prefect REST API
 
 The [Prefect REST API](/api-ref/rest-api/) is used for communicating data from Prefect clients to Prefect Cloud or a local Prefect server so that orchestration can be performed. This API is mainly consumed by clients like the Prefect Python Client or the Prefect UI.
->>>>>>> origin/main:docs/ui/index.md
 
 !!! note "Prefect REST API interactive documentation"
     Prefect Cloud REST API documentation is available at <a href="https://app.prefect.cloud/api/docs" target="_blank">https://app.prefect.cloud/api/docs</a>.
