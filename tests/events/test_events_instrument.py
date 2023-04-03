@@ -1,4 +1,3 @@
-import time
 from typing import Optional
 
 import pytest
@@ -72,7 +71,7 @@ async def test_instruments_methods(
     instance.sync_method()
     await instance.async_method()
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 2
 
@@ -106,7 +105,7 @@ async def test_handles_method_failure(
     except:
         pass
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 2
 
@@ -134,7 +133,7 @@ async def test_ignores_excluded_and_private_methods(
     instance._private_method()
     InstrumentedClass.static_method()
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 0
 
@@ -160,7 +159,7 @@ async def test_instrument_idempotent(
     instance = InstrumentedTwice()
     instance.some_method()
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 1
 
@@ -185,6 +184,6 @@ async def test_skip_event_no_resources(
     instance = Instrumented()
     instance.some_method()
 
-    time.sleep(0.1)
+    await asserting_events_worker.drain()
 
     assert len(asserting_events_worker._client.events) == 0
