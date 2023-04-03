@@ -1,29 +1,44 @@
+import enum
 import re
-from copy import copy
-from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Dict, NamedTuple, Set, Type, TypeVar, Union
 
 from prefect.client.utilities import inject_client
+from prefect.utilities.annotations import NotSet
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
 
 
-class Unset:
-    def __bool__(self) -> bool:
-        return False
+T = TypeVar("T", str, int, float, bool, dict, list, None)
+
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.-]+)\s*}})")
+BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
 
 
-UNSET: Unset = Unset()
-
-
-T = TypeVar("T", str, int, float, bool, dict, list)
-
-PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*(\w+)\s*}})")
+class PlaceholderType(enum.Enum):
+    STANDARD = "standard"
+    BLOCK_DOCUMENT = "block_document"
 
 
 class Placeholder(NamedTuple):
     full_match: str
     name: str
+    type: PlaceholderType
+
+
+def determine_placeholder_type(name: str) -> PlaceholderType:
+    """
+    Determines the type of a placeholder based on its name.
+
+    Args:
+        name: The name of the placeholder
+
+    Returns:
+        The type of the placeholder
+    """
+    if name.startswith(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX):
+        return PlaceholderType.BLOCK_DOCUMENT
+    return PlaceholderType.STANDARD
 
 
 def find_placeholders(template: T) -> Set[Placeholder]:
@@ -40,7 +55,10 @@ def find_placeholders(template: T) -> Set[Placeholder]:
         return set()
     if isinstance(template, str):
         result = PLACEHOLDER_CAPTURE_REGEX.findall(template)
-        return {Placeholder(*match) for match in result}
+        return {
+            Placeholder(match[0], match[1], determine_placeholder_type(match[1]))
+            for match in result
+        }
     elif isinstance(template, dict):
         return set().union(
             *[find_placeholders(value) for key, value in template.items()]
@@ -51,7 +69,7 @@ def find_placeholders(template: T) -> Set[Placeholder]:
         raise ValueError(f"Unexpected type: {type(template)}")
 
 
-def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
+def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
 
@@ -78,28 +96,40 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
     Returns:
         The template with the values applied
     """
-    if isinstance(template, (int, float, bool, Unset)):
+    if (
+        isinstance(template, (int, float, bool))
+        or template is NotSet
+        or template is None
+    ):
         return template
     if isinstance(template, str):
         placeholders = find_placeholders(template)
         if not placeholders:
             # If there are no values, we can just use the template
             return template
-        elif len(placeholders) == 1 and list(placeholders)[0].full_match == template:
+        elif (
+            len(placeholders) == 1
+            and list(placeholders)[0].full_match == template
+            and list(placeholders)[0].type is PlaceholderType.STANDARD
+        ):
             # If there is only one variable with no surrounding text,
             # we can replace it. If there is no variable value, we
             # return UNSET to indicate that the value should not be included.
-            return values.get(list(placeholders)[0].name, UNSET)
+            return values.get(list(placeholders)[0].name, NotSet)
         else:
-            for full_match, name in placeholders:
-                if name in values and values[name] is not None:
+            for full_match, name, placeholder_type in placeholders:
+                if (
+                    name in values
+                    and values[name] is not None
+                    and placeholder_type is PlaceholderType.STANDARD
+                ):
                     template = template.replace(full_match, str(values.get(name, "")))
             return template
     elif isinstance(template, dict):
         updated_template = {}
         for key, value in template.items():
             updated_value = apply_values(value, values)
-            if updated_value is not UNSET:
+            if updated_value is not NotSet:
                 updated_template[key] = updated_value
 
         return updated_template
@@ -107,17 +137,17 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Unset]:
         updated_list = []
         for value in template:
             updated_value = apply_values(value, values)
-            if updated_value is not UNSET:
+            if updated_value is not NotSet:
                 updated_list.append(updated_value)
         return updated_list
     else:
-        raise ValueError(f"Unexpected type: {type(template)}")
+        raise ValueError(f"Unexpected template type {type(template).__name__!r}")
 
 
 @inject_client
 async def resolve_block_document_references(
     template: T, client: "PrefectClient" = None
-) -> T:
+) -> Union[T, Dict[str, Any]]:
     """
     Resolve block document references in a template by replacing each reference with
     the data of the block document.
@@ -149,22 +179,38 @@ async def resolve_block_document_references(
         if block_document_id:
             block_document = await client.read_block_document(block_document_id)
             return block_document.data
-        template_copy = copy(template)
-        for key, value in template_copy.items():
-            if isinstance(value, dict):
-                block_document_id = value.get("$ref", {}).get("block_document_id")
-                if block_document_id:
-                    block_document = await client.read_block_document(block_document_id)
-                    template_copy[key] = block_document.data
-                else:
-                    template_copy[key] = await resolve_block_document_references(
-                        template=value, client=client
-                    )
-        return template_copy
+        updated_template = {}
+        for key, value in template.items():
+            updated_value = await resolve_block_document_references(value)
+            updated_template[key] = updated_value
+        return updated_template
     elif isinstance(template, list):
         return [
             await resolve_block_document_references(item, client=client)
             for item in template
         ]
+    elif isinstance(template, str):
+        placeholders = find_placeholders(template)
+        if (
+            len(placeholders) == 1
+            and list(placeholders)[0].full_match == template
+            and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
+        ):
+            block_type_slug, block_document_name = (
+                list(placeholders)[0]
+                .name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "")
+                .split(".")
+            )
+            block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+            return block_document.data
+        elif len(placeholders) > 1 and any(
+            [p.type == PlaceholderType.BLOCK_DOCUMENT for p in placeholders]
+        ):
+            raise ValueError(
+                f"Invalid template: {template!r}. Block placeholders must "
+                "be the only placeholder in a string."
+            )
 
     return template
