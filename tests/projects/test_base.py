@@ -18,34 +18,24 @@ TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
-def project_dir():
+def project_dir(tmp_path):
     original_dir = os.getcwd()
-    os.chdir(TEST_PROJECTS_DIR)
-    (TEST_PROJECTS_DIR / ".prefect").mkdir(exist_ok=True)
+    shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    (tmp_path / ".prefect").mkdir(exist_ok=True)
+    os.chdir(tmp_path)
     yield
     os.chdir(original_dir)
-    shutil.rmtree((TEST_PROJECTS_DIR / ".prefect"), ignore_errors=True)
-
-    # missing_ok=True is only available in Python 3.8+
-    files = [
-        TEST_PROJECTS_DIR / ".prefectignore",
-        TEST_PROJECTS_DIR / "prefect.yaml",
-        TEST_PROJECTS_DIR / "deployment.yaml",
-    ]
-    for file in files:
-        if file.exists():
-            file.unlink()
 
 
 class TestFindProject:
     async def test_find_project_works_in_root(self, tmp_path):
         # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir()
+        (tmp_path / ".prefect").mkdir(exist_ok=True)
         assert find_prefect_directory(tmp_path) == tmp_path / ".prefect"
 
     async def test_find_project_works_in_subdir(self, tmp_path):
         # make hidden .prefect/ directory in tmp_path
-        (tmp_path / ".prefect").mkdir()
+        (tmp_path / ".prefect").mkdir(exist_ok=True)
         (tmp_path / "subdir" / "subsubdir").mkdir(parents=True)
         assert (
             find_prefect_directory(tmp_path / "subdir" / "subsubdir")
@@ -113,7 +103,7 @@ class TestInitProject:
         with open("prefect.yaml", "r") as f:
             contents = yaml.safe_load(f)
 
-        assert contents["name"] == "PrefectHQ/prefect"
+        assert contents["name"] is not None
         assert contents["prefect-version"] == prefect.__version__
 
     async def test_initialize_project_with_name(self):
@@ -135,49 +125,47 @@ class TestInitProject:
         clone_step = contents["pull"][0]
         assert "prefect.projects.steps.git_clone_project" in clone_step
 
+        build_step = contents["build"][0]
+        assert "prefect_docker.projects.steps.build_docker_image" in build_step
+
 
 class TestRegisterFlow:
-    async def test_register_flow_works_in_root(self):
+    async def test_register_flow_works_in_root(self, tmp_path):
         f = await register_flow(
-            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
-            + ":test_flow"
+            str(tmp_path / "import-project" / "my_module" / "flow.py") + ":test_flow"
         )
         assert f.name == "test"
 
-        with open(TEST_PROJECTS_DIR / ".prefect" / "flows.json", "r") as f:
+        with open(tmp_path / ".prefect" / "flows.json", "r") as f:
             flows = json.load(f)
 
         assert flows["test"] == "import-project/my_module/flow.py:test_flow"
 
-    async def test_register_flow_allows_identical_calls(self):
+    async def test_register_flow_allows_identical_calls(self, tmp_path):
         f = await register_flow(
-            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
-            + ":test_flow"
+            str(tmp_path / "import-project" / "my_module" / "flow.py") + ":test_flow"
         )
         assert f.name == "test"
 
         f = await register_flow(
-            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
-            + ":test_flow"
+            str(tmp_path / "import-project" / "my_module" / "flow.py") + ":test_flow"
         )
         assert f.name == "test"
 
-    async def test_register_flow_disallows_overwrites(self):
+    async def test_register_flow_disallows_overwrites(self, tmp_path):
         f = await register_flow(
-            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
-            + ":test_flow"
+            str(tmp_path / "import-project" / "my_module" / "flow.py") + ":test_flow"
         )
         assert f.name == "test"
 
         with pytest.raises(ValueError, match="Conflicting entry found"):
             await register_flow(
-                str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
+                str(tmp_path / "import-project" / "my_module" / "flow.py")
                 + ":prod_flow"
             )
 
         f = await register_flow(
-            str(TEST_PROJECTS_DIR / "import-project" / "my_module" / "flow.py")
-            + ":prod_flow",
+            str(tmp_path / "import-project" / "my_module" / "flow.py") + ":prod_flow",
             force=True,
         )
         assert f.name == "test"

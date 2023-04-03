@@ -62,7 +62,7 @@ def set_prefect_hidden_dir() -> bool:
 
 
 def create_default_project_yaml(
-    path: str, name: str = None, pull_step: dict = None
+    path: str, name: str = None, contents: dict = None
 ) -> bool:
     """
     Creates default prefect.yaml file in the provided path if one does not already exist;
@@ -72,8 +72,10 @@ def create_default_project_yaml(
     if (path / "prefect.yaml").exists():
         return False
     default_file = Path(__file__).parent / "templates" / "prefect.yaml"
-    with open(default_file, "r") as df:
-        contents = yaml.safe_load(df)
+
+    if contents is None:
+        with open(default_file, "r") as df:
+            contents = yaml.safe_load(df)
 
     import prefect
 
@@ -109,7 +111,7 @@ def create_default_project_yaml(
             "# pull section allows you to provide instructions for cloning this project"
             " in remote locations\n"
         )
-        yaml.dump({"pull": pull_step or contents["pull"]}, f, sort_keys=False)
+        yaml.dump({"pull": contents["pull"]}, f, sort_keys=False)
     return True
 
 
@@ -172,9 +174,21 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
 
     formatting_kwargs["name"] = name
 
+    has_dockerfile = Path("Dockerfile").exists()
+
+    if has_dockerfile:
+        formatting_kwargs["dockerfile"] = "Dockerfile"
+    elif recipe is not None and "docker" in recipe:
+        formatting_kwargs["dockerfile"] = "auto"
+
     # hand craft a pull step
     if is_git_based and recipe is None:
-        recipe = "git"
+        if has_dockerfile:
+            recipe = "docker-git"
+        else:
+            recipe = "git"
+    elif recipe is None and has_dockerfile:
+        recipe = "docker"
     elif recipe is None:
         recipe = "local"
 
@@ -185,7 +199,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
         files.append(".prefectignore")
     if create_default_deployment_yaml("."):
         files.append("deployment.yaml")
-    if create_default_project_yaml(".", name=name, pull_step=configuration["pull"]):
+    if create_default_project_yaml(".", name=name, contents=configuration):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")

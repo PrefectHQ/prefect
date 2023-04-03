@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 import prefect
+from prefect.projects.base import initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -14,23 +15,13 @@ TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture
-def project_dir():
+def project_dir(tmp_path):
     original_dir = os.getcwd()
-    os.chdir(TEST_PROJECTS_DIR)
-    result = invoke_and_assert("project init --name test_project")
+    shutil.copytree(TEST_PROJECTS_DIR, tmp_path, dirs_exist_ok=True)
+    os.chdir(tmp_path)
+    initialize_project()
     yield
     os.chdir(original_dir)
-    shutil.rmtree((TEST_PROJECTS_DIR / ".prefect"), ignore_errors=True)
-
-    # missing_ok=True is only available in Python 3.8+
-    files = [
-        TEST_PROJECTS_DIR / ".prefectignore",
-        TEST_PROJECTS_DIR / "prefect.yaml",
-        TEST_PROJECTS_DIR / "deployment.yaml",
-    ]
-    for file in files:
-        if file.exists():
-            file.unlink()
 
 
 class TestProjectRecipes:
