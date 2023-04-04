@@ -30,8 +30,7 @@ Varibles can be created and deleted via the REST API. You can also set and get v
 You can list, inspect, and delete variables via the command line interface with the `prefect variable ls`, `prefect variable inspect <name>`, and `prefect variable delete <name>` commands, respectively.
 
 ## Accessing variables
-In addition to the UI and API, variables can be referenced in code and in certain Prefect configuration files. If you attempt to reference a varible that does not exist
-
+In addition to the UI and API, variables can be referenced in code and in certain Prefect configuration files.
 
 ### In Python code
 You can access any variable via the Python SDK in two ways: 
@@ -46,7 +45,6 @@ print(answer)
 
 ```
 
-
 ```
 from prefect.runtime import variables
 
@@ -56,6 +54,8 @@ print(answer)
 # 42
 
 ```
+
+If you attempt to reference a varible that does not exist, both methods will return `None`.
 
 ### In Prefect configuration
 
