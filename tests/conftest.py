@@ -495,3 +495,11 @@ def enable_workers():
         {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 1, PREFECT_EXPERIMENTAL_WARN_WORKERS: 0}
     ):
         yield
+
+
+@pytest.fixture
+def disable_workers():
+    with temporary_settings(
+        {PREFECT_EXPERIMENTAL_ENABLE_WORKERS: 0, PREFECT_EXPERIMENTAL_WARN_WORKERS: 1}
+    ):
+        yield

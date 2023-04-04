@@ -14,14 +14,14 @@ import sniffio
 from pydantic import Field, validator
 
 from prefect.client.schemas import FlowRun
-from prefect.experimental.workers.base import (
+from prefect.utilities.filesystem import relative_path_to_current_platform
+from prefect.utilities.processutils import run_process
+from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
     BaseWorker,
     BaseWorkerResult,
 )
-from prefect.utilities.filesystem import relative_path_to_current_platform
-from prefect.utilities.processutils import run_process
 
 if TYPE_CHECKING:
     from prefect.server.schemas.core import Flow

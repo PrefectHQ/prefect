@@ -11,23 +11,15 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import (
-    BaseJobConfiguration,
-    BaseVariables,
-    BaseWorker,
-)
 from prefect.flows import flow
 from prefect.server import models
 from prefect.server.schemas.core import Flow
 from prefect.server.schemas.responses import DeploymentResponse
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    get_current_settings,
-)
+from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, get_current_settings
 from prefect.states import Completed, Pending, Running, Scheduled
 from prefect.testing.utilities import AsyncMock
 from prefect.utilities.callables import parameter_schema
+from prefect.workers.base import BaseJobConfiguration, BaseVariables, BaseWorker
 
 
 class WorkerTestImpl(BaseWorker):
@@ -39,14 +31,6 @@ class WorkerTestImpl(BaseWorker):
 
     async def verify_submitted_deployment(self, deployment):
         pass
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_workers(enable_workers):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
 
 
 @pytest.fixture(autouse=True)

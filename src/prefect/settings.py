@@ -1108,12 +1108,12 @@ PREFECT_EXPERIMENTAL_WARN_WORK_POOLS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect work pools are used.
 """
 
-PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=False)
+PREFECT_EXPERIMENTAL_ENABLE_WORKERS = Setting(bool, default=True)
 """
 Whether or not to enable experimental Prefect workers.
 """
 
-PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=True)
+PREFECT_EXPERIMENTAL_WARN_WORKERS = Setting(bool, default=False)
 """
 Whether or not to warn when experimental Prefect workers are used.
 """

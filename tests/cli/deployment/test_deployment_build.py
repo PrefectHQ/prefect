@@ -848,7 +848,7 @@ class TestAutoApply:
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool
+        self, patch_import, tmp_path, process_work_pool, disable_workers
     ):
         invoke_and_assert(
             [
