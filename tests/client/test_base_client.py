@@ -82,8 +82,8 @@ class TestPrefectHttpxClient:
     @pytest.mark.parametrize(
         "error_code,extra_codes",
         [
-            (status.HTTP_408_REQUEST_TIMEOUT, [408]),
-            (status.HTTP_409_CONFLICT, [408, 409]),
+            (status.HTTP_408_REQUEST_TIMEOUT, "408"),
+            (status.HTTP_409_CONFLICT, "408,409"),
         ],
     )
     async def test_prefect_httpx_client_retries_on_extra_error_codes(
@@ -122,7 +122,7 @@ class TestPrefectHttpxClient:
         assert "This is attempt 2/6" in caplog.text
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
-    def test_prefect_httpx_client_raises_on_non_extra_error_codes(
+    async def test_prefect_httpx_client_raises_on_non_extra_error_codes(
         self, monkeypatch, caplog
     ):
         base_client_send = AsyncMock()
@@ -138,9 +138,11 @@ class TestPrefectHttpxClient:
             retry_response,
             RESPONSE_200,
         ]
-        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: [409]}):
+        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: "409"}):
             with pytest.raises(PrefectHTTPStatusError):
-                client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
+                await client.post(
+                    url="fake.url/fake/route", data={"evenmorefake": "data"}
+                )
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
