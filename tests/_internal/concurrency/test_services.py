@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -45,8 +44,8 @@ class MockBatchedService(BatchedQueueService[int]):
 
 @pytest.fixture(autouse=True)
 def reset_mock_services():
-    MockService.mock.reset_mock()
-    MockBatchedService.mock.reset_mock()
+    MockService.mock.reset_mock(side_effect=True)
+    MockBatchedService.mock.reset_mock(side_effect=True)
 
 
 def test_instance_returns_instance():
@@ -82,7 +81,6 @@ def test_instance_returns_same_instance_after_error():
         raise ValueError("Oh no")
 
     instance = MockService.instance()
-    instance.mock = MagicMock()
     instance.mock.side_effect = on_handle
     instance.send(1)
 
@@ -109,7 +107,6 @@ def test_instance_returns_new_instance_after_base_exception():
         raise BaseException("Oh no")
 
     instance = MockService.instance()
-    instance.mock = MagicMock()
     instance.mock.side_effect = on_handle
     instance.send(1)
 
@@ -291,11 +288,13 @@ def test_batched_queue_service():
 
 
 def test_batched_queue_service_min_interval():
+    event = threading.Event()
     instance = MockBatchedService.instance()
+    instance.mock.side_effect = lambda *_: event.set()
     instance._min_interval = 0.01
     instance.send(1)
-    # Sleep in the loop thread to force a yield
-    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0.1)).result()
+    # Wait for the event to be set
+    assert event.wait(2.0), "Item not handled within 2s"
     instance.send(2)
-    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0.1)).result()
+    instance.drain()
     MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])
