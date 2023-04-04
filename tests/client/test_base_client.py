@@ -7,7 +7,11 @@ from httpx import AsyncClient, Request, Response
 
 from prefect.client.base import PrefectHttpxClient, PrefectResponse
 from prefect.exceptions import PrefectHTTPStatusError
-from prefect.settings import PREFECT_CLIENT_RETRY_JITTER_FACTOR, temporary_settings
+from prefect.settings import (
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
+    PREFECT_CLIENT_RETRY_JITTER_FACTOR,
+    temporary_settings,
+)
 from prefect.testing.utilities import AsyncMock
 
 RESPONSE_429_RETRY_AFTER_0 = Response(
@@ -73,6 +77,70 @@ class TestPrefectHttpxClient:
         # Ensure the messaging changes
         assert "Another attempt will be made in 4s" in caplog.text
         assert "This is attempt 2/6" in caplog.text
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    @pytest.mark.parametrize(
+        "error_code,extra_codes",
+        [
+            (status.HTTP_408_REQUEST_TIMEOUT, [408]),
+            (status.HTTP_409_CONFLICT, [408, 409]),
+        ],
+    )
+    async def test_prefect_httpx_client_retries_on_extra_error_codes(
+        self, monkeypatch, error_code, extra_codes, caplog
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            error_code,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            RESPONSE_200,
+        ]
+        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
+            response = await client.post(
+                url="fake.url/fake/route", data={"evenmorefake": "data"}
+            )
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 4
+
+        # We log on retry
+        assert "Received response with retryable status code" in caplog.text
+        assert "Another attempt will be made in 2s" in caplog.text
+        assert "This is attempt 1/6" in caplog.text
+
+        # A traceback should not be included
+        assert "Traceback" not in caplog.text
+
+        # Ensure the messaging changes
+        assert "Another attempt will be made in 4s" in caplog.text
+        assert "This is attempt 2/6" in caplog.text
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    def test_prefect_httpx_client_raises_on_non_extra_error_codes(
+        self, monkeypatch, caplog
+    ):
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+        client = PrefectHttpxClient()
+        retry_response = Response(
+            status.HTTP_408_REQUEST_TIMEOUT,
+            request=Request("a test request", "fake.url/fake/route"),
+        )
+        base_client_send.side_effect = [
+            retry_response,
+            retry_response,
+            retry_response,
+            RESPONSE_200,
+        ]
+        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: [409]}):
+            with pytest.raises(PrefectHTTPStatusError):
+                client.post(url="fake.url/fake/route", data={"evenmorefake": "data"})
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
