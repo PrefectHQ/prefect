@@ -9,7 +9,6 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import BaseWorker
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -17,6 +16,7 @@ from prefect.settings import (
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
+from prefect.workers.base import BaseWorker
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
