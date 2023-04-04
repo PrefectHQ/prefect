@@ -924,6 +924,16 @@ class ORMLog:
     # The client-side timestamp of this logged statement.
     timestamp = sa.Column(Timestamp(), nullable=False, index=True)
 
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_log__flow_run_id_timestamp",
+                "flow_run_id",
+                "timestamp",
+            ),
+        )
+
 
 @declarative_mixin
 class ORMConcurrencyLimit:
