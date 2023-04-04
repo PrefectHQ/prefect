@@ -240,19 +240,28 @@ class ORMFlowRun(ORMRun):
 ```
 
 Next, you will need to generate new migration files. You must generate a new migration file for each database type. 
-Migrations will be generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to.
+Migrations will be generated for whatever database type `PREFECT_API_DATABASE_CONNECTION_URL` is set to. See [here](/concepts/database/#configuring-the-database)
+for how to set the database connection URL for each database type.
 
 To generate a new migration file, run the following command:
 
 <div class="terminal">
 ```bash
-prefect server database revision --autogenerate -m "add_flow_run__new_column"
+prefect server database revision --autogenerate -m "<migration name>"
 ```
 </div>
 
-The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. This does
-not guarantee a correct migration, so you will need to manually inspect the generated migration file to make sure
-it is accurate. Be sure to remove any commands that are not related to the change you are making.
+Try to make your migration name brief but descriptive. For example:
+- `add_flow_run_new_column`
+- `add_flow_run_new_column_idx`
+- `rename_flow_run_old_column_to_new_column`
+
+
+The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. 
+!!! warning "Always inspect the output of `--autogenerate`" 
+    `--autogenerate` will generate a migration file based on the changes to the models. However, it is not perfect.
+    Be sure to check the file to make sure it only includes the changes you want to make. Additionally, you may need to
+    remove extra statements that were included and not related to your change.
 
 When adding a migration for SQLite, it's important to include the following `PRAGMA` statements for both upgrade and downgrade:
 
