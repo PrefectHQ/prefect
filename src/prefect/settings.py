@@ -323,7 +323,7 @@ def status_codes_as_integers_in_range(value):
 
     if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
         raise ValueError(
-            "PREFECT_SERVER_HEALTHY_STATUS_CODES must be a comma separated list of "
+            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
             "integers between 100 and 599."
         )
 
