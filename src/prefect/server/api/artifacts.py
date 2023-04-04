@@ -146,9 +146,6 @@ async def count_artifacts(
             artifact_filter=artifacts,
             flow_run_filter=flow_runs,
             task_run_filter=task_runs,
-            offset=offset,
-            limit=limit,
-            sort=sort,
         )
 
 
