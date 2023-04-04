@@ -8,6 +8,10 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add Artifact Collection columns
+SQLite: `3e1eb8281d5e`
+Postgres: `6a1eb3d442e4`
+
 # Add index on log table
 SQLite: `553920ec20e9`
 Postgres: `3bf47e3ce2dd`
