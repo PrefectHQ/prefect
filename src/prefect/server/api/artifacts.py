@@ -114,7 +114,7 @@ async def read_latest_artifacts(
     flow_runs: filters.FlowRunFilter = None,
     task_runs: filters.TaskRunFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[core.Artifact]:
+) -> List[core.ArtifactCollection]:
     """
     Retrieve artifacts from the database.
     """
