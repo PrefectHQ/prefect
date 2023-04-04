@@ -228,11 +228,8 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        artifact_is_latest_filter = schemas.filters.ArtifactCollectionFilter(
-            is_latest=schemas.filters.ArtifactCollectionFilterLatest(is_latest=True),
-        )
         read_artifacts = await models.artifacts.read_latest_artifacts(
-            session=session, artifact_filter=artifact_is_latest_filter
+            session=session,
         )
 
         assert len(read_artifacts) == 3
@@ -248,9 +245,6 @@ class TestReadLatestArtifacts:
             session=session,
             artifact_filter=schemas.filters.ArtifactCollectionFilter(
                 type=schemas.filters.ArtifactCollectionFilterType(any_=["table"]),
-                is_latest=schemas.filters.ArtifactCollectionFilterLatest(
-                    is_latest=True
-                ),
             ),
         )
         assert len(read_artifacts) == 2
@@ -267,9 +261,6 @@ class TestReadLatestArtifacts:
             session=session,
             artifact_filter=schemas.filters.ArtifactCollectionFilter(
                 key=schemas.filters.ArtifactCollectionFilterKey(any_=["key-1"]),
-                is_latest=schemas.filters.ArtifactCollectionFilterLatest(
-                    is_latest=True
-                ),
             ),
         )
 
@@ -287,9 +278,6 @@ class TestReadLatestArtifacts:
             artifact_filter=schemas.filters.ArtifactCollectionFilter(
                 flow_run_id=schemas.filters.ArtifactCollectionFilterFlowRunId(
                     any_=[artifacts[0].flow_run_id]
-                ),
-                is_latest=schemas.filters.ArtifactCollectionFilterLatest(
-                    is_latest=True
                 ),
             ),
             sort=schemas.sorting.ArtifactCollectionSort.KEY_ASC,
@@ -310,9 +298,6 @@ class TestReadLatestArtifacts:
                 task_run_id=schemas.filters.ArtifactCollectionFilterTaskRunId(
                     any_=[artifacts[2].task_run_id]
                 ),
-                is_latest=schemas.filters.ArtifactCollectionFilterLatest(
-                    is_latest=True
-                ),
             ),
         )
 
@@ -328,11 +313,7 @@ class TestReadLatestArtifacts:
             session=session,
             limit=1,
             sort=schemas.sorting.ArtifactCollectionSort.KEY_DESC,
-            artifact_filter=schemas.filters.ArtifactCollectionFilter(
-                is_latest=schemas.filters.ArtifactCollectionFilterLatest(
-                    is_latest=True
-                ),
-            ),
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(),
         )
 
         assert len(read_artifacts) == 1

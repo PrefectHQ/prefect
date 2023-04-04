@@ -31,11 +31,7 @@ async def _insert_into_artifact_collection(
             set_=dict(
                 latest_id=artifact.id,
                 updated=now,
-                **artifact.dict(
-                    shallow=True,
-                    exclude_unset=True,
-                    exclude={"id", "updated"},
-                ),
+                **insert_values,
             ),
         )
     )

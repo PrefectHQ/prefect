@@ -105,7 +105,7 @@ async def read_artifacts(
         )
 
 
-@router.post("/collections/filter")
+@router.post("/latest/filter")
 async def read_latest_artifacts(
     sort: sorting.ArtifactCollectionSort = Body(sorting.ArtifactCollectionSort.ID_DESC),
     limit: int = dependencies.LimitBody(),
@@ -114,7 +114,7 @@ async def read_latest_artifacts(
     flow_runs: filters.FlowRunFilter = None,
     task_runs: filters.TaskRunFilter = None,
     db: PrefectDBInterface = Depends(provide_database_interface),
-) -> List[core.ArtifactCollection]:
+) -> List[core.Artifact]:
     """
     Retrieve artifacts from the database.
     """
