@@ -26,6 +26,7 @@ class MockService(QueueService[int]):
 
     async def _handle(self, item: int):
         self.mock(self, item)
+        print(f"Handled item {item} for {self}")
 
 
 class MockBatchedService(BatchedQueueService[int]):
@@ -40,6 +41,7 @@ class MockBatchedService(BatchedQueueService[int]):
 
     async def _handle_batch(self, items: List[int]):
         self.mock(self, items)
+        print(f"Handled batch for {self}")
 
 
 @pytest.fixture(autouse=True)
@@ -201,7 +203,7 @@ def test_send_many_instances_many_threads():
 def test_drain_many_instances_many_threads():
     def on_thread(i):
         MockService.instance(i).send(i)
-        MockService.drain_all()
+        MockService.instance(i).drain()
 
     with ThreadPoolExecutor() as executor:
         for i in range(10):
@@ -293,12 +295,16 @@ def test_batched_queue_service():
 
 def test_batched_queue_service_min_interval():
     event = threading.Event()
-    instance = MockBatchedService.instance()
+
+    class IntervalMockBatchedService(MockBatchedService):
+        _min_interval = 0.01
+
+    instance = IntervalMockBatchedService.instance()
     instance.mock.side_effect = lambda *_: event.set()
-    instance._min_interval = 0.01
     instance.send(1)
-    # Wait for the event to be set
     assert event.wait(10.0), "Item not handled within 10s"
     instance.send(2)
-    instance.drain()
-    MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])
+    IntervalMockBatchedService.drain_all()
+    IntervalMockBatchedService.mock.assert_has_calls(
+        [call(instance, [1]), call(instance, [2])]
+    )
