@@ -1212,7 +1212,7 @@ class Variable(ORMBaseModel):
     name: str = Field(
         default=...,
         description="The name of the variable",
-        example="my-variable",
+        example="my_variable",
         max_length=MAX_VARIABLE_NAME_LENGTH,
     )
     value: str = Field(

@@ -32,7 +32,7 @@ async def variable(
 ):
     model = await create_variable(
         session,
-        VariableCreate(name="my-variable", value="my-value", tags=["123", "456"]),
+        VariableCreate(name="my_variable", value="my-value", tags=["123", "456"]),
     )
     await session.commit()
 
@@ -66,7 +66,7 @@ class TestCreateVariable:
         now = pendulum.now("UTC")
 
         variable = VariableCreate(
-            name="my-variable", value="my-value", tags=["123", "456"]
+            name="my_variable", value="my-value", tags=["123", "456"]
         )
         model = await create_variable(session, variable)
         await session.commit()
@@ -88,7 +88,7 @@ class TestCreateVariable:
             await create_variable(
                 session,
                 VariableCreate(
-                    name="my-variable", value="my-value", tags=["123", "456"]
+                    name="my_variable", value="my-value", tags=["123", "456"]
                 ),
             )
 
@@ -258,7 +258,7 @@ class TestUpdateVariable:
         session,
         variable,
     ):
-        new_name = "another-name"
+        new_name = "another_name"
         updated = await update_variable(
             session, variable.id, VariableUpdate(name=new_name)  # type: ignore
         )
@@ -273,7 +273,7 @@ class TestUpdateVariable:
         session,
         variable,
     ):
-        new_value = "another-name"
+        new_value = "another_name"
         updated = await update_variable(
             session, variable.id, VariableUpdate(value=new_value)  # type: ignore
         )
@@ -305,7 +305,7 @@ class TestUpdateVariableByName:
         session,
         variable,
     ):
-        new_name = "another-name"
+        new_name = "another_name"
         updated = await update_variable_by_name(
             session, variable.name, VariableUpdate(name=new_name)
         )
@@ -319,7 +319,7 @@ class TestUpdateVariableByName:
         session,
         variable,
     ):
-        new_value = "another-name"
+        new_value = "another_name"
         updated = await update_variable_by_name(
             session, variable.name, VariableUpdate(value=new_value)
         )

@@ -1642,7 +1642,7 @@ class VariableFilterName(PrefectFilterBaseModel):
             "A string to match variable names against. This can include "
             "SQL wildcard characters like `%` and `_`."
         ),
-        example="my-variable-%",
+        example="my_variable_%",
     )
 
     def _get_filter_list(self, db: "PrefectDBInterface") -> List:

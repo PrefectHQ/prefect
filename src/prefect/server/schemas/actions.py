@@ -22,6 +22,7 @@ from prefect.server.utilities.schemas import (
 from prefect.utilities.pydantic import get_class_fields_only
 
 LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX = "^[a-z0-9-]*$"
+LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX = "^[a-z0-9_]*$"
 
 
 def validate_block_type_slug(value):
@@ -53,9 +54,9 @@ def validate_artifact_key(value):
 
 
 def validate_variable_name(value):
-    if not bool(re.match(LOWERCASE_LETTERS_AND_DASHES_ONLY_REGEX, value)):
+    if not bool(re.match(LOWERCASE_LETTERS_NUMBERS_AND_UNDERSCORES_REGEX, value)):
         raise ValueError(
-            "name must only contain lowercase letters, numbers, and dashes"
+            "name must only contain lowercase letters, numbers, and underscores"
         )
     return value
 
@@ -612,7 +613,7 @@ class VariableUpdate(ActionBaseModel):
     name: Optional[str] = Field(
         default=None,
         description="The name of the variable",
-        example="my-variable",
+        example="my_variable",
         max_length=schemas.core.MAX_VARIABLE_NAME_LENGTH,
     )
     value: Optional[str] = Field(
