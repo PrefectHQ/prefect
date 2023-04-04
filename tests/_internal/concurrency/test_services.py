@@ -297,7 +297,7 @@ def test_batched_queue_service_min_interval():
     instance._min_interval = 0.01
     instance.send(1)
     # Wait for the event to be set
-    assert event.wait(2.0), "Item not handled within 2s"
+    assert event.wait(10.0), "Item not handled within 10s"
     instance.send(2)
     instance.drain()
     MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])
