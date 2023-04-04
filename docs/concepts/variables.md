@@ -1,3 +1,8 @@
+description: Prefect varaibles are dynamic-named, mutable string values, much like environment variables.
+tags:
+    - variables
+    - blocks
+
 # Variables
 
 Variables are dynamic-named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Preflect Cloud.
