@@ -35,6 +35,8 @@ class QueueService(abc.ABC, Generic[T]):
         self._key = hash(args)
 
     def start(self):
+        logger.debug("Starting service %r", self)
+
         self._queue = asyncio.Queue()
         self._loop = asyncio.get_running_loop()
         self._done_event = asyncio.Event()
@@ -58,6 +60,8 @@ class QueueService(abc.ABC, Generic[T]):
         if self._stopped:
             return
 
+        logger.debug("Stopping service %r", self)
+
         # Stop sending work to this instance
         self._remove_instance()
 
@@ -70,6 +74,8 @@ class QueueService(abc.ABC, Generic[T]):
         """
         if self._stopped:
             raise RuntimeError("Cannot put items in a stopped service instance.")
+
+        logger.debug("Service %r enqueing item %r", self, item)
 
         if not self._started:
             self._early_items.append(item)
@@ -98,6 +104,7 @@ class QueueService(abc.ABC, Generic[T]):
                 break
 
             try:
+                logger.debug("Service %r handling item %r", self, item)
                 await self._handle(item)
             except Exception:
                 logger.exception(
@@ -208,12 +215,9 @@ class BatchedQueueService(QueueService[T]):
             batch = []
             batch_size = 0
 
-            with (
-                # Process the batch after `min_interval` even if it is small
-                anyio.move_on_after(self._min_interval)
-                if self._min_interval
-                else contextlib.nullcontext()
-            ):
+            # Process the batch after `min_interval` even if it is smaller than the
+            # batch size
+            with anyio.move_on_after(self._min_interval):
                 # Pull items from the queue until we reach the batch size
                 while batch_size < self._max_batch_size:
                     item = await self._queue.get()
