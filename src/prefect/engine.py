@@ -45,7 +45,6 @@ from prefect.context import (
     TaskRunContext,
 )
 from prefect.deployments import load_flow_from_flow_run
-from prefect.events.worker import async_get_events_worker
 from prefect.exceptions import (
     Abort,
     FlowPauseTimeout,
@@ -381,10 +380,6 @@ async def begin_flow_run(
 
         flow_run_context.result_factory = await ResultFactory.from_flow(
             flow, client=client
-        )
-
-        flow_run_context.events = await stack.enter_async_context(
-            async_get_events_worker()
         )
 
         if log_prints:
