@@ -1,0 +1,21 @@
+prefect-version: null
+name: null
+
+build:
+  - prefect_docker.projects.steps.build_docker_image:
+      requires: "prefect-docker>=0.2.0"
+      image_name: null
+      tag: null
+      dockerfile: "{{ dockerfile }}"
+
+push: 
+  - prefect_aws.projects.steps.push_project_to_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ folder }}"
+
+pull:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ folder }}"
