@@ -1286,6 +1286,15 @@ class ORMFlowRunNotificationQueue:
     flow_run_state_id = sa.Column(UUID, nullable=False)
 
 
+@declarative_mixin
+class ORMVariable:
+    name: str = sa.Column(sa.String, nullable=False)
+    value: str = sa.Column(sa.String, nullable=False)
+    tags: list[str] = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
+
+
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -1343,6 +1352,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -1394,6 +1404,7 @@ class BaseORMConfiguration(ABC):
             block_document_mixin=block_document_mixin,
             block_document_reference_mixin=block_document_reference_mixin,
             configuration_mixin=configuration_mixin,
+            variable_mixin=variable_mixin,
         )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -1441,6 +1452,7 @@ class BaseORMConfiguration(ABC):
         work_queue_mixin=ORMWorkQueue,
         agent_mixin=ORMAgent,
         configuration_mixin=ORMConfiguration,
+        variable_mixin=ORMVariable,
     ):
         """
         Defines the ORM models used in Prefect REST API and binds them to the `self`. This method
@@ -1519,6 +1531,9 @@ class BaseORMConfiguration(ABC):
         class Configuration(configuration_mixin, self.Base):
             pass
 
+        class Variable(variable_mixin, self.Base):
+            pass
+
         self.Flow = Flow
         self.FlowRunState = FlowRunState
         self.TaskRunState = TaskRunState
@@ -1543,6 +1558,7 @@ class BaseORMConfiguration(ABC):
         self.FlowRunNotificationPolicy = FlowRunNotificationPolicy
         self.FlowRunNotificationQueue = FlowRunNotificationQueue
         self.Configuration = Configuration
+        self.Variable = Variable
 
     @property
     @abstractmethod
