@@ -1,5 +1,5 @@
 ---
-description: Prefect work pools route deployment flow runs to agents. Prefect worker and agents poll work pools for new runs to execute.
+description: Prefect work pools route deployment flow runs to agents. Prefect workers and agents poll work pools for new runs to execute.
 tags:
     - work pools
     - workers
@@ -15,7 +15,7 @@ tags:
 
 Work pools and the services that poll them, workers and agents, bridge the Prefect _orchestration environment_ with your _execution environment_. When a [deployment](/concepts/deployments/) creates a flow run, it is submitted to a specific work pool for scheduling. A worker or agent running in the execution environment polls its respective work pool for new runs to execute.
 
-Each work pool has a default queue that all work will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
+Each work pool has a default queue that all runs will be sent to. Work queues are automatically created whenever they are referenced by either a deployment or an agent. For most applications, this automatic behavior will be sufficient to run flows as expected. For advanced needs, additional queues can be created to enable a greater degree of control over work delivery. See [work pool configuration](#work-pool-configuration) for more information.
 
 To run deployments, you must configure at least one agent (and its associated work pool):
 
@@ -132,7 +132,7 @@ Optional configuration parameters you can specify to filter work on the pool inc
 | Option | Description |
 | ---- | --- |
 | `--paused` | If provided, the work pool will be created in a paused state. |
-| `--type` | The type of worker that will be polling this work pool. [default: prefect-agent] |
+| `--type` | The type of infrastructure that can execute runs from this work pool. [default: prefect-agent] |
 
 For example, to create a work pool called `test-pool`, you would run this command: 
 
@@ -306,7 +306,7 @@ As long as your deployment's infrastructure block supports it, you can use work 
 !!! warning "Workers are a beta feature"
     Workers are a beta feature and are subject to change in future releases.
 
-Workers are lightweight polling services that retrieve scheduled work from a work pool and execute the corresponding flow runs. 
+Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
 
 Workers are similar to agents, but offer greater configuration options and the ability to route work to specific execution environments.
 
