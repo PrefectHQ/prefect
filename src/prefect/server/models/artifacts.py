@@ -304,6 +304,36 @@ async def read_latest_artifacts(
 
 
 @inject_db
+async def count_artifacts(
+    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    artifact_filter: filters.ArtifactFilter = None,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+) -> int:
+    """
+    Counts artifacts.
+    Args:
+        session: A database session
+        artifact_filter: Only select artifacts matching this filter
+        flow_run_filter: Only select artifacts whose flow runs matching this filter
+        task_run_filter: Only select artifacts whose task runs matching this filter
+    """
+    query = sa.select(sa.func.count(db.Artifact.id))
+
+    query = await _apply_artifact_filters(
+        query,
+        db=db,
+        artifact_filter=artifact_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
+
+    result = await session.execute(query)
+    return result.scalar_one()
+
+
+@inject_db
 async def update_artifact(
     session: sa.orm.Session,
     artifact_id: UUID,

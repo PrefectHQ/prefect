@@ -1,8 +1,9 @@
 import pytest
 
 from prefect.blocks.core import Block
+from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
-    UNSET,
+    PlaceholderType,
     apply_values,
     find_placeholders,
     resolve_block_document_references,
@@ -67,6 +68,14 @@ class TestFindPlaceholders:
         names = set(p.name for p in placeholders)
         assert names == {"first_name", "last_name"}
 
+    def test_finds_block_document_placeholders(self):
+        template = "Hello {{prefect.blocks.document.name}}!"
+        placeholders = find_placeholders(template)
+        assert len(placeholders) == 1
+        placeholder = placeholders.pop()
+        assert placeholder.name == "prefect.blocks.document.name"
+        assert placeholder.type is PlaceholderType.BLOCK_DOCUMENT
+
 
 class TestApplyValues:
     def test_apply_values_simple_string_with_one_placeholder(self):
@@ -102,8 +111,8 @@ class TestApplyValues:
             "age": 30,
         }
 
-    def test_apply_values_dictionary_with_UNSET_value_removed(self):
-        template = {"name": UNSET, "age": "{{age}}"}
+    def test_apply_values_dictionary_with_notset_value_removed(self):
+        template = {"name": NotSet, "age": "{{age}}"}
         values = {"age": 30}
         assert apply_values(template, values) == {"age": 30}
 
@@ -126,6 +135,13 @@ class TestApplyValues:
 
     def test_apply_values_boolean_input(self):
         assert apply_values(True, {"flag": False}) is True
+
+    def test_apply_values_none_input(self):
+        assert apply_values(None, {"key": "value"}) is None
+
+    def test_does_not_apply_values_to_block_document_placeholders(self):
+        template = "Hello {{prefect.blocks.document.name}}!"
+        assert apply_values(template, {"name": "Alice"}) == template
 
 
 class TestResolveBlockDocumentReferences:
@@ -163,26 +179,78 @@ class TestResolveBlockDocumentReferences:
                 "other_nested_key": {"$ref": {"block_document_id": block_document_id}},
             }
         }
-        block_document_data = {"a": 1, "b": "hello"}
+        block_document = await orion_client.read_block_document(block_document_id)
 
         result = await resolve_block_document_references(template, client=orion_client)
 
         assert result == {
             "key": {
-                "nested_key": block_document_data,
-                "other_nested_key": block_document_data,
+                "nested_key": block_document.data,
+                "other_nested_key": block_document.data,
             }
         }
 
     async def test_resolve_block_document_references_with_list_of_block_document_references(
         self, orion_client, block_document_id
     ):
-        # given
         template = [{"$ref": {"block_document_id": block_document_id}}]
-        block_document_data = {"a": 1, "b": "hello"}
+        block_document = await orion_client.read_block_document(block_document_id)
 
-        # when
         result = await resolve_block_document_references(template, client=orion_client)
 
-        # then
-        assert result == [block_document_data]
+        assert result == [block_document.data]
+
+    async def test_resolve_block_document_references_with_dot_delimited_syntax(
+        self, orion_client, block_document_id
+    ):
+        template = {"key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}"}
+
+        block_document = await orion_client.read_block_document(block_document_id)
+
+        result = await resolve_block_document_references(template, client=orion_client)
+
+        assert result == {"key": block_document.data}
+
+    async def test_resolve_block_document_references_raises_on_multiple_placeholders(
+        self, orion_client
+    ):
+        template = {
+            "key": (
+                "{{ prefect.blocks.arbitraryblock.arbitrary-block }} {{"
+                " another_placeholder }}"
+            )
+        }
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Only a single block placeholder is allowed in a string and no"
+                " surrounding text is allowed."
+            ),
+        ):
+            await resolve_block_document_references(template, client=orion_client)
+
+    async def test_resolve_block_document_references_raises_on_extra_text(
+        self, orion_client
+    ):
+        template = {
+            "key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }} extra text"
+        }
+
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Only a single block placeholder is allowed in a string and no"
+                " surrounding text is allowed."
+            ),
+        ):
+            await resolve_block_document_references(template, client=orion_client)
+
+    async def test_resolve_block_document_references_does_not_change_standard_placeholders(
+        self,
+    ):
+        template = {"key": "{{ standard_placeholder }}"}
+
+        result = await resolve_block_document_references(template)
+
+        assert result == template
