@@ -359,7 +359,7 @@ async def update_artifact(
         .values(**update_artifact_data)
     )
 
-    result = await session.execute(update_artifact_stmt)
+    await session.execute(update_artifact_stmt)
 
     update_artifact_collection_data = artifact.dict(shallow=True, exclude_unset=True)
     update_artifact_collection_stmt = (
