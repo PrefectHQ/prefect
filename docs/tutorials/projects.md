@@ -45,7 +45,7 @@ $ prefect project init
 ```
 </div>
 
-Note that you can run this command in a non-empty directory where you already have work as well.
+Note that you can safely run this command in a non-empty directory where you already have work, as well.
 
 This command will create your `.prefect/` directory along with the two YAML files `deployment.yaml` and `prefect.yaml`; if any of these files or directories already exist, they will not be altered or overwritten.
 
@@ -246,7 +246,7 @@ We now have two options for how to manage these dependencies in our worker's env
 - setting the `EXTRA_PIP_PACKAGES` environment variable or using another hook to install the dependencies at runtime
 - building a custom Docker image with the dependencies baked in
 
-The first option is the quickest, but it does run the risk of changing runtime state from one run to the next and is not recommended for production use cases.  For the second option, we need to configure a `build` step within our `prefect.yaml` file as follows (Note: if starting from scratch we could use the `docker-git` recipe):
+In this tutorial we will focus on building a custom Docker image. First, we need to configure a `build` step within our `prefect.yaml` file as follows (Note: if starting from scratch we could use the `docker-git` recipe):
 
 ```yaml
 # partial contents of prefect.yaml
