@@ -23,6 +23,7 @@ from uuid import UUID
 import anyio
 
 from prefect._internal.concurrency.api import create_call, from_sync
+from prefect._internal.concurrency.event_loop import run_coroutine_in_loop_from_async
 from prefect.client.orchestration import PrefectClient
 from prefect.client.utilities import inject_client
 from prefect.states import State
@@ -277,16 +278,7 @@ class PrefectFuture(Generic[R, A]):
         return task_run.state
 
     async def _wait_for_submission(self):
-        import asyncio
-
-        # TODO: This spin lock is not performant but is necessary for cases where a
-        #       future is created in a separate event loop i.e. when a sync task is
-        #       called in an async flow
-        if not asyncio.get_running_loop() == self._loop:
-            while not self.task_run:
-                await anyio.sleep(0)
-        else:
-            await self._submitted.wait()
+        await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
 
     def __hash__(self) -> int:
         return hash(self.key)
