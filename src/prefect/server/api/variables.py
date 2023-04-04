@@ -63,7 +63,7 @@ async def read_variable(
     variable_id: UUID = Path(..., alias="id"),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Variable:
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         model = await get_variable_or_404(session=session, variable_id=variable_id)
 
     return core.Variable.from_orm(model)
@@ -74,7 +74,7 @@ async def read_variable_by_name(
     name: str = Path(...),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> core.Variable:
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context() as session:
         model = await get_variable_by_name_or_404(session=session, name=name)
 
     return core.Variable.from_orm(model)
