@@ -277,6 +277,26 @@ def default_ui_api_url(settings, value):
     )(settings, value)
 
 
+def status_codes_as_integers_in_range(_, value):
+    """
+    `value_callback` for `PREFECT_CLIENT_RETRY_EXTRA_CODES` that ensures status codes
+    are integers in the range 100-599.
+    """
+    if value == "":
+        return set()
+
+    values = {v.strip() for v in value.split(",")}
+
+    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
+        raise ValueError(
+            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
+            "integers between 100 and 599."
+        )
+
+    values = {int(v) for v in values}
+    return values
+
+
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `value_callback` that will template the given settings into the runtime
@@ -309,25 +329,6 @@ def max_log_size_smaller_than_batch_size(values):
             "`PREFECT_LOGGING_TO_API_MAX_LOG_SIZE` cannot be larger than"
             " `PREFECT_LOGGING_TO_API_BATCH_SIZE`"
         )
-    return values
-
-
-def status_codes_as_integers_in_range(value):
-    """
-    Validator for settings asserting the status codes are integers in the range 100-599
-    """
-    if value == "":
-        return set()
-
-    values = {v.strip() for v in value.split(",")}
-
-    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
-        raise ValueError(
-            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
-            "integers between 100 and 599."
-        )
-
-    values = {int(v) for v in values}
     return values
 
 
