@@ -6,7 +6,6 @@ from rich.pretty import Pretty
 from rich.table import Table
 
 from prefect import get_client
-from prefect._internal.compatibility.experimental import experimental
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
@@ -21,10 +20,6 @@ app.add_typer(artifact_app)
 
 
 @artifact_app.command("ls")
-@experimental(
-    feature="The Artifact CLI",
-    group="artifacts",
-)
 async def list_artifacts(
     limit: int = typer.Option(
         100,
@@ -41,49 +36,50 @@ async def list_artifacts(
     """
     List artifacts.
     """
-    if all:
-        latest_only = False
-    else:
-        latest_only = True
+    table = Table(
+        title="Artifacts",
+        caption="List Artifacts using `prefect artifact ls`",
+        show_header=True,
+    )
+
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Key", style="blue", no_wrap=True)
+    table.add_column("Type", style="blue", no_wrap=True)
+    table.add_column("Updated", style="blue", no_wrap=True)
 
     async with get_client() as client:
-        latest_artifact_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=latest_only),
-            key=schemas.filters.ArtifactFilterKey(exists_=True),
-        )
-        artifacts = await client.read_artifacts(
-            sort=sorting.ArtifactSort.KEY_ASC,
-            artifact_filter=latest_artifact_filter,
-            limit=limit,
-        )
-
-        table = Table(
-            title="Artifacts",
-            caption="List Artifacts using `prefect artifact ls`",
-            show_header=True,
-        )
-
-        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-        table.add_column("Key", style="blue", no_wrap=True)
-        table.add_column("Type", style="blue", no_wrap=True)
-        table.add_column("Updated", style="blue", no_wrap=True)
-
-        for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
-            table.add_row(
-                str(artifact.id),
-                artifact.key,
-                artifact.type,
-                pendulum.instance(artifact.updated).diff_for_humans(),
+        if all:
+            artifacts = await client.read_artifacts(
+                sort=sorting.ArtifactSort.KEY_ASC,
+                limit=limit,
             )
+
+            for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                table.add_row(
+                    str(artifact.id),
+                    artifact.key,
+                    artifact.type,
+                    pendulum.instance(artifact.updated).diff_for_humans(),
+                )
+
+        else:
+            artifacts = await client.read_latest_artifacts(
+                sort=sorting.ArtifactCollectionSort.KEY_ASC,
+                limit=limit,
+            )
+
+            for artifact in sorted(artifacts, key=lambda x: f"{x.key}"):
+                table.add_row(
+                    str(artifact.latest_id),
+                    artifact.key,
+                    artifact.type,
+                    pendulum.instance(artifact.updated).diff_for_humans(),
+                )
 
         app.console.print(table)
 
 
 @artifact_app.command("inspect")
-@experimental(
-    feature="The Artifact CLI",
-    group="artifacts",
-)
 async def inspect(
     key: str,
     limit: int = typer.Option(
@@ -145,10 +141,6 @@ async def inspect(
 
 
 @artifact_app.command("delete")
-@experimental(
-    feature="The Artifact CLI",
-    group="artifacts",
-)
 async def delete(
     key: Optional[str] = typer.Argument(
         None, help="The key of the artifact to delete."

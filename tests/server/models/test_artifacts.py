@@ -74,7 +74,7 @@ class TestCreateArtifacts:
         artifact_collection_result = await models.artifacts.read_latest_artifact(
             key=artifact.key, session=session
         )
-        assert artifact_collection_result.id == artifact.id
+        assert artifact_collection_result.latest_id == artifact.id
 
     async def test_creating_artifact_without_key_arg_does_not_upsert_to_artifact_collection(
         self, session
@@ -95,12 +95,12 @@ class TestCreateArtifacts:
     async def test_creating_artifact_with_existing_key_appends_in_artifact_and_upserts_in_artifact_collection(
         self, artifact, session
     ):
-        artifact_result = await models.artifacts.read_latest_artifact(
+        artifact_collection_result = await models.artifacts.read_latest_artifact(
             session=session, key=artifact.key
         )
-        assert artifact_result.id == artifact.id
-        assert artifact_result.key == artifact.key
-        assert artifact_result.updated == artifact_result.created
+        assert artifact_collection_result.latest_id == artifact.id
+        assert artifact_collection_result.key == artifact.key
+        assert artifact_collection_result.updated == artifact_collection_result.created
 
         new_artifact_schema = schemas.core.Artifact(
             key=artifact.key,
@@ -126,7 +126,7 @@ class TestCreateArtifacts:
             key=artifact.key,
         )
 
-        assert new_artifact_version.id == new_artifact.id
+        assert new_artifact_version.latest_id == new_artifact.id
 
     async def test_creating_artifact_with_null_key_does_not_upsert_to_artifact_collection(
         self, session
@@ -262,7 +262,7 @@ class TestReadLatestArtifact:
         tutored_artifact = await models.artifacts.read_latest_artifact(
             session=session, key=artifact.key
         )
-
+        assert tutored_artifact.latest_id == artifact.id
         assert tutored_artifact.key == "voltaic"
         assert tutored_artifact.data == 1
         assert tutored_artifact.description == "opens many doors"
@@ -270,24 +270,28 @@ class TestReadLatestArtifact:
 
 class TestReadLatestArtifacts:
     @pytest.fixture
-    async def artifacts(self, session):
+    async def artifacts(self, session, flow_run, task_run):
         artifacts = [
             schemas.core.Artifact(
                 key="key-1",
                 data=1,
                 type="markdown",
+                flow_run_id=flow_run.id,
                 description="Some info about my artifact",
             ),
             schemas.core.Artifact(
                 key="key-1",
                 data=2,
                 type="markdown",
+                flow_run_id=flow_run.id,
                 description="Some info about my artifact",
             ),
             schemas.core.Artifact(
                 key="key-2",
                 data=3,
                 type="table",
+                flow_run_id=flow_run.id,
+                task_run_id=task_run.id,
                 description="Some info about my artifact",
             ),
             schemas.core.Artifact(
@@ -310,11 +314,8 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        artifact_is_latest_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
-        )
-        read_artifacts = await models.artifacts.read_artifacts(
-            session=session, artifact_filter=artifact_is_latest_filter
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
         )
 
         assert len(read_artifacts) == 3
@@ -326,11 +327,10 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_artifacts(
+        read_artifacts = await models.artifacts.read_latest_artifacts(
             session=session,
-            artifact_filter=schemas.filters.ArtifactFilter(
-                type=schemas.filters.ArtifactFilterType(any_=["table"]),
-                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(
+                type=schemas.filters.ArtifactCollectionFilterType(any_=["table"]),
             ),
         )
         assert len(read_artifacts) == 2
@@ -343,30 +343,63 @@ class TestReadLatestArtifacts:
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_artifacts(
+        read_artifacts = await models.artifacts.read_latest_artifacts(
             session=session,
-            artifact_filter=schemas.filters.ArtifactFilter(
-                key=schemas.filters.ArtifactFilterKey(any_=["key-1"]),
-                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(
+                key=schemas.filters.ArtifactCollectionFilterKey(any_=["key-1"]),
             ),
         )
 
         assert len(read_artifacts) == 1
 
-        assert artifacts[1].id == read_artifacts[0].id
+        assert artifacts[1].id == read_artifacts[0].latest_id
+
+    async def test_read_latest_artifacts_with_flow_run_id_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(
+                flow_run_id=schemas.filters.ArtifactCollectionFilterFlowRunId(
+                    any_=[artifacts[0].flow_run_id]
+                ),
+            ),
+            sort=schemas.sorting.ArtifactCollectionSort.KEY_ASC,
+        )
+
+        assert len(read_artifacts) == 2
+        assert artifacts[1].id == read_artifacts[0].latest_id
+        assert artifacts[2].id == read_artifacts[1].latest_id
+
+    async def test_read_latest_artifacts_with_task_run_id_filter(
+        self,
+        artifacts,
+        session,
+    ):
+        read_artifacts = await models.artifacts.read_latest_artifacts(
+            session=session,
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(
+                task_run_id=schemas.filters.ArtifactCollectionFilterTaskRunId(
+                    any_=[artifacts[2].task_run_id]
+                ),
+            ),
+        )
+
+        assert len(read_artifacts) == 1
+        assert artifacts[2].id == read_artifacts[0].latest_id
 
     async def test_read_latest_artifacts_with_limit(
         self,
         artifacts,
         session,
     ):
-        read_artifacts = await models.artifacts.read_artifacts(
+        read_artifacts = await models.artifacts.read_latest_artifacts(
             session=session,
             limit=1,
-            sort=schemas.sorting.ArtifactSort.KEY_DESC,
-            artifact_filter=schemas.filters.ArtifactFilter(
-                is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True),
-            ),
+            sort=schemas.sorting.ArtifactCollectionSort.KEY_DESC,
+            artifact_filter=schemas.filters.ArtifactCollectionFilter(),
         )
 
         assert len(read_artifacts) == 1
@@ -576,11 +609,11 @@ class TestDeleteArtifacts:
             session=session, artifact_id=artifacts[0].id
         )
 
-        artifact_result = await models.artifacts.read_latest_artifact(
+        artifact_collection_result = await models.artifacts.read_latest_artifact(
             session=session, key=artifacts[1].key
         )
 
-        assert artifact_result.id == artifacts[-1].id
+        assert artifact_collection_result.latest_id == artifacts[-1].id
 
     async def test_delete_middle_artifact_deletes_row_in_artifact_and_ignores_artifact_collection(
         self, artifacts, session
@@ -593,11 +626,11 @@ class TestDeleteArtifacts:
             session=session, artifact_id=artifacts[1].id
         )
 
-        artifact_result = await models.artifacts.read_latest_artifact(
+        artifact_collection_result = await models.artifacts.read_latest_artifact(
             session=session, key=artifacts[-1].key
         )
 
-        assert artifact_result.id == artifacts[-1].id
+        assert artifact_collection_result.latest_id == artifacts[-1].id
 
     async def test_delete_latest_artifact_deletes_row_in_artifact_and_updates_artifact_collection(
         self, artifacts, session
@@ -610,8 +643,8 @@ class TestDeleteArtifacts:
             session=session, artifact_id=artifacts[2].id
         )
 
-        artifact_result = await models.artifacts.read_latest_artifact(
+        artifact_collection_result = await models.artifacts.read_latest_artifact(
             session=session, key=artifacts[1].key
         )
 
-        assert artifact_result.id == artifacts[1].id
+        assert artifact_collection_result.latest_id == artifacts[1].id
