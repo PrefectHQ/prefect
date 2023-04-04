@@ -1206,9 +1206,7 @@ class Artifact(ORMBaseModel):
 
 
 class ArtifactCollection(ORMBaseModel):
-    key: str = Field(
-        description="An optional unique reference key for this artifact."
-    )
+    key: str = Field(description="An optional unique reference key for this artifact.")
     latest_id: UUID = Field(
         description="The latest artifact ID associated with the key."
     )
