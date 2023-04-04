@@ -389,11 +389,12 @@ async def deploy(
     if work_queue_name:
         base_deploy["work_pool"]["work_queue_name"] = work_queue_name
 
-    ## apply templating from build and push steps to the final deployment spec
-    base_deploy["work_pool"]["job_variables"] = apply_values(
-        base_deploy["work_pool"]["job_variables"], step_outputs
-    )
     base_deploy["work_pool"]["job_variables"].update(variable_overrides)
+
+    ## apply templating from build and push steps to the final deployment spec
+    _parameter_schema = base_deploy.pop("parameter_openapi_schema")
+    base_deploy = apply_values(base_deploy, step_outputs)
+    base_deploy["parameter_openapi_schema"] = _parameter_schema
 
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])

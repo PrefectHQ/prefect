@@ -316,7 +316,7 @@ pull:
 
 In order to successfully submit such a project to a dockerized environment, we need to either:
 
-- [`push` this project](/concepts/projects/#the-push-section) to a remote location (such as GitHub, or possibly a Cloud storage bucket)
+- [`push` this project](/concepts/projects/#the-push-section) to a remote location (such as a Cloud storage bucket)
 - [`build` this project](/concepts/projects/#the-build-section) into a Docker image artifact 
 
 !!! tip "Advanced: `push` steps"
