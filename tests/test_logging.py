@@ -512,18 +512,14 @@ class TestAPILogHandler:
         self,
         logger,
     ):
-        try:
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "Logger 'tests.test_logging' attempted to send logs to the API without"
+                " a flow run id."
+            ),
+        ):
             logger.info("test")
-        except TypeError:
-            pytest.fail(
-                "Raised TypeError when logging outside of context with default `warn` setting."
-            )
-        except UserWarning:
-            pass
-        except Exception:
-            pytest.fail(
-                "Raised unexpected exception when logging outside of context with default `warn` setting."
-            )
 
     def test_does_not_send_logs_outside_of_run_context_with_error_setting(
         self, logger, mock_log_worker, capsys
@@ -548,20 +544,16 @@ class TestAPILogHandler:
         logger,
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "error"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "error"},
         ):
-            try:
+            with pytest.raises(
+                MissingContextError,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
                 logger.info("test")
-            except UserWarning:
-                pytest.fail(
-                    "Raised UserWarning when logging outside of context with `error` setting."
-                )
-            except MissingContextError:
-                pass
-            except Exception:
-                pytest.fail(
-                    "Raised unexpected exception when logging outside of context with `error` setting."
-                )
 
     def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
         self, logger, mock_log_worker, capsys
@@ -582,22 +574,9 @@ class TestAPILogHandler:
         logger,
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "ignore"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "ignore"},
         ):
-            try:
-                logger.info("test")
-            except TypeError:
-                pytest.fail(
-                    "Raised TypeError when logging outside of context with `ignore` setting."
-                )
-            except UserWarning:
-                pytest.fail(
-                    "Raised UserWarning when logging outside of context with `ignore` setting."
-                )
-            except Exception:
-                pytest.fail(
-                    "Raised unexpected exception when logging outside of context with `ignore` setting."
-                )
+            logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
         self, logger, mock_log_worker, capsys
@@ -622,20 +601,16 @@ class TestAPILogHandler:
         logger,
     ):
         with temporary_settings(
-            updates={PREFECT_LOGGING_ORION_WHEN_MISSING_FLOW: "warn"},
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
-            try:
+            with pytest.raises(
+                UserWarning,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
                 logger.info("test")
-            except TypeError:
-                pytest.fail(
-                    "Raised TypeError when logging outside of context with `warn` setting."
-                )
-            except UserWarning:
-                pass
-            except Exception:
-                pytest.fail(
-                    "Raised unexpected exception when logging outside of context with `warn` setting."
-                )
 
     def test_missing_context_warning_refers_to_caller_lineno(
         self, logger, mock_log_worker
