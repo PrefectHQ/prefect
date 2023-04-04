@@ -1,6 +1,6 @@
+import asyncio
 import contextlib
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
@@ -294,7 +294,8 @@ def test_batched_queue_service_min_interval():
     instance = MockBatchedService.instance()
     instance._min_interval = 0.01
     instance.send(1)
-    time.sleep(1)
+    # Sleep in the loop thread to force a yield
+    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0.1)).result()
     instance.send(2)
-    time.sleep(1)
+    from_sync.call_soon_in_loop_thread(create_call(asyncio.sleep, 0.1)).result()
     MockBatchedService.mock.assert_has_calls([call(instance, [1]), call(instance, [2])])
