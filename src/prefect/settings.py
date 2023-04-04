@@ -312,6 +312,25 @@ def max_log_size_smaller_than_batch_size(values):
     return values
 
 
+def status_codes_as_integers_in_range(value):
+    """
+    Validator for settings asserting the status codes are integers in the range 100-599
+    """
+    if value == "":
+        return set()
+
+    values = {v.strip() for v in value.split(",")}
+
+    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
+        raise ValueError(
+            "PREFECT_SERVER_HEALTHY_STATUS_CODES must be a comma separated list of "
+            "integers between 100 and 599."
+        )
+
+    values = {int(v) for v in values}
+    return values
+
+
 def warn_on_database_password_value_without_usage(values):
     """
     Validator for settings warning if the database password is set but not used.
@@ -523,6 +542,14 @@ client requests. Higher values introduce larger amounts of jitter.
 
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
+"""
+
+PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
+    str, default="", value_callback=status_codes_as_integers_in_range
+)
+"""
+A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
+429 and 503 are always retried.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
