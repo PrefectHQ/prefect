@@ -1217,7 +1217,6 @@ async def create_task_run_then_submit(
         task_runner=task_runner,
     )
 
-    print("Setting submitted event")
     future._submitted.set()
 
 
