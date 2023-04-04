@@ -79,6 +79,7 @@ from prefect.settings import (
     PREFECT_TASKS_REFRESH_CACHE,
 )
 from prefect.states import (
+    Failed,
     Paused,
     Pending,
     Running,
@@ -605,11 +606,8 @@ async def orchestrate_flow_run(
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
-            Pending(name="NotReady", message=str(upstream_exc)),
+            Failed(name="UpstreamNotReady", message=str(upstream_exc)),
             flow_run_id=flow_run.id,
-            # if orchestrating a run already in a pending state, force orchestration to
-            # update the state name
-            force=flow_run.state.is_pending(),
         )
 
     if flow.flow_run_name:
@@ -1462,7 +1460,7 @@ async def orchestrate_task_run(
     except UpstreamTaskError as upstream_exc:
         return await propose_state(
             client,
-            Pending(name="NotReady", message=str(upstream_exc)),
+            Failed(name="UpstreamNotReady", message=str(upstream_exc)),
             task_run_id=task_run.id,
             # if orchestrating a run already in a pending state, force orchestration to
             # update the state name

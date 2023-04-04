@@ -106,16 +106,16 @@ class TaskRunnerStandardTestSuite(ABC):
         ):
             b.result()
 
-        assert c.is_pending()
-        assert c.name == "NotReady"
+        assert c.is_failed()
+        assert c.name == "UpstreamNotReady"
         assert (
             f"Upstream task run '{b.state_details.task_run_id}' did not reach a"
             " 'COMPLETED' state"
             in c.message
         )
 
-        assert d.is_pending()
-        assert d.name == "NotReady"
+        assert d.is_failed()
+        assert d.name == "UpstreamNotReady"
         assert (
             f"Upstream task run '{c.state_details.task_run_id}' did not reach a"
             " 'COMPLETED' state"

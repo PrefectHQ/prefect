@@ -932,8 +932,8 @@ class TestOrchestrateTaskRun:
         mock.assert_not_called()
 
         # Check that the state is 'NotReady'
-        assert state.is_pending()
-        assert state.name == "NotReady"
+        assert state.is_failed()
+        assert state.name == "UpstreamNotReady"
         assert (
             state.message
             == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED'"

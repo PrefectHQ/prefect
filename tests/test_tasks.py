@@ -466,8 +466,8 @@ class TestTaskSubmit:
 
         flow_state = test_flow(return_state=True)
         task_state = flow_state.result(raise_on_failure=False)
-        assert task_state.is_pending()
-        assert task_state.name == "NotReady"
+        assert task_state.is_failed()
+        assert task_state.name == "UpstreamNotReady"
 
     def test_downstream_runs_if_upstream_succeeds(self):
         @task
@@ -2074,8 +2074,8 @@ class TestSubflowWaitForTasks:
 
         flow_state = test_flow._run()
         subflow_state = flow_state.result(raise_on_failure=False)
-        assert subflow_state.is_pending()
-        assert subflow_state.name == "NotReady"
+        assert subflow_state.is_failed()
+        assert subflow_state.name == "UpstreamNotReady"
 
     def test_downstream_runs_if_upstream_succeeds(self):
         @flow
@@ -2225,8 +2225,8 @@ class TestTaskWaitFor:
 
         flow_state = test_flow._run()
         task_state = flow_state.result(raise_on_failure=False)
-        assert task_state.is_pending()
-        assert task_state.name == "NotReady"
+        assert task_state.is_failed()
+        assert task_state.name == "UpstreamNotReady"
 
     def test_downstream_runs_if_upstream_succeeds(self):
         @task
