@@ -44,8 +44,11 @@ class MockBatchedService(BatchedQueueService[int]):
 
 @pytest.fixture(autouse=True)
 def reset_mock_services():
+    yield
     MockService.mock.reset_mock(side_effect=True)
     MockBatchedService.mock.reset_mock(side_effect=True)
+    MockService.drain_all()
+    MockBatchedService.drain_all()
 
 
 def test_instance_returns_instance():
