@@ -1,7 +1,7 @@
 """Add cols to artifact_collection
 
 Revision ID: 6a1eb3d442e4
-Revises: 46bd82c6279a
+Revises: 3bf47e3ce2dd
 Create Date: 2023-03-31 17:23:10.947068
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "6a1eb3d442e4"
-down_revision = "46bd82c6279a"
+down_revision = "3bf47e3ce2dd"
 branch_labels = None
 depends_on = None
 

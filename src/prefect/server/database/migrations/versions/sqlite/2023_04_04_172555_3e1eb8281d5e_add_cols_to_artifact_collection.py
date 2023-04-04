@@ -1,8 +1,8 @@
 """Add cols to artifact_collection
 
 Revision ID: 3e1eb8281d5e
-Revises: 422f8ba9541d
-Create Date: 2023-03-31 17:25:55.589739
+Revises: 553920ec20e9
+Create Date: 2023-04-04 17:25:55.589739
 
 """
 import sqlalchemy as sa
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "3e1eb8281d5e"
-down_revision = "422f8ba9541d"
+down_revision = "553920ec20e9"
 branch_labels = None
 depends_on = None
 
