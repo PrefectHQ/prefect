@@ -12,9 +12,9 @@ Varibles can be created or modified at any time, but are intended for values wit
 While variable values are most commonly loaded at during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect services, such as workers.
 
 ## Manging variables
-You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Variable names are not be case sensitive. Names must:
+You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must:
 - have less than or eual to 255 characters.
-- only contain alphanumeric characters ([a-z], [A-Z], [0-9]) or underscores (_). Spaces are not allowed.
+- only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
 - be unique.
 
 Values must:
