@@ -1221,7 +1221,7 @@ class Variable(ORMBaseModel):
         example="my-value",
         max_length=MAX_VARIABLE_VALUE_LENGTH,
     )
-    tags: list[str] = Field(
+    tags: List[str] = Field(
         default_factory=list,
         description="A list of variable tags",
         example=["tag-1", "tag-2"],
