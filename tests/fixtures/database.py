@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.blocks.notifications import NotificationBlock
-from prefect.experimental.workers.process import ProcessWorker
 from prefect.filesystems import LocalFileSystem
 from prefect.infrastructure import DockerContainer, Process
 from prefect.server import models, schemas
@@ -17,6 +16,7 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 from prefect.utilities.callables import parameter_schema
+from prefect.workers.process import ProcessWorker
 
 
 @pytest.fixture(scope="session", autouse=True)

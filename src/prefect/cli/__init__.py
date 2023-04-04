@@ -21,7 +21,4 @@ import prefect.cli.profile
 import prefect.cli.project
 import prefect.cli.work_queue
 import prefect.cli.work_pool
-
-# Only load workers CLI if enabled via a setting
-if prefect.settings.PREFECT_EXPERIMENTAL_ENABLE_WORKERS.value():
-    import prefect.experimental.cli.worker
+import prefect.cli.worker
