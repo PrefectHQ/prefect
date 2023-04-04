@@ -278,6 +278,9 @@ class PrefectFuture(Generic[R, A]):
         return task_run.state
 
     async def _wait_for_submission(self):
+        if self._submitted.is_set():
+            return
+
         await run_coroutine_in_loop_from_async(self._loop, self._submitted.wait())
 
     def __hash__(self) -> int:
