@@ -1290,7 +1290,7 @@ class ORMFlowRunNotificationQueue:
 class ORMVariable:
     name: str = sa.Column(sa.String, nullable=False)
     value: str = sa.Column(sa.String, nullable=False)
-    tags: list[str] = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+    tags: List[str] = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     __table_args__ = (sa.UniqueConstraint("name"),)
 
