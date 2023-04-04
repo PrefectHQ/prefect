@@ -148,3 +148,22 @@ class ArtifactSort(AutoEnum):
             "KEY_ASC": db.Artifact.key.asc(),
         }
         return sort_mapping[self.value]
+
+
+class VariableSort(AutoEnum):
+    """Defines variables sorting options."""
+
+    CREATED_DESC = "CREATED_DESC"
+    UPDATED_DESC = "UPDATED_DESC"
+    NAME_DESC = "NAME_DESC"
+    NAME_ASC = "NAME_ASC"
+
+    def as_sql_sort(self, db: "PrefectDBInterface") -> "ColumnElement":
+        """Return an expression used to sort variables"""
+        sort_mapping = {
+            "CREATED_DESC": db.Variable.created.desc(),
+            "UPDATED_DESC": db.Variable.updated.desc(),
+            "NAME_DESC": db.Variable.name.desc(),
+            "NAME_ASC": db.Variable.name.asc(),
+        }
+        return sort_mapping[self.value]
