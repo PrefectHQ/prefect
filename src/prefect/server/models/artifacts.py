@@ -13,27 +13,25 @@ from prefect.server.schemas.core import Artifact
 @inject_db
 async def _insert_into_artifact_collection(
     session: sa.orm.Session,
-    key: str,
-    artifact_id: UUID,
+    artifact: Artifact,
     db: PrefectDBInterface,
     now: pendulum.DateTime = None,
 ):
     """
     Inserts a new artifact into the artifact_collection table or updates it.
     """
+    insert_values = artifact.dict(
+        shallow=True, exclude_unset=True, exclude={"id", "updated", "created"}
+    )
     upsert_new_latest_id = (
         (await db.insert(db.ArtifactCollection))
-        .values(
-            key=key,
-            latest_id=artifact_id,
-            created=now,
-            updated=now,
-        )
+        .values(latest_id=artifact.id, updated=now, created=now, **insert_values)
         .on_conflict_do_update(
             index_elements=db.artifact_collection_unique_upsert_columns,
             set_=dict(
-                latest_id=artifact_id,
+                latest_id=artifact.id,
                 updated=now,
+                **insert_values,
             ),
         )
     )
@@ -44,8 +42,7 @@ async def _insert_into_artifact_collection(
         sa.select(db.ArtifactCollection)
         .where(
             sa.and_(
-                db.ArtifactCollection.key == key,
-                db.ArtifactCollection.latest_id == artifact_id,
+                db.ArtifactCollection.key == artifact.key,
             )
         )
         .execution_options(populate_existing=True)
@@ -56,11 +53,16 @@ async def _insert_into_artifact_collection(
     model = result.scalar()
 
     if model is not None:
-        if model.latest_id != artifact_id:
+        if model.latest_id != artifact.id:
             raise ValueError(
-                f"Artifact {artifact_id} was not inserted into the artifact collection"
+                f"Artifact {artifact.id} was not inserted into the artifact collection"
                 " table."
             )
+    if model is None:
+        raise ValueError(
+            f"Artifact {artifact.id} was not inserted into the artifact collection"
+            " table."
+        )
 
     return model
 
@@ -106,7 +108,7 @@ async def create_artifact(
 
     if artifact.key is not None:
         await _insert_into_artifact_collection(
-            session=session, key=artifact.key, now=now, db=db, artifact_id=artifact.id
+            session=session, now=now, db=db, artifact=artifact
         )
 
     result = await _insert_into_artifact(
@@ -133,19 +135,10 @@ async def read_latest_artifact(
     Returns:
         Artifact: The latest artifact
     """
-    latest_id_query = (
-        sa.select(db.ArtifactCollection.latest_id)
-        .where(db.ArtifactCollection.key == key)
-        .limit(1)
-    )
-    latest_id = await session.execute(latest_id_query)
-    latest_id_scalar = latest_id.scalar()
-
-    latest_artifact_query = sa.select(db.Artifact).where(
-        db.Artifact.id == latest_id_scalar
+    latest_artifact_query = sa.select(db.ArtifactCollection).where(
+        db.ArtifactCollection.key == key
     )
     result = await session.execute(latest_artifact_query)
-
     return result.scalar()
 
 
@@ -198,6 +191,38 @@ async def _apply_artifact_filters(
 
 
 @inject_db
+async def _apply_artifact_collection_filters(
+    query,
+    db: PrefectDBInterface,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+    artifact_filter: filters.ArtifactCollectionFilter = None,
+):
+    """Applies filters to an artifact collection query as a combination of EXISTS subqueries."""
+    if artifact_filter:
+        query = query.where(artifact_filter.as_sql_filter(db))
+
+    if flow_run_filter:
+        exists_clause = select(db.FlowRun).where(
+            db.ArtifactCollection.flow_run_id == db.FlowRun.id
+        )
+
+        exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
+    if task_run_filter:
+        exists_clause = select(db.TaskRun).where(
+            db.ArtifactCollection.task_run_id == db.TaskRun.id
+        )
+        exists_clause = exists_clause.where(task_run_filter.as_sql_filter(db))
+
+        query = query.where(exists_clause.exists())
+
+    return query
+
+
+@inject_db
 async def read_artifacts(
     session: sa.orm.Session,
     db: PrefectDBInterface,
@@ -219,10 +244,49 @@ async def read_artifacts(
         flow_run_filter: Only select artifacts whose flow runs matching this filter
         task_run_filter: Only select artifacts whose task runs matching this filter
     """
-
     query = sa.select(db.Artifact).order_by(sort.as_sql_sort(db))
 
     query = await _apply_artifact_filters(
+        query,
+        db=db,
+        artifact_filter=artifact_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
+
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
+
+
+@inject_db
+async def read_latest_artifacts(
+    session: sa.orm.Session,
+    db: PrefectDBInterface,
+    offset: int = None,
+    limit: int = None,
+    artifact_filter: filters.ArtifactCollectionFilter = None,
+    flow_run_filter: filters.FlowRunFilter = None,
+    task_run_filter: filters.TaskRunFilter = None,
+    sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC,
+):
+    """
+    Reads artifacts.
+
+    Args:
+        session: A database session
+        offset: Query offset
+        limit: Query limit
+        artifact_filter: Only select artifacts matching this filter
+        flow_run_filter: Only select artifacts whose flow runs matching this filter
+        task_run_filter: Only select artifacts whose task runs matching this filter
+    """
+    query = sa.select(db.ArtifactCollection).order_by(sort.as_sql_sort(db))
+    query = await _apply_artifact_collection_filters(
         query,
         db=db,
         artifact_filter=artifact_filter,
@@ -249,7 +313,6 @@ async def count_artifacts(
 ) -> int:
     """
     Counts artifacts.
-
     Args:
         session: A database session
         artifact_filter: Only select artifacts matching this filter
@@ -288,15 +351,24 @@ async def update_artifact(
     Returns:
         bool: True if the update was successful, False otherwise
     """
-    update_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_data = artifact.dict(shallow=True, exclude_unset=True)
 
-    update_stmt = (
+    update_artifact_stmt = (
         sa.update(db.Artifact)
         .where(db.Artifact.id == artifact_id)
-        .values(**update_data)
+        .values(**update_artifact_data)
     )
 
-    result = await session.execute(update_stmt)
+    await session.execute(update_artifact_stmt)
+
+    update_artifact_collection_data = artifact.dict(shallow=True, exclude_unset=True)
+    update_artifact_collection_stmt = (
+        sa.update(db.ArtifactCollection)
+        .where(db.ArtifactCollection.latest_id == artifact_id)
+        .values(**update_artifact_collection_data)
+    )
+    result = await session.execute(update_artifact_collection_stmt)
+
     return result.rowcount > 0
 
 
@@ -360,7 +432,17 @@ async def delete_artifact(
             set_next_latest_version = (
                 sa.update(db.ArtifactCollection)
                 .where(db.ArtifactCollection.key == artifact.key)
-                .values(latest_id=next_latest_version.id)
+                .values(
+                    latest_id=next_latest_version.id,
+                    data=next_latest_version.data,
+                    description=next_latest_version.description,
+                    type=next_latest_version.type,
+                    created=next_latest_version.created,
+                    updated=next_latest_version.updated,
+                    flow_run_id=next_latest_version.flow_run_id,
+                    task_run_id=next_latest_version.task_run_id,
+                    metadata_=next_latest_version.metadata_,
+                )
             )
             await session.execute(set_next_latest_version)
 
