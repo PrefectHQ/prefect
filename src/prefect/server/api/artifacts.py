@@ -105,6 +105,25 @@ async def read_artifacts(
         )
 
 
+@router.post("/count")
+async def count_artifacts(
+    artifacts: filters.ArtifactFilter = None,
+    flow_runs: filters.FlowRunFilter = None,
+    task_runs: filters.TaskRunFilter = None,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> int:
+    """
+    Count artifacts from the database.
+    """
+    async with db.session_context() as session:
+        return await models.artifacts.count_artifacts(
+            session=session,
+            artifact_filter=artifacts,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+        )
+
+
 @router.patch("/{id}", status_code=204)
 async def update_artifact(
     artifact: actions.ArtifactUpdate,

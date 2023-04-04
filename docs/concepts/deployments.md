@@ -29,19 +29,29 @@ Creating a _deployment_ for a Prefect workflow means packaging workflow code, se
 The following diagram provides a high-level overview of the conceptual elements involved in defining a deployment and executing a flow run based on that deployment.
 
 ```mermaid
-graph LR
-    F(Flow Code):::yellow -.-> A(Deployment Definition):::gold
-    subgraph Server [Prefect API]
-    D(Deployment):::green
+%%{
+  init: {
+    'theme': 'base',
+    'themeVariables': {
+      'fontSize': '19px'
+    }
+  }
+}%%
+
+flowchart LR
+    F("<div style='margin: 5px 10px 5px 5px;'>Flow Code</div>"):::yellow -.-> A("<div style='margin: 5px 10px 5px 5px;'>Deployment Definition</div>"):::gold
+    subgraph Server ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Prefect API</div>"]
+        D("<div style='margin: 5px 10px 5px 5px;'>Deployment</div>"):::green
     end
-    subgraph Remote Storage
-    B(Flow):::yellow
+    subgraph Remote Storage ["<div style='width: 160px; text-align: center; margin-top: 5px;'>Remote Storage</div>"]
+        B("<div style='margin: 5px 6px 5px 5px;'>Flow</div>"):::yellow
     end
-    subgraph Infrastructure
-    G(Flow Run):::blue
+    subgraph Infrastructure ["<div style='width: 150px; text-align: center; margin-top: 5px;'>Infrastructure</div>"]
+        G("<div style='margin: 5px 10px 5px 5px;'>Flow Run</div>"):::blue
     end
+
     A --> D
-    D --> E(Agent):::red
+    D --> E("<div style='margin: 5px 10px 5px 5px;'>Agent</div>"):::red
     B -.-> E
     A -.-> B
     E -.-> G
