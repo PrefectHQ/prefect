@@ -33,6 +33,7 @@ class QueueService(abc.ABC, Generic[T]):
         self._stopped: bool = False
         self._started: bool = False
         self._key = hash(args)
+        self._lock = threading.Lock()
 
     def start(self):
         logger.debug("Starting service %r", self)
@@ -60,27 +61,29 @@ class QueueService(abc.ABC, Generic[T]):
         if self._stopped:
             return
 
-        logger.debug("Stopping service %r", self)
+        with self._lock:
+            logger.debug("Stopping service %r", self)
 
-        # Stop sending work to this instance
-        self._remove_instance()
+            # Stop sending work to this instance
+            self._remove_instance()
 
-        self._stopped = True
-        call_soon_in_loop(self._loop, self._queue.put_nowait, None)
+            self._stopped = True
+            call_soon_in_loop(self._loop, self._queue.put_nowait, None)
 
     def send(self, item: T):
         """
         Send an item to this instance of the service.
         """
-        if self._stopped:
-            raise RuntimeError("Cannot put items in a stopped service instance.")
+        with self._lock:
+            if self._stopped:
+                raise RuntimeError("Cannot put items in a stopped service instance.")
 
-        logger.debug("Service %r enqueing item %r", self, item)
+            logger.debug("Service %r enqueing item %r", self, item)
 
-        if not self._started:
-            self._early_items.append(item)
-        else:
-            call_soon_in_loop(self._loop, self._queue.put_nowait, item)
+            if not self._started:
+                self._early_items.append(item)
+            else:
+                call_soon_in_loop(self._loop, self._queue.put_nowait, item)
 
     async def _run(self):
         try:

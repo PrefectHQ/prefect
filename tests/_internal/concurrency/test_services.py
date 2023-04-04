@@ -203,7 +203,7 @@ def test_send_many_instances_many_threads():
 def test_drain_many_instances_many_threads():
     def on_thread(i):
         MockService.instance(i).send(i)
-        MockService.instance(i).drain()
+        MockService.drain_all()
 
     with ThreadPoolExecutor() as executor:
         for i in range(10):
