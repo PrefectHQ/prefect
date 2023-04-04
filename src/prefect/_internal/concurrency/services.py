@@ -228,16 +228,28 @@ class BatchedQueueService(QueueService[T]):
 
                     batch.append(item)
                     batch_size += self._get_size(item)
+                    logger.debug(
+                        "Service %r added item %r to batch (size %s/%s)",
+                        self,
+                        item,
+                        batch_size,
+                        self._max_batch_size,
+                    )
 
             if not batch:
                 continue
 
+            logger.debug(
+                "Service %r processing batch of size %s",
+                self,
+                batch_size,
+            )
             try:
                 await self._handle_batch(batch)
             except Exception:
                 logger.exception(
                     "Service %r failed to process batch of size %s",
-                    type(self).__name__,
+                    self,
                     batch_size,
                 )
 
