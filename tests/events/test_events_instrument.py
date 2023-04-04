@@ -65,13 +65,12 @@ class InstrumentedClass:
 async def test_instruments_methods(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     instance = InstrumentedClass()
     instance.sync_method()
     await instance.async_method()
 
     await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     assert len(asserting_events_worker._client.events) == 2
 
@@ -91,8 +90,6 @@ async def test_instruments_methods(
 async def test_handles_method_failure(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     instance = InstrumentedClass()
 
     try:
@@ -106,6 +103,7 @@ async def test_handles_method_failure(
         pass
 
     await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     assert len(asserting_events_worker._client.events) == 2
 
@@ -141,8 +139,6 @@ async def test_ignores_excluded_and_private_methods(
 async def test_instrument_idempotent(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     class AClass:
         def _event_kind(self):
             return "prefect.a-class"
@@ -160,6 +156,7 @@ async def test_instrument_idempotent(
     instance.some_method()
 
     await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     assert len(asserting_events_worker._client.events) == 1
 
@@ -167,8 +164,6 @@ async def test_instrument_idempotent(
 async def test_skip_event_no_resources(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     class AClass:
         def _event_kind(self):
             return "prefect.a-class"
@@ -185,5 +180,6 @@ async def test_skip_event_no_resources(
     instance.some_method()
 
     await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     assert len(asserting_events_worker._client.events) == 0
