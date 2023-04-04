@@ -53,10 +53,10 @@ For usage details, see the [Task Runners](/concepts/task-runners/) documentation
 """
 import abc
 import asyncio
+import concurrent.futures
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -191,7 +191,7 @@ class SequentialTaskRunner(BaseTaskRunner):
 
     def __init__(self) -> None:
         super().__init__()
-        self._results: Dict[str, State] = {}
+        self._futures: Dict[str, State] = {}
 
     @property
     def concurrency_type(self) -> TaskConcurrencyType:
@@ -208,10 +208,10 @@ class SequentialTaskRunner(BaseTaskRunner):
         except BaseException as exc:
             result = await exception_to_crashed_state(exc)
 
-        self._results[key] = result
+        self._futures[key] = result
 
     async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        return self._results[key]
+        return self._futures[key]
 
 
 class ConcurrentTaskRunner(BaseTaskRunner):
@@ -235,8 +235,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
-        self._result_events: Dict[UUID, anyio.abc.Event] = {}
-        self._results: Dict[UUID, Any] = {}
+        self._futures: Dict[UUID, concurrent.futures.Future] = {}
         self._keys: Set[UUID] = set()
 
         super().__init__()
@@ -261,13 +260,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
-        self._result_events[key] = anyio.Event()
+        self._futures[key] = concurrent.futures.Future()
 
         # Rely on the event loop for concurrency
         self._task_group.start_soon(self._run_and_store_result, key, call)
-
-        # Track the keys so we can ensure to gather them later
-        self._keys.add(key)
 
     async def wait(
         self,
@@ -292,11 +288,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            self._results[key] = await call()
+            result = await call()
         except BaseException as exc:
-            self._results[key] = await exception_to_crashed_state(exc)
+            result = await exception_to_crashed_state(exc)
 
-        self._result_events[key].set()
+        self._futures[key].set_result(result)
 
     async def _get_run_result(
         self, key: UUID, timeout: float = None
@@ -304,28 +300,10 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Block until the run result has been populated.
         """
-        result = None  # Return value on timeout
-        result_event = self._result_events.get(key)
-
         with anyio.move_on_after(timeout):
-            # Attempt to use the event to wait for the result. This is much more efficient
-            # than the spin-lock that follows but does not work if the wait call
-            # happens from an event loop in a different thread than the one from which
-            # the event was created
+            return await asyncio.wrap_future(self._futures[key])
 
-            while not result_event:
-                await anyio.sleep(0)  # yield to other tasks
-                result_event = self._result_events.get(key)
-
-            if result_event._event._loop == asyncio.get_running_loop():
-                await result_event.wait()
-
-            result = self._results.get(key)
-            while not result:
-                await anyio.sleep(0)  # yield to other tasks
-                result = self._results.get(key)
-
-        return result
+        return None  # timeout reached
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
