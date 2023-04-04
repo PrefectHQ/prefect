@@ -597,12 +597,14 @@ class TestAPILogHandler:
         assert output.err == ""
 
     def test_does_not_raise_when_logger_outside_of_run_context_with_warn_setting(
-        self,
-        logger,
+        self, logger
     ):
         with temporary_settings(
             updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
         ):
+            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
+            #       capture the warning call and skip checing that we use it correctly
+            #       See https://github.com/pytest-dev/pytest/issues/9288
             with pytest.raises(
                 UserWarning,
                 match=(
