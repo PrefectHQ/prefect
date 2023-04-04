@@ -26,6 +26,7 @@ The main ingredients of a project are 3 files:
 - [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for how to build relevant artifacts for this project's deployments, push those artifacts, and retrieve them at runtime by a Prefect worker
 - [`.prefect/`](/concepts/projects/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
+<a name="worker-tip"></a>
 !!! tip "Projects require workers"
     Note that using a project to manage your deployments requires the use of workers.  In this tutorial we will assume you have set up two work pools each with a worker already, each of which only requires a single CLI command:
 
@@ -218,7 +219,7 @@ A few important notes on what we're looking at here:
 
 ### Dockerized deployment
 
-In this example, we extend the above two by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that we started at the beginning:
+In this example, we extend the above two by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that [we started at the beginning](#worker-tip):
 
 <div class="terminal">
 ```bash
