@@ -508,6 +508,19 @@ class TestAPILogHandler:
         output = capsys.readouterr()
         assert output.err == ""
 
+    def test_does_not_raise_when_logger_outside_of_run_context_with_default_setting(
+        self,
+        logger,
+    ):
+        with pytest.warns(
+            UserWarning,
+            match=(
+                "Logger 'tests.test_logging' attempted to send logs to the API without"
+                " a flow run id."
+            ),
+        ):
+            logger.info("test")
+
     def test_does_not_send_logs_outside_of_run_context_with_error_setting(
         self, logger, mock_log_worker, capsys
     ):
@@ -526,6 +539,22 @@ class TestAPILogHandler:
         output = capsys.readouterr()
         assert output.err == ""
 
+    def test_does_not_warn_when_logger_outside_of_run_context_with_error_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "error"},
+        ):
+            with pytest.raises(
+                MissingContextError,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
+
     def test_does_not_send_logs_outside_of_run_context_with_ignore_setting(
         self, logger, mock_log_worker, capsys
     ):
@@ -539,6 +568,15 @@ class TestAPILogHandler:
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_or_warn_when_logger_outside_of_run_context_with_ignore_setting(
+        self,
+        logger,
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "ignore"},
+        ):
+            logger.info("test")
 
     def test_does_not_send_logs_outside_of_run_context_with_warn_setting(
         self, logger, mock_log_worker, capsys
@@ -557,6 +595,24 @@ class TestAPILogHandler:
         # No stderr output
         output = capsys.readouterr()
         assert output.err == ""
+
+    def test_does_not_raise_when_logger_outside_of_run_context_with_warn_setting(
+        self, logger
+    ):
+        with temporary_settings(
+            updates={PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW: "warn"},
+        ):
+            # NOTE: We use `raises` instead of `warns` because pytest will otherwise
+            #       capture the warning call and skip checing that we use it correctly
+            #       See https://github.com/pytest-dev/pytest/issues/9288
+            with pytest.raises(
+                UserWarning,
+                match=(
+                    "Logger 'tests.test_logging' attempted to send logs to the API"
+                    " without a flow run id."
+                ),
+            ):
+                logger.info("test")
 
     def test_missing_context_warning_refers_to_caller_lineno(
         self, logger, mock_log_worker
