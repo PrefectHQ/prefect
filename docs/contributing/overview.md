@@ -252,10 +252,10 @@ prefect server database revision --autogenerate -m "<migration name>"
 </div>
 
 Try to make your migration name brief but descriptive. For example:
+
 - `add_flow_run_new_column`
 - `add_flow_run_new_column_idx`
 - `rename_flow_run_old_column_to_new_column`
-
 
 The `--autogenerate` flag will automatically generate a migration file based on the changes to the models. 
 !!! warning "Always inspect the output of `--autogenerate`" 
