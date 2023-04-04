@@ -1059,6 +1059,11 @@ async def begin_task_map(
             )
         )
 
+    # Maintain the order of the task runs when using the sequential task runner
+    runner = task_runner if task_runner else flow_run_context.task_runner
+    if runner.concurrency_type == TaskConcurrencyType.SEQUENTIAL:
+        return [await task_run() for task_run in task_runs]
+
     return await gather(*task_runs)
 
 
@@ -1145,7 +1150,7 @@ async def create_task_run_future(
     # Default to the flow run's task runner
     task_runner = task_runner or flow_run_context.task_runner
 
-    # Generate a name for the future
+    # Generate a name for th future
     dynamic_key = _dynamic_key_for_task_run(flow_run_context, task)
     task_run_name = f"{task.name}-{dynamic_key}"
 
