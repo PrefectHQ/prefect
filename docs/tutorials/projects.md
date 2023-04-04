@@ -44,7 +44,7 @@ $ prefect project init
 ```
 </div>
 
-Note that you can run this command in a non-empty directory where you already have work as well.
+Note that you can safely run this command in a non-empty directory where you already have work, as well.
 
 This command will create your `.prefect/` directory along with the two YAML files `deployment.yaml` and `prefect.yaml`; if any of these files or directories already exist, they will not be altered or overwritten.
 
