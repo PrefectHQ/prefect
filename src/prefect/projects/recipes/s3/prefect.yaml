@@ -1,0 +1,16 @@
+prefect-version: null
+name: null
+
+build: null
+
+push: 
+  - prefect_aws.projects.steps.push_project_to_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: null 
+      folder: null
+
+pull:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: null
+      folder: null

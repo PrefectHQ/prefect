@@ -21,7 +21,7 @@ A project is a minimally opinionated set of files that describe how to prepare o
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing procedural steps for preparing a deployment from this project, as well as instructions for preparing the execution environment for a deployment run
 - [`./prefect`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
 
-Projects can be initialized via the CLI command `prefect project init` run anywhere you consider to be the root of a project.  
+Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.  
 
 !!! tip "Project recipes"
     Prefect ships with many off-the-shelf "recipes" that allow you to get started with more structure within your `deployment.yaml` and `prefect.yaml` files; run `prefect project recipe ls` to see what recipes are available in your installation. You can provide a recipe name in your initialization command with the `--recipe` flag, otherwise Prefect will attempt to guess an appropriate recipe based on the structure of your project directory (for example if you initialize within a `git` repository, Prefect will use the `git` recipe).
