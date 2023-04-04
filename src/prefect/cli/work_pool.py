@@ -16,10 +16,10 @@ from prefect._internal.compatibility.experimental import (
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, exit_with_success
 from prefect.cli.root import app
-from prefect.client.cloud import get_cloud_client
 from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.experimental.workers.base import BaseWorker
 from prefect.server.schemas.actions import WorkPoolCreate, WorkPoolUpdate
+from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 from prefect.utilities.dispatch import get_registry_for_type
 
 work_pool_app = PrefectTyper(
@@ -388,19 +388,15 @@ async def get_default_base_job_template_for_type(type: str) -> Optional[Dict[str
 
     # If the worker type is not found in the local type registry, attempt to
     # get the default base job template from the collections registry.
-    async with get_cloud_client() as client:
-        try:
-            worker_metadata = await client.get(
-                "collections/views/aggregate-worker-metadata"
-            )
+    try:
+        worker_metadata = await _get_worker_metadata()
 
-            for collection in worker_metadata.values():
-                for worker in collection.values():
-                    if worker.get("type") == type:
-                        return worker.get("default_base_job_configuration")
-        except Exception:
-            return None
-    return None
+        for collection in worker_metadata.values():
+            for worker in collection.values():
+                if worker.get("type") == type:
+                    return worker.get("default_base_job_configuration")
+    except Exception as exc:
+        return None
 
 
 async def get_available_work_pool_types() -> Set[str]:
@@ -409,18 +405,33 @@ async def get_available_work_pool_types() -> Set[str]:
     if worker_registry is not None:
         work_pool_types.extend(worker_registry.keys())
 
-    async with get_cloud_client() as client:
-        try:
-            worker_metadata = await client.get(
-                "collections/views/aggregate-worker-metadata"
-            )
-
-            for collection in worker_metadata.values():
-                for worker in collection.values():
-                    work_pool_types.append(worker.get("type"))
-        except Exception:
-            # Return only work pool types from the local type registry if
-            # the request to the collections registry fails.
-            pass
+    try:
+        worker_metadata = await _get_worker_metadata()
+        for collection in worker_metadata.values():
+            for worker in collection.values():
+                work_pool_types.append(worker.get("type"))
+    except Exception:
+        # Return only work pool types from the local type registry if
+        # the request to the collections registry fails.
+        pass
 
     return set([type for type in work_pool_types if type is not None])
+
+
+async def _get_worker_metadata() -> Dict[str, Any]:
+    # TODO: Clean this up and move to a more appropriate location
+    # This might need to be its own client
+    httpx_settings = {}
+    base_url = (
+        PREFECT_CLOUD_API_URL.value()
+        if PREFECT_API_KEY.value() is not None
+        else PREFECT_API_URL.value()
+    )
+    if base_url:
+        httpx_settings["base_url"] = base_url
+    async with get_client(httpx_settings=httpx_settings) as client:
+        response = await client._client.get(
+            "collections/views/aggregate-worker-metadata"
+        )
+        response.raise_for_status()
+        return response.json()
