@@ -115,6 +115,7 @@ def test_instance_returns_new_instance_after_base_exception():
 
     # Wait for the service to actually handle the item
     event.wait()
+    instance.mock.reset_mock(side_effect=True)
 
     new_instance = MockService.instance()
     assert new_instance is not instance
