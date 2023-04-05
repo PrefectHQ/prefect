@@ -550,7 +550,8 @@ PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
 )
 """
 A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
-429 and 503 are always retried.
+429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+may result in unexpected behavior.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
