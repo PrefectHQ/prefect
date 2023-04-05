@@ -27,14 +27,6 @@ def test_get(variable):
     assert value is None
 
 
-def test_get_item(variable):
-    value = variables[variable.name]
-    assert value == variable.value
-
-    value = variables["doesnt_exist"]
-    assert value is None
-
-
 async def test_get_async(variable):
     value = await variables.get(variable.name)
     assert value == variable.value
@@ -46,20 +38,18 @@ async def test_get_async(variable):
 def test_variables_work_in_sync_flows(variable):
     @flow
     def foo():
-        res1 = variables.get("my_variable")
-        res2 = variables["my_variable"]
-        return res1, res2
+        var = variables.get("my_variable")
+        return var
 
     res = foo()
-    assert res == (variable.value, variable.value)
+    assert res == variable.value
 
 
 async def test_variables_work_in_async_flows(variable):
     @flow
     async def foo():
-        res1 = await variables.get("my_variable")
-        res2 = variables["my_variable"]
-        return res1, res2
+        var = await variables.get("my_variable")
+        return var
 
     res = await foo()
-    assert res == (variable.value, variable.value)
+    assert res == variable.value
