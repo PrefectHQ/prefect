@@ -2,7 +2,7 @@
 
 Revision ID: 3d46e23593d6
 Revises: 553920ec20e9
-Create Date: 2023-04-04 13:43:01.901404
+Create Date: 2023-04-05 13:43:01.901404
 
 """
 import sqlalchemy as sa
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "3d46e23593d6"
-down_revision = "553920ec20e9"
+down_revision = "3e1eb8281d5e"
 branch_labels = None
 depends_on = None
 

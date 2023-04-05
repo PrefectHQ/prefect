@@ -2,7 +2,7 @@
 
 Revision ID: 310dda75f561
 Revises: 3bf47e3ce2dd
-Create Date: 2023-04-04 13:45:20.470247
+Create Date: 2023-04-05 13:45:20.470247
 
 """
 import sqlalchemy as sa
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "310dda75f561"
-down_revision = "3bf47e3ce2dd"
+down_revision = "6a1eb3d442e4"
 branch_labels = None
 depends_on = None
 
