@@ -13,11 +13,13 @@ T = TypeVar("T", str, int, float, bool, dict, list, None)
 
 PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.-]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
+VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 
 
 class PlaceholderType(enum.Enum):
     STANDARD = "standard"
     BLOCK_DOCUMENT = "block_document"
+    VARIABLE = "variable"
 
 
 class Placeholder(NamedTuple):
@@ -38,7 +40,10 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
     """
     if name.startswith(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX):
         return PlaceholderType.BLOCK_DOCUMENT
-    return PlaceholderType.STANDARD
+    elif name.startswith(VARIABLE_PLACEHOLDER_PREFIX):
+        return PlaceholderType.VARIABLE
+    else:
+        return PlaceholderType.STANDARD
 
 
 def find_placeholders(template: T) -> Set[Placeholder]:
@@ -223,3 +228,41 @@ async def resolve_block_document_references(
             )
 
     return template
+
+
+@inject_client
+async def resolve_variables(template: T, client: "PrefectClient" = None):
+    if isinstance(template, str):
+        placeholders = find_placeholders(template)
+        has_variable_placeholder = any(
+            placeholder.type is PlaceholderType.VARIABLE for placeholder in placeholders
+        )
+        if not placeholders or not has_variable_placeholder:
+            # If there are no values, we can just use the template
+            return template
+        elif (
+            len(placeholders) == 1
+            and list(placeholders)[0].full_match == template
+            and list(placeholders)[0].type is PlaceholderType.STANDARD
+        ):
+            variable_name = list(placeholders)[0].name.replace(
+                VARIABLE_PLACEHOLDER_PREFIX, ""
+            )
+            variable = await client.read_variable_by_name(name=variable_name)
+            return variable.value
+        else:
+            for full_match, name, placeholder_type in placeholders:
+                if placeholder_type is PlaceholderType.STANDARD:
+                    variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
+                    variable = await client.read_variable_by_name(name=variable_name)
+                    template = template.replace(full_match, variable.value)
+            return template
+    elif isinstance(template, dict):
+        return {
+            key: await resolve_variables(value, client=client)
+            for key, value in template.items()
+        }
+    elif isinstance(template, list):
+        return [await resolve_variables(item, client=client) for item in template]
+    else:
+        return template

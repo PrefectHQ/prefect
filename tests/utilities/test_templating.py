@@ -1,7 +1,11 @@
 import pytest
 
 from prefect.blocks.core import Block
+<<<<<<< HEAD
 from prefect.blocks.system import JSON, DateTime, Secret, String
+=======
+from prefect.client.orchestration import PrefectClient
+>>>>>>> 1637a6f92 (WIP: Adds variable templating)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     PlaceholderType,
@@ -301,3 +305,8 @@ class TestResolveBlockDocumentReferences:
             "datetime": "2020-01-01T00:00:00",
             "string": "hello",
         }
+
+class TestResolveVariables:
+    @pytest.fixture
+    async def variable(self, orion_client: PrefectClient):
+        await orion_client._client.post("/variables/", json={"name": "test_variable"})
