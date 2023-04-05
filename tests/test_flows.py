@@ -21,6 +21,7 @@ from prefect.exceptions import (
 )
 from prefect.filesystems import LocalFileSystem
 from prefect.flows import Flow, load_flow_from_entrypoint
+from prefect.runtime import flow_run as flow_run_ctx
 from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.filters import FlowFilter, FlowRunFilter
 from prefect.server.schemas.sorting import FlowRunSort
@@ -2042,6 +2043,31 @@ class TestFlowRunName:
         assert state.type == StateType.COMPLETED
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
         assert flow_run.name == "hi"
+
+    async def test_sets_run_name_with_function_using_runtime_context(
+        self, orion_client
+    ):
+        def generate_flow_run_name():
+            params = flow_run_ctx.parameters
+            tokens = ["hi"]
+            print(f"got the parameters {params!r}")
+            if "foo" in params:
+                tokens.append(str(params["foo"]))
+
+            if "bar" in params:
+                tokens.append(str(params["bar"]))
+
+            return "-".join(tokens)
+
+        @flow(flow_run_name=generate_flow_run_name)
+        def flow_with_name(foo: str = "one", bar: str = "1"):
+            pass
+
+        state = flow_with_name(bar="two", return_state=True)
+
+        assert state.type == StateType.COMPLETED
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.name == "hi-one-two"
 
     async def test_sets_run_name_with_function_not_returning_string(self, orion_client):
         def generate_flow_run_name():

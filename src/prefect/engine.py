@@ -612,14 +612,6 @@ async def orchestrate_flow_run(
             force=flow_run.state.is_pending(),
         )
 
-    if flow.flow_run_name:
-        flow_run_name = _resolve_custom_flow_run_name(flow, parameters)
-
-        await client.update_flow_run(flow_run_id=flow_run.id, name=flow_run_name)
-        logger.extra["flow_run_name"] = flow_run_name
-        logger.debug(f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}")
-        flow_run.name = flow_run_name
-
     state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     while state.is_running():
@@ -634,6 +626,21 @@ async def orchestrate_flow_run(
                 client=client,
                 parameters=parameters,
             ) as flow_run_context:
+                # update flow run name
+                if flow.flow_run_name:
+                    flow_run_name = _resolve_custom_flow_run_name(
+                        flow=flow, parameters=parameters
+                    )
+
+                    await client.update_flow_run(
+                        flow_run_id=flow_run.id, name=flow_run_name
+                    )
+                    logger.extra["flow_run_name"] = flow_run_name
+                    logger.debug(
+                        f"Renamed flow run {flow_run.name!r} to {flow_run_name!r}"
+                    )
+                    flow_run.name = flow_run_name
+
                 args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
