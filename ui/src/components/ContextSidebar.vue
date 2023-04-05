@@ -6,6 +6,7 @@
     <p-context-nav-item v-if="canSeeWorkPools" title="Work Pools" icon="DatabaseIcon" :to="routes.workPools()" />
     <p-context-nav-item v-if="!canSeeWorkPools" title="Work Queues" icon="DatabaseIcon" :to="routes.workQueues()" />
     <p-context-nav-item title="Blocks" icon="CubeIcon" :to="routes.blocks()" />
+    <p-context-nav-item v-if="canSeeVariables" :title="localization.info.variables" icon="VariableIcon" :to="routes.variables()" />
     <p-context-nav-item title="Notifications" icon="BellIcon" :to="routes.notifications()" />
     <p-context-nav-item title="Task Run Concurrency" icon="Task" :to="routes.concurrencyLimits()" />
     <p-context-nav-item v-if="canSeeArtifacts" title="Artifacts" icon="FingerPrintIcon" :to="routes.artifacts()" />
@@ -18,6 +19,7 @@
 
 <script lang="ts" setup>
   import { PContextSidebar, PContextNavItem } from '@prefecthq/prefect-design'
+  import { localization } from '@prefecthq/prefect-ui-library'
   import { computed } from 'vue'
   import { useCan } from '@/compositions/useCan'
   import { routes } from '@/router'
@@ -25,4 +27,5 @@
   const can = useCan()
   const canSeeWorkPools = computed(() => can.access.work_pools && can.read.work_pool)
   const canSeeArtifacts = computed(() => can.access.artifacts)
+  const canSeeVariables = computed(() => can.access.variables && can.read.variable)
 </script>
