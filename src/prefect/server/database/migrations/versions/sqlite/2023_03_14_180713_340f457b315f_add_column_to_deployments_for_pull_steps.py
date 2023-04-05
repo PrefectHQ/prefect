@@ -1,7 +1,7 @@
 """Add column to deployments for pull steps
 
 Revision ID: 340f457b315f
-Revises: 422f8ba9541d
+Revises: 3e1eb8281d5e
 Create Date: 2023-03-14 18:07:13.733969
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
 revision = "340f457b315f"
-down_revision = "422f8ba9541d"
+down_revision = "3e1eb8281d5e"
 branch_labels = None
 depends_on = None
 

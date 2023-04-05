@@ -1,7 +1,7 @@
 """Add pull steps column to deployment
 
 Revision ID: 43c94d4c7aa3
-Revises: 46bd82c6279a
+Revises: 6a1eb3d442e4
 Create Date: 2023-03-27 13:24:06.669728
 
 """
@@ -12,7 +12,7 @@ import prefect
 
 # revision identifiers, used by Alembic.
 revision = "43c94d4c7aa3"
-down_revision = "46bd82c6279a"
+down_revision = "6a1eb3d442e4"
 branch_labels = None
 depends_on = None
 
