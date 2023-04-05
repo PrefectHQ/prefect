@@ -42,7 +42,11 @@ class TestPrefectHttpxClient:
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     @pytest.mark.parametrize(
         "error_code",
-        [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE],
+        [
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            status.HTTP_502_BAD_GATEWAY,
+        ],
     )
     async def test_prefect_httpx_client_retries_on_designated_error_codes(
         self, monkeypatch, error_code, caplog
