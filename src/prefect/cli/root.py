@@ -360,7 +360,7 @@ async def deploy(
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     for step in project["build"] + project["push"]:
-        step_outputs.update(run_step(step))
+        step_outputs.update(await run_step(step))
 
     variable_overrides = {}
     for variable in variables or []:

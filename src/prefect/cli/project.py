@@ -116,7 +116,7 @@ async def clone(
 
     # TODO: allow for passing values between steps / stacking them
     for step in deployment.pull_steps:
-        output = run_step(step)
+        output = await run_step(step)
 
     app.console.out(output["directory"])
 

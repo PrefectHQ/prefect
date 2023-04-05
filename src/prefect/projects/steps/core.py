@@ -6,6 +6,7 @@ import sys
 from typing import Optional
 
 from prefect.utilities.importtools import import_object
+from prefect.utilities.templating import resolve_block_document_references
 
 RESERVED_KEYWORDS = {"requires"}
 
@@ -33,7 +34,7 @@ def _get_function_for_step(fully_qualified_name: str, requires: Optional[str] = 
     return step_func
 
 
-def run_step(step: dict) -> dict:
+async def run_step(step: dict) -> dict:
     """
     Runs a step, returns the step's output.
 
@@ -57,6 +58,8 @@ def run_step(step: dict) -> dict:
         for keyword in RESERVED_KEYWORDS
         if keyword in inputs
     }
+
+    inputs = await resolve_block_document_references(inputs)
 
     step_func = _get_function_for_step(fqn, requires=keywords.get("requires"))
     return step_func(**inputs)
