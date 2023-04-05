@@ -222,7 +222,12 @@ Registration also allows users to share their projects without requiring a full 
 
 ## Deployment mechanics
 
-When creating a deployment via `prefect deploy`, the following steps are taken in order:
+Anytime you run `prefect deploy`, the following steps are taken in order:
 
-- first, run the `prefect.yaml` `build` section, if provided; steps within this section will always run in order
-- next, run the `prefect.yaml` `push` section, if provided; steps within this section will always run in order
+- the project `prefect.yaml` file is loaded; first, the `prefect.yaml` `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided
+- next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
+- lastly, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
+- Next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
+- The final step occurs when the fully realized deployment specification is registered with the Prefect API
+
+Note that anytime an `ImportError` is encountered while executing a step, the `requires` field is looked up and installed.  The step then retries with the newly installed dependency.
