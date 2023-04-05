@@ -16,7 +16,7 @@ tags:
 
 # Projects<span class="badge beta"></span>
 
-Prefect projects are the recommended way to organize and manage Prefect deployments; projects provide a minimally opinionated way to organize your code and configuration that is transparent and easy to debug.
+Prefect projects are the recommended way to organize and manage Prefect deployments; projects provide a minimally opinionated, transparent way to organize your code and configuration so that its easy to debug.
 
 A project is a directory of code and configuration for your workflows that can be customized for portability.
 
