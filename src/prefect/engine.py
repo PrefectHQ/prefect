@@ -20,6 +20,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
@@ -35,6 +36,7 @@ import prefect.context
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.calls import get_current_call
 from prefect._internal.concurrency.threads import wait_for_global_loop_exit
+from prefect._internal.concurrency.timeouts import get_deadline
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas import FlowRun, OrchestrationResult, TaskRun
 from prefect.client.utilities import inject_client
@@ -114,6 +116,7 @@ R = TypeVar("R")
 EngineReturnType = Literal["future", "state", "result"]
 
 
+API_HEALTHCHECKS = {}
 UNTRACKABLE_TYPES = {bool, type(None), type(...), type(NotImplemented)}
 engine_logger = get_logger("engine")
 
@@ -217,11 +220,8 @@ async def create_then_begin_flow_run(
     # TODO: Returns a `State` depending on `return_type` and we can add an overload to
     #       the function signature to clarify this eventually.
 
-    connect_error = await client.api_healthcheck()
-    if connect_error:
-        raise RuntimeError(
-            f"Cannot create flow run. Failed to reach API at {client.api_url}."
-        ) from connect_error
+    await check_api_reachable(client, "Cannot create flow run")
+
     state = Pending()
     if flow.should_validate_parameters:
         try:
@@ -405,7 +405,7 @@ async def begin_flow_run(
                 f" {timeout.to_rfc3339_string()} to finish execution."
             ),
         )
-        APILogHandler.flush(block=True)
+        await APILogHandler.flush()
 
         return terminal_or_paused_state
     else:
@@ -421,7 +421,7 @@ async def begin_flow_run(
 
     # When a "root" flow run finishes, flush logs so we do not have to rely on handling
     # during interpreter shutdown
-    APILogHandler.flush(block=True)
+    await APILogHandler.flush()
 
     return terminal_state
 
@@ -999,7 +999,7 @@ async def begin_task_map(
     static_parameters = {}
     annotated_parameters = {}
     for key, val in parameters.items():
-        if isinstance(val, allow_failure):
+        if isinstance(val, (allow_failure, quote)):
             # Unwrap annotated parameters to determine if they are iterable
             annotated_parameters[key] = val
             val = val.unwrap()
@@ -1363,13 +1363,9 @@ async def begin_task_run(
         if log_prints:
             stack.enter_context(patch_print())
 
-        connect_error = await client.api_healthcheck()
-        if connect_error:
-            raise RuntimeError(
-                f"Cannot orchestrate task run '{task_run.id}'. "
-                f"Failed to connect to API at {client.api_url}."
-            ) from connect_error
-
+        await check_api_reachable(
+            client, f"Cannot orchestrate task run '{task_run.id}'"
+        )
         try:
             state = await orchestrate_task_run(
                 task=task,
@@ -1385,7 +1381,7 @@ async def begin_task_run(
             if not maybe_flow_run_context:
                 # When a a task run finishes on a remote worker flush logs to prevent
                 # loss if the process exits
-                APILogHandler.flush(block=True)
+                await APILogHandler.flush()
 
         except Abort as abort:
             # Task run probably already completed, fetch its state
@@ -2124,6 +2120,24 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
                 )
             else:
                 logger.info(f"Hook {hook.__name__!r} finished running successfully")
+
+
+async def check_api_reachable(client: PrefectClient, fail_message: str):
+    # Do not perform a healthcheck if it exists and is not expired
+    api_url = str(client.api_url)
+    if api_url in API_HEALTHCHECKS:
+        expires = API_HEALTHCHECKS[api_url]
+        if expires > time.monotonic():
+            return
+
+    connect_error = await client.api_healthcheck()
+    if connect_error:
+        raise RuntimeError(
+            f"{fail_message}. Failed to reach API at {api_url}."
+        ) from connect_error
+
+    # Create a 10 minute cache for the healthy response
+    API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
 
 
 if __name__ == "__main__":

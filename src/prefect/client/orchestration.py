@@ -1347,6 +1347,7 @@ class PrefectClient:
         infra_overrides: Dict[str, Any] = None,
         parameter_openapi_schema: dict = None,
         is_schedule_active: Optional[bool] = None,
+        pull_steps: Optional[List[dict]] = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -1385,6 +1386,7 @@ class PrefectClient:
             infra_overrides=infra_overrides or {},
             parameter_openapi_schema=parameter_openapi_schema,
             is_schedule_active=is_schedule_active,
+            pull_steps=pull_steps,
         )
 
         if work_pool_name is not None:
@@ -1399,6 +1401,9 @@ class PrefectClient:
 
         if deployment_create.is_schedule_active is None:
             exclude.add("is_schedule_active")
+
+        if deployment_create.pull_steps is None:
+            exclude.add("pull_steps")
 
         json = deployment_create.dict(json_compatible=True, exclude=exclude)
         response = await self._client.post(

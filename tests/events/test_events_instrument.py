@@ -123,8 +123,6 @@ async def test_handles_method_failure(
 async def test_ignores_excluded_and_private_methods(
     asserting_events_worker: EventsWorker, reset_worker_events
 ):
-    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
-
     instance = InstrumentedClass()
 
     instance.excluded_method()
@@ -132,6 +130,7 @@ async def test_ignores_excluded_and_private_methods(
     InstrumentedClass.static_method()
 
     await asserting_events_worker.drain()
+    assert isinstance(asserting_events_worker._client, AssertingEventsClient)
 
     assert len(asserting_events_worker._client.events) == 0
 
