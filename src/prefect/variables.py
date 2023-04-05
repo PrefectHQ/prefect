@@ -3,13 +3,15 @@ from types import ModuleType
 from typing import Optional
 
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.client.orchestration import get_client
+from prefect.client.orchestration import PrefectClient
+from prefect.client.utilities import inject_client
+from prefect.utilities.asyncutils import sync_compatible
 
 
-def get(name: str, default: str = None) -> Optional[str]:
+@sync_compatible
+async def get(name: str, default: str = None) -> Optional[str]:
     """
-    Get a variable by name from a sync context.
-
+    Get a variable by name. If doesn't exist return the default.
     ```
         from prefect import variables
 
@@ -17,31 +19,26 @@ def get(name: str, default: str = None) -> Optional[str]:
         def my_flow():
             var = variables.get("my_var")
     ```
-    """
-    variable = get_variable_by_name(name)
-    return variable.value if variable else default
-
-
-async def aget(name: str, default: str = None) -> Optional[str]:
-    """
-    Get a variable by name from an async context.
-
+    or
     ```
         from prefect import variables
 
         @flow
         async def my_flow():
-            var = await variables.aget("my_var")
+            var = await variables.get("my_var")
     ```
     """
-    variable = await _get_variable_by_name(name)
+    variable = get_variable_by_name(name)
     return variable.value if variable else default
 
 
-async def _get_variable_by_name(name):
-    async with get_client() as client:
-        variable = await client.read_variable_by_name(name)
-        return variable
+@inject_client
+async def _get_variable_by_name(
+    name: str,
+    client: PrefectClient,
+):
+    variable = await client.read_variable_by_name(name)
+    return variable
 
 
 def get_variable_by_name(name: str):
@@ -50,6 +47,11 @@ def get_variable_by_name(name: str):
     ).result()
 
     return variable
+
+
+def __getitem__(name: str) -> Optional[str]:
+    # This is a stub for VariablesModule.__getitem__
+    raise NotImplementedError
 
 
 class VariablesModule(ModuleType):
