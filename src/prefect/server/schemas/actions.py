@@ -135,6 +135,7 @@ class DeploymentCreate(ActionBaseModel):
     is_schedule_active: Optional[bool] = FieldFrom(schemas.core.Deployment)
     parameters: Dict[str, Any] = FieldFrom(schemas.core.Deployment)
     tags: List[str] = FieldFrom(schemas.core.Deployment)
+    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
 
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     work_queue_name: Optional[str] = FieldFrom(schemas.core.Deployment)

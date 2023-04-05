@@ -1,0 +1,8 @@
+name: null
+prefect-version: null
+
+build: null
+push: null
+pull: 
+  - prefect.projects.steps.set_working_directory:
+      directory: "{{ directory }}"

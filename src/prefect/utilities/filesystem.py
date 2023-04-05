@@ -13,7 +13,7 @@ from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 
 
-def set_default_ignore_file(path: str) -> bool:
+def create_default_ignore_file(path: str) -> bool:
     """
     Creates default ignore file in the provided path if one does not already exist; returns boolean specifying
     whether a file was created.

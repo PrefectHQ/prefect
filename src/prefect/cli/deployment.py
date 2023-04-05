@@ -46,7 +46,7 @@ from prefect.states import Scheduled
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import listrepr
 from prefect.utilities.dispatch import get_registry_for_type, lookup_type
-from prefect.utilities.filesystem import set_default_ignore_file
+from prefect.utilities.filesystem import create_default_ignore_file
 
 
 def str_presenter(dumper, data):
@@ -1073,7 +1073,7 @@ async def build(
     else:
         storage = None
 
-    if set_default_ignore_file(path="."):
+    if create_default_ignore_file(path="."):
         app.console.print(
             (
                 "Default '.prefectignore' file written to"
