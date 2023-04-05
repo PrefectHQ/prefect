@@ -4,6 +4,8 @@ Core set of steps for specifying a Prefect project pull step.
 import os
 import subprocess
 import sys
+import urllib.parse
+from typing import Optional
 
 
 def set_working_directory(directory: str) -> dict:
@@ -11,11 +13,22 @@ def set_working_directory(directory: str) -> dict:
     return dict(directory=directory)
 
 
-def git_clone_project(repository: str, branch: str = None) -> dict:
+def git_clone_project(
+    repository: str, branch: Optional[str] = None, access_token: Optional[str] = None
+) -> dict:
     """
     Just a repo name will be assumed GitHub, otherwise provide a full repo_url.
     """
-    cmd = ["git", "clone", repository]
+    url_components = urllib.parse.urlparse(repository)
+    if url_components.scheme == "https" and access_token is not None:
+        updated_components = url_components._replace(
+            netloc=f"{access_token}@{url_components.netloc}"
+        )
+        repository_url = urllib.parse.urlunparse(updated_components)
+    else:
+        repository_url = repository
+
+    cmd = ["git", "clone", repository_url]
     if branch:
         cmd += ["-b", branch]
 
