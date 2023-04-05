@@ -246,16 +246,20 @@ class TestPrefectHttpxClient:
         # 5 retries + 1 first attempt
         assert base_client_send.call_count == 6
 
+    @pytest.mark.parametrize(
+        "error_code",
+        [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_503_SERVICE_UNAVAILABLE],
+    )
     @pytest.mark.usefixtures("disable_jitter")
     async def test_prefect_httpx_client_respects_retry_header(
-        self, monkeypatch, mock_anyio_sleep
+        self, monkeypatch, mock_anyio_sleep, error_code
     ):
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
 
         client = PrefectHttpxClient()
         retry_response = Response(
-            status.HTTP_429_TOO_MANY_REQUESTS,
+            error_code,
             headers={"Retry-After": "5"},
             request=Request("a test request", "fake.url/fake/route"),
         )
