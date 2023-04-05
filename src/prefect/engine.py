@@ -999,7 +999,7 @@ async def begin_task_map(
     static_parameters = {}
     annotated_parameters = {}
     for key, val in parameters.items():
-        if isinstance(val, allow_failure):
+        if isinstance(val, (allow_failure, quote)):
             # Unwrap annotated parameters to determine if they are iterable
             annotated_parameters[key] = val
             val = val.unwrap()
