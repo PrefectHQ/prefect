@@ -52,11 +52,9 @@ Example:
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
-import asyncio
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterator,
     Awaitable,
     Callable,
@@ -74,6 +72,7 @@ from prefect.utilities.collections import AutoEnum
 if TYPE_CHECKING:
     import anyio.abc
 
+from prefect._internal.concurrency.primitives import Event
 from prefect.logging import get_logger
 from prefect.server.schemas.states import State
 from prefect.states import exception_to_crashed_state
@@ -235,7 +234,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
 
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
-        self._result_events: Dict[UUID, anyio.abc.Event] = {}
+        self._result_events: Dict[UUID, Event] = {}
         self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
 
@@ -261,13 +260,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
                 "serialization."
             )
 
-        self._result_events[key] = anyio.Event()
+        # Create an event to set on completion
+        self._result_events[key] = Event()
 
         # Rely on the event loop for concurrency
         self._task_group.start_soon(self._run_and_store_result, key, call)
-
-        # Track the keys so we can ensure to gather them later
-        self._keys.add(key)
 
     async def wait(
         self,
@@ -292,10 +289,11 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         task crashes from crashing the flow run.
         """
         try:
-            self._results[key] = await call()
+            result = await call()
         except BaseException as exc:
-            self._results[key] = await exception_to_crashed_state(exc)
+            result = await exception_to_crashed_state(exc)
 
+        self._results[key] = result
         self._result_events[key].set()
 
     async def _get_run_result(
@@ -304,28 +302,16 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         """
         Block until the run result has been populated.
         """
-        result = None  # Return value on timeout
-        result_event = self._result_events.get(key)
+        result = None  # retval on tiemout
 
+        # Note we do not use `asyncio.wrap_future` and instead use an `Event` to avoid
+        # stdlib behavior where the wrapped future is cancelled if the parent future is
+        # cancelled (as it would be during a timeout here)
         with anyio.move_on_after(timeout):
-            # Attempt to use the event to wait for the result. This is much more efficient
-            # than the spin-lock that follows but does not work if the wait call
-            # happens from an event loop in a different thread than the one from which
-            # the event was created
+            await self._result_events[key].wait()
+            result = self._results[key]
 
-            while not result_event:
-                await anyio.sleep(0)  # yield to other tasks
-                result_event = self._result_events.get(key)
-
-            if result_event._event._loop == asyncio.get_running_loop():
-                await result_event.wait()
-
-            result = self._results.get(key)
-            while not result:
-                await anyio.sleep(0)  # yield to other tasks
-                result = self._results.get(key)
-
-        return result
+        return result  # timeout reached
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
