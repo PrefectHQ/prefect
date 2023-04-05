@@ -1763,6 +1763,10 @@ class TestVariables:
         res = await orion_client.read_variable_by_name(variable.name)
         assert not res
 
+    async def test_delete_variable_by_name_doesnt_exist(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_variable_by_name("doesnt_exist")
+
     async def test_read_variables(self, orion_client, variables):
         res = await orion_client.read_variables()
         assert len(res) == len(variables)
