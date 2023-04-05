@@ -23,17 +23,17 @@ A project is a directory of code and configuration for your workflows that can b
 The main components of a project are 3 files:
 
 - [`deployment.yaml`](/concepts/projects/#the-deployment-yaml-file): a YAML file that can be used to specify settings for one or more flow deployments
-- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for how to build relevant artifacts for this project's deployments, push those artifacts, and retrieve them at runtime by a Prefect worker
+- [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for building artifacts for this project's deployments, pushing those artifacts, and retrieving them at runtime by a Prefect worker
 - [`.prefect/`](/concepts/projects/#the-prefect-directory): a hidden directory that designates the root for your project; basic metadata about the workflows within this project are stored here
 
 <a name="worker-tip"></a>
 !!! tip "Projects require workers"
-    Note that using a project to manage your deployments requires the use of workers.  In this tutorial we will assume you have set up two work pools each with a worker already, each of which only requires a single CLI command:
+    Note that using a project to manage your deployments requires the use of workers.  This tutorial assumes that you have already set up two work pools, each with a worker, which only requires a single CLI command for each:
 
     - **Local**: `prefect worker start -t process -p local-work`
     - **Docker**: `prefect worker start -t docker -p docker-work`
 
-    Note that each of these commands will automatically create an appropriately typed work pool with default settings.
+    Each command will automatically create an appropriately typed work pool with default settings.
 
 ## Initializing a project
 
@@ -50,7 +50,7 @@ Note that you can safely run this command in a non-empty directory where you alr
 This command will create your `.prefect/` directory along with the two YAML files `deployment.yaml` and `prefect.yaml`; if any of these files or directories already exist, they will not be altered or overwritten.
 
 !!! tip "Project Recipes"
-    Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure.  You can see all available recipes by running:
+    Prefect ships with multiple project recipes, which allow you to initialize a project with a more opinionated structure suited to a particular use.  You can see all available recipes by running:
 
     <div class="terminal">
     ```bash
@@ -71,12 +71,12 @@ This command will create your `.prefect/` directory along with the two YAML file
 
 ## Creating a basic deployment
 
-Projects are most useful for creating deployments; let's walk through some examples right now.  
+Projects are most useful for creating deployments; let's walk through some examples.  
 
 
 ### Local deployment
 
-In this example, we'll create a project from scratch that runs locally.  Let's start by creating a new directory and making that our working directory and initializing a project:
+In this example, we'll create a project from scratch that runs locally.  Let's start by creating a new directory, making that our working directory, and initializing a project:
 
 <div class="terminal">
 ```bash
@@ -175,7 +175,7 @@ $ prefect deploy -f 'log-flow' \
 ```
 </div>
 
-Notice that we were able to deploy based on flow name alone; this is because the repository owner [pre-registered the `log-flow` for us](https://github.com/PrefectHQ/hello-projects/blob/main/.prefect/flows.json).  Alternatively, we could run `prefect deploy ./flows/log_flow.py:log_flow` if we knew the full entrypoint path.
+Notice that we were able to deploy based on flow name alone; this is because the repository owner [pre-registered the `log-flow` for us](https://github.com/PrefectHQ/hello-projects/blob/main/.prefect/flows.json).  Alternatively, if we knew the full entrypoint path, we could run `prefect deploy ./flows/log_flow.py:log_flow`.
 
 
 Let's run this flow and discuss it's output:
@@ -219,7 +219,7 @@ A few important notes on what we're looking at here:
 
 ### Dockerized deployment
 
-In this example, we extend the above two by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that [we started at the beginning](#worker-tip):
+In this example, we extend the examples above by dockerizing our setup and executing runs with a Docker Worker.  Building off the [git-based example above](#git-based-deployment), let's switch our deployment to submit work to the `docker-work` work pool that [we started at the beginning](#worker-tip):
 
 <div class="terminal">
 ```bash
@@ -232,7 +232,7 @@ $ prefect deployment run 'log-flow/my-docker-git-deployment'
 
 As promised above, this worked out of the box!  
 
-Let's deploy a new flow from this project that requires additional dependencies that might not be available in the default image our work pool is using; this flow requires both `pandas` and `numpy` as a dependency, which we will also install locally first and confirm the flow is working:
+Let's deploy a new flow from this project that requires additional dependencies that might not be available in the default image our work pool is using; this flow requires both `pandas` and `numpy` as a dependency, which we will install locally first to confirm the flow is working:
 
 <div class="terminal">
 ```bash
@@ -246,7 +246,7 @@ We now have two options for how to manage these dependencies in our worker's env
 - setting the `EXTRA_PIP_PACKAGES` environment variable or using another hook to install the dependencies at runtime
 - building a custom Docker image with the dependencies baked in
 
-In this tutorial we will focus on building a custom Docker image. First, we need to configure a `build` step within our `prefect.yaml` file as follows (Note: if starting from scratch we could use the `docker-git` recipe):
+In this tutorial, we will focus on building a custom Docker image. First, we need to configure a `build` step within our `prefect.yaml` file as follows (Note: if starting from scratch we could use the `docker-git` recipe):
 
 ```yaml
 # partial contents of prefect.yaml
@@ -340,7 +340,7 @@ pull:
     directory: /opt/prefect/hello-projects
 ```
 
-Rerunning the same `deploy` command above now gives us a healthy deployment!
+Rerunning the same `deploy` command above now makes this a healthy deployment!
 
 
 ## Customizing the steps
