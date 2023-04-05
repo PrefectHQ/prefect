@@ -2652,7 +2652,7 @@ class TestTaskMap:
 
         @flow
         def my_flow():
-            futures = TestTaskMap.add.map(generate_numbers())
+            futures = TestTaskMap.add_one.map(generate_numbers())
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
