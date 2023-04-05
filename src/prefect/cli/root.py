@@ -19,6 +19,7 @@ import prefect.settings
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error, with_cli_exception_handling
 from prefect.client.orchestration import ServerType
+from prefect.exceptions import ObjectNotFound
 from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.configuration import setup_logging
 from prefect.projects import find_prefect_directory, register_flow
@@ -400,11 +401,23 @@ async def deploy(
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
         if base_deploy["work_pool"]:
-            work_pool = await client.read_work_pool(base_deploy["work_pool"])
+            try:
+                work_pool = await client.read_work_pool(base_deploy["work_pool"])
 
-            # dont allow submitting to prefect-agent typed work pools
-            if work_pool.type == "prefect-agent":
-                exit_with_error("Cannot submit to a work pool of type 'prefect-agent'.")
+                # dont allow submitting to prefect-agent typed work pools
+                if work_pool.type == "prefect-agent":
+                    exit_with_error(
+                        "Cannot deploy project with work pool of type 'prefect-agent'."
+                    )
+            except ObjectNotFound:
+                app.console.print(
+                    (
+                        "\nThis deployment references a work pool that does not exist."
+                        " This means no worker will be able to pick up its runs. You"
+                        " can create a work pool in the Prefect UI."
+                    ),
+                    style="red",
+                )
 
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
@@ -451,9 +464,9 @@ async def deploy(
         else:
             app.console.print(
                 (
-                    "\nThis deployment does not specify a work queue name, which"
-                    " means agents will not be able to pick up its runs. To add a"
-                    " work queue, edit the deployment spec and re-run this command,"
+                    "\nThis deployment does not specify a work pool or queue, which"
+                    " means no worker will be able to pick up its runs. To add a"
+                    " work pool, edit the deployment spec and re-run this command,"
                     " or visit the deployment in the UI."
                 ),
                 style="red",
