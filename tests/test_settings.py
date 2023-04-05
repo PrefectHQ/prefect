@@ -14,6 +14,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_PASSWORD,
     PREFECT_API_KEY,
     PREFECT_API_URL,
+    PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLOUD_API_URL,
     PREFECT_CLOUD_UI_URL,
     PREFECT_CLOUD_URL,
@@ -472,6 +473,36 @@ class TestSettingAccess:
     def test_cloud_ui_url_set_directly(self):
         with temporary_settings({PREFECT_CLOUD_UI_URL: "test"}):
             assert PREFECT_CLOUD_UI_URL.value() == "test"
+
+    @pytest.mark.parametrize(
+        "extra_codes,expected",
+        [
+            ("", set()),
+            ("400", {400}),
+            ("400,400,400", {400}),
+            ("400,500", {400, 500}),
+            ("400, 401, 402", {400, 401, 402}),
+        ],
+    )
+    def test_client_retry_extra_codes(self, extra_codes, expected):
+        with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
+            assert PREFECT_CLIENT_RETRY_EXTRA_CODES.value() == expected
+
+    @pytest.mark.parametrize(
+        "extra_codes",
+        [
+            "foo",
+            "-1",
+            "0",
+            "10",
+            "400,foo",
+            "400,500,foo",
+        ],
+    )
+    def test_client_retry_extra_codes_invalid(self, extra_codes):
+        with pytest.raises(ValueError):
+            with temporary_settings({PREFECT_CLIENT_RETRY_EXTRA_CODES: extra_codes}):
+                PREFECT_CLIENT_RETRY_EXTRA_CODES.value()
 
 
 class TestTemporarySettings:
