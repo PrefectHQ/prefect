@@ -11,8 +11,8 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "1.6.1",
-    "@prefecthq/prefect-ui-library": "1.4.1",
+    "@prefecthq/prefect-design": "1.7.0",
+    "@prefecthq/prefect-ui-library": "1.4.4",
     "@prefecthq/vue-compositions": "1.4.0",
     "@types/lodash.debounce": "4.0.7",
     "axios": "0.27.2",
