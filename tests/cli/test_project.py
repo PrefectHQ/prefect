@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 import prefect
+from prefect.blocks.system import Secret
 from prefect.projects.base import initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.testing.cli import invoke_and_assert
@@ -132,3 +133,51 @@ class TestProjectDeploy:
         assert deployment.version == "foo"
         assert deployment.tags == ["b", "2", "3"]
         assert deployment.description == "1"
+
+    async def test_project_deploy_templates_pull_step_safely(
+        self, project_dir, orion_client
+    ):
+        "We want step outputs to get templated, but block references to only be retrieved at runtime"
+
+        await Secret(value="super-secret-name").save(name="test-secret")
+        await orion_client.create_work_pool(WorkPoolCreate(name="test-pool"))
+
+        # update prefectl.yaml to include a new build step
+        with open("prefect.yaml", "r") as f:
+            prefect_config = yaml.safe_load(f)
+
+        # test step that returns a dictionary of inputs and output1, output2
+        prefect_config["build"] = [
+            {"prefect.testing.utilities.a_test_step": {"input": "foo"}}
+        ]
+
+        prefect_config["pull"] = [
+            {
+                "prefect.testing.utilities.a_test_step": {
+                    "input": "{{ output1 }}",
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                }
+            },
+        ]
+        # save it back
+        with open("prefect.yaml", "w") as f:
+            yaml.safe_dump(prefect_config, f)
+
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.pull_steps == [
+            {
+                "prefect.testing.utilities.a_test_step": {
+                    "input": 1,
+                    "secret-input": "{{ prefect.blocks.secret.test-secret }}",
+                }
+            }
+        ]

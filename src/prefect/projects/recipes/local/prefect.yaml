@@ -1,5 +1,6 @@
 name: null
 prefect-version: null
+description: "Store project on a local filesystem"
 
 build: null
 push: null
