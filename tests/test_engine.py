@@ -2030,10 +2030,12 @@ class TestAPIHealthcheck:
         async with get_client() as client:
             await check_api_reachable(client, fail_message="test")
 
-        assert hosted_api_server in API_HEALTHCHECKS
-        assert isinstance(API_HEALTHCHECKS[hosted_api_server], float)
+        expected_url = hosted_api_server + "/"  # httpx client appends trailing /
 
-        assert API_HEALTHCHECKS[hosted_api_server] == pytest.approx(
+        assert expected_url in API_HEALTHCHECKS
+        assert isinstance(API_HEALTHCHECKS[expected_url], float)
+
+        assert API_HEALTHCHECKS[expected_url] == pytest.approx(
             time.monotonic() + 60 * 10, abs=10
         )
 
