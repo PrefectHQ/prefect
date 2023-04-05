@@ -74,7 +74,7 @@ async def hosted_api_server(unused_tcp_port_factory):
             with anyio.move_on_after(20):
                 while True:
                     try:
-                        response = await client.get(api_url + "health")
+                        response = await client.get(api_url + "/health")
                     except httpx.ConnectError:
                         pass
                     else:
