@@ -1,5 +1,6 @@
 prefect-version: null
 name: null
+description: "Store project within git repository"
 
 build: null
 push: null
