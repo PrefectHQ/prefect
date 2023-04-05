@@ -2119,19 +2119,20 @@ async def _run_flow_hooks(flow: Flow, flow_run: FlowRun, state: State) -> None:
 
 async def check_api_reachable(client: PrefectClient, fail_message: str):
     # Do not perform a healthcheck if it exists and is not expired
-    if client.api_url in API_HEALTHCHECKS:
-        expires = API_HEALTHCHECKS[client.api_url]
-        if expires < time.monotonic():
+    api_url = str(client.api_url)
+    if api_url in API_HEALTHCHECKS:
+        expires = API_HEALTHCHECKS[api_url]
+        if expires > time.monotonic():
             return
 
     connect_error = await client.api_healthcheck()
     if connect_error:
         raise RuntimeError(
-            f"{fail_message}. Failed to reach API at {client.api_url}."
+            f"{fail_message}. Failed to reach API at {api_url}."
         ) from connect_error
 
     # Create a 10 minute cache for the healthy response
-    API_HEALTHCHECKS[client.api_url] = get_deadline(60 * 10)
+    API_HEALTHCHECKS[api_url] = get_deadline(60 * 10)
 
 
 if __name__ == "__main__":
