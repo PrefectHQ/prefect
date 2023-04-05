@@ -396,6 +396,9 @@ async def deploy(
     base_deploy = apply_values(base_deploy, step_outputs)
     base_deploy["parameter_openapi_schema"] = _parameter_schema
 
+    # prepare the pull step
+    project["pull"] = apply_values(project["pull"], step_outputs)
+
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 

@@ -345,4 +345,4 @@ Rerunning the same `deploy` command above now makes this a healthy deployment!
 
 ## Customizing the steps
 
-For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/projects).
+For more information on what can be customized with `prefect.yaml`, check out the [Projects concept doc](/concepts/projects/).
