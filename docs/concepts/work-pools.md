@@ -160,7 +160,15 @@ On success, the command returns the details of the newly created work pool, whic
 
 Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool. 
 
-Each worker type is configured with a default base job template, making it is easy to get started with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
+The base job template acts as a contract defining the configuration passed to the worker for each flow run and the options available to deployment creators to customize worker behavior per deployment. 
+
+A base job template comprises a `job_configuration` section and a `variables` section. 
+
+The `variables` section defines the fields available to be customized per deployment. The `variables` section follows the [OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values (type, minimum, maximum, etc.). 
+
+The job configuration section defines how values provided for fields in the variables section should be translated to the configuration given to a worker when executing a flow run. The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
+
+Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
 
 For example, if we create a `process` work pool via the CLI:
 
@@ -172,7 +180,7 @@ We see these configuration options available in the Prefect UI:
 ![process work pool configuration options](../img/ui/process-work-pool-config.png)
 
 
-For a `process` work pool, we can configure the option to set environment variables for spawned processes, set the working directory to execute flows, and control whether or not the flow run output is streamed to workers' standard output.
+For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether or not the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
 
 You can override each of these attributes on a per-deployment basis. When deploying a project, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
