@@ -19,6 +19,7 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_CLIENT_RETRY_JITTER_FACTOR,
 )
+from prefect.utilities.asyncutils import asyncnullcontext
 from prefect.utilities.math import bounded_poisson_interval, clamped_poisson_interval
 
 # Datastores for lifespan management, keys should be a tuple of thread and app identities.
@@ -163,6 +164,13 @@ class PrefectHttpxClient(httpx.AsyncClient):
     """
 
     RETRY_MAX = 5
+    MAX_CONCURRENT_RATE_LIMITED_REQUESTS = 1
+
+    async def __aenter__(self):
+        self._rate_limited_retry_limiter = anyio.CapacityLimiter(
+            self.MAX_CONCURRENT_RATE_LIMITED_REQUESTS
+        )
+        return await super().__aenter__()
 
     async def _send_with_retry(
         self,
@@ -188,8 +196,19 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_seconds = None
             exc_info = None
 
+            # Select a request limiter to use for this attempt
+            if (
+                response is not None
+                and response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+            ):
+                # Do not make concurrent requests when rate limited
+                limiter = self._rate_limited_retry_limiter
+            else:
+                limiter = asyncnullcontext()
+
             try:
-                response = await request()
+                async with limiter:
+                    response = await request()
             except retry_exceptions:
                 if try_count > self.RETRY_MAX:
                     raise
