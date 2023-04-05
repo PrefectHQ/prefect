@@ -52,7 +52,6 @@ Example:
 For usage details, see the [Task Runners](/concepts/task-runners/) documentation.
 """
 import abc
-import concurrent.futures
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -191,7 +190,7 @@ class SequentialTaskRunner(BaseTaskRunner):
 
     def __init__(self) -> None:
         super().__init__()
-        self._futures: Dict[str, State] = {}
+        self._results: Dict[str, State] = {}
 
     @property
     def concurrency_type(self) -> TaskConcurrencyType:
@@ -208,10 +207,10 @@ class SequentialTaskRunner(BaseTaskRunner):
         except BaseException as exc:
             result = await exception_to_crashed_state(exc)
 
-        self._futures[key] = result
+        self._results[key] = result
 
     async def wait(self, key: UUID, timeout: float = None) -> Optional[State]:
-        return self._futures[key]
+        return self._results[key]
 
 
 class ConcurrentTaskRunner(BaseTaskRunner):
@@ -236,7 +235,7 @@ class ConcurrentTaskRunner(BaseTaskRunner):
         # Runtime attributes
         self._task_group: anyio.abc.TaskGroup = None
         self._result_events: Dict[UUID, Event] = {}
-        self._results: Dict[UUID, concurrent.futures.Future] = {}
+        self._results: Dict[UUID, Any] = {}
         self._keys: Set[UUID] = set()
 
         super().__init__()
