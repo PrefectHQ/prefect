@@ -40,7 +40,7 @@ async def ls():
     recipes = {}
 
     for recipe in recipe_paths.iterdir():
-        if recipe.is_dir():
+        if recipe.is_dir() and (recipe / "prefect.yaml").exists():
             with open(recipe / "prefect.yaml") as f:
                 recipes[recipe.name] = yaml.safe_load(f).get(
                     "description", "(no description available)"

@@ -287,7 +287,7 @@ Your run should complete succsessfully, logs and all!  Note that the `-v` flag r
 !!! tip "Templating values"
     As a matter of best practice, you should avoid hardcoding the image name and tag in both your `prefect.yaml` and CLI. Instead, you should [use variable templating](/concepts/projects/#templating-options).
 
-#### A counterexample
+#### Dockerizing a local deployment
 
 Revisiting [our local deployment above](#local-deployment), let's begin by switching it to submit work to our `docker-work` work pool by re-running `prefect deploy` to see what happens:
 
