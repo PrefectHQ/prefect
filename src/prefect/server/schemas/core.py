@@ -550,6 +550,10 @@ class Deployment(ORMBaseModel):
         default_factory=dict,
         description="Parameters for flow runs scheduled by the deployment.",
     )
+    pull_steps: Optional[List[dict]] = Field(
+        default=None,
+        description="Pull steps for cloning and running this deployment.",
+    )
     tags: List[str] = Field(
         default_factory=list,
         description="A list of tags for the deployment",

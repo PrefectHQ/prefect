@@ -237,6 +237,7 @@ class DeploymentResponse(ORMBaseModel):
         schemas.core.Deployment
     )
     path: Optional[str] = FieldFrom(schemas.core.Deployment)
+    pull_steps: Optional[List[dict]] = FieldFrom(schemas.core.Deployment)
     entrypoint: Optional[str] = FieldFrom(schemas.core.Deployment)
     manifest_path: Optional[str] = FieldFrom(schemas.core.Deployment)
     storage_document_id: Optional[UUID] = FieldFrom(schemas.core.Deployment)

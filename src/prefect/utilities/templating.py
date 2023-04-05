@@ -69,7 +69,9 @@ def find_placeholders(template: T) -> Set[Placeholder]:
         raise ValueError(f"Unexpected type: {type(template)}")
 
 
-def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
+def apply_values(
+    template: T, values: Dict[str, Any], remove_notset: bool = True
+) -> Union[T, Type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
 
@@ -87,11 +89,12 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     If a template contains a placeholder that is not in `values`, UNSET will
     be returned to signify that no placeholder replacement occurred. If
     `template` is a dictionary that contains a key with a value of UNSET,
-    the key will be removed in the return value.
+    the key will be removed in the return value unless `remove_notset` is set to False.
 
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
+        remove_notset: If True, remove keys with an unset value
 
     Returns:
         The template with the values applied
@@ -124,15 +127,17 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     elif isinstance(template, dict):
         updated_template = {}
         for key, value in template.items():
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
                 updated_template[key] = updated_value
+            elif not remove_notset:
+                updated_template[key] = value
 
         return updated_template
     elif isinstance(template, list):
         updated_list = []
         for value in template:
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
         return updated_list
@@ -206,7 +211,11 @@ async def resolve_block_document_references(
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            return block_document.data
+            # Handling for system blocks like Secret that have a value field
+            # These blocks will be replaced by variables in the future and this
+            # logic can be removed at that time.
+            value = block_document.data.get("value", block_document.data)
+            return value
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"
