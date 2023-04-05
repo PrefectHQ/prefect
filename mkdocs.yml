@@ -115,6 +115,7 @@ nav:
         - Configuration: tutorials/flow-task-config.md
         - Execution: tutorials/execution.md
         - Orchestration: tutorials/orchestration.md
+        - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
@@ -126,6 +127,7 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
+        - Projects: concepts/projects.md
         - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md

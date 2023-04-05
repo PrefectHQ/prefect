@@ -1,0 +1,10 @@
+prefect-version: null
+name: null
+description: "Store project within git repository"
+
+build: null
+push: null
+pull:
+  - prefect.projects.steps.git_clone_project:
+      repository: "{{ repository }}"
+      branch: "{{ branch }}"
