@@ -53,7 +53,6 @@ async def ls():
             " a recipe."
         ),
         caption_style="red",
-        min_width=100,
     )
     table.add_column("Name", style="green", no_wrap=True)
     table.add_column("Description", justify="left", style="white", no_wrap=False)
