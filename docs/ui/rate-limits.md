@@ -23,7 +23,8 @@ Prefect Cloud enforces the following rate limits:
 
 Prefect Cloud limits creation of flow and task runs to: 
 
-- 2,000 per minute per account
+- 400 per minute for personal accounts
+- 2,000 per minute for organization accounts
 
 The Prefect Cloud API will return a `429` response with an appropriate `Retry-After` header if these limits are triggered.
 
