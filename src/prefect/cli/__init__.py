@@ -19,6 +19,7 @@ import prefect.cli.kubernetes
 import prefect.cli.server
 import prefect.cli.profile
 import prefect.cli.project
+import prefect.cli.variable
 import prefect.cli.work_queue
 import prefect.cli.work_pool
 import prefect.cli.worker
