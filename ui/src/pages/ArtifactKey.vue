@@ -18,7 +18,6 @@
     ArtifactDescription,
     ArtifactTimeline,
     localization,
-    capitalize,
     useWorkspaceApi
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -36,7 +35,7 @@
       return localization.info.artifact
     }
 
-    return `${localization.info.artifact}: ${artifact.value.key ?? capitalize(artifact.value.type)}`
+    return `${localization.info.artifact}: ${artifact.value.key}`
   })
 
   usePageTitle(pageTitle)
