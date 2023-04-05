@@ -1,5 +1,6 @@
 prefect-version: null
 name: null
+description: "Store project within a git repository and build a custom docker image for runtime"
 
 build:
   - prefect_docker.projects.steps.build_docker_image:

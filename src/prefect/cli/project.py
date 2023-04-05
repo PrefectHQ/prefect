@@ -4,6 +4,8 @@ Command line interface for working with projects.
 from pathlib import Path
 
 import typer
+import yaml
+from rich.table import Table
 
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
@@ -35,9 +37,30 @@ async def ls():
     recipe_paths = (
         Path(prefect.__root_path__) / "src" / "prefect" / "projects" / "recipes"
     )
-    recipes = [p.name for p in recipe_paths.iterdir() if p.is_dir()]
-    for recipe in recipes:
-        app.console.print(f"[green]{recipe}[/green]")
+    recipes = {}
+
+    for recipe in recipe_paths.iterdir():
+        if recipe.is_dir():
+            with open(recipe / "prefect.yaml") as f:
+                recipes[recipe.name] = yaml.safe_load(f).get(
+                    "description", "(no description available)"
+                )
+
+    table = Table(
+        title="Available project recipes",
+        caption=(
+            "Run `prefect project init --recipe <recipe>` to initialize a project with"
+            " a recipe."
+        ),
+        caption_style="red",
+        min_width=100,
+    )
+    table.add_column("Name", style="green", no_wrap=True)
+    table.add_column("Description", justify="right", style="white", no_wrap=True)
+    for name, description in sorted(recipes.items(), key=lambda x: x[0]):
+        table.add_row(name, description)
+
+    app.console.print(table)
 
 
 @project_app.command()
