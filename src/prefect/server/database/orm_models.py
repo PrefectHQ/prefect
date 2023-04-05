@@ -327,6 +327,21 @@ class ORMArtifactCollection:
 
     latest_id = sa.Column(UUID(), nullable=False)
 
+    task_run_id = sa.Column(
+        UUID(),
+        nullable=True,
+    )
+
+    flow_run_id = sa.Column(
+        UUID(),
+        nullable=True,
+    )
+
+    type = sa.Column(sa.String)
+    data = sa.Column(sa.JSON, nullable=True)
+    description = sa.Column(sa.String, nullable=True)
+    metadata_ = sa.Column(sa.JSON, nullable=True)
+
     @declared_attr
     def __table_args__(cls):
         return (
@@ -924,6 +939,16 @@ class ORMLog:
 
     # The client-side timestamp of this logged statement.
     timestamp = sa.Column(Timestamp(), nullable=False, index=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_log__flow_run_id_timestamp",
+                "flow_run_id",
+                "timestamp",
+            ),
+        )
 
 
 @declarative_mixin
