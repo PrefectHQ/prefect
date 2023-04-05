@@ -2390,6 +2390,32 @@ class PrefectClient:
             else:
                 raise
 
+    async def read_variable_by_name(self, name: str) -> Optional[schemas.core.Variable]:
+        """Reads a variable by name. Returns None if no variable is found."""
+        try:
+            response = await self._client.get(f"/variables/name/{name}")
+            return pydantic.parse_obj_as(schemas.core.Variable, response.json())
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == status.HTTP_404_NOT_FOUND:
+                return None
+            else:
+                raise
+
+    async def delete_variable_by_name(self, name: str):
+        """Deletes a variable by name."""
+        try:
+            await self._client.delete(f"/variables/name/{name}")
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                raise prefect.exceptions.ObjectNotFound(http_exc=e) from e
+            else:
+                raise
+
+    async def read_variables(self, limit: int = None) -> List[schemas.core.Variable]:
+        """Reads all variables."""
+        response = await self._client.post("/variables/filter", json={"limit": limit})
+        return pydantic.parse_obj_as(List[schemas.core.Variable], response.json())
+
     async def __aenter__(self):
         """
         Start the client.

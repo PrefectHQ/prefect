@@ -32,6 +32,7 @@ const workspaceRoutes = createWorkspaceRouteRecords({
   notificationEdit: () => import('@/pages/NotificationEdit.vue'),
   concurrencyLimit: () => import('@/pages/ConcurrencyLimit.vue'),
   concurrencyLimits: () => import('@/pages/ConcurrencyLimits.vue'),
+  variables: () => import('@/pages/Variables.vue'),
   workPool: () => import('@/pages/WorkPool.vue'),
   workPools: () => import('@/pages/WorkPools.vue'),
   workPoolCreate: () => import('@/pages/WorkPoolCreate.vue'),
