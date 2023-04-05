@@ -267,6 +267,52 @@ class TestCountArtifacts:
 
         assert count == 2
 
+    async def test_counting_artifacts_by_flow_name(self, flow_artifacts, session):
+        flow_name = flow_artifacts[0].name
+        result = await models.artifacts.count_artifacts(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ),
+        )
+        assert result == 2
+
+    async def test_counting_artifacts_by_deployment(
+        self, deployment_artifacts, session
+    ):
+        deployment_id = deployment_artifacts[0].deployment_id
+        result = await models.artifacts.count_artifacts(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+        )
+        assert result == 2
+
+    async def test_counting_latest_artifacts_by_flow_name(
+        self, flow_artifacts, session
+    ):
+        flow_name = flow_artifacts[0].name
+        result = await models.artifacts.count_latest_artifacts(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ),
+        )
+        assert result == 1
+
+    async def test_counting_latest_artifacts_by_deployment(
+        self, deployment_artifacts, session
+    ):
+        deployment_id = deployment_artifacts[0].deployment_id
+        result = await models.artifacts.count_latest_artifacts(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+        )
+        assert result == 1
+
 
 class TestUpdateArtifacts:
     @pytest.fixture
