@@ -10,6 +10,8 @@ export const mapFlagResponseToFeatureFlag: MapFunction<FlagResponse, FeatureFlag
       return 'access:work_pools'
     case 'artifacts':
       return 'access:artifacts'
+    case 'enable-variables':
+      return 'access:variables'
     default:
       return null
   }
