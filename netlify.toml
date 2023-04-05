@@ -65,7 +65,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/work-queues/"
-to = "/ui/work-pools/"
+to = "/cloud/work-pools/"
 status = 301
 
 [[redirects]]
@@ -75,14 +75,14 @@ status = 301
 
 [[redirects]]
 from = "/ui/cloud-getting-started/"
-to = "/ui/cloud-quickstart/"
+to = "/cloud/cloud-quickstart/"
 status = 301
 
 # redirects added 2023-03-21
 
 [[redirects]]
 from = "/ui/overview/"
-to = "/ui/"
+to = "/cloud/"
 status = 301
 
 [[redirects]]
@@ -162,7 +162,7 @@ status = 301
 
 [[redirects]]
 from = "/ui/flows-and-tasks/"
-to = "/ui/flows/"
+to = "/concepts/flows/"
 status = 301
 
 [[redirects]]
@@ -170,12 +170,7 @@ from = "/getting-started/overview/"
 to = "/"
 status = 301
 
-[[redirects]]
-from = "/cloud/"
-to = "/ui/cloud/"
-status = 301
-
-# redirects add from these locations 
+# redirects to add from these locations 
 # I think I can use * or splat - check netlifly docs
 # pages that don't carry over get added above explicitly
 # then splat the rest from ui/ to cloud/
@@ -203,6 +198,8 @@ status = 301
 #       - ui/events.md -> /cloud/events/
 #       - ui/troubleshooting -> /cloud/connecting/
 #       - ui/rate-limits.md -> /cloud/rate-limits/
+
+
 
 [[headers]]
 # Define which paths this specific [[headers]] block will cover.
