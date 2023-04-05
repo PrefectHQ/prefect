@@ -199,7 +199,7 @@ async def load_flow_from_flow_run(
         # TODO: allow for passing values between steps / stacking them
         output = {}
         for step in deployment.pull_steps:
-            output.update(run_step(step))
+            output.update(await run_step(step))
         if output.get("directory"):
             logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])

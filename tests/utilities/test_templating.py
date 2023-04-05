@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.blocks.core import Block
+from prefect.blocks.system import JSON, DateTime, Secret, String
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     PlaceholderType,
@@ -279,3 +280,24 @@ class TestResolveBlockDocumentReferences:
         result = await resolve_block_document_references(template)
 
         assert result == template
+
+    async def test_resolve_block_document_unpacks_system_blocks(self):
+        await JSON(value={"key": "value"}).save(name="json-block")
+        await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
+        await DateTime(value="2020-01-01T00:00:00").save(name="datetime-block")
+        await String(value="hello").save(name="string-block")
+
+        template = {
+            "json": "{{ prefect.blocks.json.json-block }}",
+            "secret": "{{ prefect.blocks.secret.secret-block }}",
+            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
+            "string": "{{ prefect.blocks.string.string-block }}",
+        }
+
+        result = await resolve_block_document_references(template)
+        assert result == {
+            "json": {"key": "value"},
+            "secret": "N1nj4C0d3rP@ssw0rd!",
+            "datetime": "2020-01-01T00:00:00",
+            "string": "hello",
+        }

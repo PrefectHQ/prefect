@@ -211,7 +211,11 @@ async def resolve_block_document_references(
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            return block_document.data
+            # Handling for system blocks like Secret that have a value field
+            # These blocks will be replaced by variables in the future and this
+            # logic can be removed at that time.
+            value = block_document.data.get("value", block_document.data)
+            return value
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"
