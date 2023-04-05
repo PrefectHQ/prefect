@@ -160,7 +160,7 @@ On success, the command returns the details of the newly created work pool, whic
 
 Each work pool has a base job template that allows the customization of the behavior of the worker executing flow runs from the work pool. 
 
-Each worker type is configured with a default base job template, making it is easy to get started with a work pool. The default base template defines fields that can be defined either as defaults on the work pool or defined on a deployment.
+Each worker type is configured with a default base job template, making it is easy to get started with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
 
 For example, if we create a `process` work pool via the CLI:
 
@@ -186,9 +186,9 @@ work_pool:
 ```
 
 !!! tip "Advanced Customization of the Base Job Template"
-    For advanced use cases, users can fully customize the base job template of a work pool via the 'Advanced' tab in the work pool create and edit forms. 
+    For advanced use cases, users can create work pools with fully customizable job templates; this customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
     
-    Advanced customization is useful for worker types that can support a high degree of customization. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization; in these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
     
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
@@ -308,12 +308,12 @@ As long as your deployment's infrastructure block supports it, you can use work 
 
 Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
 
-Workers are similar to agents, but offer greater configuration options and the ability to route work to specific execution environments.
+Workers are similar to agents, but offer better control over infrastructure configuration and the ability to route work to specific types of execution environments.
 
 Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will be scheduled.
 
 ### Worker Options
-Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool, but you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist.
+Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool, but you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
 
 Configuration parameters you can specify when starting a worker include:
 
