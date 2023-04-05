@@ -223,6 +223,8 @@ class LocalFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         async with await anyio.open_file(path, mode="wb") as f:
             await f.write(content)
+        # Leave path stringify to the OS
+        return str(path)
 
 
 class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
@@ -393,6 +395,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         with self.filesystem.open(path, "wb") as file:
             await run_sync_in_worker_thread(file.write, content)
+        return path
 
     @property
     def filesystem(self) -> fsspec.AbstractFileSystem:
