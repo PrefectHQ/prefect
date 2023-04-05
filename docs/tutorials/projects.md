@@ -20,7 +20,7 @@ Prefect projects are the recommended way to organize and manage Prefect deployme
 
 A project is a directory of code and configuration for your workflows that can be customized for portability.
 
-The main ingredients of a project are 3 files:
+The main components of a project are 3 files:
 
 - [`deployment.yaml`](/concepts/projects/#the-deployment-yaml-file): a YAML file that can be used to persist settings for one or more flow deployments
 - [`prefect.yaml`](/concepts/projects/#the-prefect-yaml-file): a YAML file that contains procedural instructions for how to build relevant artifacts for this project's deployments, push those artifacts, and retrieve them at runtime by a Prefect worker
