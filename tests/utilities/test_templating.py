@@ -1,6 +1,7 @@
 import pytest
 
 from prefect.blocks.core import Block
+from prefect.blocks.system import JSON, DateTime, Secret, String
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     PlaceholderType,
@@ -100,6 +101,11 @@ class TestApplyValues:
         values = {"first_name": "Alice", "age": 30}
         assert apply_values(template, values) == {"age": 30}
 
+    def test_apply_values_dictionary_with_null(self):
+        template = {"last_name": None, "age": "{{age}}"}
+        values = {"first_name": "Alice", "age": 30}
+        assert apply_values(template, values) == {"last_name": None, "age": 30}
+
     def test_apply_values_nested_dictionary_with_placeholders(self):
         template = {
             "name": {"first_name": "{{ first_name }}", "last_name": "{{ last_name }}"},
@@ -115,6 +121,26 @@ class TestApplyValues:
         template = {"name": NotSet, "age": "{{age}}"}
         values = {"age": 30}
         assert apply_values(template, values) == {"age": 30}
+
+    def test_apply_values_dictionary_with_NotSet_value_not_removed(self):
+        template = {"name": NotSet, "age": "{{age}}"}
+        values = {"age": 30}
+        assert apply_values(template, values, remove_notset=False) == {
+            "name": NotSet,
+            "age": 30,
+        }
+
+    def test_apply_values_nested_with_NotSet_value_not_removed(self):
+        template = [{"top_key": {"name": NotSet, "age": "{{age}}"}}]
+        values = {"age": 30}
+        assert apply_values(template, values, remove_notset=False) == [
+            {
+                "top_key": {
+                    "name": NotSet,
+                    "age": 30,
+                }
+            }
+        ]
 
     def test_apply_values_list_with_placeholders(self):
         template = [
@@ -254,3 +280,24 @@ class TestResolveBlockDocumentReferences:
         result = await resolve_block_document_references(template)
 
         assert result == template
+
+    async def test_resolve_block_document_unpacks_system_blocks(self):
+        await JSON(value={"key": "value"}).save(name="json-block")
+        await Secret(value="N1nj4C0d3rP@ssw0rd!").save(name="secret-block")
+        await DateTime(value="2020-01-01T00:00:00").save(name="datetime-block")
+        await String(value="hello").save(name="string-block")
+
+        template = {
+            "json": "{{ prefect.blocks.json.json-block }}",
+            "secret": "{{ prefect.blocks.secret.secret-block }}",
+            "datetime": "{{ prefect.blocks.date-time.datetime-block }}",
+            "string": "{{ prefect.blocks.string.string-block }}",
+        }
+
+        result = await resolve_block_document_references(template)
+        assert result == {
+            "json": {"key": "value"},
+            "secret": "N1nj4C0d3rP@ssw0rd!",
+            "datetime": "2020-01-01T00:00:00",
+            "string": "hello",
+        }
