@@ -28,7 +28,7 @@ RUN apt-get update && \
 RUN npm install -g npm@8
 
 # Install dependencies separately so they cache
-COPY ./ui/package*.json .
+COPY ./ui/package*.json ./
 RUN npm ci install
 
 # Build static UI files
