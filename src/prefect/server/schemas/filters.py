@@ -1728,3 +1728,123 @@ class ArtifactCollectionFilter(PrefectOperatorFilterBaseModel):
             filters.append(self.type.as_sql_filter(db))
 
         return filters
+
+
+class VariableFilterId(PrefectFilterBaseModel):
+    """Filter by `Variable.id`."""
+
+    any_: Optional[List[UUID]] = Field(
+        default=None, description="A list of variable ids to include"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.id.in_(self.any_))
+        return filters
+
+
+class VariableFilterName(PrefectFilterBaseModel):
+    """Filter by `Variable.name`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of variables names to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match variable names against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my_variable_%",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.name.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Variable.name.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class VariableFilterValue(PrefectFilterBaseModel):
+    """Filter by `Variable.value`."""
+
+    any_: Optional[List[str]] = Field(
+        default=None, description="A list of variables value to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match variable value against. This can include "
+            "SQL wildcard characters like `%` and `_`."
+        ),
+        example="my-value-%",
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Variable.value.in_(self.any_))
+        if self.like_ is not None:
+            filters.append(db.Variable.value.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class VariableFilterTags(PrefectOperatorFilterBaseModel):
+    """Filter by `Variable.tags`."""
+
+    all_: Optional[List[str]] = Field(
+        default=None,
+        example=["tag-1", "tag-2"],
+        description=(
+            "A list of tags. Variables will be returned only if their tags are a"
+            " superset of the list"
+        ),
+    )
+    is_null_: Optional[bool] = Field(
+        default=None, description="If true, only include Variables without tags"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        from prefect.server.utilities.database import json_has_all_keys
+
+        filters = []
+        if self.all_ is not None:
+            filters.append(json_has_all_keys(db.Variable.tags, self.all_))
+        if self.is_null_ is not None:
+            filters.append(
+                db.Variable.tags == [] if self.is_null_ else db.Variable.tags != []
+            )
+        return filters
+
+
+class VariableFilter(PrefectOperatorFilterBaseModel):
+    """Filter variables. Only variables matching all criteria will be returned"""
+
+    id: Optional[VariableFilterId] = Field(
+        default=None, description="Filter criteria for `Variable.id`"
+    )
+    name: Optional[VariableFilterName] = Field(
+        default=None, description="Filter criteria for `Variable.name`"
+    )
+    value: Optional[VariableFilterValue] = Field(
+        default=None, description="Filter criteria for `Variable.value`"
+    )
+    tags: Optional[VariableFilterTags] = Field(
+        default=None, description="Filter criteria for `Variable.tags`"
+    )
+
+    def _get_filter_list(self, db: "PrefectDBInterface") -> List:
+        filters = []
+
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter(db))
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter(db))
+        if self.value is not None:
+            filters.append(self.value.as_sql_filter(db))
+        if self.tags is not None:
+            filters.append(self.tags.as_sql_filter(db))
+        return filters

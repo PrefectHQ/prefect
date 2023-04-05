@@ -20,6 +20,7 @@ from . import (
     block_types,
     block_capabilities,
     collections,
+    variables,
     ui,
     root,
     # Server relies on all of the above routes
