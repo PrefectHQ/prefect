@@ -37,6 +37,9 @@ FLOW_RUN_NOTIFICATION_TEMPLATE_KWARGS = [
 
 DEFAULT_BLOCK_SCHEMA_VERSION = "non-versioned"
 
+MAX_VARIABLE_NAME_LENGTH = 255
+MAX_VARIABLE_VALUE_LENGTH = 5000
+
 
 def raise_on_invalid_name(name: str) -> None:
     """
@@ -1239,4 +1242,24 @@ class ArtifactCollection(ORMBaseModel):
     )
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
+    )
+
+
+class Variable(ORMBaseModel):
+    name: str = Field(
+        default=...,
+        description="The name of the variable",
+        example="my_variable",
+        max_length=MAX_VARIABLE_NAME_LENGTH,
+    )
+    value: str = Field(
+        default=...,
+        description="The value of the variable",
+        example="my-value",
+        max_length=MAX_VARIABLE_VALUE_LENGTH,
+    )
+    tags: List[str] = Field(
+        default_factory=list,
+        description="A list of variable tags",
+        example=["tag-1", "tag-2"],
     )
