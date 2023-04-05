@@ -147,6 +147,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
     # determine if in git repo or use directory name as a default
     is_git_based = False
     formatting_kwargs = {"directory": str(Path(".").absolute().resolve())}
+    dir_name = os.path.basename(os.getcwd())
 
     try:
         p = subprocess.check_output(
@@ -156,8 +157,6 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
         )
         formatting_kwargs["repository"] = p.decode().strip()
         is_git_based = True
-        name = name or "/".join(p.decode().strip().split("/")[-2:]).replace(".git", "")
-
         try:
             p = subprocess.check_output(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -169,10 +168,9 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
             formatting_kwargs["branch"] = "main"
 
     except subprocess.CalledProcessError:
-        dir_name = os.path.basename(os.getcwd())
-        name = name or dir_name
+        pass
 
-    formatting_kwargs["name"] = name
+    formatting_kwargs["name"] = dir_name
 
     has_dockerfile = Path("Dockerfile").exists()
 
@@ -194,12 +192,14 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
 
     configuration = configure_project_by_recipe(recipe=recipe, **formatting_kwargs)
 
+    project_name = name or dir_name
+
     files = []
     if create_default_ignore_file("."):
         files.append(".prefectignore")
     if create_default_deployment_yaml("."):
         files.append("deployment.yaml")
-    if create_default_project_yaml(".", name=name, contents=configuration):
+    if create_default_project_yaml(".", name=project_name, contents=configuration):
         files.append("prefect.yaml")
     if set_prefect_hidden_dir():
         files.append(".prefect/")
