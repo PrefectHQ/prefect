@@ -157,6 +157,48 @@ Once we edit the `null` fields to their desired values, this step will automatic
     Note that in the build step example above, we relied on the `prefect-docker` package; in cases that deal with external services, additional packages are often required and will be auto-installed for you.
 
 ### The Push Section
+
+The push section is most critical for situations in which code is not stored on persistent filesystems or in version control.  In this scenario, code is often pushed and pulled from a Cloud storage bucket of some kind (e.g., S3, GCS, Azure Blobs, etc.).  The push section allows users to specify and customize the logic for pushing this project to arbitrary remote locations. 
+
+For example, a user wishing to store their project in an S3 bucket and rely on default worker settings for its runtime environment could use the `s3` recipe:
+
+<div class="terminal">
+```bash
+$ prefect project init --recipe s3
+```
+</div>
+
+Inspecting our newly created `prefect.yaml` file we find that the `push` and `pull` sections have been templated out for us as follows:
+
+```yaml
+push:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: prefect-aws>=0.3.0
+      bucket: null
+      folder: project-name
+      credentials: null
+
+pull:
+  - prefect_aws.projects.steps.push_project_to_s3:
+      requires: prefect-aws>=0.3.0
+      bucket: null
+      folder: project-name
+      credentials: null
+```
+
+Note that for these steps to function properly, at a minimum we must provide a bucket name; as discussed above, if you are using [blocks](/concepts/blocks/), the credentials section can be templated with a block reference for secure and dynamic credentials access:
+
+```yaml
+push:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: prefect-aws>=0.3.0
+      bucket: null
+      folder: project-name
+      credentials: "{{ prefect.blocks.aws-credentials.dev-credentials }}"
+```
+
+Anytime you run `prefect deploy`, this `push` section will be executed upon successful completion of your `build` section. For more information on the mechanics of steps, [see below](#deployment-mechanics).
+
 ### The Pull Section
 
 The pull section is the most important section within the `prefect.yaml` file as it contains instructions for preparing this project for a deployment run.  These instructions will be executed each time a deployment created wthin this project is run via a worker.
