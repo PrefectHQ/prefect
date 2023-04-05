@@ -399,6 +399,13 @@ async def deploy(
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(base_deploy["flow_name"])
 
+        if base_deploy["work_pool"]:
+            work_pool = await client.read_work_pool(base_deploy["work_pool"])
+
+            # dont allow submitting to prefect-agent typed work pools
+            if work_pool.type == "prefect-agent":
+                exit_with_error("Cannot submit to a work pool of type 'prefect-agent'.")
+
         deployment_id = await client.create_deployment(
             flow_id=flow_id,
             name=base_deploy["name"],
