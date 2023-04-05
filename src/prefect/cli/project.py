@@ -56,7 +56,7 @@ async def ls():
         min_width=100,
     )
     table.add_column("Name", style="green", no_wrap=True)
-    table.add_column("Description", justify="right", style="white", no_wrap=True)
+    table.add_column("Description", justify="left", style="white", no_wrap=False)
     for name, description in sorted(recipes.items(), key=lambda x: x[0]):
         table.add_row(name, description)
 
