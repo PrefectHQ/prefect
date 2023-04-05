@@ -1668,13 +1668,7 @@ class TestArtifacts:
         }
 
     async def test_read_artifacts_with_latest_filter(self, orion_client, artifacts):
-        latest_artifact_filter = schemas.filters.ArtifactFilter(
-            is_latest=schemas.filters.ArtifactFilterLatest(is_latest=True)
-        )
-
-        artifact_list = await orion_client.read_artifacts(
-            artifact_filter=latest_artifact_filter
-        )
+        artifact_list = await orion_client.read_latest_artifacts()
 
         assert len(artifact_list) == 2
         keyed_data = {(r.key, r.data) for r in artifact_list}

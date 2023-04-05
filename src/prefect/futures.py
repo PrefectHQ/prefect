@@ -283,7 +283,7 @@ class PrefectFuture(Generic[R, A]):
         #       future is created in a separate event loop i.e. when a sync task is
         #       called in an async flow
         if not asyncio.get_running_loop() == self._loop:
-            while not self.task_run:
+            while not self._submitted.is_set():
                 await anyio.sleep(0)
         else:
             await self._submitted.wait()
