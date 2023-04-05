@@ -7,13 +7,33 @@ from prefect.client.orchestration import get_client
 
 
 def get(name: str, default: str = None) -> Optional[str]:
-    """Get a variable by name from a sync context"""
+    """
+    Get a variable by name from a sync context.
+
+    ```
+        from prefect import variables
+
+        @flow
+        def my_flow():
+            var = variables.get("my_var")
+    ```
+    """
     variable = get_variable_by_name(name)
     return variable.value if variable else default
 
 
 async def aget(name: str, default: str = None) -> Optional[str]:
-    """Get a variable by name from an async context"""
+    """
+    Get a variable by name from an async context.
+
+    ```
+        from prefect import variables
+
+        @flow
+        async def my_flow():
+            var = await variables.aget("my_var")
+    ```
+    """
     variable = await _get_variable_by_name(name)
     return variable.value if variable else default
 
@@ -34,6 +54,17 @@ def get_variable_by_name(name: str):
 
 class VariablesModule(ModuleType):
     def __getitem__(self, name) -> Optional[str]:
+        """
+        Get a variable via subscripting.
+
+        ```
+            from prefect import variables
+
+            @flow
+            def my_flow():
+                var = variables["my_var"]
+        ```
+        """
         variable = get_variable_by_name(name)
         return variable.value if variable else None
 
