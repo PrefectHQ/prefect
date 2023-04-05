@@ -277,6 +277,26 @@ def default_ui_api_url(settings, value):
     )(settings, value)
 
 
+def status_codes_as_integers_in_range(_, value):
+    """
+    `value_callback` for `PREFECT_CLIENT_RETRY_EXTRA_CODES` that ensures status codes
+    are integers in the range 100-599.
+    """
+    if value == "":
+        return set()
+
+    values = {v.strip() for v in value.split(",")}
+
+    if any(not v.isdigit() or int(v) < 100 or int(v) > 599 for v in values):
+        raise ValueError(
+            "PREFECT_CLIENT_RETRY_EXTRA_CODES must be a comma separated list of "
+            "integers between 100 and 599."
+        )
+
+    values = {int(v) for v in values}
+    return values
+
+
 def template_with_settings(*upstream_settings: Setting) -> Callable[["Settings", T], T]:
     """
     Returns a `value_callback` that will template the given settings into the runtime
@@ -523,6 +543,15 @@ client requests. Higher values introduce larger amounts of jitter.
 
 Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter
 can affect retry lengths.
+"""
+
+PREFECT_CLIENT_RETRY_EXTRA_CODES = Setting(
+    str, default="", value_callback=status_codes_as_integers_in_range
+)
+"""
+A comma-separated list of extra HTTP status codes to retry on. Defaults to an empty string.
+429 and 503 are always retried. Please note that not all routes are idempotent and retrying
+may result in unexpected behavior.
 """
 
 PREFECT_CLOUD_API_URL = Setting(
