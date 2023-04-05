@@ -248,6 +248,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_codes={
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 status.HTTP_503_SERVICE_UNAVAILABLE,
+                status.HTTP_502_BAD_GATEWAY,
                 *PREFECT_CLIENT_RETRY_EXTRA_CODES.value(),
             },
             retry_exceptions=(
