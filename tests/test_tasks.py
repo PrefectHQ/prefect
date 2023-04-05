@@ -2652,7 +2652,7 @@ class TestTaskMap:
 
         @flow
         def my_flow():
-            futures = TestTaskMap.add_one.map(generate_numbers())
+            futures = TestTaskMap.add.map(generate_numbers())
             assert all(isinstance(f, PrefectFuture) for f in futures)
             return futures
 
@@ -2668,6 +2668,26 @@ class TestTaskMap:
         def my_flow():
             numbers_state = some_numbers._run()
             return TestTaskMap.add_one.map(numbers_state)
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_can_take_quoted_iterable_as_input(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_together.map(quote(1), [1, 2, 3])
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
+
+        task_states = my_flow()
+        assert [state.result() for state in task_states] == [2, 3, 4]
+
+    def test_does_not_treat_quote_as_iterable(self):
+        @flow
+        def my_flow():
+            futures = TestTaskMap.add_one.map(quote([1, 2, 3]))
+            assert all(isinstance(f, PrefectFuture) for f in futures)
+            return futures
 
         task_states = my_flow()
         assert [state.result() for state in task_states] == [2, 3, 4]
