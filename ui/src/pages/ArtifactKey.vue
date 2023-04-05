@@ -26,9 +26,9 @@
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
-  const artifactId = useRouteParam('artifactId')
+  const artifactKey = useRouteParam('artifactKey')
 
-  const artifactSubscription = useSubscription(api.artifacts.getArtifact, [artifactId])
+  const artifactSubscription = useSubscription(api.artifacts.getArtifactCollection, [artifactKey])
   const artifact = computed(() => artifactSubscription.response)
 
   const pageTitle = computed<string>(() => {
