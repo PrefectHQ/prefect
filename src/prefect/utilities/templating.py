@@ -232,6 +232,20 @@ async def resolve_block_document_references(
 
 @inject_client
 async def resolve_variables(template: T, client: "PrefectClient" = None):
+    """
+    Resolve variables in a template by replacing each variable placeholder with the
+    value of the variable.
+
+    Recursively searches for variable placeholders in dictionaries and lists.
+
+    Strips variable placeholders if the variable is not found.
+
+    Args:
+        template: The template to resolve variables in
+
+    Returns:
+        The template with variables resolved
+    """
     if isinstance(template, str):
         placeholders = find_placeholders(template)
         has_variable_placeholder = any(
@@ -243,19 +257,25 @@ async def resolve_variables(template: T, client: "PrefectClient" = None):
         elif (
             len(placeholders) == 1
             and list(placeholders)[0].full_match == template
-            and list(placeholders)[0].type is PlaceholderType.STANDARD
+            and list(placeholders)[0].type is PlaceholderType.VARIABLE
         ):
             variable_name = list(placeholders)[0].name.replace(
                 VARIABLE_PLACEHOLDER_PREFIX, ""
             )
             variable = await client.read_variable_by_name(name=variable_name)
-            return variable.value
+            if variable is None:
+                return ""
+            else:
+                return variable.value
         else:
             for full_match, name, placeholder_type in placeholders:
-                if placeholder_type is PlaceholderType.STANDARD:
+                if placeholder_type is PlaceholderType.VARIABLE:
                     variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
                     variable = await client.read_variable_by_name(name=variable_name)
-                    template = template.replace(full_match, variable.value)
+                    if variable is None:
+                        template = template.replace(full_match, "")
+                    else:
+                        template = template.replace(full_match, variable.value)
             return template
     elif isinstance(template, dict):
         return {
