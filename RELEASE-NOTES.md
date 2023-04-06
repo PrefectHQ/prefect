@@ -22,7 +22,7 @@ When adding a custom variable you provide a schema specifying allowed values:
 
 Then you use can use the custom variable in the infrastructure settings:
 
-![Templating the custom variable in the infrastructure settings](https://user-images.githubusercontent.com/2586601/230466019-ab1dc505-7d3b-480d-81eb-65f8c3659031.png)
+![Templating the custom variable in the infrastructure settings](https://user-images.githubusercontent.com/2586601/230464903-c1711ca5-2142-4dfc-b28c-5791b913d24f.png)
 
 A setting for the variable is then available with a rich editor:
 
