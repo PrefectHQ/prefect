@@ -18,7 +18,7 @@ While variable values are most commonly loaded during flow runtime, they can be 
 
 ## Managing variables
 
-You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must:
+You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must adhere to traditional variable naming conventions:
 
 - have less than or equal to 255 characters.
 - only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
