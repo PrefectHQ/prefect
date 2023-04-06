@@ -166,7 +166,9 @@ A base job template comprises a `job_configuration` section and a `variables` se
 
 The `variables` section defines the fields available to be customized per deployment. The `variables` section follows the [OpenAPI specification](https://swagger.io/specification/), which allows work pool creators to place limits on provided values (type, minimum, maximum, etc.). 
 
-The job configuration section defines how values provided for fields in the variables section should be translated to the configuration given to a worker when executing a flow run. The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
+The job configuration section defines how values provided for fields in the variables section should be translated into the configuration given to a worker when executing a flow run. 
+
+The values in the `job_configuration` can use placeholders to reference values provided in the `variables` section. Placeholders are declared using double curly braces, e.g., `{{ variable_name }}`. `job_configuration` values can also be hard-coded if the value should not be customizable.
 
 Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
 
@@ -180,7 +182,7 @@ We see these configuration options available in the Prefect UI:
 ![process work pool configuration options](../img/ui/process-work-pool-config.png)
 
 
-For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether or not the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
+For a `process` work pool with the default base job template, we can set environment variables for spawned processes, set the working directory to execute flows, and control whether the flow run output is streamed to workers' standard output. You can also see an example of JSON formatted base job template with the 'Advanced' tab.
 
 You can override each of these attributes on a per-deployment basis. When deploying a project, you can specify these overrides in the `work_pool.job_variables` section of a `deployment.yaml`.
 
@@ -194,9 +196,9 @@ work_pool:
 ```
 
 !!! tip "Advanced Customization of the Base Job Template"
-    For advanced use cases, users can create work pools with fully customizable job templates; this customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
+    For advanced use cases, users can create work pools with fully customizable job templates. This customization is available when creating or editing a work pool on the 'Advanced' tab within the UI.
     
-    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization; in these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
+    Advanced customization is useful anytime the underlying infrastructure supports a high degree of customization. In these scenarios a work pool job template allows you to expose a minimal and easy-to-digest set of options to deployment authors.  Additionally, these options are the _only_ customizable aspects for deployment infrastructure, which can be useful for restricting functionality in secure environments. For example, the `kubernetes` worker type allows users to specify a custom job template that can be used to configure the manifest that workers use to create jobs for flow execution. 
     
     For more information and advanced configuration examples, see the [Kubernetes Worker](https://prefecthq.github.io/prefect-kubernetes/worker/) documentation.
 
@@ -316,12 +318,12 @@ As long as your deployment's infrastructure block supports it, you can use work 
 
 Workers are lightweight polling services that retrieve scheduled runs from a work pool and execute them.
 
-Workers are similar to agents, but offer better control over infrastructure configuration and the ability to route work to specific types of execution environments.
+Workers are similar to agents, but offer greater control over infrastructure configuration and the ability to route work to specific types of execution environments.
 
-Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will be scheduled.
+Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will run.
 
 ### Worker Options
-Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool, but you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
+Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool. Alternatively, you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
 
 Configuration parameters you can specify when starting a worker include:
 
