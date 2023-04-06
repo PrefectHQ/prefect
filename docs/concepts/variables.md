@@ -29,6 +29,8 @@ You can see all the variables in your Prefect Server instance or Prefect Cloud w
 
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
+![Screenshot 2023-04-06 at 11 01 37 AM](https://user-images.githubusercontent.com/3407835/230419665-b02587d4-c461-4fec-85ab-6f3261168cfa.png)
+
 ### Via the REST API
 
 Variables can be created and deleted via the REST API. You can also set and get variables via the API with either the variable name or ID. See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for more information.
