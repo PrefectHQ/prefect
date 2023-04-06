@@ -18,7 +18,6 @@
     ArtifactDescription,
     ArtifactTimeline,
     localization,
-    capitalize,
     useWorkspaceApi
   } from '@prefecthq/prefect-ui-library'
   import { useSubscription, useRouteParam } from '@prefecthq/vue-compositions'
@@ -26,9 +25,9 @@
   import { usePageTitle } from '@/compositions/usePageTitle'
 
   const api = useWorkspaceApi()
-  const artifactId = useRouteParam('artifactId')
+  const artifactKey = useRouteParam('artifactKey')
 
-  const artifactSubscription = useSubscription(api.artifacts.getArtifact, [artifactId])
+  const artifactSubscription = useSubscription(api.artifacts.getArtifactCollection, [artifactKey])
   const artifact = computed(() => artifactSubscription.response)
 
   const pageTitle = computed<string>(() => {
@@ -36,7 +35,7 @@
       return localization.info.artifact
     }
 
-    return `${localization.info.artifact}: ${artifact.value.key ?? capitalize(artifact.value.type)}`
+    return `${localization.info.artifact}: ${artifact.value.key}`
   })
 
   usePageTitle(pageTitle)

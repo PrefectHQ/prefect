@@ -4,24 +4,10 @@ import pytest
 
 import prefect
 from prefect.client.orchestration import PrefectClient
-from prefect.settings import (
-    PREFECT_EXPERIMENTAL_ENABLE_WORKERS,
-    PREFECT_WORKER_PREFETCH_SECONDS,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_WORKER_PREFETCH_SECONDS, temporary_settings
 from prefect.testing.cli import invoke_and_assert
 from prefect.testing.utilities import MagicMock
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_workers(enable_workers):
-    """
-    Enable workers for testing
-    """
-    assert PREFECT_EXPERIMENTAL_ENABLE_WORKERS
-    # Import to register worker CLI
-    import prefect.experimental.cli.worker  # noqa
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -70,9 +56,7 @@ async def test_start_worker_creates_work_pool(orion_client: PrefectClient):
 
 def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",
@@ -98,9 +82,7 @@ def test_start_worker_with_work_queue_names(monkeypatch, process_work_pool):
 
 def test_start_worker_with_prefetch_seconds(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",
@@ -126,9 +108,7 @@ def test_start_worker_with_prefetch_seconds(monkeypatch):
 
 def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     with temporary_settings({PREFECT_WORKER_PREFETCH_SECONDS: 100}):
         invoke_and_assert(
             command=[
@@ -153,9 +133,7 @@ def test_start_worker_with_prefetch_seconds_from_setting_by_default(monkeypatch)
 
 def test_start_worker_with_limit(monkeypatch):
     mock_worker = MagicMock()
-    monkeypatch.setattr(
-        prefect.experimental.cli.worker, "lookup_type", lambda x, y: mock_worker
-    )
+    monkeypatch.setattr(prefect.cli.worker, "lookup_type", lambda x, y: mock_worker)
     invoke_and_assert(
         command=[
             "worker",

@@ -80,7 +80,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool(
-        self, patch_import, tmp_path, process_work_pool, enable_workers
+        self, patch_import, tmp_path, process_work_pool
     ):
         Deployment.build_from_flow(
             flow=my_flow,
@@ -105,7 +105,7 @@ class TestOutputMessages:
         )
 
     def test_message_with_process_work_pool_without_workers_enabled(
-        self, patch_import, tmp_path, process_work_pool
+        self, patch_import, tmp_path, process_work_pool, disable_workers
     ):
         Deployment.build_from_flow(
             flow=my_flow,
