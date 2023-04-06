@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 import alembic.script
@@ -200,6 +201,129 @@ async def test_backfill_state_name(db, flow):
             assert (
                 expected_task_runs == task_runs
             ), "state_name is backfilled for task runs"
+
+    finally:
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+
+async def test_backfill_artifacts(db):
+    """
+    Tests that the backfill_artifacts migration works as expected
+    """
+    connection_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    dialect = get_dialect(connection_url)
+
+    # get the proper migration revisions
+    if dialect.name == "postgresql":
+        revisions = ("310dda75f561", "15f5083c16bd")
+    else:
+        revisions = ("3d46e23593d6", "2dbcec43c857")
+
+    # insert some artifacts into the database
+    artifacts = [
+        {
+            "id": uuid4(),
+            "key": "foo",
+            "data": {"value": 1},
+            "description": "Artifact 1",
+            "flow_run_id": uuid4(),
+            "task_run_id": uuid4(),
+            "type": "type1",
+        },
+        {
+            "id": uuid4(),
+            "key": "bar",
+            "data": {"value": 2},
+            "description": "Artifact 2",
+            "flow_run_id": uuid4(),
+            "task_run_id": uuid4(),
+            "type": "type2",
+        },
+        {
+            "id": uuid4(),
+            "key": "voltaic",
+            "data": {"value": 3},
+            "description": "Artifact 3",
+            "flow_run_id": uuid4(),
+            "task_run_id": uuid4(),
+            "type": "type3",
+        },
+        {
+            "id": uuid4(),
+            "key": "lotus",
+            "data": {"value": 4},
+            "description": "Artifact 4",
+            "flow_run_id": uuid4(),
+            "task_run_id": uuid4(),
+            "type": "type4",
+        },
+        {
+            "id": uuid4(),
+            "key": "treasure",
+            "data": {"value": 5},
+            "description": "Artifact 5",
+            "flow_run_id": uuid4(),
+            "task_run_id": uuid4(),
+            "type": "type5",
+        },
+    ]
+    try:
+        # downgrade to the previous revision
+        await run_sync_in_worker_thread(alembic_downgrade, revision=revisions[0])
+        session = await db.session()
+        async with session:
+            for artifact in artifacts:
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO artifact (id, key, data, description,"
+                        " flow_run_id, task_run_id, type) VALUES"
+                        f" ('{artifact['id']}', '{artifact['key']}',"
+                        f" '{json.dumps(artifact['data'])}',"
+                        f" '{artifact['description']}', '{artifact['flow_run_id']}',"
+                        f" '{artifact['task_run_id']}', '{artifact['type']}')"
+                    )
+                )
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO artifact_collection (key, id, latest_id) VALUES"
+                        f" ('{artifact['key']}', '{uuid4()}', '{artifact['id']}')"
+                    )
+                )
+                await session.commit()
+
+        # run the migration that should backfill the artifact_collection table
+        await run_sync_in_worker_thread(alembic_upgrade, revision=revisions[1])
+
+        # check to see if the migration worked
+        session = await db.session()
+        async with session:
+            for artifact in artifacts:
+                result = (
+                    await session.execute(
+                        sa.text(
+                            "SELECT flow_run_id, task_run_id, type, description"
+                            " FROM artifact_collection WHERE latest_id ="
+                            f" '{artifact['id']}'"
+                        )
+                    )
+                ).first()
+
+                result = (
+                    str(result[0]),
+                    str(result[1]),
+                    result[2],
+                    result[3],
+                )
+
+                expected_result = (
+                    str(artifact["flow_run_id"]),
+                    str(artifact["task_run_id"]),
+                    artifact["type"],
+                    artifact["description"],
+                )
+                assert (
+                    result == expected_result
+                ), "data migration populates artifact_collection table"
 
     finally:
         await run_sync_in_worker_thread(alembic_upgrade)
