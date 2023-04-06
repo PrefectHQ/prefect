@@ -1,13 +1,17 @@
+from typing import Any, Dict
+
 import pytest
 
 from prefect.blocks.core import Block
 from prefect.blocks.system import JSON, DateTime, Secret, String
+from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.templating import (
     PlaceholderType,
     apply_values,
     find_placeholders,
     resolve_block_document_references,
+    resolve_variables,
 )
 
 
@@ -301,3 +305,102 @@ class TestResolveBlockDocumentReferences:
             "datetime": "2020-01-01T00:00:00",
             "string": "hello",
         }
+
+
+class TestResolveVariables:
+    @pytest.fixture
+    async def variables(self, orion_client: PrefectClient):
+        await orion_client._client.post(
+            "/variables/", json={"name": "test_variable_1", "value": "test_value_1"}
+        )
+        await orion_client._client.post(
+            "/variables/", json={"name": "test_variable_2", "value": "test_value_2"}
+        )
+
+    async def test_resolve_string_no_placeholders(self, orion_client: PrefectClient):
+        template = "This is a simple string."
+        result = await resolve_variables(template, client=orion_client)
+        assert result == template
+
+    async def test_resolve_string_with_standard_placeholder(
+        self, variables, orion_client: PrefectClient
+    ):
+        template = (
+            "This is a string with a placeholder: {{"
+            " prefect.variables.test_variable_1 }}."
+        )
+        expected = "This is a string with a placeholder: test_value_1."
+        result = await resolve_variables(template, client=orion_client)
+        assert result == expected
+
+    async def test_resolve_string_with_multiple_standard_placeholders(
+        self, variables, orion_client: PrefectClient
+    ):
+        template = (
+            "{{ prefect.variables.test_variable_1}} - {{"
+            " prefect.variables.test_variable_2 }}"
+        )
+        expected = "test_value_1 - test_value_2"
+        result = await resolve_variables(template, client=orion_client)
+        assert result == expected
+
+    async def test_resolve_dict(self, variables, orion_client: PrefectClient):
+        template: Dict[str, Any] = {
+            "key1": "value1",
+            "key2": "{{ prefect.variables.test_variable_1}}",
+        }
+        expected = {"key1": "value1", "key2": "test_value_1"}
+        result = await resolve_variables(template, client=orion_client)
+        assert result == expected
+
+    async def test_resolve_nested_dict(self, variables, orion_client: PrefectClient):
+        template: Dict[str, Any] = {
+            "key1": "value1",
+            "key2": "{{ prefect.variables.test_variable_1}}",
+            "key3": {"key4": "{{ prefect.variables.test_variable_2}}"},
+        }
+        expected = {
+            "key1": "value1",
+            "key2": "test_value_1",
+            "key3": {"key4": "test_value_2"},
+        }
+        result = await resolve_variables(template, client=orion_client)
+        assert result == expected
+
+    async def test_resolve_list(self, variables, orion_client: PrefectClient):
+        template = ["value1", "{{ prefect.variables.test_variable_1}}", 42]
+        expected = ["value1", "test_value_1", 42]
+        result = await resolve_variables(template, client=orion_client)
+        assert result == expected
+
+    async def test_resolve_non_string_types(self, orion_client: PrefectClient):
+        template = 42
+        result = await resolve_variables(template, client=orion_client)
+        assert result == template
+
+    async def test_resolve_does_not_template_other_placeholder_types(
+        self, orion_client: PrefectClient
+    ):
+        template = {
+            "key": "{{ another_placeholder }}",
+            "key2": "{{ prefect.blocks.arbitraryblock.arbitrary-block }}",
+        }
+        result = await resolve_variables(template, client=orion_client)
+        assert result == template
+
+    async def test_resolve_clears_placeholder_for_missing_variable(
+        self, orion_client: PrefectClient
+    ):
+        template = "{{ prefect.variables.missing_variable }}"
+        result = await resolve_variables(template, client=orion_client)
+        assert result == ""
+
+    async def test_resolve_clears_placeholders_for_missing_variables(
+        self, orion_client: PrefectClient
+    ):
+        template = (
+            "{{ prefect.variables.missing_variable_1 }} - {{"
+            " prefect.variables.missing_variable_2 }}"
+        )
+        result = await resolve_variables(template, client=orion_client)
+        assert result == " - "
