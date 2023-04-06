@@ -7,7 +7,7 @@ tags:
 
 # Variables
 
-Variables enable you to store and reuse non-sensitive bits of data, often configuration information. Variables are dynamic-named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
+Variables enable you to store and reuse non-sensitive bits of data, often configuration information. Variables are named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
 
 Variables can be created or modified at any time, but are intended for values with infrequent writes and frequent reads. Variable values may be cached for quicker retrieval.
 
