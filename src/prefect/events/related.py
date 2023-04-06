@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
 from uuid import UUID
 
 from .schemas import RelatedResource
@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from prefect.client.schemas import FlowRun
     from prefect.server.schemas.core import Flow
 
-related_resource_cache: dict[UUID, Tuple[Optional["FlowRun"], Optional["Flow"]]] = {}
+related_resource_cache: Dict[UUID, Tuple[Optional["FlowRun"], Optional["Flow"]]] = {}
 
 
 async def related_resources_from_run_context(
