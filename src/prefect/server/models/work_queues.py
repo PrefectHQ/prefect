@@ -331,10 +331,7 @@ async def _legacy_get_runs_in_work_queue(
 
 @inject_db
 async def _ensure_work_queue_exists(
-    session: AsyncSession,
-    name: str,
-    db: PrefectDBInterface,
-    work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME,
+    session: AsyncSession, name: str, db: PrefectDBInterface
 ):
     """
     Checks if a work queue exists and creates it if it does not.
@@ -344,15 +341,15 @@ async def _ensure_work_queue_exists(
     Will also create a work pool queue in the default agent pool to facilitate migration to work pools.
     """
     # read work queue
-    work_queue = await models.workers.read_work_queue_by_name(
-        session=session, work_queue_name=name, work_pool_name=work_pool_name
+    work_queue = await models.work_queues.read_work_queue_by_name(
+        session=session, name=name
     )
     if not work_queue:
-        work_pool = await models.workers.read_work_pool_by_name(
-            session=session, work_pool_name=work_pool_name
+        default_pool = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
         )
 
-        if work_pool is None and work_pool_name == DEFAULT_AGENT_WORK_POOL_NAME:
+        if default_pool is None:
             work_queue = await models.work_queues.create_work_queue(
                 session=session,
                 work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
@@ -361,12 +358,12 @@ async def _ensure_work_queue_exists(
             if name != "default":
                 work_queue = await models.workers.create_work_queue(
                     session=session,
-                    work_pool_id=work_pool.id,
+                    work_pool_id=default_pool.id,
                     work_queue=schemas.actions.WorkQueueCreate(name=name, priority=1),
                 )
             else:
                 work_queue = await models.work_queues.read_work_queue(
-                    session=session, work_queue_id=work_pool.default_queue_id
+                    session=session, work_queue_id=default_pool.default_queue_id
                 )
 
     return work_queue
