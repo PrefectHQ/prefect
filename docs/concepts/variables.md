@@ -5,13 +5,14 @@ tags:
 
 # Variables
 
-Variables are dynamic-named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
+Variables enable you to store and reuse non-sensitive bits of data, often configuration information. Variables are dynamic-named, mutable string values, much like environment variables. Variables are scoped to a Prefect Server instance or a single workspace in Prefect Cloud.
 
 Variables can be created or modified at any time, but are intended for values with infrequent writes and frequent reads. Variable values may be cached for quicker retrival.
 
 While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect services, such as workers.
 
 ## Manging variables
+
 You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must:
 - have less than or equal to 255 characters.
 - only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
@@ -29,16 +30,20 @@ You can see all the variables in your Prefect Server instance or Prefect Cloud w
 To create a new variable, select the **+** button next to the header of the **Variables** page. Enter the name and value of the variable.
 
 ### Via the REST API
+
 Variables can be created and deleted via the REST API. You can also set and get variables via the API with either the variable name or ID. See the [REST reference](https://app.prefect.cloud/api/docs#tag/Variables) for more information.
 
 ### Via the CLI
+
 You can list, inspect, and delete variables via the command line interface with the `prefect variable ls`, `prefect variable inspect <name>`, and `prefect variable delete <name>` commands, respectively.
 
 ## Accessing variables
+
 In addition to the UI and API, variables can be referenced in code and in certain Prefect configuration files.
 
 ### In Python code
-You can access any variable via the Python SDK.
+
+You can access any variable via the Python SDK. If you attempt to reference a varible that does not exist, the method will return `None`.
 
 ```python
 from prefect import variables
