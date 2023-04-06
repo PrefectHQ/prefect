@@ -79,7 +79,7 @@ Now, when you visit the Prefect documentation site, you'll see a version selecto
 
 
 ### Breaking Changes
-- Some unsused options for sorting logs have been removed from the API — https://github.com/PrefectHQ/prefect/pull/7873
+- Some unused options for sorting logs have been removed from the API — https://github.com/PrefectHQ/prefect/pull/7873
 
 ### Enhancements
 - Add artifacts view to flow run page — https://github.com/PrefectHQ/prefect/pull/9109
