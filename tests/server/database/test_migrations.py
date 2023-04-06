@@ -313,12 +313,21 @@ async def test_backfill_artifacts(db):
                         )
                     )
                 ).first()
+
+                result = (
+                    str(result[0]),
+                    str(result[1]),
+                    result[2],
+                    result[3],
+                    json.loads(result[4]),
+                )
+
                 expected_result = (
                     str(artifact["flow_run_id"]),
                     str(artifact["task_run_id"]),
                     artifact["type"],
                     artifact["description"],
-                    json.dumps(artifact["metadata_"]),
+                    artifact["metadata_"],
                 )
                 assert (
                     result == expected_result
