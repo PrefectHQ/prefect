@@ -76,7 +76,7 @@ See the new [variables concept doc](https://docs.prefect.io/latest/concepts/vari
 
 ### Events
 
-Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as the primary unit of observability in Prefect Cloud, Prefect will now emit events for all block method calls by default. These events can be viewed in the Event feed, allowing you to analyze the interactions your flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, you can trigger automations based on these events. For example, you can create an automation that is triggered when a file is uploaded to a storage location.
+Continuing the rollout of events[https://docs.prefect.io/concepts/events-and-resources/] as the primary unit of observability in Prefect Cloud, Prefect will now emit events for all block method calls by default. These events can be viewed in the Event feed, allowing you to analyze the interactions your flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, you can trigger automations based on these events. For example, you can create an automation that is triggered when a file is uploaded to a storage location.
 
 ![image](https://user-images.githubusercontent.com/26799928/230421783-997e4fda-a02f-4bf4-88e1-f51a2f890cf5.png)
 
