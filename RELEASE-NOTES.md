@@ -56,6 +56,8 @@
 - Improve performance of artifact retrieval — https://github.com/PrefectHQ/prefect/pull/9061 / https://github.com/PrefectHQ/prefect/pull/9064
 - Add `--type` option to create work-pool CLI — https://github.com/PrefectHQ/prefect/pull/8993
 - Improve flow run timeline performance - https://github.com/PrefectHQ/prefect-ui-library/pull/1315
+- Add flow names to sub flows on the flow run timeline graph - https://github.com/PrefectHQ/prefect-ui-library/pull/1304
+
 ### Fixes
 - Fix bug where iterable defaults were treated as mapped parameters — https://github.com/PrefectHQ/prefect/pull/9021
 - Fix sequential execution with mapped tasks using the SequentialTaskRunner — https://github.com/PrefectHQ/prefect/pull/8473
