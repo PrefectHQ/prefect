@@ -2,7 +2,7 @@
 
 ## Release 2.10.0
 
-Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow for remote execution - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing workers and projects in beta to help you better manage your flow deployment process.
+Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow for remote execution - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing two new beta features, workers and projects, to help you better manage your flow deployment process. Additionally, we're releasing variables for centralized management of management and expanding events and automations to include blocks.
 
 ### Workers [Beta]
 
