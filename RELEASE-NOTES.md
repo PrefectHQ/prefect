@@ -34,8 +34,11 @@ Configure the prefect client to by default send block method call telemetry to p
 ...
 
 ### Versioned documentation
+Since we often release new versions of Prefect with new features, we're adding versioned documentation to make it easier to find the docs for the version of Prefect you're using. 
 
-...
+Now, when you visit the Prefect documentation site, you'll see a version selector at the top of the page. 
+
+![versioned docs](https://user-images.githubusercontent.com/228762/230432235-26fc9406-1390-4c63-9956-b8cdabdfba6f.png)
 
 
 ### Breaking Changes
