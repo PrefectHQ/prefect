@@ -10,6 +10,8 @@ We first released [work pools](https://docs.prefect.io/concepts/work-pools/) in 
 
 Most infrastructure can be configured. Every work pool has a default, base configuration for infrastructure created by its workers. If the work pool’s default configuration is updated, all workers automatically begin using the new config. Workers have sensible defaults such that you can start one and begin executing work with just a single command. For advanced use cases, you can override the base config on a per-deployment basis.
 
+See the updated [work pool, workers, & agents concepts doc](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
+
 ### Projects [Beta]
 
 A project is a directory of files that define one or more flows, deployments, Python packages, or any other dependencies that your flow code needs to run. If you’ve been using Prefect, or working on any non-trivial Python project, you probably have an organized structure like this already. Prefect projects are minimally opinionated, so they can work with the structure you already have in place and with the containerization, version control, and build automation tools that you know and love. With projects as directories, you can make relative references between files while retaining portability. We expect most projects to map directly to a git repository. In fact, projects offer a first-class way to clone a git repository so they can be easily shared and synced.
@@ -18,7 +20,7 @@ Projects also include a lightweight build system that you can use to define the 
 
 Projects are a contract between you and a worker, specifying what you do when you create a deployment, and what the worker will do before it kicks off that deployment. Together, projects and workers bridge your development environment, where your flow code is written, and your execution environment, where your flow code runs. Create your first Prefect project by following [this tutorial](https://docs.prefect.io/latest/tutorials/projects/).
 
-See the updated [work pool, workers, & agents concepts doc](https://docs.prefect.io/latest/concepts/work-pools/) and the new [project concept doc](https://docs.prefect.io/latest/concepts/projects/) for more information, as well as the following pull requests for implementation details:
+See the new [project concept doc](https://docs.prefect.io/latest/concepts/projects/) for more information, as well as the following pull requests for implementation details:
 
 - https://github.com/PrefectHQ/prefect/pull/8930
 - https://github.com/PrefectHQ/prefect/pull/9103
@@ -30,11 +32,33 @@ See the updated [work pool, workers, & agents concepts doc](https://docs.prefect
 
 ### Variables
 
-...
+Variables enable you to store and reuse non-sensitive bits of data, such as configuration information. Variables are named, mutable string values, much like environment variables. They are scoped to a Prefect Server instance or a single workspace in Prefect Cloud. Variables can be created or modified at any time. While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as project steps. You can access any variable via the Python SDK via the `.get()` method. 
 
+```python
+from prefect import variables
 
+# from a synchronous context
+answer = variables.get('the_answer')
+print(answer)
+# 42
 
-- https://github.com/PrefectHQ/prefect/pull/9088
+# from an asynchronous context
+answer = await variables.get('the_answer')
+print(answer)
+# 42
+
+# without a default value
+answer = variables.get('not_the_answer')
+print(answer)
+# None
+
+# with a default value
+answer = variables.get('not_the_answer', default='42')
+print(answer)
+# 42
+```
+
+See the new [variables concept doc](https://docs.prefect.io/latest/concepts/variables/) for more information, or the [pull request](https://github.com/PrefectHQ/prefect/pull/9088) for implementation details.
 
 ### Events
 Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, the Prefect client will now by default emit events for all block method calls. This telemetry can be analyzed in the Event feed, where users can view the interactions their flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, users can configure automations based on these events, such as when a file is uploaded to a storage location or an infrastructure process or an infrastructure block starts a job.
