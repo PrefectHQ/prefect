@@ -13,6 +13,9 @@ Variables can be created or modified at any time, but are intended for values wi
 
 While variable values are most commonly loaded during flow runtime, they can be loaded in other contexts, at any time, such that they can be used to pass configuration information to Prefect configuration files, such as project steps.
 
+!!! warning "Variables are not Encrypted"
+    Using variables to store sensitive information, such as credentials, is not reccomended. Instead, use [Secret blocks](https://docs.prefect.io/concepts/blocks/#prefect-built-in-blocks) to store and access sensitive information.
+
 ## Manging variables
 
 You can create, read, edit and delete variables via the Prefect UI, API, and CLI. Names must:
