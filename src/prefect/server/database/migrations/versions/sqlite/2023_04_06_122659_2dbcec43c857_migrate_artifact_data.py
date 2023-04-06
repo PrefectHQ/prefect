@@ -1,7 +1,7 @@
 """Migrate artifact data to artifact_collection table
 
 Revision ID: 2dbcec43c857
-Revises: 3e1eb8281d5e
+Revises: 3d46e23593d6
 Create Date: 2023-04-06 12:26:59.799863
 
 """

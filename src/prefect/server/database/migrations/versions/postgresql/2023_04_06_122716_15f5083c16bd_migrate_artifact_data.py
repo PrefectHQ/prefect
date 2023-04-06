@@ -1,8 +1,8 @@
 """Migrate artifact data to artifact_collection table
 
 Revision ID: 15f5083c16bd
-Revises: 6a1eb3d442e4
-Create Date: 2023-04-05 12:27:16.676260
+Revises: 310dda75f561
+Create Date: 2023-04-06 12:27:16.676260
 
 """
 import sqlalchemy as sa
