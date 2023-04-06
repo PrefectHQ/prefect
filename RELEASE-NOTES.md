@@ -10,19 +10,24 @@ Workers are next-generation agents, designed from the ground up to interact with
 
 Work pools expose rich configuration of their infrastructure. Every work pool type has a base configuration with sensible defaults such that you can begin executing work with just a single command. The infrastructure configuration is fully customizable from the Prefect UI. For example, you can now customize the entire payload used for run flows on Kubernetes — you are not limited to the fields Prefect exposes in its SDK. We provide templating to inject runtime information and common settings into infrastructure creation payloads. Advanced users can add _custom_ template variables which are then exposed the same as Prefect's default options in an easy to use UI.
 
-Advanced configuration of the job:
+If the work pool’s configuration is updated, all workers automatically begin using the new settings — you no longer need to redeploy your agents to change infrastructure settings. For advanced use cases, you can override settings on a per-deployment basis.
+
+On the advanced configuration tab of a work pool you can configure the job in its entirety:
 
 ![A section of the infrastructure settings for a Kubernetes work pool](https://user-images.githubusercontent.com/2586601/230464903-c1711ca5-2142-4dfc-b28c-5791b913d24f.png)
 
-Adding a custom variable:
+When adding a custom variable you provide a schema specifying allowed values:
 
-![Adding a custom variable schema](https://user-images.githubusercontent.com/2586601/230464907-5781e71e-b56e-4bf5-8421-9eed79993f78.png)
+![Adding a custom variable to the work pool](https://user-images.githubusercontent.com/2586601/230464907-5781e71e-b56e-4bf5-8421-9eed79993f78.png)
 
-![Using the custom variable in the infrastructure settings](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png)
+Then you use can use the custom variable in the infrastructure settings:
+
+![Templating the custom variable in the infrastructure settings](https://user-images.githubusercontent.com/2586601/230466019-ab1dc505-7d3b-480d-81eb-65f8c3659031.png)
+
+A setting for the variable is then available with a rich editor:
 
 ![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png)
 
-If the work pool’s configuration is updated, all workers automatically begin using the new settings — you no longer need to redeploy your agents to change infrastructure settings. For advanced use cases, you can override settings on a per-deployment basis.
 
 See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
 
