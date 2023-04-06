@@ -1,7 +1,9 @@
+---
 description: Prefect variables are dynamic-named, mutable string values, much like environment variables.
 tags:
     - variables
     - blocks
+---
 
 # Variables
 
