@@ -50,7 +50,7 @@ In addition to the UI and API, variables can be referenced in code and in certai
 
 ### In Python code
 
-You can access any variable via the Python SDK via the `.get()` method. If you attempt to reference a varible that does not exist, the method will return `None`.
+You can access any variable via the Python SDK via the `.get()` method. If you attempt to reference a variable that does not exist, the method will return `None`.
 
 ```python
 from prefect import variables
