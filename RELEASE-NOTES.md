@@ -26,7 +26,7 @@
 - https://github.com/PrefectHQ/prefect/pull/9088
 
 ### Events
-Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, the client will now by default emit events for all block method calls, which can be seen and configured for use in automations via the Event Feed.
+Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, the Prefect client will now by default emit events for all block method calls. This telemetry can be analyzed in the Event feed, where users can view the interactions their flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, users can configure automations based on these events, such as when a file is uploaded to a storage location or an infrastructure process or an infrastructure block starts a job.
 
 ![image](https://user-images.githubusercontent.com/26799928/230421783-997e4fda-a02f-4bf4-88e1-f51a2f890cf5.png)
 
