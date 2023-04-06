@@ -20,14 +20,14 @@ Projects also include a lightweight build system that you can use to define the 
 
 Projects are a contract between you and a worker, specifying what you do when you create a deployment, and what the worker will do before it kicks off that deployment. Together, projects and workers bridge your development environment, where your flow code is written, and your execution environment, where your flow code runs. Create your first Prefect project by following [this tutorial](https://docs.prefect.io/latest/tutorials/projects/).
 
-See the new [project concept doc](https://docs.prefect.io/latest/concepts/projects/) for more information, as well as the following pull requests for implementation details:
+See the new [project concept doc](https://docs.prefect.io/latest/concepts/projects/) for more information or the following pull requests for implementation details:
 
 - https://github.com/PrefectHQ/prefect/pull/8930
 - https://github.com/PrefectHQ/prefect/pull/9103
 - https://github.com/PrefectHQ/prefect/pull/9105
 - https://github.com/PrefectHQ/prefect/pull/9112
-— https://github.com/PrefectHQ/prefect/pull/9093
-— https://github.com/PrefectHQ/prefect/pull/9083
+- https://github.com/PrefectHQ/prefect/pull/9093
+- https://github.com/PrefectHQ/prefect/pull/9083
 - https://github.com/PrefectHQ/prefect/pull/9041
 
 ### Variables
@@ -58,7 +58,7 @@ print(answer)
 # 42
 ```
 
-See the new [variables concept doc](https://docs.prefect.io/latest/concepts/variables/) for more information, or the [pull request](https://github.com/PrefectHQ/prefect/pull/9088) for implementation details.
+See the new [variables concept doc](https://docs.prefect.io/latest/concepts/variables/) for more information or the [pull request](https://github.com/PrefectHQ/prefect/pull/9088) for implementation details.
 
 ### Events
 Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, the Prefect client will now by default emit events for all block method calls. This telemetry can be analyzed in the Event feed, where users can view the interactions their flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, users can configure automations based on these events, such as when a file is uploaded to a storage location or an infrastructure process or an infrastructure block starts a job.
