@@ -82,4 +82,4 @@ pull:
     branch: "{{ prefect.variables.deployment_branch }}"
 ```
 
-The `deployment_branch` varible will be evaluated at runtime for the deployed flow, allowing changes to be made to variables used in a pull action without updating a deployment directly.
+The `deployment_branch` variable will be evaluated at runtime for the deployed flow, allowing changes to be made to variables used in a pull action without updating a deployment directly.
