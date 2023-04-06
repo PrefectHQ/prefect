@@ -144,7 +144,7 @@ $ prefect project init --recipe docker
 ```yaml
 build:
 - prefect_docker.projects.steps.build_docker_image:
-    requires: prefect-docker>0.1.0
+    requires: prefect-docker>=0.2.0
     image_name: null
     tag: null
     dockerfile: auto
