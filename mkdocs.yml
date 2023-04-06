@@ -131,6 +131,7 @@ nav:
         - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
+        - Variables: concepts/variables.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Runtime Context: concepts/runtime-context.md
