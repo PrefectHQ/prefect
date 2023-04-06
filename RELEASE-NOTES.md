@@ -2,8 +2,7 @@
 
 ## Release 2.10.1
 
-Fixes a bug with accessing project recipies through the CLI. See the [pull request](https://github.com/PrefectHQ/prefect/pull/9132) for implementation details.
-
+Fixes a bug with accessing project recipes through the CLI. See the [pull request](https://github.com/PrefectHQ/prefect/pull/9132) for implementation details.
 
 ## Release 2.10.0
 
