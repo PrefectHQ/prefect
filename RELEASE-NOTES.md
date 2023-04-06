@@ -12,22 +12,35 @@ Work pools expose rich configuration of their infrastructure. Every work pool ty
 
 If the work pool’s configuration is updated, all workers automatically begin using the new settings — you no longer need to redeploy your agents to change infrastructure settings. For advanced use cases, you can override settings on a per-deployment basis.
 
-On the advanced configuration tab of a work pool you can configure the job in its entirety:
+<img width="1601" alt="Creating a new Kubernetes work pool" src="https://user-images.githubusercontent.com/2586601/230471683-63875a04-f331-4cf1-8b1b-69c2cd0e4e05.png">
+<img width="1601" alt="Advanced configuration of the work pool infrastructure" src="https://user-images.githubusercontent.com/2586601/230471686-7146e930-34fc-43ae-a946-9e3795c4a27a.png">
 
-![A section of the infrastructure settings for a Kubernetes work pool](https://user-images.githubusercontent.com/2586601/230468863-3d4e1050-74e4-42a1-9023-bfe5d5f16a70.png)
+Adding a new variable to the work pool configuration:
 
-When adding a custom variable you provide a schema specifying allowed values:
+```json
+{
+  "variables": {
+      "cpus": {
+        "title": "CPU",
+        "description": "CPU limit and request for the created job",
+        "type": "string",
+        "default": "2"
+      },
+      ...
+  },
+  "job_configuration": {
+    ...
+    "containers": [
+        {
+            "resources": {"limits": "cpu": "{{ cpu }}"}},
+        ...
+        }
+    ]
+  }
+}
+```
 
-![Adding a custom variable to the work pool](https://user-images.githubusercontent.com/2586601/230464907-5781e71e-b56e-4bf5-8421-9eed79993f78.png)
-
-Then you use can use the custom variable in the infrastructure settings:
-
-![Templating the custom variable in the infrastructure settings](https://user-images.githubusercontent.com/2586601/230464903-c1711ca5-2142-4dfc-b28c-5791b913d24f.png)
-
-A setting for the variable is then available with a rich editor:
-
-![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png)
-
+<img width="1601" alt="A new field appears in the UI for the variable" src="https://user-images.githubusercontent.com/2586601/230473701-b8db1973-eb03-4682-86cc-64b698356048.png">
 
 See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
 
