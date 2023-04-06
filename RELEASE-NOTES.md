@@ -71,15 +71,14 @@ print(answer)
 See the new [variables concept doc](https://docs.prefect.io/latest/concepts/variables/) for more information or the [pull request](https://github.com/PrefectHQ/prefect/pull/9088) for implementation details.
 
 ### Events
-Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, the Prefect client will now by default emit events for all block method calls. This telemetry can be analyzed in the Event feed, where users can view the interactions their flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, users can configure automations based on these events, such as when a file is uploaded to a storage location or an infrastructure process or an infrastructure block starts a job.
+
+Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-resources/]) as a primary unit of observability in Prefect Cloud, Prefect will now by default emit events for all block method calls. These events can be viewed in the Event feed, allowing you to analyze the interactions your flows and tasks have with external systems such as storage locations, notification services, and infrastructure. Additionally, you can configure automations based on these events, such as when a file is uploaded to a storage location or an infrastructure process or an infrastructure block starts a job.
 
 ![image](https://user-images.githubusercontent.com/26799928/230421783-997e4fda-a02f-4bf4-88e1-f51a2f890cf5.png)
 
-Configure the prefect client to by default send block method call telemetry to prefect cloud - https://github.com/PrefectHQ/prefect/pull/9107
-...
-
 ### Versioned documentation
-Since we often release new versions of Prefect with new features, we're adding versioned documentation to make it easier to find the docs for the version of Prefect you're using. 
+
+We're releasing a lot of new features every week and we know not everyone is on the latest version. We've added versioning to our documentation website to make it easier to find the docs for the version of Prefect you're using.
 
 Now, when you visit the Prefect documentation site, you'll see a version selector at the top of the page. 
 
@@ -87,7 +86,7 @@ Now, when you visit the Prefect documentation site, you'll see a version selecto
 
 
 ### Breaking Changes
-- Some unused options for sorting logs have been removed from the API — https://github.com/PrefectHQ/prefect/pull/7873
+- Unused options for sorting logs have been removed from the API — https://github.com/PrefectHQ/prefect/pull/7873
 
 ### Enhancements
 - Add artifacts view to flow run page — https://github.com/PrefectHQ/prefect/pull/9109
