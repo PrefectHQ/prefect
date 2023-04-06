@@ -14,7 +14,7 @@ If the work pool’s configuration is updated, all workers automatically begin u
 
 On the advanced configuration tab of a work pool you can configure the job in its entirety:
 
-![A section of the infrastructure settings for a Kubernetes work pool](https://user-images.githubusercontent.com/2586601/230464903-c1711ca5-2142-4dfc-b28c-5791b913d24f.png)
+![A section of the infrastructure settings for a Kubernetes work pool](https://user-images.githubusercontent.com/2586601/230468863-3d4e1050-74e4-42a1-9023-bfe5d5f16a70.png)
 
 When adding a custom variable you provide a schema specifying allowed values:
 
@@ -26,7 +26,7 @@ Then you use can use the custom variable in the infrastructure settings:
 
 A setting for the variable is then available with a rich editor:
 
-![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png | height=300px)
+![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png)
 
 
 See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
