@@ -12,6 +12,10 @@ Work pools expose rich configuration of their infrastructure. Every work pool ty
 
 If the work pool’s configuration is updated, all workers automatically begin using the new settings — you no longer need to redeploy your agents to change infrastructure settings. For advanced use cases, you can override settings on a per-deployment basis.
 
+This release includes Process, Kubernetes, and Docker worker types. Additional worker types will be included in subsequent releases.
+
+Creating a Kubernetes work pool:
+
 <img width="1601" alt="Creating a new Kubernetes work pool" src="https://user-images.githubusercontent.com/2586601/230471683-63875a04-f331-4cf1-8b1b-69c2cd0e4e05.png">
 <img width="1601" alt="Advanced configuration of the work pool infrastructure" src="https://user-images.githubusercontent.com/2586601/230471686-7146e930-34fc-43ae-a946-9e3795c4a27a.png">
 
