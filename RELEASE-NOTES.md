@@ -1,5 +1,10 @@
 # Prefect Release Notes
 
+## Release 2.10.1
+
+Fixes a bug with accessing project recipies through the CLI. See the [pull request](https://github.com/PrefectHQ/prefect/pull/9132) for implementation details.
+
+
 ## Release 2.10.0
 
 Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow - you need to ensure that they're satisfied for your flow to run successfully. In this release, we're introducing two new beta features, workers and projects, to help you better manage your flow deployment process. Additionally, we're releasing variables for centralized management of management and expanding events and automations to include blocks. There are a lot of highlighted features this week — but we've also made some significant performance improvements alongside a slew of bug fixes and enhancements!
