@@ -32,11 +32,8 @@ async def ls():
     """
     List available recipes.
     """
-    import prefect
 
-    recipe_paths = (
-        Path(prefect.__root_path__) / "src" / "prefect" / "projects" / "recipes"
-    )
+    recipe_paths = Path(__file__).parent / ".." / "projects" / "recipes"
     recipes = {}
 
     for recipe in recipe_paths.iterdir():
