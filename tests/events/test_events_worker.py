@@ -41,12 +41,7 @@ def test_worker_instance_null_client_no_api_url():
 
 
 def test_worker_instance_null_client_non_cloud_api_url():
-    with temporary_settings(
-        updates={
-            PREFECT_API_URL: "http://localhost:8080/api",
-            PREFECT_API_URL: "https://api.prefect.cloud/api/accounts/72483643-e98d-4323-889a-a12905ff21cd/workspaces/cda37001-1181-4f3c-bf03-00da4b532776",
-        }
-    ):
+    with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
         worker = EventsWorker.instance()
         assert worker._client_type == NullEventsClient
 
