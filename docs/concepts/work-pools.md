@@ -172,7 +172,7 @@ The values in the `job_configuration` can use placeholders to reference values p
 
 Each worker type is configured with a default base job template, making it easy to start with a work pool. The default base template defines fields that can be edited on a per-deployment basis or for the entire work pool via the Prefect API and UI.
 
-For example, if we create a `process` work pool via the CLI:
+For example, if we create a `process` work pool named 'above-ground' via the CLI:
 
 ```bash
 $ prefect work-pool create --type process above-ground
