@@ -82,7 +82,7 @@ Continuing the rollout of (events[https://docs.prefect.io/concepts/events-and-re
 
 ### Versioned documentation
 
-We're releasing a lot of new features every week and we know not everyone is on the latest version. We've added versioning to our documentation website to make it easier to find the docs for the version of Prefect you're using.
+We're releasing a lot of new features every week and we know not everyone is on the latest version of Prefect. We've added versioning to our documentation website to make it easier to find the docs for the version of Prefect that you're using.
 
 Now, when you visit the Prefect documentation site, you'll see a version selector at the top of the page. 
 
