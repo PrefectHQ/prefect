@@ -76,7 +76,9 @@ class TestProjectInit:
 
 class TestProjectDeploy:
     async def test_project_deploy(self, project_dir, orion_client):
-        await orion_client.create_work_pool(WorkPoolCreate(name="test-pool"))
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
             command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
@@ -91,7 +93,9 @@ class TestProjectDeploy:
         assert deployment.work_pool_name == "test-pool"
 
     async def test_project_deploy_templates_values(self, project_dir, orion_client):
-        await orion_client.create_work_pool(WorkPoolCreate(name="test-pool"))
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
 
         # prepare a templated deployment
         with open("deployment.yaml", "r") as f:
@@ -140,7 +144,9 @@ class TestProjectDeploy:
         "We want step outputs to get templated, but block references to only be retrieved at runtime"
 
         await Secret(value="super-secret-name").save(name="test-secret")
-        await orion_client.create_work_pool(WorkPoolCreate(name="test-pool"))
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
 
         # update prefectl.yaml to include a new build step
         with open("prefect.yaml", "r") as f:
