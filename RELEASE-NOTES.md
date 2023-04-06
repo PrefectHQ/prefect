@@ -4,13 +4,15 @@
 
 Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow for remote execution - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing workers and projects in beta to help you better manage your flow deployment process.
 
-### Typed Work Pools and Workers [Beta]
+### Workers [Beta]
 
-[Work pools](https://docs.prefect.io/concepts/work-pools/) were first introduced as work queue groups in Prefect 2.8.0. At that time, all work pools had a `Prefect Agent` type. With this release, work pools can be typed and configured, exposing a simple interface to a specific execution environment. Work pools specify the type of infrastructure they will use for flow runs — Kubernetes, Docker, etc. Work pools can have many workers — background services that regularly poll their corresponding work pool for flow runs to be executed. You can think of workers as typed agents with guaranteed access to the resources and configuration they need to run flows.
+Workers are next-generation agents, designed from the ground up to interact with [work pools](https://docs.prefect.io/concepts/work-pools/). Each worker manages flow run infrastructure of a specific type and must pull from a work pool with a matching type. Existing work pools are all "agent" typed for backwards compatibility with our agents — but new work pools can be assigned a specific infrastructure type. Specifying a type for a work pool simplifies choosing what kind of infrastructure will be used when creating a flow run. 
 
-Most infrastructure can be configured. Every work pool has a default, base configuration for the infrastructure its workers will run flows on. If the work pool’s default configuration is updated, all workers automatically begin using the new settings. Work pools have sensible defaults such that you can start one and begin executing work with just a single command. For advanced use cases, you can override the configuration on a per-deployment basis.
+Work pools expose rich configuration of their infrastructure. Every work pool type has a base configuration with sensible defaults such that you can begin executing work with just a single command. The infrastructure configuration is fully customizable from the Prefect UI. For example, you can now customize the YAML payload used for run flows on Kubernetes — you are not limited to the fields Prefect exposes in its SDK. We provide templating to inject runtime information and common settings into infrastructure creation payloads. Advanced users can add _custom_ template variables which are then exposed the same as Prefect's default options in an easy to use UI.
 
-See the updated [work pool, workers, & agents concepts doc](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
+If the work pool’s configuration is updated, all workers automatically begin using the new settings — you no longer need to redeploy your agents to change infrastructure settings. For advanced use cases, you can override settings on a per-deployment basis.
+
+See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
 
 ### Projects [Beta]
 
