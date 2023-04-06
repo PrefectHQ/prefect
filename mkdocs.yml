@@ -128,7 +128,7 @@ nav:
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Projects: concepts/projects.md
-        - Agents & Work Pools: concepts/work-pools.md
+        - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
         - Filesystems: concepts/filesystems.md
