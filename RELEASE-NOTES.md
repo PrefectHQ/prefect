@@ -17,7 +17,7 @@ If the work pool’s configuration is updated, all workers automatically begin u
 
 Adding a new variable to the work pool configuration:
 
-```json
+```
 {
   "variables": {
       "cpus": {
@@ -32,8 +32,8 @@ Adding a new variable to the work pool configuration:
     ...
     "containers": [
         {
-            "resources": {"limits": "cpu": "{{ cpu }}"}},
-        ...
+            "resources": {"limits": {"cpu": "{{ cpu }}"}},
+            ...
         }
     ]
   }
