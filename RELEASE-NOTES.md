@@ -2,13 +2,13 @@
 
 ## Release 2.10.0
 
-Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing workers and projects in beta to help you better manage your flow deployment process.
+Prefect deployments often have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow for remote execution - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing workers and projects in beta to help you better manage your flow deployment process.
 
 ### Typed Work Pools and Workers [Beta]
 
-We first released [work pools](https://docs.prefect.io/concepts/work-pools/) in Prefect 2.8.0. They were first introduced as work queue groups, all of which had a `Prefect Agent` type. With today's release, work pools can be typed and configured, making them a secure, simple interface to a specific execution environment. Work pools specify the infrastructure available to them to run flows — Kubernetes, Docker, etc. Work pools can have many workers — background services that regularly poll their corresponding work pool for flow runs to be executed. You can think of workers as typed agents with guaranteed access to the resources and configuration they need to run certain flows.
+[Work pools](https://docs.prefect.io/concepts/work-pools/) were first introduced as work queue groups in Prefect 2.8.0. At that time, all work pools had a `Prefect Agent` type. With this release, work pools can be typed and configured, exposing a simple interface to a specific execution environment. Work pools specify the type of infrastructure they will use for flow runs — Kubernetes, Docker, etc. Work pools can have many workers — background services that regularly poll their corresponding work pool for flow runs to be executed. You can think of workers as typed agents with guaranteed access to the resources and configuration they need to run flows.
 
-Most infrastructure can be configured. Every work pool has a default, base configuration for the infrastructure created by its workers. If the work pool’s default configuration is updated, all workers automatically begin using the new config. Work pools and workers have sensible defaults such that you can start one and begin executing work with just a single command. For advanced use cases, you can override the base config on a per-deployment basis.
+Most infrastructure can be configured. Every work pool has a default, base configuration for the infrastructure its workers will run flows on. If the work pool’s default configuration is updated, all workers automatically begin using the new settings. Work pools have sensible defaults such that you can start one and begin executing work with just a single command. For advanced use cases, you can override the configuration on a per-deployment basis.
 
 See the updated [work pool, workers, & agents concepts doc](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
 
