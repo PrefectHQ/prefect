@@ -405,7 +405,9 @@ async def deploy(
 
         if base_deploy["work_pool"]:
             try:
-                work_pool = await client.read_work_pool(base_deploy["work_pool"])
+                work_pool = await client.read_work_pool(
+                    base_deploy["work_pool"]["name"]
+                )
 
                 # dont allow submitting to prefect-agent typed work pools
                 if work_pool.type == "prefect-agent":
