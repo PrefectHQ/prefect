@@ -8,6 +8,7 @@ from prefect._internal.concurrency.services import QueueService
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
 
 from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
+from .related import related_resources_from_run_context
 from .schemas import Event
 
 
@@ -27,8 +28,13 @@ class EventsWorker(QueueService[Event]):
         async with self._client:
             yield
 
-    async def _handle(self, item: Event):
-        await self._client.emit(item)
+    async def _handle(self, event: Event):
+        await self.attach_related_resources_from_context(event)
+        await self._client.emit(event)
+
+    async def attach_related_resources_from_context(self, event: Event):
+        exclude = {resource.id for resource in event.involved_resources}
+        event.related += await related_resources_from_run_context(exclude=exclude)
 
     @classmethod
     def instance(cls: Type[Self], client_type: Optional[EventsClient] = None) -> Self:
