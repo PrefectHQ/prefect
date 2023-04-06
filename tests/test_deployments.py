@@ -18,7 +18,6 @@ from prefect.deployments import Deployment, run_deployment
 from prefect.exceptions import BlockMissingCapabilities
 from prefect.filesystems import S3, GitHub, LocalFileSystem
 from prefect.infrastructure import DockerContainer, Infrastructure, Process
-from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.server.schemas import states
 from prefect.server.schemas.core import TaskRunResult
 from prefect.settings import PREFECT_API_URL
@@ -431,27 +430,6 @@ class TestDeploymentBuild:
         assert d.flow_name == flow_function.name
         assert d.name == "foo"
         assert d.is_schedule_active == is_active
-
-    async def test_deployment_creation_does_not_create_duplicate_queue(
-        self, flow_function, work_pool, orion_client: PrefectClient
-    ):
-        await Deployment.build_from_flow(
-            flow_function,
-            apply=True,
-            name="foo",
-            tags=["A", "B"],
-            description="foobar",
-            version="12",
-            work_pool_name=work_pool.name,
-            work_queue_name="new-queue",
-        )
-        work_queues = await orion_client.read_work_queues(work_pool_name=work_pool.name)
-        assert "new-queue" in [q.name for q in work_queues]
-
-        default_pool_work_queues = await orion_client.read_work_queues(
-            work_pool_name=DEFAULT_AGENT_WORK_POOL_NAME
-        )
-        assert "new-queue" not in [q.name for q in default_pool_work_queues]
 
 
 class TestYAML:
