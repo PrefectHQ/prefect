@@ -2,13 +2,23 @@
 
 ## Release 2.10.0
 
+Prefect deployments tend to have critical, implicit dependencies on files and build artifacts, such as containers, that are created and stored outside of Prefect. Each of these dependencies is a potential stumbling block when deploying a flow - you need to ensure that they're satisfied for your flow to run successfully. Today, Prefect is introducing workers and projects in beta to address this challenge.
 
-### Projects
+### Typed Work Pools and Workers [Beta]
 
-...
+We released [work pools](https://docs.prefect.io/concepts/work-pools/) in Prefect 2.8.0. They were first introduced as work queue groups, all of which had a `Prefect Agent` type. With today's release, work pools can be typed and configured, making them a secure, simple interface to a specific execution environment. Work pools specify the infrastructure available to them to run flows — Kubernetes, Docker, etc. Work pools can have many workers — background services that regularly poll their corresponding work pool for flow runs to be executed. You can think of workers as typed agents with guaranteed access to the resources and configuration they need to run certain flows.
 
+Most infrastructure can be configured. Every work pool has a default, base configuration for infrastructure created by its workers. If the work pool’s default configuration is updated, all workers automatically begin using the new config. Workers have sensible defaults such that you can start one and begin executing work with just a single command. For advanced use cases, you can override the base config on a per-deployment basis.
 
+### Projects [Beta]
 
+A project is a directory of files that define one or more flows, deployments, Python packages, or any other dependencies that your flow code needs to run. If you’ve been using Prefect, or working on any non-trivial Python project, you probably have an organized structure like this already. Prefect projects are minimally opinionated, so they can work with the structure you already have in place and with the containerization, version control, and build automation tools that you know and love. With projects as directories, you can make relative references between files while retaining portability. We expect most projects to map directly to a git repository. In fact, projects offer a first-class way to clone a git repository so they can be easily shared and synced.
+
+Projects also include a lightweight build system that you can use to define the process for deploying flows in that project. That procedure is specified in a new `prefect.yaml` file, in which you can specify steps to build the necessary artifacts for a project's deployments, push those artifacts, and retrieve them at runtime.
+
+Projects are a contract between you and a worker, specifying what you do when you create a deployment, and what the worker will do before it kicks off that deployment. Together, projects and workers bridge your development environment, where your flow code is written, and your execution environment, where your flow code runs. Create your first Prefect project by following [this tutorial](https://docs.prefect.io/latest/tutorials/projects/).
+
+See the updated [work pool, workers, & agents concepts doc](https://docs.prefect.io/latest/concepts/work-pools/) and the new [project concept doc](https://docs.prefect.io/latest/concepts/projects/) for more information, as well as the following pull requests for implementation details:
 - https://github.com/PrefectHQ/prefect/pull/8930
 - https://github.com/PrefectHQ/prefect/pull/9103
 - https://github.com/PrefectHQ/prefect/pull/9105
