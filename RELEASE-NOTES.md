@@ -26,7 +26,7 @@ Then you use can use the custom variable in the infrastructure settings:
 
 A setting for the variable is then available with a rich editor:
 
-![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png)
+![The variable is exposed to other users in the UI](https://user-images.githubusercontent.com/2586601/230464913-6cd1cc49-15ec-4f88-927c-7ba77f0c6de9.png | height=300px)
 
 
 See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
