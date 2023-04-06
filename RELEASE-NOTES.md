@@ -1,5 +1,78 @@
 # Prefect Release Notes
 
+## Release 2.10.0
+
+
+### Projects
+
+...
+
+
+
+- https://github.com/PrefectHQ/prefect/pull/8930
+- https://github.com/PrefectHQ/prefect/pull/9103
+- https://github.com/PrefectHQ/prefect/pull/9105
+- https://github.com/PrefectHQ/prefect/pull/9112
+— https://github.com/PrefectHQ/prefect/pull/9093
+— https://github.com/PrefectHQ/prefect/pull/9083
+- https://github.com/PrefectHQ/prefect/pull/9041
+
+### Variables
+
+...
+
+
+
+- https://github.com/PrefectHQ/prefect/pull/9088
+
+### Events
+
+...
+
+### Breaking Changes
+- Some unsused options for sorting logs have been removed from the API — https://github.com/PrefectHQ/prefect/pull/7873
+
+### Enhancements
+- Add artifacts view to flow run page — https://github.com/PrefectHQ/prefect/pull/9109
+- Improve performance of the background event worker — https://github.com/PrefectHQ/prefect/pull/9019
+- Update deployment flow run creation to default to a SCHEDULED state instead of PENDING — https://github.com/PrefectHQ/prefect/pull/9049
+- Add `PREFECT_CLIENT_RETRY_EXTRA_CODES` to allow retry on additional HTTP status codes — https://github.com/PrefectHQ/prefect/pull/9056
+- Improve performance of the background log worker — https://github.com/PrefectHQ/prefect/pull/9048
+- Update agent cancellation check interval to double the scheduled check interval — https://github.com/PrefectHQ/prefect/pull/9084
+- Update default agent query interval from 10s to 15s — https://github.com/PrefectHQ/prefect/pull/9085
+- Add a 10 minute cache to API healthchecks — https://github.com/PrefectHQ/prefect/pull/9069
+- Improve performance of concurrent task runner — https://github.com/PrefectHQ/prefect/pull/9073
+- Improve performance of waiting for task submission — https://github.com/PrefectHQ/prefect/pull/9072
+- Add retry on 502 BAD GATEWAY to client — https://github.com/PrefectHQ/prefect/pull/9102
+- Update local and remote file systems to return path on write — https://github.com/PrefectHQ/prefect/pull/8965
+- Add artifacts `/count` route — https://github.com/PrefectHQ/prefect/pull/9022
+- Improve performance of automatic block registration — https://github.com/PrefectHQ/prefect/pull/8838
+- Improve performance of log retrieval queries — https://github.com/PrefectHQ/prefect/pull/9035
+- Improve performance of artifact retrieval — https://github.com/PrefectHQ/prefect/pull/9061 / https://github.com/PrefectHQ/prefect/pull/9064
+- Add `--type` option to create work-pool CLI — https://github.com/PrefectHQ/prefect/pull/8993
+
+### Fixes
+- Fix bug where iterable defaults were treated as mapped parameters — https://github.com/PrefectHQ/prefect/pull/9021
+- Fix sequential execution with mapped tasks using the SequentialTaskRunner — https://github.com/PrefectHQ/prefect/pull/8473
+- Fix race condition where futures did not wait for submission to complete — https://github.com/PrefectHQ/prefect/pull/9070
+- Fix detection of iterables within `quote` annotations while mapping — https://github.com/PrefectHQ/prefect/pull/9095
+- Fix Dockerfile copy of UI package files on latest Docker version — https://github.com/PrefectHQ/prefect/pull/9077
+
+### Documentation
+- Add copy to clipboard button in documentation code blocks — https://github.com/PrefectHQ/prefect/pull/9026
+- Fixed styling of deployments mermaid diagram — https://github.com/PrefectHQ/prefect/pull/9017
+- Add documentation for database migrations — https://github.com/PrefectHQ/prefect/pull/9044
+- Adds documentation for BitBucket to flow code storage types — https://github.com/PrefectHQ/prefect/pull/9080
+- Update rate limit documentation for Cloud — https://github.com/PrefectHQ/prefect/pull/9100
+
+### Contributors
+- @mianos made their first contribution in https://github.com/PrefectHQ/prefect/pull/9077
+- @dominictarro made their first contribution in https://github.com/PrefectHQ/prefect/pull/8965
+- @joelluijmes
+- @john-jam
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.9.0...2.10.0
+
 ## Release 2.9.0
 
 ### Track and manage artifacts
