@@ -6,7 +6,8 @@ import contextlib
 import sys
 import threading
 from collections import deque
-from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
+from contextvars import Context, ContextVar, Token, copy_context
+from typing import Awaitable, Dict, Generic, List, Optional, Tuple, Type, TypeVar, Union
 
 import anyio
 from typing_extensions import Self
@@ -26,7 +27,7 @@ class QueueService(abc.ABC, Generic[T]):
     _instances: Dict[int, Self] = {}
 
     def __init__(self, *args) -> None:
-        self._queue: Optional[asyncio.Queue] = None
+        self._queue: Optional[asyncio.Queue[Optional[Tuple[T, Context]]]] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._done_event: Optional[asyncio.Event] = None
         self._task: Optional[asyncio.Task] = None
@@ -95,7 +96,8 @@ class QueueService(abc.ABC, Generic[T]):
             if not self._started:
                 self._early_items.append(item)
             else:
-                call_soon_in_loop(self._loop, self._queue.put_nowait, item)
+                ctx = copy_context()
+                call_soon_in_loop(self._loop, self._queue.put_nowait, (item, ctx))
 
     async def _run(self):
         try:
@@ -113,10 +115,17 @@ class QueueService(abc.ABC, Generic[T]):
 
     async def _main_loop(self):
         while True:
-            item: T = await self._queue.get()
+            thing = await self._queue.get()
 
-            if item is None:
+            if thing is None:
                 break
+
+            item, context = thing
+
+            tokens: Dict[ContextVar, Token] = {}
+            for key, value in context.items():
+                token = key.set(value)
+                tokens[key] = token
 
             try:
                 logger.debug("Service %r handling item %r", self, item)
@@ -125,6 +134,9 @@ class QueueService(abc.ABC, Generic[T]):
                 logger.exception(
                     "Service %r failed to process item %r", type(self).__name__, item
                 )
+            finally:
+                for key, token in tokens.items():
+                    key.reset(token)
 
     @abc.abstractmethod
     async def _handle(self, item: T):
