@@ -15,32 +15,10 @@ If the work pool’s configuration is updated, all workers automatically begin u
 <img width="1601" alt="Creating a new Kubernetes work pool" src="https://user-images.githubusercontent.com/2586601/230471683-63875a04-f331-4cf1-8b1b-69c2cd0e4e05.png">
 <img width="1601" alt="Advanced configuration of the work pool infrastructure" src="https://user-images.githubusercontent.com/2586601/230471686-7146e930-34fc-43ae-a946-9e3795c4a27a.png">
 
-Adding a new variable to the work pool configuration:
+Adding a new variable to the advanced work pool configuration will expose it in the basic config:
 
-```
-{
-  "variables": {
-      "cpus": {
-        "title": "CPU",
-        "description": "CPU limit and request for the created job",
-        "type": "string",
-        "default": "2"
-      },
-      ...
-  },
-  "job_configuration": {
-    ...
-    "containers": [
-        {
-            "resources": {"limits": {"cpu": "{{ cpu }}"}},
-            ...
-        }
-    ]
-  }
-}
-```
-
-<img width="1601" alt="A new field appears in the UI for the variable" src="https://user-images.githubusercontent.com/2586601/230473701-b8db1973-eb03-4682-86cc-64b698356048.png">
+<img width="1551" alt="Adding a variable to the advanced config" src="https://user-images.githubusercontent.com/2586601/230475075-b535b158-62a8-4b88-9439-0054f58e8f77.png">
+<img width="1601" alt="New variables can be adjusted in the basic config" src="https://user-images.githubusercontent.com/2586601/230473701-b8db1973-eb03-4682-86cc-64b698356048.png">
 
 See the updated [work pool, workers, & agents concepts documentation](https://docs.prefect.io/latest/concepts/work-pools/) for more information.
 
