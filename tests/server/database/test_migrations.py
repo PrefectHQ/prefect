@@ -229,7 +229,6 @@ async def test_backfill_artifacts(db):
             "flow_run_id": uuid4(),
             "task_run_id": uuid4(),
             "type": "type1",
-            "metadata_": {"a": "value"},
         },
         {
             "id": uuid4(),
@@ -239,7 +238,6 @@ async def test_backfill_artifacts(db):
             "flow_run_id": uuid4(),
             "task_run_id": uuid4(),
             "type": "type2",
-            "metadata_": {"a": "value"},
         },
         {
             "id": uuid4(),
@@ -249,7 +247,6 @@ async def test_backfill_artifacts(db):
             "flow_run_id": uuid4(),
             "task_run_id": uuid4(),
             "type": "type3",
-            "metadata_": {"a": "value"},
         },
         {
             "id": uuid4(),
@@ -259,7 +256,6 @@ async def test_backfill_artifacts(db):
             "flow_run_id": uuid4(),
             "task_run_id": uuid4(),
             "type": "type4",
-            "metadata_": {"a": "value"},
         },
         {
             "id": uuid4(),
@@ -269,7 +265,6 @@ async def test_backfill_artifacts(db):
             "flow_run_id": uuid4(),
             "task_run_id": uuid4(),
             "type": "type5",
-            "metadata_": {"a": "value"},
         },
     ]
     try:
@@ -281,12 +276,11 @@ async def test_backfill_artifacts(db):
                 await session.execute(
                     sa.text(
                         "INSERT INTO artifact (id, key, data, description,"
-                        " flow_run_id, task_run_id, type, metadata_) VALUES"
+                        " flow_run_id, task_run_id, type) VALUES"
                         f" ('{artifact['id']}', '{artifact['key']}',"
                         f" '{json.dumps(artifact['data'])}',"
                         f" '{artifact['description']}', '{artifact['flow_run_id']}',"
-                        f" '{artifact['task_run_id']}', '{artifact['type']}',"
-                        f" '{json.dumps(artifact['metadata_'])}')"
+                        f" '{artifact['task_run_id']}', '{artifact['type']}')"
                     )
                 )
                 await session.execute(
@@ -307,8 +301,8 @@ async def test_backfill_artifacts(db):
                 result = (
                     await session.execute(
                         sa.text(
-                            "SELECT flow_run_id, task_run_id, type, description,"
-                            " metadata_ FROM artifact_collection WHERE latest_id ="
+                            "SELECT flow_run_id, task_run_id, type, description"
+                            " FROM artifact_collection WHERE latest_id ="
                             f" '{artifact['id']}'"
                         )
                     )
@@ -319,7 +313,6 @@ async def test_backfill_artifacts(db):
                     str(result[1]),
                     result[2],
                     result[3],
-                    json.loads(result[4]),
                 )
 
                 expected_result = (
@@ -327,7 +320,6 @@ async def test_backfill_artifacts(db):
                     str(artifact["task_run_id"]),
                     artifact["type"],
                     artifact["description"],
-                    artifact["metadata_"],
                 )
                 assert (
                     result == expected_result
