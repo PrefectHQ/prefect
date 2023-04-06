@@ -70,7 +70,7 @@ print(answer)
 
 ### In Project steps
 
-In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to template project steps by referencing them in the `prefect.yaml` file used to create the deployment. For example, you could pass a variable in to specify a branch for a git repo in a projects `pull` step:
+In `.yaml` files, variables are denoted by quotes and double curly brackets, like so: `"{{ prefect.variables.my_variable }}"`. You can use variables to templatize project steps by referencing them in the `prefect.yaml` file used to create deployments. For example, you could pass a variable in to specify a branch for a git repo in a projects `pull` step:
 
 ```
 pull:
@@ -79,4 +79,4 @@ pull:
     branch: "{{ prefect.variables.deployment_branch }}"
 ```
 
-The `deployment_branch` varible will be evaluated at runtime to allow changes to be made to variables used in a pull action without needing to update a deployment.
+The `deployment_branch` varible will be evaluated at runtime for the deployed flow, allowing changes to be made to variables used in a pull action without updating a deployment directly.
