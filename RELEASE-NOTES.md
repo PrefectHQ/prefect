@@ -1,5 +1,19 @@
 # Prefect Release Notes
 
+## Release 2.10.2
+
+Fixes a bug where deployments were not downloaded from remote storage blocks during flow runs — https://github.com/PrefectHQ/prefect/pull/9138
+
+### Enhancements
+- Adding httpx.ConnectTimeout to the list of retry exceptions in base client — https://github.com/PrefectHQ/prefect/pull/9125
+
+### Contributors
+- @billpalombi
+* @sorendaugaard made their first contribution in https://github.com/PrefectHQ/prefect/pull/9125
+
+
+**All changes**: https://github.com/PrefectHQ/prefect/compare/2.10.1...2.10.2
+
 ## Release 2.10.1
 
 Fixes a bug with accessing project recipes through the CLI. See the [pull request](https://github.com/PrefectHQ/prefect/pull/9132) for implementation details.
