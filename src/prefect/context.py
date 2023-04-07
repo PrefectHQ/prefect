@@ -240,7 +240,6 @@ class FlowRunContext(RunContext):
     task_run_states: List[State] = Field(default_factory=list)
     task_run_results: Dict[int, State] = Field(default_factory=dict)
     flow_run_states: List[State] = Field(default_factory=list)
-    mocks: List[Any] = Field(default_factory=list)
 
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls

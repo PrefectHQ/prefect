@@ -1,8 +1,18 @@
+from typing import List
 from unittest.mock import MagicMock
 
+import pydantic
+
+from prefect.context import ContextModel, ContextVar
 from prefect.flows import Flow, P, R
 from prefect.futures import PrefectFuture
-from prefect.settings import PREFECT_BUILDING_DAG, temporary_settings
+
+
+class DAGBuildContext(ContextModel):
+    bool_returns: bool = pydantic.Field(True)
+    mocks: List[MagicMock] = pydantic.Field(default_factory=list)
+
+    __var__ = ContextVar("tags")
 
 
 class FutureMock(MagicMock):
@@ -28,10 +38,11 @@ def get_mock_for_future(future: "PrefectFuture"):
 
 
 def build_dag(flow: Flow[P, R], *args: P.args, **kwargs: P.kwargs):
-    with temporary_settings({PREFECT_BUILDING_DAG: True}):
-        kwargs.pop("return_state", None)  # You can't control this we need the state
-        state = flow(*args, return_state=True, **kwargs)
+    with DAGBuildContext() as ctx:
+        flow(*args, **kwargs)
 
-    # Get the mocks
-    mocks = state._mocks
-    return mocks
+    return ctx.mocks
+
+
+def is_building_dag() -> bool:
+    return DAGBuildContext.get() is not None

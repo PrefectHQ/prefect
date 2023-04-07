@@ -46,7 +46,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
-from prefect.dag import get_mock_for_future
+from prefect.dag import DAGBuildContext, get_mock_for_future, is_building_dag
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
@@ -77,7 +77,6 @@ from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
-    PREFECT_BUILDING_DAG,
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -755,9 +754,6 @@ async def orchestrate_flow_run(
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
-    if PREFECT_BUILDING_DAG:
-        object.__setattr__(state, "_mocks", flow_run_context.mocks)
-
     return state
 
 
@@ -1167,9 +1163,9 @@ async def create_task_run_future(
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
 
-    if PREFECT_BUILDING_DAG:
+    if is_building_dag():
         mock = get_mock_for_future(future)
-        flow_run_context.mocks.append(mock)
+        DAGBuildContext.get().mocks.append(mock)
         return mock
 
     # Create and submit the task run in the background
