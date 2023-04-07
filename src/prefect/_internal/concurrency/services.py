@@ -6,8 +6,7 @@ import contextlib
 import sys
 import threading
 from collections import deque
-from contextvars import Context, ContextVar, Token, copy_context
-from typing import Awaitable, Dict, Generic, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Awaitable, Dict, Generic, List, Optional, Type, TypeVar, Union
 
 import anyio
 from typing_extensions import Self
@@ -27,7 +26,7 @@ class QueueService(abc.ABC, Generic[T]):
     _instances: Dict[int, Self] = {}
 
     def __init__(self, *args) -> None:
-        self._queue: Optional[asyncio.Queue[Optional[Tuple[T, Context]]]] = None
+        self._queue: Optional[asyncio.Queue] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._done_event: Optional[asyncio.Event] = None
         self._task: Optional[asyncio.Task] = None
@@ -96,8 +95,18 @@ class QueueService(abc.ABC, Generic[T]):
             if not self._started:
                 self._early_items.append(item)
             else:
-                ctx = copy_context()
-                call_soon_in_loop(self._loop, self._queue.put_nowait, (item, ctx))
+                call_soon_in_loop(
+                    self._loop, self._queue.put_nowait, self._prepare_item(item)
+                )
+
+    def _prepare_item(self, item: T) -> T:
+        """
+        Prepare an item for submission to the service. This is called before
+        the item is sent to the service.
+
+        The default implementation returns the item unchanged.
+        """
+        return item
 
     async def _run(self):
         try:
@@ -115,17 +124,14 @@ class QueueService(abc.ABC, Generic[T]):
 
     async def _main_loop(self):
         while True:
-            thing = await self._queue.get()
+            item: T = await self._queue.get()
 
-            if thing is None:
+            if item is None:
                 break
-
-            item, context = thing
 
             try:
                 logger.debug("Service %r handling item %r", self, item)
-                with temporary_context(context=context):
-                    await self._handle(item)
+                await self._handle(item)
             except Exception:
                 logger.exception(
                     "Service %r failed to process item %r", type(self).__name__, item
@@ -305,16 +311,3 @@ def drain_on_exit(service: QueueService):
 async def drain_on_exit_async(service: QueueService):
     yield
     await service.drain_all()
-
-
-@contextlib.contextmanager
-def temporary_context(context: Context):
-    tokens: Dict[ContextVar, Token] = {}
-    for key, value in context.items():
-        token = key.set(value)
-        tokens[key] = token
-    try:
-        yield
-    finally:
-        for key, token in tokens.items():
-            key.reset(token)

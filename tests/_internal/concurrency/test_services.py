@@ -1,7 +1,6 @@
 import contextlib
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from contextvars import ContextVar, copy_context
 from typing import List, Optional
 from unittest.mock import ANY, MagicMock, call
 
@@ -14,8 +13,6 @@ from prefect._internal.concurrency.services import (
     drain_on_exit,
     drain_on_exit_async,
 )
-
-THE_ANSWER = ContextVar("the-answer")
 
 
 class MockService(QueueService[int]):
@@ -311,24 +308,3 @@ def test_batched_queue_service_min_interval():
     IntervalMockBatchedService.mock.assert_has_calls(
         [call(instance, [1]), call(instance, [2])]
     )
-
-
-def test_context_available_to_handler():
-    class ContextAwareService(QueueService[int]):
-        mock = MagicMock()
-
-        async def _handle(self, item):
-            context = copy_context()
-            for key, value in context.items():
-                if key.name == "the-answer":
-                    self.mock(value)
-
-    # Start the service before setting the context variable so that the context
-    # it has does not have the value being set.
-    ContextAwareService.instance().send(1)
-
-    THE_ANSWER.set(42)
-
-    ContextAwareService.instance().send(1)
-    ContextAwareService.instance().drain()
-    ContextAwareService.instance().mock.assert_called_once_with(42)
