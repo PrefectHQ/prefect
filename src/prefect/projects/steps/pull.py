@@ -28,11 +28,9 @@ def git_clone_project(
 ) -> dict:
     """
     Clones a git repository into the current working directory.
-    If only a repo name is provided GitHub will be assumed, otherwise provide a full repo_url for the
-    repository.
 
     Args:
-        repository (str): the URL of the repository to clone; can be a full URL or a repo name
+        repository (str): the URL of the repository to clone
         branch (str, optional): the branch to clone; if not provided, the default branch will be used
         access_token (str, optional): an access token to use for cloning the repository; if not provided
             the repository will be cloned using the default git credentials
