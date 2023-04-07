@@ -632,24 +632,26 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        # permit rerunning a task if the flow is retrying
-        if proposed_state.is_running() and (
-            initial_state.is_failed()
-            or initial_state.is_crashed()
-            or initial_state.is_cancelled()
+        # Only allow departure from a happily completed state if the result is not persisted
+        if (
+            initial_state.is_completed()
+            and initial_state.data
+            and getattr(initial_state.data, "type") != "unpersisted"
         ):
-            self.original_run_count = context.run.run_count
-            self.original_retry_attempt = context.run.flow_run_run_count
+            await self.reject_transition(None, "This run is already completed.")
 
+        self.original_run_count = context.run.run_count
+        self.original_retry_attempt = context.run.flow_run_run_count
+
+        # Reset run count to reset retries
+        context.run.run_count = 0
+
+        # Change the name of the state to retrying if its a flow run retry
+        if proposed_state.is_running():
             self.flow_run = await context.flow_run()
             flow_retrying = context.run.flow_run_run_count < self.flow_run.run_count
-
             if flow_retrying:
-                context.run.run_count = 0  # reset run count to preserve retry behavior
                 await self.rename_state("Retrying")
-                return
-
-        await self.abort_transition(reason="This run has already terminated.")
 
     async def cleanup(
         self,
@@ -684,24 +686,29 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
+        # Only allow departure from a happily completed state if the result is not persisted
+        if (
+            initial_state.is_completed()
+            and initial_state.data
+            and getattr(initial_state.data, "type") != "unpersisted"
+        ):
+            await self.reject_transition(None, "This run is already completed.")
+
         self.original_flow_policy = context.run.empirical_policy.dict()
 
-        # permit transitions into back into a scheduled state for manual retries
-        if proposed_state.is_scheduled() and proposed_state.name == "AwaitingRetry":
-            # Reset pause metadata on manual retry
-            api_version = context.parameters.get("api-version", None)
-            if api_version is None or api_version >= Version("0.8.4"):
-                updated_policy = context.run.empirical_policy.dict()
-                updated_policy["resuming"] = False
-                updated_policy["pause_keys"] = set()
-                context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
+        # Do not allows runs to be rescheduled without a deployment
+        if proposed_state.is_scheduled() and not context.run.deployment_id:
+            await self.abort_transition(
+                "Cannot reschedule a run without an associated deployment."
+            )
 
-            if not context.run.deployment_id:
-                await self.abort_transition(
-                    "Cannot restart a run without an associated deployment."
-                )
-        else:
-            await self.abort_transition(reason="This run has already terminated.")
+        # Reset pause metadata when leaving a terminal state
+        api_version = context.parameters.get("api-version", None)
+        if api_version is None or api_version >= Version("0.8.4"):
+            updated_policy = context.run.empirical_policy.dict()
+            updated_policy["resuming"] = False
+            updated_policy["pause_keys"] = set()
+            context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
 
     async def cleanup(
         self,
