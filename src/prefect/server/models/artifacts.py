@@ -165,17 +165,31 @@ async def _apply_artifact_filters(
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
     artifact_filter: filters.ArtifactFilter = None,
+    deployment_filter: filters.DeploymentFilter = None,
+    flow_filter: filters.FlowFilter = None,
 ):
     """Applies filters to an artifact query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter(db))
 
-    if flow_run_filter:
+    if flow_filter or flow_run_filter or deployment_filter:
         exists_clause = select(db.FlowRun).where(
             db.Artifact.flow_run_id == db.FlowRun.id
         )
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
 
-        exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
+        if flow_filter:
+            exists_clause = exists_clause.join(
+                db.Flow,
+                db.Flow.id == db.FlowRun.flow_id,
+            ).where(flow_filter.as_sql_filter(db))
+
+        if deployment_filter:
+            exists_clause = exists_clause.join(
+                db.Deployment,
+                db.Deployment.id == db.FlowRun.deployment_id,
+            ).where(deployment_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
@@ -197,17 +211,31 @@ async def _apply_artifact_collection_filters(
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
     artifact_filter: filters.ArtifactCollectionFilter = None,
+    deployment_filter: filters.DeploymentFilter = None,
+    flow_filter: filters.FlowFilter = None,
 ):
     """Applies filters to an artifact collection query as a combination of EXISTS subqueries."""
     if artifact_filter:
         query = query.where(artifact_filter.as_sql_filter(db))
 
-    if flow_run_filter:
+    if flow_filter or flow_run_filter or deployment_filter:
         exists_clause = select(db.FlowRun).where(
             db.ArtifactCollection.flow_run_id == db.FlowRun.id
         )
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
 
-        exists_clause = exists_clause.where(flow_run_filter.as_sql_filter(db))
+        if flow_filter:
+            exists_clause = exists_clause.join(
+                db.Flow,
+                db.Flow.id == db.FlowRun.flow_id,
+            ).where(flow_filter.as_sql_filter(db))
+
+        if deployment_filter:
+            exists_clause = exists_clause.join(
+                db.Deployment,
+                db.Deployment.id == db.FlowRun.deployment_id,
+            ).where(deployment_filter.as_sql_filter(db))
 
         query = query.where(exists_clause.exists())
 
@@ -231,6 +259,8 @@ async def read_artifacts(
     artifact_filter: filters.ArtifactFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
+    deployment_filter: filters.DeploymentFilter = None,
+    flow_filter: filters.FlowFilter = None,
     sort: sorting.ArtifactSort = sorting.ArtifactSort.ID_DESC,
 ):
     """
@@ -243,6 +273,9 @@ async def read_artifacts(
         artifact_filter: Only select artifacts matching this filter
         flow_run_filter: Only select artifacts whose flow runs matching this filter
         task_run_filter: Only select artifacts whose task runs matching this filter
+        deployment_filter: Only select artifacts whose flow runs belong to deployments matching this filter
+        flow_filter: Only select artifacts whose flow runs belong to flows matching this filter
+        work_pool_filter: Only select artifacts whose flow runs belong to work pools matching this filter
     """
     query = sa.select(db.Artifact).order_by(sort.as_sql_sort(db))
 
@@ -252,6 +285,8 @@ async def read_artifacts(
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+        flow_filter=flow_filter,
     )
 
     if offset is not None:
@@ -272,6 +307,8 @@ async def read_latest_artifacts(
     artifact_filter: filters.ArtifactCollectionFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
+    deployment_filter: filters.DeploymentFilter = None,
+    flow_filter: filters.FlowFilter = None,
     sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC,
 ):
     """
@@ -284,6 +321,9 @@ async def read_latest_artifacts(
         artifact_filter: Only select artifacts matching this filter
         flow_run_filter: Only select artifacts whose flow runs matching this filter
         task_run_filter: Only select artifacts whose task runs matching this filter
+        deployment_filter: Only select artifacts whose flow runs belong to deployments matching this filter
+        flow_filter: Only select artifacts whose flow runs belong to flows matching this filter
+        work_pool_filter: Only select artifacts whose flow runs belong to work pools matching this filter
     """
     query = sa.select(db.ArtifactCollection).order_by(sort.as_sql_sort(db))
     query = await _apply_artifact_collection_filters(
@@ -292,6 +332,8 @@ async def read_latest_artifacts(
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+        flow_filter=flow_filter,
     )
 
     if offset is not None:
@@ -310,6 +352,8 @@ async def count_artifacts(
     artifact_filter: filters.ArtifactFilter = None,
     flow_run_filter: filters.FlowRunFilter = None,
     task_run_filter: filters.TaskRunFilter = None,
+    deployment_filter: filters.DeploymentFilter = None,
+    flow_filter: filters.FlowFilter = None,
 ) -> int:
     """
     Counts artifacts.
@@ -327,6 +371,8 @@ async def count_artifacts(
         artifact_filter=artifact_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
+        flow_filter=flow_filter,
     )
 
     result = await session.execute(query)
