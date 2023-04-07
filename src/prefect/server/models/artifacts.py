@@ -399,7 +399,7 @@ async def count_latest_artifacts(
     """
     query = sa.select(sa.func.count(db.ArtifactCollection.id))
 
-    query = await _apply_artifact_filters(
+    query = await _apply_artifact_collection_filters(
         query,
         db=db,
         artifact_filter=artifact_filter,
