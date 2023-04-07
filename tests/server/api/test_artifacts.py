@@ -703,6 +703,30 @@ class TestCountArtifacts:
         assert response.status_code == 200
         assert response.json() == 1
 
+    async def test_count_artifacts_by_flow_name(self, flow_artifacts, client):
+        flow_name = flow_artifacts[0]["name"]
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/count", json=flow_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 2
+
+    async def test_count_artifacts_by_deployment(self, flow_artifacts, client):
+        deployment_id = flow_artifacts[3]
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/artifacts/count", json=deployment_filter)
+        assert response.status_code == status.HTTP_200_OK
+        json = response.json()
+        assert json == 2
+
 
 class TestUpdateArtifact:
     async def test_update_artifact_succeeds(self, artifact, client):
