@@ -755,6 +755,9 @@ async def orchestrate_flow_run(
             # Attempt to enter a running state again
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
+    if PREFECT_BUILDING_DAG:
+        state._mocks = flow_run_context.mocks
+
     return state
 
 
