@@ -19,4 +19,4 @@ pull:
   - prefect_aws.projects.steps.pull_project_from_s3:
       requires: "prefect-aws>=0.3.0"
       bucket: "{{ bucket }}"
-      folder: "{{ name }}"
+      folder: "{{ folder }}"
