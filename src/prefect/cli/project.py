@@ -2,6 +2,7 @@
 Command line interface for working with projects.
 """
 from pathlib import Path
+from typing import List
 
 import typer
 import yaml
@@ -61,32 +62,61 @@ async def ls():
 
 
 @project_app.command()
-async def init(name: str = None, recipe: str = None):
+async def init(
+    name: str = None,
+    recipe: str = None,
+    fields: List[str] = typer.Option(
+        None,
+        "-f",
+        "--field",
+        help=(
+            "One or more fields to pass to the recipe (e.g., image_name) in the format"
+            " of key=value."
+        ),
+    ),
+):
     """
     Initialize a new project.
     """
     inputs = {}
+    fields = fields or []
     recipe_paths = prefect.__module_path__ / "projects" / "recipes"
+
+    for field in fields:
+        key, value = field.split("=")
+        inputs[key] = value
 
     if recipe and (recipe_paths / recipe / "prefect.yaml").exists():
         with open(recipe_paths / recipe / "prefect.yaml") as f:
             recipe_inputs = yaml.safe_load(f).get("required_inputs") or {}
 
         if recipe_inputs:
-            table = Table(
-                title=f"[red]Required inputs for {recipe!r} recipe[/red]",
-            )
-            table.add_column("Field Name", style="green", no_wrap=True)
-            table.add_column(
-                "Description", justify="left", style="white", no_wrap=False
-            )
-            for field, description in recipe_inputs.items():
-                table.add_row(field, description)
+            if set(recipe_inputs.keys()) < set(inputs.keys()):
+                # message to user about extra fields
+                app.console.print(
+                    (
+                        f"Warning: extra fields provided for {recipe!r} recipe:"
+                        f" '{', '.join(set(inputs.keys()) - set(recipe_inputs.keys()))}'"
+                    ),
+                    style="red",
+                )
+            elif set(recipe_inputs.keys()) > set(inputs.keys()):
+                table = Table(
+                    title=f"[red]Required inputs for {recipe!r} recipe[/red]",
+                )
+                table.add_column("Field Name", style="green", no_wrap=True)
+                table.add_column(
+                    "Description", justify="left", style="white", no_wrap=False
+                )
+                for field, description in recipe_inputs.items():
+                    if field not in inputs:
+                        table.add_row(field, description)
 
-            app.console.print(table)
+                app.console.print(table)
 
-            for key, description in recipe_inputs.items():
-                inputs[key] = typer.prompt(key)
+                for key, description in recipe_inputs.items():
+                    if key not in inputs:
+                        inputs[key] = typer.prompt(key)
 
             app.console.print("-" * 15)
 
