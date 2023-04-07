@@ -3,6 +3,9 @@ Access attributes of the current task run dynamically.
 
 Note that if a task run cannot be discovered, all attributes will return empty values.
 
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__TASK_RUN`.
+
 Available attributes:
     - `id`: the task run's unique ID
     - `name`: the name of the task run

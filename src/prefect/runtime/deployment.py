@@ -3,6 +3,9 @@ Access attributes of the current deployment run dynamically.
 
 Note that if a deployment is not currently being run, all attributes will return empty values.
 
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__DEPLOYMENT`.
+
 Example usage:
     ```python
     from prefect.runtime import deployment

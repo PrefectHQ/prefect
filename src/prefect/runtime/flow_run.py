@@ -3,6 +3,9 @@ Access attributes of the current flow run dynamically.
 
 Note that if a flow run cannot be discovered, all attributes will return empty values.
 
+You can mock the runtime attributes for testing purposes by setting environment variables
+prefixed with `PREFECT__RUNTIME__FLOW_RUN`.
+
 Available attributes:
     - `id`: the flow run's unique ID
     - `tags`: the flow run's set of tags
