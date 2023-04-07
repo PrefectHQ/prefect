@@ -1173,6 +1173,11 @@ PREFECT_EXPERIMENTAL_WARN_ARTIFACTS = Setting(bool, default=False)
 Whether or not to warn when experimental Prefect artifacts are used.
 """
 
+PREFECT_BUILDING_DAG = Setting(bool, default=False)
+"""
+Toggled when Prefect is building the DAG for a flow.
+"""
+
 
 # Deprecated settings ------------------------------------------------------------------
 
