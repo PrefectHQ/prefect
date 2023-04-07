@@ -158,6 +158,7 @@ class TestPrefectHttpxClient:
             httpx.LocalProtocolError,
             httpx.PoolTimeout,
             httpx.ReadTimeout,
+            httpx.ConnectTimeout,
         ],
     )
     async def test_prefect_httpx_client_retries_on_designated_exceptions(

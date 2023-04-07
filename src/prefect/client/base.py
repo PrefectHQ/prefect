@@ -254,6 +254,7 @@ class PrefectHttpxClient(httpx.AsyncClient):
             retry_exceptions=(
                 httpx.ReadTimeout,
                 httpx.PoolTimeout,
+                httpx.ConnectTimeout,
                 # `ConnectionResetError` when reading socket raises as a `ReadError`
                 httpx.ReadError,
                 # Sockets can be closed during writes resulting in a `WriteError`
