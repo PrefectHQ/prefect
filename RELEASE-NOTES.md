@@ -8,7 +8,6 @@ Fixes a bug where deployments were not downloaded from remote storage blocks dur
 - Add httpx.ConnectTimeout to the list of retry exceptions in base client — https://github.com/PrefectHQ/prefect/pull/9125
 
 ### Contributors
-- @billpalombi
 * @sorendaugaard made their first contribution in https://github.com/PrefectHQ/prefect/pull/9125
 
 
