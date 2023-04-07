@@ -1,4 +1,4 @@
-from typing import Set
+from typing import List
 from unittest.mock import MagicProxy, Mock
 
 import pydantic
@@ -13,12 +13,12 @@ logger = get_logger("dag")
 
 class DAGBuildContext(ContextModel):
     bool_returns: bool = pydantic.Field(True)
-    mocks: Set[Mock] = pydantic.Field(default_factory=set)
+    mocks: List[Mock] = pydantic.Field(default_factory=list)
 
     __var__ = ContextVar("tags")
 
     def add_mock(self, mock):
-        self.mocks.add(mock)
+        self.mocks.append(mock)
 
 
 magic_methods = [
@@ -98,7 +98,7 @@ def build_dag(flow: Flow[P, R], *args: P.args, **kwargs: P.kwargs):
     with DAGBuildContext(bool_returns=False) as ctx_false:
         flow(*args, **kwargs)
 
-    return ctx_true.mocks.union(ctx_false.mocks)
+    return ctx_true.mocks, ctx_false.mocks
 
 
 def is_building_dag() -> bool:
