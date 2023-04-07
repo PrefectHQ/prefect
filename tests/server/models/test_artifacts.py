@@ -54,6 +54,73 @@ async def artifacts(flow_run, task_run, session):
     yield [artifact1, artifact2, artifact3]
 
 
+@pytest.fixture
+async def deployment_artifacts(deployment, session):
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.core.FlowRun(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment.id,
+            flow_version="1.0",
+        ),
+    )
+    artifact1_schema = schemas.core.Artifact(
+        key="voltaic1",
+        data=1,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+    )
+    artifact1 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact1_schema
+    )
+
+    artifact2_schema = schemas.core.Artifact(
+        key="voltaic1",
+        data=2,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+    )
+    artifact2 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact2_schema
+    )
+
+    return [flow_run, artifact1, artifact2]
+
+
+@pytest.fixture
+async def flow_artifacts(session):
+    flow = await models.flows.create_flow(
+        session=session, flow=schemas.core.Flow(name="my-flow", tags=["green"])
+    )
+    flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.core.FlowRun(
+            flow_id=flow.id,
+        ),
+    )
+    artifact1_schema = schemas.core.Artifact(
+        key="voltaic2",
+        data=1,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+    )
+    artifact1 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact1_schema
+    )
+
+    artifact2_schema = schemas.core.Artifact(
+        key="voltaic2",
+        data=2,
+        metadata_={"description": "opens many doors"},
+        flow_run_id=flow_run.id,
+    )
+    artifact2 = await models.artifacts.create_artifact(
+        session=session, artifact=artifact2_schema
+    )
+
+    return [flow, artifact1, artifact2]
+
+
 class TestCreateArtifacts:
     async def test_creating_artifacts(self, session):
         artifact_schema = schemas.core.Artifact(
@@ -199,6 +266,28 @@ class TestCountArtifacts:
         )
 
         assert count == 2
+
+    async def test_counting_artifacts_by_flow_name(self, flow_artifacts, session):
+        flow_name = flow_artifacts[0].name
+        result = await models.artifacts.count_artifacts(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ),
+        )
+        assert result == 2
+
+    async def test_counting_artifacts_by_deployment(
+        self, deployment_artifacts, session
+    ):
+        deployment_id = deployment_artifacts[0].deployment_id
+        result = await models.artifacts.count_artifacts(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+        )
+        assert result == 2
 
 
 class TestUpdateArtifacts:
@@ -405,6 +494,30 @@ class TestReadLatestArtifacts:
         assert len(read_artifacts) == 1
         assert read_artifacts[0].key == artifacts[-1].key
 
+    async def test_reading_latest_artifacts_by_flow_name(self, flow_artifacts, session):
+        flow_name = flow_artifacts[0].name
+        result = await models.artifacts.read_latest_artifacts(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].latest_id == flow_artifacts[2].id
+
+    async def test_reading_latest_artifacts_by_deployment(
+        self, deployment_artifacts, session
+    ):
+        deployment_id = deployment_artifacts[0].deployment_id
+        result = await models.artifacts.read_latest_artifacts(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].latest_id == deployment_artifacts[2].id
+
 
 class TestReadingSingleArtifacts:
     async def test_reading_artifacts_by_id(self, session):
@@ -512,9 +625,33 @@ class TestReadingMultipleArtifacts:
         assert len(tutored_artifacts) == 2
         assert tutored_artifacts[0].task_run_id == task_run_ids[0]
 
-    async def test_reading_artifacts_flow_run_filter_returns_empty_list_if_missing(
-        self, session
-    ):
+    async def test_reading_artifacts_by_flow_name(self, flow_artifacts, session):
+        flow_name = flow_artifacts[0].name
+        result = await models.artifacts.read_artifacts(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow_name])
+            ),
+        )
+        assert len(result) == len(flow_artifacts) - 1
+        assert sorted([result[0].id, result[1].id]) == sorted(
+            [flow_artifacts[1].id, flow_artifacts[2].id]
+        )
+
+    async def test_reading_artifacts_by_deployment(self, deployment_artifacts, session):
+        deployment_id = deployment_artifacts[0].deployment_id
+        result = await models.artifacts.read_artifacts(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=schemas.filters.DeploymentFilterId(any_=[deployment_id])
+            ),
+        )
+        assert len(result) == len(deployment_artifacts) - 1
+        assert sorted([result[0].id, result[1].id]) == sorted(
+            [deployment_artifacts[1].id, deployment_artifacts[2].id]
+        )
+
+    async def test_reading_artifacts_returns_empty_list_if_missing(self, session):
         tutored_artifacts = await models.artifacts.read_artifacts(session)
 
         assert len(tutored_artifacts) == 0
