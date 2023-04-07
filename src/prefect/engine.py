@@ -24,6 +24,7 @@ import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
+from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import anyio
@@ -76,6 +77,7 @@ from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.sorting import FlowRunSort
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.settings import (
+    PREFECT_BUILDING_DAG,
     PREFECT_DEBUG_MODE,
     PREFECT_LOGGING_LOG_PRINTS,
     PREFECT_TASKS_REFRESH_CACHE,
@@ -1161,6 +1163,11 @@ async def create_task_run_future(
         task_runner=task_runner,
         asynchronous=task.isasync and flow_run_context.flow.isasync,
     )
+
+    if PREFECT_BUILDING_DAG:
+        mock = MagicMock(name=task_run_name, spec=future)
+        flow_run_context.mocks.append(mock)
+        return mock
 
     # Create and submit the task run in the background
     flow_run_context.background_tasks.start_soon(
