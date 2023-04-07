@@ -8,7 +8,6 @@ schedule: null
 # flow-specific fields
 flow_name: null
 entrypoint: null
-path: null
 parameters: {}
 parameter_openapi_schema: null
 

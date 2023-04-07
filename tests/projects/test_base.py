@@ -143,6 +143,35 @@ class TestInitProject:
         build_step = contents["build"][0]
         assert "prefect_docker.projects.steps.build_docker_image" in build_step
 
+    @pytest.mark.parametrize(
+        "recipe",
+        [
+            d.absolute().name
+            for d in Path(
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
+            ).iterdir()
+            if d.is_dir() and "docker" in d.absolute().name
+        ],
+    )
+    async def test_initialize_project_with_docker_recipe_default_image(self, recipe):
+        files = initialize_project(recipe=recipe)
+        assert len(files) >= 3
+
+        with open("prefect.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        build_step = contents["build"][0]
+        assert "prefect_docker.projects.steps.build_docker_image" in build_step
+
+        with open("deployment.yaml", "r") as f:
+            contents = yaml.safe_load(f)
+
+        assert contents["work_pool"]["job_variables"]["image"] == "{{ image_name }}"
+
 
 class TestRegisterFlow:
     async def test_register_flow_works_in_root(self, project_dir):

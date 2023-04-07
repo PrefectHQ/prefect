@@ -434,7 +434,7 @@ async def deploy(
             parameters=base_deploy["parameters"],
             description=base_deploy["description"],
             tags=base_deploy["tags"],
-            path=base_deploy["path"],
+            path=base_deploy.get("path"),
             entrypoint=base_deploy["entrypoint"],
             parameter_openapi_schema=base_deploy["parameter_openapi_schema"].dict(),
             pull_steps=project["pull"],

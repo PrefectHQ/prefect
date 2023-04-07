@@ -87,7 +87,7 @@ async def init(name: str = None, recipe: str = None):
     )
     file_msg = (
         f"Created project in [green]{Path('.').resolve()}[/green] with the following"
-        f" new files:\n {files}"
+        f" new files:\n{files}"
     )
     app.console.print(file_msg if files else empty_msg)
 
