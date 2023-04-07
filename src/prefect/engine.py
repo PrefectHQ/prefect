@@ -1165,7 +1165,7 @@ async def create_task_run_future(
 
     if is_building_dag():
         mock = get_mock_for_future(future)
-        DAGBuildContext.get().mocks.append(mock)
+        DAGBuildContext.get().add_mock(mock)
         return mock
 
     # Create and submit the task run in the background
