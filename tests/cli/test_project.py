@@ -9,7 +9,8 @@ import yaml
 
 import prefect
 from prefect.blocks.system import Secret
-from prefect.projects.base import initialize_project
+from prefect.projects import register_flow
+from prefect.projects.base import create_default_deployment_yaml, initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -193,3 +194,40 @@ class TestProjectDeploy:
                 }
             }
         ]
+
+    async def test_project_deploy_reads_flow_name_from_deployment_yaml(
+        self, project_dir, orion_client, work_pool
+    ):
+        await register_flow("flows/hello.py:my_flow")
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["flow_name"] = "An important name"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(invoke_and_assert, command="deploy")
+        assert result.exit_code == 0
+        assert "An important name/test-name" in result.output
+
+    async def test_project_deploy_reads_entrypoint_from_deployment_yaml(
+        self, project_dir, orion_client, work_pool
+    ):
+        create_default_deployment_yaml(".")
+        with open("deployment.yaml", "r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["name"] = "test-name"
+        deploy_config["entrypoint"] = "flows/hello.py:my_flow"
+        deploy_config["work_pool"]["name"] = work_pool.name
+
+        with open("deployment.yaml", "w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        result = await run_sync_in_worker_thread(invoke_and_assert, command="deploy")
+        assert result.exit_code == 0
+        assert "An important name/test-name" in result.output
