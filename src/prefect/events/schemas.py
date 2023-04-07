@@ -114,6 +114,10 @@ class Event(PrefectBaseModel):
         description="The client-provided identifier of this event",
     )
 
+    @property
+    def involved_resources(self) -> Iterable[Resource]:
+        return [self.resource] + list(self.related)
+
     @validator("related")
     def enforce_maximum_related_resources(cls, value: List[RelatedResource]):
         if len(value) > MAXIMUM_RELATED_RESOURCES:

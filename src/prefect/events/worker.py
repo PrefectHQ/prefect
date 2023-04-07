@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from contextvars import Context, copy_context
 from typing import Any, Optional, Tuple, Type
 
 from typing_extensions import Self
@@ -6,8 +7,10 @@ from typing_extensions import Self
 from prefect._internal.compatibility.experimental import experiment_enabled
 from prefect._internal.concurrency.services import QueueService
 from prefect.settings import PREFECT_API_KEY, PREFECT_API_URL, PREFECT_CLOUD_API_URL
+from prefect.utilities.context import temporary_context
 
 from .clients import EventsClient, NullEventsClient, PrefectCloudEventsClient
+from .related import related_resources_from_run_context
 from .schemas import Event
 
 
@@ -27,8 +30,19 @@ class EventsWorker(QueueService[Event]):
         async with self._client:
             yield
 
-    async def _handle(self, item: Event):
-        await self._client.emit(item)
+    def _prepare_item(self, event: Event) -> Tuple[Event, Context]:
+        return (event, copy_context())
+
+    async def _handle(self, event_and_context: Tuple[Event, Context]):
+        event, context = event_and_context
+        with temporary_context(context=context):
+            await self.attach_related_resources_from_context(event)
+
+        await self._client.emit(event)
+
+    async def attach_related_resources_from_context(self, event: Event):
+        exclude = {resource.id for resource in event.involved_resources}
+        event.related += await related_resources_from_run_context(exclude=exclude)
 
     @classmethod
     def instance(cls: Type[Self], client_type: Optional[EventsClient] = None) -> Self:
