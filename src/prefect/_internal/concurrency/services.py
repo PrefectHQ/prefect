@@ -122,21 +122,14 @@ class QueueService(abc.ABC, Generic[T]):
 
             item, context = thing
 
-            tokens: Dict[ContextVar, Token] = {}
-            for key, value in context.items():
-                token = key.set(value)
-                tokens[key] = token
-
             try:
                 logger.debug("Service %r handling item %r", self, item)
-                await self._handle(item)
+                with temporary_context(context=context):
+                    await self._handle(item)
             except Exception:
                 logger.exception(
                     "Service %r failed to process item %r", type(self).__name__, item
                 )
-            finally:
-                for key, token in tokens.items():
-                    key.reset(token)
 
     @abc.abstractmethod
     async def _handle(self, item: T):
@@ -312,3 +305,16 @@ def drain_on_exit(service: QueueService):
 async def drain_on_exit_async(service: QueueService):
     yield
     await service.drain_all()
+
+
+@contextlib.contextmanager
+def temporary_context(context: Context):
+    tokens: Dict[ContextVar, Token] = {}
+    for key, value in context.items():
+        token = key.set(value)
+        tokens[key] = token
+    try:
+        yield
+    finally:
+        for key, token in tokens.items():
+            key.reset(token)

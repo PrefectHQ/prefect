@@ -15,6 +15,8 @@ from prefect._internal.concurrency.services import (
     drain_on_exit_async,
 )
 
+THE_ANSWER = ContextVar("the-answer")
+
 
 class MockService(QueueService[int]):
     mock = MagicMock()
@@ -321,9 +323,11 @@ def test_context_available_to_handler():
                 if key.name == "the-answer":
                     self.mock(value)
 
+    # Start the service before setting the context variable so that the context
+    # it has does not have the value being set.
     ContextAwareService.instance().send(1)
 
-    ContextVar("the-answer").set(42)
+    THE_ANSWER.set(42)
 
     ContextAwareService.instance().send(1)
     ContextAwareService.instance().drain()
