@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import anyio
 from packaging.version import Version
@@ -46,6 +47,9 @@ async def read_flow_run(flow_run_id):
 
 
 def main():
+    # We must create an ignore file
+    Path(".prefectignore").touch()
+
     # Create deployment
     deployment = Deployment.build_from_flow(
         flow=hello,
