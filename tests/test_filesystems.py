@@ -11,7 +11,7 @@ from prefect.filesystems import Azure, GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str]:

@@ -48,7 +48,7 @@ app.add_typer(dev_app)
 def exit_with_error_if_not_editable_install():
     if (
         prefect.__module_path__.parent == "site-packages"
-        or not (prefect.__root_path__ / "setup.py").exists()
+        or not (prefect.__development_base_path__ / "setup.py").exists()
     ):
         exit_with_error(
             "Development commands require an editable Prefect installation. "
@@ -124,7 +124,7 @@ def build_docs(
 
     if not schema_path:
         schema_path = (
-            prefect.__root_path__ / "docs" / "api-ref" / "schema.json"
+            prefect.__development_base_path__ / "docs" / "api-ref" / "schema.json"
         ).absolute()
     # overwrite info for display purposes
     schema["info"] = {}
@@ -136,7 +136,7 @@ def build_docs(
 BUILD_UI_HELP = f"""
 Installs dependencies and builds UI locally.
 
-The built UI will be located at {prefect.__root_path__ / "ui"}
+The built UI will be located at {prefect.__development_base_path__ / "ui"}
 
 Requires npm.
 """
@@ -145,8 +145,8 @@ Requires npm.
 @dev_app.command(help=BUILD_UI_HELP)
 def build_ui():
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "ui"):
+    with tmpchdir(prefect.__development_base_path__):
+        with tmpchdir(prefect.__development_base_path__ / "ui"):
             app.console.print("Installing npm packages...")
             try:
                 subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
@@ -179,8 +179,8 @@ async def ui():
     Starts a hot-reloading development UI.
     """
     exit_with_error_if_not_editable_install()
-    with tmpchdir(prefect.__root_path__):
-        with tmpchdir(prefect.__root_path__ / "ui"):
+    with tmpchdir(prefect.__development_base_path__):
+        with tmpchdir(prefect.__development_base_path__ / "ui"):
             app.console.print("Installing npm packages...")
             await run_process(["npm", "install"], stream_output=True)
 
@@ -365,7 +365,7 @@ def build_image(
     command = [
         "docker",
         "build",
-        str(prefect.__root_path__),
+        str(prefect.__development_base_path__),
         "--tag",
         tag,
         "--platform",
@@ -426,7 +426,7 @@ def container(bg: bool = False, name="prefect-dev", api: bool = True, tag: str =
         name=name,
         auto_remove=True,
         working_dir="/opt/prefect/repo",
-        volumes=[f"{prefect.__root_path__}:/opt/prefect/repo"],
+        volumes=[f"{prefect.__development_base_path__}:/opt/prefect/repo"],
         shm_size="4G",
     )
 
@@ -497,7 +497,7 @@ def kubernetes_manifest():
     )
     manifest = template.substitute(
         {
-            "prefect_root_directory": prefect.__root_path__,
+            "prefect_root_directory": prefect.__development_base_path__,
             "image_name": get_prefect_image_name(),
         }
     )

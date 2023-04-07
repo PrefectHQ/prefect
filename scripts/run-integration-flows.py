@@ -18,9 +18,9 @@ import sys
 from pathlib import Path
 from typing import Union
 
-from prefect import __root_path__, __version__
+from prefect import __development_base_path__, __version__
 
-DEFAULT_PATH = __root_path__ / "flows"
+DEFAULT_PATH = __development_base_path__ / "flows"
 
 
 def run_flows(search_path: Union[str, Path]):
