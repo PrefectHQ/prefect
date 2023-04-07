@@ -1,4 +1,5 @@
 import os
+import readchar
 import shutil
 import sys
 from pathlib import Path
@@ -13,6 +14,8 @@ from prefect.projects.base import initialize_project
 from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+
+from test_cloud import interactive_console
 
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
@@ -64,6 +67,23 @@ class TestProjectInit:
                 "project init --name test_project --recipe local", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_with_interactive_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "project init --name test_project --recipe docker",
+                expected_code=0,
+                temp_dir=str(tempdir),
+                user_input="my-image/foo"
+                + readchar.key.ENTER
+                + "testing"
+                + readchar.key.ENTER,
+                expected_output_contains=[
+                    "image_name:",
+                    "tag:",
+                ],
+            )
 
     def test_project_init_with_unknown_recipe(self):
         result = invoke_and_assert(
