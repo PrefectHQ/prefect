@@ -7,6 +7,7 @@ import typer
 import yaml
 from rich.table import Table
 
+import prefect
 from prefect.cli._types import PrefectTyper
 from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
@@ -33,7 +34,7 @@ async def ls():
     List available recipes.
     """
 
-    recipe_paths = Path(__file__).parent / ".." / "projects" / "recipes"
+    recipe_paths = prefect.__module_path__ / "projects" / "recipes"
     recipes = {}
 
     for recipe in recipe_paths.iterdir():
