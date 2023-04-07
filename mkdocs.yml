@@ -181,6 +181,7 @@ nav:
         - api-ref/index.md
         - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md
+            - 'prefect.artifacts': api-ref/prefect/artifacts.md
             # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
             - 'prefect.deployments': api-ref/prefect/deployments.md
