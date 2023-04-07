@@ -81,7 +81,10 @@ class TestProjectDeploy:
         )
         result = await run_sync_in_worker_thread(
             invoke_and_assert,
-            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+            command=(
+                "deploy ./flows/hello.py:my_flow -n test-name -p test-pool --version"
+                " 1.0.0 -v env=prod -t foo-bar"
+            ),
         )
         assert result.exit_code == 0
         assert "An important name/test" in result.output
@@ -91,6 +94,9 @@ class TestProjectDeploy:
         )
         assert deployment.name == "test-name"
         assert deployment.work_pool_name == "test-pool"
+        assert deployment.version == "1.0.0"
+        assert deployment.tags == ["foo-bar"]
+        assert deployment.infra_overrides == {"env": "prod"}
 
     async def test_project_deploy_templates_values(self, project_dir, orion_client):
         await orion_client.create_work_pool(

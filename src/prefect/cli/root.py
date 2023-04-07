@@ -184,7 +184,7 @@ async def deploy(
         ),
     ),
     version: str = typer.Option(
-        None, "--version", "-v", help="A version to give the deployment."
+        None, "--version", help="A version to give the deployment."
     ),
     tags: List[str] = typer.Option(
         None,
