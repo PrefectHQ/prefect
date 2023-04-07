@@ -48,7 +48,7 @@ my_flow(1)
 
 Above, we demonstrate access to information about the current flow run, task run, and deployment. If you run this locally, you should see `"i belong to deployment None"` logged. When information is not available, the runtime will always return an empty value. Since we've run this flow without a deployment, there is no data in the deployment module. If this flow was deployed and executed by an agent, we'd see the name of the deployment instead.
 
-See the [runtime API reference](/api-ref/prefect/runtime/) for a full list of available attributes.
+See the [runtime API reference](/api-ref/prefect/runtime/flow_run/) for a full list of available attributes.
 
 ## Accessing the run context directly
 

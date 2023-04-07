@@ -13,11 +13,13 @@ T = TypeVar("T", str, int, float, bool, dict, list, None)
 
 PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.-]+)\s*}})")
 BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
+VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
 
 
 class PlaceholderType(enum.Enum):
     STANDARD = "standard"
     BLOCK_DOCUMENT = "block_document"
+    VARIABLE = "variable"
 
 
 class Placeholder(NamedTuple):
@@ -38,7 +40,10 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
     """
     if name.startswith(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX):
         return PlaceholderType.BLOCK_DOCUMENT
-    return PlaceholderType.STANDARD
+    elif name.startswith(VARIABLE_PLACEHOLDER_PREFIX):
+        return PlaceholderType.VARIABLE
+    else:
+        return PlaceholderType.STANDARD
 
 
 def find_placeholders(template: T) -> Set[Placeholder]:
@@ -69,7 +74,9 @@ def find_placeholders(template: T) -> Set[Placeholder]:
         raise ValueError(f"Unexpected type: {type(template)}")
 
 
-def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
+def apply_values(
+    template: T, values: Dict[str, Any], remove_notset: bool = True
+) -> Union[T, Type[NotSet]]:
     """
     Replaces placeholders in a template with values from a supplied dictionary.
 
@@ -87,11 +94,12 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     If a template contains a placeholder that is not in `values`, UNSET will
     be returned to signify that no placeholder replacement occurred. If
     `template` is a dictionary that contains a key with a value of UNSET,
-    the key will be removed in the return value.
+    the key will be removed in the return value unless `remove_notset` is set to False.
 
     Args:
         template: template to discover and replace values in
         values: The values to apply to placeholders in the template
+        remove_notset: If True, remove keys with an unset value
 
     Returns:
         The template with the values applied
@@ -124,15 +132,17 @@ def apply_values(template: T, values: Dict[str, Any]) -> Union[T, Type[NotSet]]:
     elif isinstance(template, dict):
         updated_template = {}
         for key, value in template.items():
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
                 updated_template[key] = updated_value
+            elif not remove_notset:
+                updated_template[key] = value
 
         return updated_template
     elif isinstance(template, list):
         updated_list = []
         for value in template:
-            updated_value = apply_values(value, values)
+            updated_value = apply_values(value, values, remove_notset=remove_notset)
             if updated_value is not NotSet:
                 updated_list.append(updated_value)
         return updated_list
@@ -206,7 +216,11 @@ async def resolve_block_document_references(
             block_document = await client.read_block_document_by_name(
                 name=block_document_name, block_type_slug=block_type_slug
             )
-            return block_document.data
+            # Handling for system blocks like Secret that have a value field
+            # These blocks will be replaced by variables in the future and this
+            # logic can be removed at that time.
+            value = block_document.data.get("value", block_document.data)
+            return value
         else:
             raise ValueError(
                 f"Invalid template: {template!r}. Only a single block placeholder is"
@@ -214,3 +228,61 @@ async def resolve_block_document_references(
             )
 
     return template
+
+
+@inject_client
+async def resolve_variables(template: T, client: "PrefectClient" = None):
+    """
+    Resolve variables in a template by replacing each variable placeholder with the
+    value of the variable.
+
+    Recursively searches for variable placeholders in dictionaries and lists.
+
+    Strips variable placeholders if the variable is not found.
+
+    Args:
+        template: The template to resolve variables in
+
+    Returns:
+        The template with variables resolved
+    """
+    if isinstance(template, str):
+        placeholders = find_placeholders(template)
+        has_variable_placeholder = any(
+            placeholder.type is PlaceholderType.VARIABLE for placeholder in placeholders
+        )
+        if not placeholders or not has_variable_placeholder:
+            # If there are no values, we can just use the template
+            return template
+        elif (
+            len(placeholders) == 1
+            and list(placeholders)[0].full_match == template
+            and list(placeholders)[0].type is PlaceholderType.VARIABLE
+        ):
+            variable_name = list(placeholders)[0].name.replace(
+                VARIABLE_PLACEHOLDER_PREFIX, ""
+            )
+            variable = await client.read_variable_by_name(name=variable_name)
+            if variable is None:
+                return ""
+            else:
+                return variable.value
+        else:
+            for full_match, name, placeholder_type in placeholders:
+                if placeholder_type is PlaceholderType.VARIABLE:
+                    variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
+                    variable = await client.read_variable_by_name(name=variable_name)
+                    if variable is None:
+                        template = template.replace(full_match, "")
+                    else:
+                        template = template.replace(full_match, variable.value)
+            return template
+    elif isinstance(template, dict):
+        return {
+            key: await resolve_variables(value, client=client)
+            for key, value in template.items()
+        }
+    elif isinstance(template, list):
+        return [await resolve_variables(item, client=client) for item in template]
+    else:
+        return template

@@ -115,6 +115,7 @@ nav:
         - Configuration: tutorials/flow-task-config.md
         - Execution: tutorials/execution.md
         - Orchestration: tutorials/orchestration.md
+        - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
     - Concepts: 
@@ -126,9 +127,11 @@ nav:
         - Infrastructure: concepts/infrastructure.md
         - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
-        - Agents & Work Pools: concepts/work-pools.md
+        - Projects: concepts/projects.md
+        - Work Pools, Workers, & Agents: concepts/work-pools.md
         - Storage: concepts/storage.md
         - Blocks: concepts/blocks.md
+        - Variables: concepts/variables.md
         - Filesystems: concepts/filesystems.md
         - Schedules: concepts/schedules.md
         - Runtime Context: concepts/runtime-context.md
@@ -178,6 +181,7 @@ nav:
         - api-ref/index.md
         - Python SDK API:
             - 'prefect.agent': api-ref/prefect/agent.md
+            - 'prefect.artifacts': api-ref/prefect/artifacts.md
             # - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.context': api-ref/prefect/context.md
             - 'prefect.deployments': api-ref/prefect/deployments.md

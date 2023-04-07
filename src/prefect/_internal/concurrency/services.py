@@ -95,7 +95,18 @@ class QueueService(abc.ABC, Generic[T]):
             if not self._started:
                 self._early_items.append(item)
             else:
-                call_soon_in_loop(self._loop, self._queue.put_nowait, item)
+                call_soon_in_loop(
+                    self._loop, self._queue.put_nowait, self._prepare_item(item)
+                )
+
+    def _prepare_item(self, item: T) -> T:
+        """
+        Prepare an item for submission to the service. This is called before
+        the item is sent to the service.
+
+        The default implementation returns the item unchanged.
+        """
+        return item
 
     async def _run(self):
         try:
