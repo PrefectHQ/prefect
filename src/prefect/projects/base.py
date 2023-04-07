@@ -1,5 +1,8 @@
 """
-Core primitives for managing Prefect projects.
+Core primitives for managing Prefect projects.  Projects provide a minimally opinionated
+build system for managing flows and deployments.
+
+To get started, follow along with [the project tutorial](/tutorials/projects/).
 """
 import json
 import os
@@ -18,9 +21,12 @@ from prefect.utilities.templating import apply_values
 
 def find_prefect_directory(path: Path = None) -> Optional[Path]:
     """
-    Recurses upward looking for .prefect/ directories.  If found is never found, `None` is returned.
+    Given a path, recurses upward looking for .prefect/ directories.
 
-    Returns the absolute location of the .prefect/ directory.
+    Once found, returns absolute path to the ./prefect directory, which is assumed to reside within the
+    root for the current project.
+
+    If one is never found, `None` is returned.
     """
     path = Path(path or ".").resolve()
     parent = path.parent.resolve()
@@ -35,7 +41,7 @@ def find_prefect_directory(path: Path = None) -> Optional[Path]:
 
 def create_default_deployment_yaml(path: str) -> bool:
     """
-    Creates default deployment.yaml file in the provided path if one does not already exist;
+    Creates default `deployment.yaml` file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
     """
     path = Path(path)
@@ -47,12 +53,14 @@ def create_default_deployment_yaml(path: str) -> bool:
     return True
 
 
-def set_prefect_hidden_dir() -> bool:
+def set_prefect_hidden_dir(path: str = None) -> bool:
     """
-    Creates default .prefect directory if one does not already exist.
-    Returns boolean specifying whether a directory was created.
+    Creates default `.prefect/` directory if one does not already exist.
+    Returns boolean specifying whether or not a directory was created.
+
+    If a path is provided, the directory will be created in that location.
     """
-    path = Path(".") / ".prefect"
+    path = Path(path or ".") / ".prefect"
 
     # use exists so that we dont accidentally overwrite a file
     if path.exists():
@@ -65,8 +73,14 @@ def create_default_project_yaml(
     path: str, name: str = None, contents: dict = None
 ) -> bool:
     """
-    Creates default prefect.yaml file in the provided path if one does not already exist;
+    Creates default `prefect.yaml` file in the provided path if one does not already exist;
     returns boolean specifying whether a file was created.
+
+    Args:
+        name (str, optional): the name of the project; if not provided, the current directory name
+            will be used
+        contents (dict, optional): a dictionary of contents to write to the file; if not provided,
+            defaults will be used
     """
     path = Path(path)
     if (path / "prefect.yaml").exists():
@@ -119,7 +133,12 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     """
     Given a recipe name, returns a dictionary representing base configuration options.
 
-    Raises ValueError if recipe does not exist.
+    Args:
+        recipe (str): the name of the recipe to use
+        formatting_kwargs (dict, optional): additional keyword arguments to format the recipe
+
+    Raises:
+        ValueError: if provided recipe name does not exist.
     """
     # load the recipe
     recipe_path = Path(__file__).parent / "recipes" / recipe / "prefect.yaml"
@@ -142,7 +161,12 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
     Initializes a basic project structure with base files.  If no name is provided, the name
     of the current directory is used.  If no recipe is provided, one is inferred.
 
-    Returns a list of files / directories that were created.
+    Args:
+        name (str, optional): the name of the project; if not provided, the current directory name
+        recipe (str, optional): the name of the recipe to use; if not provided, one is inferred
+
+    Returns:
+        List[str]: a list of files / directories that were created
     """
     # determine if in git repo or use directory name as a default
     is_git_based = False
@@ -211,7 +235,12 @@ async def register_flow(entrypoint: str, force: bool = False):
     """
     Register a flow with this project from an entrypoint.
 
-    Raises a ValueError if registration will overwrite an existing known flow.
+    Args:
+        entrypoint (str): the entrypoint to the flow to register
+        force (bool, optional): whether or not to overwrite an existing flow with the same name
+
+    Raises:
+        ValueError: if `force` is `False` and registration would overwrite an existing flow
     """
     try:
         fpath, obj_name = entrypoint.rsplit(":", 1)

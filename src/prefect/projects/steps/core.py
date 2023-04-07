@@ -1,5 +1,14 @@
 """
-Core primitives for managing Prefect projects.
+Core primitives for running Prefect project steps.
+
+Project steps are YAML representations of Python functions along with their inputs.
+
+Whenever a step is run, the following actions are taken:
+
+- The step's inputs are resolved (see [the projects concepts documentation](/concepts/projects/#templating-options) for more details)
+- The step's function is imported; if it cannot be found, the `requires` keyword is used to install the necessary packages
+- The step's function is called with the resolved inputs
+- The step's output is returned and used to resolve inputs for subsequent steps
 """
 import subprocess
 import sys
@@ -41,13 +50,12 @@ async def run_step(step: dict) -> dict:
     """
     Runs a step, returns the step's output.
 
-    Steps are assumed to be in the format {"importable.func.name": {"kwarg1": "value1", ...}}
+    Steps are assumed to be in the format `{"importable.func.name": {"kwarg1": "value1", ...}}`.
 
-    The following keywords are reserved for specific purposes and will be removed from the
+    The 'requires' keyword is reserved for specific purposes and will be removed from the
     inputs before passing to the step function:
-        requires: A package or list of packages needed to run the step function. If the step
-            function cannot be imported, the packages will be installed and the step function
-            will be re-imported.
+
+    This keyword is used to specify packages that should be installed before running the step.
     """
     fqn, inputs = step.popitem()
 

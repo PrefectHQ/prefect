@@ -9,6 +9,16 @@ from typing import Optional
 
 
 def set_working_directory(directory: str) -> dict:
+    """
+    Sets the working directory; works with both absolute and relative paths.
+
+    Args:
+        directory (str): the directory to set as the working directory
+
+    Returns:
+        dict: a dictionary containing a `directory` key of the
+            directory that was set
+    """
     os.chdir(directory)
     return dict(directory=directory)
 
@@ -17,7 +27,21 @@ def git_clone_project(
     repository: str, branch: Optional[str] = None, access_token: Optional[str] = None
 ) -> dict:
     """
-    Just a repo name will be assumed GitHub, otherwise provide a full repo_url.
+    Clones a git repository into the current working directory.
+    If only a repo name is provided GitHub will be assumed, otherwise provide a full repo_url for the
+    repository.
+
+    Args:
+        repository (str): the URL of the repository to clone; can be a full URL or a repo name
+        branch (str, optional): the branch to clone; if not provided, the default branch will be used
+        access_token (str, optional): an access token to use for cloning the repository; if not provided
+            the repository will be cloned using the default git credentials
+
+    Returns:
+        dict: a dictionary containing a `directory` key of the new directory that was created
+
+    Raises:
+        subprocess.CalledProcessError: if the git clone command fails for any reason
     """
     url_components = urllib.parse.urlparse(repository)
     if url_components.scheme == "https" and access_token is not None:
