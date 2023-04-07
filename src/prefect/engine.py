@@ -24,7 +24,6 @@ import time
 from contextlib import AsyncExitStack, asynccontextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Iterable, List, Optional, Set, TypeVar, Union
-from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 import anyio
@@ -47,6 +46,7 @@ from prefect.context import (
     TagsContext,
     TaskRunContext,
 )
+from prefect.dag import get_mock_for_future
 from prefect.deployments import load_flow_from_flow_run
 from prefect.exceptions import (
     Abort,
@@ -1168,7 +1168,7 @@ async def create_task_run_future(
     )
 
     if PREFECT_BUILDING_DAG:
-        mock = MagicMock(name=task_run_name, spec=future)
+        mock = get_mock_for_future(future)
         flow_run_context.mocks.append(mock)
         return mock
 

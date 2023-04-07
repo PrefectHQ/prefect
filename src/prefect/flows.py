@@ -43,7 +43,6 @@ from prefect.futures import PrefectFuture
 from prefect.logging import get_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
-from prefect.settings import PREFECT_BUILDING_DAG, temporary_settings
 from prefect.states import State
 from prefect.task_runners import BaseTaskRunner, ConcurrentTaskRunner
 from prefect.utilities.annotations import NotSet
@@ -844,13 +843,3 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         tmpfile.close()
         os.remove(tmpfile.name)
     return flow
-
-
-def build_dag(flow: Flow[P, R], *args: P.args, **kwargs: P.kwargs):
-    with temporary_settings({PREFECT_BUILDING_DAG: True}):
-        kwargs.pop("return_state", None)  # You can't control this we need the state
-        state = flow(*args, return_state=True, **kwargs)
-
-    # Get the mocks
-    mocks = state._mocks
-    return mocks
