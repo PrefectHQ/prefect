@@ -35,6 +35,8 @@ def git_clone_project(
     # Limit git history
     cmd += ["--depth", "1"]
 
-    subprocess.check_output(cmd, shell=sys.platform == "win32")
+    subprocess.check_call(
+        cmd, shell=sys.platform == "win32", stderr=sys.stderr, stdout=sys.stdout
+    )
     directory = "/".join(repository.strip().split("/")[-1:]).replace(".git", "")
     return {"directory": directory}
