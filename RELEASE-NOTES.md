@@ -5,7 +5,7 @@
 Fixes a bug where deployments were not downloaded from remote storage blocks during flow runs — https://github.com/PrefectHQ/prefect/pull/9138
 
 ### Enhancements
-- Adding httpx.ConnectTimeout to the list of retry exceptions in base client — https://github.com/PrefectHQ/prefect/pull/9125
+- Add httpx.ConnectTimeout to the list of retry exceptions in base client — https://github.com/PrefectHQ/prefect/pull/9125
 
 ### Contributors
 - @billpalombi
