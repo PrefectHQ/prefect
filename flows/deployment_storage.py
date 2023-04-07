@@ -51,6 +51,7 @@ def main():
         flow=hello,
         name="test-deployment",
         storage=LocalFileSystem(basepath="/tmp/integration-flows/storage"),
+        path=None,
     )
     deployment_id = deployment.apply()
 
