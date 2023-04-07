@@ -41,6 +41,9 @@ def __getattr__(name: str) -> Any:
 
         from prefect.runtime.flow_run import id
     """
+    env_key = f"PREFECT__RUNTIME__DEPLOYMENT__{name.upper()}"
+    if env_key in os.environ:
+        return os.environ[env_key]
     func = FIELDS.get(name)
     if func is None:
         raise AttributeError(f"{__name__} has no attribute {name!r}")
