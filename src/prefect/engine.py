@@ -756,7 +756,7 @@ async def orchestrate_flow_run(
             state = await propose_state(client, Running(), flow_run_id=flow_run.id)
 
     if PREFECT_BUILDING_DAG:
-        state._mocks = flow_run_context.mocks
+        object.__setattr__(state, "_mocks", flow_run_context.mocks)
 
     return state
 

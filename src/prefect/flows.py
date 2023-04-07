@@ -848,4 +848,9 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
 
 def build_dag(flow: Flow[P, R], *args: P.args, **kwargs: P.kwargs):
     with temporary_settings({PREFECT_BUILDING_DAG: True}):
-        return flow(*args, **kwargs)
+        kwargs.pop("return_state", None)  # You can't control this we need the state
+        state = flow(*args, return_state=True, **kwargs)
+
+    # Get the mocks
+    mocks = state._mocks
+    return mocks
