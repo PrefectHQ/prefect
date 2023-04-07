@@ -12,6 +12,7 @@ Available attributes:
     - `tags`: the task run's set of tags
     - `parameters`: the parameters the task was called with
 """
+import os
 from typing import Any, Dict, List, Optional
 
 from prefect.context import TaskRunContext
