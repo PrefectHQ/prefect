@@ -232,7 +232,7 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 
 Anytime a step is run, the following actions are taken in order:
 
-- The step's inputs and block / variable references are resolved (see [the projects concepts documentation](/concepts/projects/#templating-options) for more details)
+- The step's inputs and block / variable references are resolved (see [the templating documentation above](#templating-options) for more details)
 - The step's function is imported; if it cannot be found, the special `requires` keyword is used to install the necessary packages
 - The step's function is called with the resolved inputs
 - The step's output is returned and used to resolve inputs for subsequent steps
