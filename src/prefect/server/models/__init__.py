@@ -18,4 +18,5 @@ from . import (
     work_queues,
     agents,
     artifacts,
+    variables,
 )

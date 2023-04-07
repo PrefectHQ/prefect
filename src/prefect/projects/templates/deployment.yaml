@@ -1,0 +1,19 @@
+# base metadata
+name: null
+version: null
+tags: []
+description: null
+schedule: null
+
+# flow-specific fields
+flow_name: null
+entrypoint: null
+path: null
+parameters: {}
+parameter_openapi_schema: null
+
+# infra-specific fields
+work_pool:
+  name: null
+  work_queue_name: null
+  job_variables: {}

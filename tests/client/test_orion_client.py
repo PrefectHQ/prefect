@@ -13,6 +13,7 @@ import anyio
 import httpcore
 import httpx
 import pendulum
+import pydantic
 import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.security import HTTPBearer
@@ -1705,3 +1706,73 @@ class TestArtifacts:
     async def test_delete_nonexistent_artifact_raises(self, orion_client):
         with pytest.raises(prefect.exceptions.ObjectNotFound):
             await orion_client.delete_artifact(uuid4())
+
+
+class TestVariables:
+    @pytest.fixture
+    async def variable(
+        self,
+        client,
+    ):
+        res = await client.post(
+            "/variables/",
+            json=schemas.actions.VariableCreate(
+                name="my_variable", value="my-value", tags=["123", "456"]
+            ).dict(json_compatible=True),
+        )
+        assert res.status_code == 201
+        return pydantic.parse_obj_as(schemas.core.Variable, res.json())
+
+    @pytest.fixture
+    async def variables(
+        self,
+        client,
+    ):
+        variables = [
+            schemas.actions.VariableCreate(
+                name="my_variable1", value="my-value1", tags=["1"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable2", value="my-value2", tags=["2"]
+            ),
+            schemas.actions.VariableCreate(
+                name="my_variable3", value="my-value3", tags=["3"]
+            ),
+        ]
+        results = []
+        for variable in variables:
+            res = await client.post(
+                "/variables/", json=variable.dict(json_compatible=True)
+            )
+            assert res.status_code == 201
+            results.append(res.json())
+        return pydantic.parse_obj_as(List[schemas.core.Variable], results)
+
+    async def test_read_variable_by_name(self, orion_client, variable):
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert res.name == variable.name
+        assert res.value == variable.value
+        assert res.tags == variable.tags
+
+    async def test_read_variable_by_name_doesnt_exist(self, orion_client):
+        res = await orion_client.read_variable_by_name("doesnt_exist")
+        assert res is None
+
+    async def test_delete_variable_by_name(self, orion_client, variable):
+        await orion_client.delete_variable_by_name(variable.name)
+        res = await orion_client.read_variable_by_name(variable.name)
+        assert not res
+
+    async def test_delete_variable_by_name_doesnt_exist(self, orion_client):
+        with pytest.raises(prefect.exceptions.ObjectNotFound):
+            await orion_client.delete_variable_by_name("doesnt_exist")
+
+    async def test_read_variables(self, orion_client, variables):
+        res = await orion_client.read_variables()
+        assert len(res) == len(variables)
+        assert {r.name for r in res} == {v.name for v in variables}
+
+    async def test_read_variables_with_limit(self, orion_client, variables):
+        res = await orion_client.read_variables(limit=1)
+        assert len(res) == 1
+        assert res[0].name == variables[0].name
