@@ -15,7 +15,7 @@ from prefect.projects.base import (
     register_flow,
 )
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture(autouse=True)
@@ -60,7 +60,11 @@ class TestRecipes:
         [
             d.absolute().name
             for d in Path(
-                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
             ).iterdir()
             if d.is_dir()
         ],
@@ -75,7 +79,11 @@ class TestRecipes:
         [
             d.absolute().name
             for d in Path(
-                prefect.__root_path__ / "src" / "prefect" / "projects" / "recipes"
+                prefect.__development_base_path__
+                / "src"
+                / "prefect"
+                / "projects"
+                / "recipes"
             ).iterdir()
             if d.is_dir() and "git" in d.absolute().name
         ],

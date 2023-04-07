@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 import prefect
-from prefect import __root_path__
+from prefect import __development_base_path__
 from prefect.docker import docker_client
 from prefect.exceptions import ScriptError
 from prefect.utilities.filesystem import tmpchdir
@@ -19,7 +19,7 @@ from prefect.utilities.importtools import (
     to_qualified_name,
 )
 
-TEST_PROJECTS_DIR = __root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
 
 def my_fn():
@@ -146,10 +146,22 @@ def test_lazy_import_includes_help_message_in_deferred_failure():
     "working_directory,script_path",
     [
         # Working directory is not necessary for these imports to work
-        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py"),
-        (__root_path__, TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py"),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "flat-project" / "implicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "flat-project" / "explicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "nested-project" / "implicit_relative.py",
+        ),
+        (
+            __development_base_path__,
+            TEST_PROJECTS_DIR / "nested-project" / "explicit_relative.py",
+        ),
         # They also work with the working directory set to the project
         (TEST_PROJECTS_DIR / "flat-project", "implicit_relative.py"),
         (TEST_PROJECTS_DIR / "flat-project", "explicit_relative.py"),

@@ -14,7 +14,7 @@ from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 @pytest.fixture

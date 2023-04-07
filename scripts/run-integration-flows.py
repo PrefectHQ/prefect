@@ -18,9 +18,16 @@ import sys
 from pathlib import Path
 from typing import Union
 
-from prefect import __root_path__, __version__
+import prefect
+from prefect import __version__
 
-DEFAULT_PATH = __root_path__ / "flows"
+# See https://github.com/PrefectHQ/prefect/pull/9136
+DEFAULT_PATH = (
+    getattr(
+        prefect, "__development_base_path__", getattr(prefect, "__root_path__", None)
+    )
+    / "flows"
+)
 
 
 def run_flows(search_path: Union[str, Path]):
