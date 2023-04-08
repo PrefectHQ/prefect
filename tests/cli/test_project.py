@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import pytest
 import readchar
 import yaml
+from test_cloud import interactive_console  # noqa
 
 import prefect
 from prefect.blocks.system import Secret
