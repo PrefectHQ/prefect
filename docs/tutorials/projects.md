@@ -66,6 +66,8 @@ This command will create your `.prefect/` directory along with the two YAML file
     ```
     </div>
 
+    Providing this flag will prompt you for required variables needed to make the recipe work properly.  If you want to run this CLI programmatically, these required fields can be provided via the `--field` flag: `prefect project init --recipe docker --field image_name=my-image/foo --field tag=dev`.
+
     If no recipe is provided, the `init` command makes an intelligent choice of recipe based on local configuration; for example, if you initialize a project within a git repository, Prefect will automatically use the `git` recipe.
 
 
@@ -213,6 +215,7 @@ A few important notes on what we're looking at here:
     - prefect.projects.steps.git_clone_project:
         repository: https://github.com/PrefectHQ/hello-projects.git
         branch: main
+        access_token: null
     ```
     These `pull` steps are the instructions sent to your worker's runtime environment that allow it to clone your project in remote locations. For more information, see [the project concept documentation](/concepts/projects/).
 
@@ -262,6 +265,7 @@ pull:
 - prefect.projects.steps.git_clone_project:
     repository: https://github.com/PrefectHQ/hello-projects.git
     branch: main
+    access_token: null
 ```
 
 A few notes:
