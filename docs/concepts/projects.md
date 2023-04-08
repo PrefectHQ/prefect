@@ -19,7 +19,7 @@ A project is a minimally opinionated set of files that describe how to prepare o
 
 - [`deployment.yaml`](#the-deployment-yaml-file): a YAML file describing base settings for a deployment produced from this project
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing procedural steps for preparing a deployment from this project, as well as instructions for preparing the execution environment for a deployment run
-- [`./prefect`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
+- [`.prefect/`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
 
 Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.  
 
