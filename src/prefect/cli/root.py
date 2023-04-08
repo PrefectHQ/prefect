@@ -289,12 +289,23 @@ async def deploy(
     if flow_name is None:
         flow_name = base_deploy.get("flow_name")
 
-    if not flow_name and not entrypoint:
+    if (
+        not flow_name
+        and not base_deploy.get("flow_name")
+        and not entrypoint
+        and not base_deploy.get("entrypoint")
+    ):
         exit_with_error("An entrypoint or flow name must be provided.")
     if not name and not base_deploy["name"]:
         exit_with_error("A deployment name must be provided.")
-    if flow_name and entrypoint:
+    if (flow_name or base_deploy["flow_name"]) and entrypoint:
         exit_with_error("Can only pass an entrypoint or a flow name but not both.")
+
+    # Pull from deployment config if not passed
+    if entrypoint is None:
+        entrypoint = base_deploy.get("entrypoint")
+    if flow_name is None:
+        flow_name = base_deploy.get("flow_name")
 
     # flow-name and entrypoint logic
     flow = None
