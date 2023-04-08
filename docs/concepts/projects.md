@@ -172,14 +172,14 @@ Inspecting our newly created `prefect.yaml` file we find that the `push` and `pu
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.projects.steps.push_project_from_s3:
       requires: prefect-aws>=0.3.0
       bucket: null
       folder: project-name
       credentials: null
 
 pull:
-  - prefect_aws.projects.steps.push_project_to_s3:
+  - prefect_aws.projects.steps.pull_project_to_s3:
       requires: prefect-aws>=0.3.0
       bucket: null
       folder: project-name
