@@ -228,7 +228,7 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 - next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
 - next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
 - next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
-- lastly, the final step occurs when the fully realized deployment specification is registered with the Prefect API
+- the final step occurs when the fully realized deployment specification is registered with the Prefect API
 
 Anytime a step is run, the following actions are taken in order:
 
