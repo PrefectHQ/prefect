@@ -19,7 +19,7 @@ A project is a minimally opinionated set of files that describe how to prepare o
 
 - [`deployment.yaml`](#the-deployment-yaml-file): a YAML file describing base settings for a deployment produced from this project
 - [`prefect.yaml`](#the-prefect-yaml-file): a YAML file describing procedural steps for preparing a deployment from this project, as well as instructions for preparing the execution environment for a deployment run
-- [`./prefect`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
+- [`.prefect/`](#the-prefect-directory): a hidden directory where Prefect will store workflow metadata
 
 Projects can be initialized by running the CLI command `prefect project init` in any directory that you consider to be the root of a project.  
 
@@ -172,14 +172,14 @@ Inspecting our newly created `prefect.yaml` file we find that the `push` and `pu
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.projects.steps.push_project_to_s3:
       requires: prefect-aws>=0.3.0
       bucket: null
       folder: project-name
       credentials: null
 
 pull:
-  - prefect_aws.projects.steps.push_project_to_s3:
+  - prefect_aws.projects.steps.pull_project_from_s3:
       requires: prefect-aws>=0.3.0
       bucket: null
       folder: project-name
@@ -190,7 +190,7 @@ Note that for these steps to function properly, at a minimum we must provide a b
 
 ```yaml
 push:
-  - prefect_aws.projects.steps.pull_project_from_s3:
+  - prefect_aws.projects.steps.push_project_to_s3:
       requires: prefect-aws>=0.3.0
       bucket: null
       folder: project-name
@@ -226,9 +226,9 @@ Anytime you run `prefect deploy`, the following actions are taken in order:
 
 - the project `prefect.yaml` file is loaded; first, the `prefect.yaml` `build` section is loaded and all variable and block references are resolved. The steps are then run in the order provided
 - next, the `push` section is loaded and all variable and block references are resolved; the steps within this section are then run in the order provided
-- lastly, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
-- Next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
-- The final step occurs when the fully realized deployment specification is registered with the Prefect API
+- next, the `pull` section is templated with any step outputs but *is not run*.  Note that block references are _not_ hydrated for security purposes - block references are always resolved at runtime 
+- next, the project `deployment.yaml` file is loaded. All variable and block references are resolved.  All flags provided via the `prefect deploy` CLI are then overlaid on the values loaded from the file. 
+- the final step occurs when the fully realized deployment specification is registered with the Prefect API
 
 Anytime a step is run, the following actions are taken in order:
 
