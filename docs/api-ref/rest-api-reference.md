@@ -17,7 +17,7 @@ The Prefect REST API documentation for locally run open-source Prefect servers i
 <hr>
 
 <div id="redoc-container"></div>
-<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"> </script>
+<script src="https://www.unpkg.com/redoc@2.x/bundles/redoc.standalone.js"> </script>
 <script>
     Redoc.init('../schema.json', {
         scrollYOffset: 50,
