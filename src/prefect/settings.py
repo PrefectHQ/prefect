@@ -641,13 +641,13 @@ If `True`, enables a refresh of cached results: re-executing the
 task will refresh the cached results. Defaults to `False`.
 """
 
-PREFECT_TASKS_DEFAULT_RETRIES = Setting(int, default=0)
+PREFECT_TASK_DEFAULT_RETRIES = Setting(int, default=0)
 """
 This value sets the retries for all tasks associated with a flow. 
 This value does not overwrite individually set retries values on tasks
 """
 
-PREFECT_FLOWS_DEFAULT_RETRIES = Setting(int, default=0)
+PREFECT_FLOW_DEFAULT_RETRIES = Setting(int, default=0)
 """
 This value sets the retries for all flows. 
 This value does not overwrite individually set retries values on a flow

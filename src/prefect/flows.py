@@ -48,8 +48,8 @@ from prefect.client.schemas import FlowRun
 =======
 from prefect.server.schemas.core import Flow, FlowRun, raise_on_invalid_name
 from prefect.settings import (
+    PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
-    PREFECT_FLOWS_DEFAULT_RETRIES,
 )
 >>>>>>> 62e865e0d (Merging and testing)
 from prefect.states import State
@@ -204,7 +204,7 @@ class Flow(Generic[P, R]):
         # TODO: We can instantiate a `FlowRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
         self.retries = (
-            retries if retries is not None else PREFECT_FLOWS_DEFAULT_RETRIES.value()
+            retries if retries is not None else PREFECT_FLOW_DEFAULT_RETRIES.value()
         )
         self.retry_delay_seconds = (
             retry_delay_seconds
