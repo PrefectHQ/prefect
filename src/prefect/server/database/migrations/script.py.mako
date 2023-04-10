@@ -24,7 +24,7 @@ depends_on = ${repr(depends_on)}
 
 def upgrade():
     ${'op.execute("PRAGMA foreign_keys=OFF")' if sqlite else ""}
-    ${upgrades if upgrades elif not upgrades and sqlite "" else "pass"}
+    ${upgrades if upgrades else "pass"}
     ${'op.execute("PRAGMA foreign_keys=ON")' if sqlite else ""}
 
 def downgrade():
