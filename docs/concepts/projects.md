@@ -132,7 +132,7 @@ For more information on the mechanics of steps, [see below](#deployment-mechanic
 
 ### The Build Section
 
-The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If we initialize with the docker recipe we are met with a series of prompts to provide required information such as image name and tag: 
+The build section of `prefect.yaml` is where any necessary side effects for running your deployments are built - the most common type of side effect produced here is a Docker image.  If you initialize with the docker recipe, you will be prompted to provide required information, such as image name and tag: 
 
 <div class="terminal">
 ```bash
@@ -161,7 +161,7 @@ build:
     dockerfile: auto
 ```
 
-Once we confirm that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
+Once you've confirmed that these fields are set to their desired values, this step will automatically build a Docker image with the provided name and tag and push it to the repository referenced by the image name.  [As the documentation notes](https://prefecthq.github.io/prefect-docker/projects/steps/#prefect_docker.projects.steps.BuildDockerImageResult), this step produces a few fields that can optionally be used in future steps or within `deployment.yaml` as template values.  It is best practice to use `{{ image_name }}` within `deployment.yaml` (specificially the work pool's job variables section) so that you don't risk having your build step and deployment specification get out of sync with hardcoded values.  For a worked example, [check out the project tutorial](/tutorials/projects/#dockerized-deployment).
 
 
 !!! note Some steps require Prefect integrations
@@ -224,7 +224,7 @@ There are three main types of steps that typically show up in a `pull` section:
 - `pull_project_from_{cloud}`: this step pulls the project directory from a Cloud storage location (e.g., S3)
 
 !!! tip "Use block and variable references"
-    All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information in an insecure way; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
+    All [block and variable references](#templating-options) within your pull step will remain unresolved until runtime and will be pulled each time your deployment is run. This allows you to avoid storing sensitive information insecurely; it also allows you to manage certain types of configuration from the API and UI without having to rebuild your deployment every time.
 
 ## The `.prefect/` directory
 
