@@ -172,7 +172,9 @@ def configure_project_by_recipe(recipe: str, **formatting_kwargs) -> dict:
     return config
 
 
-def initialize_project(name: str = None, recipe: str = None) -> List[str]:
+def initialize_project(
+    name: str = None, recipe: str = None, inputs: dict = None
+) -> List[str]:
     """
     Initializes a basic project structure with base files.  If no name is provided, the name
     of the current directory is used.  If no recipe is provided, one is inferred.
@@ -180,6 +182,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
     Args:
         name (str, optional): the name of the project; if not provided, the current directory name
         recipe (str, optional): the name of the recipe to use; if not provided, one is inferred
+        inputs (dict, optional): a dictionary of inputs to use when formatting the recipe
 
     Returns:
         List[str]: a list of files / directories that were created
@@ -230,6 +233,7 @@ def initialize_project(name: str = None, recipe: str = None) -> List[str]:
     elif recipe is None:
         recipe = "local"
 
+    formatting_kwargs.update(inputs or {})
     configuration = configure_project_by_recipe(recipe=recipe, **formatting_kwargs)
 
     project_name = name or dir_name
