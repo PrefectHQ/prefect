@@ -2,6 +2,11 @@ prefect-version: null
 name: null
 description: "Store project within GCS and build a custom docker image for runtime"
 
+required_inputs:
+  image_name: "The image name, including repository, to give the built Docker image"
+  tag: "The tag to give the built Docker image"
+  bucket: "The bucket to store and retrieve this project from"
+
 build:
   - prefect_docker.projects.steps.build_docker_image:
       requires: "prefect-docker>=0.2.0"
@@ -12,7 +17,7 @@ build:
 push: 
   - prefect_gcp.projects.steps.push_project_to_gcs:
       requires: "prefect-gcp>=0.4.0"
-      bucket: null
+      bucket: "{{ bucket }}"
       folder: "{{ name }}"
 
 pull:
