@@ -582,7 +582,11 @@ async def block_document(session, block_schema, block_type_x):
 
 
 async def commit_task_run_state(
-    session, task_run, state_type: states.StateType, state_details=None
+    session,
+    task_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -592,6 +596,7 @@ async def commit_task_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.task_runs.set_task_run_state(
@@ -606,7 +611,11 @@ async def commit_task_run_state(
 
 
 async def commit_flow_run_state(
-    session, flow_run, state_type: states.StateType, state_details=None
+    session,
+    flow_run,
+    state_type: states.StateType,
+    state_details=None,
+    state_data=None,
 ):
     if state_type is None:
         return None
@@ -616,6 +625,7 @@ async def commit_flow_run_state(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
+        data=state_data,
     )
 
     result = await models.flow_runs.set_flow_run_state(
@@ -640,6 +650,7 @@ def initialize_orchestration(flow):
         run_override=None,
         run_tags=None,
         initial_details=None,
+        initial_state_data=None,
         proposed_details=None,
         flow_retries: int = None,
         flow_run_count: int = None,
@@ -703,6 +714,7 @@ def initialize_orchestration(flow):
             run,
             initial_state_type,
             initial_details,
+            state_data=initial_state_data,
         )
 
         proposed_details = proposed_details if proposed_details else dict()

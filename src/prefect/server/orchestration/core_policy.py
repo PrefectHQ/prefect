@@ -634,6 +634,15 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
     ) -> None:
         self.original_run_count = context.run.run_count
 
+        # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
+        if proposed_state.type in {
+            StateType.CANCELLING,
+            StateType.PAUSED,
+            StateType.CRASHED,
+        }:
+            await self.abort_transition(f"Run is already {initial_state.type.value}.")
+            return
+
         # Only allow departure from a happily completed state if the result is not persisted
         if (
             initial_state.is_completed()
@@ -688,9 +697,15 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
     ) -> None:
         self.original_flow_policy = context.run.empirical_policy.dict()
 
-        # Do not allow runs to be marked as crashed if already terminal
-        if proposed_state.is_crashed():
-            await self.abort_transition(f"Run is already {initial_state.type.value}.")
+        # Do not allow runs to be marked as crashed, paused, or cancelling if already terminal
+        if proposed_state.type in {
+            StateType.CANCELLING,
+            StateType.PAUSED,
+            StateType.CRASHED,
+        }:
+            await self.abort_transition(
+                f"Run is already in terminal state {initial_state.type.value}."
+            )
             return
 
         # Only allow departure from a happily completed state if the result is not
@@ -699,7 +714,7 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
             initial_state.is_completed()
             and not proposed_state.is_final()
             and initial_state.data
-            and getattr(initial_state.data, "type") != "unpersisted"
+            and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "Run is already COMPLETED.")
             return
