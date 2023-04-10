@@ -686,21 +686,30 @@ class HandleFlowTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        # Only allow departure from a happily completed state if the result is not persisted
+        self.original_flow_policy = context.run.empirical_policy.dict()
+
+        # Do not allow runs to be marked as crashed if already terminal
+        if proposed_state.is_crashed():
+            await self.abort_transition(f"Run is already {initial_state.type.value}.")
+            return
+
+        # Only allow departure from a happily completed state if the result is not
+        # persisted and the a rerun is being proposed
         if (
             initial_state.is_completed()
+            and not proposed_state.is_final()
             and initial_state.data
             and getattr(initial_state.data, "type") != "unpersisted"
         ):
-            await self.reject_transition(None, "This run is already completed.")
-
-        self.original_flow_policy = context.run.empirical_policy.dict()
+            await self.reject_transition(None, "Run is already COMPLETED.")
+            return
 
         # Do not allows runs to be rescheduled without a deployment
         if proposed_state.is_scheduled() and not context.run.deployment_id:
             await self.abort_transition(
                 "Cannot reschedule a run without an associated deployment."
             )
+            return
 
         # Reset pause metadata when leaving a terminal state
         api_version = context.parameters.get("api-version", None)
