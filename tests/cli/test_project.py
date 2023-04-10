@@ -5,7 +5,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pytest
+import readchar
 import yaml
+from test_cloud import interactive_console  # noqa
 
 import prefect
 from prefect.blocks.system import Secret
@@ -65,6 +67,95 @@ class TestProjectInit:
                 "project init --name test_project --recipe local", temp_dir=str(tempdir)
             )
             assert result.exit_code == 0
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_with_interactive_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "project init --name test_project --recipe docker",
+                expected_code=0,
+                temp_dir=str(tempdir),
+                user_input="my-image/foo"
+                + readchar.key.ENTER
+                + "testing"
+                + readchar.key.ENTER,
+                expected_output_contains=[
+                    "image_name:",
+                    "tag:",
+                ],
+            )
+            prefect_file = list(Path(tempdir).rglob("prefect.yaml")).pop()
+            with open(prefect_file, "r") as f:
+                configuration = yaml.safe_load(f)
+
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["image_name"]
+                == "my-image/foo"
+            )
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["tag"]
+                == "testing"
+            )
+
+    @pytest.mark.usefixtures("interactive_console")
+    def test_project_init_with_partial_interactive_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                "project init --name test_project --recipe docker --field tag=my-tag",
+                expected_code=0,
+                temp_dir=str(tempdir),
+                user_input="my-image/foo" + readchar.key.ENTER,
+                expected_output_contains=[
+                    "image_name:",
+                ],
+            )
+            prefect_file = list(Path(tempdir).rglob("prefect.yaml")).pop()
+            with open(prefect_file, "r") as f:
+                configuration = yaml.safe_load(f)
+
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["image_name"]
+                == "my-image/foo"
+            )
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["tag"]
+                == "my-tag"
+            )
+
+    def test_project_init_with_no_interactive_recipe(self):
+        with TemporaryDirectory() as tempdir:
+            result = invoke_and_assert(
+                (
+                    "project init --name test_project --recipe docker --field"
+                    " tag=my-tag --field image_name=my-image/foo"
+                ),
+                expected_code=0,
+                temp_dir=str(tempdir),
+            )
+            prefect_file = list(Path(tempdir).rglob("prefect.yaml")).pop()
+            with open(prefect_file, "r") as f:
+                configuration = yaml.safe_load(f)
+
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["image_name"]
+                == "my-image/foo"
+            )
+            assert (
+                configuration["build"][0][
+                    "prefect_docker.projects.steps.build_docker_image"
+                ]["tag"]
+                == "my-tag"
+            )
 
     def test_project_init_with_unknown_recipe(self):
         result = invoke_and_assert(
