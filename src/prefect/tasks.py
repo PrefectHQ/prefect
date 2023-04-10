@@ -33,6 +33,10 @@ from prefect.client.schemas import TaskRun
 from prefect.context import PrefectObjectRegistry
 from prefect.futures import PrefectFuture
 from prefect.results import ResultSerializer, ResultStorage
+from prefect.settings import (
+    PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
+    PREFECT_TASKS_DEFAULT_RETRIES,
+)
 from prefect.states import State
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import Async, Sync
@@ -180,13 +184,15 @@ class Task(Generic[P, R]):
         ] = None,
         cache_expiration: datetime.timedelta = None,
         task_run_name: Optional[Union[Callable[[], str], str]] = None,
-        retries: int = 0,
-        retry_delay_seconds: Union[
-            float,
-            int,
-            List[float],
-            Callable[[int], List[float]],
-        ] = 0,
+        retries: Optional[int] = None,
+        retry_delay_seconds: Optional[
+            Union[
+                float,
+                int,
+                List[float],
+                Callable[[int], List[float]],
+            ]
+        ] = None,
         retry_jitter_factor: Optional[float] = None,
         persist_result: Optional[bool] = None,
         result_storage: Optional[ResultStorage] = None,
@@ -242,7 +248,11 @@ class Task(Generic[P, R]):
         # TaskRunPolicy settings
         # TODO: We can instantiate a `TaskRunPolicy` and add Pydantic bound checks to
         #       validate that the user passes positive numbers here
-        self.retries = retries
+        self.retries = (
+            retries if retries is not None else PREFECT_TASKS_DEFAULT_RETRIES.value()
+        )
+        if retry_delay_seconds is None:
+            retry_delay_seconds = PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS
 
         if callable(retry_delay_seconds):
             self.retry_delay_seconds = retry_delay_seconds(retries)

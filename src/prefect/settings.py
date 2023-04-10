@@ -659,7 +659,9 @@ This value sets the retry delay seconds for all flows when this environment is s
 This value does not overwrite invidually set retry delay seconds
 """
 
-PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(Union[int, float], default=0)
+PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS = Setting(
+    Union[float, int, List[float], Callable[[int], List[float]]], default=0
+)
 """
 This value sets the retry delay seconds for all flows when this environment is set
 This value does not overwrite invidually set retry delay seconds
