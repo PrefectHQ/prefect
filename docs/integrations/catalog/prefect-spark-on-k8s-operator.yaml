@@ -3,4 +3,4 @@ author: Manoj Babu Katragadda
 authorUrl: https://github.com/tardunge
 documentation: https://tardunge.github.io/prefect-spark-on-k8s-operator/
 iconUrl: /img/collections/spark-on-kubernetes.png
-tag: SparkOnK8sOperator
+tag: Spark on Kubernetes
