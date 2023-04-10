@@ -641,6 +641,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "This run is already completed.")
+            return
 
         # Reset run count to reset retries
         context.run.run_count = 0

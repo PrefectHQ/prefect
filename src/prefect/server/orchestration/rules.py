@@ -384,7 +384,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     ):
         if self.proposed_state is None:
             validated_orm_state = self.run.state
-            state_data = None
+            state_data = self.run.state.data
         else:
             state_payload = self.proposed_state.dict(shallow=True)
             state_data = state_payload.pop("data", None)
