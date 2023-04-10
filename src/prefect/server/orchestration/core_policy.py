@@ -638,7 +638,7 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         if (
             initial_state.is_completed()
             and initial_state.data
-            and getattr(initial_state.data, "type") != "unpersisted"
+            and initial_state.data.get("type") != "unpersisted"
         ):
             await self.reject_transition(None, "This run is already completed.")
 
