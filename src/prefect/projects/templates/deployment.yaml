@@ -9,7 +9,6 @@ schedule: null
 flow_name: null
 entrypoint: null
 parameters: {}
-parameter_openapi_schema: null
 
 # infra-specific fields
 work_pool:
