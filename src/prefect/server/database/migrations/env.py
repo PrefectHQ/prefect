@@ -91,8 +91,8 @@ def dry_run_migrations() -> None:
         render_as_batch=dialect.name == "sqlite",
         # Each migration is its own transaction
         transaction_per_migration=True,
+        template_args={"dialect": dialect.name},
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
@@ -104,7 +104,6 @@ def do_run_migrations(connection: AsyncEngine) -> None:
     Args:
         connection: a database engine.
     """
-
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
@@ -123,6 +122,7 @@ def do_run_migrations(connection: AsyncEngine) -> None:
         render_as_batch=dialect.name == "sqlite",
         # Each migration is its own transaction
         transaction_per_migration=True,
+        template_args={"dialect": dialect.name},
     )
 
     with context.begin_transaction():
