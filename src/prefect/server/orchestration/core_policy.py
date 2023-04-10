@@ -632,6 +632,8 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
+        self.original_run_count = context.run.run_count
+
         # Only allow departure from a happily completed state if the result is not persisted
         if (
             initial_state.is_completed()
@@ -639,9 +641,6 @@ class HandleTaskTerminalStateTransitions(BaseOrchestrationRule):
             and getattr(initial_state.data, "type") != "unpersisted"
         ):
             await self.reject_transition(None, "This run is already completed.")
-
-        self.original_run_count = context.run.run_count
-        self.original_retry_attempt = context.run.flow_run_run_count
 
         # Reset run count to reset retries
         context.run.run_count = 0
