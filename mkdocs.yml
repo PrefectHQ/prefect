@@ -118,6 +118,7 @@ nav:
         - Projects: tutorials/projects.md
         - Deployments: tutorials/deployments.md
         - Storage & Infrastructure: tutorials/storage.md
+        - Creating a Worker: tutorials/creating-a-worker.md
     - Concepts: 
         - concepts/index.md
         - Flows: concepts/flows.md
@@ -238,6 +239,9 @@ nav:
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+            - 'Workers':
+                - 'prefect.workers.base': api-ref/prefect/workers/base.md
+                - 'prefect.workers.process': api-ref/prefect/workers/process.md
         - Server API:
             - 'API':
                 - 'server.api.admin': api-ref/server/api/admin.md

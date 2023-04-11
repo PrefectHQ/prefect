@@ -322,6 +322,16 @@ Workers are similar to agents, but offer greater control over infrastructure con
 
 Workers each have a type corresponding to the execution environment to which they will submit flow runs. Workers are only able to join work pools that match their type. As a result, when deployments are assigned to a work pool, you know in which execution environment scheduled flow runs for that deployment will run.
 
+### Worker Types
+
+Below is a list of available worker types. Note that most worker types will require installation of 
+
+| Worker Type | Description | Required Package |
+| --- | --- | --- |
+| [`process`](/api-ref/prefect/workers/process/) | Executes flow runs in subprocesses. | |
+| [`kubernetes`](https://prefecthq.github.io/prefect-kubernetes/worker/) | Executes flow runs within Kubernetes jobs. | `prefect-kubernetes` |
+| [`docker`](https://prefecthq.github.io/prefect-docker/worker/) | Executes flow runs within Docker containers. | `prefect-docker` |
+
 ### Worker Options
 Workers poll for work from one or more queues within a work pool. If the worker references a work queue that doesn't exist, it will be created automatically. The worker CLI is able to infer the worker type from the work pool. Alternatively, you can also specify the worker type explicitly. If you supply the worker type to the worker CLI, a work pool will be created automatically if it doesn't exist (using default job settings).
 
