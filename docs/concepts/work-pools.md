@@ -324,7 +324,7 @@ Workers each have a type corresponding to the execution environment to which the
 
 ### Worker Types
 
-Below is a list of available worker types. Note that most worker types will require installation of 
+Below is a list of available worker types. Note that most worker types will require installation of an additional package.
 
 | Worker Type | Description | Required Package |
 | --- | --- | --- |

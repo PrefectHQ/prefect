@@ -15,7 +15,7 @@ tags:
 # Creating a Worker
 
 !!! warning "Advanced Topic"
-    This tutorial is for users who are want to extend the Prefect framework and will require deep knowledge of Prefect concepts. If you want to run your flows, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
+    This tutorial is for users who want to extend the Prefect framework and completing this successfully will require deep knowledge of Prefect concepts. For standard use cases, we recommend using one of the [available workers](/concepts/work-pools/#worker-types) instead.
 
 
 Prefect workers are responsible for creating execution environments and starting flow runs within those execution environments. 
@@ -31,11 +31,11 @@ When setting up an execution environment for a flow run, a worker receives confi
     
     The keys in the `job_configuration` section of this base job template match the worker's configuration class attributes. The values in the `job_configuration` section of the base job template are used to populate the attributes of the worker's configuration class.
 
-    The work pool creator gets to decide how they want to populate the values in the `job_configuration` section of the base job template. The values can be hard-coded, templated using placeholders, or a mix these two approaches. Because you, as the worker developer, don't know how the work pool creator will populate the values, so you should set sensible defaults for your configuration class attributes.
+    The work pool creator gets to decide how they want to populate the values in the `job_configuration` section of the base job template. The values can be hard-coded, templated using placeholders, or a mix of these two approaches. Because you, as the worker developer, don't know how the work pool creator will populate the values, you should set sensible defaults for your configuration class attributes as a matter of best practice.
 
 ### Implementing a `BaseJobConfiguration` Subclass
 
-A worker developer defines the configuration their worker needs to function with a class extending [`BaseJobConfiguration`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration). 
+A worker developer defines their worker's configuration to function with a class extending [`BaseJobConfiguration`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration). 
 
 `BaseJobConfiguration` has attributes that are common to all workers: 
 
@@ -48,7 +48,7 @@ A worker developer defines the configuration their worker needs to function with
 
 Prefect sets values for each attribute before giving the configuration to the worker. If you want to customize the values of these attributes, use the [`prepare_for_flow_run`](/api-ref/prefect/workers/base/#prefect.workers.base.BaseJobConfiguration.prepare_for_flow_run) method.
 
-Here's an example `prepare_for_flow_run` method that sets add a label to the execution environment:
+Here's an example `prepare_for_flow_run` method that adds a label to the execution environment:
 
 ```python
 def prepare_for_flow_run(
