@@ -216,7 +216,9 @@ async def test_async_waiter_timeout_in_main_thread():
         await waiter.wait()
         t1 = time.time()
 
-    with pytest.raises(TimeoutError):
+    with pytest.raises((CancelledError, TimeoutError)):
+        # A cancelled or timeout can be raised depending on if result is retrieved
+        # before or after the `on_worker_thread` function is cancelled
         call.result()
 
     with pytest.raises(CancelledError):
