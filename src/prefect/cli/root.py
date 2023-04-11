@@ -6,6 +6,7 @@ import json
 import platform
 import sys
 from datetime import timedelta
+from pathlib import Path
 from typing import List, Optional
 
 import pendulum
@@ -286,9 +287,15 @@ async def deploy(
     except FileNotFoundError:
         app.console.print(
             "No deployment.yaml file found, only provided CLI options will be used.",
-            style="orange",
+            style="yellow",
         )
-        base_deploy = {}
+        default_file = (
+            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
+        )
+
+        # load default file
+        with open(default_file, "r") as df:
+            base_deploy = yaml.safe_load(df)
 
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
