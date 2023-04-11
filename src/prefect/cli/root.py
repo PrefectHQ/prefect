@@ -2,12 +2,13 @@
 Base `prefect` command-line application
 """
 import asyncio
+from copy import deepcopy
 import json
 import platform
 import sys
 from datetime import timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pendulum
 import rich.console
@@ -178,7 +179,7 @@ async def deploy(
         "-f",
         help="The name of a registered flow to create a deployment for.",
     ),
-    name: str = typer.Option(
+    names: List[str] = typer.Option(
         None, "--name", "-n", help="The name to give the deployment."
     ),
     description: str = typer.Option(
@@ -269,17 +270,22 @@ async def deploy(
             ' --params=\'{"question": "ultimate", "answer": 42}\''
         ),
     ),
+    deploy_all: bool = typer.Option(
+        False,
+        "--all",
+        help=(
+            "Deploy all flows in the project. If a flow name or entrypoint is also"
+            " provided, this flag will be ignored."
+        ),
+    ),
 ):
     """
     Deploy a flow from this project by creating a deployment.
 
     Should be run from a project root directory.
     """
-    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
-        exit_with_error("Only one schedule type can be provided.")
 
-    if interval_anchor and not interval:
-        exit_with_error("An anchor date can only be provided with an interval schedule")
+    options = deepcopy(locals())
 
     # load the default deployment file for key consistency
     default_file = (
@@ -313,6 +319,50 @@ async def deploy(
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
 
+    if len(names) <= 1:
+        if "deployments" in base_deploy:
+            base_deploy = next(
+                (
+                    deployment
+                    for deployment in base_deploy["deployments"]
+                    if deployment["name"] == names[0]
+                ),
+                None,
+            )
+        if base_deploy is None:
+            app.console.print(
+                "No deployment.yaml file found, defaulting to empty values.",
+                style="orange",
+            )
+            base_deploy = {}
+        await _run_deploy(
+            base_deploy=base_deploy,
+            project=project,
+            options=options,
+        )
+
+
+async def _run_deploy(base_deploy: Dict, project: Dict, options: Dict):
+    base_deploy = base_deploy if base_deploy else {}
+    project = project if project else {}
+    options = options if options else {}
+
+    name = options.get("name") or base_deploy.get("name")
+    flow_name = options.get("flow_name") or base_deploy.get("flow_name")
+    entrypoint = options.get("entrypoint") or base_deploy.get("entrypoint")
+    param = options.get("param")
+    params = options.get("params")
+    variables = options.get("variables")
+    tags = options.get("tags")
+    description = options.get("description")
+    work_pool_name = options.get("work_pool_name")
+    work_queue_name = options.get("work_queue_name")
+    cron = options.get("cron")
+    rrule = options.get("rrule")
+    interval = options.get("interval")
+    interval_anchor = options.get("interval_anchor")
+    timezone = options.get("timezone")
+
     # sanitize
     if project.get("build") is None:
         project["build"] = []
@@ -321,18 +371,17 @@ async def deploy(
     if project.get("pull") is None:
         project["pull"] = []
 
-    if (
-        not flow_name
-        and not base_deploy.get("flow_name")
-        and not entrypoint
-        and not base_deploy.get("entrypoint")
-    ):
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
+
+    if not flow_name and not entrypoint:
         exit_with_error("An entrypoint or flow name must be provided.")
-    if not name and not base_deploy.get("name"):
+    if not name:
         exit_with_error("A deployment name must be provided.")
-    if (flow_name or base_deploy.get("flow_name")) and (
-        entrypoint or base_deploy.get("entrypoint")
-    ):
+    if flow_name and entrypoint:
         exit_with_error("Can only pass an entrypoint or a flow name but not both.")
 
     # Pull from deployment config if not passed
@@ -554,3 +603,7 @@ async def deploy(
                 ),
                 style="red",
             )
+
+
+def _run_multi_deploy():
+    pass
