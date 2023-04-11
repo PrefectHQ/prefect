@@ -5,6 +5,7 @@ import asyncio
 import json
 import platform
 import sys
+from datetime import timedelta
 from typing import List, Optional
 
 import pendulum
@@ -24,6 +25,11 @@ from prefect.flows import load_flow_from_entrypoint
 from prefect.logging.configuration import setup_logging
 from prefect.projects import find_prefect_directory, register_flow
 from prefect.projects.steps import run_step
+from prefect.server.schemas.schedules import (
+    CronSchedule,
+    IntervalSchedule,
+    RRuleSchedule,
+)
 from prefect.settings import (
     PREFECT_CLI_COLORS,
     PREFECT_CLI_WRAP_LINES,
@@ -268,9 +274,21 @@ async def deploy(
 
     Should be run from a project root directory.
     """
-    # TODO: add error handling
-    with open("deployment.yaml", "r") as f:
-        base_deploy = yaml.safe_load(f)
+    if len([value for value in (cron, rrule, interval) if value is not None]) > 1:
+        exit_with_error("Only one schedule type can be provided.")
+
+    if interval_anchor and not interval:
+        exit_with_error("An anchor date can only be provided with an interval schedule")
+
+    try:
+        with open("deployment.yaml", "r") as f:
+            base_deploy = yaml.safe_load(f)
+    except FileNotFoundError:
+        app.console.print(
+            "No deployment.yaml file found, only provided CLI options will be used.",
+            style="orange",
+        )
+        base_deploy = {}
 
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
@@ -371,6 +389,31 @@ async def deploy(
 
     base_deploy["parameters"] = parameters
 
+    # update schedule
+    schedule = None
+    if cron:
+        cron_kwargs = {"cron": cron, "timezone": timezone}
+        schedule = CronSchedule(
+            **{k: v for k, v in cron_kwargs.items() if v is not None}
+        )
+    elif interval:
+        interval_kwargs = {
+            "interval": timedelta(seconds=interval),
+            "anchor_date": interval_anchor,
+            "timezone": timezone,
+        }
+        schedule = IntervalSchedule(
+            **{k: v for k, v in interval_kwargs.items() if v is not None}
+        )
+    elif rrule:
+        try:
+            schedule = RRuleSchedule(**json.loads(rrule))
+            if timezone:
+                # override timezone if specified via CLI argument
+                schedule.timezone = timezone
+        except json.JSONDecodeError:
+            schedule = RRuleSchedule(rrule=rrule, timezone=timezone)
+
     ## RUN BUILD AND PUSH STEPS
     step_outputs = {}
     for step in project["build"] + project["push"]:
@@ -396,8 +439,6 @@ async def deploy(
     elif not base_deploy["description"]:
         base_deploy["description"] = flow.description
 
-    # TODO: add schedule
-
     if work_pool_name:
         base_deploy["work_pool"]["name"] = work_pool_name
     if work_queue_name:
@@ -409,6 +450,10 @@ async def deploy(
     _parameter_schema = base_deploy.pop("parameter_openapi_schema")
     base_deploy = apply_values(base_deploy, step_outputs)
     base_deploy["parameter_openapi_schema"] = _parameter_schema
+
+    # set schedule afterwards to avoid templating errors
+    if schedule:
+        base_deploy["schedule"] = schedule
 
     # prepare the pull step
     project["pull"] = apply_values(project["pull"], step_outputs)
