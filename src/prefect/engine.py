@@ -201,7 +201,7 @@ def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
 
     return from_sync.wait_for_call_in_loop_thread(
         create_call(retrieve_flow_then_begin_flow_run, flow_run_id)
-    ).result()
+    )
 
 
 @inject_client
@@ -1444,7 +1444,8 @@ async def orchestrate_task_run(
     Returns:
         The final state of the run
     """
-    logger = task_run_logger(task_run, task=task)
+    flow_run = await client.read_flow_run(task_run.flow_run_id)
+    logger = task_run_logger(task_run, task=task, flow_run=flow_run)
 
     partial_task_run_context = PartialModel(
         TaskRunContext,
