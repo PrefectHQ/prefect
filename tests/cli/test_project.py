@@ -220,6 +220,29 @@ class TestProjectDeploy:
         assert deployment.tags == ["foo-bar"]
         assert deployment.infra_overrides == {"env": "prod"}
 
+    async def test_project_deploy_with_empty_dep_file(self, project_dir, orion_client):
+        # delete deployment.yaml and rewrite as empty
+        Path(project_dir, "deployment.yaml").unlink()
+
+        with open(Path(project_dir, "deployment.yaml"), "w") as f:
+            f.write("{}")
+
+        await orion_client.create_work_pool(
+            WorkPoolCreate(name="test-pool", type="test")
+        )
+        result = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command="deploy ./flows/hello.py:my_flow -n test-name -p test-pool",
+        )
+        assert result.exit_code == 0
+        assert "An important name/test" in result.output
+
+        deployment = await orion_client.read_deployment_by_name(
+            "An important name/test-name"
+        )
+        assert deployment.name == "test-name"
+        assert deployment.work_pool_name == "test-pool"
+
     async def test_project_deploy_templates_values(self, project_dir, orion_client):
         await orion_client.create_work_pool(
             WorkPoolCreate(name="test-pool", type="test")

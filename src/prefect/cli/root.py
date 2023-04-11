@@ -281,6 +281,15 @@ async def deploy(
     if interval_anchor and not interval:
         exit_with_error("An anchor date can only be provided with an interval schedule")
 
+    # load the default deployment file for key consistency
+    default_file = (
+        Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
+    )
+
+    # load default file
+    with open(default_file, "r") as df:
+        default_deployment = yaml.safe_load(df)
+
     try:
         with open("deployment.yaml", "r") as f:
             base_deploy = yaml.safe_load(f)
@@ -289,13 +298,17 @@ async def deploy(
             "No deployment.yaml file found, only provided CLI options will be used.",
             style="yellow",
         )
-        default_file = (
-            Path(__file__).parent.parent / "projects" / "templates" / "deployment.yaml"
-        )
+        base_deploy = {}
 
-        # load default file
-        with open(default_file, "r") as df:
-            base_deploy = yaml.safe_load(df)
+    # merge default and base deployment
+    # this allows for missing keys in a user's deployment file
+    for key, value in default_deployment.items():
+        if key not in base_deploy:
+            base_deploy[key] = value
+        if isinstance(value, dict):
+            for k, v in value.items():
+                if k not in base_deploy[key]:
+                    base_deploy[key][k] = v
 
     with open("prefect.yaml", "r") as f:
         project = yaml.safe_load(f)
