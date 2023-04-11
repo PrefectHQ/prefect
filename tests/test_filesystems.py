@@ -11,7 +11,7 @@ from prefect.filesystems import Azure, GitHub, LocalFileSystem, RemoteFileSystem
 from prefect.testing.utilities import AsyncMock, MagicMock
 from prefect.utilities.filesystem import tmpchdir
 
-TEST_PROJECTS_DIR = prefect.__root_path__ / "tests" / "test-projects"
+TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 
 def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str]:
@@ -46,17 +46,22 @@ def setup_test_directory(tmp_src: str, sub_dir: str = "puppy") -> Tuple[str, str
 class TestLocalFileSystem:
     async def test_read_write_roundtrip(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        await fs.write_path("test.txt", content=b"hello")
+        path = await fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
     def test_read_write_roundtrip_sync(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        fs.write_path("test.txt", content=b"hello")
+        path: str = fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_creates(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
-        await fs.write_path(Path("folder") / "test.txt", content=b"hello")
+        dst = Path("folder") / "test.txt"
+        path = await fs.write_path(dst, content=b"hello")
+        # as_posix because of windows delimiter
+        assert Path(path).as_posix().endswith("folder/test.txt")
         assert (tmp_path / "folder").exists()
         assert (tmp_path / "folder" / "test.txt").read_text() == "hello"
 
@@ -220,12 +225,14 @@ class TestRemoteFileSystem:
 
     async def test_read_write_roundtrip(self):
         fs = RemoteFileSystem(basepath="memory://root")
-        await fs.write_path("test.txt", content=b"hello")
+        path = await fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert await fs.read_path("test.txt") == b"hello"
 
     def test_read_write_roundtrip_sync(self):
         fs = RemoteFileSystem(basepath="memory://root")
-        fs.write_path("test.txt", content=b"hello")
+        path: str = fs.write_path("test.txt", content=b"hello")
+        assert path.endswith("test.txt")
         assert fs.read_path("test.txt") == b"hello"
 
     async def test_write_with_missing_directory_succeeds(self):

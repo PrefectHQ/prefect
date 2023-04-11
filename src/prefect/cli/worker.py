@@ -9,7 +9,6 @@ from prefect.cli._utilities import exit_with_error
 from prefect.cli.root import app
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
-from prefect.experimental.workers.base import BaseWorker
 from prefect.settings import (
     PREFECT_WORKER_HEARTBEAT_SECONDS,
     PREFECT_WORKER_PREFETCH_SECONDS,
@@ -17,6 +16,7 @@ from prefect.settings import (
 )
 from prefect.utilities.dispatch import lookup_type
 from prefect.utilities.services import critical_service_loop
+from prefect.workers.base import BaseWorker
 
 worker_app = PrefectTyper(
     name="worker", help="Commands for starting and interacting with workers."
@@ -27,16 +27,25 @@ app.add_typer(worker_app)
 @worker_app.command()
 async def start(
     worker_name: str = typer.Option(
-        None, "-n", "--name", help="The name to give to the started worker."
+        None,
+        "-n",
+        "--name",
+        help=(
+            "The name to give to the started worker. If not provided, a unique name"
+            " will be generated."
+        ),
     ),
     work_pool_name: str = typer.Option(
-        ..., "-p", "--pool", help="The work pool the started worker should join."
+        ..., "-p", "--pool", help="The work pool the started worker should poll."
     ),
     work_queues: List[str] = typer.Option(
         None,
-        "-q",
-        "--work-queue",
-        help="One or more work queue names for the worker to poll.",
+        "-t",
+        "--type",
+        help=(
+            "The type of worker to start. If not provided, the worker type will be"
+            " inferred from the work pool."
+        ),
     ),
     worker_type: Optional[str] = typer.Option(
         None, "-t", "--type", help="The type of worker to start."
@@ -45,7 +54,9 @@ async def start(
         PREFECT_WORKER_PREFETCH_SECONDS,
         help="Number of seconds to look into the future for scheduled flow runs.",
     ),
-    run_once: bool = typer.Option(False, help="Run worker loops only one time."),
+    run_once: bool = typer.Option(
+        False, help="Only run worker polling once. By default, the worker runs forever."
+    ),
     limit: int = typer.Option(
         None,
         "-l",

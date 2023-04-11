@@ -239,3 +239,8 @@ async def assert_uses_result_storage(
             else await Block.load(storage, client=client)
         ),
     )
+
+
+def a_test_step(**kwargs):
+    kwargs.update({"output1": 1, "output2": ["b", 2, 3]})
+    return kwargs

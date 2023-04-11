@@ -1,0 +1,27 @@
+prefect-version: null
+name: null
+description: "Store project within S3 and build a custom docker image for runtime"
+
+required_inputs:
+  image_name: "The image name, including repository, to give the built Docker image"
+  tag: "The tag to give the built Docker image"
+  bucket: "The bucket to store and retrieve this project from"
+
+build:
+  - prefect_docker.projects.steps.build_docker_image:
+      requires: "prefect-docker>=0.2.0"
+      image_name: null
+      tag: null
+      dockerfile: "{{ dockerfile }}"
+
+push: 
+  - prefect_aws.projects.steps.push_project_to_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ name }}"
+
+pull:
+  - prefect_aws.projects.steps.pull_project_from_s3:
+      requires: "prefect-aws>=0.3.0"
+      bucket: "{{ bucket }}"
+      folder: "{{ folder }}"
