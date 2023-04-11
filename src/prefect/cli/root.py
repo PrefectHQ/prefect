@@ -285,7 +285,8 @@ async def deploy(
             base_deploy = yaml.safe_load(f)
     except FileNotFoundError:
         app.console.print(
-            "No deployment.yaml file found, only provided CLI options will be used.", style="orange"
+            "No deployment.yaml file found, only provided CLI options will be used.",
+            style="orange",
         )
         base_deploy = {}
 
