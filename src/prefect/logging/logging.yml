@@ -39,6 +39,12 @@ handlers:
         level: 0
         class: prefect.logging.handlers.PrefectConsoleHandler
         formatter: standard
+        # To log to `stdout` instead of `stderr`, set `stream` to `ext://sys.stdout`.
+        # Any file-like object with `write` and `flush` methods will work can be used.
+        # as a log output stream.
+        # The setting can also be overriden with an environment variable:
+        #    `PREFECT_LOGGING_HANDLERS_CONSOLE_STREAM=ext://sys.stdout`
+        stream: ext://sys.stderr
         styles:
             log.web_url: bright_blue
             log.local_url: bright_blue
